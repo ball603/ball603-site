@@ -1,4 +1,4 @@
-// Update game assignments (photog1, photog2, videog, notes)
+// Update game assignments (photog1, photog2, videog, writer, notes, schedule_changed)
 
 async function createJWT(credentials) {
   const header = { alg: 'RS256', typ: 'JWT' };
@@ -53,12 +53,15 @@ async function getAccessToken(credentials) {
   return access_token;
 }
 
-// Map field names to column letters
+// Map field names to column letters (updated for new column order)
 const FIELD_COLUMNS = {
   photog1: 'I',
   photog2: 'J',
   videog: 'K',
-  notes: 'L'
+  writer: 'L',
+  notes: 'M',
+  original_date: 'N',
+  schedule_changed: 'O'
 };
 
 async function findGameRow(accessToken, spreadsheetId, sheetName, gameId) {

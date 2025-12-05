@@ -55,7 +55,7 @@ async function getAccessToken(credentials) {
 
 async function fetchSheet(accessToken, spreadsheetId, sheetName) {
   const response = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!A:N`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!A:O`,
     { headers: { 'Authorization': `Bearer ${accessToken}` } }
   );
   
@@ -91,6 +91,7 @@ function parseRows(rows, defaultLevel) {
       photog1: game.photog1 || '',
       photog2: game.photog2 || '',
       videog: game.videog || '',
+      writer: game.writer || '',
       notes: game.notes || '',
       original_date: game.original_date || '',
       schedule_changed: game.schedule_changed === 'YES'

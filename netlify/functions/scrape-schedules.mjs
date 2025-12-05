@@ -76,7 +76,7 @@ function deduplicateGames(games) {
 
 async function getExistingData(accessToken, spreadsheetId) {
   const response = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Schedules!A:N`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Schedules!A:O`,
     { headers: { 'Authorization': `Bearer ${accessToken}` } }
   );
   
@@ -95,9 +95,10 @@ async function getExistingData(accessToken, spreadsheetId) {
         photog1: row[8] || '',
         photog2: row[9] || '',
         videog: row[10] || '',
-        notes: row[11] || '',
-        original_date: row[12] || '',
-        schedule_changed: row[13] || ''
+        writer: row[11] || '',
+        notes: row[12] || '',
+        original_date: row[13] || '',
+        schedule_changed: row[14] || ''
       };
     }
   }
@@ -124,8 +125,8 @@ async function updateGoogleSheets(games) {
   const existingGames = await getExistingData(access_token, spreadsheetId);
   console.log(`  Found ${Object.keys(existingGames).length} existing games`);
   
-  // Header row with new columns
-  const header = ['game_id', 'date', 'time', 'away', 'home', 'gender', 'level', 'division', 'photog1', 'photog2', 'videog', 'notes', 'original_date', 'schedule_changed'];
+  // Header row with writer column
+  const header = ['game_id', 'date', 'time', 'away', 'home', 'gender', 'level', 'division', 'photog1', 'photog2', 'videog', 'writer', 'notes', 'original_date', 'schedule_changed'];
   
   let changesDetected = 0;
   
@@ -134,7 +135,7 @@ async function updateGoogleSheets(games) {
     const existing = existingGames[g.game_id] || {};
     
     // Check if this game has an assignment
-    const hasAssignment = existing.photog1 || existing.photog2 || existing.videog;
+    const hasAssignment = existing.photog1 || existing.photog2 || existing.videog || existing.writer;
     
     // Detect schedule change
     let originalDate = existing.original_date || '';
@@ -142,7 +143,7 @@ async function updateGoogleSheets(games) {
     
     if (hasAssignment && existing.date && existing.date !== g.date) {
       // Date changed for a claimed game!
-      originalDate = existing.original_date || existing.date; // Keep original, not intermediate changes
+      originalDate = existing.original_date || existing.date;
       scheduleChanged = 'YES';
       changesDetected++;
       console.log(`  ⚠️ Schedule change detected: ${g.home_team} vs ${g.away_team} moved from ${existing.date} to ${g.date}`);
@@ -165,6 +166,7 @@ async function updateGoogleSheets(games) {
       existing.photog1 || '',
       existing.photog2 || '',
       existing.videog || '',
+      existing.writer || '',
       existing.notes || '',
       originalDate,
       scheduleChanged
@@ -182,7 +184,7 @@ async function updateGoogleSheets(games) {
   });
   
   // Clear and update sheet
-  await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Schedules!A:N:clear`, {
+  await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Schedules!A:O:clear`, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${access_token}` }
   });
