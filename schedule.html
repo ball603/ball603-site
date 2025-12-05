@@ -214,6 +214,16 @@
     let currentDate = new Date();
     currentDate.setHours(0, 0, 0, 0);
     
+    // Normalize team names to short versions
+    function normalizeTeamName(name) {
+      if (!name) return name;
+      const normalizations = {
+        'Coe-Brown Northwood': 'Coe-Brown',
+        'Newmarket Jr/Sr': 'Newmarket'
+      };
+      return normalizations[name] || name;
+    }
+    
     // Team name to logo mapping
     function getLogoFilename(teamName) {
       if (!teamName) return 'Ball603.png';
@@ -270,7 +280,12 @@
       try {
         const response = await fetch('/.netlify/functions/get-games');
         const data = await response.json();
-        allGames = data.games || [];
+        // Normalize team names
+        allGames = (data.games || []).map(g => ({
+          ...g,
+          home: normalizeTeamName(g.home),
+          away: normalizeTeamName(g.away)
+        }));
         renderSchedule();
       } catch (err) {
         document.getElementById('scheduleContainer').innerHTML = '<div class="empty-state"><p>Error loading schedule. Please refresh.</p></div>';

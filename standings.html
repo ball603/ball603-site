@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Standings | Ball603</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { overflow-y: scroll; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #333; min-height: 100vh; }
+    
+    /* Header */
+    .header { background: #fff; padding: 15px 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+    .header-inner { max-width: 900px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+    .header-left { display: flex; align-items: center; gap: 15px; }
+    .header-left img { height: 50px; cursor: pointer; }
+    .header-left h1 { font-size: 20px; color: #333; }
+    .header-nav { display: flex; gap: 20px; }
+    .header-nav a { color: #666; text-decoration: none; font-size: 14px; font-weight: 500; }
+    .header-nav a:hover { color: #f57c00; }
+    .header-nav a.active { color: #f57c00; }
+    
+    /* Main container */
+    .container { width: 900px; margin: 0 auto; padding: 20px; }
+    
+    /* Controls */
+    .controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: nowrap; gap: 15px; }
+    .controls h2 { font-size: 18px; font-weight: 600; }
+    .filters { display: flex; gap: 10px; align-items: center; flex-shrink: 0; }
+    .filters select, .filters input { padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; }
+    .filters select { width: 100px; }
+    .filters input { width: 180px; }
+    
+    /* Standings container */
+    .standings-container { 
+      background: #fff; 
+      border-radius: 10px; 
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05); 
+      overflow-x: auto;
+      margin-bottom: 20px;
+    }
+    
+    /* Division header */
+    .division-header { 
+      background: #f57c00; 
+      color: #fff; 
+      padding: 12px 15px; 
+      font-weight: 600; 
+      font-size: 14px;
+    }
+    
+    /* Standings table */
+    .standings-table { width: 100%; border-collapse: collapse; background: #fff; font-size: 12px; }
+    .standings-table thead th { position: sticky; top: 0; z-index: 100; background: #e8e8e8; }
+    .standings-table th { background: #e8e8e8; padding: 10px 8px; text-align: left; font-weight: 600; color: #333; white-space: nowrap; }
+    .standings-table th.center { text-align: center; }
+    .standings-table td { padding: 8px; border-bottom: 1px solid #eee; vertical-align: middle; white-space: nowrap; }
+    .standings-table td.center { text-align: center; }
+    .standings-table tr:nth-child(even) { background: #f9f9f9; }
+    .standings-table tr:hover { background: #f0f0f0; }
+    
+    /* Seed column */
+    .seed-col { width: 40px; text-align: center; font-weight: 600; color: #666; }
+    
+    /* Team column */
+    .team-col { }
+    .team { display: flex; align-items: center; gap: 8px; }
+    .team-logo { width: 24px; height: 24px; border-radius: 4px; object-fit: contain; background: #f5f5f5; }
+    .team-name { font-size: 12px; color: #333; text-decoration: none; }
+    .team-name:hover { color: #f57c00; }
+    
+    /* Record columns */
+    .record-col { width: 40px; text-align: center; }
+    
+    /* Rating column */
+    .rating-col { width: 60px; text-align: center; }
+    
+    /* Playoff indicator */
+    .playoff-in { color: #4CAF50; }
+    .playoff-out { color: #999; }
+    .playoff-line { border-bottom: 2px dashed #f57c00 !important; }
+    
+    /* Empty state */
+    .empty-state { padding: 60px 20px; text-align: center; color: #888; }
+    
+    /* Loading */
+    .loading { padding: 60px 20px; text-align: center; color: #888; }
+    
+    /* Footer */
+    .footer { text-align: center; padding: 40px 20px; }
+    .footer img { height: 40px; opacity: 0.7; cursor: pointer; }
+    .footer img:hover { opacity: 1; }
+    
+    /* Mobile */
+    @media (max-width: 768px) {
+      .container { width: auto; min-width: auto; padding: 10px; }
+      .controls { flex-wrap: wrap; }
+      .header-nav { display: none; }
+      .header-left h1 { font-size: 16px; }
+      .filters { justify-content: center; flex-wrap: wrap; }
+      .filters input { width: 100%; }
+      
+      .standings-table { min-width: auto; }
+      .standings-table th, .standings-table td { padding: 8px 6px; }
+      .team-logo { width: 20px; height: 20px; }
+      .team-name { font-size: 11px; }
+    }
+    
+    @media (max-width: 480px) {
+      .team-logo { display: none; }
+      .rating-col { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-inner">
+      <div class="header-left">
+        <img src="logo.png" alt="Ball603" onclick="window.location.href='/'">
+        <h1>Standings</h1>
+      </div>
+      <nav class="header-nav">
+        <a href="/">Home</a>
+        <a href="/schedule.html">Schedule</a>
+        <a href="/standings.html" class="active">Standings</a>
+        <a href="/teams.html">Teams</a>
+      </nav>
+    </div>
+  </div>
+  
+  <div class="container">
+    <div class="controls">
+      <h2 id="standingsTitle">NHIAA Standings</h2>
+      <div class="filters">
+        <select id="genderFilter" onchange="renderStandings()">
+          <option value="Boys">Boys</option>
+          <option value="Girls">Girls</option>
+        </select>
+        <select id="divisionFilter" onchange="renderStandings()">
+          <option value="">All Divisions</option>
+          <option value="D-I">Division I</option>
+          <option value="D-II">Division II</option>
+          <option value="D-III">Division III</option>
+          <option value="D-IV">Division IV</option>
+        </select>
+        <input type="text" id="searchInput" placeholder="Search teams..." oninput="renderStandings()">
+      </div>
+    </div>
+    
+    <div id="standingsContainer">
+      <div class="loading">Loading standings...</div>
+    </div>
+  </div>
+  
+  <div class="footer">
+    <img src="logo.png" alt="Ball603" onclick="window.location.href='/'">
+  </div>
+
+  <script>
+    let allStandings = [];
+    
+    // Normalize team names to short versions
+    function normalizeTeamName(name) {
+      if (!name) return name;
+      const normalizations = {
+        'Coe-Brown Northwood': 'Coe-Brown',
+        'Newmarket Jr/Sr': 'Newmarket'
+      };
+      return normalizations[name] || name;
+    }
+    
+    // Team name to logo mapping
+    function getLogoFilename(teamName) {
+      if (!teamName) return 'Ball603.png';
+      
+      const specialCases = {
+        'coe-brown': 'CoeBrown',
+        'bishop brady': 'BishopBrady',
+        'bishop guertin': 'BishopGuertin',
+        'concord christian': 'ConcordChristian',
+        'con-val': 'ConVal',
+        'fall mountain': 'FallMountain',
+        'hillsboro-deering': 'HillsboroDeering',
+        'hollis-brookline': 'HollisBrookline',
+        'holy family': 'HolyFamily',
+        'inter-lakes': 'InterLakes',
+        'john stark': 'JohnStark',
+        'lin-wood': 'LinWood',
+        'manchester central': 'ManchesterCentral',
+        'manchester memorial': 'ManchesterMemorial',
+        'manchester west': 'ManchesterWest',
+        'merrimack valley': 'MerrimackValley',
+        'mount royal': 'MountRoyal',
+        'nashua north': 'NashuaNorth',
+        'nashua south': 'NashuaSouth',
+        'oyster river': 'OysterRiver',
+        'pittsburg-canaan': 'PittsburgCanaan',
+        'portsmouth christian': 'PortsmouthChristian',
+        'prospect mountain': 'ProspectMountain',
+        'st. thomas aquinas': 'StThomasAquinas',
+        'st thomas aquinas': 'StThomasAquinas',
+        'white mountains': 'WhiteMountains',
+        'wilton-lyndeborough': 'WiltonLyndeborough'
+      };
+      
+      const lower = teamName.toLowerCase().trim();
+      
+      if (specialCases[lower]) {
+        return specialCases[lower] + '.png';
+      }
+      
+      const cleaned = teamName
+        .split(/[\s-]+/)
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join('');
+      
+      return cleaned + '.png';
+    }
+    
+    async function loadStandings() {
+      try {
+        const response = await fetch('/.netlify/functions/get-standings');
+        const data = await response.json();
+        // Normalize team names
+        allStandings = (data.standings || []).map(s => ({
+          ...s,
+          school: normalizeTeamName(s.school)
+        }));
+        renderStandings();
+      } catch (err) {
+        document.getElementById('standingsContainer').innerHTML = '<div class="empty-state">Error loading standings. Please refresh.</div>';
+      }
+    }
+    
+    function renderStandings() {
+      const gender = document.getElementById('genderFilter').value;
+      const division = document.getElementById('divisionFilter').value;
+      const search = document.getElementById('searchInput').value.toLowerCase();
+      
+      // Update title
+      document.getElementById('standingsTitle').textContent = `${gender} ${division || 'All Divisions'} Standings`;
+      
+      // Filter standings
+      let standings = allStandings.filter(s => {
+        if (s.gender !== gender) return false;
+        if (division && s.division !== division) return false;
+        if (search && !s.school.toLowerCase().includes(search)) return false;
+        return true;
+      });
+      
+      if (standings.length === 0) {
+        document.getElementById('standingsContainer').innerHTML = '<div class="empty-state">No standings found.</div>';
+        return;
+      }
+      
+      // Group by division if showing all
+      const divisions = division ? [division] : ['D-I', 'D-II', 'D-III', 'D-IV'];
+      
+      let html = '';
+      
+      divisions.forEach(div => {
+        const divStandings = standings.filter(s => s.division === div);
+        if (divStandings.length === 0) return;
+        
+        // Sort by rating descending
+        divStandings.sort((a, b) => b.rating - a.rating);
+        
+        // Find playoff cutoff
+        const playoffSpots = divStandings[0]?.tournament_spots || Math.floor(divStandings.length * 0.7);
+        
+        html += `
+          <div class="standings-container">
+            <div class="division-header">${div} - ${gender}</div>
+            <table class="standings-table">
+              <thead>
+                <tr>
+                  <th class="seed-col center">#</th>
+                  <th class="team-col">Team</th>
+                  <th class="record-col center">W</th>
+                  <th class="record-col center">L</th>
+                  <th class="rating-col center">Rating</th>
+                </tr>
+              </thead>
+              <tbody>
+        `;
+        
+        divStandings.forEach((team, index) => {
+          const seed = index + 1;
+          const isPlayoffTeam = seed <= playoffSpots;
+          const isPlayoffLine = seed === playoffSpots;
+          
+          html += `
+            <tr class="${isPlayoffLine ? 'playoff-line' : ''}">
+              <td class="seed-col center ${isPlayoffTeam ? 'playoff-in' : 'playoff-out'}">${seed}</td>
+              <td class="team-col">
+                <div class="team">
+                  <img class="team-logo" src="/logos/100px/${getLogoFilename(team.school)}" alt="" onerror="this.onerror=null; this.src='/logos/100px/Ball603.png'">
+                  <a class="team-name" href="/teams/${getLogoFilename(team.school).replace('.png', '.html')}">${team.school}</a>
+                </div>
+              </td>
+              <td class="record-col center">${team.wins}</td>
+              <td class="record-col center">${team.losses}</td>
+              <td class="rating-col center">${team.rating.toFixed(3)}</td>
+            </tr>
+          `;
+        });
+        
+        html += '</tbody></table></div>';
+      });
+      
+      document.getElementById('standingsContainer').innerHTML = html;
+    }
+    
+    // Initialize
+    loadStandings();
+  </script>
+</body>
+</html>
