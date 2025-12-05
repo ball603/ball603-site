@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ball603 Score Entry</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #333; min-height: 100vh; }
+    .container { max-width: 900px; margin: 0 auto; padding: 20px; }
+    
+    /* Login */
+    .login-box { background: #fff; padding: 40px; border-radius: 10px; max-width: 400px; margin: 100px auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1); text-align: center; }
+    .login-box img { max-width: 120px; margin-bottom: 10px; cursor: pointer; }
+    .login-box h2 { font-size: 16px; color: #666; margin-bottom: 20px; font-weight: normal; }
+    .login-box input { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 5px; font-size: 16px; }
+    .login-box button { width: 100%; padding: 12px; background: #f57c00; color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; }
+    .login-box button:hover { background: #e65100; }
+    .error { color: #c41e3a; margin-top: 10px; }
+    
+    /* Header */
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 15px; background: #fff; padding: 15px 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); position: relative; min-height: 60px; }
+    .header-left { display: flex; align-items: center; gap: 15px; }
+    .header-left img { height: 50px; cursor: pointer; }
+    .header-left h1 { font-size: 18px; color: #333; }
+    .user-info { position: absolute; left: 50%; transform: translateX(-50%); display: flex; align-items: center; }
+    .user-info select { padding: 8px 12px; border-radius: 5px; border: 1px solid #f57c00; font-size: 14px; }
+    .logout-btn { padding: 8px 16px; background: #eee; color: #333; border: none; border-radius: 5px; cursor: pointer; }
+    .logout-btn:hover { background: #ddd; }
+    
+    /* Search and Filter */
+    .search-section { background: #fff; padding: 20px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+    .search-section h2 { font-size: 16px; margin-bottom: 15px; color: #666; }
+    .search-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .search-row input, .search-row select { padding: 10px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; }
+    .search-row input { flex: 1; min-width: 200px; }
+    .search-row select { min-width: 120px; }
+    
+    /* Games List */
+    .games-section { background: #fff; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); overflow: hidden; }
+    .games-section h2 { font-size: 16px; padding: 15px 20px; background: #f5f5f5; border-bottom: 1px solid #eee; color: #666; }
+    
+    .game-card { padding: 15px 20px; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 20px; }
+    .game-card:last-child { border-bottom: none; }
+    .game-card:hover { background: #fafafa; }
+    .game-card.has-score { background: #f0fff0; }
+    
+    .game-info { flex: 1; }
+    .game-date { font-size: 12px; color: #888; margin-bottom: 4px; }
+    .game-matchup { font-weight: 600; font-size: 15px; }
+    .game-details { font-size: 12px; color: #666; margin-top: 4px; }
+    
+    .game-score-display { text-align: center; min-width: 80px; }
+    .game-score-display .score { font-size: 18px; font-weight: 700; color: #333; }
+    .game-score-display .source { font-size: 10px; color: #888; }
+    
+    .score-entry { display: flex; align-items: center; gap: 8px; }
+    .score-input { width: 50px; padding: 8px; border: 1px solid #ddd; border-radius: 5px; text-align: center; font-size: 16px; font-weight: 600; }
+    .score-input:focus { outline: none; border-color: #f57c00; }
+    .score-dash { font-weight: 600; color: #666; }
+    .score-submit { padding: 8px 16px; background: #f57c00; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; }
+    .score-submit:hover { background: #e65100; }
+    .score-submit:disabled { background: #ccc; cursor: not-allowed; }
+    
+    .score-success { color: #4CAF50; font-size: 12px; margin-top: 4px; }
+    .score-error { color: #c41e3a; font-size: 12px; margin-top: 4px; }
+    
+    /* Mismatch warning */
+    .mismatch-warning { background: #fff3cd; color: #856404; padding: 4px 8px; border-radius: 4px; font-size: 11px; margin-top: 4px; }
+    
+    /* Empty state */
+    .empty-state { padding: 40px; text-align: center; color: #888; }
+    
+    /* Footer */
+    .footer { text-align: center; padding: 30px 20px 20px; }
+    .footer img { height: 40px; cursor: pointer; opacity: 0.7; }
+    .footer img:hover { opacity: 1; }
+    
+    /* Mobile */
+    @media (max-width: 768px) {
+      .container { padding: 10px; }
+      .header { flex-wrap: wrap; justify-content: center; padding: 10px 15px; }
+      .header-left h1 { display: none; }
+      .user-info { position: static; transform: none; }
+      .search-row { flex-direction: column; }
+      .search-row input, .search-row select { width: 100%; }
+      .game-card { flex-direction: column; align-items: flex-start; gap: 10px; }
+      .score-entry { width: 100%; justify-content: space-between; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container" id="app">
+    <!-- Login Screen -->
+    <div class="login-box" id="loginScreen">
+      <img src="logo.png" alt="Ball603" onclick="window.open('https://ball603.com', '_blank')">
+      <h2>Score Entry</h2>
+      <input type="password" id="password" placeholder="Enter password" onkeypress="if(event.key==='Enter')login()">
+      <button onclick="login()">Login</button>
+      <div class="error" id="loginError"></div>
+    </div>
+    
+    <!-- Main App -->
+    <div id="mainApp" style="display: none;">
+      <div class="header">
+        <div class="header-left">
+          <img src="logo.png" alt="Ball603" onclick="window.open('https://ball603.com', '_blank')">
+          <h1>Score Entry</h1>
+        </div>
+        <div class="user-info">
+          <select id="contributorSelect" onchange="saveContributor()">
+            <option value="">-- Select Your Name --</option>
+          </select>
+        </div>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+      </div>
+      
+      <div class="search-section">
+        <h2>Find a Game</h2>
+        <div class="search-row">
+          <input type="text" id="searchInput" placeholder="Search by team name..." oninput="filterGames()">
+          <select id="dateFilter" onchange="filterGames()">
+            <option value="today">Today</option>
+            <option value="yesterday">Yesterday</option>
+            <option value="week">Past Week</option>
+            <option value="all">All Games</option>
+          </select>
+          <select id="scoreFilter" onchange="filterGames()">
+            <option value="no-score">Needs Score</option>
+            <option value="has-score">Has Score</option>
+            <option value="all">All</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="games-section">
+        <h2>Games</h2>
+        <div id="gamesContainer">
+          <div class="empty-state">Loading games...</div>
+        </div>
+      </div>
+      
+      <div class="footer">
+        <img src="logo.png" alt="Ball603" onclick="window.open('https://ball603.com', '_blank')">
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const CONTRIBUTORS = [
+      "Andy Romike", "Arinn Roy", "Betsy Hansen", "Cam Place", "Chris Laclair", "Chris Prangley",
+      "Christine Gilbert", "Chuck Swierad", "Cindy Lavigne", "Connor Chrusciel", "Danielle Cook",
+      "Dave Beliveau", "Frank V Fichera", "Greg Alnwick", "Hannah Smith", "Haven Deschenes",
+      "Heather Savage-Erickson", "Heidi Green", "Jeff Criss", "Jessica Bonnette", "Jessica Tate",
+      "Jill Stevens", "Jocelyn Sprague", "John Scott Sherburne", "KJ Cardinal", "Leo Cardinal", "LJ Hydock",
+      "Logan Paronto", "Marc Hoak", "Maverick Thivierge", "Michael Griffin", "Mike Whaley",
+      "Mindy Marcouillier", "Nate Ford", "Nichole Marrero", "Rick Wilson", "Sara Roberts",
+      "Shawna Hurlbert", "Shirley Nickles", "Simon Scott", "Stefan Duncan", "Tim Lee",
+      "Todd Grzywacz", "Tyson Thomas"
+    ].sort();
+    
+    const CORRECT_PASSWORD = 'Gr@niteSt@teHoops';
+    const MONTH_NAMES = ['Jan.', 'Feb.', 'Mar.', 'Apr.', 'May', 'Jun.', 'Jul.', 'Aug.', 'Sep.', 'Oct.', 'Nov.', 'Dec.'];
+    
+    let allGames = [];
+    
+    // Check if already logged in
+    if (localStorage.getItem('ball603_auth') === 'true') {
+      showMainApp();
+    }
+    
+    function login() {
+      const pw = document.getElementById('password').value;
+      if (pw === CORRECT_PASSWORD) {
+        localStorage.setItem('ball603_auth', 'true');
+        showMainApp();
+      } else {
+        document.getElementById('loginError').textContent = 'Incorrect password';
+      }
+    }
+    
+    function logout() {
+      localStorage.removeItem('ball603_auth');
+      localStorage.removeItem('ball603_contributor');
+      location.reload();
+    }
+    
+    function showMainApp() {
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('mainApp').style.display = 'block';
+      populateContributors();
+      loadGames();
+    }
+    
+    function populateContributors() {
+      const select = document.getElementById('contributorSelect');
+      CONTRIBUTORS.forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        select.appendChild(opt);
+      });
+      const saved = localStorage.getItem('ball603_contributor');
+      if (saved) select.value = saved;
+    }
+    
+    function saveContributor() {
+      const name = document.getElementById('contributorSelect').value;
+      localStorage.setItem('ball603_contributor', name);
+    }
+    
+    function getContributor() {
+      return document.getElementById('contributorSelect').value;
+    }
+    
+    async function loadGames() {
+      try {
+        const response = await fetch('/.netlify/functions/get-games');
+        const data = await response.json();
+        allGames = data.games || [];
+        filterGames();
+      } catch (err) {
+        document.getElementById('gamesContainer').innerHTML = '<div class="empty-state">Error loading games. Please refresh.</div>';
+      }
+    }
+    
+    function filterGames() {
+      const search = document.getElementById('searchInput').value.toLowerCase();
+      const dateFilter = document.getElementById('dateFilter').value;
+      const scoreFilter = document.getElementById('scoreFilter').value;
+      
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      
+      const weekAgo = new Date(today);
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      
+      let filtered = allGames.filter(g => {
+        // Search filter
+        if (search && !g.home.toLowerCase().includes(search) && !g.away.toLowerCase().includes(search)) {
+          return false;
+        }
+        
+        // Date filter
+        const gameDate = new Date(g.date + 'T00:00:00');
+        if (dateFilter === 'today' && gameDate.getTime() !== today.getTime()) return false;
+        if (dateFilter === 'yesterday' && gameDate.getTime() !== yesterday.getTime()) return false;
+        if (dateFilter === 'week' && gameDate < weekAgo) return false;
+        
+        // Score filter
+        const hasScore = g.score_away || g.score_home;
+        if (scoreFilter === 'no-score' && hasScore) return false;
+        if (scoreFilter === 'has-score' && !hasScore) return false;
+        
+        return true;
+      });
+      
+      // Sort by date descending (most recent first)
+      filtered.sort((a, b) => b.date.localeCompare(a.date));
+      
+      renderGames(filtered);
+    }
+    
+    function renderGames(games) {
+      if (games.length === 0) {
+        document.getElementById('gamesContainer').innerHTML = '<div class="empty-state">No games found</div>';
+        return;
+      }
+      
+      let html = '';
+      games.forEach(game => {
+        const hasScore = game.score_away || game.score_home;
+        const cardClass = hasScore ? 'game-card has-score' : 'game-card';
+        
+        html += `
+          <div class="${cardClass}" data-id="${game.game_id}">
+            <div class="game-info">
+              <div class="game-date">${formatDate(game.date)} ${game.time ? '• ' + game.time : ''}</div>
+              <div class="game-matchup">${game.away} @ ${game.home}</div>
+              <div class="game-details">${game.gender || ''} ${game.division || ''} ${game.level || ''}</div>
+              ${game.score_mismatch ? `<div class="mismatch-warning">⚠️ ${game.score_mismatch}</div>` : ''}
+            </div>
+            ${hasScore ? renderScoreDisplay(game) : renderScoreEntry(game)}
+          </div>
+        `;
+      });
+      
+      document.getElementById('gamesContainer').innerHTML = html;
+    }
+    
+    function renderScoreDisplay(game) {
+      return `
+        <div class="game-score-display">
+          <div class="score">${game.score_away} - ${game.score_home}</div>
+          <div class="source">${game.score_source || 'unknown'}</div>
+        </div>
+      `;
+    }
+    
+    function renderScoreEntry(game) {
+      return `
+        <div class="score-entry" id="entry-${game.game_id}">
+          <input type="number" class="score-input" id="away-${game.game_id}" placeholder="0" min="0">
+          <span class="score-dash">-</span>
+          <input type="number" class="score-input" id="home-${game.game_id}" placeholder="0" min="0">
+          <button class="score-submit" onclick="submitScore('${game.game_id}')">Save</button>
+        </div>
+      `;
+    }
+    
+    function formatDate(isoDate) {
+      if (!isoDate) return '';
+      const [year, month, day] = isoDate.split('-');
+      const monthName = MONTH_NAMES[parseInt(month, 10) - 1];
+      const dayNum = parseInt(day, 10);
+      return `${monthName} ${dayNum}`;
+    }
+    
+    async function submitScore(gameId) {
+      const contributor = getContributor();
+      if (!contributor) {
+        alert('Please select your name first');
+        return;
+      }
+      
+      const awayInput = document.getElementById(`away-${gameId}`);
+      const homeInput = document.getElementById(`home-${gameId}`);
+      const scoreAway = parseInt(awayInput.value);
+      const scoreHome = parseInt(homeInput.value);
+      
+      if (isNaN(scoreAway) || isNaN(scoreHome)) {
+        alert('Please enter both scores');
+        return;
+      }
+      
+      if (scoreAway < 0 || scoreHome < 0) {
+        alert('Scores cannot be negative');
+        return;
+      }
+      
+      // Disable button while saving
+      const entryDiv = document.getElementById(`entry-${gameId}`);
+      const button = entryDiv.querySelector('button');
+      button.disabled = true;
+      button.textContent = 'Saving...';
+      
+      try {
+        const response = await fetch('/.netlify/functions/update-score', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            gameId,
+            scoreAway,
+            scoreHome,
+            enteredBy: contributor
+          })
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+          // Update local data
+          const game = allGames.find(g => g.game_id === gameId);
+          if (game) {
+            game.score_away = scoreAway;
+            game.score_home = scoreHome;
+            game.score_source = `manual (${contributor})`;
+          }
+          filterGames();
+        } else {
+          alert('Error: ' + (result.error || 'Unknown error'));
+          button.disabled = false;
+          button.textContent = 'Save';
+        }
+      } catch (err) {
+        alert('Error saving score. Please try again.');
+        button.disabled = false;
+        button.textContent = 'Save';
+      }
+    }
+  </script>
+</body>
+</html>
