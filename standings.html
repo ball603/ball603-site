@@ -26,8 +26,16 @@
     /* Controls */
     .controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
     .controls h2 { font-size: 18px; font-weight: 600; }
-    .filters { display: flex; gap: 10px; align-items: center; }
-    .filters select { padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; }
+    .toggle-btn { 
+      padding: 8px 16px; 
+      border: 1px solid #ddd; 
+      border-radius: 5px; 
+      font-size: 14px; 
+      background: #fff; 
+      cursor: pointer;
+      font-weight: 500;
+    }
+    .toggle-btn:hover { background: #f5f5f5; }
     
     /* 2x2 Grid */
     .standings-grid {
@@ -46,9 +54,9 @@
       flex-direction: column;
     }
     
-    /* Division header - smaller, less orange */
+    /* Division header - smaller, subtle */
     .division-header {
-      background: #f5f5f5;
+      background: #fafafa;
       border-bottom: 2px solid #f57c00;
       padding: 10px 12px;
       font-weight: 600;
@@ -60,7 +68,13 @@
     .table-wrapper {
       max-height: 320px;
       overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: #ddd transparent;
     }
+    .table-wrapper::-webkit-scrollbar { width: 6px; }
+    .table-wrapper::-webkit-scrollbar-track { background: transparent; }
+    .table-wrapper::-webkit-scrollbar-thumb { background: #ddd; border-radius: 3px; }
+    .table-wrapper::-webkit-scrollbar-thumb:hover { background: #ccc; }
     
     /* Standings table */
     .standings-table { width: 100%; border-collapse: collapse; font-size: 11px; }
@@ -126,13 +140,8 @@
   
   <div class="container">
     <div class="controls">
-      <h2 id="standingsTitle">NHIAA Standings</h2>
-      <div class="filters">
-        <select id="genderFilter" onchange="renderStandings()">
-          <option value="Boys">Boys</option>
-          <option value="Girls">Girls</option>
-        </select>
-      </div>
+      <h2 id="standingsTitle">2025-26 NHIAA Boys Basketball Standings</h2>
+      <button class="toggle-btn" id="genderToggle" onclick="toggleGender()">Girls</button>
     </div>
     
     <div class="standings-grid" id="standingsGrid">
@@ -146,6 +155,13 @@
 
   <script>
     let allStandings = [];
+    let currentGender = 'Boys';
+    
+    function toggleGender() {
+      currentGender = currentGender === 'Boys' ? 'Girls' : 'Boys';
+      document.getElementById('genderToggle').textContent = currentGender === 'Boys' ? 'Girls' : 'Boys';
+      renderStandings();
+    }
     
     // Normalize team names to short versions
     function normalizeTeamName(name) {
@@ -336,10 +352,10 @@
     }
     
     function renderStandings() {
-      const gender = document.getElementById('genderFilter').value;
+      const gender = currentGender;
       
       // Update title
-      document.getElementById('standingsTitle').textContent = `${gender} NHIAA Standings`;
+      document.getElementById('standingsTitle').textContent = `2025-26 NHIAA ${gender} Basketball Standings`;
       
       const divisions = ['D-I', 'D-II', 'D-III', 'D-IV'];
       let html = '';
