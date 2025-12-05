@@ -32,29 +32,10 @@
     .filters select, .filters input { padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; }
     .filters input { width: 200px; }
     
-    /* Tabs */
-    .tabs { 
-      display: flex; 
-      gap: 5px; 
-      margin-bottom: 0;
-    }
-    .tab { 
-      padding: 10px 20px; 
-      background: #fff; 
-      border: 1px solid #ddd; 
-      border-bottom: none;
-      color: #666; 
-      cursor: pointer; 
-      border-radius: 5px 5px 0 0; 
-      font-size: 14px;
-    }
-    .tab:hover { background: #f5f5f5; }
-    .tab.active { background: #f57c00; color: white; border-color: #f57c00; }
-    
     /* Schedule container */
     .schedule-container { 
       background: #fff; 
-      border-radius: 0 10px 10px 10px; 
+      border-radius: 10px; 
       box-shadow: 0 2px 5px rgba(0,0,0,0.05); 
       overflow-x: auto;
       max-height: calc(100vh - 250px);
@@ -118,8 +99,6 @@
       .date-nav { justify-content: center; }
       .filters { justify-content: center; flex-wrap: wrap; }
       .filters input { width: 100%; }
-      .tabs { overflow-x: auto; }
-      .tab { padding: 8px 15px; font-size: 13px; white-space: nowrap; }
       
       .games-table th, .games-table td { padding: 10px 8px; }
       .gender-col { width: 40px; font-size: 11px; }
@@ -162,19 +141,19 @@
         <button onclick="nextDay()">▶</button>
       </div>
       <div class="filters">
+        <select id="levelFilter" onchange="renderSchedule()">
+          <option value="">Level</option>
+          <option value="NHIAA">NHIAA</option>
+          <option value="College">College</option>
+          <option value="Prep">Prep</option>
+        </select>
         <select id="genderFilter" onchange="renderSchedule()">
-          <option value="">All Genders</option>
+          <option value="">Gender</option>
           <option value="Boys">Boys</option>
           <option value="Girls">Girls</option>
         </select>
         <input type="text" id="searchInput" placeholder="Search teams..." oninput="renderSchedule()">
       </div>
-    </div>
-    
-    <div class="tabs">
-      <div class="tab active" data-tab="NHIAA" onclick="setTab('NHIAA')">NHIAA</div>
-      <div class="tab" data-tab="College" onclick="setTab('College')">College</div>
-      <div class="tab" data-tab="Prep" onclick="setTab('Prep')">Prep</div>
     </div>
     
     <div class="schedule-container" id="scheduleContainer">
@@ -191,7 +170,6 @@
     const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     
     let allGames = [];
-    let currentTab = 'NHIAA';
     let currentDate = new Date();
     currentDate.setHours(0, 0, 0, 0);
     
@@ -258,13 +236,6 @@
       }
     }
     
-    function setTab(tab) {
-      currentTab = tab;
-      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-      document.querySelector(`.tab[data-tab="${tab}"]`).classList.add('active');
-      renderSchedule();
-    }
-    
     function prevDay() {
       currentDate.setDate(currentDate.getDate() - 1);
       updateDateDisplay();
@@ -292,15 +263,22 @@
       return `${year}-${month}-${day}`;
     }
     
+    function formatTime(time) {
+      if (!time) return 'TBD';
+      // Remove leading zero from hour (e.g., "07:00 PM" -> "7:00 PM")
+      return time.replace(/^0/, '');
+    }
+    
     function renderSchedule() {
       const search = document.getElementById('searchInput').value.toLowerCase();
       const gender = document.getElementById('genderFilter').value;
+      const level = document.getElementById('levelFilter').value;
       const dateStr = getDateString(currentDate);
       
       // Filter games
       let games = allGames.filter(g => {
-        if (g.level !== currentTab) return false;
         if (g.date !== dateStr) return false;
+        if (level && g.level !== level) return false;
         if (gender && g.gender !== gender) return false;
         if (search && !g.home.toLowerCase().includes(search) && !g.away.toLowerCase().includes(search)) return false;
         return true;
@@ -364,7 +342,7 @@
                 <div class="game-score">${game.score_away} - ${game.score_home}</div>
                 <div class="game-final">Final</div>
               ` : `
-                <div class="game-time">${game.time || 'TBD'}</div>
+                <div class="game-time">${formatTime(game.time)}</div>
               `}
             </td>
             <td class="coverage-col">
