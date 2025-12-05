@@ -1,47 +1,185 @@
-// Ball603 NHIAA Schedule Scraper - DEBUG VERSION 2
-// Looking at actual HTML structure
+// Ball603 NHIAA Schedule Scraper
+// Runs 3x daily via Netlify scheduled functions
 
 const SCHEDULE_URLS = [
+  { url: 'https://www.nhiaa.org/sports/schedules/boys-basketball/division-1', gender: 'Boys', division: 'D-I' },
+  { url: 'https://www.nhiaa.org/sports/schedules/boys-basketball/division-2', gender: 'Boys', division: 'D-II' },
+  { url: 'https://www.nhiaa.org/sports/schedules/boys-basketball/division-3', gender: 'Boys', division: 'D-III' },
   { url: 'https://www.nhiaa.org/sports/schedules/boys-basketball/division-4', gender: 'Boys', division: 'D-IV' },
+  { url: 'https://www.nhiaa.org/sports/schedules/girls-basketball/division-1', gender: 'Girls', division: 'D-I' },
+  { url: 'https://www.nhiaa.org/sports/schedules/girls-basketball/division-2', gender: 'Girls', division: 'D-II' },
+  { url: 'https://www.nhiaa.org/sports/schedules/girls-basketball/division-3', gender: 'Girls', division: 'D-III' },
+  { url: 'https://www.nhiaa.org/sports/schedules/girls-basketball/division-4', gender: 'Girls', division: 'D-IV' },
 ];
 
+function parseSchedulePage(html, gender, division) {
+  const games = [];
+  
+  // Split by <li><h2> to get each team section
+  const teamSections = html.split(/<li><h2>/i);
+  
+  for (let i = 1; i < teamSections.length; i++) {
+    const section = teamSections[i];
+    
+    // Get team name - everything before <!-- or </h2>
+    const teamNameMatch = section.match(/^([^<]+)/);
+    if (!teamNameMatch) continue;
+    
+    const teamName = teamNameMatch[1].trim();
+    if (!teamName || teamName.length < 2) continue;
+    
+    // Find all table rows with games
+    const rowRegex = /<tr>\s*<td>(\d{2}\/\d{2}\/\d{2})<\/td>\s*<td[^>]*>([^<]*)<\/td>\s*<td>([^<]+)<\/td>\s*<td[^>]*>[^<]*<\/td>\s*<td[^>]*>([^<]*)<\/td>/gi;
+    
+    let match;
+    while ((match = rowRegex.exec(section)) !== null) {
+      const date = match[1].trim();
+      const atIndicator = match[2].trim();
+      const opponent = match[3].trim();
+      const time = match[4].trim();
+      
+      if (!date || !opponent) continue;
+      
+      const isAway = atIndicator.toLowerCase() === 'at';
+      const homeTeam = isAway ? opponent : teamName;
+      const awayTeam = isAway ? teamName : opponent;
+      
+      // Parse date (MM/DD/YY)
+      const [month, day, year] = date.split('/');
+      const fullYear = year.length === 2 ? `20${year}` : year;
+      const isoDate = `${fullYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+      
+      const gameId = `${isoDate}-${homeTeam}-${awayTeam}`.replace(/\s+/g, '-').toLowerCase();
+      
+      games.push({
+        game_id: gameId,
+        date: isoDate,
+        time: time,
+        home_team: homeTeam,
+        away_team: awayTeam,
+        gender: gender,
+        division: division
+      });
+    }
+  }
+  
+  return games;
+}
+
+function deduplicateGames(games) {
+  const seen = new Set();
+  return games.filter(game => {
+    if (seen.has(game.game_id)) return false;
+    seen.add(game.game_id);
+    return true;
+  });
+}
+
+async function updateGoogleSheets(games) {
+  const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
+  const spreadsheetId = process.env.GOOGLE_SHEETS_SCHEDULE_ID;
+  
+  const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion: await createJWT(credentials)
+    })
+  });
+  
+  const { access_token } = await tokenResponse.json();
+  
+  const header = ['game_id', 'date', 'time', 'home_team', 'away_team', 'gender', 'division', 'home_score', 'away_score', 'scraped_at'];
+  const rows = games.map(g => [
+    g.game_id, g.date, g.time, g.home_team, g.away_team,
+    g.gender, g.division, '', '', new Date().toISOString()
+  ]);
+  
+  await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Schedules!A:J:clear`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${access_token}` }
+  });
+  
+  await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Schedules!A1?valueInputOption=RAW`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${access_token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ values: [header, ...rows] })
+  });
+  
+  return rows.length;
+}
+
+async function createJWT(credentials) {
+  const header = { alg: 'RS256', typ: 'JWT' };
+  const now = Math.floor(Date.now() / 1000);
+  const payload = {
+    iss: credentials.client_email,
+    scope: 'https://www.googleapis.com/auth/spreadsheets',
+    aud: 'https://oauth2.googleapis.com/token',
+    iat: now,
+    exp: now + 3600
+  };
+  
+  const encoder = new TextEncoder();
+  const headerB64 = btoa(JSON.stringify(header)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+  const payloadB64 = btoa(JSON.stringify(payload)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+  const unsignedToken = `${headerB64}.${payloadB64}`;
+  
+  const pemContents = credentials.private_key.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\n/g, '');
+  const binaryKey = Uint8Array.from(atob(pemContents), c => c.charCodeAt(0));
+  
+  const cryptoKey = await crypto.subtle.importKey(
+    'pkcs8',
+    binaryKey,
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  
+  const signature = await crypto.subtle.sign(
+    'RSASSA-PKCS1-v1_5',
+    cryptoKey,
+    encoder.encode(unsignedToken)
+  );
+  
+  const signatureB64 = btoa(String.fromCharCode(...new Uint8Array(signature)))
+    .replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+  
+  return `${unsignedToken}.${signatureB64}`;
+}
+
 export default async (request) => {
-  console.log('Ball603 Schedule Scraper - DEBUG VERSION 2');
+  console.log('Ball603 Schedule Scraper - Starting...');
   
   try {
-    const response = await fetch(SCHEDULE_URLS[0].url);
-    const html = await response.text();
+    const allGames = [];
     
-    // Find Colebrook and show surrounding HTML
-    const colebrookPos = html.indexOf('Colebrook');
-    if (colebrookPos > -1) {
-      console.log('=== HTML around Colebrook (team section start) ===');
-      console.log(html.substring(colebrookPos - 50, colebrookPos + 800));
+    for (const { url, gender, division } of SCHEDULE_URLS) {
+      console.log(`Fetching ${gender} ${division}...`);
+      const response = await fetch(url);
+      const html = await response.text();
+      const games = parseSchedulePage(html, gender, division);
+      allGames.push(...games);
+      console.log(`  Found ${games.length} game entries`);
     }
     
-    // Find first date 12/05/25
-    const datePos = html.indexOf('12/05/25');
-    if (datePos > -1) {
-      console.log('=== HTML around first date 12/05/25 ===');
-      console.log(html.substring(datePos - 100, datePos + 400));
-    }
+    const dedupedGames = deduplicateGames(allGames);
+    console.log(`Total unique games: ${dedupedGames.length}`);
     
-    // Show what tags are used
-    console.log('=== Checking for li tags ===');
-    const liCount = (html.match(/<li/gi) || []).length;
-    console.log(`Found ${liCount} <li> tags`);
-    
-    console.log('=== Checking for h2 tags ===');
-    const h2Count = (html.match(/<h2/gi) || []).length;
-    console.log(`Found ${h2Count} <h2> tags`);
+    const rowCount = await updateGoogleSheets(dedupedGames);
     
     return new Response(JSON.stringify({
       success: true,
-      message: 'Check logs'
+      gamesScraped: dedupedGames.length,
+      timestamp: new Date().toISOString()
     }), { status: 200 });
     
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Scraper error:', error);
     return new Response(JSON.stringify({ error: error.message }), { status: 500 });
   }
 };
