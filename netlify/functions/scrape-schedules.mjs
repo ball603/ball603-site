@@ -15,29 +15,46 @@ const SCHEDULE_URLS = [
 function parseSchedulePage(html, gender, division) {
   const games = [];
   
-  // The page has sections like: ## TeamName followed by a table
-  // Split by ## to get team sections
-  const sections = html.split(/##\s+/);
+  // Find all team sections - each starts with <h2>TeamName</h2>
+  const teamSections = html.split(/<h2>/i);
   
-  for (const section of sections) {
-    // Get team name (first line before any HTML)
-    const teamNameMatch = section.match(/^([A-Za-z\-\s'\.]+)/);
+  for (let i = 1; i < teamSections.length; i++) {
+    const section = teamSections[i];
+    
+    // Get team name (text before </h2>)
+    const teamNameMatch = section.match(/^([^<]+)<\/h2>/i);
     if (!teamNameMatch) continue;
     
     const teamName = teamNameMatch[1].trim();
     if (!teamName || teamName.length < 2) continue;
     
-    // Find all table rows in this section
-    const rowRegex = /<tr[^>]*>\s*<td[^>]*>(\d{2}\/\d{2}\/\d{2})<\/td>\s*<td[^>]*>(at|)<\/td>\s*<td[^>]*>([^<]+)<\/td>\s*<td[^>]*>[^<]*<\/td>\s*<td[^>]*>([^<]*)<\/td>/gi;
+    // Skip non-team h2s (like navigation items)
+    if (teamName.includes('NHIAA') || teamName.includes('Sponsors') || teamName.includes('Updates')) continue;
     
-    let match;
-    while ((match = rowRegex.exec(section)) !== null) {
-      const date = match[1];
-      const atIndicator = match[2].trim();
-      const opponent = match[3].trim();
-      const time = match[4].trim();
+    // Find all rows with dates in this section (stop at next h2 or end)
+    const sectionEnd = section.indexOf('<h2>') > -1 ? section.indexOf('<h2>') : section.length;
+    const tableSection = section.substring(0, sectionEnd);
+    
+    // Match table rows - looking for date pattern MM/DD/YY
+    const datePattern = /(\d{2}\/\d{2}\/\d{2})/g;
+    const rows = tableSection.split(/<tr/i);
+    
+    for (const row of rows) {
+      // Check if this row has a date
+      const dateMatch = row.match(/(\d{2}\/\d{2}\/\d{2})/);
+      if (!dateMatch) continue;
       
-      if (!date || !opponent) continue;
+      const date = dateMatch[1];
+      
+      // Extract cells - get all td contents
+      const cellMatches = [...row.matchAll(/<td[^>]*>([^<]*)<\/td>/gi)];
+      if (cellMatches.length < 5) continue;
+      
+      const atIndicator = cellMatches[1] ? cellMatches[1][1].trim() : '';
+      const opponent = cellMatches[2] ? cellMatches[2][1].trim() : '';
+      const time = cellMatches[4] ? cellMatches[4][1].trim() : '';
+      
+      if (!opponent) continue;
       
       const isAway = atIndicator.toLowerCase() === 'at';
       const homeTeam = isAway ? opponent : teamName;
