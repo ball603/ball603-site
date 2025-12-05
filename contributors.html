@@ -461,7 +461,17 @@
       try {
         const response = await fetch('/.netlify/functions/get-games');
         const data = await response.json();
-        allGames = data.games || [];
+        let games = data.games || [];
+        
+        // Normalize team names
+        games = games.map(g => ({
+          ...g,
+          home: normalizeTeamName(g.home),
+          away: normalizeTeamName(g.away)
+        }));
+        
+        // Deduplicate inter-division games
+        allGames = deduplicateGames(games);
         
         // Build unique team list for autocomplete
         const teamSet = new Set();
@@ -477,6 +487,62 @@
       } catch (err) {
         document.getElementById('gamesContainer').innerHTML = '<div class="loading">Error loading games. Please refresh.</div>';
       }
+    }
+    
+    // Normalize team names to consistent versions
+    function normalizeTeamName(name) {
+      if (!name) return name;
+      const normalizations = {
+        'Newmarket Jr/Sr': 'Newmarket',
+        'Coe-Brown Northwood': 'Coe-Brown'
+      };
+      return normalizations[name] || name;
+    }
+    
+    // Deduplicate games - merge inter-division matchups
+    function deduplicateGames(games) {
+      const gameMap = new Map();
+      
+      games.forEach(game => {
+        // Create a unique key: date + time + sorted teams + gender
+        const teams = [game.away, game.home].sort();
+        const key = `${game.date}|${game.time || ''}|${teams[0]}|${teams[1]}|${game.gender || ''}`;
+        
+        if (gameMap.has(key)) {
+          // Merge with existing game
+          const existing = gameMap.get(key);
+          
+          // Merge divisions if different
+          if (existing.division !== game.division && game.division) {
+            const divs = [existing.division, game.division].filter(Boolean);
+            const uniqueDivs = [...new Set(divs)];
+            if (uniqueDivs.length > 1) {
+              // Sort divisions properly (D-I, D-II, D-III, D-IV)
+              uniqueDivs.sort((a, b) => {
+                const order = {'D-I': 1, 'D-II': 2, 'D-III': 3, 'D-IV': 4};
+                return (order[a] || 99) - (order[b] || 99);
+              });
+              existing.division = uniqueDivs.join(' / ');
+            }
+          }
+          
+          // Merge assignments (keep any that exist)
+          existing.photog1 = existing.photog1 || game.photog1;
+          existing.photog2 = existing.photog2 || game.photog2;
+          existing.videog = existing.videog || game.videog;
+          existing.writer = existing.writer || game.writer;
+          existing.notes = existing.notes || game.notes;
+          
+          // Keep schedule_changed if either has it
+          existing.schedule_changed = existing.schedule_changed || game.schedule_changed;
+          existing.original_date = existing.original_date || game.original_date;
+          
+        } else {
+          gameMap.set(key, { ...game });
+        }
+      });
+      
+      return Array.from(gameMap.values());
     }
     
     function getChangeDescription(game) {
@@ -611,12 +677,22 @@
     }
     
     function populateDivisionFilter() {
-      // Only show NHIAA divisions (D-I, D-II, etc.), not College divisions
-      const divisions = [...new Set(allGames
+      // Only show individual NHIAA divisions (D-I, D-II, etc.), not combined ones
+      const divisionSet = new Set();
+      allGames
         .filter(g => g.level === 'NHIAA')
-        .map(g => g.division)
-        .filter(Boolean)
-      )].sort();
+        .forEach(g => {
+          if (g.division) {
+            // Split combined divisions and add each one
+            g.division.split(' / ').forEach(d => divisionSet.add(d.trim()));
+          }
+        });
+      
+      const divisions = [...divisionSet].sort((a, b) => {
+        const order = {'D-I': 1, 'D-II': 2, 'D-III': 3, 'D-IV': 4};
+        return (order[a] || 99) - (order[b] || 99);
+      });
+      
       const select = document.getElementById('divisionFilter');
       divisions.forEach(div => {
         const opt = document.createElement('option');
@@ -688,7 +764,8 @@
         if (currentTab !== 'all' && g.level !== currentTab) return false;
         if (search && !g.home.toLowerCase().includes(search) && !g.away.toLowerCase().includes(search)) return false;
         if (gender && g.gender !== gender) return false;
-        if (division && g.division !== division) return false;
+        // Division filter: match if the game's division contains the selected division
+        if (division && (!g.division || !g.division.includes(division))) return false;
         
         const hasClaim = g.photog1 || g.photog2 || g.videog || g.writer;
         const isMine = g.photog1 === me || g.photog2 === me || g.videog === me || g.writer === me;
