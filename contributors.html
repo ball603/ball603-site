@@ -107,12 +107,120 @@
     .footer img { height: 40px; cursor: pointer; opacity: 0.7; }
     .footer img:hover { opacity: 1; }
     
-    /* Responsive */
+    /* Responsive - Mobile Only */
     @media (max-width: 768px) {
-      .games-table { font-size: 11px; }
-      .games-table th, .games-table td { padding: 6px 4px; }
-      .hide-mobile { display: none; }
+      .container { padding: 10px; }
+      
+      /* Header - center logo */
+      .header { 
+        flex-direction: column; 
+        gap: 10px; 
+        padding: 10px 15px; 
+        margin-bottom: 10px;
+      }
+      .header-left { 
+        width: 100%; 
+        justify-content: center; 
+      }
       .header-left h1 { display: none; }
+      .header-left img { height: 45px; }
+      .user-info { 
+        width: 100%; 
+        justify-content: center;
+        gap: 10px;
+      }
+      .user-info select { 
+        padding: 6px 8px; 
+        font-size: 12px;
+        flex: 1;
+        max-width: 200px;
+      }
+      .logout-btn { 
+        padding: 6px 12px; 
+        font-size: 12px; 
+      }
+      
+      /* Filters - compact */
+      .filters { 
+        gap: 6px; 
+        margin-bottom: 10px; 
+      }
+      .filters select, .filters input { 
+        padding: 6px 8px; 
+        font-size: 11px; 
+      }
+      .filters input { width: 100%; }
+      .search-wrapper { flex: 1; min-width: 120px; }
+      
+      /* Tabs - smaller */
+      .tabs { 
+        gap: 3px; 
+        margin-bottom: 10px; 
+      }
+      .tab { 
+        padding: 6px 10px; 
+        font-size: 11px; 
+      }
+      
+      /* Alert banner - compact */
+      .alert-banner { 
+        padding: 10px 12px; 
+        margin-bottom: 10px; 
+      }
+      .alert-banner h3 { 
+        font-size: 14px; 
+        margin-bottom: 8px; 
+      }
+      .alert-item { padding: 6px 0; }
+      .alert-game { font-size: 12px; }
+      .alert-change { font-size: 11px; }
+      .alert-btn { padding: 5px 10px; font-size: 11px; }
+      
+      /* Table container - horizontal scroll with fixed header */
+      .table-container {
+        position: relative;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      
+      /* Table - compact single-line rows */
+      .games-table { 
+        font-size: 11px; 
+        min-width: 500px;
+      }
+      .games-table th, .games-table td { 
+        padding: 6px 5px; 
+        white-space: nowrap;
+      }
+      .games-table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        background: #e8e8e8;
+      }
+      
+      /* Hide Level and Div on mobile, but show Gender */
+      .hide-mobile-level-div { display: none; }
+      
+      /* Coverage cell compact */
+      .coverage-cell { min-width: 90px; }
+      .coverage-entry { gap: 2px; margin-bottom: 2px; }
+      .coverage-emoji { font-size: 10px; }
+      .coverage-name { font-size: 10px; }
+      
+      /* Claim dropdown */
+      .claim-dropdown { 
+        right: 0; 
+        left: auto; 
+      }
+      .claim-option { 
+        padding: 8px 12px; 
+        font-size: 12px; 
+      }
+      
+      /* Footer compact */
+      .footer { padding: 20px 10px 15px; }
+      .footer img { height: 35px; }
     }
     
     .loading { text-align: center; padding: 40px; color: #888; }
@@ -209,8 +317,6 @@
     let allTeams = [];
     let currentTab = 'all';
     let openDropdown = null;
-    
-    const MONTH_NAMES = ['Jan.', 'Feb.', 'Mar.', 'Apr.', 'May', 'Jun.', 'Jul.', 'Aug.', 'Sep.', 'Oct.', 'Nov.', 'Dec.'];
     
     // Close dropdown when clicking outside
     document.addEventListener('click', (e) => {
@@ -538,12 +644,12 @@
               <th>Time</th>
               <th>Away</th>
               <th>Home</th>
-              <th class="hide-mobile">Gender</th>
-              <th class="hide-mobile">Level</th>
-              <th class="hide-mobile">Div</th>
+              <th>G</th>
+              <th class="hide-mobile-level-div">Level</th>
+              <th class="hide-mobile-level-div">Div</th>
               <th></th>
               <th>Coverage</th>
-              <th class="hide-mobile">Notes</th>
+              <th class="hide-mobile-level-div">Notes</th>
             </tr>
           </thead>
           <tbody>
@@ -551,18 +657,19 @@
       
       games.forEach(game => {
         const rowClass = game.schedule_changed ? 'game-changed' : '';
+        const genderShort = game.gender ? game.gender.charAt(0) : '';
         html += `
           <tr data-id="${game.game_id}" class="${rowClass}">
             <td>${renderDateCell(game)}</td>
             <td>${formatTime(game.time)}</td>
             <td>${game.away}</td>
             <td>${game.home}</td>
-            <td class="hide-mobile">${game.gender || ''}</td>
-            <td class="hide-mobile">${game.level || ''}</td>
-            <td class="hide-mobile">${game.division || ''}</td>
+            <td>${genderShort}</td>
+            <td class="hide-mobile-level-div">${game.level || ''}</td>
+            <td class="hide-mobile-level-div">${game.division || ''}</td>
             <td class="claim-cell">${renderClaimCell(game)}</td>
             <td class="coverage-cell">${renderCoverageCell(game)}</td>
-            <td class="hide-mobile notes-cell">${renderNotesCell(game)}</td>
+            <td class="hide-mobile-level-div notes-cell">${renderNotesCell(game)}</td>
           </tr>
         `;
       });
@@ -586,9 +693,9 @@
     function formatDate(isoDate) {
       if (!isoDate) return '';
       const [year, month, day] = isoDate.split('-');
-      const monthName = MONTH_NAMES[parseInt(month, 10) - 1];
+      const monthNum = parseInt(month, 10);
       const dayNum = parseInt(day, 10);
-      return `${monthName} ${dayNum}`;
+      return `${monthNum}/${dayNum}`;
     }
     
     function formatTime(time) {
