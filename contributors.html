@@ -40,20 +40,28 @@
     /* Games Table */
     .games-table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.05); font-size: 12px; }
     .games-table th { background: #e8e8e8; padding: 10px 8px; text-align: left; font-weight: 600; color: #333; white-space: nowrap; }
-    .games-table td { padding: 8px; border-bottom: 1px solid #eee; white-space: nowrap; }
+    .games-table td { padding: 8px; border-bottom: 1px solid #eee; vertical-align: top; }
     .games-table tr:nth-child(even) { background: #f9f9f9; }
     .games-table tr:hover { background: #f0f0f0; }
     
-    /* Claim buttons - pill style */
-    .claim-btn { padding: 4px 10px; border-radius: 20px; cursor: pointer; font-size: 12px; transition: all 0.2s; }
-    .claim-btn.available { background: transparent; border: 1px solid #4CAF50; color: #4CAF50; }
-    .claim-btn.available:hover { background: #4CAF50; color: white; }
-    .claim-btn.remove { background: transparent; border: none; color: #999; padding: 2px 4px; font-size: 12px; margin-left: 2px; }
-    .claim-btn.remove:hover { color: #c41e3a; }
+    /* Coverage cell */
+    .coverage-cell { min-width: 140px; }
+    .coverage-entry { display: flex; align-items: center; gap: 4px; margin-bottom: 3px; }
+    .coverage-entry:last-child { margin-bottom: 0; }
+    .coverage-emoji { font-size: 12px; }
+    .coverage-name { font-size: 11px; color: #333; }
+    .coverage-remove { background: none; border: none; color: #999; cursor: pointer; font-size: 12px; padding: 0 2px; }
+    .coverage-remove:hover { color: #c41e3a; }
     
-    /* Assignment badges */
-    .assignment { display: inline-flex; align-items: center; background: #c41e3a; color: white; padding: 3px 8px; border-radius: 20px; font-size: 11px; margin: 1px; white-space: nowrap; }
-    .assignment.video { background: #7b1fa2; }
+    /* Claim dropdown */
+    .claim-wrapper { position: relative; display: inline-block; }
+    .claim-btn { padding: 4px 10px; border-radius: 20px; cursor: pointer; font-size: 12px; transition: all 0.2s; background: transparent; border: 1px solid #4CAF50; color: #4CAF50; }
+    .claim-btn:hover { background: #4CAF50; color: white; }
+    .claim-dropdown { display: none; position: absolute; top: 100%; left: 0; background: #fff; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 100; margin-top: 4px; overflow: hidden; }
+    .claim-dropdown.show { display: block; }
+    .claim-option { display: flex; align-items: center; gap: 8px; padding: 10px 16px; cursor: pointer; white-space: nowrap; font-size: 13px; }
+    .claim-option:hover { background: #f5f5f5; }
+    .claim-option .emoji { font-size: 16px; }
     
     /* Notes */
     .notes-cell { max-width: 150px; }
@@ -61,12 +69,25 @@
     .notes-input:focus { outline: none; border-color: #c41e3a; }
     
     /* Alert banner */
-    .alert-banner { background: #fff3cd; border: 1px solid #ffc107; color: #856404; padding: 12px 20px; border-radius: 8px; margin-bottom: 20px; }
-    .alert-banner strong { color: #856404; }
+    .alert-banner { background: #fff3cd; border: 1px solid #ffc107; color: #856404; padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; }
+    .alert-banner h3 { margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+    .alert-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(0,0,0,0.1); }
+    .alert-item:last-child { border-bottom: none; }
+    .alert-info { flex: 1; }
+    .alert-game { font-weight: 600; }
+    .alert-change { font-size: 12px; color: #666; }
+    .alert-buttons { display: flex; gap: 8px; }
+    .alert-btn { padding: 6px 12px; border-radius: 5px; border: none; cursor: pointer; font-size: 12px; }
+    .alert-btn.accept { background: #4CAF50; color: white; }
+    .alert-btn.deny { background: #f44336; color: white; }
+    .alert-btn:hover { opacity: 0.9; }
+    .alert-contributor { font-size: 11px; color: #888; margin-left: 8px; }
     
     /* Changed game highlight */
     .game-changed { background: #fff3cd !important; }
-    .old-date { text-decoration: line-through; color: #999; font-size: 10px; margin-left: 4px; }
+    .date-change { display: flex; flex-direction: column; }
+    .old-date { text-decoration: line-through; color: #999; font-size: 10px; }
+    .new-date { color: #c41e3a; font-weight: 600; }
     
     /* Responsive */
     @media (max-width: 768px) {
@@ -106,7 +127,8 @@
       </div>
       
       <div id="alertBanner" class="alert-banner" style="display: none;">
-        <strong>⚠️ Schedule Changes:</strong> <span id="alertText"></span>
+        <h3>⚠️ Schedule Changes</h3>
+        <div id="alertList"></div>
       </div>
       
       <div class="filters">
@@ -155,20 +177,22 @@
       "Todd Grzywacz", "Tyson Thomas"
     ].sort();
     
-    // Short name mapping for display
-    function getShortName(fullName) {
-      if (!fullName) return '';
-      const parts = fullName.split(' ');
-      if (parts.length === 1) return fullName;
-      // First name + last initial
-      return parts[0] + ' ' + parts[parts.length - 1][0] + '.';
-    }
+    const ADMIN_USER = "KJ Cardinal";
     
     const CORRECT_PASSWORD = 'Gr@niteSt@teHoops';
     let allGames = [];
     let currentTab = 'all';
+    let openDropdown = null;
     
     const MONTH_NAMES = ['Jan.', 'Feb.', 'Mar.', 'Apr.', 'May', 'Jun.', 'Jul.', 'Aug.', 'Sep.', 'Oct.', 'Nov.', 'Dec.'];
+    
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+      if (openDropdown && !e.target.closest('.claim-wrapper')) {
+        openDropdown.classList.remove('show');
+        openDropdown = null;
+      }
+    });
     
     // Check if already logged in
     if (localStorage.getItem('ball603_auth') === 'true') {
@@ -206,7 +230,6 @@
         opt.textContent = name;
         select.appendChild(opt);
       });
-      // Restore saved selection
       const saved = localStorage.getItem('ball603_contributor');
       if (saved) select.value = saved;
     }
@@ -214,11 +237,16 @@
     function saveContributor() {
       const name = document.getElementById('contributorSelect').value;
       localStorage.setItem('ball603_contributor', name);
+      renderAlerts();
       renderGames();
     }
     
     function getContributor() {
       return document.getElementById('contributorSelect').value;
+    }
+    
+    function isAdmin() {
+      return getContributor() === ADMIN_USER;
     }
     
     async function loadGames() {
@@ -227,27 +255,127 @@
         const data = await response.json();
         allGames = data.games || [];
         populateDivisionFilter();
-        checkForChanges();
+        renderAlerts();
         renderGames();
       } catch (err) {
         document.getElementById('gamesContainer').innerHTML = '<div class="loading">Error loading games. Please refresh.</div>';
       }
     }
     
-    function checkForChanges() {
-      // Check if any claimed games have schedule changes
+    function renderAlerts() {
       const me = getContributor();
-      if (!me) return;
+      if (!me) {
+        document.getElementById('alertBanner').style.display = 'none';
+        return;
+      }
       
-      const changedGames = allGames.filter(g => {
-        const isMine = g.photog1 === me || g.photog2 === me || g.videog === me;
-        return isMine && g.schedule_changed;
+      // Get games with schedule changes
+      let changedGames;
+      if (isAdmin()) {
+        // Admin sees ALL alerts
+        changedGames = allGames.filter(g => g.schedule_changed);
+      } else {
+        // Regular user sees only their alerts
+        changedGames = allGames.filter(g => {
+          const isMine = g.photog1 === me || g.photog2 === me || g.videog === me || g.writer === me;
+          return isMine && g.schedule_changed;
+        });
+      }
+      
+      if (changedGames.length === 0) {
+        document.getElementById('alertBanner').style.display = 'none';
+        return;
+      }
+      
+      document.getElementById('alertBanner').style.display = 'block';
+      
+      let html = '';
+      changedGames.forEach(game => {
+        const contributors = [game.photog1, game.photog2, game.videog, game.writer].filter(Boolean);
+        html += `
+          <div class="alert-item">
+            <div class="alert-info">
+              <div class="alert-game">${game.away} @ ${game.home}</div>
+              <div class="alert-change">
+                Changed from ${formatDate(game.original_date)} → ${formatDate(game.date)}
+                ${isAdmin() ? `<span class="alert-contributor">(${contributors.join(', ')})</span>` : ''}
+              </div>
+            </div>
+            <div class="alert-buttons">
+              <button class="alert-btn accept" onclick="acceptChange('${game.game_id}')">✓ Accept</button>
+              <button class="alert-btn deny" onclick="denyChange('${game.game_id}')">✗ Can't Do</button>
+            </div>
+          </div>
+        `;
       });
       
-      if (changedGames.length > 0) {
-        document.getElementById('alertBanner').style.display = 'block';
-        document.getElementById('alertText').textContent = 
-          `${changedGames.length} game(s) you claimed have been rescheduled. Check highlighted rows below.`;
+      document.getElementById('alertList').innerHTML = html;
+    }
+    
+    async function acceptChange(gameId) {
+      // Clear the schedule_changed flag
+      try {
+        await fetch('/.netlify/functions/update-assignment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ gameId, field: 'schedule_changed', value: '' })
+        });
+        
+        const game = allGames.find(g => g.game_id === gameId);
+        if (game) game.schedule_changed = false;
+        renderAlerts();
+        renderGames();
+      } catch (err) {
+        alert('Error updating. Please try again.');
+      }
+    }
+    
+    async function denyChange(gameId) {
+      const me = getContributor();
+      const game = allGames.find(g => g.game_id === gameId);
+      if (!game) return;
+      
+      // Find which field(s) this user has claimed
+      const fieldsToRemove = [];
+      if (game.photog1 === me) fieldsToRemove.push('photog1');
+      if (game.photog2 === me) fieldsToRemove.push('photog2');
+      if (game.videog === me) fieldsToRemove.push('videog');
+      if (game.writer === me) fieldsToRemove.push('writer');
+      
+      // If admin denying for someone else, just clear the flag
+      if (isAdmin() && fieldsToRemove.length === 0) {
+        await acceptChange(gameId);
+        return;
+      }
+      
+      try {
+        // Remove their assignments
+        for (const field of fieldsToRemove) {
+          await fetch('/.netlify/functions/update-assignment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ gameId, field, value: '' })
+          });
+          game[field] = '';
+        }
+        
+        // Check if anyone else still has assignments
+        const stillHasAssignments = game.photog1 || game.photog2 || game.videog || game.writer;
+        
+        // Clear schedule_changed if no one left, or if this user was the only one
+        if (!stillHasAssignments) {
+          await fetch('/.netlify/functions/update-assignment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ gameId, field: 'schedule_changed', value: '' })
+          });
+          game.schedule_changed = false;
+        }
+        
+        renderAlerts();
+        renderGames();
+      } catch (err) {
+        alert('Error updating. Please try again.');
       }
     }
     
@@ -277,21 +405,13 @@
       const me = getContributor();
       
       let games = allGames.filter(g => {
-        // Tab filter
         if (currentTab !== 'all' && g.level !== currentTab) return false;
-        
-        // Search
         if (search && !g.home.toLowerCase().includes(search) && !g.away.toLowerCase().includes(search)) return false;
-        
-        // Gender
         if (gender && g.gender !== gender) return false;
-        
-        // Division
         if (division && g.division !== division) return false;
         
-        // Assignment filter
-        const hasClaim = g.photog1 || g.photog2 || g.videog;
-        const isMine = g.photog1 === me || g.photog2 === me || g.videog === me;
+        const hasClaim = g.photog1 || g.photog2 || g.videog || g.writer;
+        const isMine = g.photog1 === me || g.photog2 === me || g.videog === me || g.writer === me;
         if (assignment === 'unclaimed' && hasClaim) return false;
         if (assignment === 'mine' && !isMine) return false;
         if (assignment === 'claimed' && !hasClaim) return false;
@@ -299,11 +419,9 @@
         return true;
       });
       
-      // Only show future games (today and forward)
       const today = new Date().toISOString().split('T')[0];
       games = games.filter(g => g.date >= today);
       
-      // Sort by date/time
       games.sort((a, b) => {
         if (a.date !== b.date) return a.date.localeCompare(b.date);
         return (a.time || '').localeCompare(b.time || '');
@@ -325,8 +443,7 @@
               <th class="hide-mobile">Gender</th>
               <th class="hide-mobile">Level</th>
               <th class="hide-mobile">Div</th>
-              <th>Photog</th>
-              <th>Video</th>
+              <th>Coverage</th>
               <th class="hide-mobile">Notes</th>
             </tr>
           </thead>
@@ -334,20 +451,17 @@
       `;
       
       games.forEach(game => {
-        const dateFormatted = formatDate(game.date);
-        const timeFormatted = formatTime(game.time);
         const rowClass = game.schedule_changed ? 'game-changed' : '';
         html += `
           <tr data-id="${game.game_id}" class="${rowClass}">
-            <td>${dateFormatted}${game.old_date ? `<span class="old-date">${formatDate(game.old_date)}</span>` : ''}</td>
-            <td>${timeFormatted}</td>
+            <td>${renderDateCell(game)}</td>
+            <td>${formatTime(game.time)}</td>
             <td>${game.away}</td>
             <td>${game.home}</td>
             <td class="hide-mobile">${game.gender || ''}</td>
             <td class="hide-mobile">${game.level || ''}</td>
             <td class="hide-mobile">${game.division || ''}</td>
-            <td>${renderPhotogCell(game)}</td>
-            <td>${renderVideoCell(game)}</td>
+            <td class="coverage-cell">${renderCoverageCell(game)}</td>
             <td class="hide-mobile notes-cell">${renderNotesCell(game)}</td>
           </tr>
         `;
@@ -355,6 +469,18 @@
       
       html += '</tbody></table>';
       document.getElementById('gamesContainer').innerHTML = html;
+    }
+    
+    function renderDateCell(game) {
+      if (game.schedule_changed && game.original_date) {
+        return `
+          <div class="date-change">
+            <span class="old-date">${formatDate(game.original_date)}</span>
+            <span class="new-date">${formatDate(game.date)}</span>
+          </div>
+        `;
+      }
+      return formatDate(game.date);
     }
     
     function formatDate(isoDate) {
@@ -370,46 +496,63 @@
       return time.replace(/^0/, '');
     }
     
-    function renderPhotogCell(game) {
+    function renderCoverageCell(game) {
       const me = getContributor();
       let html = '';
       
-      if (game.photog1) {
-        const isMine = game.photog1 === me;
-        html += `<span class="assignment" title="${game.photog1}">${getShortName(game.photog1)}`;
-        if (isMine) html += `<button class="claim-btn remove" onclick="removeClaim('${game.game_id}', 'photog1')">✕</button>`;
-        html += `</span>`;
-      }
-      if (game.photog2) {
-        const isMine = game.photog2 === me;
-        html += `<span class="assignment" title="${game.photog2}">${getShortName(game.photog2)}`;
-        if (isMine) html += `<button class="claim-btn remove" onclick="removeClaim('${game.game_id}', 'photog2')">✕</button>`;
-        html += `</span>`;
+      // Show existing coverage
+      const coverageItems = [
+        { field: 'photog1', emoji: '📸', name: game.photog1 },
+        { field: 'photog2', emoji: '📸', name: game.photog2 },
+        { field: 'videog', emoji: '🎥', name: game.videog },
+        { field: 'writer', emoji: '📝', name: game.writer }
+      ].filter(item => item.name);
+      
+      coverageItems.forEach(item => {
+        const isMine = item.name === me;
+        html += `
+          <div class="coverage-entry">
+            <span class="coverage-emoji">${item.emoji}</span>
+            <span class="coverage-name">${item.name}</span>
+            ${isMine ? `<button class="coverage-remove" onclick="removeClaim('${game.game_id}', '${item.field}')">✕</button>` : ''}
+          </div>
+        `;
+      });
+      
+      // Show claim button if user selected and slots available
+      if (me) {
+        const canClaimPhotog = !game.photog1 || (!game.photog2 && game.photog1 !== me);
+        const canClaimVideo = !game.videog && game.videog !== me;
+        const canClaimWriter = !game.writer && game.writer !== me;
+        
+        if (canClaimPhotog || canClaimVideo || canClaimWriter) {
+          html += `
+            <div class="claim-wrapper">
+              <button class="claim-btn" onclick="toggleClaimDropdown(event, '${game.game_id}')">+ Claim</button>
+              <div class="claim-dropdown" id="dropdown-${game.game_id}">
+                ${!game.photog1 ? `<div class="claim-option" onclick="claim('${game.game_id}', 'photog1')"><span class="emoji">📸</span> Photographer</div>` : ''}
+                ${game.photog1 && !game.photog2 && game.photog1 !== me ? `<div class="claim-option" onclick="claim('${game.game_id}', 'photog2')"><span class="emoji">📸</span> Photographer (+1)</div>` : ''}
+                ${canClaimVideo ? `<div class="claim-option" onclick="claim('${game.game_id}', 'videog')"><span class="emoji">🎥</span> Videographer</div>` : ''}
+                ${canClaimWriter ? `<div class="claim-option" onclick="claim('${game.game_id}', 'writer')"><span class="emoji">📝</span> Writer</div>` : ''}
+              </div>
+            </div>
+          `;
+        }
       }
       
-      if (me && !game.photog1) {
-        html += `<button class="claim-btn available" onclick="claim('${game.game_id}', 'photog1')">📸 Claim</button>`;
-      } else if (me && !game.photog2 && game.photog1 !== me) {
-        html += `<button class="claim-btn available" onclick="claim('${game.game_id}', 'photog2')">📸 +1</button>`;
-      }
-      
-      return html || '-';
+      return html || '<span style="color:#999">-</span>';
     }
     
-    function renderVideoCell(game) {
-      const me = getContributor();
-      let html = '';
+    function toggleClaimDropdown(event, gameId) {
+      event.stopPropagation();
+      const dropdown = document.getElementById(`dropdown-${gameId}`);
       
-      if (game.videog) {
-        const isMine = game.videog === me;
-        html += `<span class="assignment video" title="${game.videog}">${getShortName(game.videog)}`;
-        if (isMine) html += `<button class="claim-btn remove" onclick="removeClaim('${game.game_id}', 'videog')">✕</button>`;
-        html += `</span>`;
-      } else if (me) {
-        html += `<button class="claim-btn available" onclick="claim('${game.game_id}', 'videog')">🎥 Claim</button>`;
+      if (openDropdown && openDropdown !== dropdown) {
+        openDropdown.classList.remove('show');
       }
       
-      return html || '-';
+      dropdown.classList.toggle('show');
+      openDropdown = dropdown.classList.contains('show') ? dropdown : null;
     }
     
     function renderNotesCell(game) {
@@ -421,6 +564,12 @@
       if (!me) {
         alert('Please select your name first');
         return;
+      }
+      
+      // Close dropdown
+      if (openDropdown) {
+        openDropdown.classList.remove('show');
+        openDropdown = null;
       }
       
       try {
