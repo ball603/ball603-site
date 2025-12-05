@@ -167,13 +167,16 @@
       }
       .user-info select { 
         padding: 8px 10px; 
-        font-size: 16px;
+        font-size: 12px;
         flex: 1;
         max-width: 200px;
       }
+      .user-info select option {
+        font-size: 16px;
+      }
       .logout-btn { 
         padding: 8px 14px; 
-        font-size: 14px; 
+        font-size: 12px; 
       }
       
       /* Controls row - stack vertically on mobile */
@@ -192,19 +195,22 @@
         width: 100%;
       }
       .filters select { 
-        padding: 8px 6px; 
-        font-size: 16px;
+        padding: 6px 4px; 
+        font-size: 12px;
         flex: 1;
         min-width: 0;
       }
-      .filters input { 
-        padding: 8px 6px; 
+      .filters select option {
         font-size: 16px;
-        width: 70px;
-        flex: 0 0 70px;
+      }
+      .filters input { 
+        padding: 6px 4px; 
+        font-size: 12px;
+        width: 60px;
+        flex: 0 0 60px;
       }
       .search-wrapper { 
-        flex: 0 0 70px;
+        flex: 0 0 60px;
         order: -1;
       }
       
@@ -221,11 +227,12 @@
         border-bottom: none;
       }
       
-      /* Table container */
+      /* Table container - fixed height for sticky header to work */
       .table-container {
         border-radius: 0 0 10px 10px;
-        overflow-x: auto;
+        overflow: auto;
         -webkit-overflow-scrolling: touch;
+        max-height: calc(100vh - 220px);
       }
       
       /* Alert banner - compact */
@@ -245,7 +252,7 @@
       /* Table - compact single-line rows with sticky header */
       .games-table { 
         font-size: 11px; 
-        min-width: 500px;
+        min-width: 580px;
       }
       .games-table th, .games-table td { 
         padding: 6px 5px; 
@@ -258,8 +265,13 @@
         background: #e8e8e8;
       }
       
-      /* Hide Level and Div on mobile, but show Gender */
+      /* Hide Level and Div on mobile, but show Gender and Notes */
       .hide-mobile-level-div { display: none; }
+      .show-mobile-notes { display: table-cell; }
+      
+      /* Notes cell on mobile */
+      .notes-cell { max-width: 100px; }
+      .notes-input { font-size: 10px; padding: 2px 4px; }
       
       /* Coverage cell compact */
       .coverage-cell { min-width: 90px; }
@@ -704,12 +716,12 @@
               <th>Time</th>
               <th>Away</th>
               <th>Home</th>
-              <th>G</th>
+              <th>Gender</th>
               <th class="hide-mobile-level-div">Level</th>
               <th class="hide-mobile-level-div">Div</th>
               <th></th>
               <th>Coverage</th>
-              <th class="hide-mobile-level-div">Notes</th>
+              <th class="notes-cell">Notes</th>
             </tr>
           </thead>
           <tbody>
@@ -717,19 +729,18 @@
       
       games.forEach(game => {
         const rowClass = game.schedule_changed ? 'game-changed' : '';
-        const genderShort = game.gender ? game.gender.charAt(0) : '';
         html += `
           <tr data-id="${game.game_id}" class="${rowClass}">
             <td>${renderDateCell(game)}</td>
             <td>${formatTime(game.time)}</td>
             <td>${game.away}</td>
             <td>${game.home}</td>
-            <td>${genderShort}</td>
+            <td>${game.gender || ''}</td>
             <td class="hide-mobile-level-div">${game.level || ''}</td>
             <td class="hide-mobile-level-div">${game.division || ''}</td>
             <td class="claim-cell">${renderClaimCell(game)}</td>
             <td class="coverage-cell">${renderCoverageCell(game)}</td>
-            <td class="hide-mobile-level-div notes-cell">${renderNotesCell(game)}</td>
+            <td class="notes-cell">${renderNotesCell(game)}</td>
           </tr>
         `;
       });
@@ -750,12 +761,14 @@
       return formatDate(game.date);
     }
     
+    const MONTH_NAMES = ['Jan.', 'Feb.', 'Mar.', 'Apr.', 'May', 'Jun.', 'Jul.', 'Aug.', 'Sep.', 'Oct.', 'Nov.', 'Dec.'];
+    
     function formatDate(isoDate) {
       if (!isoDate) return '';
       const [year, month, day] = isoDate.split('-');
-      const monthNum = parseInt(month, 10);
+      const monthName = MONTH_NAMES[parseInt(month, 10) - 1];
       const dayNum = parseInt(day, 10);
-      return `${monthNum}/${dayNum}`;
+      return `${monthName} ${dayNum}`;
     }
     
     function formatTime(time) {
