@@ -1,6 +1,6 @@
 // Ball603 NHIAA Schedule Scraper
 // Runs 3x daily via Netlify scheduled functions
-// Preserves assignments, detects schedule changes, and captures scores
+// Preserves assignments and detects schedule changes
 
 const SCHEDULE_URLS = [
   { url: 'https://www.nhiaa.org/sports/schedules/boys-basketball/division-1', gender: 'Boys', division: 'D-I' },
@@ -13,32 +13,102 @@ const SCHEDULE_URLS = [
   { url: 'https://www.nhiaa.org/sports/schedules/girls-basketball/division-4', gender: 'Girls', division: 'D-IV' },
 ];
 
-// Detect if a string is a score (e.g., "72-58", "45-42") vs a time (e.g., "7:00 PM")
-function isScore(str) {
-  if (!str) return false;
-  // Score pattern: number-number (with optional spaces)
-  return /^\d+\s*[-–]\s*\d+$/.test(str.trim());
-}
-
-// Parse score string into away and home scores
-// Note: NHIAA shows score from perspective of the team in that section
-// If team is home, format is "homeScore-awayScore"
-// If team is away, format is "awayScore-homeScore"
-function parseScore(str, isAway) {
-  if (!str) return { away: null, home: null };
-  const match = str.trim().match(/^(\d+)\s*[-–]\s*(\d+)$/);
-  if (!match) return { away: null, home: null };
-  
-  const firstScore = parseInt(match[1]);
-  const secondScore = parseInt(match[2]);
-  
-  // If viewing from away team's perspective: first score is away, second is home
-  // If viewing from home team's perspective: first score is home, second is away
-  if (isAway) {
-    return { away: firstScore, home: secondScore };
-  } else {
-    return { away: secondScore, home: firstScore };
-  }
+// Normalize team names to shortnames
+function normalizeTeamName(name) {
+  if (!name) return name;
+  const normalizations = {
+    'Alvirne High School': 'Alvirne',
+    'Bedford High School': 'Bedford',
+    'Belmont High School': 'Belmont',
+    'Berlin Middle High School': 'Berlin',
+    'Bishop Brady High School': 'Bishop Brady',
+    'Bishop Guertin High School': 'Bishop Guertin',
+    'Bow High School': 'Bow',
+    'Campbell High School': 'Campbell',
+    'Coe-Brown Northwood': 'Coe-Brown',
+    'Coe-Brown Northwood Academy': 'Coe-Brown',
+    'Colebrook Academy': 'Colebrook',
+    'ConVal Regional High School': 'ConVal',
+    'Conant Middle High School': 'Conant',
+    'Concord Christian Academy': 'Concord Christian',
+    'Concord High School': 'Concord',
+    'Derryfield School': 'Derryfield',
+    'Dover High School': 'Dover',
+    'Epping Middle High School': 'Epping',
+    'Exeter High School': 'Exeter',
+    'Fall Mountain Regional High School': 'Fall Mountain',
+    'Farmington High School': 'Farmington',
+    'Franklin High School': 'Franklin',
+    'Gilford High School': 'Gilford',
+    'Goffstown High School': 'Goffstown',
+    'Gorham High School': 'Gorham',
+    'Groveton High School': 'Groveton',
+    'Hanover High School': 'Hanover',
+    'Hillsboro-Deering High School': 'Hillsboro-Deering',
+    'Hinsdale High School': 'Hinsdale',
+    'Hollis-Brookline High School': 'Hollis-Brookline',
+    'Holy Family Academy': 'Holy Family',
+    'Hopkinton Middle High School': 'Hopkinton',
+    'Inter-Lakes Middle High School': 'Inter-Lakes',
+    'John Stark Regional High School': 'John Stark',
+    'Kearsarge Regional High School': 'Kearsarge',
+    'Keene High School': 'Keene',
+    'Kennett High School': 'Kennett',
+    'Kingswood Regional High School': 'Kingswood',
+    'Laconia High School': 'Laconia',
+    'Lebanon High School': 'Lebanon',
+    'Lin-Wood Public School': 'Lin-Wood',
+    'Lisbon Regional School': 'Lisbon',
+    'Littleton High School': 'Littleton',
+    'Londonderry High School': 'Londonderry',
+    'Manchester Central High School': 'Manchester Central',
+    'Manchester Memorial High School': 'Manchester Memorial',
+    'Manchester West High School': 'Manchester West',
+    'Mascenic Regional High School': 'Mascenic',
+    'Mascoma': 'Mascoma Valley',
+    'Mascoma Valley Regional High School': 'Mascoma Valley',
+    'Merrimack High School': 'Merrimack',
+    'Merrimack Valley High School': 'Merrimack Valley',
+    'Milford High School': 'Milford',
+    'Monadnock Regional High School': 'Monadnock',
+    'Moultonborough Academy': 'Moultonborough',
+    'Mount Royal Academy': 'Mount Royal',
+    'Nashua High School North': 'Nashua North',
+    'Nashua High School South': 'Nashua South',
+    'Newfound Regional High School': 'Newfound',
+    'Newmarket Jr/Sr': 'Newmarket',
+    'Newmarket Senior High School': 'Newmarket',
+    'Newport High School': 'Newport',
+    'Nute High School': 'Nute',
+    'Oyster River High School': 'Oyster River',
+    'Pelham High School': 'Pelham',
+    'Pembroke Academy': 'Pembroke',
+    'Pinkerton Academy': 'Pinkerton',
+    'Pittsburg High School': 'Pittsburg',
+    'Plymouth Regional High School': 'Plymouth',
+    'Portsmouth Christian Academy': 'Portsmouth Christian',
+    'Portsmouth High School': 'Portsmouth',
+    'Profile School': 'Profile',
+    'Prospect Mountain High School': 'Prospect Mountain',
+    'Raymond High School': 'Raymond',
+    'Saint Thomas Aquinas High School': 'St. Thomas Aquinas',
+    'Salem High School': 'Salem',
+    'Sanborn Regional High School': 'Sanborn',
+    'Somersworth High School': 'Somersworth',
+    'Souhegan High School': 'Souhegan',
+    'Spaulding High School': 'Spaulding',
+    'Stevens High School': 'Stevens',
+    'Sunapee High School': 'Sunapee',
+    'Timberlane Regional High School': 'Timberlane',
+    'Trinity High School': 'Trinity',
+    'White Mountains Regional High School': 'White Mountains',
+    'Wilton-Lyndeborough High School': 'Wilton-Lyndeborough',
+    'Windham High School': 'Windham',
+    'Winnacunnet High School': 'Winnacunnet',
+    'Winnisquam Regional High School': 'Winnisquam',
+    'Woodsville High School': 'Woodsville',
+  };
+  return normalizations[name] || name;
 }
 
 function parseSchedulePage(html, gender, division) {
@@ -62,13 +132,13 @@ function parseSchedulePage(html, gender, division) {
       const date = match[1].trim();
       const atIndicator = match[2].trim();
       const opponent = match[3].trim();
-      const timeOrScore = match[4].trim();
+      const time = match[4].trim();
       
       if (!date || !opponent) continue;
       
       const isAway = atIndicator.toLowerCase() === 'at';
-      const homeTeam = isAway ? opponent : teamName;
-      const awayTeam = isAway ? teamName : opponent;
+      const homeTeam = normalizeTeamName(isAway ? opponent : teamName);
+      const awayTeam = normalizeTeamName(isAway ? teamName : opponent);
       
       const [month, day, year] = date.split('/');
       const fullYear = year.length === 2 ? `20${year}` : year;
@@ -76,19 +146,6 @@ function parseSchedulePage(html, gender, division) {
       
       // Game ID based on teams only (not date) so we can track reschedules
       const gameId = `${homeTeam}-vs-${awayTeam}-${gender}-${division}`.replace(/\s+/g, '-').toLowerCase();
-      
-      // Check if timeOrScore is a score or a time
-      let time = '';
-      let scoreAway = null;
-      let scoreHome = null;
-      
-      if (isScore(timeOrScore)) {
-        const scores = parseScore(timeOrScore, isAway);
-        scoreAway = scores.away;
-        scoreHome = scores.home;
-      } else {
-        time = timeOrScore;
-      }
       
       games.push({
         game_id: gameId,
@@ -98,9 +155,7 @@ function parseSchedulePage(html, gender, division) {
         home_team: homeTeam,
         gender: gender,
         level: 'NHIAA',
-        division: division,
-        score_away: scoreAway,
-        score_home: scoreHome
+        division: division
       });
     }
   }
@@ -109,27 +164,17 @@ function parseSchedulePage(html, gender, division) {
 }
 
 function deduplicateGames(games) {
-  const seen = new Map();
-  
-  games.forEach(game => {
-    if (seen.has(game.game_id)) {
-      // If we already have this game, merge scores if the new one has them
-      const existing = seen.get(game.game_id);
-      if (game.score_away !== null && existing.score_away === null) {
-        existing.score_away = game.score_away;
-        existing.score_home = game.score_home;
-      }
-    } else {
-      seen.set(game.game_id, game);
-    }
+  const seen = new Set();
+  return games.filter(game => {
+    if (seen.has(game.game_id)) return false;
+    seen.add(game.game_id);
+    return true;
   });
-  
-  return Array.from(seen.values());
 }
 
 async function getExistingData(accessToken, spreadsheetId) {
   const response = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Schedules!A:S`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Schedules!A:O`,
     { headers: { 'Authorization': `Bearer ${accessToken}` } }
   );
   
@@ -151,11 +196,7 @@ async function getExistingData(accessToken, spreadsheetId) {
         writer: row[11] || '',
         notes: row[12] || '',
         original_date: row[13] || '',
-        schedule_changed: row[14] || '',
-        score_away: row[15] || '',
-        score_home: row[16] || '',
-        score_source: row[17] || '',
-        score_mismatch: row[18] || ''
+        schedule_changed: row[14] || ''
       };
     }
   }
@@ -182,16 +223,10 @@ async function updateGoogleSheets(games) {
   const existingGames = await getExistingData(access_token, spreadsheetId);
   console.log(`  Found ${Object.keys(existingGames).length} existing games`);
   
-  // Header row with score columns
-  const header = [
-    'game_id', 'date', 'time', 'away', 'home', 'gender', 'level', 'division',
-    'photog1', 'photog2', 'videog', 'writer', 'notes', 'original_date', 'schedule_changed',
-    'score_away', 'score_home', 'score_source', 'score_mismatch'
-  ];
+  // Header row with writer column
+  const header = ['game_id', 'date', 'time', 'away', 'home', 'gender', 'level', 'division', 'photog1', 'photog2', 'videog', 'writer', 'notes', 'original_date', 'schedule_changed'];
   
   let changesDetected = 0;
-  let scoresAdded = 0;
-  let mismatches = 0;
   
   // Build rows, preserving assignments and detecting changes
   const rows = games.map(g => {
@@ -217,35 +252,10 @@ async function updateGoogleSheets(games) {
       originalDate = g.date;
     }
     
-    // Handle scores - first one in wins
-    let scoreAway = existing.score_away || '';
-    let scoreHome = existing.score_home || '';
-    let scoreSource = existing.score_source || '';
-    let scoreMismatch = existing.score_mismatch || '';
-    
-    if (g.score_away !== null) {
-      // NHIAA has a score for this game
-      if (!scoreAway && !scoreHome) {
-        // No existing score - use NHIAA score
-        scoreAway = g.score_away;
-        scoreHome = g.score_home;
-        scoreSource = 'nhiaa';
-        scoresAdded++;
-        console.log(`  📊 Score added from NHIAA: ${g.away_team} ${g.score_away} - ${g.home_team} ${g.score_home}`);
-      } else if (scoreSource === 'manual') {
-        // We have a manual score - check if NHIAA differs
-        if (parseInt(scoreAway) !== g.score_away || parseInt(scoreHome) !== g.score_home) {
-          scoreMismatch = `NHIAA: ${g.score_away}-${g.score_home}`;
-          mismatches++;
-          console.log(`  ⚠️ Score mismatch: ${g.away_team} @ ${g.home_team} - Manual: ${scoreAway}-${scoreHome}, NHIAA: ${g.score_away}-${g.score_home}`);
-        }
-      }
-    }
-    
     return [
       g.game_id,
       g.date,
-      g.time || existing.time || '',
+      g.time,
       g.away_team,
       g.home_team,
       g.gender,
@@ -257,32 +267,22 @@ async function updateGoogleSheets(games) {
       existing.writer || '',
       existing.notes || '',
       originalDate,
-      scheduleChanged,
-      scoreAway,
-      scoreHome,
-      scoreSource,
-      scoreMismatch
+      scheduleChanged
     ];
   });
   
   if (changesDetected > 0) {
     console.log(`  ⚠️ Total schedule changes detected: ${changesDetected}`);
   }
-  if (scoresAdded > 0) {
-    console.log(`  📊 Total scores added from NHIAA: ${scoresAdded}`);
-  }
-  if (mismatches > 0) {
-    console.log(`  ⚠️ Total score mismatches: ${mismatches}`);
-  }
   
   // Sort by date, then time
   rows.sort((a, b) => {
     if (a[1] !== b[1]) return a[1].localeCompare(b[1]);
-    return (a[2] || '').localeCompare(b[2] || '');
+    return a[2].localeCompare(b[2]);
   });
   
   // Clear and update sheet
-  await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Schedules!A:S:clear`, {
+  await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Schedules!A:O:clear`, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${access_token}` }
   });
@@ -296,7 +296,7 @@ async function updateGoogleSheets(games) {
     body: JSON.stringify({ values: [header, ...rows] })
   });
   
-  return { rowCount: rows.length, changesDetected, scoresAdded, mismatches };
+  return { rowCount: rows.length, changesDetected };
 }
 
 async function createJWT(credentials) {
@@ -356,14 +356,12 @@ export default async (request) => {
     const dedupedGames = deduplicateGames(allGames);
     console.log(`Total unique games: ${dedupedGames.length}`);
     
-    const { rowCount, changesDetected, scoresAdded, mismatches } = await updateGoogleSheets(dedupedGames);
+    const { rowCount, changesDetected } = await updateGoogleSheets(dedupedGames);
     
     return new Response(JSON.stringify({
       success: true,
       gamesScraped: dedupedGames.length,
       scheduleChanges: changesDetected,
-      scoresAdded: scoresAdded,
-      scoreMismatches: mismatches,
       timestamp: new Date().toISOString()
     }), { status: 200 });
     
