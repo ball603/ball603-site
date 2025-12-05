@@ -20,7 +20,7 @@
     .header-nav a.active { color: #f57c00; }
     
     /* Main container */
-    .container { width: 800px; margin: 0 auto; padding: 20px; }
+    .container { width: 900px; margin: 0 auto; padding: 20px; }
     
     /* Controls */
     .controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: nowrap; gap: 15px; }
@@ -30,8 +30,8 @@
     .date-nav .current-date { font-size: 18px; font-weight: 600; width: 280px; text-align: center; }
     .filters { display: flex; gap: 10px; align-items: center; flex-shrink: 0; }
     .filters select, .filters input { padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; }
-    .filters select { width: 90px; }
-    .filters input { width: 150px; }
+    .filters select { width: 100px; }
+    .filters input { width: 180px; }
     
     /* Schedule container */
     .schedule-container { 
@@ -47,7 +47,7 @@
     .date-header { background: #f8f8f8; padding: 12px 20px; font-weight: 600; font-size: 15px; border-bottom: 1px solid #eee; color: #333; }
     
     /* Games table */
-    .games-table { width: 100%; min-width: 700px; border-collapse: collapse; background: #fff; font-size: 12px; }
+    .games-table { width: 100%; min-width: 850px; border-collapse: collapse; background: #fff; font-size: 12px; }
     .games-table thead th { position: sticky; top: 0; z-index: 100; background: #e8e8e8; }
     .games-table th { background: #e8e8e8; padding: 10px 8px; text-align: left; font-weight: 600; color: #333; white-space: nowrap; }
     .games-table td { padding: 8px; border-bottom: 1px solid #eee; vertical-align: middle; white-space: nowrap; }
@@ -119,6 +119,27 @@
       .team-logo { display: none; }
       .gender-col { display: none; }
     }
+    
+    /* Calendar Modal */
+    .calendar-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.4); z-index: 1000; }
+    .calendar-overlay.show { display: flex; align-items: center; justify-content: center; }
+    .calendar-modal { background: #fff; border-radius: 10px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); min-width: 300px; }
+    .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+    .calendar-header button { background: none; border: none; font-size: 18px; cursor: pointer; padding: 5px 10px; }
+    .calendar-header button:hover { background: #f5f5f5; border-radius: 5px; }
+    .calendar-month { font-size: 16px; font-weight: 600; }
+    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; }
+    .calendar-day-header { font-size: 11px; color: #666; padding: 8px 0; font-weight: 600; }
+    .calendar-day { padding: 10px 0; cursor: pointer; border-radius: 5px; font-size: 13px; }
+    .calendar-day:hover { background: #f5f5f5; }
+    .calendar-day.other-month { color: #ccc; }
+    .calendar-day.today { background: #fff3e0; font-weight: 600; }
+    .calendar-day.selected { background: #f57c00; color: #fff; }
+    .calendar-day.has-games { font-weight: 600; }
+    .calendar-day.has-games::after { content: ''; display: block; width: 4px; height: 4px; background: #f57c00; border-radius: 50%; margin: 2px auto 0; }
+    .calendar-day.selected.has-games::after { background: #fff; }
+    .calendar-btn { cursor: pointer; background: none; border: 1px solid #ddd; border-radius: 5px; padding: 8px 12px; font-size: 16px; }
+    .calendar-btn:hover { background: #f5f5f5; }
   </style>
 </head>
 <body>
@@ -145,6 +166,7 @@
         <button onclick="nextDay()">▶</button>
       </div>
       <div class="filters">
+        <button class="calendar-btn" onclick="openCalendar()" title="Pick a date">📅</button>
         <select id="levelFilter" onchange="renderSchedule()">
           <option value="">Level</option>
           <option value="NHIAA">NHIAA</option>
@@ -167,6 +189,20 @@
   
   <div class="footer">
     <img src="logo.png" alt="Ball603" onclick="window.location.href='/'">
+  </div>
+  
+  <!-- Calendar Modal -->
+  <div class="calendar-overlay" id="calendarOverlay" onclick="closeCalendar(event)">
+    <div class="calendar-modal" onclick="event.stopPropagation()">
+      <div class="calendar-header">
+        <button onclick="prevMonth()">◀</button>
+        <span class="calendar-month" id="calendarMonth">December 2025</span>
+        <button onclick="nextMonth()">▶</button>
+      </div>
+      <div class="calendar-grid" id="calendarGrid">
+        <!-- Days populated by JS -->
+      </div>
+    </div>
   </div>
 
   <script>
@@ -363,6 +399,103 @@
       
       html += '</tbody></table>';
       document.getElementById('scheduleContainer').innerHTML = html;
+    }
+    
+    // Calendar functions
+    let calendarDate = new Date();
+    
+    function openCalendar() {
+      calendarDate = new Date(currentDate);
+      renderCalendar();
+      document.getElementById('calendarOverlay').classList.add('show');
+    }
+    
+    function closeCalendar(event) {
+      if (event.target === document.getElementById('calendarOverlay')) {
+        document.getElementById('calendarOverlay').classList.remove('show');
+      }
+    }
+    
+    function prevMonth() {
+      calendarDate.setMonth(calendarDate.getMonth() - 1);
+      renderCalendar();
+    }
+    
+    function nextMonth() {
+      calendarDate.setMonth(calendarDate.getMonth() + 1);
+      renderCalendar();
+    }
+    
+    function renderCalendar() {
+      const year = calendarDate.getFullYear();
+      const month = calendarDate.getMonth();
+      
+      document.getElementById('calendarMonth').textContent = `${MONTH_NAMES[month]} ${year}`;
+      
+      const firstDay = new Date(year, month, 1);
+      const lastDay = new Date(year, month + 1, 0);
+      const startDay = firstDay.getDay();
+      const daysInMonth = lastDay.getDate();
+      
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      // Get dates with games
+      const gameDates = new Set(allGames.map(g => g.date));
+      
+      let html = `
+        <div class="calendar-day-header">Sun</div>
+        <div class="calendar-day-header">Mon</div>
+        <div class="calendar-day-header">Tue</div>
+        <div class="calendar-day-header">Wed</div>
+        <div class="calendar-day-header">Thu</div>
+        <div class="calendar-day-header">Fri</div>
+        <div class="calendar-day-header">Sat</div>
+      `;
+      
+      // Previous month days
+      const prevMonthLastDay = new Date(year, month, 0).getDate();
+      for (let i = startDay - 1; i >= 0; i--) {
+        const day = prevMonthLastDay - i;
+        const dateStr = getDateString(new Date(year, month - 1, day));
+        const hasGames = gameDates.has(dateStr);
+        html += `<div class="calendar-day other-month ${hasGames ? 'has-games' : ''}" onclick="selectDate(${year}, ${month - 1}, ${day})">${day}</div>`;
+      }
+      
+      // Current month days
+      for (let day = 1; day <= daysInMonth; day++) {
+        const thisDate = new Date(year, month, day);
+        const dateStr = getDateString(thisDate);
+        const isToday = thisDate.getTime() === today.getTime();
+        const isSelected = thisDate.getTime() === currentDate.getTime();
+        const hasGames = gameDates.has(dateStr);
+        
+        let classes = 'calendar-day';
+        if (isToday) classes += ' today';
+        if (isSelected) classes += ' selected';
+        if (hasGames) classes += ' has-games';
+        
+        html += `<div class="${classes}" onclick="selectDate(${year}, ${month}, ${day})">${day}</div>`;
+      }
+      
+      // Next month days
+      const totalCells = startDay + daysInMonth;
+      const remainingCells = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+      for (let day = 1; day <= remainingCells; day++) {
+        const dateStr = getDateString(new Date(year, month + 1, day));
+        const hasGames = gameDates.has(dateStr);
+        html += `<div class="calendar-day other-month ${hasGames ? 'has-games' : ''}" onclick="selectDate(${year}, ${month + 1}, ${day})">${day}</div>`;
+      }
+      
+      document.getElementById('calendarGrid').innerHTML = html;
+    }
+    
+    function selectDate(year, month, day) {
+      currentDate = new Date(year, month, day);
+      currentDate.setHours(0, 0, 0, 0);
+      updateDateDisplay();
+      renderSchedule();
+      document.getElementById('calendarOverlay').classList.remove('show');
     }
     
     // Initialize
