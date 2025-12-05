@@ -1,6 +1,6 @@
 // Ball603 NHIAA Schedule Scraper
 // Runs 3x daily via Netlify scheduled functions
-// Preserves photog/videog assignments when updating
+// Preserves assignments and detects schedule changes
 
 const SCHEDULE_URLS = [
   { url: 'https://www.nhiaa.org/sports/schedules/boys-basketball/division-1', gender: 'Boys', division: 'D-I' },
@@ -46,7 +46,8 @@ function parseSchedulePage(html, gender, division) {
       const fullYear = year.length === 2 ? `20${year}` : year;
       const isoDate = `${fullYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
       
-      const gameId = `${isoDate}-${homeTeam}-${awayTeam}`.replace(/\s+/g, '-').toLowerCase();
+      // Game ID based on teams only (not date) so we can track reschedules
+      const gameId = `${homeTeam}-vs-${awayTeam}-${gender}-${division}`.replace(/\s+/g, '-').toLowerCase();
       
       games.push({
         game_id: gameId,
@@ -73,32 +74,35 @@ function deduplicateGames(games) {
   });
 }
 
-async function getExistingAssignments(accessToken, spreadsheetId) {
-  // Fetch existing data to preserve assignments
+async function getExistingData(accessToken, spreadsheetId) {
   const response = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Schedules!A:L`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Schedules!A:N`,
     { headers: { 'Authorization': `Bearer ${accessToken}` } }
   );
   
   const data = await response.json();
   const rows = data.values || [];
   
-  // Build map of game_id -> {photog1, photog2, videog, notes}
-  const assignments = {};
+  // Build map of game_id -> existing data
+  const existingGames = {};
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
     const gameId = row[0];
     if (gameId) {
-      assignments[gameId] = {
+      existingGames[gameId] = {
+        date: row[1] || '',
+        time: row[2] || '',
         photog1: row[8] || '',
         photog2: row[9] || '',
         videog: row[10] || '',
-        notes: row[11] || ''
+        notes: row[11] || '',
+        original_date: row[12] || '',
+        schedule_changed: row[13] || ''
       };
     }
   }
   
-  return assignments;
+  return existingGames;
 }
 
 async function updateGoogleSheets(games) {
@@ -116,16 +120,39 @@ async function updateGoogleSheets(games) {
   
   const { access_token } = await tokenResponse.json();
   
-  // Get existing assignments before clearing
-  const existingAssignments = await getExistingAssignments(access_token, spreadsheetId);
-  console.log(`  Preserving ${Object.keys(existingAssignments).length} existing assignments`);
+  // Get existing data
+  const existingGames = await getExistingData(access_token, spreadsheetId);
+  console.log(`  Found ${Object.keys(existingGames).length} existing games`);
   
-  // Header row
-  const header = ['game_id', 'date', 'time', 'away', 'home', 'gender', 'level', 'division', 'photog1', 'photog2', 'videog', 'notes'];
+  // Header row with new columns
+  const header = ['game_id', 'date', 'time', 'away', 'home', 'gender', 'level', 'division', 'photog1', 'photog2', 'videog', 'notes', 'original_date', 'schedule_changed'];
   
-  // Build rows, preserving existing assignments
+  let changesDetected = 0;
+  
+  // Build rows, preserving assignments and detecting changes
   const rows = games.map(g => {
-    const existing = existingAssignments[g.game_id] || {};
+    const existing = existingGames[g.game_id] || {};
+    
+    // Check if this game has an assignment
+    const hasAssignment = existing.photog1 || existing.photog2 || existing.videog;
+    
+    // Detect schedule change
+    let originalDate = existing.original_date || '';
+    let scheduleChanged = existing.schedule_changed || '';
+    
+    if (hasAssignment && existing.date && existing.date !== g.date) {
+      // Date changed for a claimed game!
+      originalDate = existing.original_date || existing.date; // Keep original, not intermediate changes
+      scheduleChanged = 'YES';
+      changesDetected++;
+      console.log(`  ⚠️ Schedule change detected: ${g.home_team} vs ${g.away_team} moved from ${existing.date} to ${g.date}`);
+    }
+    
+    // If game was claimed but no original_date set yet, set it now
+    if (hasAssignment && !originalDate) {
+      originalDate = g.date;
+    }
+    
     return [
       g.game_id,
       g.date,
@@ -138,9 +165,15 @@ async function updateGoogleSheets(games) {
       existing.photog1 || '',
       existing.photog2 || '',
       existing.videog || '',
-      existing.notes || ''
+      existing.notes || '',
+      originalDate,
+      scheduleChanged
     ];
   });
+  
+  if (changesDetected > 0) {
+    console.log(`  ⚠️ Total schedule changes detected: ${changesDetected}`);
+  }
   
   // Sort by date, then time
   rows.sort((a, b) => {
@@ -149,7 +182,7 @@ async function updateGoogleSheets(games) {
   });
   
   // Clear and update sheet
-  await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Schedules!A:L:clear`, {
+  await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Schedules!A:N:clear`, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${access_token}` }
   });
@@ -163,7 +196,7 @@ async function updateGoogleSheets(games) {
     body: JSON.stringify({ values: [header, ...rows] })
   });
   
-  return rows.length;
+  return { rowCount: rows.length, changesDetected };
 }
 
 async function createJWT(credentials) {
@@ -223,11 +256,12 @@ export default async (request) => {
     const dedupedGames = deduplicateGames(allGames);
     console.log(`Total unique games: ${dedupedGames.length}`);
     
-    const rowCount = await updateGoogleSheets(dedupedGames);
+    const { rowCount, changesDetected } = await updateGoogleSheets(dedupedGames);
     
     return new Response(JSON.stringify({
       success: true,
       gamesScraped: dedupedGames.length,
+      scheduleChanges: changesDetected,
       timestamp: new Date().toISOString()
     }), { status: 200 });
     
