@@ -1,5 +1,6 @@
-// Bulk import coverage assignments
+// Bulk import coverage assignments - v2
 // Handles NHIAA (match existing) and College (add to College tab)
+// Now matches games where home/away may have flipped
 
 async function createJWT(credentials) {
   const header = { alg: 'RS256', typ: 'JWT' };
@@ -78,8 +79,9 @@ function findMatchingGame(games, imp) {
   const importAway = normalizeTeamName(imp.away);
   const importHome = normalizeTeamName(imp.home);
   const importGender = imp.gender.toLowerCase();
+  const importTeams = [importAway, importHome].sort().join('|');
   
-  // Exact date match
+  // Try exact match first (same home/away, same date)
   let match = games.find(g => {
     return normalizeTeamName(g.away) === importAway && 
            normalizeTeamName(g.home) === importHome && 
@@ -87,19 +89,32 @@ function findMatchingGame(games, imp) {
            (g.gender || '').toLowerCase() === importGender;
   });
   
-  if (match) return { game: match, dateChanged: false };
+  if (match) return { game: match, dateChanged: false, homeAwayFlipped: false };
   
-  // Different date (within 60 days)
+  // Try flipped home/away, same date
   match = games.find(g => {
-    if (normalizeTeamName(g.away) !== importAway || 
-        normalizeTeamName(g.home) !== importHome ||
-        (g.gender || '').toLowerCase() !== importGender) return false;
+    return normalizeTeamName(g.away) === importHome && 
+           normalizeTeamName(g.home) === importAway && 
+           g.date === imp.date &&
+           (g.gender || '').toLowerCase() === importGender;
+  });
+  
+  if (match) return { game: match, dateChanged: false, homeAwayFlipped: true };
+  
+  // Try matching teams (either order) with different date (within 60 days)
+  match = games.find(g => {
+    const gameTeams = [normalizeTeamName(g.away), normalizeTeamName(g.home)].sort().join('|');
+    if (gameTeams !== importTeams || (g.gender || '').toLowerCase() !== importGender) return false;
     
     const diff = Math.abs(new Date(g.date) - new Date(imp.date)) / (1000*60*60*24);
     return diff <= 60;
   });
   
-  if (match) return { game: match, dateChanged: true, originalDate: imp.date };
+  if (match) {
+    const flipped = normalizeTeamName(match.away) === importHome;
+    return { game: match, dateChanged: true, originalDate: imp.date, homeAwayFlipped: flipped };
+  }
+  
   return null;
 }
 
@@ -139,7 +154,16 @@ export default async (request) => {
     const spreadsheetId = process.env.GOOGLE_SHEETS_SCHEDULE_ID;
     const accessToken = await getAccessToken(credentials);
     
-    const results = { nhiaaMatched: 0, nhiaaDateChanged: 0, nhiaaNotFound: 0, collegeAdded: 0, dateChanges: [], notFound: [] };
+    const results = { 
+      nhiaaMatched: 0, 
+      nhiaaDateChanged: 0, 
+      nhiaaHomeAwayFlipped: 0,
+      nhiaaNotFound: 0, 
+      collegeAdded: 0, 
+      dateChanges: [], 
+      flipped: [],
+      notFound: [] 
+    };
     
     // Process NHIAA imports (match to existing Schedules)
     if (nhiaa.length > 0) {
@@ -151,58 +175,74 @@ export default async (request) => {
         
         if (!matchResult) {
           results.nhiaaNotFound++;
-          results.notFound.push(`${imp.date} ${imp.away} @ ${imp.home} (${imp.gender})`);
+          results.notFound.push(`${imp.date} ${imp.away} @ ${imp.home} (${imp.gender}) - ${imp.photog1}`);
           continue;
         }
         
-        const { game, dateChanged, originalDate } = matchResult;
+        const { game, dateChanged, originalDate, homeAwayFlipped } = matchResult;
         
+        // Update photog assignments
         if (imp.photog1) await updateCell(accessToken, spreadsheetId, 'Schedules', game.rowIndex, COLUMNS.photog1, imp.photog1);
         if (imp.photog2) await updateCell(accessToken, spreadsheetId, 'Schedules', game.rowIndex, COLUMNS.photog2, imp.photog2);
         if (imp.notes) await updateCell(accessToken, spreadsheetId, 'Schedules', game.rowIndex, COLUMNS.notes, imp.notes);
         
-        if (dateChanged) {
-          await updateCell(accessToken, spreadsheetId, 'Schedules', game.rowIndex, COLUMNS.original_date, originalDate);
+        // Flag if date changed OR home/away flipped
+        if (dateChanged || homeAwayFlipped) {
+          const origDate = originalDate || imp.date;
+          await updateCell(accessToken, spreadsheetId, 'Schedules', game.rowIndex, COLUMNS.original_date, origDate);
           await updateCell(accessToken, spreadsheetId, 'Schedules', game.rowIndex, COLUMNS.schedule_changed, 'YES');
-          results.nhiaaDateChanged++;
-          results.dateChanges.push(`${imp.away} @ ${imp.home}: ${originalDate} → ${game.date}`);
+          
+          if (dateChanged) {
+            results.nhiaaDateChanged++;
+            results.dateChanges.push(`${imp.away} @ ${imp.home}: ${origDate} → ${game.date} (${imp.photog1})`);
+          }
+          if (homeAwayFlipped) {
+            results.nhiaaHomeAwayFlipped++;
+            results.flipped.push(`${imp.away} @ ${imp.home} → ${game.away} @ ${game.home} (${imp.photog1})`);
+          }
         }
         
         results.nhiaaMatched++;
       }
     }
     
-    // Process College imports (add to College tab)
+    // Process College imports (add to College tab) - skip if already done
     if (college.length > 0) {
-      const collegeRows = college.map(imp => {
-        const gameId = `${imp.home}-vs-${imp.away}-${imp.gender}-college`.replace(/\s+/g, '-').toLowerCase();
-        return [
-          gameId,
-          imp.date,
-          '',  // time
-          imp.away,
-          imp.home,
-          imp.gender,
-          'College',
-          imp.division || '',
-          imp.photog1 || '',
-          imp.photog2 || '',
-          '',  // videog
-          '',  // writer
-          imp.notes || '',
-          '',  // original_date
-          ''   // schedule_changed
-        ];
-      });
+      // Check if college tab already has data
+      const existingCollege = await getSheetGames(accessToken, spreadsheetId, 'College');
       
-      // Sort by date
-      collegeRows.sort((a, b) => a[1].localeCompare(b[1]));
-      
-      await appendRows(accessToken, spreadsheetId, 'College', collegeRows);
-      results.collegeAdded = collegeRows.length;
+      if (existingCollege.length === 0) {
+        const collegeRows = college.map(imp => {
+          const gameId = `${imp.home}-vs-${imp.away}-${imp.gender}-college`.replace(/\s+/g, '-').toLowerCase();
+          return [
+            gameId,
+            imp.date,
+            '',  // time
+            imp.away,
+            imp.home,
+            imp.gender,
+            'College',
+            imp.division || '',
+            imp.photog1 || '',
+            imp.photog2 || '',
+            '',  // videog
+            '',  // writer
+            imp.notes || '',
+            '',  // original_date
+            ''   // schedule_changed
+          ];
+        });
+        
+        collegeRows.sort((a, b) => a[1].localeCompare(b[1]));
+        await appendRows(accessToken, spreadsheetId, 'College', collegeRows);
+        results.collegeAdded = collegeRows.length;
+      } else {
+        results.collegeAdded = 0;
+        results.collegeSkipped = 'Already has data';
+      }
     }
     
-    console.log(`Import done: ${results.nhiaaMatched} NHIAA matched, ${results.collegeAdded} College added`);
+    console.log(`Import done: ${results.nhiaaMatched} matched, ${results.nhiaaHomeAwayFlipped} flipped, ${results.nhiaaDateChanged} date changes`);
     
     return new Response(JSON.stringify(results, null, 2), {
       status: 200,
