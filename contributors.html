@@ -7,7 +7,7 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #333; min-height: 100vh; }
-    .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+    .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
     
     /* Login */
     .login-box { background: #fff; padding: 40px; border-radius: 10px; max-width: 400px; margin: 100px auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1); text-align: center; }
@@ -38,32 +38,40 @@
     .tab.active { background: #c41e3a; color: white; border-color: #c41e3a; }
     
     /* Games Table */
-    .games-table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-    .games-table th { background: #e8e8e8; padding: 12px; text-align: left; font-weight: 600; color: #333; }
-    .games-table td { padding: 12px; border-bottom: 1px solid #eee; }
-    .games-table tr:hover { background: #fafafa; }
+    .games-table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.05); font-size: 12px; }
+    .games-table th { background: #e8e8e8; padding: 10px 8px; text-align: left; font-weight: 600; color: #333; white-space: nowrap; }
+    .games-table td { padding: 8px; border-bottom: 1px solid #eee; white-space: nowrap; }
+    .games-table tr:nth-child(even) { background: #f9f9f9; }
+    .games-table tr:hover { background: #f0f0f0; }
     
     /* Claim buttons - pill style */
-    .claim-btn { padding: 4px 12px; border-radius: 20px; cursor: pointer; font-size: 12px; transition: all 0.2s; }
-    .claim-btn.available { background: transparent; border: 2px solid #4CAF50; color: #4CAF50; }
+    .claim-btn { padding: 4px 10px; border-radius: 20px; cursor: pointer; font-size: 12px; transition: all 0.2s; }
+    .claim-btn.available { background: transparent; border: 1px solid #4CAF50; color: #4CAF50; }
     .claim-btn.available:hover { background: #4CAF50; color: white; }
-    .claim-btn.claimed { background: #c41e3a; border: 2px solid #c41e3a; color: white; }
-    .claim-btn.remove { background: transparent; border: none; color: #999; padding: 2px 6px; font-size: 14px; }
+    .claim-btn.remove { background: transparent; border: none; color: #999; padding: 2px 4px; font-size: 12px; margin-left: 2px; }
     .claim-btn.remove:hover { color: #c41e3a; }
     
     /* Assignment badges */
-    .assignment { display: inline-flex; align-items: center; gap: 4px; background: #c41e3a; color: white; padding: 4px 10px; border-radius: 20px; font-size: 12px; margin: 2px; }
+    .assignment { display: inline-flex; align-items: center; background: #c41e3a; color: white; padding: 3px 8px; border-radius: 20px; font-size: 11px; margin: 1px; white-space: nowrap; }
     .assignment.video { background: #7b1fa2; }
     
     /* Notes */
-    .notes-cell { max-width: 200px; }
-    .notes-input { width: 100%; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; background: #fff; color: #333; font-size: 12px; }
+    .notes-cell { max-width: 150px; }
+    .notes-input { width: 100%; padding: 3px 6px; border: 1px solid #ddd; border-radius: 4px; background: #fff; color: #333; font-size: 11px; }
     .notes-input:focus { outline: none; border-color: #c41e3a; }
+    
+    /* Alert banner */
+    .alert-banner { background: #fff3cd; border: 1px solid #ffc107; color: #856404; padding: 12px 20px; border-radius: 8px; margin-bottom: 20px; }
+    .alert-banner strong { color: #856404; }
+    
+    /* Changed game highlight */
+    .game-changed { background: #fff3cd !important; }
+    .old-date { text-decoration: line-through; color: #999; font-size: 10px; margin-left: 4px; }
     
     /* Responsive */
     @media (max-width: 768px) {
-      .games-table { font-size: 14px; }
-      .games-table th, .games-table td { padding: 8px 6px; }
+      .games-table { font-size: 11px; }
+      .games-table th, .games-table td { padding: 6px 4px; }
       .hide-mobile { display: none; }
       .header-left h1 { display: none; }
     }
@@ -95,6 +103,10 @@
           </select>
           <button class="logout-btn" onclick="logout()">Logout</button>
         </div>
+      </div>
+      
+      <div id="alertBanner" class="alert-banner" style="display: none;">
+        <strong>⚠️ Schedule Changes:</strong> <span id="alertText"></span>
       </div>
       
       <div class="filters">
@@ -142,6 +154,15 @@
       "Shawna Hurlbert", "Shirley Nickles", "Simon Scott", "Stefan Duncan", "Tim Lee",
       "Todd Grzywacz", "Tyson Thomas"
     ].sort();
+    
+    // Short name mapping for display
+    function getShortName(fullName) {
+      if (!fullName) return '';
+      const parts = fullName.split(' ');
+      if (parts.length === 1) return fullName;
+      // First name + last initial
+      return parts[0] + ' ' + parts[parts.length - 1][0] + '.';
+    }
     
     const CORRECT_PASSWORD = 'Gr@niteSt@teHoops';
     let allGames = [];
@@ -206,9 +227,27 @@
         const data = await response.json();
         allGames = data.games || [];
         populateDivisionFilter();
+        checkForChanges();
         renderGames();
       } catch (err) {
         document.getElementById('gamesContainer').innerHTML = '<div class="loading">Error loading games. Please refresh.</div>';
+      }
+    }
+    
+    function checkForChanges() {
+      // Check if any claimed games have schedule changes
+      const me = getContributor();
+      if (!me) return;
+      
+      const changedGames = allGames.filter(g => {
+        const isMine = g.photog1 === me || g.photog2 === me || g.videog === me;
+        return isMine && g.schedule_changed;
+      });
+      
+      if (changedGames.length > 0) {
+        document.getElementById('alertBanner').style.display = 'block';
+        document.getElementById('alertText').textContent = 
+          `${changedGames.length} game(s) you claimed have been rescheduled. Check highlighted rows below.`;
       }
     }
     
@@ -297,9 +336,10 @@
       games.forEach(game => {
         const dateFormatted = formatDate(game.date);
         const timeFormatted = formatTime(game.time);
+        const rowClass = game.schedule_changed ? 'game-changed' : '';
         html += `
-          <tr data-id="${game.game_id}">
-            <td>${dateFormatted}</td>
+          <tr data-id="${game.game_id}" class="${rowClass}">
+            <td>${dateFormatted}${game.old_date ? `<span class="old-date">${formatDate(game.old_date)}</span>` : ''}</td>
             <td>${timeFormatted}</td>
             <td>${game.away}</td>
             <td>${game.home}</td>
@@ -321,13 +361,12 @@
       if (!isoDate) return '';
       const [year, month, day] = isoDate.split('-');
       const monthName = MONTH_NAMES[parseInt(month, 10) - 1];
-      const dayNum = parseInt(day, 10); // removes leading zero
+      const dayNum = parseInt(day, 10);
       return `${monthName} ${dayNum}`;
     }
     
     function formatTime(time) {
       if (!time) return '';
-      // Remove leading zero from hour
       return time.replace(/^0/, '');
     }
     
@@ -335,21 +374,19 @@
       const me = getContributor();
       let html = '';
       
-      // Show existing photogs
       if (game.photog1) {
         const isMine = game.photog1 === me;
-        html += `<span class="assignment">${game.photog1}`;
-        if (isMine) html += ` <button class="claim-btn remove" onclick="removeClaim('${game.game_id}', 'photog1')">✕</button>`;
+        html += `<span class="assignment" title="${game.photog1}">${getShortName(game.photog1)}`;
+        if (isMine) html += `<button class="claim-btn remove" onclick="removeClaim('${game.game_id}', 'photog1')">✕</button>`;
         html += `</span>`;
       }
       if (game.photog2) {
         const isMine = game.photog2 === me;
-        html += `<span class="assignment">${game.photog2}`;
-        if (isMine) html += ` <button class="claim-btn remove" onclick="removeClaim('${game.game_id}', 'photog2')">✕</button>`;
+        html += `<span class="assignment" title="${game.photog2}">${getShortName(game.photog2)}`;
+        if (isMine) html += `<button class="claim-btn remove" onclick="removeClaim('${game.game_id}', 'photog2')">✕</button>`;
         html += `</span>`;
       }
       
-      // Show claim button if slot available and user selected
       if (me && !game.photog1) {
         html += `<button class="claim-btn available" onclick="claim('${game.game_id}', 'photog1')">📸 Claim</button>`;
       } else if (me && !game.photog2 && game.photog1 !== me) {
@@ -365,8 +402,8 @@
       
       if (game.videog) {
         const isMine = game.videog === me;
-        html += `<span class="assignment video">${game.videog}`;
-        if (isMine) html += ` <button class="claim-btn remove" onclick="removeClaim('${game.game_id}', 'videog')">✕</button>`;
+        html += `<span class="assignment video" title="${game.videog}">${getShortName(game.videog)}`;
+        if (isMine) html += `<button class="claim-btn remove" onclick="removeClaim('${game.game_id}', 'videog')">✕</button>`;
         html += `</span>`;
       } else if (me) {
         html += `<button class="claim-btn available" onclick="claim('${game.game_id}', 'videog')">🎥 Claim</button>`;
@@ -394,7 +431,6 @@
         });
         
         if (response.ok) {
-          // Update local data
           const game = allGames.find(g => g.game_id === gameId);
           if (game) game[field] = me;
           renderGames();
