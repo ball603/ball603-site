@@ -15,56 +15,50 @@ const SCHEDULE_URLS = [
 function parseSchedulePage(html, gender, division) {
   const games = [];
   
-  // Match team sections: <li> with <h2> containing team name
-  const teamRegex = /<li[^>]*>[\s\S]*?<h2>([^<]+)<\/h2>[\s\S]*?<table[^>]*>([\s\S]*?)<\/table>[\s\S]*?<\/li>/gi;
-  let teamMatch;
+  // The page has sections like: ## TeamName followed by a table
+  // Split by ## to get team sections
+  const sections = html.split(/##\s+/);
   
-  while ((teamMatch = teamRegex.exec(html)) !== null) {
-    const teamName = teamMatch[1].trim();
-    const tableContent = teamMatch[2];
+  for (const section of sections) {
+    // Get team name (first line before any HTML)
+    const teamNameMatch = section.match(/^([A-Za-z\-\s'\.]+)/);
+    if (!teamNameMatch) continue;
     
-    // Match rows in the table
-    const rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
-    let rowMatch;
+    const teamName = teamNameMatch[1].trim();
+    if (!teamName || teamName.length < 2) continue;
     
-    while ((rowMatch = rowRegex.exec(tableContent)) !== null) {
-      const rowContent = rowMatch[1];
-      const cells = [];
-      const cellRegex = /<td[^>]*>([^<]*)<\/td>/gi;
-      let cellMatch;
+    // Find all table rows in this section
+    const rowRegex = /<tr[^>]*>\s*<td[^>]*>(\d{2}\/\d{2}\/\d{2})<\/td>\s*<td[^>]*>(at|)<\/td>\s*<td[^>]*>([^<]+)<\/td>\s*<td[^>]*>[^<]*<\/td>\s*<td[^>]*>([^<]*)<\/td>/gi;
+    
+    let match;
+    while ((match = rowRegex.exec(section)) !== null) {
+      const date = match[1];
+      const atIndicator = match[2].trim();
+      const opponent = match[3].trim();
+      const time = match[4].trim();
       
-      while ((cellMatch = cellRegex.exec(rowContent)) !== null) {
-        cells.push(cellMatch[1].trim());
-      }
+      if (!date || !opponent) continue;
       
-      if (cells.length >= 5) {
-        const date = cells[0];
-        const atIndicator = cells[1];
-        const opponent = cells[2];
-        const time = cells[4];
-        
-        if (date && opponent && date.includes('/')) {
-          const isAway = atIndicator.toLowerCase() === 'at';
-          const homeTeam = isAway ? opponent : teamName;
-          const awayTeam = isAway ? teamName : opponent;
-          
-          const [month, day, year] = date.split('/');
-          const fullYear = year.length === 2 ? `20${year}` : year;
-          const isoDate = `${fullYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-          
-          const gameId = `${isoDate}-${homeTeam}-${awayTeam}`.replace(/\s+/g, '-').toLowerCase();
-          
-          games.push({
-            game_id: gameId,
-            date: isoDate,
-            time: time,
-            home_team: homeTeam,
-            away_team: awayTeam,
-            gender: gender,
-            division: division
-          });
-        }
-      }
+      const isAway = atIndicator.toLowerCase() === 'at';
+      const homeTeam = isAway ? opponent : teamName;
+      const awayTeam = isAway ? teamName : opponent;
+      
+      // Parse date (MM/DD/YY)
+      const [month, day, year] = date.split('/');
+      const fullYear = year.length === 2 ? `20${year}` : year;
+      const isoDate = `${fullYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+      
+      const gameId = `${isoDate}-${homeTeam}-${awayTeam}`.replace(/\s+/g, '-').toLowerCase();
+      
+      games.push({
+        game_id: gameId,
+        date: isoDate,
+        time: time,
+        home_team: homeTeam,
+        away_team: awayTeam,
+        gender: gender,
+        division: division
+      });
     }
   }
   
