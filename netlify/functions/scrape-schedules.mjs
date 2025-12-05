@@ -1,5 +1,6 @@
 // Ball603 NHIAA Schedule Scraper
 // Runs 3x daily via Netlify scheduled functions
+// Preserves photog/videog assignments when updating
 
 const SCHEDULE_URLS = [
   { url: 'https://www.nhiaa.org/sports/schedules/boys-basketball/division-1', gender: 'Boys', division: 'D-I' },
@@ -15,20 +16,17 @@ const SCHEDULE_URLS = [
 function parseSchedulePage(html, gender, division) {
   const games = [];
   
-  // Split by <li><h2> to get each team section
   const teamSections = html.split(/<li><h2>/i);
   
   for (let i = 1; i < teamSections.length; i++) {
     const section = teamSections[i];
     
-    // Get team name - everything before <!-- or </h2>
     const teamNameMatch = section.match(/^([^<]+)/);
     if (!teamNameMatch) continue;
     
     const teamName = teamNameMatch[1].trim();
     if (!teamName || teamName.length < 2) continue;
     
-    // Find all table rows with games
     const rowRegex = /<tr>\s*<td>(\d{2}\/\d{2}\/\d{2})<\/td>\s*<td[^>]*>([^<]*)<\/td>\s*<td>([^<]+)<\/td>\s*<td[^>]*>[^<]*<\/td>\s*<td[^>]*>([^<]*)<\/td>/gi;
     
     let match;
@@ -44,7 +42,6 @@ function parseSchedulePage(html, gender, division) {
       const homeTeam = isAway ? opponent : teamName;
       const awayTeam = isAway ? teamName : opponent;
       
-      // Parse date (MM/DD/YY)
       const [month, day, year] = date.split('/');
       const fullYear = year.length === 2 ? `20${year}` : year;
       const isoDate = `${fullYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
@@ -55,9 +52,10 @@ function parseSchedulePage(html, gender, division) {
         game_id: gameId,
         date: isoDate,
         time: time,
-        home_team: homeTeam,
         away_team: awayTeam,
+        home_team: homeTeam,
         gender: gender,
+        level: 'NHIAA',
         division: division
       });
     }
@@ -75,6 +73,34 @@ function deduplicateGames(games) {
   });
 }
 
+async function getExistingAssignments(accessToken, spreadsheetId) {
+  // Fetch existing data to preserve assignments
+  const response = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Schedules!A:L`,
+    { headers: { 'Authorization': `Bearer ${accessToken}` } }
+  );
+  
+  const data = await response.json();
+  const rows = data.values || [];
+  
+  // Build map of game_id -> {photog1, photog2, videog, notes}
+  const assignments = {};
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    const gameId = row[0];
+    if (gameId) {
+      assignments[gameId] = {
+        photog1: row[8] || '',
+        photog2: row[9] || '',
+        videog: row[10] || '',
+        notes: row[11] || ''
+      };
+    }
+  }
+  
+  return assignments;
+}
+
 async function updateGoogleSheets(games) {
   const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
   const spreadsheetId = process.env.GOOGLE_SHEETS_SCHEDULE_ID;
@@ -90,13 +116,40 @@ async function updateGoogleSheets(games) {
   
   const { access_token } = await tokenResponse.json();
   
-  const header = ['game_id', 'date', 'time', 'home_team', 'away_team', 'gender', 'division', 'home_score', 'away_score', 'scraped_at'];
-  const rows = games.map(g => [
-    g.game_id, g.date, g.time, g.home_team, g.away_team,
-    g.gender, g.division, '', '', new Date().toISOString()
-  ]);
+  // Get existing assignments before clearing
+  const existingAssignments = await getExistingAssignments(access_token, spreadsheetId);
+  console.log(`  Preserving ${Object.keys(existingAssignments).length} existing assignments`);
   
-  await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Schedules!A:J:clear`, {
+  // Header row
+  const header = ['game_id', 'date', 'time', 'away', 'home', 'gender', 'level', 'division', 'photog1', 'photog2', 'videog', 'notes'];
+  
+  // Build rows, preserving existing assignments
+  const rows = games.map(g => {
+    const existing = existingAssignments[g.game_id] || {};
+    return [
+      g.game_id,
+      g.date,
+      g.time,
+      g.away_team,
+      g.home_team,
+      g.gender,
+      g.level,
+      g.division,
+      existing.photog1 || '',
+      existing.photog2 || '',
+      existing.videog || '',
+      existing.notes || ''
+    ];
+  });
+  
+  // Sort by date, then time
+  rows.sort((a, b) => {
+    if (a[1] !== b[1]) return a[1].localeCompare(b[1]);
+    return a[2].localeCompare(b[2]);
+  });
+  
+  // Clear and update sheet
+  await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Schedules!A:L:clear`, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${access_token}` }
   });
