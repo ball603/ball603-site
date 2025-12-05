@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Schedule | Ball603</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #333; min-height: 100vh; }
+    
+    /* Header */
+    .header { background: #fff; padding: 15px 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+    .header-inner { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+    .header-left { display: flex; align-items: center; gap: 15px; }
+    .header-left img { height: 50px; cursor: pointer; }
+    .header-left h1 { font-size: 20px; color: #333; }
+    .header-nav { display: flex; gap: 20px; }
+    .header-nav a { color: #666; text-decoration: none; font-size: 14px; font-weight: 500; }
+    .header-nav a:hover { color: #f57c00; }
+    .header-nav a.active { color: #f57c00; }
+    
+    /* Main container */
+    .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+    
+    /* Controls */
+    .controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px; }
+    .date-nav { display: flex; align-items: center; gap: 10px; }
+    .date-nav button { background: #fff; border: 1px solid #ddd; border-radius: 5px; padding: 8px 12px; cursor: pointer; font-size: 14px; }
+    .date-nav button:hover { background: #f5f5f5; }
+    .date-nav .current-date { font-size: 18px; font-weight: 600; min-width: 200px; text-align: center; }
+    .filters { display: flex; gap: 10px; align-items: center; }
+    .filters select, .filters input { padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; }
+    .filters input { width: 200px; }
+    
+    /* Tabs */
+    .tabs { display: flex; gap: 5px; margin-bottom: 20px; }
+    .tab { padding: 10px 20px; background: #fff; border: 1px solid #ddd; border-radius: 8px 8px 0 0; color: #666; cursor: pointer; font-size: 14px; font-weight: 500; }
+    .tab:hover { background: #f5f5f5; }
+    .tab.active { background: #f57c00; color: #fff; border-color: #f57c00; }
+    
+    /* Schedule container */
+    .schedule-container { background: #fff; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); overflow: hidden; }
+    
+    /* Date header */
+    .date-header { background: #f8f8f8; padding: 12px 20px; font-weight: 600; font-size: 15px; border-bottom: 1px solid #eee; color: #333; }
+    
+    /* Games table */
+    .games-table { width: 100%; border-collapse: collapse; }
+    .games-table th { background: #f5f5f5; padding: 10px 15px; text-align: left; font-size: 12px; color: #666; text-transform: uppercase; font-weight: 600; border-bottom: 1px solid #eee; }
+    .games-table td { padding: 12px 15px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+    .games-table tr:hover { background: #fafafa; }
+    .games-table tr:last-child td { border-bottom: none; }
+    
+    /* Gender column */
+    .gender-col { width: 60px; font-size: 12px; color: #666; font-weight: 500; }
+    
+    /* Team columns */
+    .team-col { white-space: nowrap; }
+    .team { display: flex; align-items: center; gap: 8px; }
+    .team-logo { width: 24px; height: 24px; border-radius: 4px; object-fit: contain; background: #f5f5f5; }
+    .team-name { font-weight: 500; color: #333; text-decoration: none; }
+    .team-name:hover { color: #f57c00; }
+    
+    /* At column */
+    .at-col { width: 30px; text-align: center; color: #999; font-size: 12px; }
+    
+    /* Time/Score column */
+    .time-col { width: 100px; text-align: center; }
+    .game-time { color: #333; font-weight: 500; }
+    .game-score { font-weight: 700; color: #333; }
+    .game-final { font-size: 10px; color: #888; text-transform: uppercase; }
+    
+    /* Coverage column */
+    .coverage-col { width: 120px; }
+    .coverage-icons { display: flex; gap: 8px; }
+    .coverage-icon { font-size: 16px; text-decoration: none; opacity: 0.3; }
+    .coverage-icon.active { opacity: 1; cursor: pointer; }
+    .coverage-icon.active:hover { transform: scale(1.1); }
+    
+    /* Empty state */
+    .empty-state { padding: 60px 20px; text-align: center; color: #888; }
+    .empty-state p { font-size: 16px; }
+    
+    /* Loading */
+    .loading { padding: 60px 20px; text-align: center; color: #888; }
+    
+    /* Footer */
+    .footer { text-align: center; padding: 40px 20px; }
+    .footer img { height: 40px; opacity: 0.7; cursor: pointer; }
+    .footer img:hover { opacity: 1; }
+    
+    /* Mobile */
+    @media (max-width: 768px) {
+      .header-nav { display: none; }
+      .header-left h1 { font-size: 16px; }
+      .controls { flex-direction: column; align-items: stretch; }
+      .date-nav { justify-content: center; }
+      .filters { justify-content: center; flex-wrap: wrap; }
+      .filters input { width: 100%; }
+      .tabs { overflow-x: auto; }
+      .tab { padding: 8px 15px; font-size: 13px; white-space: nowrap; }
+      
+      .games-table th, .games-table td { padding: 10px 8px; }
+      .gender-col { width: 40px; font-size: 11px; }
+      .team-logo { width: 20px; height: 20px; }
+      .team-name { font-size: 13px; }
+      .at-col { width: 20px; }
+      .time-col { width: 70px; font-size: 13px; }
+      .coverage-col { width: 80px; }
+      .coverage-icons { gap: 4px; }
+      .coverage-icon { font-size: 14px; }
+    }
+    
+    @media (max-width: 480px) {
+      .team-logo { display: none; }
+      .gender-col { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-inner">
+      <div class="header-left">
+        <img src="logo.png" alt="Ball603" onclick="window.location.href='/'">
+        <h1>Schedule</h1>
+      </div>
+      <nav class="header-nav">
+        <a href="/">Home</a>
+        <a href="/schedule.html" class="active">Schedule</a>
+        <a href="/standings.html">Standings</a>
+        <a href="/teams.html">Teams</a>
+      </nav>
+    </div>
+  </div>
+  
+  <div class="container">
+    <div class="controls">
+      <div class="date-nav">
+        <button onclick="prevDay()">◀</button>
+        <div class="current-date" id="currentDate">Loading...</div>
+        <button onclick="nextDay()">▶</button>
+      </div>
+      <div class="filters">
+        <select id="genderFilter" onchange="renderSchedule()">
+          <option value="">All Genders</option>
+          <option value="Boys">Boys</option>
+          <option value="Girls">Girls</option>
+        </select>
+        <input type="text" id="searchInput" placeholder="Search teams..." oninput="renderSchedule()">
+      </div>
+    </div>
+    
+    <div class="tabs">
+      <div class="tab active" data-tab="NHIAA" onclick="setTab('NHIAA')">NHIAA</div>
+      <div class="tab" data-tab="College" onclick="setTab('College')">College</div>
+      <div class="tab" data-tab="Prep" onclick="setTab('Prep')">Prep</div>
+    </div>
+    
+    <div class="schedule-container" id="scheduleContainer">
+      <div class="loading">Loading schedule...</div>
+    </div>
+  </div>
+  
+  <div class="footer">
+    <img src="logo.png" alt="Ball603" onclick="window.location.href='/'">
+  </div>
+
+  <script>
+    const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    
+    let allGames = [];
+    let currentTab = 'NHIAA';
+    let currentDate = new Date();
+    currentDate.setHours(0, 0, 0, 0);
+    
+    // Team name to logo mapping
+    function getLogoFilename(teamName) {
+      if (!teamName) return 'Ball603.png';
+      
+      // Special cases mapping (database name -> logo filename without .png)
+      const specialCases = {
+        'coe-brown': 'CoeBrown',
+        'bishop brady': 'BishopBrady',
+        'bishop guertin': 'BishopGuertin',
+        'concord christian': 'ConcordChristian',
+        'con-val': 'ConVal',
+        'fall mountain': 'FallMountain',
+        'hillsboro-deering': 'HillsboroDeering',
+        'hollis-brookline': 'HollisBrookline',
+        'holy family': 'HolyFamily',
+        'inter-lakes': 'InterLakes',
+        'john stark': 'JohnStark',
+        'lin-wood': 'LinWood',
+        'manchester central': 'ManchesterCentral',
+        'manchester memorial': 'ManchesterMemorial',
+        'manchester west': 'ManchesterWest',
+        'merrimack valley': 'MerrimackValley',
+        'mount royal': 'MountRoyal',
+        'nashua north': 'NashuaNorth',
+        'nashua south': 'NashuaSouth',
+        'oyster river': 'OysterRiver',
+        'pittsburg-canaan': 'PittsburgCanaan',
+        'portsmouth christian': 'PortsmouthChristian',
+        'prospect mountain': 'ProspectMountain',
+        'st. thomas aquinas': 'StThomasAquinas',
+        'st thomas aquinas': 'StThomasAquinas',
+        'white mountains': 'WhiteMountains',
+        'wilton-lyndeborough': 'WiltonLyndeborough'
+      };
+      
+      const lower = teamName.toLowerCase().trim();
+      
+      // Check special cases first
+      if (specialCases[lower]) {
+        return specialCases[lower] + '.png';
+      }
+      
+      // Default: capitalize first letter, remove spaces/hyphens
+      // e.g., "exeter" -> "Exeter", "berlin" -> "Berlin"
+      const cleaned = teamName
+        .split(/[\s-]+/)
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join('');
+      
+      return cleaned + '.png';
+    }
+    
+    async function loadGames() {
+      try {
+        const response = await fetch('/.netlify/functions/get-games');
+        const data = await response.json();
+        allGames = data.games || [];
+        renderSchedule();
+      } catch (err) {
+        document.getElementById('scheduleContainer').innerHTML = '<div class="empty-state"><p>Error loading schedule. Please refresh.</p></div>';
+      }
+    }
+    
+    function setTab(tab) {
+      currentTab = tab;
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelector(`.tab[data-tab="${tab}"]`).classList.add('active');
+      renderSchedule();
+    }
+    
+    function prevDay() {
+      currentDate.setDate(currentDate.getDate() - 1);
+      updateDateDisplay();
+      renderSchedule();
+    }
+    
+    function nextDay() {
+      currentDate.setDate(currentDate.getDate() + 1);
+      updateDateDisplay();
+      renderSchedule();
+    }
+    
+    function updateDateDisplay() {
+      const dayName = DAY_NAMES[currentDate.getDay()];
+      const monthName = MONTH_NAMES[currentDate.getMonth()];
+      const day = currentDate.getDate();
+      const year = currentDate.getFullYear();
+      document.getElementById('currentDate').textContent = `${dayName}, ${monthName} ${day}, ${year}`;
+    }
+    
+    function getDateString(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+    
+    function renderSchedule() {
+      const search = document.getElementById('searchInput').value.toLowerCase();
+      const gender = document.getElementById('genderFilter').value;
+      const dateStr = getDateString(currentDate);
+      
+      // Filter games
+      let games = allGames.filter(g => {
+        if (g.level !== currentTab) return false;
+        if (g.date !== dateStr) return false;
+        if (gender && g.gender !== gender) return false;
+        if (search && !g.home.toLowerCase().includes(search) && !g.away.toLowerCase().includes(search)) return false;
+        return true;
+      });
+      
+      // Sort by time
+      games.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+      
+      if (games.length === 0) {
+        document.getElementById('scheduleContainer').innerHTML = `
+          <div class="empty-state">
+            <p>No games scheduled for this date.</p>
+          </div>
+        `;
+        return;
+      }
+      
+      let html = `
+        <table class="games-table">
+          <thead>
+            <tr>
+              <th class="gender-col">Gender</th>
+              <th class="team-col">Away</th>
+              <th class="at-col"></th>
+              <th class="team-col">Home</th>
+              <th class="time-col">Time</th>
+              <th class="coverage-col">Coverage</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+      
+      games.forEach(game => {
+        const hasScore = game.score_away !== undefined && game.score_away !== '' && game.score_home !== undefined && game.score_home !== '';
+        const isNeutral = game.neutral_site || false;
+        
+        // Coverage icons
+        const hasLiveStream = game.live_stream_url;
+        const hasPhotos = game.photos_url;
+        const hasHighlights = game.highlights_url;
+        const hasRecap = game.recap_url;
+        
+        html += `
+          <tr>
+            <td class="gender-col">${game.gender || ''}</td>
+            <td class="team-col">
+              <div class="team">
+                <img class="team-logo" src="/logos/100px/${getLogoFilename(game.away)}" alt="" onerror="this.src='/logos/100px/Ball603.png'">
+                <a class="team-name" href="/teams/${getLogoFilename(game.away).replace('.png', '.html')}">${game.away}</a>
+              </div>
+            </td>
+            <td class="at-col">${isNeutral ? 'vs' : '@'}</td>
+            <td class="team-col">
+              <div class="team">
+                <img class="team-logo" src="/logos/100px/${getLogoFilename(game.home)}" alt="" onerror="this.src='/logos/100px/Ball603.png'">
+                <a class="team-name" href="/teams/${getLogoFilename(game.home).replace('.png', '.html')}">${game.home}</a>
+              </div>
+            </td>
+            <td class="time-col">
+              ${hasScore ? `
+                <div class="game-score">${game.score_away} - ${game.score_home}</div>
+                <div class="game-final">Final</div>
+              ` : `
+                <div class="game-time">${game.time || 'TBD'}</div>
+              `}
+            </td>
+            <td class="coverage-col">
+              <div class="coverage-icons">
+                <a class="coverage-icon ${hasLiveStream ? 'active' : ''}" href="${hasLiveStream || '#'}" title="Live Stream" ${hasLiveStream ? '' : 'onclick="return false;"'}>📺</a>
+                <a class="coverage-icon ${hasPhotos ? 'active' : ''}" href="${hasPhotos || '#'}" title="Photos" ${hasPhotos ? '' : 'onclick="return false;"'}>📸</a>
+                <a class="coverage-icon ${hasHighlights ? 'active' : ''}" href="${hasHighlights || '#'}" title="Highlights" ${hasHighlights ? '' : 'onclick="return false;"'}>🎥</a>
+                <a class="coverage-icon ${hasRecap ? 'active' : ''}" href="${hasRecap || '#'}" title="Recap" ${hasRecap ? '' : 'onclick="return false;"'}>📝</a>
+              </div>
+            </td>
+          </tr>
+        `;
+      });
+      
+      html += '</tbody></table>';
+      document.getElementById('scheduleContainer').innerHTML = html;
+    }
+    
+    // Initialize
+    updateDateDisplay();
+    loadGames();
+  </script>
+</body>
+</html>
