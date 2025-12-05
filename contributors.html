@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ball603 Contributors</title>
+  <title>Ball603 Contributor Coverage Schedule</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #333; min-height: 100vh; }
@@ -45,7 +45,8 @@
     .games-table tr:hover { background: #f0f0f0; }
     
     /* Coverage cell */
-    .coverage-cell { min-width: 140px; }
+    .coverage-cell { min-width: 120px; }
+    .claim-cell { width: 30px; vertical-align: top; text-align: center; }
     .coverage-entry { display: flex; align-items: center; gap: 4px; margin-bottom: 3px; }
     .coverage-entry:last-child { margin-bottom: 0; }
     .coverage-emoji { font-size: 12px; }
@@ -115,7 +116,7 @@
       <div class="header">
         <div class="header-left">
           <img src="logo.png" alt="Ball603">
-          <h1>Contributors</h1>
+          <h1>Contributor Coverage Schedule</h1>
         </div>
         <div class="user-info">
           <span>You are:</span>
@@ -443,6 +444,7 @@
               <th class="hide-mobile">Gender</th>
               <th class="hide-mobile">Level</th>
               <th class="hide-mobile">Div</th>
+              <th></th>
               <th>Coverage</th>
               <th class="hide-mobile">Notes</th>
             </tr>
@@ -461,6 +463,7 @@
             <td class="hide-mobile">${game.gender || ''}</td>
             <td class="hide-mobile">${game.level || ''}</td>
             <td class="hide-mobile">${game.division || ''}</td>
+            <td class="claim-cell">${renderClaimCell(game)}</td>
             <td class="coverage-cell">${renderCoverageCell(game)}</td>
             <td class="hide-mobile notes-cell">${renderNotesCell(game)}</td>
           </tr>
@@ -496,6 +499,30 @@
       return time.replace(/^0/, '');
     }
     
+    function renderClaimCell(game) {
+      const me = getContributor();
+      if (!me) return '';
+      
+      const canClaimPhotog = !game.photog1 || (!game.photog2 && game.photog1 !== me);
+      const canClaimVideo = !game.videog || game.videog !== me;
+      const canClaimWriter = !game.writer || game.writer !== me;
+      
+      // Only show if there's something to claim
+      if (!canClaimPhotog && !canClaimVideo && !canClaimWriter) return '';
+      
+      return `
+        <div class="claim-wrapper">
+          <button class="claim-btn" onclick="toggleClaimDropdown(event, '${game.game_id}')">➕</button>
+          <div class="claim-dropdown" id="dropdown-${game.game_id}">
+            ${!game.photog1 ? `<div class="claim-option" onclick="claim('${game.game_id}', 'photog1')"><span class="emoji">📸</span> Photographer</div>` : ''}
+            ${game.photog1 && !game.photog2 && game.photog1 !== me ? `<div class="claim-option" onclick="claim('${game.game_id}', 'photog2')"><span class="emoji">📸</span> Photographer (+1)</div>` : ''}
+            ${!game.videog ? `<div class="claim-option" onclick="claim('${game.game_id}', 'videog')"><span class="emoji">🎥</span> Videographer</div>` : ''}
+            ${!game.writer ? `<div class="claim-option" onclick="claim('${game.game_id}', 'writer')"><span class="emoji">📝</span> Writer</div>` : ''}
+          </div>
+        </div>
+      `;
+    }
+    
     function renderCoverageCell(game) {
       const me = getContributor();
       let html = '';
@@ -508,6 +535,10 @@
         { field: 'writer', emoji: '📝', name: game.writer }
       ].filter(item => item.name);
       
+      if (coverageItems.length === 0) {
+        return '<span style="color:#999">-</span>';
+      }
+      
       coverageItems.forEach(item => {
         const isMine = item.name === me;
         html += `
@@ -519,28 +550,7 @@
         `;
       });
       
-      // Show claim button if user selected and slots available
-      if (me) {
-        const canClaimPhotog = !game.photog1 || (!game.photog2 && game.photog1 !== me);
-        const canClaimVideo = !game.videog && game.videog !== me;
-        const canClaimWriter = !game.writer && game.writer !== me;
-        
-        if (canClaimPhotog || canClaimVideo || canClaimWriter) {
-          html += `
-            <div class="claim-wrapper">
-              <button class="claim-btn" onclick="toggleClaimDropdown(event, '${game.game_id}')">➕</button>
-              <div class="claim-dropdown" id="dropdown-${game.game_id}">
-                ${!game.photog1 ? `<div class="claim-option" onclick="claim('${game.game_id}', 'photog1')"><span class="emoji">📸</span> Photographer</div>` : ''}
-                ${game.photog1 && !game.photog2 && game.photog1 !== me ? `<div class="claim-option" onclick="claim('${game.game_id}', 'photog2')"><span class="emoji">📸</span> Photographer (+1)</div>` : ''}
-                ${canClaimVideo ? `<div class="claim-option" onclick="claim('${game.game_id}', 'videog')"><span class="emoji">🎥</span> Videographer</div>` : ''}
-                ${canClaimWriter ? `<div class="claim-option" onclick="claim('${game.game_id}', 'writer')"><span class="emoji">📝</span> Writer</div>` : ''}
-              </div>
-            </div>
-          `;
-        }
-      }
-      
-      return html || '<span style="color:#999">-</span>';
+      return html;
     }
     
     function toggleClaimDropdown(event, gameId) {
