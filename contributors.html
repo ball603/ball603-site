@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ball603 Contributors</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #1a1a2e; color: #eee; min-height: 100vh; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+    h1 { color: #ff6b35; margin-bottom: 10px; }
+    .subtitle { color: #888; margin-bottom: 30px; }
+    
+    /* Login */
+    .login-box { background: #16213e; padding: 40px; border-radius: 10px; max-width: 400px; margin: 100px auto; }
+    .login-box h2 { margin-bottom: 20px; color: #ff6b35; }
+    .login-box input { width: 100%; padding: 12px; margin-bottom: 15px; border: none; border-radius: 5px; font-size: 16px; }
+    .login-box button { width: 100%; padding: 12px; background: #ff6b35; color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; }
+    .login-box button:hover { background: #ff8c5a; }
+    .error { color: #ff4444; margin-top: 10px; }
+    
+    /* Header */
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px; }
+    .user-info { display: flex; align-items: center; gap: 15px; }
+    .user-info select { padding: 8px 12px; border-radius: 5px; border: none; font-size: 14px; }
+    .logout-btn { padding: 8px 16px; background: #333; color: #fff; border: none; border-radius: 5px; cursor: pointer; }
+    
+    /* Filters */
+    .filters { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+    .filters select, .filters input { padding: 8px 12px; border-radius: 5px; border: none; font-size: 14px; }
+    .filters input { width: 200px; }
+    
+    /* Tabs */
+    .tabs { display: flex; gap: 5px; margin-bottom: 20px; }
+    .tab { padding: 10px 20px; background: #16213e; border: none; color: #888; cursor: pointer; border-radius: 5px 5px 0 0; }
+    .tab.active { background: #ff6b35; color: white; }
+    
+    /* Games Table */
+    .games-table { width: 100%; border-collapse: collapse; background: #16213e; border-radius: 10px; overflow: hidden; }
+    .games-table th { background: #0f3460; padding: 12px; text-align: left; font-weight: 600; }
+    .games-table td { padding: 12px; border-bottom: 1px solid #1a1a2e; }
+    .games-table tr:hover { background: #1a2a4e; }
+    
+    /* Assignment buttons */
+    .claim-btn { padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; }
+    .claim-btn.available { background: #4CAF50; color: white; }
+    .claim-btn.claimed { background: #2196F3; color: white; }
+    .claim-btn.mine { background: #ff6b35; color: white; }
+    .claim-btn.remove { background: #f44336; color: white; }
+    
+    /* Notes */
+    .notes-cell { max-width: 200px; }
+    .notes-input { width: 100%; padding: 4px 8px; border: 1px solid #333; border-radius: 4px; background: #1a1a2e; color: #eee; font-size: 12px; }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+      .games-table { font-size: 14px; }
+      .games-table th, .games-table td { padding: 8px 6px; }
+      .hide-mobile { display: none; }
+    }
+    
+    .loading { text-align: center; padding: 40px; color: #888; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-left: 5px; }
+    .badge.photog { background: #4CAF50; }
+    .badge.video { background: #9c27b0; }
+  </style>
+</head>
+<body>
+  <div class="container" id="app">
+    <!-- Login Screen -->
+    <div class="login-box" id="loginScreen">
+      <h2>🏀 Ball603 Contributors</h2>
+      <input type="password" id="password" placeholder="Enter password" onkeypress="if(event.key==='Enter')login()">
+      <button onclick="login()">Login</button>
+      <div class="error" id="loginError"></div>
+    </div>
+    
+    <!-- Main App (hidden until login) -->
+    <div id="mainApp" style="display: none;">
+      <div class="header">
+        <div>
+          <h1>🏀 Ball603 Contributors</h1>
+          <p class="subtitle">Claim games to cover</p>
+        </div>
+        <div class="user-info">
+          <span>You are:</span>
+          <select id="contributorSelect" onchange="saveContributor()">
+            <option value="">-- Select Your Name --</option>
+          </select>
+          <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+      </div>
+      
+      <div class="filters">
+        <input type="text" id="searchInput" placeholder="Search teams..." oninput="renderGames()">
+        <select id="genderFilter" onchange="renderGames()">
+          <option value="">All Genders</option>
+          <option value="Boys">Boys</option>
+          <option value="Girls">Girls</option>
+          <option value="Men">Men</option>
+          <option value="Women">Women</option>
+        </select>
+        <select id="divisionFilter" onchange="renderGames()">
+          <option value="">All Divisions</option>
+        </select>
+        <select id="assignmentFilter" onchange="renderGames()">
+          <option value="">All Games</option>
+          <option value="unclaimed">Unclaimed Only</option>
+          <option value="mine">My Assignments</option>
+          <option value="claimed">Claimed</option>
+        </select>
+      </div>
+      
+      <div class="tabs">
+        <button class="tab active" data-tab="all" onclick="setTab('all')">All Games</button>
+        <button class="tab" data-tab="NHIAA" onclick="setTab('NHIAA')">NHIAA</button>
+        <button class="tab" data-tab="College" onclick="setTab('College')">College</button>
+        <button class="tab" data-tab="Prep" onclick="setTab('Prep')">Prep</button>
+      </div>
+      
+      <div id="gamesContainer">
+        <div class="loading">Loading games...</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const CONTRIBUTORS = [
+      "Andy Romike", "Arinn Roy", "Betsy Hansen", "Cam Place", "Chris Laclair", "Chris Prangley",
+      "Christine Gilbert", "Chuck Swierad", "Cindy Lavigne", "Connor Chrusciel", "Danielle Cook",
+      "Dave Beliveau", "Frank V Fichera", "Greg Alnwick", "Hannah Smith", "Haven Deschenes",
+      "Heather Savage-Erickson", "Heidi Green", "Jeff Criss", "Jessica Bonnette", "Jessica Tate",
+      "Jill Stevens", "Jocelyn Sprague", "John Scott Sherburne", "Leo Cardinal", "LJ Hydock",
+      "Logan Paronto", "Marc Hoak", "Maverick Thivierge", "Michael Griffin", "Mike Whaley",
+      "Mindy Marcouillier", "Nate Ford", "Nichole Marrero", "Rick Wilson", "Sara Roberts",
+      "Shawna Hurlbert", "Shirley Nickles", "Simon Scott", "Stefan Duncan", "Tim Lee",
+      "Todd Grzywacz", "Tyson Thomas"
+    ].sort();
+    
+    const CORRECT_PASSWORD = 'Gr@niteSt@teHoops';
+    let allGames = [];
+    let currentTab = 'all';
+    
+    // Check if already logged in
+    if (localStorage.getItem('ball603_auth') === 'true') {
+      showMainApp();
+    }
+    
+    function login() {
+      const pw = document.getElementById('password').value;
+      if (pw === CORRECT_PASSWORD) {
+        localStorage.setItem('ball603_auth', 'true');
+        showMainApp();
+      } else {
+        document.getElementById('loginError').textContent = 'Incorrect password';
+      }
+    }
+    
+    function logout() {
+      localStorage.removeItem('ball603_auth');
+      localStorage.removeItem('ball603_contributor');
+      location.reload();
+    }
+    
+    function showMainApp() {
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('mainApp').style.display = 'block';
+      populateContributors();
+      loadGames();
+    }
+    
+    function populateContributors() {
+      const select = document.getElementById('contributorSelect');
+      CONTRIBUTORS.forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        select.appendChild(opt);
+      });
+      // Restore saved selection
+      const saved = localStorage.getItem('ball603_contributor');
+      if (saved) select.value = saved;
+    }
+    
+    function saveContributor() {
+      const name = document.getElementById('contributorSelect').value;
+      localStorage.setItem('ball603_contributor', name);
+      renderGames();
+    }
+    
+    function getContributor() {
+      return document.getElementById('contributorSelect').value;
+    }
+    
+    async function loadGames() {
+      try {
+        const response = await fetch('/.netlify/functions/get-games');
+        const data = await response.json();
+        allGames = data.games || [];
+        populateDivisionFilter();
+        renderGames();
+      } catch (err) {
+        document.getElementById('gamesContainer').innerHTML = '<div class="loading">Error loading games. Please refresh.</div>';
+      }
+    }
+    
+    function populateDivisionFilter() {
+      const divisions = [...new Set(allGames.map(g => g.division).filter(Boolean))].sort();
+      const select = document.getElementById('divisionFilter');
+      divisions.forEach(div => {
+        const opt = document.createElement('option');
+        opt.value = div;
+        opt.textContent = div;
+        select.appendChild(opt);
+      });
+    }
+    
+    function setTab(tab) {
+      currentTab = tab;
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelector(`.tab[data-tab="${tab}"]`).classList.add('active');
+      renderGames();
+    }
+    
+    function renderGames() {
+      const search = document.getElementById('searchInput').value.toLowerCase();
+      const gender = document.getElementById('genderFilter').value;
+      const division = document.getElementById('divisionFilter').value;
+      const assignment = document.getElementById('assignmentFilter').value;
+      const me = getContributor();
+      
+      let games = allGames.filter(g => {
+        // Tab filter
+        if (currentTab !== 'all' && g.level !== currentTab) return false;
+        
+        // Search
+        if (search && !g.home.toLowerCase().includes(search) && !g.away.toLowerCase().includes(search)) return false;
+        
+        // Gender
+        if (gender && g.gender !== gender) return false;
+        
+        // Division
+        if (division && g.division !== division) return false;
+        
+        // Assignment filter
+        const hasClaim = g.photog1 || g.photog2 || g.videog;
+        const isMine = g.photog1 === me || g.photog2 === me || g.videog === me;
+        if (assignment === 'unclaimed' && hasClaim) return false;
+        if (assignment === 'mine' && !isMine) return false;
+        if (assignment === 'claimed' && !hasClaim) return false;
+        
+        return true;
+      });
+      
+      // Only show future games (today and forward)
+      const today = new Date().toISOString().split('T')[0];
+      games = games.filter(g => g.date >= today);
+      
+      // Sort by date/time
+      games.sort((a, b) => {
+        if (a.date !== b.date) return a.date.localeCompare(b.date);
+        return (a.time || '').localeCompare(b.time || '');
+      });
+      
+      if (games.length === 0) {
+        document.getElementById('gamesContainer').innerHTML = '<div class="loading">No games found</div>';
+        return;
+      }
+      
+      let html = `
+        <table class="games-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Time</th>
+              <th>Away</th>
+              <th>Home</th>
+              <th class="hide-mobile">Gender</th>
+              <th class="hide-mobile">Level</th>
+              <th class="hide-mobile">Div</th>
+              <th>Photog</th>
+              <th>Video</th>
+              <th class="hide-mobile">Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+      
+      games.forEach(game => {
+        const dateFormatted = formatDate(game.date);
+        html += `
+          <tr data-id="${game.game_id}">
+            <td>${dateFormatted}</td>
+            <td>${game.time || ''}</td>
+            <td>${game.away}</td>
+            <td>${game.home}</td>
+            <td class="hide-mobile">${game.gender || ''}</td>
+            <td class="hide-mobile">${game.level || ''}</td>
+            <td class="hide-mobile">${game.division || ''}</td>
+            <td>${renderPhotogCell(game)}</td>
+            <td>${renderVideoCell(game)}</td>
+            <td class="hide-mobile notes-cell">${renderNotesCell(game)}</td>
+          </tr>
+        `;
+      });
+      
+      html += '</tbody></table>';
+      document.getElementById('gamesContainer').innerHTML = html;
+    }
+    
+    function formatDate(isoDate) {
+      if (!isoDate) return '';
+      const [year, month, day] = isoDate.split('-');
+      return `${month}/${day}`;
+    }
+    
+    function renderPhotogCell(game) {
+      const me = getContributor();
+      let html = '';
+      
+      // Show existing photogs
+      if (game.photog1) {
+        const isMine = game.photog1 === me;
+        html += `<span class="badge photog">${game.photog1}</span>`;
+        if (isMine) html += ` <button class="claim-btn remove" onclick="removeClaim('${game.game_id}', 'photog1')">✕</button>`;
+      }
+      if (game.photog2) {
+        const isMine = game.photog2 === me;
+        html += `<span class="badge photog">${game.photog2}</span>`;
+        if (isMine) html += ` <button class="claim-btn remove" onclick="removeClaim('${game.game_id}', 'photog2')">✕</button>`;
+      }
+      
+      // Show claim button if slot available and user selected
+      if (me && !game.photog1) {
+        html += `<button class="claim-btn available" onclick="claim('${game.game_id}', 'photog1')">📸 Claim</button>`;
+      } else if (me && !game.photog2 && game.photog1 !== me) {
+        html += `<button class="claim-btn available" onclick="claim('${game.game_id}', 'photog2')">📸 +1</button>`;
+      }
+      
+      return html || '-';
+    }
+    
+    function renderVideoCell(game) {
+      const me = getContributor();
+      let html = '';
+      
+      if (game.videog) {
+        const isMine = game.videog === me;
+        html += `<span class="badge video">${game.videog}</span>`;
+        if (isMine) html += ` <button class="claim-btn remove" onclick="removeClaim('${game.game_id}', 'videog')">✕</button>`;
+      } else if (me) {
+        html += `<button class="claim-btn available" onclick="claim('${game.game_id}', 'videog')">🎥 Claim</button>`;
+      }
+      
+      return html || '-';
+    }
+    
+    function renderNotesCell(game) {
+      return `<input class="notes-input" value="${game.notes || ''}" onblur="updateNotes('${game.game_id}', this.value)" placeholder="Add note...">`;
+    }
+    
+    async function claim(gameId, field) {
+      const me = getContributor();
+      if (!me) {
+        alert('Please select your name first');
+        return;
+      }
+      
+      try {
+        const response = await fetch('/.netlify/functions/update-assignment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ gameId, field, value: me })
+        });
+        
+        if (response.ok) {
+          // Update local data
+          const game = allGames.find(g => g.game_id === gameId);
+          if (game) game[field] = me;
+          renderGames();
+        } else {
+          alert('Error saving. Please try again.');
+        }
+      } catch (err) {
+        alert('Error saving. Please try again.');
+      }
+    }
+    
+    async function removeClaim(gameId, field) {
+      try {
+        const response = await fetch('/.netlify/functions/update-assignment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ gameId, field, value: '' })
+        });
+        
+        if (response.ok) {
+          const game = allGames.find(g => g.game_id === gameId);
+          if (game) game[field] = '';
+          renderGames();
+        }
+      } catch (err) {
+        alert('Error removing. Please try again.');
+      }
+    }
+    
+    async function updateNotes(gameId, value) {
+      try {
+        await fetch('/.netlify/functions/update-assignment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ gameId, field: 'notes', value })
+        });
+        
+        const game = allGames.find(g => g.game_id === gameId);
+        if (game) game.notes = value;
+      } catch (err) {
+        // Silent fail for notes
+      }
+    }
+  </script>
+</body>
+</html>
