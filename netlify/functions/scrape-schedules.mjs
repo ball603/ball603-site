@@ -216,7 +216,7 @@ function deduplicateGames(games) {
 
 async function getExistingData(accessToken, spreadsheetId) {
   const response = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Schedules!A:U`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Schedules!A:W`,
     { headers: { 'Authorization': `Bearer ${accessToken}` } }
   );
   
@@ -225,7 +225,7 @@ async function getExistingData(accessToken, spreadsheetId) {
   
   if (rows.length === 0) return {};
   
-  // Columns: game_id, date, time, away, away_score, home, home_score, gender, level, division, photog1, photog2, videog, writer, notes, original_date, schedule_changed, photos_url, recap_url, highlights_url, live_stream_url
+  // Columns: game_id, date, time, away, away_score, home, home_score, gender, level, division, photog1, photog2, videog, writer, notes, original_date, schedule_changed, photos_url, recap_url, highlights_url, live_stream_url, gamedescription, specialevent
   const existingGames = {};
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
@@ -246,7 +246,9 @@ async function getExistingData(accessToken, spreadsheetId) {
         photos_url: row[17] || '',
         recap_url: row[18] || '',
         highlights_url: row[19] || '',
-        live_stream_url: row[20] || ''
+        live_stream_url: row[20] || '',
+        gamedescription: row[21] || '',
+        specialevent: row[22] || ''
       };
     }
   }
@@ -274,7 +276,7 @@ async function updateGoogleSheets(games) {
   console.log(`  Found ${Object.keys(existingGames).length} existing games`);
   
   // Header row with score and coverage columns
-  const header = ['game_id', 'date', 'time', 'away', 'away_score', 'home', 'home_score', 'gender', 'level', 'division', 'photog1', 'photog2', 'videog', 'writer', 'notes', 'original_date', 'schedule_changed', 'photos_url', 'recap_url', 'highlights_url', 'live_stream_url'];
+  const header = ['game_id', 'date', 'time', 'away', 'away_score', 'home', 'home_score', 'gender', 'level', 'division', 'photog1', 'photog2', 'videog', 'writer', 'notes', 'original_date', 'schedule_changed', 'photos_url', 'recap_url', 'highlights_url', 'live_stream_url', 'gamedescription', 'specialevent'];
   
   let changesDetected = 0;
   
@@ -329,7 +331,9 @@ async function updateGoogleSheets(games) {
       existing.photos_url || '',
       existing.recap_url || '',
       existing.highlights_url || '',
-      existing.live_stream_url || ''
+      existing.live_stream_url || '',
+      existing.gamedescription || '',
+      existing.specialevent || ''
     ];
   });
   
@@ -344,7 +348,7 @@ async function updateGoogleSheets(games) {
   });
   
   // Clear and update sheet
-  await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Schedules!A:U:clear`, {
+  await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Schedules!A:W:clear`, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${access_token}` }
   });

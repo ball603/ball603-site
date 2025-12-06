@@ -54,7 +54,7 @@ async function getTeamsData(accessToken, teamsSheetId) {
   // Find column indices from header row
   const headers = rows[0].map(h => h.toLowerCase().trim());
   const shortnameIdx = headers.indexOf('shortname');
-  const abbrevIdx = headers.indexOf('abbrev');
+  const abbrevIdx = headers.indexOf('abbreviation');
   
   if (shortnameIdx === -1 || abbrevIdx === -1) {
     console.log('Teams sheet missing shortname or abbrev column');
@@ -117,7 +117,7 @@ export default async (request) => {
     // Skip header row, map to objects
     // Columns: game_id, date, time, away, away_score, home, home_score, gender, level, division, 
     //          photog1, photog2, videog, writer, notes, original_date, schedule_changed,
-    //          photos_url, recap_url, highlights_url, live_stream_url
+    //          photos_url, recap_url, highlights_url, live_stream_url, gamedescription, specialevent
     const games = rows.slice(1).map(row => {
       const away = row[3] || '';
       const home = row[5] || '';
@@ -138,7 +138,9 @@ export default async (request) => {
         photos_url: row[17] || '',
         recap_url: row[18] || '',
         highlights_url: row[19] || '',
-        live_stream_url: row[20] || ''
+        live_stream_url: row[20] || '',
+        gamedescription: row[21] || '',
+        specialevent: row[22] || ''
       };
     });
     
