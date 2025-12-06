@@ -86,6 +86,34 @@
     .coverage-icon { font-size: 16px; text-decoration: none; }
     .coverage-icon:hover { transform: scale(1.15); }
     
+    /* Game description row */
+    .game-description-row td { 
+      padding: 8px 6px 2px 6px !important; 
+      border-bottom: none !important; 
+      background: #fff !important;
+    }
+    .game-description { 
+      font-size: 11px; 
+      font-weight: 600; 
+      color: #666; 
+      text-transform: uppercase; 
+      letter-spacing: 0.5px;
+      text-align: center;
+    }
+    
+    /* Special event row */
+    .special-event-row td { 
+      padding: 12px 6px !important; 
+      background: #fff8e1 !important;
+    }
+    .special-event-row:hover td { background: #fff3c4 !important; }
+    .special-event { 
+      font-size: 13px; 
+      font-weight: 600; 
+      color: #f57c00;
+      text-align: center;
+    }
+    
     /* Empty state */
     .empty-state { padding: 60px 20px; text-align: center; color: #888; }
     .empty-state p { font-size: 16px; }
@@ -488,6 +516,21 @@
       `;
       
       games.forEach(game => {
+        // Check if this is a special event (no teams)
+        if (game.specialevent && !game.away && !game.home) {
+          html += `
+            <tr class="special-event-row">
+              <td class="gender-col"></td>
+              <td colspan="3" class="special-event">${game.specialevent}</td>
+              <td class="time-col">
+                <div class="game-time">${formatTime(game.time)}</div>
+              </td>
+              <td class="coverage-col"></td>
+            </tr>
+          `;
+          return;
+        }
+        
         // Check for scores - must be non-empty strings (handles "0" as valid score)
         const awayScore = String(game.away_score || '').trim();
         const homeScore = String(game.home_score || '').trim();
@@ -517,6 +560,18 @@
           `;
         } else {
           scoreHtml = `<span class="score-pending">-</span>`;
+        }
+        
+        // Add game description row if present
+        if (game.gamedescription) {
+          html += `
+            <tr class="game-description-row">
+              <td class="gender-col"></td>
+              <td colspan="3" class="game-description">${game.gamedescription}</td>
+              <td class="time-col"></td>
+              <td class="coverage-col"></td>
+            </tr>
+          `;
         }
         
         html += `
