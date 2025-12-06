@@ -64,6 +64,16 @@
       color: #333;
     }
     
+    /* Division footer */
+    .division-footer {
+      background: #fafafa;
+      border-top: 1px solid #eee;
+      padding: 8px 12px;
+      font-size: 11px;
+      color: #666;
+      text-align: center;
+    }
+    
     /* Scrollable table container */
     .table-wrapper {
       max-height: 360px;
@@ -156,6 +166,22 @@
   <script>
     let allStandings = [];
     let currentGender = 'Boys';
+    
+    // 2025-26 NHIAA Basketball Playoff Data
+    const PLAYOFF_DATA = {
+      Boys: {
+        'D-I': { teams: 15, byes: 1 },
+        'D-II': { teams: 14, byes: 2 },
+        'D-III': { teams: 15, byes: 1 },
+        'D-IV': { teams: 16, byes: 0 }
+      },
+      Girls: {
+        'D-I': { teams: 16, byes: 0 },
+        'D-II': { teams: 14, byes: 2 },
+        'D-III': { teams: 14, byes: 2 },
+        'D-IV': { teams: 16, byes: 0 }
+      }
+    };
     
     function toggleGender() {
       currentGender = currentGender === 'Boys' ? 'Girls' : 'Boys';
@@ -375,8 +401,10 @@
           return;
         }
         
-        // Playoff cutoff (roughly 70% of teams or use tournament_spots if available)
-        const playoffSpots = divStandings[0]?.tournament_spots || Math.ceil(divStandings.length * 0.7);
+        // Get playoff data for this division
+        const playoffInfo = PLAYOFF_DATA[gender][div];
+        const playoffSpots = playoffInfo.teams;
+        const byeCount = playoffInfo.byes;
         
         html += `
           <div class="division-box">
@@ -416,7 +444,12 @@
           `;
         });
         
-        html += '</tbody></table></div></div>';
+        // Footer with playoff info
+        const byeText = byeCount > 0 ? ` • Top ${byeCount} get first-round byes` : '';
+        
+        html += `</tbody></table></div>
+          <div class="division-footer">${playoffSpots} teams make playoffs${byeText}</div>
+        </div>`;
       });
       
       document.getElementById('standingsGrid').innerHTML = html;
