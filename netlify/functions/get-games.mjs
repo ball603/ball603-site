@@ -1,5 +1,5 @@
 // Ball603 Get Games API
-// Returns schedule data from Google Sheets for public display
+// Returns schedule data with team abbreviations for public display
 
 async function createJWT(credentials) {
   const header = { alg: 'RS256', typ: 'JWT' };
@@ -40,12 +40,47 @@ async function createJWT(credentials) {
   return `${unsignedToken}.${signatureB64}`;
 }
 
+async function getTeamsData(accessToken, teamsSheetId) {
+  const response = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${teamsSheetId}/values/Teams!A:Z`,
+    { headers: { 'Authorization': `Bearer ${accessToken}` } }
+  );
+  
+  const data = await response.json();
+  const rows = data.values || [];
+  
+  if (rows.length === 0) return {};
+  
+  // Find column indices from header row
+  const headers = rows[0].map(h => h.toLowerCase().trim());
+  const shortnameIdx = headers.indexOf('shortname');
+  const abbrevIdx = headers.indexOf('abbrev');
+  
+  if (shortnameIdx === -1 || abbrevIdx === -1) {
+    console.log('Teams sheet missing shortname or abbrev column');
+    return {};
+  }
+  
+  // Build lookup map: shortname -> abbreviation
+  const teamsMap = {};
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    const shortname = row[shortnameIdx]?.trim();
+    const abbrev = row[abbrevIdx]?.trim();
+    if (shortname && abbrev) {
+      teamsMap[shortname] = abbrev;
+    }
+  }
+  
+  return teamsMap;
+}
+
 export default async (request) => {
   try {
     const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
-    const spreadsheetId = process.env.GOOGLE_SHEETS_SCHEDULE_ID;
+    const scheduleSheetId = process.env.GOOGLE_SHEETS_SCHEDULE_ID;
+    const teamsSheetId = process.env.GOOGLE_SHEETS_TEAMS_ID;
     
-    // Get access token
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -57,54 +92,67 @@ export default async (request) => {
     
     const { access_token } = await tokenResponse.json();
     
+    // Fetch teams data for abbreviations
+    const teamsMap = teamsSheetId ? await getTeamsData(access_token, teamsSheetId) : {};
+    
     // Fetch schedule data
-    // Columns: game_id, date, time, away, away_score, home, home_score, gender, level, division, 
-    //          photog1, photog2, videog, writer, notes, original_date, schedule_changed,
-    //          photos_url, recap_url, highlights_url, live_stream_url
     const response = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Schedules!A:U`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${scheduleSheetId}/values/Schedules!A:U`,
       { headers: { 'Authorization': `Bearer ${access_token}` } }
     );
     
     const data = await response.json();
     const rows = data.values || [];
     
+    if (rows.length === 0) {
+      return new Response(JSON.stringify({ games: [] }), {
+        status: 200,
+        headers: { 
+          'Content-Type': 'application/json',
+          'Cache-Control': 'public, max-age=60'
+        }
+      });
+    }
+    
     // Skip header row, map to objects
-    const games = [];
-    for (let i = 1; i < rows.length; i++) {
-      const row = rows[i];
-      if (!row[0]) continue; // Skip empty rows
+    // Columns: game_id, date, time, away, away_score, home, home_score, gender, level, division, 
+    //          photog1, photog2, videog, writer, notes, original_date, schedule_changed,
+    //          photos_url, recap_url, highlights_url, live_stream_url
+    const games = rows.slice(1).map(row => {
+      const away = row[3] || '';
+      const home = row[5] || '';
       
-      games.push({
+      return {
         game_id: row[0] || '',
         date: row[1] || '',
         time: row[2] || '',
-        away: row[3] || '',
+        away: away,
+        away_abbrev: teamsMap[away] || away.substring(0, 3).toUpperCase(),
         away_score: row[4] || '',
-        home: row[5] || '',
+        home: home,
+        home_abbrev: teamsMap[home] || home.substring(0, 3).toUpperCase(),
         home_score: row[6] || '',
         gender: row[7] || '',
         level: row[8] || '',
         division: row[9] || '',
-        // Coverage URLs (columns R, S, T, U = indices 17, 18, 19, 20)
         photos_url: row[17] || '',
         recap_url: row[18] || '',
         highlights_url: row[19] || '',
         live_stream_url: row[20] || ''
-      });
-    }
+      };
+    });
     
-    return new Response(JSON.stringify({ games }), {
+    return new Response(JSON.stringify({ games, teamsLoaded: Object.keys(teamsMap).length }), {
       status: 200,
-      headers: {
+      headers: { 
         'Content-Type': 'application/json',
-        'Cache-Control': 'public, max-age=60' // Cache for 1 minute
+        'Cache-Control': 'public, max-age=60'
       }
     });
     
   } catch (error) {
     console.error('Get games error:', error);
-    return new Response(JSON.stringify({ error: error.message, games: [] }), {
+    return new Response(JSON.stringify({ error: error.message }), { 
       status: 500,
       headers: { 'Content-Type': 'application/json' }
     });
