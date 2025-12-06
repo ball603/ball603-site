@@ -167,21 +167,17 @@
     let allStandings = [];
     let currentGender = 'Boys';
     
-    // 2025-26 NHIAA Basketball Playoff Data
-    const PLAYOFF_DATA = {
-      Boys: {
-        'D-I': { teams: 15, byes: 1 },
-        'D-II': { teams: 14, byes: 2 },
-        'D-III': { teams: 15, byes: 1 },
-        'D-IV': { teams: 16, byes: 0 }
-      },
-      Girls: {
-        'D-I': { teams: 16, byes: 0 },
-        'D-II': { teams: 14, byes: 2 },
-        'D-III': { teams: 14, byes: 2 },
-        'D-IV': { teams: 16, byes: 0 }
-      }
+    // 2025-26 NHIAA Basketball Playoff Teams (update each season based on 70% rule)
+    const PLAYOFF_TEAMS = {
+      Boys: { 'D-I': 15, 'D-II': 14, 'D-III': 15, 'D-IV': 16 },
+      Girls: { 'D-I': 16, 'D-II': 14, 'D-III': 14, 'D-IV': 16 }
     };
+    
+    // Official NHIAA bye calculation formula
+    function calculateByes(teams) {
+      if (teams <= 16) return 16 - teams;  // 16-team bracket
+      return 32 - teams;                    // 32-team bracket
+    }
     
     function toggleGender() {
       currentGender = currentGender === 'Boys' ? 'Girls' : 'Boys';
@@ -402,9 +398,8 @@
         }
         
         // Get playoff data for this division
-        const playoffInfo = PLAYOFF_DATA[gender][div];
-        const playoffSpots = playoffInfo.teams;
-        const byeCount = playoffInfo.byes;
+        const playoffSpots = PLAYOFF_TEAMS[gender][div];
+        const byeCount = calculateByes(playoffSpots);
         
         html += `
           <div class="division-box">
