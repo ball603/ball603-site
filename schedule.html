@@ -90,7 +90,6 @@
     .game-description-row td { 
       padding: 8px 6px 2px 6px !important; 
       border-bottom: none !important; 
-      background: #fff5e6 !important;
     }
     .game-description { 
       font-size: 11px; 
@@ -101,13 +100,28 @@
       text-align: center;
     }
     
-    /* Grouped game rows (same gamedescription) */
+    /* Grouped game rows - 4 priority levels */
     .grouped-game td {
-      background: #fff5e6 !important;
       border-bottom: 1px solid #ffe0b3 !important;
     }
-    .grouped-game:hover td { background: #ffedd6 !important; }
-    .grouped-game:last-of-type td { border-bottom: 1px solid #eee !important; }
+    .grouped-game:hover td { filter: brightness(0.97); }
+    
+    /* Priority 1: Championship/Final/Title - lightest + gold border */
+    .game-description-row.priority-1 td { background: #fffaf0 !important; }
+    .grouped-game.priority-1 td { background: #fffaf0 !important; border-left: 3px solid #FFD700 !important; }
+    .grouped-game.priority-1:first-of-type td { border-top: 1px solid #FFD700 !important; }
+    
+    /* Priority 2: Semifinal/Semi/Semis */
+    .game-description-row.priority-2 td { background: #fff5e6 !important; }
+    .grouped-game.priority-2 td { background: #fff5e6 !important; }
+    
+    /* Priority 3: Quarterfinal/Quarter/Quarters */
+    .game-description-row.priority-3 td { background: #ffedcc !important; }
+    .grouped-game.priority-3 td { background: #ffedcc !important; }
+    
+    /* Priority 4: First Round */
+    .game-description-row.priority-4 td { background: #ffe4b3 !important; }
+    .grouped-game.priority-4 td { background: #ffe4b3 !important; }
     
     /* Special event row */
     .special-event-row td { 
@@ -119,6 +133,7 @@
       font-size: 13px; 
       font-weight: 600; 
       color: #f57c00;
+      text-align: center;
     }
     
     /* Empty state */
@@ -495,8 +510,46 @@
         return true;
       });
       
-      // Sort by time
-      games.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+      // Get priority for a game description (lower number = higher priority)
+      function getDescriptionPriority(desc) {
+        if (!desc) return 99; // No description = lowest priority
+        const upper = desc.toUpperCase();
+        if (upper.includes('FINAL') || upper.includes('CHAMPIONSHIP') || upper.includes('TITLE')) return 1;
+        if (upper.includes('SEMIFINAL') || upper.includes('SEMI') || upper.includes('SEMIS')) return 2;
+        if (upper.includes('QUARTERFINAL') || upper.includes('QUARTER') || upper.includes('QUARTERS')) return 3;
+        if (upper.includes('FIRST ROUND')) return 4;
+        return 5; // Has description but not a recognized round
+      }
+      
+      // Sort games: grouped games first (by priority, then by description, then by time), then ungrouped by time
+      games.sort((a, b) => {
+        const aPriority = getDescriptionPriority(a.gamedescription);
+        const bPriority = getDescriptionPriority(b.gamedescription);
+        
+        // First, separate grouped from ungrouped
+        const aHasDesc = a.gamedescription && a.gamedescription.trim();
+        const bHasDesc = b.gamedescription && b.gamedescription.trim();
+        
+        // Grouped games come first
+        if (aHasDesc && !bHasDesc) return -1;
+        if (!aHasDesc && bHasDesc) return 1;
+        
+        // Both ungrouped - sort by time
+        if (!aHasDesc && !bHasDesc) {
+          return (a.time || '').localeCompare(b.time || '');
+        }
+        
+        // Both grouped - sort by priority first
+        if (aPriority !== bPriority) return aPriority - bPriority;
+        
+        // Same priority - group by description
+        const aDesc = (a.gamedescription || '').trim().toUpperCase();
+        const bDesc = (b.gamedescription || '').trim().toUpperCase();
+        if (aDesc !== bDesc) return aDesc.localeCompare(bDesc);
+        
+        // Same description - sort by time within group
+        return (a.time || '').localeCompare(b.time || '');
+      });
       
       if (games.length === 0) {
         document.getElementById('scheduleContainer').innerHTML = `
@@ -524,6 +577,17 @@
       
       // Track which game descriptions we've already shown headers for
       const shownDescriptions = new Set();
+      
+      // Helper to get priority class
+      function getPriorityClass(desc) {
+        if (!desc) return '';
+        const upper = desc.toUpperCase();
+        if (upper.includes('FINAL') || upper.includes('CHAMPIONSHIP') || upper.includes('TITLE')) return 'priority-1';
+        if (upper.includes('SEMIFINAL') || upper.includes('SEMI') || upper.includes('SEMIS')) return 'priority-2';
+        if (upper.includes('QUARTERFINAL') || upper.includes('QUARTER') || upper.includes('QUARTERS')) return 'priority-3';
+        if (upper.includes('FIRST ROUND')) return 'priority-4';
+        return 'priority-4'; // Default for other descriptions
+      }
       
       games.forEach(game => {
         // Build coverage icons - only show if link exists (used for both games and special events)
@@ -576,8 +640,9 @@
         
         // Check if this game has a description
         const hasDescription = game.gamedescription && game.gamedescription.trim();
-        const descriptionKey = hasDescription ? game.gamedescription.trim() : '';
+        const descriptionKey = hasDescription ? game.gamedescription.trim().toUpperCase() : '';
         const isFirstInGroup = hasDescription && !shownDescriptions.has(descriptionKey);
+        const priorityClass = hasDescription ? getPriorityClass(game.gamedescription) : '';
         
         // Mark this description as shown
         if (hasDescription) {
@@ -587,7 +652,7 @@
         // Add game description header row if this is the first game with this description
         if (isFirstInGroup) {
           html += `
-            <tr class="game-description-row">
+            <tr class="game-description-row ${priorityClass}">
               <td class="gender-col"></td>
               <td colspan="3" class="game-description">${game.gamedescription}</td>
               <td class="time-col"></td>
@@ -597,7 +662,7 @@
         }
         
         // Add grouped-game class if this game has a description
-        const rowClass = hasDescription ? 'grouped-game' : '';
+        const rowClass = hasDescription ? `grouped-game ${priorityClass}` : '';
         
         html += `
           <tr class="${rowClass}">
