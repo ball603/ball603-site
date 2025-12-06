@@ -85,6 +85,7 @@ function normalizeTeamName(name) {
     'Pembroke Academy': 'Pembroke',
     'Pinkerton Academy': 'Pinkerton',
     'Pittsburg High School': 'Pittsburg',
+    'Pittsburg-Canaan': 'Pittsburg-Canaan',
     'Plymouth Regional High School': 'Plymouth',
     'Portsmouth Christian Academy': 'Portsmouth Christian',
     'Portsmouth High School': 'Portsmouth',
@@ -125,19 +126,32 @@ function parseSchedulePage(html, gender, division) {
     const teamName = teamNameMatch[1].trim();
     if (!teamName || teamName.length < 2) continue;
     
-    // Updated regex to capture all columns including score
-    // Columns: Date | At/Vs | Opponent | ??? | Time/Result | Score (optional)
-    const rowRegex = /<tr>\s*<td>(\d{2}\/\d{2}\/\d{2})<\/td>\s*<td[^>]*>([^<]*)<\/td>\s*<td>([^<]+)<\/td>\s*<td[^>]*>[^<]*<\/td>\s*<td[^>]*>([^<]*)<\/td>(?:\s*<td[^>]*>([^<]*)<\/td>)?/gi;
+    // Match all table rows
+    const rowRegex = /<tr>([\s\S]*?)<\/tr>/gi;
+    let rowMatch;
     
-    let match;
-    while ((match = rowRegex.exec(section)) !== null) {
-      const date = match[1].trim();
-      const atIndicator = match[2].trim();
-      const opponent = match[3].trim();
-      const timeOrResult = match[4].trim();
-      const scoreStr = match[5] ? match[5].trim() : '';
+    while ((rowMatch = rowRegex.exec(section)) !== null) {
+      const rowHtml = rowMatch[1];
       
-      if (!date || !opponent) continue;
+      // Extract all td contents
+      const tdRegex = /<td[^>]*>([^<]*)<\/td>/gi;
+      const cells = [];
+      let tdMatch;
+      while ((tdMatch = tdRegex.exec(rowHtml)) !== null) {
+        cells.push(tdMatch[1].trim());
+      }
+      
+      // Need at least 4 cells for a valid row
+      if (cells.length < 4) continue;
+      
+      const date = cells[0];
+      if (!/^\d{2}\/\d{2}\/\d{2}$/.test(date)) continue;
+      
+      const atIndicator = cells[1];
+      const opponent = cells[2];
+      // cells[3] is always empty
+      
+      if (!opponent) continue;
       
       const isAway = atIndicator.toLowerCase() === 'at';
       const homeTeam = normalizeTeamName(isAway ? opponent : teamName);
@@ -147,28 +161,27 @@ function parseSchedulePage(html, gender, division) {
       const fullYear = year.length === 2 ? `20${year}` : year;
       const isoDate = `${fullYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
       
-      // Determine if game is completed (W or L) or upcoming (time)
-      const isCompleted = timeOrResult === 'W' || timeOrResult === 'L';
-      
-      // Parse score if present (format: "37-60" = team score - opponent score)
+      let time = '';
       let homeScore = '';
       let awayScore = '';
-      if (isCompleted && scoreStr) {
-        const scoreParts = scoreStr.split('-');
-        if (scoreParts.length === 2) {
-          const teamScore = scoreParts[0].trim();
-          const oppScore = scoreParts[1].trim();
-          // From perspective of team whose schedule we're reading:
-          // If home game: team is home, opponent is away
-          // If away game: team is away, opponent is home
-          if (isAway) {
-            awayScore = teamScore;
-            homeScore = oppScore;
-          } else {
-            homeScore = teamScore;
-            awayScore = oppScore;
-          }
+      
+      // Check if completed game (8 cells) or upcoming (5 cells with time)
+      if (cells.length >= 8 && (cells[4] === 'W' || cells[4] === 'L')) {
+        // Completed game: cells[4]=W/L, cells[5]=teamScore, cells[6]="-", cells[7]=oppScore
+        const teamScore = cells[5];
+        const oppScore = cells[7];
+        
+        if (isAway) {
+          awayScore = teamScore;
+          homeScore = oppScore;
+        } else {
+          homeScore = teamScore;
+          awayScore = oppScore;
         }
+        time = 'FINAL';
+      } else if (cells.length >= 5) {
+        // Upcoming game: cells[4] is the time
+        time = cells[4];
       }
       
       // Game ID based on teams only (not date) so we can track reschedules
@@ -177,7 +190,7 @@ function parseSchedulePage(html, gender, division) {
       games.push({
         game_id: gameId,
         date: isoDate,
-        time: isCompleted ? 'FINAL' : timeOrResult,
+        time: time,
         away_team: awayTeam,
         home_team: homeTeam,
         away_score: awayScore,
@@ -210,7 +223,8 @@ async function getExistingData(accessToken, spreadsheetId) {
   const data = await response.json();
   const rows = data.values || [];
   
-  // Build map of game_id -> existing data
+  if (rows.length === 0) return {};
+  
   // Columns: game_id, date, time, away, away_score, home, home_score, gender, level, division, photog1, photog2, videog, writer, notes, original_date, schedule_changed, photos_url, recap_url, highlights_url, live_stream_url
   const existingGames = {};
   for (let i = 1; i < rows.length; i++) {
