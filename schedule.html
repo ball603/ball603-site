@@ -76,10 +76,9 @@
     
     /* Coverage column */
     .coverage-col { width: 100px; }
-    .coverage-icons { display: flex; gap: 6px; }
-    .coverage-icon { font-size: 14px; text-decoration: none; opacity: 0.3; }
-    .coverage-icon.active { opacity: 1; cursor: pointer; }
-    .coverage-icon.active:hover { transform: scale(1.1); }
+    .coverage-icons { display: flex; gap: 8px; }
+    .coverage-icon { font-size: 16px; text-decoration: none; }
+    .coverage-icon:hover { transform: scale(1.15); }
     
     /* Empty state */
     .empty-state { padding: 60px 20px; text-align: center; color: #888; }
@@ -112,8 +111,8 @@
       .at-col { width: 20px; }
       .time-col { width: 70px; font-size: 13px; }
       .coverage-col { width: 80px; }
-      .coverage-icons { gap: 4px; }
-      .coverage-icon { font-size: 14px; }
+      .coverage-icons { gap: 6px; }
+      .coverage-icon { font-size: 15px; }
     }
     
     @media (max-width: 480px) {
@@ -481,14 +480,16 @@
       `;
       
       games.forEach(game => {
-        const hasScore = game.score_away !== undefined && game.score_away !== '' && game.score_home !== undefined && game.score_home !== '';
+        const hasScore = game.away_score && game.home_score;
         const isNeutral = game.neutral_site || false;
+        const isFinal = game.time === 'FINAL' || hasScore;
         
-        // Coverage icons
-        const hasLiveStream = game.live_stream_url;
-        const hasPhotos = game.photos_url;
-        const hasHighlights = game.highlights_url;
-        const hasRecap = game.recap_url;
+        // Build coverage icons - only show if link exists
+        let coverageHtml = '';
+        if (game.photos_url) coverageHtml += `<a class="coverage-icon" href="${game.photos_url}" target="_blank" title="Photos">📸</a>`;
+        if (game.recap_url) coverageHtml += `<a class="coverage-icon" href="${game.recap_url}" target="_blank" title="Recap">📝</a>`;
+        if (game.highlights_url) coverageHtml += `<a class="coverage-icon" href="${game.highlights_url}" target="_blank" title="Highlights">🎥</a>`;
+        if (game.live_stream_url) coverageHtml += `<a class="coverage-icon" href="${game.live_stream_url}" target="_blank" title="Live Stream">📺</a>`;
         
         html += `
           <tr>
@@ -507,20 +508,15 @@
               </div>
             </td>
             <td class="time-col">
-              ${hasScore ? `
-                <div class="game-score">${game.score_away} - ${game.score_home}</div>
+              ${isFinal ? `
+                <div class="game-score">${game.away_score} - ${game.home_score}</div>
                 <div class="game-final">Final</div>
               ` : `
                 <div class="game-time">${formatTime(game.time)}</div>
               `}
             </td>
             <td class="coverage-col">
-              <div class="coverage-icons">
-                <a class="coverage-icon ${hasLiveStream ? 'active' : ''}" href="${hasLiveStream || '#'}" title="Live Stream" ${hasLiveStream ? '' : 'onclick="return false;"'}>📺</a>
-                <a class="coverage-icon ${hasPhotos ? 'active' : ''}" href="${hasPhotos || '#'}" title="Photos" ${hasPhotos ? '' : 'onclick="return false;"'}>📸</a>
-                <a class="coverage-icon ${hasHighlights ? 'active' : ''}" href="${hasHighlights || '#'}" title="Highlights" ${hasHighlights ? '' : 'onclick="return false;"'}>🎥</a>
-                <a class="coverage-icon ${hasRecap ? 'active' : ''}" href="${hasRecap || '#'}" title="Recap" ${hasRecap ? '' : 'onclick="return false;"'}>📝</a>
-              </div>
+              <div class="coverage-icons">${coverageHtml}</div>
             </td>
           </tr>
         `;
