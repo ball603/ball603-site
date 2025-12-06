@@ -97,7 +97,7 @@ export default async (request) => {
     
     // Fetch schedule data
     const response = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${scheduleSheetId}/values/Schedules!A:U`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${scheduleSheetId}/values/Schedules!A:W`,
       { headers: { 'Authorization': `Bearer ${access_token}` } }
     );
     
