@@ -65,14 +65,18 @@
     .team-name { font-size: 12px; color: #333; text-decoration: none; }
     .team-name:hover { color: #f57c00; }
     
-    /* At column */
-    .at-col { width: 25px; text-align: center; color: #666; font-size: 12px; }
+    /* Score column (between teams) */
+    .score-col { width: 80px; text-align: center; }
+    .score-display { display: flex; align-items: center; justify-content: center; gap: 4px; font-weight: 700; font-size: 13px; }
+    .score-box { min-width: 28px; padding: 2px 6px; background: #f0f0f0; border-radius: 4px; text-align: center; }
+    .score-box.winner { background: #e8f5e9; color: #2e7d32; }
+    .score-dash { color: #999; font-weight: 400; }
+    .score-at { color: #999; font-size: 12px; }
     
     /* Time/Score column */
-    .time-col { width: 140px; text-align: center; }
+    .time-col { width: 80px; text-align: center; }
     .game-time { color: #333; font-size: 12px; }
-    .game-score { font-weight: 700; color: #333; font-size: 12px; }
-    .game-final { font-size: 10px; color: #888; text-transform: uppercase; }
+    .game-final { font-size: 11px; color: #666; text-transform: uppercase; font-weight: 600; }
     
     /* Coverage column */
     .coverage-col { width: 100px; }
@@ -108,8 +112,10 @@
       .gender-col { width: 40px; font-size: 11px; }
       .team-logo { width: 20px; height: 20px; }
       .team-name { font-size: 13px; }
-      .at-col { width: 20px; }
-      .time-col { width: 120px; font-size: 13px; }
+      .score-col { width: 70px; }
+      .score-display { font-size: 12px; }
+      .score-box { min-width: 24px; padding: 2px 4px; }
+      .time-col { width: 60px; font-size: 12px; }
       .coverage-col { width: 80px; }
       .coverage-icons { gap: 6px; }
       .coverage-icon { font-size: 15px; }
@@ -470,9 +476,9 @@
             <tr>
               <th class="gender-col">Gender</th>
               <th class="team-col">Away</th>
-              <th class="at-col"></th>
+              <th class="score-col">Score</th>
               <th class="team-col">Home</th>
-              <th class="time-col">Time/Result</th>
+              <th class="time-col">Time</th>
               <th class="coverage-col">Coverage</th>
             </tr>
           </thead>
@@ -484,8 +490,11 @@
         const awayScore = String(game.away_score || '').trim();
         const homeScore = String(game.home_score || '').trim();
         const hasScore = awayScore !== '' && homeScore !== '';
-        const isNeutral = game.neutral_site || false;
         const isFinal = game.time === 'FINAL' || hasScore;
+        
+        // Determine winner for highlighting
+        const awayWins = hasScore && parseInt(awayScore) > parseInt(homeScore);
+        const homeWins = hasScore && parseInt(homeScore) > parseInt(awayScore);
         
         // Build coverage icons - only show if link exists
         let coverageHtml = '';
@@ -493,6 +502,20 @@
         if (game.recap_url) coverageHtml += `<a class="coverage-icon" href="${game.recap_url}" target="_blank" title="Recap">📝</a>`;
         if (game.highlights_url) coverageHtml += `<a class="coverage-icon" href="${game.highlights_url}" target="_blank" title="Highlights">🎥</a>`;
         if (game.live_stream_url) coverageHtml += `<a class="coverage-icon" href="${game.live_stream_url}" target="_blank" title="Live Stream">📺</a>`;
+        
+        // Build score display
+        let scoreHtml = '';
+        if (hasScore) {
+          scoreHtml = `
+            <div class="score-display">
+              <span class="score-box ${awayWins ? 'winner' : ''}">${awayScore}</span>
+              <span class="score-dash">-</span>
+              <span class="score-box ${homeWins ? 'winner' : ''}">${homeScore}</span>
+            </div>
+          `;
+        } else {
+          scoreHtml = `<span class="score-at">@</span>`;
+        }
         
         html += `
           <tr>
@@ -503,7 +526,7 @@
                 <a class="team-name" href="/teams/${getLogoFilename(game.away).replace('.png', '.html')}">${game.away}</a>
               </div>
             </td>
-            <td class="at-col">${isNeutral ? 'vs' : '@'}</td>
+            <td class="score-col">${scoreHtml}</td>
             <td class="team-col">
               <div class="team">
                 <img class="team-logo" src="/logos/100px/${getLogoFilename(game.home)}" alt="" onerror="this.onerror=null; this.src='/logos/100px/Ball603.png'">
@@ -511,14 +534,7 @@
               </div>
             </td>
             <td class="time-col">
-              ${isFinal && hasScore ? `
-                <div class="game-score">${game.away_abbrev || game.away.substring(0,3).toUpperCase()} ${awayScore}, ${game.home_abbrev || game.home.substring(0,3).toUpperCase()} ${homeScore}</div>
-                <div class="game-final">Final</div>
-              ` : isFinal ? `
-                <div class="game-time">Final</div>
-              ` : `
-                <div class="game-time">${formatTime(game.time)}</div>
-              `}
+              ${isFinal ? `<div class="game-final">Final</div>` : `<div class="game-time">${formatTime(game.time)}</div>`}
             </td>
             <td class="coverage-col">
               <div class="coverage-icons">${coverageHtml}</div>
