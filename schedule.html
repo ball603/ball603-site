@@ -69,7 +69,7 @@
     .at-col { width: 25px; text-align: center; color: #666; font-size: 12px; }
     
     /* Time/Score column */
-    .time-col { width: 80px; text-align: center; }
+    .time-col { width: 140px; text-align: center; }
     .game-time { color: #333; font-size: 12px; }
     .game-score { font-weight: 700; color: #333; font-size: 12px; }
     .game-final { font-size: 10px; color: #888; text-transform: uppercase; }
@@ -109,7 +109,7 @@
       .team-logo { width: 20px; height: 20px; }
       .team-name { font-size: 13px; }
       .at-col { width: 20px; }
-      .time-col { width: 70px; font-size: 13px; }
+      .time-col { width: 120px; font-size: 13px; }
       .coverage-col { width: 80px; }
       .coverage-icons { gap: 6px; }
       .coverage-icon { font-size: 15px; }
@@ -472,7 +472,7 @@
               <th class="team-col">Away</th>
               <th class="at-col"></th>
               <th class="team-col">Home</th>
-              <th class="time-col">Time</th>
+              <th class="time-col">Time/Result</th>
               <th class="coverage-col">Coverage</th>
             </tr>
           </thead>
@@ -480,7 +480,10 @@
       `;
       
       games.forEach(game => {
-        const hasScore = game.away_score && game.home_score;
+        // Check for scores - must be non-empty strings (handles "0" as valid score)
+        const awayScore = String(game.away_score || '').trim();
+        const homeScore = String(game.home_score || '').trim();
+        const hasScore = awayScore !== '' && homeScore !== '';
         const isNeutral = game.neutral_site || false;
         const isFinal = game.time === 'FINAL' || hasScore;
         
@@ -508,9 +511,11 @@
               </div>
             </td>
             <td class="time-col">
-              ${isFinal ? `
-                <div class="game-score">${game.away_score} - ${game.home_score}</div>
+              ${isFinal && hasScore ? `
+                <div class="game-score">${game.away_abbrev || game.away.substring(0,3).toUpperCase()} ${awayScore}, ${game.home_abbrev || game.home.substring(0,3).toUpperCase()} ${homeScore}</div>
                 <div class="game-final">Final</div>
+              ` : isFinal ? `
+                <div class="game-time">Final</div>
               ` : `
                 <div class="game-time">${formatTime(game.time)}</div>
               `}
