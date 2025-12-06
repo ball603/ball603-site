@@ -1,4 +1,5 @@
-// Get all games from Schedules, College, and Prep tabs
+// Ball603 Get Games API
+// Returns schedule data from Google Sheets for public display
 
 async function createJWT(credentials) {
   const header = { alg: 'RS256', typ: 'JWT' };
@@ -39,107 +40,71 @@ async function createJWT(credentials) {
   return `${unsignedToken}.${signatureB64}`;
 }
 
-async function getAccessToken(credentials) {
-  const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-      assertion: await createJWT(credentials)
-    })
-  });
-  
-  const { access_token } = await tokenResponse.json();
-  return access_token;
-}
-
-async function fetchSheet(accessToken, spreadsheetId, sheetName) {
-  const response = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!A:O`,
-    { headers: { 'Authorization': `Bearer ${accessToken}` } }
-  );
-  
-  const data = await response.json();
-  return data.values || [];
-}
-
-function parseRows(rows, defaultLevel) {
-  if (rows.length < 2) return [];
-  
-  const headers = rows[0].map(h => h.toLowerCase().trim());
-  const games = [];
-  
-  for (let i = 1; i < rows.length; i++) {
-    const row = rows[i];
-    if (!row || row.length < 5) continue;
-    
-    const game = {};
-    headers.forEach((header, idx) => {
-      game[header] = row[idx] || '';
-    });
-    
-    // Normalize field names
-    games.push({
-      game_id: game.game_id || `${game.date}-${game.home}-${game.away}`.replace(/\s+/g, '-').toLowerCase(),
-      date: game.date || '',
-      time: game.time || '',
-      away: game.away || '',
-      home: game.home || '',
-      gender: game.gender || '',
-      level: game.level || defaultLevel,
-      division: game.division || '',
-      photog1: game.photog1 || '',
-      photog2: game.photog2 || '',
-      videog: game.videog || '',
-      writer: game.writer || '',
-      notes: game.notes || '',
-      original_date: game.original_date || '',
-      schedule_changed: game.schedule_changed === 'YES'
-    });
-  }
-  
-  return games;
-}
-
 export default async (request) => {
   try {
     const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
     const spreadsheetId = process.env.GOOGLE_SHEETS_SCHEDULE_ID;
     
-    const accessToken = await getAccessToken(credentials);
+    // Get access token
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+        assertion: await createJWT(credentials)
+      })
+    });
     
-    // Fetch all three tabs
-    const [schedulesRows, collegeRows, prepRows] = await Promise.all([
-      fetchSheet(accessToken, spreadsheetId, 'Schedules'),
-      fetchSheet(accessToken, spreadsheetId, 'College'),
-      fetchSheet(accessToken, spreadsheetId, 'Prep')
-    ]);
+    const { access_token } = await tokenResponse.json();
     
-    // Parse each tab
-    const schedulesGames = parseRows(schedulesRows, 'NHIAA');
-    const collegeGames = parseRows(collegeRows, 'College');
-    const prepGames = parseRows(prepRows, 'Prep');
+    // Fetch schedule data
+    // Columns: game_id, date, time, away, away_score, home, home_score, gender, level, division, 
+    //          photog1, photog2, videog, writer, notes, original_date, schedule_changed,
+    //          photos_url, recap_url, highlights_url, live_stream_url
+    const response = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Schedules!A:U`,
+      { headers: { 'Authorization': `Bearer ${access_token}` } }
+    );
     
-    // Combine all games
-    const allGames = [...schedulesGames, ...collegeGames, ...prepGames];
+    const data = await response.json();
+    const rows = data.values || [];
     
-    return new Response(JSON.stringify({
-      success: true,
-      games: allGames,
-      counts: {
-        nhiaa: schedulesGames.length,
-        college: collegeGames.length,
-        prep: prepGames.length,
-        total: allGames.length
-      }
-    }), {
+    // Skip header row, map to objects
+    const games = [];
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row[0]) continue; // Skip empty rows
+      
+      games.push({
+        game_id: row[0] || '',
+        date: row[1] || '',
+        time: row[2] || '',
+        away: row[3] || '',
+        away_score: row[4] || '',
+        home: row[5] || '',
+        home_score: row[6] || '',
+        gender: row[7] || '',
+        level: row[8] || '',
+        division: row[9] || '',
+        // Coverage URLs (columns R, S, T, U = indices 17, 18, 19, 20)
+        photos_url: row[17] || '',
+        recap_url: row[18] || '',
+        highlights_url: row[19] || '',
+        live_stream_url: row[20] || ''
+      });
+    }
+    
+    return new Response(JSON.stringify({ games }), {
       status: 200,
-      headers: { 'Content-Type': 'application/json' }
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'public, max-age=60' // Cache for 1 minute
+      }
     });
     
   } catch (error) {
-    console.error('Error fetching games:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    console.error('Get games error:', error);
+    return new Response(JSON.stringify({ error: error.message, games: [] }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }
     });

@@ -125,14 +125,17 @@ function parseSchedulePage(html, gender, division) {
     const teamName = teamNameMatch[1].trim();
     if (!teamName || teamName.length < 2) continue;
     
-    const rowRegex = /<tr>\s*<td>(\d{2}\/\d{2}\/\d{2})<\/td>\s*<td[^>]*>([^<]*)<\/td>\s*<td>([^<]+)<\/td>\s*<td[^>]*>[^<]*<\/td>\s*<td[^>]*>([^<]*)<\/td>/gi;
+    // Updated regex to capture all columns including score
+    // Columns: Date | At/Vs | Opponent | ??? | Time/Result | Score (optional)
+    const rowRegex = /<tr>\s*<td>(\d{2}\/\d{2}\/\d{2})<\/td>\s*<td[^>]*>([^<]*)<\/td>\s*<td>([^<]+)<\/td>\s*<td[^>]*>[^<]*<\/td>\s*<td[^>]*>([^<]*)<\/td>(?:\s*<td[^>]*>([^<]*)<\/td>)?/gi;
     
     let match;
     while ((match = rowRegex.exec(section)) !== null) {
       const date = match[1].trim();
       const atIndicator = match[2].trim();
       const opponent = match[3].trim();
-      const time = match[4].trim();
+      const timeOrResult = match[4].trim();
+      const scoreStr = match[5] ? match[5].trim() : '';
       
       if (!date || !opponent) continue;
       
@@ -144,15 +147,41 @@ function parseSchedulePage(html, gender, division) {
       const fullYear = year.length === 2 ? `20${year}` : year;
       const isoDate = `${fullYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
       
+      // Determine if game is completed (W or L) or upcoming (time)
+      const isCompleted = timeOrResult === 'W' || timeOrResult === 'L';
+      
+      // Parse score if present (format: "37-60" = team score - opponent score)
+      let homeScore = '';
+      let awayScore = '';
+      if (isCompleted && scoreStr) {
+        const scoreParts = scoreStr.split('-');
+        if (scoreParts.length === 2) {
+          const teamScore = scoreParts[0].trim();
+          const oppScore = scoreParts[1].trim();
+          // From perspective of team whose schedule we're reading:
+          // If home game: team is home, opponent is away
+          // If away game: team is away, opponent is home
+          if (isAway) {
+            awayScore = teamScore;
+            homeScore = oppScore;
+          } else {
+            homeScore = teamScore;
+            awayScore = oppScore;
+          }
+        }
+      }
+      
       // Game ID based on teams only (not date) so we can track reschedules
       const gameId = `${homeTeam}-vs-${awayTeam}-${gender}-${division}`.replace(/\s+/g, '-').toLowerCase();
       
       games.push({
         game_id: gameId,
         date: isoDate,
-        time: time,
+        time: isCompleted ? 'FINAL' : timeOrResult,
         away_team: awayTeam,
         home_team: homeTeam,
+        away_score: awayScore,
+        home_score: homeScore,
         gender: gender,
         level: 'NHIAA',
         division: division
@@ -174,7 +203,7 @@ function deduplicateGames(games) {
 
 async function getExistingData(accessToken, spreadsheetId) {
   const response = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Schedules!A:O`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Schedules!A:U`,
     { headers: { 'Authorization': `Bearer ${accessToken}` } }
   );
   
@@ -182,6 +211,7 @@ async function getExistingData(accessToken, spreadsheetId) {
   const rows = data.values || [];
   
   // Build map of game_id -> existing data
+  // Columns: game_id, date, time, away, away_score, home, home_score, gender, level, division, photog1, photog2, videog, writer, notes, original_date, schedule_changed, photos_url, recap_url, highlights_url, live_stream_url
   const existingGames = {};
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
@@ -190,13 +220,19 @@ async function getExistingData(accessToken, spreadsheetId) {
       existingGames[gameId] = {
         date: row[1] || '',
         time: row[2] || '',
-        photog1: row[8] || '',
-        photog2: row[9] || '',
-        videog: row[10] || '',
-        writer: row[11] || '',
-        notes: row[12] || '',
-        original_date: row[13] || '',
-        schedule_changed: row[14] || ''
+        away_score: row[4] || '',
+        home_score: row[6] || '',
+        photog1: row[10] || '',
+        photog2: row[11] || '',
+        videog: row[12] || '',
+        writer: row[13] || '',
+        notes: row[14] || '',
+        original_date: row[15] || '',
+        schedule_changed: row[16] || '',
+        photos_url: row[17] || '',
+        recap_url: row[18] || '',
+        highlights_url: row[19] || '',
+        live_stream_url: row[20] || ''
       };
     }
   }
@@ -223,8 +259,8 @@ async function updateGoogleSheets(games) {
   const existingGames = await getExistingData(access_token, spreadsheetId);
   console.log(`  Found ${Object.keys(existingGames).length} existing games`);
   
-  // Header row with writer column
-  const header = ['game_id', 'date', 'time', 'away', 'home', 'gender', 'level', 'division', 'photog1', 'photog2', 'videog', 'writer', 'notes', 'original_date', 'schedule_changed'];
+  // Header row with score and coverage columns
+  const header = ['game_id', 'date', 'time', 'away', 'away_score', 'home', 'home_score', 'gender', 'level', 'division', 'photog1', 'photog2', 'videog', 'writer', 'notes', 'original_date', 'schedule_changed', 'photos_url', 'recap_url', 'highlights_url', 'live_stream_url'];
   
   let changesDetected = 0;
   
@@ -252,12 +288,20 @@ async function updateGoogleSheets(games) {
       originalDate = g.date;
     }
     
+    // Use scraped scores, or preserve existing scores if manually entered
+    const awayScore = g.away_score || existing.away_score || '';
+    const homeScore = g.home_score || existing.home_score || '';
+    // If we have scores but time isn't FINAL yet, mark it FINAL
+    const time = (awayScore && homeScore && g.time !== 'FINAL') ? 'FINAL' : g.time;
+    
     return [
       g.game_id,
       g.date,
-      g.time,
+      time,
       g.away_team,
+      awayScore,
       g.home_team,
+      homeScore,
       g.gender,
       g.level,
       g.division,
@@ -267,7 +311,11 @@ async function updateGoogleSheets(games) {
       existing.writer || '',
       existing.notes || '',
       originalDate,
-      scheduleChanged
+      scheduleChanged,
+      existing.photos_url || '',
+      existing.recap_url || '',
+      existing.highlights_url || '',
+      existing.live_stream_url || ''
     ];
   });
   
@@ -282,7 +330,7 @@ async function updateGoogleSheets(games) {
   });
   
   // Clear and update sheet
-  await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Schedules!A:O:clear`, {
+  await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Schedules!A:U:clear`, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${access_token}` }
   });
