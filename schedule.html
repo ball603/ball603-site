@@ -21,7 +21,7 @@
     .header-nav a.active { color: #f57c00; }
     
     /* Main container */
-    .container { width: 720px; margin: 0 auto; padding: 20px; }
+    .container { width: 650px; margin: 0 auto; padding: 20px; }
     
     /* Controls */
     .controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: nowrap; gap: 15px; }
@@ -48,49 +48,49 @@
     .date-header { background: #f8f8f8; padding: 12px 20px; font-weight: 600; font-size: 15px; border-bottom: 1px solid #eee; color: #333; }
     
     /* Games table */
-    .games-table { width: 100%; min-width: 600px; border-collapse: collapse; background: #fff; font-size: 12px; }
+    .games-table { width: 100%; min-width: 550px; border-collapse: collapse; background: #fff; font-size: 12px; }
     .games-table thead th { position: sticky; top: 0; z-index: 100; background: #e8e8e8; }
-    .games-table th { background: #e8e8e8; padding: 10px 6px; text-align: left; font-weight: 600; color: #333; white-space: nowrap; }
-    .games-table td { padding: 6px; border-bottom: 1px solid #eee; vertical-align: middle; white-space: nowrap; }
+    .games-table th { background: #e8e8e8; padding: 8px 4px; text-align: left; font-weight: 600; color: #333; white-space: nowrap; }
+    .games-table td { padding: 5px 4px; border-bottom: 1px solid #eee; vertical-align: middle; white-space: nowrap; }
     .games-table tr:nth-child(even) { background: #f9f9f9; }
     .games-table tr:hover { background: #f0f0f0; }
     
     /* Gender column */
-    .gender-col { width: 40px; font-size: 12px; color: #333; text-align: center; }
+    .gender-col { width: 36px; font-size: 12px; color: #333; text-align: center; }
     
     /* Team columns */
     .team-col { white-space: nowrap; }
     .team-col.away { text-align: right; }
-    .team { display: flex; align-items: center; gap: 6px; }
+    .team { display: flex; align-items: center; gap: 5px; }
     .team.away-team { justify-content: flex-end; }
     .team-logo { width: 24px; height: 24px; border-radius: 4px; object-fit: contain; background: #f5f5f5; flex-shrink: 0; }
     .team-name { font-size: 12px; color: #333; text-decoration: none; }
     .team-name:hover { color: #f57c00; }
     
     /* Score column (between teams) */
-    .score-col { width: 70px; text-align: center !important; }
-    .score-display { display: flex; align-items: center; justify-content: center; gap: 4px; font-weight: 700; font-size: 13px; }
-    .score-box { min-width: 28px; height: 24px; line-height: 24px; padding: 0 6px; background: #f0f0f0; border-radius: 4px; text-align: center; }
+    .score-col { width: 70px; text-align: center !important; padding: 0 4px !important; }
+    .score-display { display: flex; align-items: center; justify-content: center; gap: 3px; font-weight: 700; font-size: 14px; }
+    .score-box { min-width: 32px; height: 24px; line-height: 24px; padding: 0 6px; background: #f0f0f0; border-radius: 4px; text-align: center; }
     .score-box.winner { background: #e8f5e9; color: #2e7d32; }
     .score-dash { color: #999; font-weight: 400; }
-    .score-pending { color: #ccc; font-size: 14px; }
+    .score-pending { color: #ccc; font-size: 16px; font-weight: 400; }
     
     /* Time/Score column */
-    .time-col { width: 55px; text-align: center; }
+    .time-col { width: 55px; text-align: center; padding: 0 4px !important; }
     .game-time { color: #333; font-size: 12px; }
     .game-final { font-size: 11px; color: #666; text-transform: uppercase; font-weight: 600; }
     
     /* Coverage column */
-    .coverage-col { width: 80px; }
-    .coverage-icons { display: flex; gap: 6px; }
-    .coverage-icon { font-size: 16px; text-decoration: none; }
+    .coverage-col { width: 70px; }
+    .coverage-icons { display: flex; gap: 5px; }
+    .coverage-icon { font-size: 15px; text-decoration: none; }
     .coverage-icon:hover { transform: scale(1.15); }
     
     /* Game description row */
     .game-description-row td { 
       padding: 8px 6px 2px 6px !important; 
       border-bottom: none !important; 
-      background: #fff !important;
+      background: #fff5e6 !important;
     }
     .game-description { 
       font-size: 11px; 
@@ -100,6 +100,14 @@
       letter-spacing: 0.5px;
       text-align: center;
     }
+    
+    /* Grouped game rows (same gamedescription) */
+    .grouped-game td {
+      background: #fff5e6 !important;
+      border-bottom: 1px solid #ffe0b3 !important;
+    }
+    .grouped-game:hover td { background: #ffedd6 !important; }
+    .grouped-game:last-of-type td { border-bottom: 1px solid #eee !important; }
     
     /* Special event row */
     .special-event-row td { 
@@ -111,7 +119,6 @@
       font-size: 13px; 
       font-weight: 600; 
       color: #f57c00;
-      text-align: center;
     }
     
     /* Empty state */
@@ -515,17 +522,29 @@
           <tbody>
       `;
       
+      // Track which game descriptions we've already shown headers for
+      const shownDescriptions = new Set();
+      
       games.forEach(game => {
+        // Build coverage icons - only show if link exists (used for both games and special events)
+        let coverageHtml = '';
+        if (game.photos_url) coverageHtml += `<a class="coverage-icon" href="${game.photos_url}" target="_blank" title="Photos">📸</a>`;
+        if (game.recap_url) coverageHtml += `<a class="coverage-icon" href="${game.recap_url}" target="_blank" title="Recap">📝</a>`;
+        if (game.highlights_url) coverageHtml += `<a class="coverage-icon" href="${game.highlights_url}" target="_blank" title="Highlights">🎥</a>`;
+        if (game.live_stream_url) coverageHtml += `<a class="coverage-icon" href="${game.live_stream_url}" target="_blank" title="Live Stream">📺</a>`;
+        
         // Check if this is a special event (no teams)
         if (game.specialevent && !game.away && !game.home) {
           html += `
             <tr class="special-event-row">
-              <td class="gender-col"></td>
+              <td class="gender-col">${game.gender || ''}</td>
               <td colspan="3" class="special-event">${game.specialevent}</td>
               <td class="time-col">
                 <div class="game-time">${formatTime(game.time)}</div>
               </td>
-              <td class="coverage-col"></td>
+              <td class="coverage-col">
+                <div class="coverage-icons">${coverageHtml}</div>
+              </td>
             </tr>
           `;
           return;
@@ -541,13 +560,6 @@
         const awayWins = hasScore && parseInt(awayScore) > parseInt(homeScore);
         const homeWins = hasScore && parseInt(homeScore) > parseInt(awayScore);
         
-        // Build coverage icons - only show if link exists
-        let coverageHtml = '';
-        if (game.photos_url) coverageHtml += `<a class="coverage-icon" href="${game.photos_url}" target="_blank" title="Photos">📸</a>`;
-        if (game.recap_url) coverageHtml += `<a class="coverage-icon" href="${game.recap_url}" target="_blank" title="Recap">📝</a>`;
-        if (game.highlights_url) coverageHtml += `<a class="coverage-icon" href="${game.highlights_url}" target="_blank" title="Highlights">🎥</a>`;
-        if (game.live_stream_url) coverageHtml += `<a class="coverage-icon" href="${game.live_stream_url}" target="_blank" title="Live Stream">📺</a>`;
-        
         // Build score display
         let scoreHtml = '';
         if (hasScore) {
@@ -562,8 +574,18 @@
           scoreHtml = `<span class="score-pending">-</span>`;
         }
         
-        // Add game description row if present
-        if (game.gamedescription) {
+        // Check if this game has a description
+        const hasDescription = game.gamedescription && game.gamedescription.trim();
+        const descriptionKey = hasDescription ? game.gamedescription.trim() : '';
+        const isFirstInGroup = hasDescription && !shownDescriptions.has(descriptionKey);
+        
+        // Mark this description as shown
+        if (hasDescription) {
+          shownDescriptions.add(descriptionKey);
+        }
+        
+        // Add game description header row if this is the first game with this description
+        if (isFirstInGroup) {
           html += `
             <tr class="game-description-row">
               <td class="gender-col"></td>
@@ -574,8 +596,11 @@
           `;
         }
         
+        // Add grouped-game class if this game has a description
+        const rowClass = hasDescription ? 'grouped-game' : '';
+        
         html += `
-          <tr>
+          <tr class="${rowClass}">
             <td class="gender-col">${game.gender || ''}</td>
             <td class="team-col away">
               <div class="team away-team">
