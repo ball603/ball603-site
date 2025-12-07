@@ -26,23 +26,19 @@ function percentEncode(str) {
 }
 
 function generateSignature(method, url, params, consumerSecret, tokenSecret = '') {
-  // Sort and encode parameters
   const sortedParams = Object.keys(params)
     .sort()
     .map(key => `${percentEncode(key)}=${percentEncode(params[key])}`)
     .join('&');
   
-  // Create signature base string
   const signatureBase = [
     method.toUpperCase(),
     percentEncode(url),
     percentEncode(sortedParams)
   ].join('&');
   
-  // Create signing key
   const signingKey = `${percentEncode(consumerSecret)}&${percentEncode(tokenSecret)}`;
   
-  // Generate HMAC-SHA1 signature
   return crypto.createHmac('sha1', signingKey).update(signatureBase).digest('base64');
 }
 
@@ -112,7 +108,7 @@ async function getAccessToken(requestToken, requestTokenSecret, verifier) {
   };
 }
 
-export default async (req, context) => {
+export const handler = async (event) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
@@ -120,43 +116,53 @@ export default async (req, context) => {
     'Content-Type': 'application/json'
   };
   
-  if (req.method === 'OPTIONS') {
-    return new Response('', { headers });
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 200, headers, body: '' };
   }
   
   if (!SMUGMUG_API_KEY || !SMUGMUG_API_SECRET) {
-    return new Response(JSON.stringify({
-      success: false,
-      error: 'SmugMug API credentials not configured'
-    }), { status: 500, headers });
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({
+        success: false,
+        error: 'SmugMug API credentials not configured. Add SMUGMUG_API_KEY and SMUGMUG_API_SECRET to Netlify environment variables.'
+      })
+    };
   }
   
-  const url = new URL(req.url);
-  const action = url.searchParams.get('action');
+  const action = event.queryStringParameters?.action;
   
   try {
     if (action === 'request_token') {
-      // Use 'oob' (out-of-band) callback - user will manually copy the verifier
       const { requestToken, requestTokenSecret } = await getRequestToken('oob');
       
       const authUrl = `${AUTHORIZE_URL}?oauth_token=${requestToken}&Access=Full&Permissions=Modify`;
       
-      return new Response(JSON.stringify({
-        success: true,
-        requestToken,
-        requestTokenSecret,
-        authUrl
-      }), { headers });
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+          success: true,
+          requestToken,
+          requestTokenSecret,
+          authUrl
+        })
+      };
       
     } else if (action === 'access_token') {
-      const body = await req.json();
+      const body = JSON.parse(event.body || '{}');
       const { requestToken, requestTokenSecret, verifier } = body;
       
       if (!requestToken || !requestTokenSecret || !verifier) {
-        return new Response(JSON.stringify({
-          success: false,
-          error: 'Missing required parameters'
-        }), { status: 400, headers });
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({
+            success: false,
+            error: 'Missing required parameters'
+          })
+        };
       }
       
       const { accessToken, accessTokenSecret } = await getAccessToken(
@@ -165,27 +171,35 @@ export default async (req, context) => {
         verifier
       );
       
-      return new Response(JSON.stringify({
-        success: true,
-        accessToken,
-        accessTokenSecret
-      }), { headers });
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+          success: true,
+          accessToken,
+          accessTokenSecret
+        })
+      };
     }
     
-    return new Response(JSON.stringify({
-      success: false,
-      error: 'Invalid action'
-    }), { status: 400, headers });
+    return {
+      statusCode: 400,
+      headers,
+      body: JSON.stringify({
+        success: false,
+        error: 'Invalid action. Use action=request_token or action=access_token'
+      })
+    };
     
   } catch (error) {
     console.error('SmugMug auth error:', error);
-    return new Response(JSON.stringify({
-      success: false,
-      error: error.message
-    }), { status: 500, headers });
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({
+        success: false,
+        error: error.message
+      })
+    };
   }
-};
-
-export const config = {
-  path: "/api/smugmug-auth"
 };

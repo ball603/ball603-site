@@ -1,6 +1,4 @@
 // SmugMug API integration for browsing albums
-// Uses OAuth 1.0a for authentication
-
 import crypto from 'crypto';
 
 const SMUGMUG_API_KEY = process.env.SMUGMUG_API_KEY;
@@ -8,35 +6,51 @@ const SMUGMUG_API_SECRET = process.env.SMUGMUG_API_SECRET;
 const SMUGMUG_ACCESS_TOKEN = process.env.SMUGMUG_ACCESS_TOKEN;
 const SMUGMUG_ACCESS_SECRET = process.env.SMUGMUG_ACCESS_SECRET;
 
-// OAuth 1.0a signature generation
-function generateOAuthSignature(method, url, params, consumerSecret, tokenSecret = '') {
-  const sortedParams = Object.keys(params).sort().map(key => 
-    `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`
-  ).join('&');
+function generateNonce() {
+  return crypto.randomBytes(16).toString('hex');
+}
+
+function generateTimestamp() {
+  return Math.floor(Date.now() / 1000).toString();
+}
+
+function percentEncode(str) {
+  return encodeURIComponent(str)
+    .replace(/!/g, '%21')
+    .replace(/\*/g, '%2A')
+    .replace(/'/g, '%27')
+    .replace(/\(/g, '%28')
+    .replace(/\)/g, '%29');
+}
+
+function generateSignature(method, url, params, consumerSecret, tokenSecret = '') {
+  const sortedParams = Object.keys(params)
+    .sort()
+    .map(key => `${percentEncode(key)}=${percentEncode(params[key])}`)
+    .join('&');
   
   const signatureBase = [
     method.toUpperCase(),
-    encodeURIComponent(url),
-    encodeURIComponent(sortedParams)
+    percentEncode(url),
+    percentEncode(sortedParams)
   ].join('&');
   
-  const signingKey = `${encodeURIComponent(consumerSecret)}&${encodeURIComponent(tokenSecret)}`;
+  const signingKey = `${percentEncode(consumerSecret)}&${percentEncode(tokenSecret)}`;
   
   return crypto.createHmac('sha1', signingKey).update(signatureBase).digest('base64');
 }
 
-function generateOAuthHeader(method, url, additionalParams = {}) {
+function generateOAuthHeader(method, url) {
   const oauthParams = {
     oauth_consumer_key: SMUGMUG_API_KEY,
-    oauth_nonce: crypto.randomBytes(16).toString('hex'),
+    oauth_nonce: generateNonce(),
     oauth_signature_method: 'HMAC-SHA1',
-    oauth_timestamp: Math.floor(Date.now() / 1000).toString(),
+    oauth_timestamp: generateTimestamp(),
     oauth_token: SMUGMUG_ACCESS_TOKEN,
-    oauth_version: '1.0',
-    ...additionalParams
+    oauth_version: '1.0'
   };
   
-  const signature = generateOAuthSignature(
+  oauthParams.oauth_signature = generateSignature(
     method, 
     url, 
     oauthParams, 
@@ -44,11 +58,9 @@ function generateOAuthHeader(method, url, additionalParams = {}) {
     SMUGMUG_ACCESS_SECRET
   );
   
-  oauthParams.oauth_signature = signature;
-  
-  const headerParts = Object.keys(oauthParams).sort().map(key =>
-    `${encodeURIComponent(key)}="${encodeURIComponent(oauthParams[key])}"`
-  );
+  const headerParts = Object.keys(oauthParams)
+    .sort()
+    .map(key => `${percentEncode(key)}="${percentEncode(oauthParams[key])}"`);
   
   return `OAuth ${headerParts.join(', ')}`;
 }
@@ -59,7 +71,7 @@ async function smugmugRequest(endpoint) {
   
   // If we have access tokens, use OAuth
   if (SMUGMUG_ACCESS_TOKEN && SMUGMUG_ACCESS_SECRET) {
-    const authHeader = generateOAuthHeader('GET', url);
+    const authHeader = generateOAuthHeader('GET', url.split('?')[0]);
     
     const response = await fetch(url, {
       headers: {
@@ -81,93 +93,93 @@ async function smugmugRequest(endpoint) {
   return response.json();
 }
 
-export default async (req, context) => {
-  // CORS headers
+export const handler = async (event) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Content-Type': 'application/json'
   };
   
-  if (req.method === 'OPTIONS') {
-    return new Response('', { headers });
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 200, headers, body: '' };
   }
   
   try {
-    const url = new URL(req.url);
-    const action = url.searchParams.get('action') || 'albums';
-    const albumKey = url.searchParams.get('albumKey');
-    const search = url.searchParams.get('search');
+    const action = event.queryStringParameters?.action || 'albums';
+    const albumKey = event.queryStringParameters?.albumKey;
+    const search = event.queryStringParameters?.search;
     
-    let result;
-    
-    if (action === 'albums') {
-      // Get user's albums
-      let endpoint = '/api/v2/user/ball603!albums?count=50&_expand=HighlightImage';
-      if (search) {
-        endpoint += `&_filter=Name&_filtervalue=${encodeURIComponent(search)}`;
-      }
-      result = await smugmugRequest(endpoint);
-      
-      // Format albums for the CMS
-      const albums = result?.Response?.Album || [];
-      return new Response(JSON.stringify({
-        success: true,
-        albums: albums.map(album => ({
-          key: album.AlbumKey,
-          name: album.Name,
-          url: album.WebUri,
-          imageCount: album.ImageCount,
-          date: album.Date,
-          highlightImage: album.Uris?.HighlightImage?.Image?.ThumbnailUrl || null
-        }))
-      }), { headers });
-      
-    } else if (action === 'images' && albumKey) {
-      // Get images from a specific album
-      const endpoint = `/api/v2/album/${albumKey}!images?count=20&_expand=ImageSizes`;
-      result = await smugmugRequest(endpoint);
-      
-      const images = result?.Response?.AlbumImage || [];
-      return new Response(JSON.stringify({
-        success: true,
-        images: images.map(img => ({
-          key: img.ImageKey,
-          filename: img.FileName,
-          caption: img.Caption,
-          thumbnail: img.Uris?.ImageSizes?.ImageSizes?.SmallImageUrl || img.ThumbnailUrl,
-          webUrl: img.WebUri
-        }))
-      }), { headers });
-      
-    } else if (action === 'check') {
-      // Check if SmugMug is configured
+    if (action === 'check') {
       const hasTokens = !!(SMUGMUG_ACCESS_TOKEN && SMUGMUG_ACCESS_SECRET);
-      return new Response(JSON.stringify({
-        success: true,
-        configured: !!SMUGMUG_API_KEY,
-        authenticated: hasTokens,
-        message: hasTokens ? 'SmugMug connected' : 'SmugMug API key set, but access tokens needed for private albums'
-      }), { headers });
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+          success: true,
+          configured: !!SMUGMUG_API_KEY,
+          authenticated: hasTokens,
+          message: hasTokens ? 'SmugMug connected' : 'SmugMug API key set, but access tokens needed for private albums'
+        })
+      };
     }
     
-    return new Response(JSON.stringify({ error: 'Invalid action' }), { 
-      status: 400, 
-      headers 
-    });
+    if (action === 'albums') {
+      let endpoint = '/api/v2/user/ball603!albums?count=50&_expand=HighlightImage';
+      const result = await smugmugRequest(endpoint);
+      
+      const albums = result?.Response?.Album || [];
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+          success: true,
+          albums: albums.map(album => ({
+            key: album.AlbumKey,
+            name: album.Name,
+            url: album.WebUri,
+            imageCount: album.ImageCount,
+            date: album.Date,
+            highlightImage: album.Uris?.HighlightImage?.Image?.ThumbnailUrl || null
+          }))
+        })
+      };
+      
+    } else if (action === 'images' && albumKey) {
+      const endpoint = `/api/v2/album/${albumKey}!images?count=20&_expand=ImageSizes`;
+      const result = await smugmugRequest(endpoint);
+      
+      const images = result?.Response?.AlbumImage || [];
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+          success: true,
+          images: images.map(img => ({
+            key: img.ImageKey,
+            filename: img.FileName,
+            caption: img.Caption,
+            thumbnail: img.Uris?.ImageSizes?.ImageSizes?.SmallImageUrl || img.ThumbnailUrl,
+            webUrl: img.WebUri
+          }))
+        })
+      };
+    }
+    
+    return {
+      statusCode: 400,
+      headers,
+      body: JSON.stringify({ error: 'Invalid action' })
+    };
     
   } catch (error) {
     console.error('SmugMug API error:', error);
-    return new Response(JSON.stringify({ 
-      error: 'SmugMug API error', 
-      details: error.message 
-    }), { 
-      status: 500, 
-      headers 
-    });
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ 
+        error: 'SmugMug API error', 
+        details: error.message 
+      })
+    };
   }
-};
-
-export const config = {
-  path: "/api/smugmug"
 };
