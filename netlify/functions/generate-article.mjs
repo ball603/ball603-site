@@ -31,36 +31,66 @@ export const handler = async (event) => {
   
   try {
     const body = JSON.parse(event.body || '{}');
-    const { boxScore, gameInfo, style } = body;
+    const { boxScore, gameInfo, image } = body;
     
-    if (!boxScore) {
+    if (!boxScore && !image) {
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ error: 'Box score data required' })
+        body: JSON.stringify({ error: 'Box score data or image required' })
       };
     }
     
-    const prompt = `You are a sports writer for Ball603.com, a New Hampshire high school basketball news website. Write an engaging game recap article based on the following information.
+    const systemPrompt = `You are a sports writer for Ball603.com, a New Hampshire high school basketball news website. Write an engaging game recap article based on the information provided.
 
 STYLE GUIDELINES:
 - Write in an energetic, engaging sports journalism style
 - Lead with the most exciting aspect of the game (comeback, star performance, rivalry, etc.)
-- Include specific stats and scoring details
+- Include specific stats and scoring details from the scorebook
 - Mention standout players by name with their stats
 - Keep paragraphs short and punchy
 - Total length: 300-500 words
 - Do NOT include a headline - just the article body
 - Use present tense for immediacy where appropriate
 - End with context about what's next for the teams if possible
+- If reading from a scorebook image, extract all relevant stats, scores, and player names`;
 
-GAME INFORMATION:
-${gameInfo || 'Not provided'}
-
-BOX SCORE / STATS / NOTES:
-${boxScore}
-
-Write the article now:`;
+    // Build the message content
+    let messageContent = [];
+    
+    // Add image if provided
+    if (image) {
+      // Extract base64 data and media type from data URL
+      const matches = image.match(/^data:(.+);base64,(.+)$/);
+      if (matches) {
+        const mediaType = matches[1];
+        const base64Data = matches[2];
+        messageContent.push({
+          type: 'image',
+          source: {
+            type: 'base64',
+            media_type: mediaType,
+            data: base64Data
+          }
+        });
+      }
+    }
+    
+    // Add text prompt
+    let textPrompt = 'Write a game recap article based on ';
+    if (image && boxScore) {
+      textPrompt += 'the scorebook image above and the following additional notes:\n\n' + boxScore;
+    } else if (image) {
+      textPrompt += 'the scorebook image above. Extract all scores, player stats, and game details from the image.';
+    } else {
+      textPrompt += 'the following box score/stats:\n\n' + boxScore;
+    }
+    
+    if (gameInfo) {
+      textPrompt += '\n\nGame info: ' + gameInfo;
+    }
+    
+    messageContent.push({ type: 'text', text: textPrompt });
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -72,10 +102,11 @@ Write the article now:`;
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 1024,
+        system: systemPrompt,
         messages: [
           {
             role: 'user',
-            content: prompt
+            content: messageContent
           }
         ]
       })
