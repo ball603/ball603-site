@@ -260,8 +260,16 @@
           
           <div class="sidebar-card ai-generate">
             <h4>🤖 AI Assistant</h4>
-            <p style="font-size: 12px; color: #666; margin-bottom: 12px;">Generate article from box score or game summary</p>
-            <textarea id="aiInput" placeholder="Paste box score, stats, or game notes here..." style="min-height: 100px; width: 100%; margin-bottom: 10px;"></textarea>
+            <p style="font-size: 12px; color: #666; margin-bottom: 12px;">Generate article from box score, photo, or game notes</p>
+            <div class="form-group" style="margin-bottom: 10px;">
+              <label>Upload Scorebook Photo</label>
+              <input type="file" id="scorePhoto" accept="image/*" style="width: 100%; padding: 8px; border: 1px dashed #ddd; border-radius: 5px; cursor: pointer;" onchange="previewScorePhoto(this)">
+              <div id="photoPreview" style="display: none; margin-top: 8px;">
+                <img id="photoPreviewImg" style="max-width: 100%; border-radius: 5px;">
+                <button type="button" onclick="clearScorePhoto()" style="margin-top: 5px; font-size: 11px; background: #ffebee; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; color: #c62828;">✕ Remove</button>
+              </div>
+            </div>
+            <textarea id="aiInput" placeholder="Or paste box score, stats, or game notes here..." style="min-height: 80px; width: 100%; margin-bottom: 10px;"></textarea>
             <button class="btn-ai" onclick="generateArticle()" id="btnGenerate">
               ✨ Generate Article
             </button>
@@ -700,10 +708,31 @@
     }
     
     // AI Generation
+    let scorePhotoBase64 = null;
+    
+    function previewScorePhoto(input) {
+      const file = input.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          scorePhotoBase64 = e.target.result;
+          document.getElementById('photoPreviewImg').src = scorePhotoBase64;
+          document.getElementById('photoPreview').style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+    
+    function clearScorePhoto() {
+      scorePhotoBase64 = null;
+      document.getElementById('scorePhoto').value = '';
+      document.getElementById('photoPreview').style.display = 'none';
+    }
+    
     async function generateArticle() {
       const input = document.getElementById('aiInput').value.trim();
-      if (!input) {
-        showToast('Please paste box score or game notes', 'error');
+      if (!input && !scorePhotoBase64) {
+        showToast('Please upload a photo or paste box score', 'error');
         return;
       }
       
@@ -723,7 +752,8 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             boxScore: input,
-            gameInfo: gameInfo
+            gameInfo: gameInfo,
+            image: scorePhotoBase64
           })
         });
         
