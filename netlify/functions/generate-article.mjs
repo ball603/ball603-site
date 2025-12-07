@@ -64,24 +64,54 @@ async function handleExtract(body, headers) {
     });
   }
   
-  const systemPrompt = `You are an expert at reading basketball scorebooks. Extract the box score data from the image and return it as JSON.
+  const systemPrompt = `You are an expert at reading standard basketball scorebooks. This is a two-page spread with the AWAY team on the LEFT page and HOME team on the RIGHT page.
 
-IMPORTANT: Use the provided rosters to match jersey numbers to correct player names and spellings. If you see a jersey number, look it up in the roster to get the exact name spelling.
+HOW TO READ A SCOREBOOK:
+
+1. TEAM NAMES: Found at top left of each page after "TEAM"
+
+2. FINAL SCORES - CRITICAL: 
+   - Look for the "FINAL SCORE" box near the top right area of each page
+   - Also visible as the LAST crossed-off number in the "RUNNING SCORE" rows at the very top
+   - The running score has numbers 1-28 on first row, 29-56 on second row, etc.
+   - The highest crossed-off number IS the final score
+
+3. QUARTER SCORES:
+   - Look for boxes labeled "1ST Q SCORE" (or "FIRST Q"), "FIRST HALF SCORE", "3RD Q SCORE" (or "THIRD Q"), "FINAL SCORE"
+   - Calculate quarters: Q1 = 1st Q score, Q2 = Half score minus Q1, Q3 = 3rd Q minus Half, Q4 = Final minus 3rd Q
+   - Example: If 1st Q=26, Half=36, 3rd Q=61, Final=69 → Quarters are [26, 10, 25, 8]
+
+4. INDIVIDUAL SCORING:
+   - Players are listed in rows with jersey numbers in the "NO." column
+   - The "TP" column (far right, "Total Points") shows each player's points
+   - ONLY include players who have points in the TP column (TP > 0)
+   - Do NOT list every player on the roster - only those who scored
+
+5. PLAYER NAMES:
+   - Use the roster below to match jersey numbers to correct name spellings
+   - The scorebook handwriting may be messy - trust the roster for spelling
 
 ${rosterRef}
 
-Return ONLY valid JSON in this exact format (no markdown, no explanation):
+RETURN ONLY valid JSON in this exact format (no markdown, no explanation):
 {
+  "awayTeam": "Team Name",
+  "homeTeam": "Team Name", 
   "awayQuarters": [Q1, Q2, Q3, Q4],
   "homeQuarters": [Q1, Q2, Q3, Q4],
   "awayFinal": total,
   "homeFinal": total,
-  "awayScorers": [{"name": "Player Name", "points": "XX"}, ...],
-  "homeScorers": [{"name": "Player Name", "points": "XX"}, ...],
-  "notes": "Any notable observations (big runs, close finish, etc.)"
+  "awayScorers": [{"name": "Player Name", "points": XX}, ...],
+  "homeScorers": [{"name": "Player Name", "points": XX}, ...],
+  "notes": "Any notable observations"
 }
 
-If you can't read a value clearly, use your best guess or leave it empty. Always try to match jersey numbers to the roster for correct name spelling.`;
+CRITICAL RULES:
+- Points values should be NUMBERS not strings
+- Only include players who actually scored (check TP column)
+- Double-check final scores by looking at the RUNNING SCORE at the top
+- The awayScorers points should add up to awayFinal
+- The homeScorers points should add up to homeFinal`;
 
   // Build message content with image
   const messageContent = [];
