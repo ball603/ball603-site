@@ -3154,6 +3154,1161 @@ const ROSTERS_DATA = {
       "head_coach": "Matthew Jordan",
       "assistant_coaches": "Natalie Purrington",
       "managers": "Allison Avery, Liah Thibault, Reagan Thibault"
+    },
+    {
+      "school": "Hinsdale",
+      "gender": "Boys",
+      "players": [
+        {
+          "number": "1",
+          "name": "Chris Colon",
+          "class": "JR",
+          "position": "G"
+        },
+        {
+          "number": "2",
+          "name": "Eli Colon",
+          "class": "JR",
+          "position": "G"
+        },
+        {
+          "number": "3",
+          "name": "Connor Dixon",
+          "class": "JR",
+          "position": "G"
+        },
+        {
+          "number": "4",
+          "name": "Caden Steever-Kilelee",
+          "class": "JR",
+          "position": "F"
+        },
+        {
+          "number": "5",
+          "name": "Jack Clark",
+          "class": "SR",
+          "position": "G"
+        },
+        {
+          "number": "10",
+          "name": "Hunter Taylor",
+          "class": "SR",
+          "position": "F"
+        },
+        {
+          "number": "12",
+          "name": "Aarav Patel",
+          "class": "SO",
+          "position": "G"
+        },
+        {
+          "number": "20",
+          "name": "Trevor Corey",
+          "class": "JR",
+          "position": "F"
+        },
+        {
+          "number": "24",
+          "name": "Grady Jutras",
+          "class": "SR",
+          "position": "F"
+        },
+        {
+          "number": "41",
+          "name": "Colton Bornkessel",
+          "class": "SO",
+          "position": "F"
+        }
+      ],
+      "head_coach": "Carl Anderson",
+      "assistant_coaches": "Danny O'Melia",
+      "managers": ""
+    },
+    {
+      "school": "Woodsville",
+      "gender": "Girls",
+      "players": [
+        {
+          "number": "2",
+          "name": "Kaidyn Cox",
+          "class": "SO",
+          "position": "G"
+        },
+        {
+          "number": "3",
+          "name": "Kiarra Simpson",
+          "class": "FR",
+          "position": "F"
+        },
+        {
+          "number": "5",
+          "name": "Eyrleigh Hambrick",
+          "class": "SR",
+          "position": "F"
+        },
+        {
+          "number": "11",
+          "name": "Makayla Walker",
+          "class": "SR",
+          "position": "G"
+        },
+        {
+          "number": "12",
+          "name": "Jill Roy",
+          "class": "SR",
+          "position": "F"
+        },
+        {
+          "number": "14",
+          "name": "Katie Houston",
+          "class": "SR",
+          "position": "F"
+        },
+        {
+          "number": "21",
+          "name": "Joslin Williams",
+          "class": "SO",
+          "position": "F"
+        },
+        {
+          "number": "23",
+          "name": "Morgan Crocker",
+          "class": "SR",
+          "position": "G"
+        },
+        {
+          "number": "35",
+          "name": "Ellie Martin",
+          "class": "SO",
+          "position": "F"
+        },
+        {
+          "number": "44",
+          "name": "Rylynn Hambrick",
+          "class": "FR",
+          "position": "G"
+        }
+      ],
+      "head_coach": "Jamie Walker",
+      "assistant_coaches": "Steve Colby",
+      "managers": ""
+    },
+    {
+      "school": "Trinity",
+      "gender": "Girls",
+      "players": [
+        {
+          "number": "0",
+          "name": "Nayeli Perez",
+          "class": "SO",
+          "position": "G"
+        },
+        {
+          "number": "1",
+          "name": "Sadie Mungere",
+          "class": "JR",
+          "position": "F"
+        },
+        {
+          "number": "2",
+          "name": "Isabella Soule",
+          "class": "JR",
+          "position": "F"
+        },
+        {
+          "number": "3",
+          "name": "Jodi Erilla",
+          "class": "JR",
+          "position": "G"
+        },
+        {
+          "number": "4",
+          "name": "Sophia Houde",
+          "class": "SO",
+          "position": "F/C"
+        },
+        {
+          "number": "5",
+          "name": "Lily Ferdinando",
+          "class": "JR",
+          "position": "G"
+        },
+        {
+          "number": "10",
+          "name": "Janiyah Lofton",
+          "class": "SO",
+          "position": "F"
+        },
+        {
+          "number": "11",
+          "name": "Addison Moynihan",
+          "class": "SR",
+          "position": "F"
+        },
+        {
+          "number": "12",
+          "name": "Sophia Gonzalez",
+          "class": "SO",
+          "position": "F"
+        },
+        {
+          "number": "13",
+          "name": "Jade Mosher",
+          "class": "SO",
+          "position": "G"
+        },
+        {
+          "number": "15",
+          "name": "Summer Cullen",
+          "class": "JR",
+          "position": "G"
+        },
+        {
+          "number": "20",
+          "name": "Lillian Manning",
+          "class": "JR",
+          "position": "F"
+        }
+      ],
+      "head_coach": "Cameron Owen",
+      "assistant_coaches": "Ashley Giampetruzzi, Amy Towler",
+      "managers": ""
+    },
+    {
+      "school": "Sanborn",
+      "gender": "Girls",
+      "players": [
+        {
+          "number": "1",
+          "name": "Gabby St. Cyr",
+          "class": "SO",
+          "position": "G"
+        },
+        {
+          "number": "2",
+          "name": "Alyssa Boutin",
+          "class": "FR",
+          "position": "G/F"
+        },
+        {
+          "number": "3",
+          "name": "Sage Jackson",
+          "class": "SO",
+          "position": "F/C"
+        },
+        {
+          "number": "4",
+          "name": "Samantha Brown",
+          "class": "SO",
+          "position": "F"
+        },
+        {
+          "number": "5",
+          "name": "Ellie Rankin",
+          "class": "JR",
+          "position": "G"
+        },
+        {
+          "number": "11",
+          "name": "Makenzie White",
+          "class": "JR",
+          "position": "G"
+        },
+        {
+          "number": "12",
+          "name": "Elizabeth Bristol",
+          "class": "FR",
+          "position": "G"
+        },
+        {
+          "number": "14",
+          "name": "Kaylee Fortin",
+          "class": "JR",
+          "position": "G"
+        },
+        {
+          "number": "15",
+          "name": "Cassie Ahern",
+          "class": "FR",
+          "position": "G/F"
+        },
+        {
+          "number": "21",
+          "name": "Madelyn Rockwell",
+          "class": "JR",
+          "position": "C"
+        },
+        {
+          "number": "23",
+          "name": "Makenna Murphy",
+          "class": "JR",
+          "position": "F"
+        },
+        {
+          "number": "24",
+          "name": "Gwen LaValley",
+          "class": "FR",
+          "position": "G/F"
+        }
+      ],
+      "head_coach": "Samantha Broyer",
+      "assistant_coaches": "Madison Lovely",
+      "managers": ""
+    },
+    {
+      "school": "Exeter",
+      "gender": "Boys",
+      "players": [
+        {
+          "number": "2",
+          "name": "Tyler Ream",
+          "class": "JR",
+          "position": "G"
+        },
+        {
+          "number": "3",
+          "name": "Raymond Plante",
+          "class": "SR",
+          "position": "G"
+        },
+        {
+          "number": "4",
+          "name": "Agee Griffith",
+          "class": "SR",
+          "position": "G"
+        },
+        {
+          "number": "10",
+          "name": "Johnny Gillis",
+          "class": "SR",
+          "position": "G"
+        },
+        {
+          "number": "11",
+          "name": "Jackson McDonald",
+          "class": "JR",
+          "position": "G"
+        },
+        {
+          "number": "12",
+          "name": "Michael Burke",
+          "class": "SR",
+          "position": "G"
+        },
+        {
+          "number": "14",
+          "name": "Thomas Graves",
+          "class": "JR",
+          "position": "G"
+        },
+        {
+          "number": "15",
+          "name": "Nicholas Meyers",
+          "class": "SR",
+          "position": "F"
+        },
+        {
+          "number": "20",
+          "name": "Cooper Pettigrove",
+          "class": "JR",
+          "position": "G"
+        },
+        {
+          "number": "21",
+          "name": "Nathan Tomasi",
+          "class": "SR",
+          "position": "F"
+        },
+        {
+          "number": "22",
+          "name": "Ben Smith",
+          "class": "JR",
+          "position": "G"
+        },
+        {
+          "number": "23",
+          "name": "Jack Thibodeau",
+          "class": "SR",
+          "position": "C"
+        },
+        {
+          "number": "24",
+          "name": "Lucas Cromer",
+          "class": "JR",
+          "position": "F"
+        },
+        {
+          "number": "34",
+          "name": "Huxley Brown",
+          "class": "SR",
+          "position": "F"
+        }
+      ],
+      "head_coach": "Jeffrey Holmes",
+      "assistant_coaches": "Tom Caduiex, Chris Passmore, David Hyvari",
+      "managers": ""
+    },
+    {
+      "school": "Souhegan",
+      "gender": "Girls",
+      "players": [
+        {
+          "number": "1",
+          "name": "Julia Skelton",
+          "class": "JR",
+          "position": "G"
+        },
+        {
+          "number": "2",
+          "name": "Mariellah Dart",
+          "class": "FR",
+          "position": "G"
+        },
+        {
+          "number": "3",
+          "name": "Lanai Hickman",
+          "class": "JR",
+          "position": "F"
+        },
+        {
+          "number": "4",
+          "name": "Abby Mayo",
+          "class": "FR",
+          "position": "G"
+        },
+        {
+          "number": "5",
+          "name": "Brynn Siska",
+          "class": "FR",
+          "position": "G"
+        },
+        {
+          "number": "10",
+          "name": "Ella Duclos",
+          "class": "FR",
+          "position": "G"
+        },
+        {
+          "number": "11",
+          "name": "Sophie Cullen",
+          "class": "FR",
+          "position": "F"
+        },
+        {
+          "number": "12",
+          "name": "Zofia Rosenfield",
+          "class": "SR",
+          "position": "G"
+        },
+        {
+          "number": "14",
+          "name": "Natalie Bryan",
+          "class": "SO",
+          "position": "G"
+        },
+        {
+          "number": "30",
+          "name": "Nayaa Dineshkumar",
+          "class": "FR",
+          "position": "F"
+        }
+      ],
+      "head_coach": "Greg Cotreau",
+      "assistant_coaches": "Candace Craig, Bonnie Sinclair",
+      "managers": "Grace Clark, Alanah Dutremble"
+    },
+    {
+      "school": "Bishop Brady",
+      "gender": "Boys",
+      "players": [
+        {
+          "number": "2",
+          "name": "Daniel Shedd",
+          "class": "SR",
+          "position": "F"
+        },
+        {
+          "number": "3",
+          "name": "James Horangic",
+          "class": "SR",
+          "position": "G/F"
+        },
+        {
+          "number": "4",
+          "name": "Alex Pelletier",
+          "class": "SR",
+          "position": "G"
+        },
+        {
+          "number": "5",
+          "name": "Jake Blanchette",
+          "class": "SR",
+          "position": "G"
+        },
+        {
+          "number": "11",
+          "name": "Koltan Gaudreault",
+          "class": "JR",
+          "position": "F"
+        },
+        {
+          "number": "12",
+          "name": "Dylan DuBreuil",
+          "class": "SR",
+          "position": "F"
+        },
+        {
+          "number": "13",
+          "name": "Josh Jabo",
+          "class": "SO",
+          "position": "G"
+        },
+        {
+          "number": "14",
+          "name": "Nicholas Hayes",
+          "class": "SO",
+          "position": "F"
+        },
+        {
+          "number": "15",
+          "name": "Jonathan Lazear",
+          "class": "SO",
+          "position": "F"
+        },
+        {
+          "number": "20",
+          "name": "Mason Noel",
+          "class": "SO",
+          "position": "G/F"
+        },
+        {
+          "number": "22",
+          "name": "Billy Mullen",
+          "class": "SO",
+          "position": "F"
+        },
+        {
+          "number": "23",
+          "name": "Ryan Casey",
+          "class": "SR",
+          "position": "F/C"
+        }
+      ],
+      "head_coach": "Bill Duffy",
+      "assistant_coaches": "Josh LeClaire",
+      "managers": ""
+    },
+    {
+      "school": "Pittsburg-Canaan",
+      "gender": "Boys",
+      "players": [
+        {
+          "number": "1",
+          "name": "Carter Umlah",
+          "class": "JR",
+          "position": "G"
+        },
+        {
+          "number": "2",
+          "name": "Aiden Gray",
+          "class": "SR",
+          "position": "G"
+        },
+        {
+          "number": "3",
+          "name": "Daemon Jaimes",
+          "class": "SR",
+          "position": "G"
+        },
+        {
+          "number": "4",
+          "name": "Gio Luciano",
+          "class": "JR",
+          "position": "G"
+        },
+        {
+          "number": "5",
+          "name": "Devin Phillips",
+          "class": "FR",
+          "position": "G"
+        },
+        {
+          "number": "10",
+          "name": "Christian DeGray",
+          "class": "SO",
+          "position": "G"
+        },
+        {
+          "number": "11",
+          "name": "Austin Owen",
+          "class": "SR",
+          "position": "F"
+        },
+        {
+          "number": "12",
+          "name": "Carson Cross",
+          "class": "SO",
+          "position": "F"
+        },
+        {
+          "number": "15",
+          "name": "Brayden Woodburn",
+          "class": "SO",
+          "position": "G"
+        },
+        {
+          "number": "20",
+          "name": "Bryce Laro",
+          "class": "8th",
+          "position": "F/C"
+        },
+        {
+          "number": "21",
+          "name": "Darren Clogston",
+          "class": "FR",
+          "position": "F/C"
+        },
+        {
+          "number": "32",
+          "name": "Jordan Harding",
+          "class": "SO",
+          "position": "F/C"
+        }
+      ],
+      "head_coach": "Cody Richards",
+      "assistant_coaches": "Nate Jenkins-Goetz",
+      "managers": ""
+    },
+    {
+      "school": "Bow",
+      "gender": "Boys",
+      "players": [
+        {
+          "number": "2",
+          "name": "Jacob Littlefield",
+          "class": "JR",
+          "position": "G"
+        },
+        {
+          "number": "3",
+          "name": "Giancarlo DiBlasio",
+          "class": "SR",
+          "position": "F"
+        },
+        {
+          "number": "5",
+          "name": "Lochlann Brady",
+          "class": "SR",
+          "position": "G"
+        },
+        {
+          "number": "10",
+          "name": "Ben Reardon",
+          "class": "SO",
+          "position": "G"
+        },
+        {
+          "number": "12",
+          "name": "Brendan O'Keeffe",
+          "class": "SR",
+          "position": "G"
+        },
+        {
+          "number": "14",
+          "name": "Carter Hall",
+          "class": "JR",
+          "position": "G"
+        },
+        {
+          "number": "15",
+          "name": "Kyle Cimis",
+          "class": "JR",
+          "position": "F"
+        },
+        {
+          "number": "20",
+          "name": "Conor Curtis",
+          "class": "SO",
+          "position": "G"
+        },
+        {
+          "number": "21",
+          "name": "Peyton Larrabee",
+          "class": "SR",
+          "position": "F"
+        },
+        {
+          "number": "23",
+          "name": "Conor Eno",
+          "class": "SR",
+          "position": "G"
+        },
+        {
+          "number": "24",
+          "name": "Anthony Albushies",
+          "class": "SO",
+          "position": "F"
+        },
+        {
+          "number": "30",
+          "name": "Jacob Filkins",
+          "class": "SO",
+          "position": "G"
+        }
+      ],
+      "head_coach": "Eric Saucier",
+      "assistant_coaches": "Trevor Moore",
+      "managers": ""
+    },
+    {
+      "school": "Lin-Wood",
+      "gender": "Girls",
+      "players": [
+        {
+          "number": "2",
+          "name": "Briar Clark",
+          "class": "",
+          "position": ""
+        },
+        {
+          "number": "3",
+          "name": "Kiara Khosla",
+          "class": "",
+          "position": ""
+        },
+        {
+          "number": "4",
+          "name": "Isabella Powers",
+          "class": "",
+          "position": ""
+        },
+        {
+          "number": "5",
+          "name": "Caroline Hiltz",
+          "class": "",
+          "position": ""
+        },
+        {
+          "number": "10",
+          "name": "Maisie Anderson",
+          "class": "",
+          "position": ""
+        },
+        {
+          "number": "11",
+          "name": "Stella Brophy",
+          "class": "",
+          "position": ""
+        },
+        {
+          "number": "25",
+          "name": "Crystal Harris",
+          "class": "",
+          "position": ""
+        },
+        {
+          "number": "33",
+          "name": "Zoe Conn",
+          "class": "",
+          "position": ""
+        }
+      ],
+      "head_coach": "Courtney Peabody",
+      "assistant_coaches": "Jess Halm",
+      "managers": ""
+    },
+    {
+      "school": "Lin-Wood",
+      "gender": "Boys",
+      "players": [
+        {
+          "number": "1",
+          "name": "Spencer Arpin",
+          "class": "",
+          "position": ""
+        },
+        {
+          "number": "2",
+          "name": "Chuck Poitras",
+          "class": "",
+          "position": ""
+        },
+        {
+          "number": "3",
+          "name": "Camden Anderson",
+          "class": "",
+          "position": ""
+        },
+        {
+          "number": "4",
+          "name": "Ollie Bujeaud",
+          "class": "",
+          "position": ""
+        },
+        {
+          "number": "5",
+          "name": "Brodie Murray",
+          "class": "",
+          "position": ""
+        },
+        {
+          "number": "11",
+          "name": "Kyle Weeden",
+          "class": "",
+          "position": ""
+        },
+        {
+          "number": "12",
+          "name": "Tyler Johansen",
+          "class": "",
+          "position": ""
+        },
+        {
+          "number": "14",
+          "name": "Ian Anderson",
+          "class": "",
+          "position": ""
+        },
+        {
+          "number": "24",
+          "name": "Evan Bujeaud",
+          "class": "",
+          "position": ""
+        }
+      ],
+      "head_coach": "Max LeBlanc",
+      "assistant_coaches": "Vance Pickering, Stuart Anderson",
+      "managers": ""
+    },
+    {
+      "school": "Inter-Lakes",
+      "gender": "Girls",
+      "players": [
+        {
+          "number": "1",
+          "name": "Brooke Taylor",
+          "class": "SR",
+          "position": ""
+        },
+        {
+          "number": "2",
+          "name": "Bella Kimball",
+          "class": "JR",
+          "position": ""
+        },
+        {
+          "number": "4",
+          "name": "Emily Doda",
+          "class": "SR",
+          "position": ""
+        },
+        {
+          "number": "5",
+          "name": "Aubrey Bresse",
+          "class": "SO",
+          "position": ""
+        },
+        {
+          "number": "10",
+          "name": "Kate Taylor",
+          "class": "SO",
+          "position": ""
+        },
+        {
+          "number": "11",
+          "name": "Riley Anderson",
+          "class": "SR",
+          "position": ""
+        },
+        {
+          "number": "13",
+          "name": "Esther Nunez",
+          "class": "JR",
+          "position": ""
+        },
+        {
+          "number": "15",
+          "name": "Soriya Richards",
+          "class": "JR",
+          "position": ""
+        },
+        {
+          "number": "22",
+          "name": "Grace Stephens",
+          "class": "JR",
+          "position": ""
+        },
+        {
+          "number": "23",
+          "name": "Tessa Mutney",
+          "class": "JR",
+          "position": ""
+        }
+      ],
+      "head_coach": "Pierre Doda",
+      "assistant_coaches": "Mark Anderson",
+      "managers": ""
+    },
+    {
+      "school": "Raymond",
+      "gender": "Boys",
+      "players": [
+        {
+          "number": "1",
+          "name": "Logan Woods",
+          "class": "JR",
+          "position": "F"
+        },
+        {
+          "number": "2",
+          "name": "Lukas Larrabee",
+          "class": "SO",
+          "position": "G"
+        },
+        {
+          "number": "3",
+          "name": "Tyler Brooks",
+          "class": "JR",
+          "position": "F"
+        },
+        {
+          "number": "4",
+          "name": "Jackson Waterhouse",
+          "class": "JR",
+          "position": "F"
+        },
+        {
+          "number": "10",
+          "name": "Jackson Wall",
+          "class": "FR",
+          "position": "G"
+        },
+        {
+          "number": "14",
+          "name": "Troy Carpenter",
+          "class": "SO",
+          "position": "F"
+        },
+        {
+          "number": "15",
+          "name": "Michael Chirichiello",
+          "class": "SO",
+          "position": "G"
+        },
+        {
+          "number": "20",
+          "name": "Maddox Brown",
+          "class": "JR",
+          "position": "C"
+        },
+        {
+          "number": "21",
+          "name": "Magnus Lord",
+          "class": "JR",
+          "position": "F"
+        },
+        {
+          "number": "22",
+          "name": "Ronnie Cordwell",
+          "class": "SR",
+          "position": "F"
+        },
+        {
+          "number": "23",
+          "name": "Jacobi Cumberbatch",
+          "class": "SR",
+          "position": "G"
+        },
+        {
+          "number": "25",
+          "name": "Jack Jewett",
+          "class": "JR",
+          "position": "C"
+        }
+      ],
+      "head_coach": "Jim Gallagher",
+      "assistant_coaches": "Jay Labranche, Julien Duffaut, Jon Waterhouse",
+      "managers": ""
+    },
+    {
+      "school": "Coe-Brown",
+      "gender": "Boys",
+      "players": [
+        {
+          "number": "1",
+          "name": "Grant Hayes",
+          "class": "SO",
+          "position": "G"
+        },
+        {
+          "number": "2",
+          "name": "Rorik Collins",
+          "class": "JR",
+          "position": "F"
+        },
+        {
+          "number": "3",
+          "name": "Grady Mulligan",
+          "class": "SO",
+          "position": "G"
+        },
+        {
+          "number": "4",
+          "name": "Quinlen Purington",
+          "class": "JR",
+          "position": "F"
+        },
+        {
+          "number": "5",
+          "name": "Nick Cimino",
+          "class": "JR",
+          "position": "G"
+        },
+        {
+          "number": "10",
+          "name": "Oliver Ford",
+          "class": "SR",
+          "position": "G"
+        },
+        {
+          "number": "11",
+          "name": "Tim Kerivan",
+          "class": "SO",
+          "position": "F"
+        },
+        {
+          "number": "15",
+          "name": "Myles Brackett",
+          "class": "JR",
+          "position": "F"
+        },
+        {
+          "number": "21",
+          "name": "Abel Szatko",
+          "class": "SO",
+          "position": "G"
+        },
+        {
+          "number": "22",
+          "name": "Garrett Ward",
+          "class": "SR",
+          "position": "G"
+        },
+        {
+          "number": "23",
+          "name": "Colby Taylor",
+          "class": "JR",
+          "position": "C"
+        },
+        {
+          "number": "25",
+          "name": "Istvan Miko",
+          "class": "SR",
+          "position": "F"
+        },
+        {
+          "number": "33",
+          "name": "Carson Fowler",
+          "class": "SR",
+          "position": "F"
+        }
+      ],
+      "head_coach": "David S. Smith",
+      "assistant_coaches": "William Clarke, Kyle Purington II",
+      "managers": ""
+    },
+    {
+      "school": "Hanover",
+      "gender": "Boys",
+      "players": [
+        {
+          "number": "3",
+          "name": "Cooper Sobel",
+          "class": "JR",
+          "position": "G"
+        },
+        {
+          "number": "4",
+          "name": "Denis Pletnev",
+          "class": "SR",
+          "position": "G"
+        },
+        {
+          "number": "5",
+          "name": "Hayden Avard",
+          "class": "SR",
+          "position": "G/F"
+        },
+        {
+          "number": "10",
+          "name": "Keller Greene",
+          "class": "SR",
+          "position": "F"
+        },
+        {
+          "number": "11",
+          "name": "Roy Lucas",
+          "class": "SR",
+          "position": "G"
+        },
+        {
+          "number": "12",
+          "name": "Allie Muirhead",
+          "class": "SR",
+          "position": "G/F"
+        },
+        {
+          "number": "13",
+          "name": "Ryan O'Hern",
+          "class": "SR",
+          "position": "G/F"
+        },
+        {
+          "number": "15",
+          "name": "Ira Clifford",
+          "class": "JR",
+          "position": "F"
+        },
+        {
+          "number": "20",
+          "name": "Jack Lobb",
+          "class": "SR",
+          "position": "G"
+        },
+        {
+          "number": "21",
+          "name": "Sam Bagatell",
+          "class": "SR",
+          "position": "C"
+        },
+        {
+          "number": "23",
+          "name": "Benson Friede",
+          "class": "SO",
+          "position": "C"
+        },
+        {
+          "number": "25",
+          "name": "EJ Frechette",
+          "class": "SR",
+          "position": "G"
+        },
+        {
+          "number": "30",
+          "name": "Wyatt Daigle",
+          "class": "JR",
+          "position": "F/C"
+        },
+        {
+          "number": "35",
+          "name": "Andrew Cramer",
+          "class": "SR",
+          "position": "F/C"
+        }
+      ],
+      "head_coach": "Denver Greene",
+      "assistant_coaches": "Tamir Campbell, Mike Padmore II",
+      "managers": "Colin McLaughlin"
     }
   ]
 };
