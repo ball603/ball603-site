@@ -6,7 +6,8 @@
   <title>Standings | Ball603</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    html { overflow-y: scroll; }
+    html { overflow-y: scroll; scrollbar-width: none; -ms-overflow-style: none; }
+    html::-webkit-scrollbar { display: none; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #333; min-height: 100vh; }
     
     /* Header */
@@ -23,44 +24,62 @@
     /* Main container */
     .container { width: 950px; margin: 0 auto; padding: 20px; }
     
-    /* Controls */
-    .controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-    .controls h2 { font-size: 18px; font-weight: 600; }
-    .toggle-btn { 
-      padding: 8px 16px; 
-      border: 1px solid #ddd; 
-      border-radius: 5px; 
-      font-size: 14px; 
-      background: #fff; 
-      cursor: pointer;
-      font-weight: 500;
-    }
-    .toggle-btn:hover { background: #f5f5f5; }
+    /* Title */
+    .page-title { font-size: 18px; font-weight: 600; margin-bottom: 15px; }
     
-    /* 2x2 Grid */
+    /* Division Tabs */
+    .division-tabs {
+      display: flex;
+      gap: 5px;
+      margin-bottom: 0;
+    }
+    .division-tab {
+      padding: 10px 24px;
+      border: none;
+      border-radius: 8px 8px 0 0;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      background: #ffe0b2;
+      color: #e65100;
+      transition: background 0.2s;
+    }
+    .division-tab:hover { background: #ffcc80; }
+    .division-tab.active { 
+      background: #f57c00; 
+      color: white; 
+    }
+    
+    /* Standings Grid - 2 columns */
     .standings-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 25px;
     }
     
-    /* Each division box */
-    .division-box {
+    /* Each gender box */
+    .gender-box {
       background: #fff;
-      border-radius: 8px;
+      border-radius: 0 8px 8px 8px;
       box-shadow: 0 2px 5px rgba(0,0,0,0.05);
       overflow: hidden;
       display: flex;
       flex-direction: column;
     }
+    .gender-box:first-child {
+      border-radius: 0 8px 8px 8px;
+    }
+    .gender-box:last-child {
+      border-radius: 8px 0 8px 8px;
+    }
     
-    /* Division header - smaller, subtle */
-    .division-header {
+    /* Gender header */
+    .gender-header {
       background: #fafafa;
-      border-bottom: 1px solid #f57c00;
-      padding: 10px 12px;
+      border-bottom: 2px solid #f57c00;
+      padding: 12px 15px;
       font-weight: 600;
-      font-size: 13px;
+      font-size: 14px;
       color: #333;
     }
     
@@ -76,12 +95,12 @@
     
     /* Scrollable table container - hide scrollbars */
     .table-wrapper {
-      max-height: 360px;
+      max-height: 500px;
       overflow-y: auto;
-      scrollbar-width: none; /* Firefox */
-      -ms-overflow-style: none; /* IE/Edge */
+      scrollbar-width: none;
+      -ms-overflow-style: none;
     }
-    .table-wrapper::-webkit-scrollbar { display: none; } /* Chrome/Safari */
+    .table-wrapper::-webkit-scrollbar { display: none; }
     
     /* Standings table */
     .standings-table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -97,7 +116,7 @@
     .seed-col { width: 32px; text-align: center; font-weight: 600; }
     .team-col { }
     .team { display: flex; align-items: center; gap: 8px; }
-    .team-logo { width: 22px; height: 22px; border-radius: 3px; object-fit: contain; background: #f5f5f5; }
+    .team-logo { width: 22px; height: 22px; border-radius: 3px; object-fit: contain; }
     .team-name { font-size: 13px; color: #333; text-decoration: none; }
     .team-name:hover { color: #f57c00; }
     .record-col { width: 35px; text-align: center; }
@@ -130,8 +149,11 @@
       .container { width: auto; padding: 10px; }
       .header-nav { display: none; }
       .header-left h1 { font-size: 16px; }
+      .division-tabs { flex-wrap: wrap; }
+      .division-tab { padding: 8px 16px; font-size: 13px; }
       .standings-grid { grid-template-columns: 1fr; gap: 20px; }
-      .table-wrapper { max-height: 300px; }
+      .gender-box { border-radius: 8px !important; }
+      .table-wrapper { max-height: 350px; }
       .team-logo { width: 20px; height: 20px; }
       .team-name { font-size: 12px; }
       .rating-col { display: none; }
@@ -155,9 +177,13 @@
   </div>
   
   <div class="container">
-    <div class="controls">
-      <h2 id="standingsTitle">2025-26 NHIAA Boys Basketball Standings</h2>
-      <button class="toggle-btn" id="genderToggle" onclick="toggleGender()">Girls</button>
+    <h2 class="page-title">2025-26 NHIAA Basketball Standings</h2>
+    
+    <div class="division-tabs">
+      <button class="division-tab active" onclick="selectDivision('D-I')">Division I</button>
+      <button class="division-tab" onclick="selectDivision('D-II')">Division II</button>
+      <button class="division-tab" onclick="selectDivision('D-III')">Division III</button>
+      <button class="division-tab" onclick="selectDivision('D-IV')">Division IV</button>
     </div>
     
     <div class="standings-grid" id="standingsGrid">
@@ -171,7 +197,7 @@
 
   <script>
     let allStandings = [];
-    let currentGender = 'Boys';
+    let currentDivision = 'D-I';
     
     // 2025-26 NHIAA Basketball Playoff Teams (update each season based on 70% rule)
     const PLAYOFF_TEAMS = {
@@ -185,9 +211,15 @@
       return 32 - teams;                    // 32-team bracket
     }
     
-    function toggleGender() {
-      currentGender = currentGender === 'Boys' ? 'Girls' : 'Boys';
-      document.getElementById('genderToggle').textContent = currentGender === 'Boys' ? 'Girls' : 'Boys';
+    function selectDivision(div) {
+      currentDivision = div;
+      // Update tab styling
+      document.querySelectorAll('.division-tab').forEach(tab => {
+        tab.classList.remove('active');
+        if (tab.textContent.includes(div.replace('D-', ''))) {
+          tab.classList.add('active');
+        }
+      });
       renderStandings();
     }
     
@@ -202,18 +234,14 @@
         'Bishop Brady High School': 'Bishop Brady',
         'Bishop Guertin High School': 'Bishop Guertin',
         'Bow High School': 'Bow',
-        'Brewster Academy': 'Brewster',
         'Campbell High School': 'Campbell',
-        'Canaan Schools': 'Canaan',
         'Coe-Brown Northwood': 'Coe-Brown',
         'Coe-Brown Northwood Academy': 'Coe-Brown',
-        'Colby-Sawyer College': 'Colby-Sawyer',
         'Colebrook Academy': 'Colebrook',
         'ConVal Regional High School': 'ConVal',
         'Conant Middle High School': 'Conant',
         'Concord Christian Academy': 'Concord Christian',
         'Concord High School': 'Concord',
-        'Dartmouth College': 'Dartmouth',
         'Derryfield School': 'Derryfield',
         'Dover High School': 'Dover',
         'Epping Middle High School': 'Epping',
@@ -221,100 +249,73 @@
         'Fall Mountain Regional High School': 'Fall Mountain',
         'Farmington High School': 'Farmington',
         'Franklin High School': 'Franklin',
-        'Franklin Pierce University': 'Franklin Pierce',
         'Gilford High School': 'Gilford',
         'Goffstown High School': 'Goffstown',
         'Gorham High School': 'Gorham',
-        'Great Bay Community College': 'Great Bay',
         'Groveton High School': 'Groveton',
         'Hanover High School': 'Hanover',
         'Hillsboro-Deering High School': 'Hillsboro-Deering',
         'Hinsdale High School': 'Hinsdale',
-        'Holderness School': 'Holderness',
         'Hollis-Brookline High School': 'Hollis-Brookline',
         'Holy Family Academy': 'Holy Family',
-        'Hopkinton Middle High School': 'Hopkinton',
-        'Inter-Lakes Middle High School': 'Inter-Lakes',
+        'Hopkinton High School': 'Hopkinton',
+        'Inter-Lakes High School': 'Inter-Lakes',
         'John Stark Regional High School': 'John Stark',
         'Kearsarge Regional High School': 'Kearsarge',
         'Keene High School': 'Keene',
-        'Keene State College': 'Keene State',
         'Kennett High School': 'Kennett',
-        'Kimball Union Academy': 'Kimball Union',
         'Kingswood Regional High School': 'Kingswood',
         'Laconia High School': 'Laconia',
-        'Lakes Region Community College': 'Lakes Region',
         'Lebanon High School': 'Lebanon',
         'Lin-Wood Public School': 'Lin-Wood',
         'Lisbon Regional School': 'Lisbon',
         'Littleton High School': 'Littleton',
         'Londonderry High School': 'Londonderry',
-        'Man. Central-Man. West': 'Central-West',
         'Manchester Central High School': 'Manchester Central',
-        'Manchester Community College': 'Manchester CC',
         'Manchester Memorial High School': 'Manchester Memorial',
         'Manchester West High School': 'Manchester West',
         'Mascenic Regional High School': 'Mascenic',
-        'Mascoma': 'Mascoma Valley',
-        'Mascoma Valley Regional High School': 'Mascoma Valley',
+        'Mascoma Valley Regional High School': 'Mascoma',
         'Merrimack High School': 'Merrimack',
         'Merrimack Valley High School': 'Merrimack Valley',
         'Milford High School': 'Milford',
         'Monadnock Regional High School': 'Monadnock',
-        'Moultonborough Academy': 'Moultonborough',
         'Mount Royal Academy': 'Mount Royal',
-        'Nashua Community College': 'Nashua CC',
-        'Nashua High School North': 'Nashua North',
-        'Nashua High School South': 'Nashua South',
-        'New England College': 'NEC',
-        'New Hampton School': 'New Hampton',
-        'Newfound Regional High School': 'Newfound',
-        'Newmarket Jr/Sr': 'Newmarket',
-        'Newmarket Senior High School': 'Newmarket',
+        'Nashua North High School': 'Nashua North',
+        'Nashua South High School': 'Nashua South',
+        'Newmarket Jr-Sr High School': 'Newmarket',
         'Newport High School': 'Newport',
         'Nute High School': 'Nute',
         'Oyster River High School': 'Oyster River',
         'Pelham High School': 'Pelham',
         'Pembroke Academy': 'Pembroke',
         'Pinkerton Academy': 'Pinkerton',
-        'Pittsburg High School': 'Pittsburg',
         'Pittsburg-Canaan': 'Pittsburg-Canaan',
         'Plymouth Regional High School': 'Plymouth',
-        'Plymouth State University': 'Plymouth State',
         'Portsmouth Christian Academy': 'Portsmouth Christian',
         'Portsmouth High School': 'Portsmouth',
-        'Proctor Academy': 'Proctor',
         'Profile School': 'Profile',
         'Prospect Mountain High School': 'Prospect Mountain',
         'Raymond High School': 'Raymond',
-        'Rivier University': 'Rivier',
-        'River Valley Community College': 'River Valley',
-        'Saint Anselm College': 'Saint Anselm',
-        'Saint Thomas Aquinas High School': 'St. Thomas Aquinas',
         'Salem High School': 'Salem',
         'Sanborn Regional High School': 'Sanborn',
-        'Somersworth High School': 'Somersworth',
         'Souhegan High School': 'Souhegan',
-        'Southern New Hampshire University': 'SNHU',
         'Spaulding High School': 'Spaulding',
+        'St. Thomas Aquinas High School': 'St. Thomas Aquinas',
         'Stevens High School': 'Stevens',
-        'Sunapee High School': 'Sunapee',
-        'Tilton School': 'Tilton',
+        'Sunapee Middle High School': 'Sunapee',
+        'Somersworth High School': 'Somersworth',
         'Timberlane Regional High School': 'Timberlane',
         'Trinity High School': 'Trinity',
-        'University of New Hampshire': 'UNH',
-        'White Mountains Community College': 'White Mountains CC',
         'White Mountains Regional High School': 'White Mountains',
         'Wilton-Lyndeborough High School': 'Wilton-Lyndeborough',
-        'Windham High School': 'Windham',
         'Winnacunnet High School': 'Winnacunnet',
         'Winnisquam Regional High School': 'Winnisquam',
-        'Woodsville High School': 'Woodsville',
+        'Woodsville High School': 'Woodsville'
       };
       return normalizations[name] || name;
     }
     
-    // Team name to logo mapping
     function getLogoFilename(teamName) {
       if (!teamName) return 'Ball603.png';
       
@@ -379,84 +380,82 @@
       }
     }
     
-    function renderStandings() {
-      const gender = currentGender;
+    function renderGenderBox(gender, division) {
+      const standings = allStandings
+        .filter(s => s.gender === gender && s.division === division)
+        .sort((a, b) => b.rating - a.rating);
       
-      // Update title
-      document.getElementById('standingsTitle').textContent = `2025-26 NHIAA ${gender} Basketball Standings`;
+      if (standings.length === 0) {
+        return `
+          <div class="gender-box">
+            <div class="gender-header">${gender}</div>
+            <div class="loading">No standings available</div>
+          </div>
+        `;
+      }
       
-      const divisions = ['D-I', 'D-II', 'D-III', 'D-IV'];
-      let html = '';
+      const playoffSpots = PLAYOFF_TEAMS[gender][division];
+      const byeCount = calculateByes(playoffSpots);
       
-      divisions.forEach(div => {
-        const divStandings = allStandings
-          .filter(s => s.gender === gender && s.division === div)
-          .sort((a, b) => b.rating - a.rating);
-        
-        if (divStandings.length === 0) {
-          html += `
-            <div class="division-box">
-              <div class="division-header">Division ${div.replace('D-', '')}</div>
-              <div class="loading">No standings available</div>
-            </div>
-          `;
-          return;
-        }
-        
-        // Get playoff data for this division
-        const playoffSpots = PLAYOFF_TEAMS[gender][div];
-        const byeCount = calculateByes(playoffSpots);
+      let html = `
+        <div class="gender-box">
+          <div class="gender-header">${gender}</div>
+          <div class="table-wrapper">
+            <table class="standings-table">
+              <thead>
+                <tr>
+                  <th class="seed-col center">#</th>
+                  <th class="team-col">Team</th>
+                  <th class="record-col center">W</th>
+                  <th class="record-col center">L</th>
+                  <th class="rating-col center">Rtg</th>
+                </tr>
+              </thead>
+              <tbody>
+      `;
+      
+      standings.forEach((team, index) => {
+        const seed = index + 1;
+        const isPlayoffTeam = seed <= playoffSpots;
+        const isPlayoffLine = seed === playoffSpots;
         
         html += `
-          <div class="division-box">
-            <div class="division-header">Division ${div.replace('D-', '')}</div>
-            <div class="table-wrapper">
-              <table class="standings-table">
-                <thead>
-                  <tr>
-                    <th class="seed-col center">#</th>
-                    <th class="team-col">Team</th>
-                    <th class="record-col center">W</th>
-                    <th class="record-col center">L</th>
-                    <th class="rating-col center">Rtg</th>
-                  </tr>
-                </thead>
-                <tbody>
+          <tr class="${isPlayoffLine ? 'playoff-line' : ''}">
+            <td class="seed-col center ${isPlayoffTeam ? 'playoff-in' : 'playoff-out'}">${seed}</td>
+            <td class="team-col">
+              <div class="team">
+                <img class="team-logo" src="/logos/100px/${getLogoFilename(team.school)}" alt="" onerror="this.onerror=null; this.src='/logos/100px/Ball603.png'">
+                <a class="team-name" href="/teams/${getLogoFilename(team.school).replace('.png', '.html')}">${team.school}</a>
+              </div>
+            </td>
+            <td class="record-col center">${team.wins}</td>
+            <td class="record-col center">${team.losses}</td>
+            <td class="rating-col center">${team.rating.toFixed(3)}</td>
+          </tr>
         `;
-        
-        divStandings.forEach((team, index) => {
-          const seed = index + 1;
-          const isPlayoffTeam = seed <= playoffSpots;
-          const isPlayoffLine = seed === playoffSpots;
-          
-          html += `
-            <tr class="${isPlayoffLine ? 'playoff-line' : ''}">
-              <td class="seed-col center ${isPlayoffTeam ? 'playoff-in' : 'playoff-out'}">${seed}</td>
-              <td class="team-col">
-                <div class="team">
-                  <img class="team-logo" src="/logos/100px/${getLogoFilename(team.school)}" alt="" onerror="this.onerror=null; this.src='/logos/100px/Ball603.png'">
-                  <a class="team-name" href="/teams/${getLogoFilename(team.school).replace('.png', '.html')}">${team.school}</a>
-                </div>
-              </td>
-              <td class="record-col center">${team.wins}</td>
-              <td class="record-col center">${team.losses}</td>
-              <td class="rating-col center">${team.rating.toFixed(3)}</td>
-            </tr>
-          `;
-        });
-        
-        // Footer with playoff info - handle singular/plural for byes
-        let byeText = '';
-        if (byeCount === 1) {
-          byeText = ' • Top team gets first-round bye';
-        } else if (byeCount > 1) {
-          byeText = ` • Top ${byeCount} teams get first-round byes`;
-        }
-        
-        html += `</tbody></table></div>
-          <div class="division-footer">${playoffSpots} teams make playoffs${byeText}</div>
-        </div>`;
       });
+      
+      // Footer with playoff info
+      let byeText = '';
+      if (byeCount === 1) {
+        byeText = ' • Top team gets first-round bye';
+      } else if (byeCount > 1) {
+        byeText = ` • Top ${byeCount} teams get first-round byes`;
+      }
+      
+      html += `</tbody></table></div>
+        <div class="division-footer">${playoffSpots} teams make playoffs${byeText}</div>
+      </div>`;
+      
+      return html;
+    }
+    
+    function renderStandings() {
+      const division = currentDivision;
+      
+      let html = '';
+      html += renderGenderBox('Boys', division);
+      html += renderGenderBox('Girls', division);
       
       document.getElementById('standingsGrid').innerHTML = html;
     }
