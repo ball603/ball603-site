@@ -114,6 +114,37 @@
     .btn-social:disabled { opacity: 0.5; }
     .btn-social .posted { margin-left: auto; font-size: 11px; opacity: 0.8; }
     
+    /* Browse button */
+    .btn-browse { background: #f57c00; color: #fff; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-size: 13px; font-weight: 500; white-space: nowrap; }
+    .btn-browse:hover { background: #e56a00; }
+    
+    /* SmugMug Modal */
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 3000; justify-content: center; align-items: center; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: #fff; border-radius: 10px; width: 90%; max-width: 800px; max-height: 80vh; display: flex; flex-direction: column; }
+    .modal-header { padding: 15px 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+    .modal-header h3 { font-size: 16px; }
+    .modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: #999; }
+    .modal-close:hover { color: #333; }
+    .modal-search { padding: 15px 20px; border-bottom: 1px solid #eee; }
+    .modal-search input { width: 100%; padding: 10px 15px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; }
+    .modal-body { flex: 1; overflow-y: auto; padding: 15px; }
+    .album-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px; }
+    .album-card { border: 1px solid #eee; border-radius: 8px; overflow: hidden; cursor: pointer; transition: box-shadow 0.2s; }
+    .album-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+    .album-card.selected { border: 2px solid #f57c00; }
+    .album-thumb { width: 100%; height: 120px; object-fit: cover; background: #f5f5f5; }
+    .album-info { padding: 10px; }
+    .album-name { font-size: 13px; font-weight: 500; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .album-meta { font-size: 11px; color: #888; }
+    .modal-footer { padding: 15px 20px; border-top: 1px solid #eee; display: flex; justify-content: flex-end; gap: 10px; }
+    .btn-modal { padding: 10px 20px; border-radius: 5px; font-size: 14px; cursor: pointer; }
+    .btn-modal-cancel { background: #eee; border: none; color: #333; }
+    .btn-modal-cancel:hover { background: #ddd; }
+    .btn-modal-select { background: #f57c00; border: none; color: #fff; font-weight: 500; }
+    .btn-modal-select:hover { background: #e56a00; }
+    .btn-modal-select:disabled { background: #ccc; cursor: not-allowed; }
+    
     /* Empty state */
     .empty-state { text-align: center; padding: 60px 20px; color: #888; }
     .empty-state p { margin-bottom: 20px; }
@@ -239,8 +270,15 @@
           <div class="sidebar-card">
             <h4>📷 Media</h4>
             <div class="form-group">
-              <label>SmugMug Gallery URL</label>
-              <input type="text" id="smugmugUrl" placeholder="https://ball603.smugmug.com/...">
+              <label>SmugMug Gallery</label>
+              <div style="display: flex; gap: 8px;">
+                <input type="text" id="smugmugUrl" placeholder="https://ball603.smugmug.com/..." style="flex: 1;">
+                <button type="button" class="btn-browse" onclick="openSmugMugBrowser()">Browse</button>
+              </div>
+              <div id="selectedAlbumPreview" style="margin-top: 8px; display: none;">
+                <img id="albumThumbnail" style="width: 100%; border-radius: 4px; margin-bottom: 5px;">
+                <small id="albumInfo" style="color: #666;"></small>
+              </div>
             </div>
             <div class="form-group">
               <label>Photographer Credit</label>
@@ -301,6 +339,28 @@
   
   <!-- Toast -->
   <div class="toast" id="toast"></div>
+  
+  <!-- SmugMug Browser Modal -->
+  <div class="modal-overlay" id="smugmugModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>📸 Select SmugMug Gallery</h3>
+        <button class="modal-close" onclick="closeSmugMugBrowser()">&times;</button>
+      </div>
+      <div class="modal-search">
+        <input type="text" id="albumSearch" placeholder="Search albums..." oninput="searchAlbums(this.value)">
+      </div>
+      <div class="modal-body">
+        <div class="album-grid" id="albumGrid">
+          <div class="loading">Loading albums...</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-modal btn-modal-cancel" onclick="closeSmugMugBrowser()">Cancel</button>
+        <button class="btn-modal btn-modal-select" id="btnSelectAlbum" onclick="selectSmugMugAlbum()" disabled>Select Album</button>
+      </div>
+    </div>
+  </div>
 
   <script>
     // Supabase config
@@ -730,6 +790,97 @@
     
     function newProduct() {
       showToast('Product management coming soon!', 'error');
+    }
+    
+    // SmugMug Browser
+    let smugmugAlbums = [];
+    let selectedAlbum = null;
+    
+    async function openSmugMugBrowser() {
+      document.getElementById('smugmugModal').classList.add('open');
+      document.getElementById('albumGrid').innerHTML = '<div class="loading">Loading albums...</div>';
+      selectedAlbum = null;
+      document.getElementById('btnSelectAlbum').disabled = true;
+      
+      try {
+        const response = await fetch('/.netlify/functions/smugmug?action=albums');
+        const data = await response.json();
+        
+        if (data.success) {
+          smugmugAlbums = data.albums || [];
+          renderAlbumGrid();
+        } else {
+          document.getElementById('albumGrid').innerHTML = '<div class="loading">Error loading albums</div>';
+        }
+      } catch (err) {
+        console.error('SmugMug error:', err);
+        document.getElementById('albumGrid').innerHTML = '<div class="loading">Could not connect to SmugMug</div>';
+      }
+    }
+    
+    function closeSmugMugBrowser() {
+      document.getElementById('smugmugModal').classList.remove('open');
+      selectedAlbum = null;
+    }
+    
+    function renderAlbumGrid(filter = '') {
+      const grid = document.getElementById('albumGrid');
+      
+      let filtered = smugmugAlbums;
+      if (filter) {
+        filtered = smugmugAlbums.filter(a => 
+          a.name.toLowerCase().includes(filter.toLowerCase())
+        );
+      }
+      
+      if (filtered.length === 0) {
+        grid.innerHTML = '<div class="loading">No albums found</div>';
+        return;
+      }
+      
+      grid.innerHTML = filtered.map(album => `
+        <div class="album-card ${selectedAlbum?.key === album.key ? 'selected' : ''}" 
+             onclick="selectAlbumCard('${album.key}')">
+          <img class="album-thumb" 
+               src="${album.highlightImage || 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect fill=%22%23f5f5f5%22 width=%22100%22 height=%22100%22/><text x=%2250%22 y=%2255%22 text-anchor=%22middle%22 fill=%22%23ccc%22 font-size=%2230%22>📷</text></svg>'}" 
+               alt="${album.name}"
+               onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect fill=%22%23f5f5f5%22 width=%22100%22 height=%22100%22/><text x=%2250%22 y=%2255%22 text-anchor=%22middle%22 fill=%22%23ccc%22 font-size=%2230%22>📷</text></svg>'">
+          <div class="album-info">
+            <div class="album-name" title="${album.name}">${album.name}</div>
+            <div class="album-meta">${album.imageCount || 0} photos${album.date ? ' • ' + album.date : ''}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+    
+    function searchAlbums(value) {
+      renderAlbumGrid(value);
+    }
+    
+    function selectAlbumCard(key) {
+      selectedAlbum = smugmugAlbums.find(a => a.key === key);
+      document.getElementById('btnSelectAlbum').disabled = !selectedAlbum;
+      renderAlbumGrid(document.getElementById('albumSearch').value);
+    }
+    
+    function selectSmugMugAlbum() {
+      if (!selectedAlbum) return;
+      
+      document.getElementById('smugmugUrl').value = selectedAlbum.url;
+      
+      // Show preview
+      const preview = document.getElementById('selectedAlbumPreview');
+      if (selectedAlbum.highlightImage) {
+        document.getElementById('albumThumbnail').src = selectedAlbum.highlightImage;
+        preview.style.display = 'block';
+      } else {
+        preview.style.display = 'none';
+      }
+      document.getElementById('albumInfo').textContent = `${selectedAlbum.name} • ${selectedAlbum.imageCount} photos`;
+      preview.style.display = 'block';
+      
+      closeSmugMugBrowser();
+      showToast('Album selected!', 'success');
     }
   </script>
 </body>
