@@ -260,19 +260,91 @@
           
           <div class="sidebar-card ai-generate">
             <h4>🤖 AI Assistant</h4>
-            <p style="font-size: 12px; color: #666; margin-bottom: 12px;">Generate article from box score, photo, or game notes</p>
-            <div class="form-group" style="margin-bottom: 10px;">
-              <label>Upload Scorebook Photo</label>
-              <input type="file" id="scorePhoto" accept="image/*" style="width: 100%; padding: 8px; border: 1px dashed #ddd; border-radius: 5px; cursor: pointer;" onchange="previewScorePhoto(this)">
-              <div id="photoPreview" style="display: none; margin-top: 8px;">
-                <img id="photoPreviewImg" style="max-width: 100%; border-radius: 5px;">
-                <button type="button" onclick="clearScorePhoto()" style="margin-top: 5px; font-size: 11px; background: #ffebee; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; color: #c62828;">✕ Remove</button>
+            <p style="font-size: 12px; color: #666; margin-bottom: 12px;">Generate article from scorebook photo</p>
+            
+            <!-- Step 1: Upload -->
+            <div id="aiStep1">
+              <div class="form-group" style="margin-bottom: 10px;">
+                <label>Upload Scorebook Photo</label>
+                <input type="file" id="scorePhoto" accept="image/*" style="width: 100%; padding: 8px; border: 1px dashed #ddd; border-radius: 5px; cursor: pointer;" onchange="previewScorePhoto(this)">
+                <div id="photoPreview" style="display: none; margin-top: 8px;">
+                  <img id="photoPreviewImg" style="max-width: 100%; border-radius: 5px;">
+                  <button type="button" onclick="clearScorePhoto()" style="margin-top: 5px; font-size: 11px; background: #ffebee; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; color: #c62828;">✕ Remove</button>
+                </div>
+              </div>
+              <textarea id="aiInput" placeholder="Optional notes (e.g., 'Big 4th quarter comeback')" style="min-height: 60px; width: 100%; margin-bottom: 10px;"></textarea>
+              <div id="rosterStatus" style="font-size: 11px; color: #888; margin-bottom: 10px;"></div>
+              <button class="btn-ai" onclick="extractBoxScore()" id="btnExtract">
+                📋 Extract & Review
+              </button>
+            </div>
+            
+            <!-- Step 2: Proof Review -->
+            <div id="aiStep2" style="display: none;">
+              <div style="background: #f9f9f9; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+                <h5 style="margin-bottom: 10px; font-size: 13px;">📊 Verify Box Score</h5>
+                
+                <!-- Quarter Scores -->
+                <div style="margin-bottom: 15px;">
+                  <label style="font-size: 11px; font-weight: 600; color: #555;">Quarter Scores</label>
+                  <table style="width: 100%; font-size: 12px; border-collapse: collapse; margin-top: 5px;">
+                    <thead>
+                      <tr style="background: #eee;">
+                        <th style="padding: 5px; text-align: left;">Team</th>
+                        <th style="padding: 5px; width: 35px;">Q1</th>
+                        <th style="padding: 5px; width: 35px;">Q2</th>
+                        <th style="padding: 5px; width: 35px;">Q3</th>
+                        <th style="padding: 5px; width: 35px;">Q4</th>
+                        <th style="padding: 5px; width: 45px;">Final</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td id="proofAwayTeam" style="padding: 5px; font-weight: 500;">Away</td>
+                        <td><input type="text" id="awayQ1" style="width: 30px; padding: 3px; text-align: center;"></td>
+                        <td><input type="text" id="awayQ2" style="width: 30px; padding: 3px; text-align: center;"></td>
+                        <td><input type="text" id="awayQ3" style="width: 30px; padding: 3px; text-align: center;"></td>
+                        <td><input type="text" id="awayQ4" style="width: 30px; padding: 3px; text-align: center;"></td>
+                        <td><input type="text" id="awayFinal" style="width: 40px; padding: 3px; text-align: center; font-weight: bold;"></td>
+                      </tr>
+                      <tr>
+                        <td id="proofHomeTeam" style="padding: 5px; font-weight: 500;">Home</td>
+                        <td><input type="text" id="homeQ1" style="width: 30px; padding: 3px; text-align: center;"></td>
+                        <td><input type="text" id="homeQ2" style="width: 30px; padding: 3px; text-align: center;"></td>
+                        <td><input type="text" id="homeQ3" style="width: 30px; padding: 3px; text-align: center;"></td>
+                        <td><input type="text" id="homeQ4" style="width: 30px; padding: 3px; text-align: center;"></td>
+                        <td><input type="text" id="homeFinal" style="width: 40px; padding: 3px; text-align: center; font-weight: bold;"></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                
+                <!-- Away Team Scorers -->
+                <div style="margin-bottom: 15px;">
+                  <label style="font-size: 11px; font-weight: 600; color: #555;" id="awayScorerLabel">Away Scorers</label>
+                  <div id="awayScorers" style="margin-top: 5px;"></div>
+                  <button type="button" onclick="addScorerRow('away')" style="font-size: 11px; background: #e3f2fd; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; margin-top: 5px;">+ Add Scorer</button>
+                </div>
+                
+                <!-- Home Team Scorers -->
+                <div style="margin-bottom: 15px;">
+                  <label style="font-size: 11px; font-weight: 600; color: #555;" id="homeScorerLabel">Home Scorers</label>
+                  <div id="homeScorers" style="margin-top: 5px;"></div>
+                  <button type="button" onclick="addScorerRow('home')" style="font-size: 11px; background: #e3f2fd; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; margin-top: 5px;">+ Add Scorer</button>
+                </div>
+                
+                <!-- Notes -->
+                <div>
+                  <label style="font-size: 11px; font-weight: 600; color: #555;">Game Notes</label>
+                  <textarea id="proofNotes" style="width: 100%; min-height: 50px; margin-top: 5px; font-size: 12px; padding: 8px;" placeholder="Any additional notes..."></textarea>
+                </div>
+              </div>
+              
+              <div style="display: flex; gap: 10px;">
+                <button class="btn-ai" onclick="backToUpload()" style="background: #666; flex: 1;">← Back</button>
+                <button class="btn-ai" onclick="generateFromProof()" id="btnGenerate" style="flex: 2;">✨ Generate Article</button>
               </div>
             </div>
-            <textarea id="aiInput" placeholder="Or paste box score, stats, or game notes here..." style="min-height: 80px; width: 100%; margin-bottom: 10px;"></textarea>
-            <button class="btn-ai" onclick="generateArticle()" id="btnGenerate">
-              ✨ Generate Article
-            </button>
           </div>
           
           <div class="sidebar-card">
@@ -370,6 +442,7 @@
     </div>
   </div>
 
+  <script src="rosters_data.js"></script>
   <script>
     // Supabase config
     const SUPABASE_URL = 'https://suncdkxfqkwwnmhosxcf.supabase.co';
@@ -543,6 +616,7 @@
       document.getElementById('selectedGameId').value = gameId;
       selectedGame = games.find(g => g.game_id === gameId) || null;
       renderGameSelector();
+      updateRosterStatus();
     }
     
     // Article CRUD
@@ -709,6 +783,7 @@
     
     // AI Generation
     let scorePhotoBase64 = null;
+    let extractedData = null;
     
     function previewScorePhoto(input) {
       const file = input.files[0];
@@ -729,38 +804,259 @@
       document.getElementById('photoPreview').style.display = 'none';
     }
     
-    async function generateArticle() {
-      const input = document.getElementById('aiInput').value.trim();
-      if (!input && !scorePhotoBase64) {
-        showToast('Please upload a photo or paste box score', 'error');
+    // Get rosters for selected teams
+    function getTeamRosters() {
+      if (!selectedGame || typeof ROSTERS_DATA === 'undefined') return { away: null, home: null };
+      
+      const gender = selectedGame.gender || 'Boys';
+      const awayName = selectedGame.away;
+      const homeName = selectedGame.home;
+      
+      let awayRoster = null;
+      let homeRoster = null;
+      
+      if (ROSTERS_DATA.rosters) {
+        awayRoster = ROSTERS_DATA.rosters.find(r => 
+          r.gender === gender && 
+          (r.school === awayName || awayName.includes(r.school) || r.school.includes(awayName))
+        );
+        homeRoster = ROSTERS_DATA.rosters.find(r => 
+          r.gender === gender && 
+          (r.school === homeName || homeName.includes(r.school) || r.school.includes(homeName))
+        );
+      }
+      
+      return { away: awayRoster, home: homeRoster };
+    }
+    
+    // Update roster status when game is selected
+    function updateRosterStatus() {
+      const status = document.getElementById('rosterStatus');
+      if (!selectedGame) {
+        status.textContent = '⚠️ Select a game above to enable roster matching';
+        status.style.color = '#e65100';
         return;
       }
       
-      const btn = document.getElementById('btnGenerate');
-      btn.disabled = true;
-      btn.innerHTML = '⏳ Generating...';
+      const rosters = getTeamRosters();
+      const hasAway = !!rosters.away;
+      const hasHome = !!rosters.home;
       
-      // Get selected game info if any
-      let gameInfo = '';
-      if (selectedGame) {
-        gameInfo = `${selectedGame.away} at ${selectedGame.home}, ${selectedGame.date}, ${selectedGame.gender} ${selectedGame.division || ''}`;
+      if (hasAway && hasHome) {
+        status.innerHTML = `✅ Rosters loaded: <strong>${selectedGame.away}</strong> & <strong>${selectedGame.home}</strong>`;
+        status.style.color = '#2e7d32';
+      } else if (hasAway || hasHome) {
+        const missing = !hasAway ? selectedGame.away : selectedGame.home;
+        status.innerHTML = `⚠️ Roster missing for: <strong>${missing}</strong>`;
+        status.style.color = '#e65100';
+      } else {
+        status.innerHTML = `⚠️ No rosters found for either team`;
+        status.style.color = '#e65100';
       }
+    }
+    
+    // Add scorer row to proof form
+    function addScorerRow(team, data = {}) {
+      const container = document.getElementById(team + 'Scorers');
+      const rosters = getTeamRosters();
+      const roster = team === 'away' ? rosters.away : rosters.home;
+      
+      const row = document.createElement('div');
+      row.style.cssText = 'display: flex; gap: 5px; margin-bottom: 5px; align-items: center;';
+      
+      // Build player dropdown if roster available
+      let playerSelect = '';
+      if (roster && roster.players) {
+        playerSelect = `<select style="flex: 2; padding: 4px; font-size: 12px;" onchange="this.nextElementSibling.value=this.value">
+          <option value="">-- Select --</option>
+          ${roster.players.map(p => `<option value="${p.name}" ${data.name === p.name ? 'selected' : ''}>#${p.number} ${p.name} (${p.class})</option>`).join('')}
+        </select>`;
+      }
+      
+      row.innerHTML = `
+        ${playerSelect}
+        <input type="text" placeholder="Player name" value="${data.name || ''}" style="flex: 2; padding: 4px; font-size: 12px;">
+        <input type="text" placeholder="Pts" value="${data.points || ''}" style="width: 35px; padding: 4px; font-size: 12px; text-align: center;">
+        <button type="button" onclick="this.parentElement.remove()" style="background: #ffebee; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; color: #c62828; font-size: 11px;">✕</button>
+      `;
+      container.appendChild(row);
+    }
+    
+    // Extract box score from image
+    async function extractBoxScore() {
+      if (!scorePhotoBase64 && !document.getElementById('aiInput').value.trim()) {
+        showToast('Please upload a scorebook photo or enter notes', 'error');
+        return;
+      }
+      
+      if (!selectedGame) {
+        showToast('Please select a game first to enable roster matching', 'error');
+        return;
+      }
+      
+      const btn = document.getElementById('btnExtract');
+      btn.disabled = true;
+      btn.innerHTML = '⏳ Reading scorebook...';
+      
+      const rosters = getTeamRosters();
+      const notes = document.getElementById('aiInput').value.trim();
       
       try {
         const response = await fetch('/.netlify/functions/generate-article', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            boxScore: input,
-            gameInfo: gameInfo,
-            image: scorePhotoBase64
+            mode: 'extract',
+            image: scorePhotoBase64,
+            notes: notes,
+            gameInfo: {
+              away: selectedGame.away,
+              home: selectedGame.home,
+              gender: selectedGame.gender,
+              date: selectedGame.date,
+              division: selectedGame.division
+            },
+            awayRoster: rosters.away,
+            homeRoster: rosters.home
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success && data.extracted) {
+          extractedData = data.extracted;
+          populateProofForm(data.extracted);
+          document.getElementById('aiStep1').style.display = 'none';
+          document.getElementById('aiStep2').style.display = 'block';
+          showToast('Box score extracted! Please verify and edit if needed.', 'success');
+        } else {
+          showToast(data.error || 'Failed to extract box score', 'error');
+        }
+      } catch (err) {
+        console.error('Extract error:', err);
+        showToast('Failed to extract box score', 'error');
+      }
+      
+      btn.disabled = false;
+      btn.innerHTML = '📋 Extract & Review';
+    }
+    
+    // Populate proof form with extracted data
+    function populateProofForm(data) {
+      // Team names
+      document.getElementById('proofAwayTeam').textContent = selectedGame.away;
+      document.getElementById('proofHomeTeam').textContent = selectedGame.home;
+      document.getElementById('awayScorerLabel').textContent = selectedGame.away + ' Scorers';
+      document.getElementById('homeScorerLabel').textContent = selectedGame.home + ' Scorers';
+      
+      // Quarter scores
+      document.getElementById('awayQ1').value = data.awayQuarters?.[0] || '';
+      document.getElementById('awayQ2').value = data.awayQuarters?.[1] || '';
+      document.getElementById('awayQ3').value = data.awayQuarters?.[2] || '';
+      document.getElementById('awayQ4').value = data.awayQuarters?.[3] || '';
+      document.getElementById('awayFinal').value = data.awayFinal || '';
+      
+      document.getElementById('homeQ1').value = data.homeQuarters?.[0] || '';
+      document.getElementById('homeQ2').value = data.homeQuarters?.[1] || '';
+      document.getElementById('homeQ3').value = data.homeQuarters?.[2] || '';
+      document.getElementById('homeQ4').value = data.homeQuarters?.[3] || '';
+      document.getElementById('homeFinal').value = data.homeFinal || '';
+      
+      // Clear and populate scorers
+      document.getElementById('awayScorers').innerHTML = '';
+      document.getElementById('homeScorers').innerHTML = '';
+      
+      (data.awayScorers || []).forEach(s => addScorerRow('away', s));
+      (data.homeScorers || []).forEach(s => addScorerRow('home', s));
+      
+      // Add empty rows if none
+      if (!data.awayScorers?.length) addScorerRow('away');
+      if (!data.homeScorers?.length) addScorerRow('home');
+      
+      // Notes
+      document.getElementById('proofNotes').value = data.notes || '';
+    }
+    
+    // Go back to upload step
+    function backToUpload() {
+      document.getElementById('aiStep1').style.display = 'block';
+      document.getElementById('aiStep2').style.display = 'none';
+    }
+    
+    // Collect data from proof form
+    function collectProofData() {
+      const awayScorers = [];
+      document.querySelectorAll('#awayScorers > div').forEach(row => {
+        const inputs = row.querySelectorAll('input[type="text"]');
+        const name = inputs[inputs.length - 2]?.value?.trim();
+        const points = inputs[inputs.length - 1]?.value?.trim();
+        if (name && points) awayScorers.push({ name, points });
+      });
+      
+      const homeScorers = [];
+      document.querySelectorAll('#homeScorers > div').forEach(row => {
+        const inputs = row.querySelectorAll('input[type="text"]');
+        const name = inputs[inputs.length - 2]?.value?.trim();
+        const points = inputs[inputs.length - 1]?.value?.trim();
+        if (name && points) homeScorers.push({ name, points });
+      });
+      
+      return {
+        awayTeam: selectedGame.away,
+        homeTeam: selectedGame.home,
+        gender: selectedGame.gender,
+        division: selectedGame.division,
+        date: selectedGame.date,
+        awayQuarters: [
+          document.getElementById('awayQ1').value,
+          document.getElementById('awayQ2').value,
+          document.getElementById('awayQ3').value,
+          document.getElementById('awayQ4').value
+        ],
+        homeQuarters: [
+          document.getElementById('homeQ1').value,
+          document.getElementById('homeQ2').value,
+          document.getElementById('homeQ3').value,
+          document.getElementById('homeQ4').value
+        ],
+        awayFinal: document.getElementById('awayFinal').value,
+        homeFinal: document.getElementById('homeFinal').value,
+        awayScorers,
+        homeScorers,
+        notes: document.getElementById('proofNotes').value
+      };
+    }
+    
+    // Generate article from confirmed proof data
+    async function generateFromProof() {
+      const proofData = collectProofData();
+      
+      if (!proofData.awayFinal || !proofData.homeFinal) {
+        showToast('Please enter final scores', 'error');
+        return;
+      }
+      
+      const btn = document.getElementById('btnGenerate');
+      btn.disabled = true;
+      btn.innerHTML = '⏳ Writing article...';
+      
+      const rosters = getTeamRosters();
+      
+      try {
+        const response = await fetch('/.netlify/functions/generate-article', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mode: 'write',
+            proofData: proofData,
+            awayRoster: rosters.away,
+            homeRoster: rosters.home
           })
         });
         
         const data = await response.json();
         
         if (data.success) {
-          // Fill in the form fields
           if (data.headline) {
             document.getElementById('articleTitle').value = data.headline;
           }
@@ -770,6 +1066,12 @@
           if (data.excerpt) {
             document.getElementById('articleExcerpt').value = data.excerpt;
           }
+          
+          // Reset AI section
+          backToUpload();
+          clearScorePhoto();
+          document.getElementById('aiInput').value = '';
+          
           showToast('Article generated! Review and edit as needed.', 'success');
         } else {
           showToast(data.error || 'Failed to generate article', 'error');
