@@ -66,34 +66,40 @@ async function handleExtract(body, headers) {
   
   const systemPrompt = `You are an expert at reading standard basketball scorebooks. This is a two-page spread with the AWAY team on the LEFT page and HOME team on the RIGHT page.
 
-HOW TO READ A SCOREBOOK:
+HOW TO READ A SCOREBOOK - FOLLOW THESE STEPS EXACTLY:
 
-1. TEAM NAMES: Found at top left of each page after "TEAM"
+STEP 1 - FIND THE FINAL SCORES FIRST (MOST IMPORTANT):
+- Look at the "RUNNING SCORE" rows at the VERY TOP of each page
+- These are pre-printed numbers: 1,2,3,4,5...28 (row 1), 29,30,31...56 (row 2), etc.
+- Numbers are crossed off or circled as points are scored
+- THE HIGHEST CROSSED-OFF/CIRCLED NUMBER = FINAL SCORE
+- Also check the "TEAM TOTALS" row at the BOTTOM of the player list
+- A blowout game might have one team in the 60s-70s and another in single digits
 
-2. FINAL SCORES - CRITICAL: 
-   - Look for the "FINAL SCORE" box near the top right area of each page
-   - Also visible as the LAST crossed-off number in the "RUNNING SCORE" rows at the very top
-   - The running score has numbers 1-28 on first row, 29-56 on second row, etc.
-   - The highest crossed-off number IS the final score
+STEP 2 - FIND QUARTER SCORES:
+- Look for boxes labeled "1ST Q" or "FIRST Q SCORE", "FIRST HALF SCORE", "3RD Q" or "THIRD Q SCORE", "FINAL SCORE"
+- These are CUMULATIVE scores, not per-quarter
+- Convert to per-quarter: Q1=1stQ, Q2=Half-Q1, Q3=3rdQ-Half, Q4=Final-3rdQ
 
-3. QUARTER SCORES:
-   - Look for boxes labeled "1ST Q SCORE" (or "FIRST Q"), "FIRST HALF SCORE", "3RD Q SCORE" (or "THIRD Q"), "FINAL SCORE"
-   - Calculate quarters: Q1 = 1st Q score, Q2 = Half score minus Q1, Q3 = 3rd Q minus Half, Q4 = Final minus 3rd Q
-   - Example: If 1st Q=26, Half=36, 3rd Q=61, Final=69 → Quarters are [26, 10, 25, 8]
+STEP 3 - FIND INDIVIDUAL POINTS:
+- The "TP" column is the LAST column on the right side of the player grid (stands for "Total Points")
+- DO NOT confuse TP with other columns like fouls, assists, or quarter-by-quarter scoring
+- The TP column values should be small numbers (typically 2-30 per player)
+- VALIDATION: All TP values added together MUST equal the team's final score
 
-4. INDIVIDUAL SCORING:
-   - Players are listed in rows with jersey numbers in the "NO." column
-   - The "TP" column (far right, "Total Points") shows each player's points
-   - ONLY include players who have points in the TP column (TP > 0)
-   - Do NOT list every player on the roster - only those who scored
-
-5. PLAYER NAMES:
-   - Use the roster below to match jersey numbers to correct name spellings
-   - The scorebook handwriting may be messy - trust the roster for spelling
+STEP 4 - MATCH PLAYERS TO ROSTER:
+- Look at jersey "NO." column to identify players
+- Use the roster below for correct name spellings
 
 ${rosterRef}
 
-RETURN ONLY valid JSON in this exact format (no markdown, no explanation):
+CRITICAL VALIDATION BEFORE RESPONDING:
+1. Add up all awayScorers points - MUST equal awayFinal
+2. Add up all homeScorers points - MUST equal homeFinal  
+3. If the math doesn't work, you read something wrong - re-examine the image
+4. In blowout games (40+ point difference), double-check you read the losing team's low score correctly
+
+RETURN ONLY valid JSON (no markdown, no explanation):
 {
   "awayTeam": "Team Name",
   "homeTeam": "Team Name", 
@@ -106,12 +112,7 @@ RETURN ONLY valid JSON in this exact format (no markdown, no explanation):
   "notes": "Any notable observations"
 }
 
-CRITICAL RULES:
-- Points values should be NUMBERS not strings
-- Only include players who actually scored (check TP column)
-- Double-check final scores by looking at the RUNNING SCORE at the top
-- The awayScorers points should add up to awayFinal
-- The homeScorers points should add up to homeFinal`;
+ONLY include players who scored (TP > 0). Points must be NUMBERS not strings.`;
 
   // Build message content with image
   const messageContent = [];
@@ -229,6 +230,19 @@ async function handleWrite(body, headers) {
   const winnerScore = Math.max(awayScore, homeScore);
   const loserScore = Math.min(awayScore, homeScore);
   
+  // Format scorer line with 3PT if present
+  function formatScorer(s) {
+    let line = `- ${s.name}`;
+    if (s.class) {
+      line += ` (${s.class}${s.position ? ', ' + s.position : ''})`;
+    }
+    line += `: ${s.points} pts`;
+    if (s.threePointers && s.threePointers > 0) {
+      line += ` (${s.threePointers} 3PT)`;
+    }
+    return line;
+  }
+  
   // Build the prompt
   const prompt = `You are a sports writer for Ball603.com, covering New Hampshire high school basketball. Write an engaging game recap.
 
@@ -242,10 +256,10 @@ ${proofData.awayTeam}: ${proofData.awayQuarters.join(' - ')} = ${proofData.awayF
 ${proofData.homeTeam}: ${proofData.homeQuarters.join(' - ')} = ${proofData.homeFinal}
 
 ${proofData.awayTeam} SCORERS:
-${awayScorersEnhanced.map(s => `- ${s.name}${s.class ? ` (${s.class}${s.position ? ', ' + s.position : ''})` : ''}: ${s.points} pts`).join('\n')}
+${awayScorersEnhanced.map(formatScorer).join('\n')}
 
 ${proofData.homeTeam} SCORERS:
-${homeScorersEnhanced.map(s => `- ${s.name}${s.class ? ` (${s.class}${s.position ? ', ' + s.position : ''})` : ''}: ${s.points} pts`).join('\n')}
+${homeScorersEnhanced.map(formatScorer).join('\n')}
 
 ${proofData.notes ? `NOTES: ${proofData.notes}` : ''}
 
@@ -253,6 +267,7 @@ STYLE GUIDELINES:
 - Write in an energetic, engaging sports journalism style
 - Lead with the most exciting aspect (comeback, star performance, dominant win, etc.)
 - Mention class year (junior, senior, etc.) when referencing key players
+- If a player had notable three-point shooting (3+ threes), mention it in the article
 - Keep paragraphs short and punchy  
 - Include quarter-by-quarter narrative if scores show an interesting flow
 - Total length: 300-450 words
