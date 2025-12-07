@@ -12,7 +12,7 @@
     
     /* Header */
     .header { background: #fff; padding: 15px 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-    .header-inner { max-width: 950px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+    .header-inner { max-width: 1100px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
     .header-left { display: flex; align-items: center; gap: 15px; }
     .header-left img { height: 50px; cursor: pointer; }
     .header-left h1 { font-size: 20px; color: #333; }
@@ -22,22 +22,51 @@
     .header-nav a.active { color: #f57c00; }
     
     /* Main container */
-    .container { width: 950px; margin: 0 auto; padding: 20px; }
+    .container { width: 1100px; margin: 0 auto; padding: 20px; }
     
     /* Title */
-    .page-title { font-size: 18px; font-weight: 600; margin-bottom: 15px; }
+    .page-title { font-size: 18px; font-weight: 600; margin-bottom: 20px; text-align: center; }
     
-    /* Division Tabs */
+    /* Standings Grid - 2 columns */
+    .standings-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+    }
+    
+    /* Each gender box */
+    .gender-box {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    /* Gender header with tabs */
+    .gender-header {
+      display: flex;
+      align-items: center;
+      padding: 12px 15px;
+      gap: 15px;
+      border-bottom: 2px solid #f57c00;
+    }
+    .gender-title {
+      font-weight: 600;
+      font-size: 22px;
+      color: #333;
+    }
     .division-tabs {
       display: flex;
       gap: 5px;
-      margin-bottom: 0;
+      margin-left: auto;
     }
     .division-tab {
-      padding: 10px 24px;
+      padding: 6px 14px;
       border: none;
-      border-radius: 8px 8px 0 0;
-      font-size: 14px;
+      border-radius: 4px;
+      font-size: 12px;
       font-weight: 600;
       cursor: pointer;
       background: #ffe0b2;
@@ -48,39 +77,6 @@
     .division-tab.active { 
       background: #f57c00; 
       color: white; 
-    }
-    
-    /* Standings Grid - 2 columns */
-    .standings-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 25px;
-    }
-    
-    /* Each gender box */
-    .gender-box {
-      background: #fff;
-      border-radius: 0 8px 8px 8px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-    }
-    .gender-box:first-child {
-      border-radius: 0 8px 8px 8px;
-    }
-    .gender-box:last-child {
-      border-radius: 8px 0 8px 8px;
-    }
-    
-    /* Gender header */
-    .gender-header {
-      background: #fafafa;
-      border-bottom: 2px solid #f57c00;
-      padding: 12px 15px;
-      font-weight: 600;
-      font-size: 14px;
-      color: #333;
     }
     
     /* Division footer */
@@ -145,14 +141,15 @@
     .footer img:hover { opacity: 1; }
     
     /* Mobile */
-    @media (max-width: 768px) {
+    @media (max-width: 900px) {
       .container { width: auto; padding: 10px; }
       .header-nav { display: none; }
       .header-left h1 { font-size: 16px; }
-      .division-tabs { flex-wrap: wrap; }
-      .division-tab { padding: 8px 16px; font-size: 13px; }
       .standings-grid { grid-template-columns: 1fr; gap: 20px; }
-      .gender-box { border-radius: 8px !important; }
+      .gender-header { flex-wrap: wrap; }
+      .gender-title { font-size: 18px; }
+      .division-tabs { margin-left: 0; }
+      .division-tab { padding: 5px 10px; font-size: 11px; }
       .table-wrapper { max-height: 350px; }
       .team-logo { width: 20px; height: 20px; }
       .team-name { font-size: 12px; }
@@ -179,13 +176,6 @@
   <div class="container">
     <h2 class="page-title">2025-26 NHIAA Basketball Standings</h2>
     
-    <div class="division-tabs">
-      <button class="division-tab active" onclick="selectDivision('D-I')">Division I</button>
-      <button class="division-tab" onclick="selectDivision('D-II')">Division II</button>
-      <button class="division-tab" onclick="selectDivision('D-III')">Division III</button>
-      <button class="division-tab" onclick="selectDivision('D-IV')">Division IV</button>
-    </div>
-    
     <div class="standings-grid" id="standingsGrid">
       <div class="loading">Loading standings...</div>
     </div>
@@ -197,7 +187,7 @@
 
   <script>
     let allStandings = [];
-    let currentDivision = 'D-I';
+    let currentDivisions = { Boys: 'D-I', Girls: 'D-I' };
     
     // 2025-26 NHIAA Basketball Playoff Teams (update each season based on 70% rule)
     const PLAYOFF_TEAMS = {
@@ -211,15 +201,8 @@
       return 32 - teams;                    // 32-team bracket
     }
     
-    function selectDivision(div) {
-      currentDivision = div;
-      // Update tab styling
-      document.querySelectorAll('.division-tab').forEach(tab => {
-        tab.classList.remove('active');
-        if (tab.textContent.includes(div.replace('D-', ''))) {
-          tab.classList.add('active');
-        }
-      });
+    function selectDivision(gender, div) {
+      currentDivisions[gender] = div;
       renderStandings();
     }
     
@@ -380,15 +363,25 @@
       }
     }
     
-    function renderGenderBox(gender, division) {
+    function renderGenderBox(gender) {
+      const division = currentDivisions[gender];
       const standings = allStandings
         .filter(s => s.gender === gender && s.division === division)
         .sort((a, b) => b.rating - a.rating);
       
+      // Build tabs HTML
+      const divisions = ['D-I', 'D-II', 'D-III', 'D-IV'];
+      let tabsHtml = divisions.map(div => 
+        `<button class="division-tab ${div === division ? 'active' : ''}" onclick="selectDivision('${gender}', '${div}')">${div.replace('D-', 'Division ')}</button>`
+      ).join('');
+      
       if (standings.length === 0) {
         return `
           <div class="gender-box">
-            <div class="gender-header">${gender}</div>
+            <div class="gender-header">
+              <span class="gender-title">${gender}</span>
+              <div class="division-tabs">${tabsHtml}</div>
+            </div>
             <div class="loading">No standings available</div>
           </div>
         `;
@@ -399,7 +392,10 @@
       
       let html = `
         <div class="gender-box">
-          <div class="gender-header">${gender}</div>
+          <div class="gender-header">
+            <span class="gender-title">${gender}</span>
+            <div class="division-tabs">${tabsHtml}</div>
+          </div>
           <div class="table-wrapper">
             <table class="standings-table">
               <thead>
@@ -451,11 +447,9 @@
     }
     
     function renderStandings() {
-      const division = currentDivision;
-      
       let html = '';
-      html += renderGenderBox('Boys', division);
-      html += renderGenderBox('Girls', division);
+      html += renderGenderBox('Boys');
+      html += renderGenderBox('Girls');
       
       document.getElementById('standingsGrid').innerHTML = html;
     }
