@@ -375,6 +375,7 @@
     let articles = [];
     let games = [];
     let currentArticle = null;
+    let selectedGame = null;
     
     // Login
     function login() {
@@ -532,6 +533,7 @@
     
     function selectGame(gameId, label) {
       document.getElementById('selectedGameId').value = gameId;
+      selectedGame = games.find(g => g.game_id === gameId) || null;
       renderGameSelector();
     }
     
@@ -543,6 +545,7 @@
       document.getElementById('articleContent').value = '';
       document.getElementById('articleExcerpt').value = '';
       document.getElementById('selectedGameId').value = '';
+      selectedGame = null;
       document.getElementById('smugmugUrl').value = '';
       document.getElementById('photographerCredit').value = '';
       document.getElementById('aiInput').value = '';
@@ -564,6 +567,7 @@
       document.getElementById('articleContent').value = article.content || '';
       document.getElementById('articleExcerpt').value = article.excerpt || '';
       document.getElementById('selectedGameId').value = article.game_id || '';
+      selectedGame = article.game_id ? games.find(g => g.game_id === article.game_id) : null;
       document.getElementById('smugmugUrl').value = article.smugmug_gallery_url || '';
       document.getElementById('photographerCredit').value = article.photographer_credit || '';
       
@@ -695,7 +699,7 @@
       loadArticles();
     }
     
-    // AI Generation (placeholder - needs API key)
+    // AI Generation
     async function generateArticle() {
       const input = document.getElementById('aiInput').value.trim();
       if (!input) {
@@ -705,14 +709,48 @@
       
       const btn = document.getElementById('btnGenerate');
       btn.disabled = true;
-      btn.textContent = '⏳ Generating...';
+      btn.innerHTML = '⏳ Generating...';
       
-      // TODO: Connect to Claude API for generation
-      setTimeout(() => {
-        showToast('AI generation coming soon! For now, write your article manually.', 'error');
-        btn.disabled = false;
-        btn.innerHTML = '✨ Generate Article';
-      }, 1000);
+      // Get selected game info if any
+      let gameInfo = '';
+      if (selectedGame) {
+        gameInfo = `${selectedGame.away} at ${selectedGame.home}, ${selectedGame.date}, ${selectedGame.gender} ${selectedGame.division || ''}`;
+      }
+      
+      try {
+        const response = await fetch('/.netlify/functions/generate-article', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            boxScore: input,
+            gameInfo: gameInfo
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          // Fill in the form fields
+          if (data.headline) {
+            document.getElementById('articleTitle').value = data.headline;
+          }
+          if (data.article) {
+            document.getElementById('articleContent').value = data.article;
+          }
+          if (data.excerpt) {
+            document.getElementById('articleExcerpt').value = data.excerpt;
+          }
+          showToast('Article generated! Review and edit as needed.', 'success');
+        } else {
+          showToast(data.error || 'Failed to generate article', 'error');
+        }
+      } catch (err) {
+        console.error('Generation error:', err);
+        showToast('Failed to generate article', 'error');
+      }
+      
+      btn.disabled = false;
+      btn.innerHTML = '✨ Generate Article';
     }
     
     // Social posting
