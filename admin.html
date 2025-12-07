@@ -754,6 +754,17 @@
     
     function populateGameList() {
       const container = document.getElementById('gsGameList');
+      
+      // Check if games have loaded
+      if (!games || games.length === 0) {
+        container.innerHTML = '<div style="padding: 20px; text-align: center; color: #888;">Loading games...</div>';
+        // Try again in 500ms if games haven't loaded
+        setTimeout(() => {
+          if (games && games.length > 0) populateGameList();
+        }, 500);
+        return;
+      }
+      
       const searchFilter = document.getElementById('gsGameSearch').value.toLowerCase();
       
       // Get yesterday's date for filtering
@@ -791,7 +802,7 @@
       });
       
       if (filtered.length === 0) {
-        container.innerHTML = '<div style="padding: 20px; text-align: center; color: #888;">No games found</div>';
+        container.innerHTML = `<div style="padding: 20px; text-align: center; color: #888;">No games found${searchFilter ? ' for "' + searchFilter + '"' : ''}</div>`;
         return;
       }
       
