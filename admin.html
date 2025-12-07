@@ -232,17 +232,9 @@
         </div>
         
         <!-- Step 1: Select Game -->
-        <div id="gsStep1" style="padding: 30px;">
-          <h3 style="margin: 0 0 20px 0; font-size: 16px; color: #333;">Select Game</h3>
-          <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-            <select id="gsGenderFilter" onchange="filterGameList()" style="padding: 10px; border: 1px solid #ddd; border-radius: 6px;">
-              <option value="">All</option>
-              <option value="Boys">Boys</option>
-              <option value="Girls">Girls</option>
-            </select>
-            <input type="text" id="gsGameSearch" placeholder="Search teams..." oninput="filterGameList()" style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 6px;">
-          </div>
-          <div id="gsGameList" style="max-height: 400px; overflow-y: auto; border: 1px solid #eee; border-radius: 8px;">
+        <div id="gsStep1" style="padding: 20px;">
+          <input type="text" id="gsGameSearch" placeholder="Search teams..." oninput="filterGameList()" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; margin-bottom: 15px; font-size: 14px;">
+          <div id="gsGameList" style="max-height: 450px; overflow-y: auto; border: 1px solid #eee; border-radius: 8px;">
             <!-- Games populated here -->
           </div>
         </div>
@@ -402,6 +394,9 @@
       }
       .game-row:hover {
         background: #f5f5f5;
+      }
+      .game-row-hover:hover {
+        background: #e3f2fd;
       }
       .game-row .teams {
         font-size: 14px;
@@ -741,7 +736,6 @@
       document.getElementById('gsStep1').style.display = 'block';
       document.getElementById('gsStep2').style.display = 'none';
       document.getElementById('gsGameSearch').value = '';
-      document.getElementById('gsGenderFilter').value = '';
       populateGameList();
       document.body.style.overflow = 'hidden';
     }
@@ -751,13 +745,23 @@
       document.body.style.overflow = 'auto';
     }
     
+    function formatGameDate(dateStr) {
+      if (!dateStr) return '';
+      const date = new Date(dateStr + 'T12:00:00');
+      const months = ['Jan.', 'Feb.', 'Mar.', 'Apr.', 'May', 'June', 'July', 'Aug.', 'Sept.', 'Oct.', 'Nov.', 'Dec.'];
+      return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+    }
+    
     function populateGameList() {
       const container = document.getElementById('gsGameList');
-      const genderFilter = document.getElementById('gsGenderFilter').value;
       const searchFilter = document.getElementById('gsGameSearch').value.toLowerCase();
       
+      // Get yesterday's date for filtering
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
       let filtered = games.filter(g => {
-        if (genderFilter && g.gender !== genderFilter) return false;
+        // Filter by search
         if (searchFilter) {
           const searchStr = `${g.away} ${g.home} ${g.date}`.toLowerCase();
           if (!searchStr.includes(searchFilter)) return false;
@@ -765,23 +769,61 @@
         return true;
       });
       
-      // Sort by date descending
+      // Sort by date descending (most recent first)
       filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+      
+      // Move games from yesterday and before to the top
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      
+      filtered.sort((a, b) => {
+        const dateA = new Date(a.date);
+        const dateB = new Date(b.date);
+        const aIsPast = dateA <= today;
+        const bIsPast = dateB <= today;
+        
+        if (aIsPast && !bIsPast) return -1;
+        if (!aIsPast && bIsPast) return 1;
+        
+        // Both past or both future - sort by date descending for past, ascending for future
+        if (aIsPast) return dateB - dateA;
+        return dateA - dateB;
+      });
       
       if (filtered.length === 0) {
         container.innerHTML = '<div style="padding: 20px; text-align: center; color: #888;">No games found</div>';
         return;
       }
       
-      container.innerHTML = filtered.slice(0, 50).map(g => `
-        <div class="game-row" onclick="selectGameForStory('${g.game_id}')">
-          <div>
-            <div class="teams">${g.away} @ ${g.home}</div>
-            <div class="meta">${g.gender} ${g.division || ''}</div>
-          </div>
-          <div class="meta">${g.date || ''}</div>
-        </div>
-      `).join('');
+      // Build table
+      let html = `<table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+        <thead>
+          <tr style="background: #f5f5f5; position: sticky; top: 0;">
+            <th style="padding: 10px; text-align: left; border-bottom: 1px solid #ddd;">Date</th>
+            <th style="padding: 10px; text-align: center; border-bottom: 1px solid #ddd; width: 50px;">Gender</th>
+            <th style="padding: 10px; text-align: left; border-bottom: 1px solid #ddd;">Match-Up</th>
+          </tr>
+        </thead>
+        <tbody>`;
+      
+      filtered.slice(0, 75).forEach(g => {
+        const hasRecap = g.recap_link && g.recap_link.trim() !== '';
+        const rowStyle = hasRecap 
+          ? 'color: #bbb; cursor: not-allowed;' 
+          : 'cursor: pointer;';
+        const hoverClass = hasRecap ? '' : 'game-row-hover';
+        const onclick = hasRecap ? '' : `onclick="selectGameForStory('${g.game_id}')"`;
+        
+        html += `
+          <tr class="${hoverClass}" style="${rowStyle}" ${onclick}>
+            <td style="padding: 10px; border-bottom: 1px solid #eee;">${formatGameDate(g.date)}</td>
+            <td style="padding: 10px; text-align: center; border-bottom: 1px solid #eee;">${g.gender === 'Boys' ? 'B' : 'G'}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #eee;">${g.away} @ ${g.home}${hasRecap ? ' <span style="font-size: 10px;">(done)</span>' : ''}</td>
+          </tr>`;
+      });
+      
+      html += '</tbody></table>';
+      container.innerHTML = html;
     }
     
     function filterGameList() {
