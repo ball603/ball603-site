@@ -243,17 +243,29 @@ async function handleWrite(body, headers) {
     return line;
   }
   
+  // Format quarters with OT labels
+  function formatQuarters(quarters) {
+    const labels = ['Q1', 'Q2', 'Q3', 'Q4'];
+    const otCount = quarters.length - 4;
+    for (let i = 1; i <= otCount; i++) {
+      labels.push(otCount === 1 ? 'OT' : `OT${i}`);
+    }
+    return quarters.map((q, i) => `${labels[i]}: ${q}`).join(', ');
+  }
+  
+  const hasOT = proofData.hasOT || proofData.awayQuarters.length > 4;
+  
   // Build the prompt
   const prompt = `You are a sports writer for Ball603.com, covering New Hampshire high school basketball. Write an engaging game recap.
 
-GAME RESULT: ${winner} ${winnerScore}, ${loser} ${loserScore}
+GAME RESULT: ${winner} ${winnerScore}, ${loser} ${loserScore}${hasOT ? ' (OT)' : ''}
 DATE: ${proofData.date || 'Today'}
 GENDER: ${proofData.gender || 'Varsity'}
 DIVISION: ${proofData.division || ''}
 
-QUARTER SCORES:
-${proofData.awayTeam}: ${proofData.awayQuarters.join(' - ')} = ${proofData.awayFinal}
-${proofData.homeTeam}: ${proofData.homeQuarters.join(' - ')} = ${proofData.homeFinal}
+SCORING BY PERIOD:
+${proofData.awayTeam}: ${formatQuarters(proofData.awayQuarters)} = ${proofData.awayFinal}
+${proofData.homeTeam}: ${formatQuarters(proofData.homeQuarters)} = ${proofData.homeFinal}
 
 ${proofData.awayTeam} SCORERS:
 ${awayScorersEnhanced.map(formatScorer).join('\n')}
@@ -265,11 +277,12 @@ ${proofData.notes ? `NOTES: ${proofData.notes}` : ''}
 
 STYLE GUIDELINES:
 - Write in an energetic, engaging sports journalism style
-- Lead with the most exciting aspect (comeback, star performance, dominant win, etc.)
+- Lead with the most exciting aspect (comeback, star performance, dominant win, overtime thriller, etc.)
 - Mention class year (junior, senior, etc.) when referencing key players
 - If a player had notable three-point shooting (3+ threes), mention it in the article
 - Keep paragraphs short and punchy  
-- Include quarter-by-quarter narrative if scores show an interesting flow
+- Include period-by-period narrative if scores show an interesting flow
+- If game went to overtime, emphasize the drama and clutch plays
 - Total length: 300-450 words
 - Do NOT include a headline - just the article body
 
