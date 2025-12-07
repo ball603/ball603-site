@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ball603 CMS</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #333; min-height: 100vh; }
+    
+    /* Header */
+    .header { background: #fff; padding: 15px 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); position: relative; z-index: 1000; }
+    .header-inner { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+    .header-left { display: flex; align-items: center; gap: 15px; }
+    .header-left img { height: 50px; cursor: pointer; }
+    .header-left h1 { font-size: 20px; color: #333; }
+    .header-right { display: flex; align-items: center; gap: 15px; }
+    .user-info { font-size: 13px; color: #666; }
+    .btn-logout { background: #eee; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-size: 13px; }
+    .btn-logout:hover { background: #ddd; }
+    
+    /* Login Screen */
+    .login-screen { display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+    .login-box { background: #fff; padding: 40px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; max-width: 400px; width: 100%; }
+    .login-box img { height: 80px; margin-bottom: 20px; }
+    .login-box h2 { margin-bottom: 10px; color: #333; }
+    .login-box p { color: #666; margin-bottom: 25px; font-size: 14px; }
+    .login-box input { width: 100%; padding: 12px 15px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; margin-bottom: 15px; }
+    .login-box input:focus { outline: none; border-color: #f57c00; }
+    .login-box button { width: 100%; padding: 12px; background: #f57c00; color: #fff; border: none; border-radius: 5px; font-size: 14px; font-weight: 600; cursor: pointer; }
+    .login-box button:hover { background: #e56a00; }
+    .login-error { color: #c00; font-size: 13px; margin-bottom: 15px; }
+    
+    /* Main Layout */
+    .main-container { max-width: 1200px; margin: 0 auto; padding: 20px; display: none; }
+    
+    /* Tabs */
+    .tabs { display: flex; gap: 5px; margin-bottom: 20px; }
+    .tab { padding: 10px 20px; background: #fff; border: none; border-radius: 8px 8px 0 0; cursor: pointer; font-size: 14px; font-weight: 500; color: #666; }
+    .tab:hover { background: #f0f0f0; }
+    .tab.active { background: #f57c00; color: #fff; }
+    
+    /* Panel */
+    .panel { background: #fff; border-radius: 0 8px 8px 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); padding: 20px; }
+    
+    /* Article List */
+    .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .btn-new { background: #f57c00; color: #fff; border: none; padding: 10px 20px; border-radius: 5px; font-size: 14px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+    .btn-new:hover { background: #e56a00; }
+    .search-box { padding: 10px 15px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; width: 250px; }
+    
+    .article-list { border: 1px solid #eee; border-radius: 8px; overflow: hidden; }
+    .article-row { display: grid; grid-template-columns: 1fr 120px 150px 100px; padding: 15px; border-bottom: 1px solid #eee; align-items: center; }
+    .article-row:last-child { border-bottom: none; }
+    .article-row:hover { background: #f9f9f9; }
+    .article-row.header { background: #f5f5f5; font-weight: 600; font-size: 12px; text-transform: uppercase; color: #666; }
+    .article-title { font-weight: 500; color: #333; cursor: pointer; }
+    .article-title:hover { color: #f57c00; }
+    .article-status { font-size: 12px; padding: 4px 10px; border-radius: 20px; display: inline-block; }
+    .article-status.draft { background: #fff3e0; color: #e65100; }
+    .article-status.published { background: #e8f5e9; color: #2e7d32; }
+    .article-date { font-size: 13px; color: #666; }
+    .article-actions { display: flex; gap: 8px; }
+    .btn-edit, .btn-delete { padding: 6px 12px; border: none; border-radius: 4px; font-size: 12px; cursor: pointer; }
+    .btn-edit { background: #e3f2fd; color: #1565c0; }
+    .btn-edit:hover { background: #bbdefb; }
+    .btn-delete { background: #ffebee; color: #c62828; }
+    .btn-delete:hover { background: #ffcdd2; }
+    
+    /* Editor */
+    .editor-panel { display: none; }
+    .editor-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #eee; }
+    .editor-header h2 { font-size: 18px; }
+    .editor-actions { display: flex; gap: 10px; }
+    .btn-back { background: #eee; color: #333; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 14px; }
+    .btn-back:hover { background: #ddd; }
+    .btn-save { background: #2196F3; color: #fff; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 14px; font-weight: 500; }
+    .btn-save:hover { background: #1976D2; }
+    .btn-publish { background: #4CAF50; color: #fff; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 14px; font-weight: 500; }
+    .btn-publish:hover { background: #388E3C; }
+    
+    .form-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 30px; }
+    .form-main, .form-sidebar { display: flex; flex-direction: column; gap: 20px; }
+    
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group label { font-size: 13px; font-weight: 600; color: #555; }
+    .form-group input, .form-group select, .form-group textarea { padding: 10px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; font-family: inherit; }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: #f57c00; }
+    .form-group textarea { min-height: 300px; resize: vertical; }
+    .form-group small { font-size: 11px; color: #999; }
+    
+    .sidebar-card { background: #f9f9f9; border-radius: 8px; padding: 15px; }
+    .sidebar-card h4 { font-size: 13px; font-weight: 600; margin-bottom: 12px; color: #555; }
+    
+    .game-selector { border: 1px solid #ddd; border-radius: 5px; max-height: 200px; overflow-y: auto; background: #fff; }
+    .game-option { padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 13px; }
+    .game-option:hover { background: #fff3e0; }
+    .game-option.selected { background: #f57c00; color: #fff; }
+    .game-option .teams { font-weight: 500; }
+    .game-option .meta { font-size: 11px; opacity: 0.8; margin-top: 3px; }
+    
+    .ai-generate { margin-top: 15px; }
+    .btn-ai { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; border: none; padding: 12px 20px; border-radius: 5px; cursor: pointer; font-size: 14px; font-weight: 500; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .btn-ai:hover { opacity: 0.9; }
+    .btn-ai:disabled { opacity: 0.5; cursor: not-allowed; }
+    
+    /* Social posting */
+    .social-buttons { display: flex; flex-direction: column; gap: 8px; }
+    .btn-social { padding: 10px; border: none; border-radius: 5px; cursor: pointer; font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+    .btn-social.facebook { background: #1877f2; color: #fff; }
+    .btn-social.instagram { background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); color: #fff; }
+    .btn-social.twitter { background: #000; color: #fff; }
+    .btn-social:disabled { opacity: 0.5; }
+    .btn-social .posted { margin-left: auto; font-size: 11px; opacity: 0.8; }
+    
+    /* Empty state */
+    .empty-state { text-align: center; padding: 60px 20px; color: #888; }
+    .empty-state p { margin-bottom: 20px; }
+    
+    /* Toast notifications */
+    .toast { position: fixed; bottom: 20px; right: 20px; padding: 15px 25px; background: #333; color: #fff; border-radius: 8px; font-size: 14px; z-index: 2000; display: none; }
+    .toast.success { background: #4CAF50; }
+    .toast.error { background: #f44336; }
+    
+    /* Loading */
+    .loading { text-align: center; padding: 40px; color: #888; }
+    
+    @media (max-width: 900px) {
+      .form-grid { grid-template-columns: 1fr; }
+      .article-row { grid-template-columns: 1fr; gap: 8px; }
+      .article-row.header { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Login Screen -->
+  <div class="login-screen" id="loginScreen">
+    <div class="login-box">
+      <img src="logo.png" alt="Ball603">
+      <h2>Ball603 CMS</h2>
+      <p>Content Management System</p>
+      <div class="login-error" id="loginError" style="display: none;"></div>
+      <input type="password" id="loginPassword" placeholder="Enter password" onkeypress="if(event.key==='Enter')login()">
+      <button onclick="login()">Sign In</button>
+    </div>
+  </div>
+  
+  <!-- Main App -->
+  <div class="header" id="mainHeader" style="display: none;">
+    <div class="header-inner">
+      <div class="header-left">
+        <img src="logo.png" alt="Ball603" onclick="window.location.href='/'">
+        <h1>CMS</h1>
+      </div>
+      <div class="header-right">
+        <span class="user-info">Welcome, Admin</span>
+        <button class="btn-logout" onclick="logout()">Logout</button>
+      </div>
+    </div>
+  </div>
+  
+  <div class="main-container" id="mainContainer">
+    <div class="tabs">
+      <button class="tab active" onclick="showTab('articles')">Articles</button>
+      <button class="tab" onclick="showTab('sponsors')">Sponsors</button>
+      <button class="tab" onclick="showTab('products')">Webstore</button>
+    </div>
+    
+    <!-- Articles List Panel -->
+    <div class="panel" id="articlesPanel">
+      <div class="toolbar">
+        <button class="btn-new" onclick="newArticle()">
+          <span>+</span> New Article
+        </button>
+        <input type="text" class="search-box" placeholder="Search articles..." oninput="filterArticles(this.value)">
+      </div>
+      
+      <div class="article-list" id="articleList">
+        <div class="article-row header">
+          <div>Title</div>
+          <div>Status</div>
+          <div>Date</div>
+          <div>Actions</div>
+        </div>
+        <div class="loading">Loading articles...</div>
+      </div>
+    </div>
+    
+    <!-- Article Editor Panel -->
+    <div class="panel editor-panel" id="editorPanel">
+      <div class="editor-header">
+        <h2 id="editorTitle">New Article</h2>
+        <div class="editor-actions">
+          <button class="btn-back" onclick="closeEditor()">← Back</button>
+          <button class="btn-save" onclick="saveArticle()">Save Draft</button>
+          <button class="btn-publish" onclick="publishArticle()">Publish</button>
+        </div>
+      </div>
+      
+      <div class="form-grid">
+        <div class="form-main">
+          <div class="form-group">
+            <label>Headline</label>
+            <input type="text" id="articleTitle" placeholder="Enter headline...">
+          </div>
+          
+          <div class="form-group">
+            <label>Story</label>
+            <textarea id="articleContent" placeholder="Write your article..."></textarea>
+          </div>
+          
+          <div class="form-group">
+            <label>Excerpt</label>
+            <textarea id="articleExcerpt" placeholder="Brief summary for previews..." style="min-height: 80px;"></textarea>
+            <small>Used for social media and article previews</small>
+          </div>
+        </div>
+        
+        <div class="form-sidebar">
+          <div class="sidebar-card">
+            <h4>📸 Link to Game</h4>
+            <input type="text" id="gameSearch" placeholder="Search games..." style="width: 100%; margin-bottom: 10px;" oninput="searchGames(this.value)">
+            <div class="game-selector" id="gameSelector">
+              <div class="loading">Loading games...</div>
+            </div>
+            <input type="hidden" id="selectedGameId">
+          </div>
+          
+          <div class="sidebar-card ai-generate">
+            <h4>🤖 AI Assistant</h4>
+            <p style="font-size: 12px; color: #666; margin-bottom: 12px;">Generate article from box score or game summary</p>
+            <textarea id="aiInput" placeholder="Paste box score, stats, or game notes here..." style="min-height: 100px; width: 100%; margin-bottom: 10px;"></textarea>
+            <button class="btn-ai" onclick="generateArticle()" id="btnGenerate">
+              ✨ Generate Article
+            </button>
+          </div>
+          
+          <div class="sidebar-card">
+            <h4>📷 Media</h4>
+            <div class="form-group">
+              <label>SmugMug Gallery URL</label>
+              <input type="text" id="smugmugUrl" placeholder="https://ball603.smugmug.com/...">
+            </div>
+            <div class="form-group">
+              <label>Photographer Credit</label>
+              <input type="text" id="photographerCredit" placeholder="Photo by...">
+            </div>
+          </div>
+          
+          <div class="sidebar-card">
+            <h4>📱 Social Media</h4>
+            <div class="social-buttons">
+              <button class="btn-social facebook" onclick="postToSocial('facebook')" id="btnFacebook">
+                📘 Post to Facebook
+                <span class="posted" id="facebookPosted" style="display: none;">✓ Posted</span>
+              </button>
+              <button class="btn-social instagram" onclick="postToSocial('instagram')" id="btnInstagram">
+                📸 Copy for Instagram
+                <span class="posted" id="instagramPosted" style="display: none;">✓ Copied</span>
+              </button>
+              <button class="btn-social twitter" onclick="postToSocial('twitter')" id="btnTwitter">
+                𝕏 Post to X
+                <span class="posted" id="twitterPosted" style="display: none;">✓ Posted</span>
+              </button>
+            </div>
+            <small style="display: block; margin-top: 10px; color: #999;">Social posting available after publishing</small>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Sponsors Panel -->
+    <div class="panel" id="sponsorsPanel" style="display: none;">
+      <div class="toolbar">
+        <button class="btn-new" onclick="newSponsor()">
+          <span>+</span> Add Sponsor
+        </button>
+      </div>
+      <div id="sponsorList">
+        <div class="empty-state">
+          <p>No sponsors yet</p>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Products Panel -->
+    <div class="panel" id="productsPanel" style="display: none;">
+      <div class="toolbar">
+        <button class="btn-new" onclick="newProduct()">
+          <span>+</span> Add Product
+        </button>
+      </div>
+      <div id="productList">
+        <div class="empty-state">
+          <p>No products yet</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // Supabase config
+    const SUPABASE_URL = 'https://suncdkxfqkwwnmhosxcf.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_hHSpgZPD327r11GaQG9iHw_uZbuaWmF';
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    
+    // CMS Password
+    const CMS_PASSWORD = 'Gr@niteSt@teHoops';
+    
+    // State
+    let articles = [];
+    let games = [];
+    let currentArticle = null;
+    
+    // Login
+    function login() {
+      const password = document.getElementById('loginPassword').value;
+      if (password === CMS_PASSWORD) {
+        sessionStorage.setItem('cms_auth', 'true');
+        showApp();
+      } else {
+        document.getElementById('loginError').textContent = 'Incorrect password';
+        document.getElementById('loginError').style.display = 'block';
+      }
+    }
+    
+    function logout() {
+      sessionStorage.removeItem('cms_auth');
+      location.reload();
+    }
+    
+    function showApp() {
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('mainHeader').style.display = 'block';
+      document.getElementById('mainContainer').style.display = 'block';
+      loadArticles();
+      loadGames();
+    }
+    
+    // Check auth on load
+    if (sessionStorage.getItem('cms_auth') === 'true') {
+      showApp();
+    }
+    
+    // Tabs
+    function showTab(tab) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      event.target.classList.add('active');
+      
+      document.getElementById('articlesPanel').style.display = tab === 'articles' ? 'block' : 'none';
+      document.getElementById('sponsorsPanel').style.display = tab === 'sponsors' ? 'block' : 'none';
+      document.getElementById('productsPanel').style.display = tab === 'products' ? 'block' : 'none';
+      document.getElementById('editorPanel').style.display = 'none';
+    }
+    
+    // Load articles
+    async function loadArticles() {
+      const { data, error } = await supabase
+        .from('articles')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error('Error loading articles:', error);
+        showToast('Error loading articles', 'error');
+        return;
+      }
+      
+      articles = data || [];
+      renderArticles();
+    }
+    
+    function renderArticles(filter = '') {
+      const list = document.getElementById('articleList');
+      const filtered = articles.filter(a => 
+        a.title.toLowerCase().includes(filter.toLowerCase())
+      );
+      
+      if (filtered.length === 0) {
+        list.innerHTML = `
+          <div class="article-row header">
+            <div>Title</div>
+            <div>Status</div>
+            <div>Date</div>
+            <div>Actions</div>
+          </div>
+          <div class="empty-state">
+            <p>No articles found</p>
+            <button class="btn-new" onclick="newArticle()">Create your first article</button>
+          </div>
+        `;
+        return;
+      }
+      
+      list.innerHTML = `
+        <div class="article-row header">
+          <div>Title</div>
+          <div>Status</div>
+          <div>Date</div>
+          <div>Actions</div>
+        </div>
+        ${filtered.map(article => `
+          <div class="article-row">
+            <div class="article-title" onclick="editArticle('${article.id}')">${article.title || 'Untitled'}</div>
+            <div><span class="article-status ${article.status}">${article.status}</span></div>
+            <div class="article-date">${formatDate(article.created_at)}</div>
+            <div class="article-actions">
+              <button class="btn-edit" onclick="editArticle('${article.id}')">Edit</button>
+              <button class="btn-delete" onclick="deleteArticle('${article.id}')">Delete</button>
+            </div>
+          </div>
+        `).join('')}
+      `;
+    }
+    
+    function filterArticles(value) {
+      renderArticles(value);
+    }
+    
+    function formatDate(dateStr) {
+      if (!dateStr) return '-';
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+    
+    // Load games for selector
+    async function loadGames() {
+      try {
+        const response = await fetch('/.netlify/functions/get-games');
+        const data = await response.json();
+        games = data.games || [];
+        renderGameSelector();
+      } catch (err) {
+        console.error('Error loading games:', err);
+        document.getElementById('gameSelector').innerHTML = '<div style="padding: 10px; color: #999;">Could not load games</div>';
+      }
+    }
+    
+    function renderGameSelector(filter = '') {
+      const selector = document.getElementById('gameSelector');
+      
+      let filtered = games.filter(g => {
+        if (filter) {
+          const search = filter.toLowerCase();
+          return g.away?.toLowerCase().includes(search) || 
+                 g.home?.toLowerCase().includes(search);
+        }
+        return true;
+      }).slice(0, 20);
+      
+      if (filtered.length === 0) {
+        selector.innerHTML = '<div style="padding: 10px; color: #999;">No games found</div>';
+        return;
+      }
+      
+      selector.innerHTML = filtered.map(g => `
+        <div class="game-option ${g.game_id === document.getElementById('selectedGameId').value ? 'selected' : ''}" 
+             onclick="selectGame('${g.game_id}', '${g.away} @ ${g.home}')">
+          <div class="teams">${g.away || 'TBD'} @ ${g.home || 'TBD'}</div>
+          <div class="meta">${g.date} • ${g.gender} ${g.division || ''}</div>
+        </div>
+      `).join('');
+    }
+    
+    function searchGames(value) {
+      renderGameSelector(value);
+    }
+    
+    function selectGame(gameId, label) {
+      document.getElementById('selectedGameId').value = gameId;
+      renderGameSelector();
+    }
+    
+    // Article CRUD
+    function newArticle() {
+      currentArticle = null;
+      document.getElementById('editorTitle').textContent = 'New Article';
+      document.getElementById('articleTitle').value = '';
+      document.getElementById('articleContent').value = '';
+      document.getElementById('articleExcerpt').value = '';
+      document.getElementById('selectedGameId').value = '';
+      document.getElementById('smugmugUrl').value = '';
+      document.getElementById('photographerCredit').value = '';
+      document.getElementById('aiInput').value = '';
+      
+      document.getElementById('articlesPanel').style.display = 'none';
+      document.getElementById('editorPanel').style.display = 'block';
+      
+      renderGameSelector();
+      updateSocialButtons(false);
+    }
+    
+    async function editArticle(id) {
+      const article = articles.find(a => a.id === id);
+      if (!article) return;
+      
+      currentArticle = article;
+      document.getElementById('editorTitle').textContent = 'Edit Article';
+      document.getElementById('articleTitle').value = article.title || '';
+      document.getElementById('articleContent').value = article.content || '';
+      document.getElementById('articleExcerpt').value = article.excerpt || '';
+      document.getElementById('selectedGameId').value = article.game_id || '';
+      document.getElementById('smugmugUrl').value = article.smugmug_gallery_url || '';
+      document.getElementById('photographerCredit').value = article.photographer_credit || '';
+      
+      document.getElementById('articlesPanel').style.display = 'none';
+      document.getElementById('editorPanel').style.display = 'block';
+      
+      renderGameSelector();
+      updateSocialButtons(article.status === 'published', article);
+    }
+    
+    function closeEditor() {
+      document.getElementById('editorPanel').style.display = 'none';
+      document.getElementById('articlesPanel').style.display = 'block';
+      currentArticle = null;
+    }
+    
+    function generateSlug(title) {
+      return title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '')
+        .substring(0, 60);
+    }
+    
+    async function saveArticle() {
+      const title = document.getElementById('articleTitle').value.trim();
+      if (!title) {
+        showToast('Please enter a headline', 'error');
+        return;
+      }
+      
+      const articleData = {
+        title,
+        slug: generateSlug(title) + '-' + Date.now(),
+        content: document.getElementById('articleContent').value,
+        excerpt: document.getElementById('articleExcerpt').value,
+        game_id: document.getElementById('selectedGameId').value || null,
+        smugmug_gallery_url: document.getElementById('smugmugUrl').value || null,
+        photographer_credit: document.getElementById('photographerCredit').value || null,
+        status: 'draft',
+        updated_at: new Date().toISOString()
+      };
+      
+      let result;
+      if (currentArticle) {
+        result = await supabase
+          .from('articles')
+          .update(articleData)
+          .eq('id', currentArticle.id)
+          .select();
+      } else {
+        result = await supabase
+          .from('articles')
+          .insert([articleData])
+          .select();
+      }
+      
+      if (result.error) {
+        console.error('Save error:', result.error);
+        showToast('Error saving article', 'error');
+        return;
+      }
+      
+      showToast('Article saved!', 'success');
+      currentArticle = result.data[0];
+      loadArticles();
+    }
+    
+    async function publishArticle() {
+      const title = document.getElementById('articleTitle').value.trim();
+      if (!title) {
+        showToast('Please enter a headline', 'error');
+        return;
+      }
+      
+      const articleData = {
+        title,
+        slug: generateSlug(title) + '-' + Date.now(),
+        content: document.getElementById('articleContent').value,
+        excerpt: document.getElementById('articleExcerpt').value,
+        game_id: document.getElementById('selectedGameId').value || null,
+        smugmug_gallery_url: document.getElementById('smugmugUrl').value || null,
+        photographer_credit: document.getElementById('photographerCredit').value || null,
+        status: 'published',
+        published_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      
+      let result;
+      if (currentArticle) {
+        result = await supabase
+          .from('articles')
+          .update(articleData)
+          .eq('id', currentArticle.id)
+          .select();
+      } else {
+        result = await supabase
+          .from('articles')
+          .insert([articleData])
+          .select();
+      }
+      
+      if (result.error) {
+        console.error('Publish error:', result.error);
+        showToast('Error publishing article', 'error');
+        return;
+      }
+      
+      showToast('Article published!', 'success');
+      currentArticle = result.data[0];
+      loadArticles();
+      updateSocialButtons(true, currentArticle);
+    }
+    
+    async function deleteArticle(id) {
+      if (!confirm('Delete this article?')) return;
+      
+      const { error } = await supabase
+        .from('articles')
+        .delete()
+        .eq('id', id);
+      
+      if (error) {
+        showToast('Error deleting article', 'error');
+        return;
+      }
+      
+      showToast('Article deleted', 'success');
+      loadArticles();
+    }
+    
+    // AI Generation (placeholder - needs API key)
+    async function generateArticle() {
+      const input = document.getElementById('aiInput').value.trim();
+      if (!input) {
+        showToast('Please paste box score or game notes', 'error');
+        return;
+      }
+      
+      const btn = document.getElementById('btnGenerate');
+      btn.disabled = true;
+      btn.textContent = '⏳ Generating...';
+      
+      // TODO: Connect to Claude API for generation
+      setTimeout(() => {
+        showToast('AI generation coming soon! For now, write your article manually.', 'error');
+        btn.disabled = false;
+        btn.innerHTML = '✨ Generate Article';
+      }, 1000);
+    }
+    
+    // Social posting
+    function updateSocialButtons(enabled, article = null) {
+      const btns = ['btnFacebook', 'btnInstagram', 'btnTwitter'];
+      btns.forEach(id => {
+        document.getElementById(id).disabled = !enabled;
+      });
+      
+      if (article) {
+        document.getElementById('facebookPosted').style.display = article.posted_facebook ? 'inline' : 'none';
+        document.getElementById('instagramPosted').style.display = article.posted_instagram ? 'inline' : 'none';
+        document.getElementById('twitterPosted').style.display = article.posted_twitter ? 'inline' : 'none';
+      }
+    }
+    
+    async function postToSocial(platform) {
+      const title = document.getElementById('articleTitle').value;
+      const content = document.getElementById('articleContent').value;
+      const excerpt = document.getElementById('articleExcerpt').value || content.substring(0, 200);
+      const gallery = document.getElementById('smugmugUrl').value;
+      const photographer = document.getElementById('photographerCredit').value;
+      
+      let postText = '';
+      
+      if (platform === 'facebook') {
+        postText = `🏀 ${title}\n\n${excerpt}\n\n`;
+        if (gallery) postText += `📸 Full gallery: ${gallery}\n`;
+        if (photographer) postText += `📷 Photos by ${photographer}\n`;
+        postText += `\n#Ball603 #NHBasketball`;
+      } else if (platform === 'instagram') {
+        postText = `🏀 ${title}\n\n${excerpt}\n\n📸 Link in bio for full gallery!\n`;
+        if (photographer) postText += `📷 @${photographer.replace(/\s+/g, '')}\n`;
+        postText += `\n#Ball603 #NHBasketball #NHIAA`;
+      } else if (platform === 'twitter') {
+        postText = `🏀 ${title}\n\n${excerpt.substring(0, 180)}...\n\n`;
+        if (gallery) postText += `📸 ${gallery}\n`;
+        postText += `#NHBasketball`;
+      }
+      
+      // Copy to clipboard
+      try {
+        await navigator.clipboard.writeText(postText);
+        showToast(`${platform.charAt(0).toUpperCase() + platform.slice(1)} post copied to clipboard!`, 'success');
+        
+        // Mark as posted
+        if (currentArticle) {
+          const update = {};
+          update[`posted_${platform}`] = true;
+          await supabase
+            .from('articles')
+            .update(update)
+            .eq('id', currentArticle.id);
+          
+          document.getElementById(`${platform}Posted`).style.display = 'inline';
+        }
+      } catch (err) {
+        showToast('Could not copy to clipboard', 'error');
+      }
+    }
+    
+    // Toast
+    function showToast(message, type = 'success') {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.className = `toast ${type}`;
+      toast.style.display = 'block';
+      setTimeout(() => toast.style.display = 'none', 3000);
+    }
+    
+    // Sponsors & Products (placeholders)
+    function newSponsor() {
+      showToast('Sponsor management coming soon!', 'error');
+    }
+    
+    function newProduct() {
+      showToast('Product management coming soon!', 'error');
+    }
+  </script>
+</body>
+</html>
