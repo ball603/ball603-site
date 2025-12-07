@@ -105,7 +105,7 @@
     
     /* Scrollable table container - hide scrollbars */
     .table-wrapper {
-      max-height: 500px;
+      max-height: 340px;
       overflow-y: auto;
       scrollbar-width: none;
       -ms-overflow-style: none;
@@ -157,17 +157,51 @@
     /* Mobile */
     @media (max-width: 900px) {
       .container { width: auto; padding: 10px; }
-      .header-nav { display: none; }
+      .header-nav { 
+        display: none;
+        position: absolute;
+        top: 100%;
+        right: 0;
+        background: #fff;
+        flex-direction: column;
+        padding: 10px 0;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        border-radius: 0 0 8px 8px;
+        min-width: 150px;
+      }
+      .header-nav.open { display: flex; }
+      .header-nav a { padding: 10px 20px; }
+      .header-inner { position: relative; }
+      .hamburger {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        cursor: pointer;
+        padding: 5px;
+      }
+      .hamburger span {
+        display: block;
+        width: 24px;
+        height: 3px;
+        background: #333;
+        border-radius: 2px;
+        transition: 0.2s;
+      }
       .header-left h1 { font-size: 16px; }
       .standings-grid { grid-template-columns: 1fr; gap: 20px; }
       .gender-header { flex-wrap: wrap; }
+      .gender-header::after { display: none; }
+      .gender-box { border-bottom: 2px solid #f57c00; }
       .gender-title { font-size: 18px; }
       .division-tabs { margin-left: 0; }
       .division-tab { padding: 5px 10px; font-size: 11px; }
-      .table-wrapper { max-height: 350px; }
+      .table-wrapper { max-height: 300px; }
       .team-logo { width: 20px; height: 20px; }
       .team-name { font-size: 12px; }
       .rating-col { display: none; }
+    }
+    @media (min-width: 901px) {
+      .hamburger { display: none; }
     }
   </style>
 </head>
@@ -178,12 +212,17 @@
         <img src="logo.png" alt="Ball603" onclick="window.location.href='/'">
         <h1>Standings</h1>
       </div>
-      <nav class="header-nav">
+      <nav class="header-nav" id="headerNav">
         <a href="/">Home</a>
         <a href="/schedule.html">Schedule</a>
         <a href="/standings.html" class="active">Standings</a>
         <a href="/teams.html">Teams</a>
       </nav>
+      <div class="hamburger" onclick="toggleMenu()">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
     </div>
   </div>
   
@@ -202,6 +241,10 @@
   <script>
     let allStandings = [];
     let currentDivisions = { Boys: 'D-I', Girls: 'D-I' };
+    
+    function toggleMenu() {
+      document.getElementById('headerNav').classList.toggle('open');
+    }
     
     // 2025-26 NHIAA Basketball Playoff Teams (update each season based on 70% rule)
     const PLAYOFF_TEAMS = {
