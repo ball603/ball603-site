@@ -112,13 +112,17 @@ function normalizeCollegeName(name) {
     return normalizations[name];
   }
   
-  // Try without " Wildcats", " Big Green", etc.
-  const cleaned = name.replace(/ (Wildcats|Big Green|Terriers|Catamounts|Black Bears|River Hawks|Retrievers|Bearcats|Great Danes|Highlanders|Bulldogs|Skyhawks|Crimson|Bears|Friars|Crusaders|Eagles|Huskies|Orange|Rams|Warriors|Pioneers|Stags|Bobcats|Dolphins|Tigers|Patriots|Cornhuskers|Billikens)$/i, '');
+  // Strip common mascot suffixes
+  const mascotPattern = / (Wildcats|Big Green|Terriers|Catamounts|Black Bears|River Hawks|Retrievers|Bearcats|Great Danes|Highlanders|Bulldogs|Skyhawks|Crimson|Bears|Friars|Crusaders|Eagles|Huskies|Orange|Rams|Warriors|Pioneers|Stags|Bobcats|Dolphins|Tigers|Patriots|Cornhuskers|Billikens|Gaels|Jaspers|Hoyas|Peacocks|Seawolves|Hawks|Knights|Broncs|Golden Griffins|Bonnies|Explorers|Musketeers|Blue Demons|Bluejays|Friars|Hoosiers|Badgers|Buckeyes|Spartans|Wolverines|Fighting Irish|Bruins|Trojans|Cardinal|Ducks|Beavers|Cougars|Sun Devils|Wildcats|Buffaloes|Jayhawks|Sooners|Longhorns|Aggies|Red Raiders|Horned Frogs|Bears|Mountaineers|Cyclones|Hawkeyes|Golden Gophers|Boilermakers|Illini|Scarlet Knights|Nittany Lions|Tar Heels|Blue Devils|Demon Deacons|Wolfpack|Cavaliers|Hokies|Hurricanes|Seminoles|Yellow Jackets|Tigers|Gamecocks|Volunteers|Razorbacks|Rebels|Bulldogs|Crimson Tide|War Eagles|Gators|Commodores|Wildcats)$/i;
+  const cleaned = name.replace(mascotPattern, '');
+  
+  // Check if cleaned version has a mapping
   if (normalizations[cleaned]) {
     return normalizations[cleaned];
   }
   
-  return name;
+  // Return cleaned name (without mascot) even if no explicit mapping
+  return cleaned;
 }
 
 /**
