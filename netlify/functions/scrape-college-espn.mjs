@@ -172,8 +172,14 @@ function parseESPNAPIResponse(data, team, gender) {
       
       if (isCompleted) {
         time = 'FINAL';
-        homeScore = homeCompetitor.score || '';
-        awayScore = awayCompetitor.score || '';
+        // ESPN returns scores as objects like {displayValue: "32", value: 32.0} or as strings
+        const homeScoreRaw = homeCompetitor.score;
+        const awayScoreRaw = awayCompetitor.score;
+        homeScore = typeof homeScoreRaw === 'object' ? (homeScoreRaw?.displayValue || homeScoreRaw?.value || '') : (homeScoreRaw || '');
+        awayScore = typeof awayScoreRaw === 'object' ? (awayScoreRaw?.displayValue || awayScoreRaw?.value || '') : (awayScoreRaw || '');
+        // Ensure they're strings
+        homeScore = String(homeScore);
+        awayScore = String(awayScore);
       } else {
         // Get scheduled time
         const timeStr = dateObj.toLocaleTimeString('en-US', {
