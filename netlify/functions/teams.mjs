@@ -71,8 +71,8 @@ export async function handler(event) {
         queryParts.push(`or=(shortname.ilike.${search},full_name.ilike.${search},mascot.ilike.${search})`);
       }
       
-      // Add ordering
-      queryParts.push('order=level.asc,division.asc,shortname.asc');
+      // Add ordering - alphabetical by shortname, then gender
+      queryParts.push('order=shortname.asc,gender.asc');
       
       const endpoint = `teams?${queryParts.join('&')}`;
       const data = await supabaseRequest(endpoint);
