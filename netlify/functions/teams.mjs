@@ -74,6 +74,9 @@ export async function handler(event) {
       // Add ordering - alphabetical by shortname, then gender
       queryParts.push('order=shortname.asc,gender.asc');
       
+      // Default limit to get all teams
+      queryParts.push('limit=1000');
+      
       const endpoint = `teams?${queryParts.join('&')}`;
       const data = await supabaseRequest(endpoint);
       

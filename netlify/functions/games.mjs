@@ -101,9 +101,11 @@ export default async (request) => {
       // Ordering
       queryParts.push('order=date.asc,time.asc');
       
-      // Limit
+      // Limit - default to 5000 to override Supabase's 1000 default
       if (params.limit) {
         queryParts.push(`limit=${params.limit}`);
+      } else {
+        queryParts.push('limit=5000');
       }
       
       const endpoint = `games?${queryParts.join('&')}`;
