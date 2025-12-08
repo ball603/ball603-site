@@ -2846,7 +2846,11 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         return;
       }
       
-      const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/[^a-z_\s]/g, ''));
+      // Detect delimiter (tab or comma)
+      const firstLine = lines[0];
+      const delimiter = firstLine.includes('\t') ? '\t' : ',';
+      
+      const headers = firstLine.split(delimiter).map(h => h.trim().toLowerCase().replace(/[^a-z_\s]/g, ''));
       const teams = [];
       
       // Header mapping from Google Sheets to database columns
@@ -2902,8 +2906,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       };
       
       for (let i = 1; i < lines.length; i++) {
-        const values = parseCSVLine(lines[i]);
-        if (values.length !== headers.length) continue;
+        const values = delimiter === '\t' ? lines[i].split('\t') : parseCSVLine(lines[i]);
+        
+        // Allow slight mismatch in column count (some CSVs have trailing commas)
+        if (values.length < headers.length - 1) continue;
         
         const team = {};
         headers.forEach((h, idx) => {
@@ -2939,7 +2945,11 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         }
       }
       
+      console.log('Parsed headers:', headers);
+      console.log('First team parsed:', teams[0] || 'none');
+      
       if (teams.length === 0) {
+        console.log('Header mapping check:', headers.map(h => h + ' -> ' + (headerMap[h] || h.replace(/\s+/g, '_'))));
         showToast('No valid teams found in CSV. Check required fields: Full School Name, Shortname, abbrev, Level', 'error');
         return;
       }
