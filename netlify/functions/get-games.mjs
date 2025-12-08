@@ -44,7 +44,7 @@ export default async (request) => {
     // Filter by team
     if (params.team) {
       const team = encodeURIComponent(params.team);
-      queryParts.push(`or=(home.eq.${team},away.eq.${team})`);
+      queryParts.push(`or=(home_team.eq.${team},away_team.eq.${team})`);
     }
     
     // Order by date
@@ -94,11 +94,11 @@ export default async (request) => {
       game_id: game.game_id || '',
       date: game.date || '',
       time: game.time || '',
-      away: game.away || '',
-      away_abbrev: teamsMap[game.away] || (game.away || '').substring(0, 3).toUpperCase(),
+      away: game.away_team || '',
+      away_abbrev: teamsMap[game.away_team] || (game.away_team || '').substring(0, 3).toUpperCase(),
       away_score: game.away_score ?? '',
-      home: game.home || '',
-      home_abbrev: teamsMap[game.home] || (game.home || '').substring(0, 3).toUpperCase(),
+      home: game.home_team || '',
+      home_abbrev: teamsMap[game.home_team] || (game.home_team || '').substring(0, 3).toUpperCase(),
       home_score: game.home_score ?? '',
       gender: game.gender || '',
       level: game.level || '',
