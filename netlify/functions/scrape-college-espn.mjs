@@ -1,5 +1,6 @@
 // Ball603 College Basketball ESPN Scraper
-// Scrapes D1 schedules for UNH and Dartmouth from ESPN
+// Uses ESPN's hidden JSON API for reliable data
+// Scrapes D1 schedules for UNH and Dartmouth
 // Runs every 2 hours during basketball season (Nov-Mar)
 
 // ESPN Team IDs and configuration
@@ -22,191 +23,11 @@ const ESPN_TEAMS = {
   }
 };
 
-// ESPN URL patterns
-const ESPN_URLS = {
-  mens: (id) => `https://www.espn.com/mens-college-basketball/team/schedule/_/id/${id}`,
-  womens: (id) => `https://www.espn.com/womens-college-basketball/team/schedule/_/id/${id}`
+// ESPN JSON API endpoints
+const ESPN_API = {
+  mensTeam: (id) => `https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/teams/${id}/schedule`,
+  womensTeam: (id) => `https://site.api.espn.com/apis/site/v2/sports/basketball/womens-college-basketball/teams/${id}/schedule`
 };
-
-// Conference teams that we track (for identifying opponent as NH team)
-const NH_COLLEGE_TEAMS = ['New Hampshire', 'UNH', 'Dartmouth'];
-
-/**
- * Parse ESPN schedule page HTML
- * @param {string} html - Raw HTML from ESPN
- * @param {object} team - Team configuration object
- * @param {string} gender - 'Boys' or 'Girls' (using Ball603 convention)
- * @returns {Array} Array of game objects
- */
-function parseESPNSchedule(html, team, gender) {
-  const games = [];
-  
-  // ESPN uses table rows with specific patterns
-  // Completed games: DATE | OPPONENT | RESULT | W-L | ...
-  // Upcoming games: DATE | OPPONENT | TIME | TV | ...
-  
-  // Pattern for table rows containing game data
-  // Looking for rows with dates like "Mon, Nov 3" or "Wed, Dec 17"
-  const rowPattern = /\|\s*((?:Mon|Tue|Wed|Thu|Fri|Sat|Sun),\s+(?:Nov|Dec|Jan|Feb|Mar)\s+\d{1,2})\s*\|\s*([^|]+)\|\s*([^|]+)/g;
-  
-  let match;
-  while ((match = rowPattern.exec(html)) !== null) {
-    const dateStr = match[1].trim();
-    const opponentCell = match[2].trim();
-    const resultOrTimeCell = match[3].trim();
-    
-    // Parse date - ESPN uses format like "Mon, Nov 3"
-    const parsedDate = parseESPNDate(dateStr);
-    if (!parsedDate) continue;
-    
-    // Determine home/away from opponent cell
-    // "@[Team]" = away, "vs[Team]" or "vs Team" = home
-    const isAway = opponentCell.startsWith('@') || opponentCell.includes('@[');
-    
-    // Extract opponent name - ESPN format often has: "@[Team](/link) [Team](/link)" or "vs[Team](/link) [Team](/link)"
-    // First, remove the @ or vs prefix
-    let opponent = opponentCell
-      .replace(/^@/, '')
-      .replace(/^vs/, '')
-      .trim();
-    
-    // Remove markdown-style links: [Text](/path)
-    // This captures the text inside brackets before the link
-    const bracketMatches = opponent.match(/\[([^\]]+)\]/g);
-    if (bracketMatches && bracketMatches.length > 0) {
-      // Take the first bracketed name (avoid duplicates)
-      opponent = bracketMatches[0].replace(/\[|\]/g, '').trim();
-    } else {
-      // No brackets - clean up any link syntax
-      opponent = opponent.replace(/\([^)]+\)/g, '').trim();
-      // Handle "TeamNameTeamName" duplicates
-      const halfLen = Math.floor(opponent.length / 2);
-      if (opponent.length > 6 && opponent.substring(0, halfLen) === opponent.substring(halfLen)) {
-        opponent = opponent.substring(0, halfLen);
-      }
-    }
-    
-    // If still empty or invalid, skip
-    if (!opponent || opponent.length < 2) continue;
-    
-    // Determine home/away teams
-    const homeTeam = isAway ? normalizeCollegeName(opponent) : team.shortname;
-    const awayTeam = isAway ? team.shortname : normalizeCollegeName(opponent);
-    
-    // Parse result or time
-    let time = '';
-    let homeScore = '';
-    let awayScore = '';
-    let status = 'scheduled';
-    
-    // Check if this is a completed game (has W or L result)
-    const resultMatch = resultOrTimeCell.match(/([WL])\[(\d+)-(\d+)(?:\s+OT)?\]/i);
-    if (resultMatch) {
-      const [, winLoss, score1, score2] = resultMatch;
-      status = 'final';
-      time = 'FINAL';
-      
-      // ESPN format: the first score is always the winning team's score
-      // W[88-82] = Team won 88-82 (team 88, opp 82)
-      // L[88-38] = Team lost 88-38 (opp 88, team 38)
-      const teamWon = winLoss.toUpperCase() === 'W';
-      let teamScore, oppScore;
-      
-      if (teamWon) {
-        // Team won: first score is team's, second is opponent's
-        teamScore = parseInt(score1);
-        oppScore = parseInt(score2);
-      } else {
-        // Team lost: first score is opponent's, second is team's  
-        teamScore = parseInt(score2);
-        oppScore = parseInt(score1);
-      }
-      
-      if (isAway) {
-        // Team played away: team is away, opponent is home
-        awayScore = teamScore.toString();
-        homeScore = oppScore.toString();
-      } else {
-        // Team played at home: team is home, opponent is away
-        homeScore = teamScore.toString();
-        awayScore = oppScore.toString();
-      }
-    } else {
-      // Upcoming game - extract time
-      const timeMatch = resultOrTimeCell.match(/(\d{1,2}:\d{2}\s*(?:AM|PM)?)/i);
-      if (timeMatch) {
-        time = timeMatch[1].toUpperCase();
-        // Normalize time format
-        if (!time.includes('AM') && !time.includes('PM')) {
-          // ESPN usually uses PM for evening games
-          const hour = parseInt(time.split(':')[0]);
-          time = hour < 10 || hour === 12 ? time + ' PM' : time + ' PM';
-        }
-      }
-    }
-    
-    // Generate game ID - format: college_{home}_{m|w}_{YYYYMMDD}_{away}
-    const genderCode = gender === 'Boys' ? 'm' : 'w';
-    const dateCode = parsedDate.replace(/-/g, '');
-    const homeCode = homeTeam.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 12);
-    const awayCode = awayTeam.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 12);
-    const gameId = `college_${homeCode}_${genderCode}_${dateCode}_${awayCode}`;
-    
-    games.push({
-      game_id: gameId,
-      date: parsedDate,
-      time: time,
-      away_team: awayTeam,
-      away_score: awayScore,
-      home_team: homeTeam,
-      home_score: homeScore,
-      gender: gender,
-      level: 'College',
-      division: 'D1',
-      status: status,
-      source: 'ESPN',
-      school: team.shortname
-    });
-  }
-  
-  return games;
-}
-
-/**
- * Parse ESPN date format to ISO date
- * @param {string} dateStr - Date like "Mon, Nov 3" or "Wed, Dec 17"
- * @returns {string|null} ISO date string or null if invalid
- */
-function parseESPNDate(dateStr) {
-  const months = {
-    'Jan': '01', 'Feb': '02', 'Mar': '03', 'Apr': '04',
-    'May': '05', 'Jun': '06', 'Jul': '07', 'Aug': '08',
-    'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12'
-  };
-  
-  // Match pattern: "Day, Mon DD"
-  const match = dateStr.match(/(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun),\s+(Nov|Dec|Jan|Feb|Mar|Apr)\s+(\d{1,2})/i);
-  if (!match) return null;
-  
-  const [, month, day] = match;
-  const monthNum = months[month];
-  if (!monthNum) return null;
-  
-  // Determine year - basketball season spans Nov-Mar
-  // If Nov/Dec, use current year; if Jan-Apr, use next year
-  const now = new Date();
-  let year = now.getFullYear();
-  
-  if (['Jan', 'Feb', 'Mar', 'Apr'].includes(month)) {
-    // Spring months - if we're currently in fall, this is next year
-    if (now.getMonth() >= 8) { // Sept or later
-      year = year + 1;
-    }
-  }
-  
-  const dayPadded = day.padStart(2, '0');
-  return `${year}-${monthNum}-${dayPadded}`;
-}
 
 /**
  * Normalize college names to short form
@@ -233,6 +54,7 @@ function normalizeCollegeName(name) {
     'Binghamton Bearcats': 'Binghamton',
     'UAlbany': 'UAlbany',
     'Albany': 'UAlbany',
+    'Albany Great Danes': 'UAlbany',
     'UAlbany Great Danes': 'UAlbany',
     'NJIT': 'NJIT',
     'NJIT Highlanders': 'NJIT',
@@ -242,86 +64,174 @@ function normalizeCollegeName(name) {
     'Stonehill Skyhawks': 'Stonehill',
     'Harvard': 'Harvard',
     'Harvard Crimson': 'Harvard',
-    'Yale': 'Yale',
-    'Yale Bulldogs': 'Yale',
     'Brown': 'Brown',
     'Brown Bears': 'Brown',
-    'Princeton': 'Princeton',
-    'Princeton Tigers': 'Princeton',
-    'Pennsylvania': 'Penn',
-    'Penn': 'Penn',
-    'Cornell': 'Cornell',
-    'Cornell Big Red': 'Cornell',
-    'Columbia': 'Columbia',
-    'Columbia Lions': 'Columbia',
-    'Clemson': 'Clemson',
-    'Clemson Tigers': 'Clemson',
+    'Yale': 'Yale',
+    'Yale Bulldogs': 'Yale',
     'Providence': 'Providence',
     'Providence Friars': 'Providence',
-    'George Mason': 'George Mason',
-    'George Mason Patriots': 'George Mason',
+    'Holy Cross': 'Holy Cross',
+    'Holy Cross Crusaders': 'Holy Cross',
+    'Boston College': 'Boston College',
+    'Boston College Eagles': 'Boston College',
+    'Northeastern': 'Northeastern',
+    'Northeastern Huskies': 'Northeastern',
+    'Syracuse': 'Syracuse',
+    'Syracuse Orange': 'Syracuse',
+    'UConn': 'UConn',
+    'Connecticut Huskies': 'UConn',
+    'Rhode Island': 'Rhode Island',
+    'Rhode Island Rams': 'Rhode Island',
+    'Merrimack': 'Merrimack',
+    'Merrimack Warriors': 'Merrimack',
+    'Central Connecticut': 'Central Conn',
+    'Central Connecticut State': 'Central Conn',
+    'Sacred Heart': 'Sacred Heart',
+    'Sacred Heart Pioneers': 'Sacred Heart',
     'Fairfield': 'Fairfield',
     'Fairfield Stags': 'Fairfield',
-    'Saint Louis': 'Saint Louis',
+    'Quinnipiac': 'Quinnipiac',
+    'Quinnipiac Bobcats': 'Quinnipiac',
+    'Saint Joseph\'s': 'Saint Joseph\'s',
+    'Le Moyne': 'Le Moyne',
+    'Le Moyne Dolphins': 'Le Moyne',
+    'Clemson': 'Clemson',
+    'Clemson Tigers': 'Clemson',
+    'George Mason': 'George Mason',
+    'George Mason Patriots': 'George Mason',
     'Nebraska': 'Nebraska',
     'Nebraska Cornhuskers': 'Nebraska',
-    'Curry College': 'Curry College',
-    'Emmanuel (MA)': 'Emmanuel',
-    'Emmanuel': 'Emmanuel',
-    'Merrimack': 'Merrimack',
-    'Holy Cross': 'Holy Cross',
-    'Boston College': 'Boston College',
-    'Colgate': 'Colgate',
-    'Green Bay': 'Green Bay',
-    'New England College': 'New England College',
-    'Army': 'Army',
-    'Louisville': 'Louisville',
-    'Central Connecticut': 'Central Connecticut',
-    'New Haven': 'New Haven',
-    'Marist': 'Marist',
-    'App State': 'App State',
-    'Appalachian State': 'App State',
-    'Maine-Augusta': 'Maine-Augusta',
-    "Saint Peter's": "Saint Peter's",
-    'Wyoming': 'Wyoming',
-    'Colorado State': 'Colorado State',
-    'Sacred Heart': 'Sacred Heart',
-    'Florida': 'Florida',
-    'Elms College': 'Elms College',
-    'Colby-Sawyer': 'Colby-Sawyer',
-    'Bucknell': 'Bucknell',
-    'Iona': 'Iona',
-    "St. Joseph's Brooklyn": "St. Joseph's Brooklyn",
-    'Worcester State': 'Worcester State'
+    'Saint Louis': 'Saint Louis',
+    'Saint Louis Billikens': 'Saint Louis',
+    'Curry College': 'Curry',
+    'Emmanuel (MA)': 'Emmanuel'
   };
   
-  // Try direct match
-  if (normalizations[name]) return normalizations[name];
-  
-  // Try case-insensitive match
-  const lowerName = name.toLowerCase();
-  for (const [key, value] of Object.entries(normalizations)) {
-    if (key.toLowerCase() === lowerName) return value;
+  // Try direct match first
+  if (normalizations[name]) {
+    return normalizations[name];
   }
   
-  // Return original if no match
+  // Try without " Wildcats", " Big Green", etc.
+  const cleaned = name.replace(/ (Wildcats|Big Green|Terriers|Catamounts|Black Bears|River Hawks|Retrievers|Bearcats|Great Danes|Highlanders|Bulldogs|Skyhawks|Crimson|Bears|Friars|Crusaders|Eagles|Huskies|Orange|Rams|Warriors|Pioneers|Stags|Bobcats|Dolphins|Tigers|Patriots|Cornhuskers|Billikens)$/i, '');
+  if (normalizations[cleaned]) {
+    return normalizations[cleaned];
+  }
+  
   return name;
 }
 
 /**
- * Fetch and parse schedule for a team
+ * Parse ESPN API JSON response into game objects
+ * @param {object} data - JSON response from ESPN API
+ * @param {object} team - Team configuration object
+ * @param {string} gender - 'Men' or 'Women'
+ * @returns {Array} Array of game objects
+ */
+function parseESPNAPIResponse(data, team, gender) {
+  const games = [];
+  
+  if (!data || !data.events) {
+    console.log(`    No events found in API response`);
+    return games;
+  }
+  
+  for (const event of data.events) {
+    try {
+      // Get competition details
+      const competition = event.competitions?.[0];
+      if (!competition) continue;
+      
+      // Get teams from competition
+      const competitors = competition.competitors || [];
+      if (competitors.length !== 2) continue;
+      
+      // Find home and away teams
+      const homeCompetitor = competitors.find(c => c.homeAway === 'home');
+      const awayCompetitor = competitors.find(c => c.homeAway === 'away');
+      
+      if (!homeCompetitor || !awayCompetitor) continue;
+      
+      const homeTeamName = homeCompetitor.team?.displayName || homeCompetitor.team?.name || '';
+      const awayTeamName = awayCompetitor.team?.displayName || awayCompetitor.team?.name || '';
+      
+      // Parse date - ESPN returns ISO format
+      const gameDate = event.date;
+      if (!gameDate) continue;
+      
+      const dateObj = new Date(gameDate);
+      const isoDate = dateObj.toISOString().split('T')[0]; // YYYY-MM-DD
+      
+      // Parse time
+      let time = '';
+      let homeScore = '';
+      let awayScore = '';
+      
+      const status = competition.status?.type?.name || '';
+      const isCompleted = status === 'STATUS_FINAL' || competition.status?.type?.completed;
+      
+      if (isCompleted) {
+        time = 'FINAL';
+        homeScore = homeCompetitor.score || '';
+        awayScore = awayCompetitor.score || '';
+      } else {
+        // Get scheduled time
+        const timeStr = dateObj.toLocaleTimeString('en-US', {
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true,
+          timeZone: 'America/New_York'
+        });
+        time = timeStr.replace(':00', '').toUpperCase();
+      }
+      
+      // Normalize team names
+      const homeTeam = normalizeCollegeName(homeTeamName);
+      const awayTeam = normalizeCollegeName(awayTeamName);
+      
+      // Generate game ID - format: college_{home}_{m|w}_{YYYYMMDD}_{away}
+      const genderCode = gender === 'Men' ? 'm' : 'w';
+      const dateCode = isoDate.replace(/-/g, '');
+      const homeCode = homeTeam.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 12);
+      const awayCode = awayTeam.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 12);
+      const gameId = `college_${homeCode}_${genderCode}_${dateCode}_${awayCode}`;
+      
+      games.push({
+        game_id: gameId,
+        date: isoDate,
+        time: time,
+        away_team: awayTeam,
+        away_score: awayScore,
+        home_team: homeTeam,
+        home_score: homeScore,
+        gender: gender,
+        level: 'College',
+        division: 'D1',
+        source: 'ESPN',
+        school: team.shortname
+      });
+      
+    } catch (err) {
+      console.log(`    Error parsing event: ${err.message}`);
+    }
+  }
+  
+  return games;
+}
+
+/**
+ * Fetch schedule for a team using ESPN JSON API
  */
 async function scrapeTeamSchedule(team, gender) {
-  const genderKey = gender === 'Boys' ? 'mens' : 'womens';
-  const url = ESPN_URLS[genderKey](team.id);
+  const apiUrl = gender === 'Men' ? ESPN_API.mensTeam(team.id) : ESPN_API.womensTeam(team.id);
   
-  console.log(`  Fetching ${team.shortname} ${gender}...`);
+  console.log(`  Fetching ${team.shortname} ${gender} via API...`);
   
   try {
-    const response = await fetch(url, {
+    const response = await fetch(apiUrl, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; Ball603/1.0)',
-        'Accept': 'text/html'
+        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (compatible; Ball603/1.0)'
       }
     });
     
@@ -329,8 +239,8 @@ async function scrapeTeamSchedule(team, gender) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
     
-    const html = await response.text();
-    const games = parseESPNSchedule(html, team, gender);
+    const data = await response.json();
+    const games = parseESPNAPIResponse(data, team, gender);
     
     console.log(`    Found ${games.length} games`);
     return games;
@@ -429,7 +339,7 @@ async function getExistingCollegeGames(accessToken, spreadsheetId) {
   const { values: rows = [] } = await response.json();
   if (rows.length === 0) return {};
   
-  // Columns match high school: game_id, date, time, away, away_score, home, home_score, gender, level, division, photog1, photog2, videog, writer, notes, original_date, schedule_changed, photos_url, recap_url, highlights_url, live_stream_url, gamedescription, specialevent
+  // Columns match high school format
   const existingGames = {};
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
@@ -582,7 +492,7 @@ async function updateGoogleSheets(games) {
  * Main handler - Netlify function entry point
  */
 export default async (request) => {
-  console.log('Ball603 College ESPN Scraper - Starting...');
+  console.log('Ball603 College ESPN Scraper (JSON API) - Starting...');
   console.log(`Timestamp: ${new Date().toISOString()}`);
   
   try {
@@ -590,13 +500,16 @@ export default async (request) => {
     
     // Scrape both teams, both genders
     for (const [teamKey, team] of Object.entries(ESPN_TEAMS)) {
-      // Men's basketball (Boys in Ball603 convention)
-      const mensGames = await scrapeTeamSchedule(team, 'Boys');
+      // Men's basketball
+      const mensGames = await scrapeTeamSchedule(team, 'Men');
       allGames.push(...mensGames);
       
-      // Women's basketball (Girls in Ball603 convention)
-      const womensGames = await scrapeTeamSchedule(team, 'Girls');
+      // Women's basketball
+      const womensGames = await scrapeTeamSchedule(team, 'Women');
       allGames.push(...womensGames);
+      
+      // Small delay between teams
+      await new Promise(r => setTimeout(r, 300));
     }
     
     console.log(`Total games scraped: ${allGames.length}`);
@@ -653,11 +566,10 @@ export const config = {
 
 // Export helper functions for testing
 export {
-  parseESPNSchedule,
-  parseESPNDate,
+  parseESPNAPIResponse,
   normalizeCollegeName,
   deduplicateGames,
   filterNHGames,
   ESPN_TEAMS,
-  ESPN_URLS
+  ESPN_API
 };

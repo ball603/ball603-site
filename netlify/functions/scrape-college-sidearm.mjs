@@ -181,7 +181,7 @@ function parseSIDEARMSchedule(html, school, gender) {
     }
     
     // Generate game ID
-    const genderCode = gender === 'Boys' ? 'm' : 'w';
+    const genderCode = (gender === 'Boys' || gender === 'Men') ? 'm' : 'w';
     const dateCode = parsedDate.replace(/-/g, '');
     const homeCode = homeTeam.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 12);
     const awayCode = awayTeam.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 12);
@@ -328,7 +328,7 @@ function normalizeOpponentName(name) {
  * Fetch and parse schedule for a school
  */
 async function scrapeSchoolSchedule(school, gender) {
-  const path = gender === 'Boys' ? school.mensPath : school.womensPath;
+  const path = (gender === 'Boys' || gender === 'Men') ? school.mensPath : school.womensPath;
   const url = `https://${school.site}${path}`;
   
   console.log(`  Fetching ${school.shortname} ${gender}...`);
@@ -682,11 +682,11 @@ export default async (request) => {
     // Scrape all schools
     for (const [name, school] of Object.entries(SIDEARM_SCHOOLS)) {
       // Men's basketball
-      const mensGames = await scrapeSchoolSchedule(school, 'Boys');
+      const mensGames = await scrapeSchoolSchedule(school, 'Men');
       allGames.push(...mensGames);
       
       // Women's basketball
-      const womensGames = await scrapeSchoolSchedule(school, 'Girls');
+      const womensGames = await scrapeSchoolSchedule(school, 'Women');
       allGames.push(...womensGames);
       
       // Small delay between schools to be nice
