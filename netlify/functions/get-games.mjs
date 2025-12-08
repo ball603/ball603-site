@@ -2,7 +2,7 @@
 // Returns schedule data from Supabase with team abbreviations for public display
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 export default async (request) => {
   const corsHeaders = {
@@ -44,7 +44,7 @@ export default async (request) => {
     // Filter by team
     if (params.team) {
       const team = encodeURIComponent(params.team);
-      queryParts.push(`or=(home_team.eq.${team},away_team.eq.${team})`);
+      queryParts.push(`or=(home.eq.${team},away.eq.${team})`);
     }
     
     // Order by date
@@ -94,11 +94,11 @@ export default async (request) => {
       game_id: game.game_id || '',
       date: game.date || '',
       time: game.time || '',
-      away: game.away_team || '',
-      away_abbrev: teamsMap[game.away_team] || (game.away_team || '').substring(0, 3).toUpperCase(),
+      away: game.away || '',
+      away_abbrev: teamsMap[game.away] || (game.away || '').substring(0, 3).toUpperCase(),
       away_score: game.away_score ?? '',
-      home: game.home_team || '',
-      home_abbrev: teamsMap[game.home_team] || (game.home_team || '').substring(0, 3).toUpperCase(),
+      home: game.home || '',
+      home_abbrev: teamsMap[game.home] || (game.home || '').substring(0, 3).toUpperCase(),
       home_score: game.home_score ?? '',
       gender: game.gender || '',
       level: game.level || '',
@@ -114,8 +114,8 @@ export default async (request) => {
       recap_url: game.recap_url || '',
       highlights_url: game.highlights_url || '',
       live_stream_url: game.live_stream_url || '',
-      gamedescription: game.game_description || '',
-      specialevent: game.special_event || ''
+      gamedescription: game.gamedescription || '',
+      specialevent: game.specialevent || ''
     }));
     
     return new Response(JSON.stringify({ games, teamsLoaded: Object.keys(teamsMap).length }), {

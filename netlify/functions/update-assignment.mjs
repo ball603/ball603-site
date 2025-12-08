@@ -1,126 +1,99 @@
-// Update game assignments (photog1, photog2, videog, writer, notes, schedule_changed)
-// Updated to use Supabase instead of Google Sheets
+// Ball603 Update Assignment API
+// Updates game assignments (photog1, photog2, videog, writer, notes) in Supabase
 
-// Allowed fields that can be updated
-const ALLOWED_FIELDS = [
-  'photog1',
-  'photog2', 
-  'videog',
-  'writer',
-  'notes',
-  'original_date',
-  'schedule_changed',
-  'photos_url',
-  'recap_url',
-  'highlights_url',
-  'live_stream_url',
-  'gamedescription',
-  'specialevent'
-];
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+// Valid fields that can be updated via this endpoint
+const VALID_FIELDS = ['photog1', 'photog2', 'videog', 'writer', 'notes', 'schedule_changed'];
 
 export default async (request) => {
-  // Handle CORS preflight
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type'
+  };
+  
   if (request.method === 'OPTIONS') {
-    return new Response(null, {
-      status: 204,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type'
-      }
-    });
+    return new Response(null, { status: 204, headers: corsHeaders });
   }
   
   if (request.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405 });
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), { 
+      status: 405,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
   }
   
   try {
     const { gameId, field, value } = await request.json();
     
     // Validate request
-    if (!gameId || !field) {
-      return new Response(JSON.stringify({ error: 'Invalid request - missing gameId or field' }), { 
+    if (!gameId) {
+      return new Response(JSON.stringify({ error: 'gameId is required' }), { 
         status: 400,
-        headers: { 'Content-Type': 'application/json' }
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
     
-    if (!ALLOWED_FIELDS.includes(field)) {
-      return new Response(JSON.stringify({ error: `Invalid field: ${field}` }), { 
+    if (!field || !VALID_FIELDS.includes(field)) {
+      return new Response(JSON.stringify({ error: `Invalid field. Must be one of: ${VALID_FIELDS.join(', ')}` }), { 
         status: 400,
-        headers: { 'Content-Type': 'application/json' }
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
     
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    
-    if (!supabaseUrl || !supabaseKey) {
-      return new Response(JSON.stringify({ error: 'Supabase not configured' }), { 
-        status: 500,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
-    
-    // Update the specific field for this game
+    // Build update data
     const updateData = {};
-    updateData[field] = value || '';
+    if (field === 'schedule_changed') {
+      updateData[field] = value === 'YES' || value === true;
+    } else {
+      updateData[field] = value || null;
+    }
     
+    // Update the game in Supabase by game_id
     const response = await fetch(
-      `${supabaseUrl}/rest/v1/games?game_id=eq.${encodeURIComponent(gameId)}`,
+      `${SUPABASE_URL}/rest/v1/games?game_id=eq.${encodeURIComponent(gameId)}`,
       {
         method: 'PATCH',
         headers: {
-          'apikey': supabaseKey,
-          'Authorization': `Bearer ${supabaseKey}`,
+          'apikey': SUPABASE_SERVICE_KEY,
+          'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
           'Content-Type': 'application/json',
-          'Prefer': 'return=minimal'
+          'Prefer': 'return=representation'
         },
         body: JSON.stringify(updateData)
       }
     );
     
     if (!response.ok) {
-      const error = await response.text();
-      console.error(`Supabase update failed: ${response.status} - ${error}`);
-      return new Response(JSON.stringify({ error: 'Database update failed' }), { 
+      const errorText = await response.text();
+      console.error('Supabase error:', errorText);
+      return new Response(JSON.stringify({ error: `Database error: ${response.status}` }), { 
         status: 500,
-        headers: { 'Content-Type': 'application/json' }
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
     
-    // Check if any rows were updated (Supabase returns empty on PATCH with return=minimal)
-    // We need to verify the game exists
-    const checkResponse = await fetch(
-      `${supabaseUrl}/rest/v1/games?game_id=eq.${encodeURIComponent(gameId)}&select=game_id`,
-      {
-        headers: {
-          'apikey': supabaseKey,
-          'Authorization': `Bearer ${supabaseKey}`
-        }
-      }
-    );
+    const result = await response.json();
     
-    const checkData = await checkResponse.json();
-    
-    if (!checkData || checkData.length === 0) {
+    if (!result || result.length === 0) {
       return new Response(JSON.stringify({ error: 'Game not found' }), { 
         status: 404,
-        headers: { 'Content-Type': 'application/json' }
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
     
-    return new Response(JSON.stringify({ success: true }), {
+    return new Response(JSON.stringify({ success: true, updated: result[0] }), {
       status: 200,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
     
   } catch (error) {
     console.error('Error updating assignment:', error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
 };
