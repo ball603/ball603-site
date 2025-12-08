@@ -202,7 +202,10 @@
     <div class="panel" id="articlesPanel">
       <div class="toolbar">
         <button class="btn-new" onclick="newGameStory()">
-          <span>+</span> Game Story
+          <span>+</span> Scorebook Story
+        </button>
+        <button class="btn-new" onclick="newBoxscoreStory()" style="background: #e3f2fd;">
+          <span>+</span> Boxscore Story
         </button>
         <button class="btn-new" onclick="newArticle()">
           <span>+</span> News Article
@@ -227,7 +230,7 @@
         
         <!-- Modal Header -->
         <div style="background: #444; color: white; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center;">
-          <h2 style="margin: 0; font-size: 15px; font-weight: 500;" id="gameStoryTitle">New Game Story</h2>
+          <h2 style="margin: 0; font-size: 15px; font-weight: 500;" id="gameStoryTitle">New Scorebook Story</h2>
           <button onclick="closeGameStory()" style="background: none; border: none; color: #ccc; font-size: 20px; cursor: pointer; line-height: 1;">&times;</button>
         </div>
         
@@ -239,12 +242,18 @@
             <div id="gsCurrentDate" style="font-size: 13px; font-weight: 600; min-width: 120px; text-align: center;"></div>
             <button onclick="gsNextDay()" style="background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 6px 10px; cursor: pointer; font-size: 14px;">▶</button>
             <input type="text" id="gsGameSearch" placeholder="Search..." oninput="filterGameList()" style="flex: 1; padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px;">
-            <div style="display: flex; gap: 10px; font-size: 12px; white-space: nowrap;">
+            <div style="display: flex; gap: 8px; font-size: 11px; white-space: nowrap; flex-wrap: wrap;">
               <label style="display: flex; align-items: center; gap: 3px; cursor: pointer;">
                 <input type="radio" name="gsGender" value="Boys" checked onchange="filterGameList()"> Boys
               </label>
               <label style="display: flex; align-items: center; gap: 3px; cursor: pointer;">
                 <input type="radio" name="gsGender" value="Girls" onchange="filterGameList()"> Girls
+              </label>
+              <label style="display: flex; align-items: center; gap: 3px; cursor: pointer;">
+                <input type="radio" name="gsGender" value="Men" onchange="filterGameList()"> Men
+              </label>
+              <label style="display: flex; align-items: center; gap: 3px; cursor: pointer;">
+                <input type="radio" name="gsGender" value="Women" onchange="filterGameList()"> Women
               </label>
             </div>
           </div>
@@ -353,6 +362,85 @@
           
           <!-- Generate Button -->
           <button onclick="generateGameStory()" id="gsGenerateBtn" style="width: 100%; background: #444; color: white; border: none; padding: 15px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;">
+            ✨ Generate Story
+          </button>
+        </div>
+        
+      </div>
+    </div>
+    
+    <!-- Boxscore Story Modal (for collegiate games with full stats) -->
+    <div id="boxscoreStoryModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 1000; overflow-y: auto;">
+      <div style="max-width: 600px; margin: 30px auto; background: #f5f5f5; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+        
+        <!-- Modal Header -->
+        <div style="background: #1565c0; color: white; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center;">
+          <h2 style="margin: 0; font-size: 15px; font-weight: 500;" id="boxscoreStoryTitle">New Boxscore Story</h2>
+          <button onclick="closeBoxscoreStory()" style="background: none; border: none; color: #ccc; font-size: 20px; cursor: pointer; line-height: 1;">&times;</button>
+        </div>
+        
+        <!-- Step 1: Select Game -->
+        <div id="bsStep1" style="padding: 16px;">
+          <!-- Date Nav + Search + Gender -->
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+            <button onclick="bsPrevDay()" style="background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 6px 10px; cursor: pointer; font-size: 14px;">◀</button>
+            <div id="bsCurrentDate" style="font-size: 13px; font-weight: 600; min-width: 120px; text-align: center;"></div>
+            <button onclick="bsNextDay()" style="background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 6px 10px; cursor: pointer; font-size: 14px;">▶</button>
+            <input type="text" id="bsGameSearch" placeholder="Search..." oninput="filterBsGameList()" style="flex: 1; padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px;">
+            <div style="display: flex; gap: 10px; font-size: 12px; white-space: nowrap;">
+              <label style="display: flex; align-items: center; gap: 3px; cursor: pointer;">
+                <input type="radio" name="bsGender" value="Boys" checked onchange="filterBsGameList()"> Boys
+              </label>
+              <label style="display: flex; align-items: center; gap: 3px; cursor: pointer;">
+                <input type="radio" name="bsGender" value="Girls" onchange="filterBsGameList()"> Girls
+              </label>
+            </div>
+          </div>
+          <div id="bsGameList" class="gs-game-list">
+            <!-- Games populated here -->
+          </div>
+        </div>
+        
+        <!-- Step 2: Paste Boxscore -->
+        <div id="bsStep2" style="display: none; padding: 16px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <button onclick="backToBsGameSelect()" style="background: #f5f5f5; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer;">← Back</button>
+            <h3 style="margin: 0; font-size: 16px; color: #333;" id="bsMatchupTitle">Game</h3>
+            <div style="width: 80px;"></div>
+          </div>
+          
+          <!-- Boxscore Paste Area -->
+          <div style="margin-bottom: 15px;">
+            <label style="font-size: 12px; font-weight: 600; color: #333; display: block; margin-bottom: 5px;">Paste Full Boxscore</label>
+            <textarea id="bsBoxscoreText" style="width: 100%; min-height: 200px; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 12px; font-family: monospace; resize: vertical;" placeholder="Paste the complete boxscore here including:
+- Team names and final score
+- Quarter/half scores
+- Individual player stats (MIN, FG, 3PT, FT, REB, AST, STL, BLK, TO, PTS)
+- Team totals
+
+Example:
+TEAM A 75, Team B 68
+
+Player        MIN  FG    3PT   FT    REB  AST  STL  BLK  TO  PTS
+J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
+..."></textarea>
+            <small style="color: #888; font-size: 11px;">Copy/paste from official box score. Include all available stats.</small>
+          </div>
+          
+          <!-- Game Notes -->
+          <div style="margin-bottom: 15px;">
+            <label style="font-size: 12px; font-weight: 600; color: #333; display: block; margin-bottom: 5px;">Game Notes (optional)</label>
+            <textarea id="bsNotes" style="width: 100%; min-height: 60px; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;" placeholder="Any storylines, key plays, milestones, context..."></textarea>
+          </div>
+          
+          <!-- Photographers -->
+          <div id="bsPhotographers" style="margin-bottom: 15px; padding: 10px 12px; background: #fff; border: 1px solid #ddd; border-radius: 6px; font-size: 12px; display: none;">
+            <span style="color: #666; font-weight: 500;">📷 Photo Credit:</span>
+            <div id="bsPhotogCheckboxes" style="margin-top: 8px;"></div>
+          </div>
+          
+          <!-- Generate Button -->
+          <button onclick="generateBoxscoreStory()" id="bsGenerateBtn" style="width: 100%; background: #1565c0; color: white; border: none; padding: 15px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;">
             ✨ Generate Story
           </button>
         </div>
@@ -606,7 +694,7 @@
     let currentArticle = null;
     let selectedGame = null;
     
-    // Generated social posts (populated by story generator)
+    // Generated social posts (populated by story generators)
     let generatedSocialPosts = {
       facebookPost: null,
       instagramPost: null,
@@ -981,19 +1069,6 @@
       return { away: awayRoster, home: homeRoster };
     }
     
-    // Get school info (mascot, town, colors) from ROSTERS_DATA.schools
-    function getSchoolInfo(schoolName) {
-      if (typeof ROSTERS_DATA === 'undefined' || !ROSTERS_DATA.schools) return null;
-      
-      // Try exact match first
-      for (const [fullName, info] of Object.entries(ROSTERS_DATA.schools)) {
-        if (info.shortname === schoolName || fullName === schoolName || fullName.includes(schoolName)) {
-          return info;
-        }
-      }
-      return null;
-    }
-    
     function populateGSRoster(team, roster, teamName) {
       const container = document.getElementById(`gs${team.charAt(0).toUpperCase() + team.slice(1)}Roster`);
       container.innerHTML = '';
@@ -1222,7 +1297,7 @@
               home: homeSchoolInfo
             },
             photographerName: photographerName || null,
-            galleryUrl: null // Will be set later via SmugMug browser
+            galleryUrl: null
           })
         });
         
@@ -1270,6 +1345,252 @@
       btn.textContent = '✨ Generate Story';
     }
 
+    // ==================== BOXSCORE STORY MODAL FUNCTIONS ====================
+    let bsSelectedGame = null;
+    let bsSelectedDate = new Date();
+    
+    function newBoxscoreStory() {
+      bsSelectedGame = null;
+      bsSelectedDate = new Date(); // Start with today
+      document.getElementById('boxscoreStoryModal').style.display = 'block';
+      document.getElementById('bsStep1').style.display = 'block';
+      document.getElementById('bsStep2').style.display = 'none';
+      document.getElementById('bsGameSearch').value = '';
+      updateBsDateDisplay();
+      populateBsGameList();
+      document.body.style.overflow = 'hidden';
+    }
+    
+    function closeBoxscoreStory() {
+      document.getElementById('boxscoreStoryModal').style.display = 'none';
+      document.body.style.overflow = 'auto';
+    }
+    
+    function updateBsDateDisplay() {
+      document.getElementById('bsCurrentDate').textContent = formatDateShort(bsSelectedDate);
+    }
+    
+    function bsPrevDay() {
+      bsSelectedDate.setDate(bsSelectedDate.getDate() - 1);
+      updateBsDateDisplay();
+      populateBsGameList();
+    }
+    
+    function bsNextDay() {
+      bsSelectedDate.setDate(bsSelectedDate.getDate() + 1);
+      updateBsDateDisplay();
+      populateBsGameList();
+    }
+    
+    function populateBsGameList() {
+      const container = document.getElementById('bsGameList');
+      
+      // Check if games have loaded
+      if (!games || games.length === 0) {
+        container.innerHTML = '<div style="padding: 20px; text-align: center; color: #888;">Loading games...</div>';
+        setTimeout(() => {
+          if (games && games.length > 0) populateBsGameList();
+        }, 500);
+        return;
+      }
+      
+      const searchFilter = document.getElementById('bsGameSearch').value.toLowerCase();
+      const selectedDateStr = getDateString(bsSelectedDate);
+      const selectedGender = document.querySelector('input[name="bsGender"]:checked')?.value || 'Men';
+      
+      // Filter by selected date, gender, and search
+      let filtered = games.filter(g => {
+        // Must match selected date
+        if (g.date !== selectedDateStr) return false;
+        // Must match selected gender
+        if (g.gender !== selectedGender) return false;
+        // Filter by search
+        if (searchFilter) {
+          const searchStr = `${g.away} ${g.home}`.toLowerCase();
+          if (!searchStr.includes(searchFilter)) return false;
+        }
+        return true;
+      });
+      
+      // Sort by time, then gender
+      filtered.sort((a, b) => {
+        if (a.time !== b.time) return (a.time || '').localeCompare(b.time || '');
+        return (a.gender || '').localeCompare(b.gender || '');
+      });
+      
+      if (filtered.length === 0) {
+        const genderLabel = selectedGender.toLowerCase();
+        const message = searchFilter 
+          ? `No ${genderLabel}'s games found for "${searchFilter}"` 
+          : `No ${genderLabel}'s games on this date`;
+        container.innerHTML = `<div style="padding: 30px; text-align: center; color: #888; font-size: 13px;">${message}</div>`;
+        return;
+      }
+      
+      // Build simple list
+      let html = '';
+      
+      filtered.forEach(g => {
+        const hasRecap = g.recap_link && g.recap_link.trim() !== '';
+        const rowStyle = hasRecap 
+          ? 'background: #f9f9f9; color: #bbb; cursor: not-allowed;' 
+          : 'cursor: pointer;';
+        const hoverClass = hasRecap ? '' : 'game-row-hover';
+        const onclick = hasRecap ? '' : `onclick="selectGameForBoxscore('${g.game_id}')"`;
+        
+        html += `
+          <div class="${hoverClass}" style="padding: 10px 12px; border-bottom: 1px solid #eee; ${rowStyle}" ${onclick}>
+            <span style="font-size: 13px;">${g.away} @ ${g.home}${hasRecap ? ' <span style="font-size: 10px; color: #aaa;">(done)</span>' : ''}</span>
+          </div>`;
+      });
+      
+      container.innerHTML = html;
+    }
+    
+    function filterBsGameList() {
+      populateBsGameList();
+    }
+    
+    function selectGameForBoxscore(gameId) {
+      bsSelectedGame = games.find(g => g.game_id === gameId);
+      if (!bsSelectedGame) return;
+      
+      // Move to step 2
+      document.getElementById('bsStep1').style.display = 'none';
+      document.getElementById('bsStep2').style.display = 'block';
+      
+      // Set matchup title
+      document.getElementById('bsMatchupTitle').textContent = `${bsSelectedGame.away} @ ${bsSelectedGame.home}`;
+      
+      // Clear boxscore and notes
+      document.getElementById('bsBoxscoreText').value = '';
+      document.getElementById('bsNotes').value = '';
+      
+      // Show photographers if assigned
+      const photogs = [bsSelectedGame.photog1, bsSelectedGame.photog2].filter(p => p && p.trim());
+      const photogDiv = document.getElementById('bsPhotographers');
+      const checkboxContainer = document.getElementById('bsPhotogCheckboxes');
+      if (photogs.length > 0) {
+        checkboxContainer.innerHTML = photogs.map((p, i) => `
+          <label style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px; cursor: pointer;">
+            <input type="checkbox" name="bsPhotog" value="${p}" checked style="cursor: pointer;">
+            <span>${p}</span>
+          </label>
+        `).join('');
+        photogDiv.style.display = 'block';
+      } else {
+        photogDiv.style.display = 'none';
+      }
+    }
+    
+    function backToBsGameSelect() {
+      document.getElementById('bsStep1').style.display = 'block';
+      document.getElementById('bsStep2').style.display = 'none';
+    }
+    
+    async function generateBoxscoreStory() {
+      const boxscoreText = document.getElementById('bsBoxscoreText').value.trim();
+      
+      if (!boxscoreText) {
+        showToast('Please paste the boxscore data first', 'error');
+        return;
+      }
+      
+      const btn = document.getElementById('bsGenerateBtn');
+      btn.disabled = true;
+      btn.textContent = '⏳ Writing story...';
+      
+      // Get selected photographer(s)
+      const selectedPhotogs = [];
+      document.querySelectorAll('input[name="bsPhotog"]:checked').forEach(cb => {
+        selectedPhotogs.push(cb.value);
+      });
+      const photographerName = selectedPhotogs.join(' & ');
+      
+      // Get school info
+      const awaySchoolInfo = getSchoolInfo(bsSelectedGame.away);
+      const homeSchoolInfo = getSchoolInfo(bsSelectedGame.home);
+      
+      try {
+        const response = await fetch('/.netlify/functions/generate-article', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mode: 'boxscore',
+            boxscoreText: boxscoreText,
+            gameInfo: {
+              awayTeam: bsSelectedGame.away,
+              homeTeam: bsSelectedGame.home,
+              gender: bsSelectedGame.gender || 'Men',
+              division: bsSelectedGame.division || '',
+              date: bsSelectedGame.date || ''
+            },
+            notes: document.getElementById('bsNotes').value.trim(),
+            schoolData: {
+              away: awaySchoolInfo,
+              home: homeSchoolInfo
+            },
+            photographerName: photographerName || null
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          // Close modal and open editor with generated content
+          closeBoxscoreStory();
+          
+          // Store generated social posts for later use
+          generatedSocialPosts = {
+            facebookPost: data.facebookPost || null,
+            instagramPost: data.instagramPost || null,
+            twitterPost: data.twitterPost || null
+          };
+          
+          // Set up article editor
+          currentArticle = null;
+          document.getElementById('editorTitle').textContent = 'New Article';
+          document.getElementById('articleTitle').value = data.headline || '';
+          document.getElementById('articleContent').value = data.article || '';
+          document.getElementById('articleExcerpt').value = data.excerpt || '';
+          document.getElementById('selectedGameId').value = bsSelectedGame.game_id;
+          selectedGame = bsSelectedGame;
+          
+          // Set photographer credit if we had one
+          if (photographerName) {
+            document.getElementById('photographerCredit').value = photographerName;
+          }
+          
+          document.getElementById('articlesPanel').style.display = 'none';
+          document.getElementById('editorPanel').style.display = 'block';
+          
+          renderGameSelector();
+          showToast('Story generated! Review and edit as needed.', 'success');
+        } else {
+          showToast(data.error || 'Failed to generate story', 'error');
+        }
+      } catch (err) {
+        console.error('Generation error:', err);
+        showToast('Failed to generate story', 'error');
+      }
+      
+      btn.disabled = false;
+      btn.textContent = '✨ Generate Story';
+    }
+    
+    // Helper function to get school info from ROSTERS_DATA
+    function getSchoolInfo(schoolName) {
+      if (typeof ROSTERS_DATA === 'undefined' || !ROSTERS_DATA.schools) return null;
+      
+      // Try exact match first
+      for (const [fullName, info] of Object.entries(ROSTERS_DATA.schools)) {
+        if (info.shortname === schoolName || fullName === schoolName || fullName.includes(schoolName)) {
+          return info;
+        }
+      }
+      return null;
+    }
+
     // Article CRUD
     function newArticle() {
       currentArticle = null;
@@ -1283,7 +1604,7 @@
       document.getElementById('photographerCredit').value = '';
       selectedGame = null;
       
-      // Clear generated social posts (this is a non-game article)
+      // Clear generated social posts (this is a manual article)
       generatedSocialPosts = {
         facebookPost: null,
         instagramPost: null,
@@ -1888,7 +2209,7 @@
       
       let postText = '';
       
-      // Use pre-generated content if available (from story generator)
+      // Use pre-generated content if available (from story generators)
       if (platform === 'facebook' && generatedSocialPosts.facebookPost) {
         postText = generatedSocialPosts.facebookPost;
         // Update with current gallery URL if changed
