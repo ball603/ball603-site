@@ -517,7 +517,7 @@ async function updateSupabase(games) {
     const batch = gamesToUpsert.slice(i, i + BATCH_SIZE);
     
     const upsertResponse = await fetch(
-      `${supabaseUrl}/rest/v1/games`,
+      `${supabaseUrl}/rest/v1/games?on_conflict=game_id`,
       {
         method: 'POST',
         headers: {
