@@ -339,7 +339,7 @@ async function getExistingCollegeGames(accessToken, spreadsheetId) {
   const { values: rows = [] } = await response.json();
   if (rows.length === 0) return {};
   
-  // Columns match high school format
+  // Read ALL columns so we can preserve SIDEARM games
   const existingGames = {};
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
@@ -348,8 +348,13 @@ async function getExistingCollegeGames(accessToken, spreadsheetId) {
       existingGames[gameId] = {
         date: row[1] || '',
         time: row[2] || '',
+        away: row[3] || '',
         away_score: row[4] || '',
+        home: row[5] || '',
         home_score: row[6] || '',
+        gender: row[7] || '',
+        level: row[8] || '',
+        division: row[9] || '',
         photog1: row[10] || '',
         photog2: row[11] || '',
         videog: row[12] || '',
@@ -394,7 +399,7 @@ async function updateGoogleSheets(games) {
   
   const { access_token } = await tokenResponse.json();
   
-  // Get existing data
+  // Get ALL existing games (including D2/D3 from SIDEARM scraper)
   const existingGames = await getExistingCollegeGames(access_token, spreadsheetId);
   console.log(`  Found ${Object.keys(existingGames).length} existing college games`);
   
@@ -407,67 +412,133 @@ async function updateGoogleSheets(games) {
   ];
   
   let changesDetected = 0;
+  let updated = 0;
+  let added = 0;
+  let preserved = 0;
   
-  // Build rows, preserving assignments
-  const rows = games.map(g => {
-    const existing = existingGames[g.game_id] || {};
+  // Build map of scraped games by ID
+  const scrapedMap = new Map();
+  for (const game of games) {
+    scrapedMap.set(game.game_id, game);
+  }
+  
+  // Merge: update existing, add new, preserve untouched (D2/D3 games, manual entries)
+  const finalGames = new Map();
+  
+  // First, process all existing games
+  for (const [gameId, existing] of Object.entries(existingGames)) {
+    const scraped = scrapedMap.get(gameId);
     
-    const hasAssignment = existing.photog1 || existing.photog2 || existing.videog || existing.writer;
-    
-    let originalDate = existing.original_date || '';
-    let scheduleChanged = existing.schedule_changed || '';
-    
-    if (hasAssignment && existing.date && existing.date !== g.date) {
-      originalDate = existing.original_date || existing.date;
-      scheduleChanged = 'YES';
-      changesDetected++;
-      console.log(`  ⚠️ Schedule change: ${g.home_team} vs ${g.away_team} moved from ${existing.date} to ${g.date}`);
+    if (scraped) {
+      // Game exists in both - update with scraped data but PRESERVE assignments
+      const hasAssignment = existing.photog1 || existing.photog2 || existing.videog || existing.writer;
+      
+      let originalDate = existing.original_date || '';
+      let scheduleChanged = existing.schedule_changed || '';
+      
+      if (hasAssignment && existing.date && existing.date !== scraped.date) {
+        originalDate = existing.original_date || existing.date;
+        scheduleChanged = 'YES';
+        changesDetected++;
+        console.log(`  ⚠️ Schedule change: ${scraped.home_team} vs ${scraped.away_team} moved from ${existing.date} to ${scraped.date}`);
+      }
+      
+      if (hasAssignment && !originalDate) {
+        originalDate = scraped.date;
+      }
+      
+      const awayScore = scraped.away_score || existing.away_score || '';
+      const homeScore = scraped.home_score || existing.home_score || '';
+      const time = (awayScore && homeScore && scraped.time !== 'FINAL') ? 'FINAL' : scraped.time;
+      
+      finalGames.set(gameId, [
+        gameId,
+        scraped.date,
+        time,
+        scraped.away_team,
+        awayScore,
+        scraped.home_team,
+        homeScore,
+        scraped.gender,
+        scraped.level,
+        scraped.division,
+        existing.photog1 || '',
+        existing.photog2 || '',
+        existing.videog || '',
+        existing.writer || '',
+        existing.notes || '',
+        originalDate,
+        scheduleChanged,
+        existing.photos_url || '',
+        existing.recap_url || '',
+        existing.highlights_url || '',
+        existing.live_stream_url || '',
+        existing.gamedescription || '',
+        existing.specialevent || ''
+      ]);
+      updated++;
+    } else {
+      // Game only in existing - PRESERVE it (D2/D3 games, manual entries)
+      finalGames.set(gameId, [
+        gameId,
+        existing.date,
+        existing.time,
+        existing.away,
+        existing.away_score,
+        existing.home,
+        existing.home_score,
+        existing.gender,
+        existing.level,
+        existing.division,
+        existing.photog1 || '',
+        existing.photog2 || '',
+        existing.videog || '',
+        existing.writer || '',
+        existing.notes || '',
+        existing.original_date || '',
+        existing.schedule_changed || '',
+        existing.photos_url || '',
+        existing.recap_url || '',
+        existing.highlights_url || '',
+        existing.live_stream_url || '',
+        existing.gamedescription || '',
+        existing.specialevent || ''
+      ]);
+      preserved++;
     }
-    
-    if (hasAssignment && !originalDate) {
-      originalDate = g.date;
+  }
+  
+  // Add new games from scrape that weren't in existing
+  for (const [gameId, game] of scrapedMap) {
+    if (!finalGames.has(gameId)) {
+      finalGames.set(gameId, [
+        gameId,
+        game.date,
+        game.time,
+        game.away_team,
+        game.away_score || '',
+        game.home_team,
+        game.home_score || '',
+        game.gender,
+        game.level,
+        game.division,
+        '', '', '', '', '', '', '', '', '', '', '', '', ''
+      ]);
+      added++;
     }
-    
-    // Use scraped scores or preserve existing
-    const awayScore = g.away_score || existing.away_score || '';
-    const homeScore = g.home_score || existing.home_score || '';
-    const time = (awayScore && homeScore && g.time !== 'FINAL') ? 'FINAL' : g.time;
-    
-    return [
-      g.game_id,
-      g.date,
-      time,
-      g.away_team,
-      awayScore,
-      g.home_team,
-      homeScore,
-      g.gender,
-      g.level,
-      g.division,
-      existing.photog1 || '',
-      existing.photog2 || '',
-      existing.videog || '',
-      existing.writer || '',
-      existing.notes || '',
-      originalDate,
-      scheduleChanged,
-      existing.photos_url || '',
-      existing.recap_url || '',
-      existing.highlights_url || '',
-      existing.live_stream_url || '',
-      existing.gamedescription || '',
-      existing.specialevent || ''
-    ];
-  });
+  }
+  
+  console.log(`  Stats: ${updated} updated, ${added} added, ${preserved} preserved from other sources`);
   
   if (changesDetected > 0) {
     console.log(`  ⚠️ Total schedule changes detected: ${changesDetected}`);
   }
   
-  // Sort by date, then time
+  // Convert to rows array and sort by date, then time
+  const rows = Array.from(finalGames.values());
   rows.sort((a, b) => {
     if (a[1] !== b[1]) return a[1].localeCompare(b[1]);
-    return a[2].localeCompare(b[2]);
+    return (a[2] || '').localeCompare(b[2] || '');
   });
   
   // Clear and update sheet
@@ -485,7 +556,7 @@ async function updateGoogleSheets(games) {
     body: JSON.stringify({ values: [header, ...rows] })
   });
   
-  return { rowCount: rows.length, changesDetected, sheetsUpdated: true };
+  return { rowCount: rows.length, changesDetected, sheetsUpdated: true, updated, added, preserved };
 }
 
 /**
