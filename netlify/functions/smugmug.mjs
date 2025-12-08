@@ -123,12 +123,49 @@ export const handler = async (event) => {
       };
     }
     
-    if (action === 'albums') {
-      // Query albums from the root folder
-      let endpoint = '/api/v2/folder/user/ball603!albums?count=100&_expand=HighlightImage&SortDirection=Descending&SortMethod=DateModified';
-      const result = await smugmugRequest(endpoint);
+    if (action === 'debug') {
+      // Try to get recent images to confirm API access works
+      const recentEndpoint = '/api/v2/user/ball603!recentimages?count=5';
+      const recentResult = await smugmugRequest(recentEndpoint);
       
-      const albums = result?.Response?.Album || [];
+      // Try to get folder contents
+      const folderEndpoint = '/api/v2/folder/user/ball603';
+      const folderResult = await smugmugRequest(folderEndpoint);
+      
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+          success: true,
+          recentImages: {
+            endpoint: recentEndpoint,
+            count: recentResult?.Response?.Image?.length || 0,
+            responseKeys: recentResult?.Response ? Object.keys(recentResult.Response) : null
+          },
+          folder: {
+            endpoint: folderEndpoint,
+            name: folderResult?.Response?.Folder?.Name,
+            responseKeys: folderResult?.Response ? Object.keys(folderResult.Response) : null,
+            uris: folderResult?.Response?.Folder?.Uris ? Object.keys(folderResult?.Response?.Folder?.Uris) : null
+          }
+        })
+      };
+    }
+    
+    if (action === 'albums') {
+      // Try searching for recent albums via the user's album list
+      let endpoint = '/api/v2/user/ball603!albums?count=100&_expand=HighlightImage&SortDirection=Descending&SortMethod=LastUpdated&Scope=ball603';
+      let result = await smugmugRequest(endpoint);
+      
+      let albums = result?.Response?.Album || [];
+      
+      // If that didn't work, try the search endpoint
+      if (albums.length === 0) {
+        endpoint = '/api/v2/album!search?count=100&Scope=ball603&SortDirection=Descending&SortMethod=LastUpdated&_expand=HighlightImage';
+        result = await smugmugRequest(endpoint);
+        albums = result?.Response?.Album || [];
+      }
+      
       return {
         statusCode: 200,
         headers,
@@ -144,7 +181,8 @@ export const handler = async (event) => {
           })),
           debug: {
             totalReturned: albums.length,
-            endpoint: endpoint
+            endpoint: endpoint,
+            rawResponse: result?.Response ? Object.keys(result.Response) : null
           }
         })
       };
