@@ -420,13 +420,13 @@ async function getExistingCollegeGames(supabaseUrl, supabaseKey) {
  */
 async function updateSupabase(games) {
   // Check if we have credentials
-  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
     console.log('  Supabase credentials not configured - returning games only');
     return { rowCount: games.length, changesDetected: 0, dbUpdated: false };
   }
   
   const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
   
   // Get ALL existing college games (including D2/D3 from SIDEARM scraper)
   const existingGames = await getExistingCollegeGames(supabaseUrl, supabaseKey);

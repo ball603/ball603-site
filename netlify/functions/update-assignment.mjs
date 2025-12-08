@@ -2,7 +2,7 @@
 // Updates game assignments (photog1, photog2, videog, writer, notes) in Supabase
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
 // Valid fields that can be updated via this endpoint
 const VALID_FIELDS = ['photog1', 'photog2', 'videog', 'writer', 'notes', 'schedule_changed'];

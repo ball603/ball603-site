@@ -681,13 +681,13 @@ async function getExistingGames(supabaseUrl, supabaseKey) {
  * MERGES with existing data - preserves assignments and games not in scrape
  */
 async function updateSupabase(scrapedGames) {
-  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
     console.log('  Supabase credentials not configured');
     return { updated: 0, added: 0, preserved: 0 };
   }
   
   const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
   
   // Get ALL existing college games (including D1 from ESPN scraper)
   const existingGames = await getExistingGames(supabaseUrl, supabaseKey);
