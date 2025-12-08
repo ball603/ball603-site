@@ -114,8 +114,8 @@ export default async (request) => {
       recap_url: game.recap_url || '',
       highlights_url: game.highlights_url || '',
       live_stream_url: game.live_stream_url || '',
-      gamedescription: game.gamedescription || '',
-      specialevent: game.specialevent || ''
+      gamedescription: game.game_description || '',
+      specialevent: game.special_event || ''
     }));
     
     return new Response(JSON.stringify({ games, teamsLoaded: Object.keys(teamsMap).length }), {

@@ -406,8 +406,8 @@ async function getExistingCollegeGames(supabaseUrl, supabaseKey) {
         recap_url: row.recap_url || '',
         highlights_url: row.highlights_url || '',
         live_stream_url: row.live_stream_url || '',
-        gamedescription: row.gamedescription || '',
-        specialevent: row.specialevent || ''
+        game_description: row.game_description || '',
+        special_event: row.special_event || ''
       };
     }
   }
@@ -494,8 +494,8 @@ async function updateSupabase(games) {
         recap_url: existing.recap_url || '',
         highlights_url: existing.highlights_url || '',
         live_stream_url: existing.live_stream_url || '',
-        gamedescription: existing.gamedescription || '',
-        specialevent: existing.specialevent || ''
+        game_description: existing.game_description || '',
+        special_event: existing.special_event || ''
       });
       updated++;
     }
@@ -528,8 +528,8 @@ async function updateSupabase(games) {
         recap_url: '',
         highlights_url: '',
         live_stream_url: '',
-        gamedescription: '',
-        specialevent: ''
+        game_description: '',
+        special_event: ''
       });
       added++;
     }
