@@ -1,7 +1,142 @@
 // AI Article Generation using Claude API
-// Supports two modes: 'extract' (read scorebook) and 'write' (generate article)
+// Generates 4 versions: Full Article (AP Style), Facebook, Instagram, Twitter
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+
+// Mascot to Emoji mapping - will be expanded as you provide more
+const MASCOT_EMOJIS = {
+  'Tigers': '🐅',
+  'Bears': '🐻',
+  'Bulldogs': '🐶',
+  'Eagles': '🦅',
+  'Hawks': '🦅',
+  'Falcons': '🦅',
+  'Panthers': '🐆',
+  'Cougars': '🐆',
+  'Lions': '🦁',
+  'Wolves': '🐺',
+  'Cardinals': '🐦',
+  'Blue Jays': '🐦',
+  'Wildcats': '🐱',
+  'Bobcats': '🐱',
+  'Rams': '🐏',
+  'Broncos': '🐴',
+  'Mustangs': '🐴',
+  'Colts': '🐴',
+  'Knights': '⚔️',
+  'Crusaders': '⚔️',
+  'Warriors': '⚔️',
+  'Spartans': '⚔️',
+  'Giants': '🏔️',
+  'Mountaineers': '⛰️',
+  'Huskies': '🐕',
+  'Timberwolves': '🐺',
+  'Red Raiders': '🔴',
+  'Raiders': '🏴‍☠️',
+  'Pirates': '🏴‍☠️',
+  'Sailors': '⛵',
+  'Clippers': '⛵',
+  'Yellow Jackets': '🐝',
+  'Hornets': '🐝',
+  'Astros': '⭐',
+  'Stars': '⭐',
+  'Comets': '☄️',
+  'Thunder': '⚡',
+  'Storm': '🌩️',
+  'Tomahawks': '🪓',
+  'Mohawks': '🪶',
+  'Sachems': '🪶',
+  'Timber Wolves': '🐺',
+  'Owls': '🦉',
+  'Skyhawks': '🦅',
+  'Blue Devils': '😈',
+  'Devils': '😈',
+  'Demons': '😈'
+};
+
+// School abbreviations for Twitter
+const SCHOOL_ABBREVIATIONS = {
+  'Farmington': 'FHS',
+  'Epping': 'EHS',
+  'Portsmouth': 'PHS',
+  'Dover': 'DHS',
+  'Exeter': 'EHS',
+  'Londonderry': 'LHS',
+  'Manchester Central': 'MCH',
+  'Manchester Memorial': 'MMH',
+  'Manchester West': 'MWH',
+  'Nashua North': 'NNH',
+  'Nashua South': 'NSH',
+  'Concord': 'CHS',
+  'Keene': 'KHS',
+  'Bedford': 'BHS',
+  'Merrimack': 'MHS',
+  'Windham': 'WHS',
+  'Salem': 'SHS',
+  'Pinkerton': 'PA',
+  'Timberlane': 'THS',
+  'Spaulding': 'SHS',
+  'Bishop Guertin': 'BG',
+  'Bishop Brady': 'BB',
+  'Derryfield': 'DER',
+  'Trinity': 'THS',
+  'St. Thomas': 'STA',
+  'Alvirne': 'AHS',
+  'Hollis-Brookline': 'HB',
+  'Souhegan': 'SOU',
+  'Milford': 'MHS',
+  'Coe-Brown': 'CBNA',
+  'Prospect Mountain': 'PM',
+  'Gilford': 'GHS',
+  'Laconia': 'LHS',
+  'Winnisquam': 'WHS',
+  'Belmont': 'BHS',
+  'Inter-Lakes': 'IL',
+  'Berlin': 'BHS',
+  'White Mountains': 'WM',
+  'Profile': 'PHS',
+  'Littleton': 'LHS',
+  'Lisbon': 'LHS',
+  'Pittsburg': 'PHS',
+  'Colebrook': 'CHS',
+  'Gorham': 'GHS',
+  'Lin-Wood': 'LW',
+  'Groveton': 'GHS',
+  'Woodsville': 'WHS',
+  'Raymond': 'RHS',
+  'Sanborn': 'SHS',
+  'Campbell': 'CHS',
+  'Bow': 'BHS',
+  'Hopkinton': 'HHS',
+  'John Stark': 'JS',
+  'Hillsboro-Deering': 'HD',
+  'Conant': 'CHS',
+  'Conval': 'CON',
+  'Monadnock': 'MHS',
+  'Fall Mountain': 'FM',
+  'Stevens': 'SHS',
+  'Newport': 'NHS',
+  'Sunapee': 'SUH',
+  'Mascoma': 'MAS',
+  'Lebanon': 'LHS',
+  'Hanover': 'HHS',
+  'Plymouth': 'PHS',
+  'Kennett': 'KHS',
+  'Moultonborough': 'MHS',
+  'Kingswood': 'KHS',
+  'Newfound': 'NRH',
+  'Franklin': 'FHS',
+  'Winnacunnet': 'WHS',
+  'Oyster River': 'OR',
+  'Somersworth': 'SHS',
+  'St. Thomas Aquinas': 'STA',
+  'Newmarket': 'NHS',
+  'Nute': 'NHS',
+  'Pittsfield': 'PHS',
+  'Mascenic': 'MAS',
+  'Hinsdale': 'HHS',
+  'Wilton-Lyndeborough': 'WL'
+};
 
 export const handler = async (event) => {
   const headers = {
@@ -182,9 +317,9 @@ ONLY include players who scored (TP > 0). Points must be NUMBERS not strings.`;
   };
 }
 
-// Mode 2: Write article from confirmed proof data
+// Mode 2: Write all 4 article versions from confirmed proof data
 async function handleWrite(body, headers) {
-  const { proofData, awayRoster, homeRoster } = body;
+  const { proofData, awayRoster, homeRoster, schoolData, photographerName, galleryUrl } = body;
   
   if (!proofData) {
     return { statusCode: 400, headers, body: JSON.stringify({ error: 'Proof data required' }) };
@@ -222,13 +357,27 @@ async function handleWrite(body, headers) {
     };
   });
   
-  // Determine winner
+  // Determine winner/loser
   const awayScore = parseInt(proofData.awayFinal) || 0;
   const homeScore = parseInt(proofData.homeFinal) || 0;
-  const winner = awayScore > homeScore ? proofData.awayTeam : proofData.homeTeam;
-  const loser = awayScore > homeScore ? proofData.homeTeam : proofData.awayTeam;
+  const awayWon = awayScore > homeScore;
+  const winner = awayWon ? proofData.awayTeam : proofData.homeTeam;
+  const loser = awayWon ? proofData.homeTeam : proofData.awayTeam;
   const winnerScore = Math.max(awayScore, homeScore);
   const loserScore = Math.min(awayScore, homeScore);
+  
+  // Get school info for winner and loser
+  const awaySchoolInfo = schoolData?.away || {};
+  const homeSchoolInfo = schoolData?.home || {};
+  const winnerSchoolInfo = awayWon ? awaySchoolInfo : homeSchoolInfo;
+  const loserSchoolInfo = awayWon ? homeSchoolInfo : awaySchoolInfo;
+  
+  // Get mascots
+  const winnerMascot = winnerSchoolInfo.mascot || '';
+  const loserMascot = loserSchoolInfo.mascot || '';
+  
+  // Get town for dateline (home team's town)
+  const gameTown = homeSchoolInfo.town || proofData.homeTeam;
   
   // Format scorer line with 3PT if present
   function formatScorer(s) {
@@ -255,11 +404,37 @@ async function handleWrite(body, headers) {
   
   const hasOT = proofData.hasOT || proofData.awayQuarters.length > 4;
   
-  // Build the prompt
-  const prompt = `You are a sports writer for Ball603.com, covering New Hampshire high school basketball. Write an engaging game recap.
+  // Format date for article
+  function formatGameDate(dateStr) {
+    if (!dateStr) return 'Friday night';
+    try {
+      const date = new Date(dateStr);
+      const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      return days[date.getDay()] + ' night';
+    } catch {
+      return 'Friday night';
+    }
+  }
+  
+  const gameDay = formatGameDate(proofData.date);
+  
+  // Get double-digit scorers
+  const winnerScorers = awayWon ? awayScorersEnhanced : homeScorersEnhanced;
+  const loserScorers = awayWon ? homeScorersEnhanced : awayScorersEnhanced;
+  const doubleDigitWinner = winnerScorers.filter(s => s.points >= 10);
+  const doubleDigitLoser = loserScorers.filter(s => s.points >= 10);
+  
+  // Check for 25+ point scorer for lede
+  const allScorers = [...awayScorersEnhanced, ...homeScorersEnhanced];
+  const highScorer = allScorers.reduce((max, s) => s.points > max.points ? s : max, { points: 0 });
+  const has25PlusScorer = highScorer.points >= 25;
+  
+  // Build the prompt for full article
+  const prompt = `You are a veteran sports journalist writing for Ball603.com, covering New Hampshire high school basketball. Write an AP-style game recap following these EXACT guidelines:
 
 GAME RESULT: ${winner} ${winnerScore}, ${loser} ${loserScore}${hasOT ? ' (OT)' : ''}
-DATE: ${proofData.date || 'Today'}
+LOCATION: ${gameTown}, N.H.
+DATE: ${gameDay}
 GENDER: ${proofData.gender || 'Varsity'}
 DIVISION: ${proofData.division || ''}
 
@@ -267,24 +442,45 @@ SCORING BY PERIOD:
 ${proofData.awayTeam}: ${formatQuarters(proofData.awayQuarters)} = ${proofData.awayFinal}
 ${proofData.homeTeam}: ${formatQuarters(proofData.homeQuarters)} = ${proofData.homeFinal}
 
-${proofData.awayTeam} SCORERS:
+${proofData.awayTeam} (${awaySchoolInfo.mascot || 'Team'}) SCORERS:
 ${awayScorersEnhanced.map(formatScorer).join('\n')}
 
-${proofData.homeTeam} SCORERS:
+${proofData.homeTeam} (${homeSchoolInfo.mascot || 'Team'}) SCORERS:
 ${homeScorersEnhanced.map(formatScorer).join('\n')}
 
 ${proofData.notes ? `NOTES: ${proofData.notes}` : ''}
 
-STYLE GUIDELINES:
-- Write in an energetic, engaging sports journalism style
-- Lead with the most exciting aspect (comeback, star performance, dominant win, overtime thriller, etc.)
-- Mention class year (junior, senior, etc.) when referencing key players
-- If a player had notable three-point shooting (3+ threes), mention it in the article
-- Keep paragraphs short and punchy  
-- Include period-by-period narrative if scores show an interesting flow
-- If game went to overtime, emphasize the drama and clutch plays
-- Total length: 300-450 words
-- Do NOT include a headline - just the article body
+MANDATORY STYLE GUIDELINES - FOLLOW EXACTLY:
+
+1. DATELINE: Start with "${gameTown.toUpperCase()}, N.H. – " and then begin the story
+
+2. FIRST PARAGRAPH (LEDE): Must include:
+   - Who: Both school names
+   - What: The outcome (who defeated whom)
+   - Where: The location
+   - When: ${gameDay}
+   ${has25PlusScorer ? `- Include ${highScorer.name} with ${highScorer.points} points in the lede since they scored 25+` : ''}
+
+3. BODY: 
+   - Before writing, analyze the quarter scores to find the compelling narrative:
+     * Did one team start strong or finish strong?
+     * Was there a comeback?
+     * Was there a dominant scoring performance?
+     * Were there a lot of threes made?
+   - Tell that story in the body paragraphs
+   - ALTERNATE between school name and mascot (e.g., "Farmington took the lead... The Tigers extended it...")
+
+4. SCORING PARAGRAPH: After the game narrative, list double-digit scorers:
+   - Winner's double-digit scorers: ${doubleDigitWinner.length > 0 ? doubleDigitWinner.map(s => `${s.name} (${s.points})`).join(', ') : 'Top scorer: ' + winnerScorers[0]?.name + ' (' + winnerScorers[0]?.points + ')'}
+   - Loser's double-digit scorers: ${doubleDigitLoser.length > 0 ? doubleDigitLoser.map(s => `${s.name} (${s.points})`).join(', ') : 'Top scorer: ' + loserScorers[0]?.name + ' (' + loserScorers[0]?.points + ')'}
+
+5. RECORDS PARAGRAPH: Include team records at the end (you can reference win/loss streaks if known)
+
+6. LENGTH: Minimum 300 words, aim for 350-400 words
+
+7. TONE: Professional AP sports journalism style, aimed at parents and fans
+
+DO NOT include a headline - just the article body starting with the dateline.
 
 Write the article:`;
 
@@ -297,7 +493,7 @@ Write the article:`;
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 1024,
+      max_tokens: 1500,
       messages: [{ role: 'user', content: prompt }]
     })
   });
@@ -310,7 +506,7 @@ Write the article:`;
   const data = await response.json();
   const article = data.content?.[0]?.text || '';
   
-  // Generate headline
+  // Generate headline (under 45 characters, school name not mascot, no score)
   const headlineResponse = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -323,23 +519,124 @@ Write the article:`;
       max_tokens: 50,
       messages: [{
         role: 'user',
-        content: `Write a short, punchy headline (8 words max) for this game recap. Just the headline, nothing else.\n\nGame: ${winner} ${winnerScore}, ${loser} ${loserScore}\n\nArticle:\n${article.substring(0, 500)}`
+        content: `Write a short, punchy headline for this high school basketball game recap.
+
+RULES:
+- MUST be under 45 characters (this is critical for graphics)
+- Use SCHOOL NAME, not mascot (e.g., "Farmington" not "Tigers")
+- Do NOT include the score in the headline
+- Make it engaging and descriptive of the game's story
+
+Game: ${winner} defeated ${loser} ${winnerScore}-${loserScore}${hasOT ? ' in overtime' : ''}
+${proofData.notes ? `Key storyline: ${proofData.notes}` : ''}
+${has25PlusScorer ? `High scorer: ${highScorer.name} with ${highScorer.points} points` : ''}
+
+Just output the headline, nothing else.`
       }]
     })
   });
   
-  let headline = `${winner} Defeats ${loser} ${winnerScore}-${loserScore}`;
+  let headline = `${winner} Tops ${loser}`;
   if (headlineResponse.ok) {
     const headlineData = await headlineResponse.json();
-    headline = headlineData.content?.[0]?.text?.trim().replace(/^["']|["']$/g, '') || headline;
+    let generatedHeadline = headlineData.content?.[0]?.text?.trim().replace(/^["']|["']$/g, '') || headline;
+    // Ensure it's under 45 characters
+    if (generatedHeadline.length > 45) {
+      generatedHeadline = generatedHeadline.substring(0, 42) + '...';
+    }
+    headline = generatedHeadline;
   }
   
-  // Generate excerpt
+  // Generate excerpt (first 1-2 sentences for previews)
   const excerpt = article.split('.').slice(0, 2).join('.').trim() + '.';
+  
+  // --- Generate Social Media Versions ---
+  
+  // Get mascot emoji for winner
+  const winnerEmoji = MASCOT_EMOJIS[winnerMascot] || '🏀';
+  
+  // Get school abbreviations
+  const awayAbbrev = SCHOOL_ABBREVIATIONS[proofData.awayTeam] || proofData.awayTeam.substring(0, 3).toUpperCase();
+  const homeAbbrev = SCHOOL_ABBREVIATIONS[proofData.homeTeam] || proofData.homeTeam.substring(0, 3).toUpperCase();
+  
+  // Format scorers for Twitter (last names only)
+  function formatTwitterScorers(scorers, abbrev) {
+    const top = scorers.filter(s => s.points >= 10);
+    const scorerList = top.length > 0 ? top : [scorers[0]].filter(Boolean);
+    return scorerList.map(s => {
+      const lastName = s.name.split(' ').pop();
+      return `${lastName} (${s.points})`;
+    }).join(', ');
+  }
+  
+  // Build Instagram header line
+  // Format: 🐅🏀 at Farmington 55, Epping 44 🏀
+  const igHeader = `${winnerEmoji}🏀 at ${proofData.homeTeam} ${winnerScore}, ${loserScore} 🏀`;
+  
+  // Get top scorers for IG
+  const igScorers = [];
+  if (winnerScorers[0]) igScorers.push(`${winnerScorers[0].name} (${winner}): ${winnerScorers[0].points} pts`);
+  if (loserScorers[0]) igScorers.push(`${loserScorers[0].name} (${loser}): ${loserScorers[0].points} pts`);
+  
+  // Build Twitter header (same as IG)
+  const twitterHeader = igHeader;
+  
+  // Twitter scorers by team
+  const awayTwitterScorers = formatTwitterScorers(awayScorersEnhanced, awayAbbrev);
+  const homeTwitterScorers = formatTwitterScorers(homeScorersEnhanced, homeAbbrev);
+  
+  // Assemble all versions
+  
+  // 1. FULL ARTICLE (already generated above)
+  const fullArticle = article;
+  
+  // 2. FACEBOOK: Full story + gallery CTA
+  let facebookPost = article;
+  if (photographerName && galleryUrl) {
+    facebookPost += `\n\nCheck out the full photo gallery by ${photographerName} over at ${galleryUrl}`;
+  } else if (galleryUrl) {
+    facebookPost += `\n\nCheck out the full photo gallery over at ${galleryUrl}`;
+  }
+  
+  // 3. INSTAGRAM: Abbreviated with emojis
+  // Get a short lede (first sentence after dateline)
+  const articleSentences = article.replace(/^[A-Z]+,\s*N\.H\.\s*[–-]\s*/, '').split(/(?<=[.!?])\s+/);
+  const igLede = articleSentences.slice(0, 2).join(' ');
+  
+  let instagramPost = `${igHeader}\n\n`;
+  instagramPost += `${igLede}\n\n`;
+  instagramPost += `📊 Leading Scorers:\n${igScorers.join('\n')}\n\n`;
+  if (photographerName) {
+    instagramPost += `READ MORE & check out the full photo gallery by ${photographerName} over at Ball603.com`;
+  } else {
+    instagramPost += `READ MORE & check out the full photo gallery over at Ball603.com`;
+  }
+  
+  // 4. TWITTER: Header + scorers by team
+  let twitterPost = `${twitterHeader}\n\n`;
+  twitterPost += `${awayAbbrev}: ${awayTwitterScorers}\n`;
+  twitterPost += `${homeAbbrev}: ${homeTwitterScorers}\n\n`;
+  if (galleryUrl) {
+    twitterPost += `READ MORE & check out the full gallery over at ${galleryUrl}`;
+  } else {
+    twitterPost += `READ MORE & check out the full gallery over at Ball603.com`;
+  }
   
   return {
     statusCode: 200,
     headers,
-    body: JSON.stringify({ success: true, headline, article, excerpt })
+    body: JSON.stringify({ 
+      success: true, 
+      headline, 
+      article: fullArticle,
+      excerpt,
+      // Social versions
+      facebookPost,
+      instagramPost,
+      twitterPost,
+      // Metadata for debugging/display
+      winnerEmoji,
+      gameTown
+    })
   };
 }
