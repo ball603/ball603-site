@@ -86,57 +86,75 @@ const NH_LOCATIONS = ['Manchester', 'Rindge', 'Plymouth', 'Keene', 'New London',
 
 /**
  * Parse SIDEARM schedule page
- * SIDEARM pages have game blocks with date, opponent, location, and result
+ * The web_fetch returns markdown-like text from SIDEARM pages
+ * Game pattern: Date, Time, at/vs, [Opponent](link), Result
  */
 function parseSIDEARMSchedule(html, school, gender) {
   const games = [];
   
-  // SIDEARM uses patterns like:
-  // "Nov 14 (Fri)" or "Nov 14 (Fri)\n5:00 PM" for date/time
-  // "at\n[Opponent]" or "vs\n[Opponent]" for away/home
-  // "W,\n91-83" or "L,\n76-90" for results
+  // Clean the HTML/markdown - remove HTML artifacts
+  const cleanText = html
+    .replace(/<[^>]*>/g, ' ')  // Remove any HTML tags
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, '')  // Remove image markdown
+    .replace(/\s+/g, ' ')  // Normalize whitespace
+    .trim();
   
-  // Pattern to match date blocks: "Mon DD (Day)" 
-  const datePattern = /(Jan|Feb|Mar|Nov|Dec)\s+(\d{1,2})\s+\((Mon|Tue|Wed|Thu|Fri|Sat|Sun)\)/gi;
+  // Find all game entries using a comprehensive pattern
+  // Looking for: Month Day (Day) ... time ... at/vs ... Opponent ... W/L, score
+  const gamePattern = /(Jan|Feb|Mar|Nov|Dec)\s+(\d{1,2})\s+\((Mon|Tue|Wed|Thu|Fri|Sat|Sun)\)(.*?)(?=(?:Jan|Feb|Mar|Nov|Dec)\s+\d{1,2}\s+\(|$)/gi;
   
-  // Split content by date markers to get individual games
-  const parts = html.split(datePattern);
-  
-  // Process in groups - each game starts with month, day, dayname
-  for (let i = 1; i < parts.length; i += 4) {
-    if (i + 3 >= parts.length) break;
+  let match;
+  while ((match = gamePattern.exec(cleanText)) !== null) {
+    const month = match[1];
+    const day = match[2];
+    const gameContent = match[4];
     
-    const month = parts[i];
-    const day = parts[i + 1];
-    const dayName = parts[i + 2];
-    const gameContent = parts[i + 3];
+    // Skip exhibition games
+    if (/EXHIBITION/i.test(gameContent)) continue;
     
     // Parse date
     const parsedDate = parseSIDEARMDate(month, day);
     if (!parsedDate) continue;
     
-    // Check for time (e.g., "5:00 PM" or "7:30 PM")
+    // Extract time (e.g., "5:00 PM" or "7:30 PM")
     const timeMatch = gameContent.match(/(\d{1,2}:\d{2}\s*(?:AM|PM))/i);
-    let time = timeMatch ? timeMatch[1].toUpperCase() : '';
+    let time = timeMatch ? timeMatch[1].toUpperCase().replace(/\s+/g, ' ') : '';
     
-    // Determine home/away - look for "at" or "vs" before opponent
-    const isAway = /\bat\b[\s\n]+\[?[A-Z]/i.test(gameContent);
-    const isHome = /\bvs\b[\s\n]+\[?[A-Z]/i.test(gameContent);
+    // Determine home/away - look for "at" or "vs" 
+    const isAway = /\bat\b/i.test(gameContent);
+    const isHome = /\bvs\b/i.test(gameContent);
     
     if (!isAway && !isHome) continue;
     
-    // Extract opponent name - look for linked text after at/vs
+    // Extract opponent name from markdown link [Name](url) or plain text after at/vs
     let opponent = '';
-    const opponentMatch = gameContent.match(/(?:at|vs)\s*\n?\s*(?:#\d+\s*)?\[?([^\]\n\(]+)/i);
-    if (opponentMatch) {
-      opponent = opponentMatch[1].trim();
-      // Clean up opponent name
-      opponent = opponent.replace(/\[|\]/g, '').trim();
-      // Remove trailing university/college designators for matching
-      opponent = normalizeOpponentName(opponent);
+    
+    // Try markdown link first: [Opponent Name](url)
+    const linkMatch = gameContent.match(/\[([A-Za-z][A-Za-z0-9\s\.\-\'\(\)&]+?)\]\s*\(/);
+    if (linkMatch) {
+      opponent = linkMatch[1].trim();
+    } else {
+      // Fallback: text after at/vs
+      const textMatch = gameContent.match(/(?:at|vs)\s+([A-Z][A-Za-z\s\.\-\'\(\)&]+?)(?:\s+\d|$)/i);
+      if (textMatch) {
+        opponent = textMatch[1].trim();
+      }
     }
     
-    if (!opponent || opponent.length < 2) continue;
+    // Clean opponent name - remove any trailing artifacts
+    opponent = opponent
+      .replace(/Logo\s*$/i, '')
+      .replace(/\s*-\s*EXHIBITION\s*$/i, '')
+      .replace(/^\s*#?\d+\s*/, '')  // Remove ranking
+      .trim();
+    
+    // Skip if opponent looks like HTML garbage
+    if (!opponent || opponent.length < 2 || /flex|inline|span|div|class/i.test(opponent)) {
+      continue;
+    }
+    
+    // Normalize opponent name
+    opponent = normalizeOpponentName(opponent);
     
     // Determine home/away teams
     const homeTeam = isAway ? opponent : school.shortname;
@@ -145,7 +163,7 @@ function parseSIDEARMSchedule(html, school, gender) {
     // Check for result (W, XX-XX or L, XX-XX)
     let homeScore = '';
     let awayScore = '';
-    const resultMatch = gameContent.match(/([WL]),?\s*\n?\s*(\d+)-(\d+)/i);
+    const resultMatch = gameContent.match(/([WL])\s*,\s*(\d+)\s*-\s*(\d+)/i);
     if (resultMatch) {
       const [, winLoss, score1, score2] = resultMatch;
       const schoolWon = winLoss.toUpperCase() === 'W';
