@@ -109,8 +109,8 @@ function parseSIDEARMSchedule(html, school, gender) {
     const day = match[2];
     const gameContent = match[4];
     
-    // Skip exhibition games
-    if (/EXHIBITION/i.test(gameContent)) continue;
+    // Skip exhibition games and scrimmages
+    if (/EXHIBITION|SCRIMMAGE/i.test(gameContent)) continue;
     
     // Parse date
     const parsedDate = parseSIDEARMDate(month, day);
@@ -520,8 +520,8 @@ function parseSIDEARMTextExport(text, school, gender) {
     
     if (!opponent || opponent.length < 2) continue;
     
-    // Skip exhibition games
-    if (/\(EXH\)|Exhibition/i.test(opponent) || /\(EXH\)|Exhibition/i.test(line)) continue;
+    // Skip exhibition games and scrimmages
+    if (/\(EXH\)|Exhibition|Scrimmage/i.test(opponent) || /\(EXH\)|Exhibition|Scrimmage/i.test(line)) continue;
     
     // Clean opponent name
     opponent = opponent
