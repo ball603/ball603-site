@@ -129,9 +129,24 @@ export default async (request) => {
       
       const data = await fetchResponse.json();
       
+      // Transform to expected format (home/away instead of home_team/away_team)
+      const transformedData = data.map(game => ({
+        ...game,
+        home: game.home_team || '',
+        away: game.away_team || '',
+        recap_link: game.recap_url || '',
+        gamedescription: game.game_description || '',
+        specialevent: game.special_event || ''
+      }));
+      
       // Single game request by id or game_id
       if (params.id) {
         const game = await supabaseRequest(`games?id=eq.${params.id}`);
+        if (game[0]) {
+          game[0].home = game[0].home_team || '';
+          game[0].away = game[0].away_team || '';
+          game[0].recap_link = game[0].recap_url || '';
+        }
         return new Response(JSON.stringify(game[0] || null), {
           status: game[0] ? 200 : 404,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -140,13 +155,18 @@ export default async (request) => {
       
       if (params.game_id) {
         const game = await supabaseRequest(`games?game_id=eq.${encodeURIComponent(params.game_id)}`);
+        if (game[0]) {
+          game[0].home = game[0].home_team || '';
+          game[0].away = game[0].away_team || '';
+          game[0].recap_link = game[0].recap_url || '';
+        }
         return new Response(JSON.stringify(game[0] || null), {
           status: game[0] ? 200 : 404,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       }
       
-      return new Response(JSON.stringify(data), {
+      return new Response(JSON.stringify(transformedData), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
