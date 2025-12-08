@@ -468,8 +468,8 @@ async function updateSupabase(games) {
         originalDate = scraped.date;
       }
       
-      const awayScore = scraped.away_score || existing.away_score || '';
-      const homeScore = scraped.home_score || existing.home_score || '';
+      const awayScore = scraped.away_score || existing.away_score || null;
+      const homeScore = scraped.home_score || existing.home_score || null;
       const time = (awayScore && homeScore && scraped.time !== 'FINAL') ? 'FINAL' : scraped.time;
       
       gamesToUpsert.push({
@@ -477,9 +477,9 @@ async function updateSupabase(games) {
         date: scraped.date,
         time: time,
         away_team: scraped.away_team,
-        away_score: awayScore,
+        away_score: awayScore ? parseInt(awayScore) : null,
         home_team: scraped.home_team,
-        home_score: homeScore,
+        home_score: homeScore ? parseInt(homeScore) : null,
         gender: scraped.gender,
         level: scraped.level,
         division: scraped.division,
@@ -511,9 +511,9 @@ async function updateSupabase(games) {
         date: game.date,
         time: game.time,
         away_team: game.away_team,
-        away_score: game.away_score || '',
+        away_score: game.away_score ? parseInt(game.away_score) : null,
         home_team: game.home_team,
-        home_score: game.home_score || '',
+        home_score: game.home_score ? parseInt(game.home_score) : null,
         gender: game.gender,
         level: game.level,
         division: game.division,
