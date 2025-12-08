@@ -35,8 +35,6 @@ const ESPN_API = {
  */
 function normalizeCollegeName(name) {
   if (!name) return name;
-  
-  // Trim whitespace
   name = name.trim();
   
   const normalizations = {
@@ -170,30 +168,22 @@ function normalizeCollegeName(name) {
     'Air Force Falcons': 'Air Force'
   };
   
-  // Try direct match first
   if (normalizations[name]) {
     return normalizations[name];
   }
   
-  // Strip common mascot suffixes (expanded list)
   const mascotPattern = / (Wildcats|Big Green|Terriers|Catamounts|Black Bears|River Hawks|Retrievers|Bearcats|Great Danes|Highlanders|Bulldogs|Skyhawks|Crimson|Bears|Friars|Crusaders|Eagles|Huskies|Orange|Rams|Warriors|Pioneers|Stags|Bobcats|Dolphins|Tigers|Patriots|Cornhuskers|Billikens|Gaels|Jaspers|Hoyas|Peacocks|Seawolves|Hawks|Knights|Broncs|Golden Griffins|Bonnies|Explorers|Musketeers|Blue Demons|Bluejays|Hoosiers|Badgers|Buckeyes|Spartans|Wolverines|Fighting Irish|Bruins|Trojans|Cardinal|Cardinals|Ducks|Beavers|Cougars|Sun Devils|Buffaloes|Jayhawks|Sooners|Longhorns|Aggies|Red Raiders|Horned Frogs|Mountaineers|Cyclones|Hawkeyes|Golden Gophers|Boilermakers|Illini|Scarlet Knights|Nittany Lions|Tar Heels|Blue Devils|Demon Deacons|Wolfpack|Cavaliers|Hokies|Hurricanes|Seminoles|Yellow Jackets|Gamecocks|Volunteers|Razorbacks|Rebels|Crimson Tide|War Eagles|Gators|Commodores|Raiders|Moose|Pilgrims|Penmen|Ravens|Greyhounds|Owls|Panthers|Falcons|Lions|Jaguars|Leopards|Wolves|Sharks|Seahawks|Lancers|Royals|Monarchs|Titans|Generals|Cadets|Monks|Phoenix|Thunder|Storm|Wave|Pride|Mustangs|Broncos|Chargers|Blazers|Golden Eagles|Thunderbirds|Bison|Colonels|Terrapins|Flames|Anteaters|Banana Slugs|Chanticleers|Governors|Hatters|Hilltoppers|Ichabods|Keydets|Lakers|Mavericks|Midshipmen|Miners|Mocs|Norsemen|Ospreys|Paladins|Ramblers|Red Storm|Red Foxes|Redbirds|Redhawks|Roadrunners|Rockets|Salukis|Shockers|Spiders|Thundering Herd|Tritons|Vandals|Zips|Saints|Purple Eagles|Cowboys|Cowgirls|Black Knights|Lumberjacks|Demon Deacons|Scarlet Hawks|Mean Green|Ragin Cajuns|Golden Hurricane|Golden Flashes|RedHawks|Dukes|Tribe|Shockers|Toreros|Toppers|Warhawks|Blue Hose|Camels|Catamounts|Chippewas|Flames|Hoosiers|Kangaroos|Leathernecks|Mastodons|Musketeers|Penguins|Racers|River Hawks|Skyhawks|Blue Raiders|Retrievers)$/i;
   const cleaned = name.replace(mascotPattern, '');
   
-  // Check if cleaned version has a mapping
   if (normalizations[cleaned]) {
     return normalizations[cleaned];
   }
   
-  // Return cleaned name (without mascot) even if no explicit mapping
   return cleaned;
 }
 
 /**
  * Parse ESPN API JSON response into game objects
- * @param {object} data - JSON response from ESPN API
- * @param {object} team - Team configuration object
- * @param {string} gender - 'Men' or 'Women'
- * @returns {Array} Array of game objects
  */
 function parseESPNAPIResponse(data, team, gender) {
   const games = [];
@@ -205,15 +195,12 @@ function parseESPNAPIResponse(data, team, gender) {
   
   for (const event of data.events) {
     try {
-      // Get competition details
       const competition = event.competitions?.[0];
       if (!competition) continue;
       
-      // Get teams from competition
       const competitors = competition.competitors || [];
       if (competitors.length !== 2) continue;
       
-      // Find home and away teams
       const homeCompetitor = competitors.find(c => c.homeAway === 'home');
       const awayCompetitor = competitors.find(c => c.homeAway === 'away');
       
@@ -222,33 +209,28 @@ function parseESPNAPIResponse(data, team, gender) {
       const homeTeamName = (homeCompetitor.team?.displayName || homeCompetitor.team?.name || '').trim();
       const awayTeamName = (awayCompetitor.team?.displayName || awayCompetitor.team?.name || '').trim();
       
-      // Parse date - ESPN returns ISO format
       const gameDate = event.date;
       if (!gameDate) continue;
       
       const dateObj = new Date(gameDate);
-      const isoDate = dateObj.toISOString().split('T')[0]; // YYYY-MM-DD
+      const isoDate = dateObj.toISOString().split('T')[0];
       
-      // Parse time
       let time = '';
-      let homeScore = '';
-      let awayScore = '';
+      let homeScore = null;
+      let awayScore = null;
       
       const status = competition.status?.type?.name || '';
       const isCompleted = status === 'STATUS_FINAL' || competition.status?.type?.completed;
       
       if (isCompleted) {
         time = 'FINAL';
-        // ESPN returns scores as objects like {displayValue: "32", value: 32.0} or as strings
         const homeScoreRaw = homeCompetitor.score;
         const awayScoreRaw = awayCompetitor.score;
-        homeScore = typeof homeScoreRaw === 'object' ? (homeScoreRaw?.displayValue || homeScoreRaw?.value || '') : (homeScoreRaw || '');
-        awayScore = typeof awayScoreRaw === 'object' ? (awayScoreRaw?.displayValue || awayScoreRaw?.value || '') : (awayScoreRaw || '');
-        // Ensure they're strings
-        homeScore = String(homeScore);
-        awayScore = String(awayScore);
+        const hs = typeof homeScoreRaw === 'object' ? (homeScoreRaw?.displayValue || homeScoreRaw?.value || '') : (homeScoreRaw || '');
+        const as = typeof awayScoreRaw === 'object' ? (awayScoreRaw?.displayValue || awayScoreRaw?.value || '') : (awayScoreRaw || '');
+        homeScore = hs ? parseInt(String(hs)) : null;
+        awayScore = as ? parseInt(String(as)) : null;
       } else {
-        // Get scheduled time
         const timeStr = dateObj.toLocaleTimeString('en-US', {
           hour: 'numeric',
           minute: '2-digit',
@@ -258,11 +240,9 @@ function parseESPNAPIResponse(data, team, gender) {
         time = timeStr.toUpperCase();
       }
       
-      // Normalize team names
       const homeTeam = normalizeCollegeName(homeTeamName);
       const awayTeam = normalizeCollegeName(awayTeamName);
       
-      // Generate game ID - format: college_{home}_{m|w}_{YYYYMMDD}_{away}
       const genderCode = gender === 'Men' ? 'm' : 'w';
       const dateCode = isoDate.replace(/-/g, '');
       const homeCode = homeTeam.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 12);
@@ -325,20 +305,18 @@ async function scrapeTeamSchedule(team, gender) {
 }
 
 /**
- * Deduplicate games (same matchup might appear on both teams' schedules)
+ * Deduplicate games
  */
 function deduplicateGames(games) {
   const seen = new Map();
   
   for (const game of games) {
-    // Create a canonical key that's the same regardless of which team's schedule we scraped from
     const teams = [game.home_team, game.away_team].sort();
     const key = `${game.date}_${teams[0]}_${teams[1]}_${game.gender}`;
     
     if (!seen.has(key)) {
       seen.set(key, game);
     } else {
-      // If we have this game already, prefer the one with more data (scores, etc)
       const existing = seen.get(key);
       if (game.home_score && !existing.home_score) {
         seen.set(key, game);
@@ -350,8 +328,7 @@ function deduplicateGames(games) {
 }
 
 /**
- * Filter games to only those in New Hampshire (for contributor scheduling)
- * NH home games = games where UNH or Dartmouth is the home team
+ * Filter games to only those in New Hampshire
  */
 function filterNHGames(games) {
   const nhTeams = ['UNH', 'Dartmouth'];
@@ -362,7 +339,6 @@ function filterNHGames(games) {
  * Get existing college games from Supabase
  */
 async function getExistingCollegeGames(supabaseUrl, supabaseKey) {
-  // Fetch all college games from Supabase
   const response = await fetch(
     `${supabaseUrl}/rest/v1/games?level=eq.College&select=*`,
     {
@@ -381,34 +357,11 @@ async function getExistingCollegeGames(supabaseUrl, supabaseKey) {
   }
   
   const rows = await response.json();
-  
   const existingGames = {};
+  
   for (const row of rows) {
     if (row.game_id) {
-      existingGames[row.game_id] = {
-        date: row.date || '',
-        time: row.time || '',
-        away_team: row.away_team || '',
-        away_score: row.away_score || '',
-        home_team: row.home_team || '',
-        home_score: row.home_score || '',
-        gender: row.gender || '',
-        level: row.level || '',
-        division: row.division || '',
-        photog1: row.photog1 || '',
-        photog2: row.photog2 || '',
-        videog: row.videog || '',
-        writer: row.writer || '',
-        notes: row.notes || '',
-        original_date: row.original_date || '',
-        schedule_changed: row.schedule_changed || '',
-        photos_url: row.photos_url || '',
-        recap_url: row.recap_url || '',
-        highlights_url: row.highlights_url || '',
-        live_stream_url: row.live_stream_url || '',
-        game_description: row.game_description || '',
-        special_event: row.special_event || ''
-      };
+      existingGames[row.game_id] = row;
     }
   }
   
@@ -416,10 +369,36 @@ async function getExistingCollegeGames(supabaseUrl, supabaseKey) {
 }
 
 /**
+ * Helper to convert score to integer or null
+ */
+function toIntOrNull(val) {
+  if (val === null || val === undefined || val === '') return null;
+  const num = parseInt(val);
+  return isNaN(num) ? null : num;
+}
+
+/**
+ * Helper to convert to string or null (for text fields)
+ */
+function toStringOrNull(val) {
+  if (val === null || val === undefined || val === '') return null;
+  return String(val);
+}
+
+/**
+ * Helper to convert to date string or null (for date fields)
+ */
+function toDateOrNull(val) {
+  if (val === null || val === undefined || val === '') return null;
+  // Validate it looks like a date (YYYY-MM-DD)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+  return null;
+}
+
+/**
  * Update Supabase with scraped games
  */
 async function updateSupabase(games) {
-  // Check if we have credentials
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
     console.log('  Supabase credentials not configured - returning games only');
     return { rowCount: games.length, changesDetected: 0, dbUpdated: false };
@@ -428,82 +407,71 @@ async function updateSupabase(games) {
   const supabaseUrl = process.env.SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
   
-  // Get ALL existing college games (including D2/D3 from SIDEARM scraper)
   const existingGames = await getExistingCollegeGames(supabaseUrl, supabaseKey);
   console.log(`  Found ${Object.keys(existingGames).length} existing college games`);
   
   let changesDetected = 0;
   let updated = 0;
   let added = 0;
-  let preserved = 0;
   
-  // Build map of scraped games by ID
   const scrapedMap = new Map();
   for (const game of games) {
     scrapedMap.set(game.game_id, game);
   }
   
-  // Prepare games for upsert
   const gamesToUpsert = [];
   
-  // First, process all existing games
+  // Process existing games that match scraped games
   for (const [gameId, existing] of Object.entries(existingGames)) {
     const scraped = scrapedMap.get(gameId);
     
     if (scraped) {
-      // Game exists in both - update with scraped data but PRESERVE assignments
       const hasAssignment = existing.photog1 || existing.photog2 || existing.videog || existing.writer;
       
-      let originalDate = existing.original_date || '';
-      let scheduleChanged = existing.schedule_changed || '';
+      let originalDate = existing.original_date;
+      let scheduleChanged = existing.schedule_changed || false;
       
       if (hasAssignment && existing.date && existing.date !== scraped.date) {
         originalDate = existing.original_date || existing.date;
-        scheduleChanged = 'YES';
+        scheduleChanged = true;
         changesDetected++;
         console.log(`  ⚠️ Schedule change: ${scraped.home_team} vs ${scraped.away_team} moved from ${existing.date} to ${scraped.date}`);
       }
       
-      if (hasAssignment && !originalDate) {
-        originalDate = scraped.date;
-      }
-      
-      const awayScore = scraped.away_score || existing.away_score || null;
-      const homeScore = scraped.home_score || existing.home_score || null;
-      const time = (awayScore && homeScore && scraped.time !== 'FINAL') ? 'FINAL' : scraped.time;
+      const awayScore = toIntOrNull(scraped.away_score) ?? toIntOrNull(existing.away_score);
+      const homeScore = toIntOrNull(scraped.home_score) ?? toIntOrNull(existing.home_score);
+      const time = (awayScore !== null && homeScore !== null && scraped.time !== 'FINAL') ? 'FINAL' : scraped.time;
       
       gamesToUpsert.push({
         game_id: gameId,
         date: scraped.date,
         time: time,
         away_team: scraped.away_team,
-        away_score: awayScore ? parseInt(awayScore) : null,
+        away_score: awayScore,
         home_team: scraped.home_team,
-        home_score: homeScore ? parseInt(homeScore) : null,
+        home_score: homeScore,
         gender: scraped.gender,
         level: scraped.level,
         division: scraped.division,
-        photog1: existing.photog1 || '',
-        photog2: existing.photog2 || '',
-        videog: existing.videog || '',
-        writer: existing.writer || '',
-        notes: existing.notes || '',
-        original_date: originalDate,
+        photog1: toStringOrNull(existing.photog1),
+        photog2: toStringOrNull(existing.photog2),
+        videog: toStringOrNull(existing.videog),
+        writer: toStringOrNull(existing.writer),
+        notes: toStringOrNull(existing.notes),
+        original_date: toDateOrNull(originalDate),
         schedule_changed: scheduleChanged,
-        photos_url: existing.photos_url || '',
-        recap_url: existing.recap_url || '',
-        highlights_url: existing.highlights_url || '',
-        live_stream_url: existing.live_stream_url || '',
-        game_description: existing.game_description || '',
-        special_event: existing.special_event || ''
+        photos_url: toStringOrNull(existing.photos_url),
+        recap_url: toStringOrNull(existing.recap_url),
+        highlights_url: toStringOrNull(existing.highlights_url),
+        live_stream_url: toStringOrNull(existing.live_stream_url),
+        game_description: toStringOrNull(existing.game_description),
+        special_event: toStringOrNull(existing.special_event)
       });
       updated++;
     }
-    // Note: We don't need to re-upsert games that weren't scraped (D2/D3 games, manual entries)
-    // They remain in the database untouched
   }
   
-  // Add new games from scrape that weren't in existing
+  // Add new games from scrape
   for (const [gameId, game] of scrapedMap) {
     if (!existingGames[gameId]) {
       gamesToUpsert.push({
@@ -511,25 +479,25 @@ async function updateSupabase(games) {
         date: game.date,
         time: game.time,
         away_team: game.away_team,
-        away_score: game.away_score ? parseInt(game.away_score) : null,
+        away_score: toIntOrNull(game.away_score),
         home_team: game.home_team,
-        home_score: game.home_score ? parseInt(game.home_score) : null,
+        home_score: toIntOrNull(game.home_score),
         gender: game.gender,
         level: game.level,
         division: game.division,
-        photog1: '',
-        photog2: '',
-        videog: '',
-        writer: '',
-        notes: '',
-        original_date: '',
-        schedule_changed: '',
-        photos_url: '',
-        recap_url: '',
-        highlights_url: '',
-        live_stream_url: '',
-        game_description: '',
-        special_event: ''
+        photog1: null,
+        photog2: null,
+        videog: null,
+        writer: null,
+        notes: null,
+        original_date: null,
+        schedule_changed: false,
+        photos_url: null,
+        recap_url: null,
+        highlights_url: null,
+        live_stream_url: null,
+        game_description: null,
+        special_event: null
       });
       added++;
     }
@@ -541,7 +509,7 @@ async function updateSupabase(games) {
     console.log(`  ⚠️ Total schedule changes detected: ${changesDetected}`);
   }
   
-  // Upsert to Supabase in batches (Supabase has limits)
+  // Upsert to Supabase in batches
   const BATCH_SIZE = 500;
   let totalUpserted = 0;
   
@@ -585,31 +553,24 @@ export default async (request) => {
   try {
     const allGames = [];
     
-    // Scrape both teams, both genders
     for (const [teamKey, team] of Object.entries(ESPN_TEAMS)) {
-      // Men's basketball
       const mensGames = await scrapeTeamSchedule(team, 'Men');
       allGames.push(...mensGames);
       
-      // Women's basketball
       const womensGames = await scrapeTeamSchedule(team, 'Women');
       allGames.push(...womensGames);
       
-      // Small delay between teams
       await new Promise(r => setTimeout(r, 300));
     }
     
     console.log(`Total games scraped: ${allGames.length}`);
     
-    // Deduplicate (UNH vs Dartmouth appears on both schedules)
     const uniqueGames = deduplicateGames(allGames);
     console.log(`After deduplication: ${uniqueGames.length} games`);
     
-    // Count NH home games
     const nhGames = filterNHGames(uniqueGames);
     console.log(`NH home games (for contributors): ${nhGames.length}`);
     
-    // Update Supabase
     const { rowCount, changesDetected, dbUpdated } = await updateSupabase(uniqueGames);
     
     const result = {
@@ -620,12 +581,12 @@ export default async (request) => {
       dbUpdated: dbUpdated,
       timestamp: new Date().toISOString(),
       teams: Object.keys(ESPN_TEAMS),
-      games: uniqueGames // Include games in response for testing
+      games: uniqueGames
     };
     
     console.log('Scrape complete:', JSON.stringify({
       ...result,
-      games: `[${uniqueGames.length} games]` // Don't log all games
+      games: `[${uniqueGames.length} games]`
     }, null, 2));
     
     return new Response(JSON.stringify(result), {
@@ -646,12 +607,10 @@ export default async (request) => {
   }
 };
 
-// Netlify scheduled function config - every 2 hours during basketball season
 export const config = {
-  schedule: "0 */2 * 11,12,1,2,3 *"  // Every 2 hours, Nov-Mar only
+  schedule: "0 */2 * 11,12,1,2,3 *"
 };
 
-// Export helper functions for testing
 export {
   parseESPNAPIResponse,
   normalizeCollegeName,

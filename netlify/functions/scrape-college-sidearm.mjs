@@ -5,7 +5,6 @@
 
 // SIDEARM School Configuration
 const SIDEARM_SCHOOLS = {
-  // D2 - Northeast-10 Conference
   'Southern New Hampshire': {
     shortname: 'SNHU',
     abbrev: 'SNHU',
@@ -33,7 +32,6 @@ const SIDEARM_SCHOOLS = {
     womensPath: '/sports/womens-basketball/schedule/2025-26',
     location: 'Rindge'
   },
-  // D3 - Little East Conference
   'Plymouth State': {
     shortname: 'Plymouth State',
     abbrev: 'PSU',
@@ -52,7 +50,6 @@ const SIDEARM_SCHOOLS = {
     womensPath: '/sports/womens-basketball/schedule/2025-26',
     location: 'Keene'
   },
-  // D3 - GNAC
   'Colby-Sawyer': {
     shortname: 'Colby-Sawyer',
     abbrev: 'CSC',
@@ -82,131 +79,30 @@ const SIDEARM_SCHOOLS = {
   }
 };
 
-// NH locations for filtering home games
-const NH_LOCATIONS = ['Manchester', 'Rindge', 'Plymouth', 'Keene', 'New London', 'Henniker', 'Nashua'];
+/**
+ * Helper to convert score to integer or null
+ */
+function toIntOrNull(val) {
+  if (val === null || val === undefined || val === '') return null;
+  const num = parseInt(val);
+  return isNaN(num) ? null : num;
+}
 
 /**
- * Parse SIDEARM schedule page
- * The web_fetch returns markdown-like text from SIDEARM pages
- * Game pattern: Date, Time, at/vs, [Opponent](link), Result
+ * Helper to convert to string or null (for text fields)
  */
-function parseSIDEARMSchedule(html, school, gender) {
-  const games = [];
-  
-  // Clean the HTML/markdown - remove HTML artifacts
-  const cleanText = html
-    .replace(/<[^>]*>/g, ' ')  // Remove any HTML tags
-    .replace(/!\[[^\]]*\]\([^)]*\)/g, '')  // Remove image markdown
-    .replace(/\s+/g, ' ')  // Normalize whitespace
-    .trim();
-  
-  // Find all game entries using a comprehensive pattern
-  // Looking for: Month Day (Day) ... time ... at/vs ... Opponent ... W/L, score
-  const gamePattern = /(Jan|Feb|Mar|Nov|Dec)\s+(\d{1,2})\s+\((Mon|Tue|Wed|Thu|Fri|Sat|Sun)\)(.*?)(?=(?:Jan|Feb|Mar|Nov|Dec)\s+\d{1,2}\s+\(|$)/gi;
-  
-  let match;
-  while ((match = gamePattern.exec(cleanText)) !== null) {
-    const month = match[1];
-    const day = match[2];
-    const gameContent = match[4];
-    
-    // Skip exhibition games and scrimmages
-    if (/EXHIBITION|SCRIMMAGE/i.test(gameContent)) continue;
-    
-    // Parse date
-    const parsedDate = parseSIDEARMDate(month, day);
-    if (!parsedDate) continue;
-    
-    // Extract time (e.g., "5:00 PM" or "7:30 PM")
-    const timeMatch = gameContent.match(/(\d{1,2}:\d{2}\s*(?:AM|PM))/i);
-    let time = timeMatch ? timeMatch[1].toUpperCase().replace(/\s+/g, ' ') : '';
-    
-    // Determine home/away - look for "at" or "vs" 
-    const isAway = /\bat\b/i.test(gameContent);
-    const isHome = /\bvs\b/i.test(gameContent);
-    
-    if (!isAway && !isHome) continue;
-    
-    // Extract opponent name from markdown link [Name](url) or plain text after at/vs
-    let opponent = '';
-    
-    // Try markdown link first: [Opponent Name](url)
-    const linkMatch = gameContent.match(/\[([A-Za-z][A-Za-z0-9\s\.\-\'\(\)&]+?)\]\s*\(/);
-    if (linkMatch) {
-      opponent = linkMatch[1].trim();
-    } else {
-      // Fallback: text after at/vs
-      const textMatch = gameContent.match(/(?:at|vs)\s+([A-Z][A-Za-z\s\.\-\'\(\)&]+?)(?:\s+\d|$)/i);
-      if (textMatch) {
-        opponent = textMatch[1].trim();
-      }
-    }
-    
-    // Clean opponent name - remove any trailing artifacts
-    opponent = opponent
-      .replace(/Logo\s*$/i, '')
-      .replace(/\s*-\s*EXHIBITION\s*$/i, '')
-      .replace(/^\s*#?\d+\s*/, '')  // Remove ranking
-      .trim();
-    
-    // Skip if opponent looks like HTML garbage
-    if (!opponent || opponent.length < 2 || /flex|inline|span|div|class/i.test(opponent)) {
-      continue;
-    }
-    
-    // Normalize opponent name
-    opponent = normalizeOpponentName(opponent);
-    
-    // Skip if normalizeOpponentName returned null (tournament matchup listing)
-    if (!opponent) continue;
-    
-    // Determine home/away teams
-    const homeTeam = isAway ? opponent : school.shortname;
-    const awayTeam = isAway ? school.shortname : opponent;
-    
-    // Check for result (W, XX-XX or L, XX-XX or W XX-XX)
-    let homeScore = '';
-    let awayScore = '';
-    const resultMatch = gameContent.match(/([WLT])[,\s]+(\d+)\s*[-–]\s*(\d+)/i);
-    if (resultMatch) {
-      const [, winLoss, score1, score2] = resultMatch;
-      const schoolScore = parseInt(score1);
-      const oppScore = parseInt(score2);
-      
-      if (isAway) {
-        awayScore = schoolScore.toString();
-        homeScore = oppScore.toString();
-      } else {
-        homeScore = schoolScore.toString();
-        awayScore = oppScore.toString();
-      }
-      time = 'FINAL';
-    }
-    
-    // Generate game ID
-    const genderCode = (gender === 'Boys' || gender === 'Men') ? 'm' : 'w';
-    const dateCode = parsedDate.replace(/-/g, '');
-    const homeCode = homeTeam.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 12);
-    const awayCode = awayTeam.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 12);
-    const gameId = `college_${homeCode}_${genderCode}_${dateCode}_${awayCode}`;
-    
-    games.push({
-      game_id: gameId,
-      date: parsedDate,
-      time: time,
-      away_team: awayTeam,
-      away_score: awayScore,
-      home_team: homeTeam,
-      home_score: homeScore,
-      gender: gender,
-      level: 'College',
-      division: school.division,
-      source: 'SIDEARM',
-      school: school.shortname
-    });
-  }
-  
-  return games;
+function toStringOrNull(val) {
+  if (val === null || val === undefined || val === '') return null;
+  return String(val);
+}
+
+/**
+ * Helper to convert to date string or null (for date fields)
+ */
+function toDateOrNull(val) {
+  if (val === null || val === undefined || val === '') return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+  return null;
 }
 
 /**
@@ -221,7 +117,6 @@ function parseSIDEARMDate(month, day) {
   const monthNum = months[month];
   if (!monthNum) return null;
   
-  // Determine year based on month
   const now = new Date();
   let year = now.getFullYear();
   
@@ -241,27 +136,22 @@ function parseSIDEARMDate(month, day) {
 function normalizeOpponentName(name) {
   if (!name) return name;
   
-  // First, clean up SIDEARM artifacts that get pulled in
   let cleaned = name
-    .replace(/^.*?History\s+(?:at|vs)\s+/i, '')  // "College History at X" → "X"
-    .replace(/Watch\s+Live\s+Stats?\s*/gi, '')   // Remove "Watch Live Stats"
-    .replace(/History\s*$/i, '')                  // Trailing "History"
+    .replace(/^.*?History\s+(?:at|vs)\s+/i, '')
+    .replace(/Watch\s+Live\s+Stats?\s*/gi, '')
+    .replace(/History\s*$/i, '')
     .replace(/\s+/g, ' ')
     .trim();
   
-  // Skip tournament matchup listings (opponent shows as "Team A vs. Team B")
-  // Return null to signal this should be skipped
   if (/\svs\.?\s/i.test(cleaned)) {
     return null;
   }
   
-  // Handle Vermont State campuses (with or without "University") → VTSU-Campus
   const vtsuMatch = cleaned.match(/Vermont State(?:\s+University)?\s+(.+)/i);
   if (vtsuMatch) {
     return `VTSU-${vtsuMatch[1].trim()}`;
   }
   
-  // Common normalizations
   const normalizations = {
     'Southern New Hampshire University': 'SNHU',
     'Southern New Hampshire': 'SNHU',
@@ -316,36 +206,23 @@ function normalizeOpponentName(name) {
     'Vermont State University Lyndon': 'VTSU-Lyndon',
     'Vermont State Lyndon': 'VTSU-Lyndon',
     'Gordon College': 'Gordon',
-    'Gordon': 'Gordon',
     'Curry College': 'Curry',
-    'Curry': 'Curry',
     'Lesley University': 'Lesley',
     'Nichols College': 'Nichols',
-    'Nichols': 'Nichols',
     'Elms College': 'Elms',
-    'Elms': 'Elms',
     'Dean College': 'Dean',
-    'Dean': 'Dean',
     'Mitchell College': 'Mitchell',
-    'Mitchell': 'Mitchell',
     'Regis College': 'Regis (Mass.)',
-    'Regis': 'Regis (Mass.)',
     'Albertus Magnus College': 'Albertus Magnus',
-    'Albertus Magnus': 'Albertus Magnus',
     'SUNY Canton': 'SUNY Canton',
     'SUNY Cobleskill': 'SUNY Cobleskill',
     'Anna Maria College': 'Anna Maria',
-    'Anna Maria': 'Anna Maria',
     'Lasell University': 'Lasell',
-    'Lasell': 'Lasell',
     'Emmanuel College': 'Emmanuel (Mass.)',
     'Emmanuel College (Mass.)': 'Emmanuel (Mass.)',
-    'Emmanuel': 'Emmanuel (Mass.)',
     'Saint Joseph\'s College of Maine': 'Saint Joseph\'s (Maine)',
-    'Saint Joseph\'s (Maine)': 'Saint Joseph\'s (Maine)',
     'Saint Joseph (Conn.)': 'Saint Joseph (Conn.)',
     'University of Saint Joseph': 'Saint Joseph (Conn.)',
-    'University of Saint Joseph (Conn.)': 'Saint Joseph (Conn.)',
     'Brandeis University': 'Brandeis',
     'Tufts University': 'Tufts',
     'WPI': 'WPI',
@@ -356,7 +233,6 @@ function normalizeOpponentName(name) {
     'University of New Haven': 'New Haven',
     'Daemen University': 'Daemen',
     'Amherst College': 'Amherst',
-    'Amherst': 'Amherst',
     'Suffolk University': 'Suffolk',
     'Framingham State University': 'Framingham State',
     'Westfield State University': 'Westfield State',
@@ -366,133 +242,57 @@ function normalizeOpponentName(name) {
     'Fisher College': 'Fisher (Mass.)',
     'Thomas College': 'Thomas',
     'Thomas College of Maine': 'Thomas',
-    'Thomas': 'Thomas',
     'Maine-Augusta': 'Maine-Augusta',
     'University of Maine at Augusta': 'Maine-Augusta',
-    'Colgate University': 'Colgate',
-    'Colgate': 'Colgate'
+    'Colgate University': 'Colgate'
   };
   
-  // Try exact match first
   if (normalizations[cleaned]) return normalizations[cleaned];
   
-  // Try case-insensitive
   const lower = cleaned.toLowerCase();
   for (const [key, value] of Object.entries(normalizations)) {
     if (key.toLowerCase() === lower) return value;
   }
   
-  // Strip common mascot suffixes (expanded list)
   const mascotPattern = / (Chargers|Blazers|Hawks|Knights|Warriors|Ravens|Panthers|Eagles|Bulldogs|Bears|Tigers|Lions|Wildcats|Huskies|Falcons|Owls|Cardinals|Rams|Vikings|Pioneers|Saints|Gaels|Colonels|Terriers|Retrievers|Bearcats|Bobcats|Dolphins|Griffins|Phoenix|Thunder|Storm|Wave|Pride|Mustangs|Broncos|Cougars|Jaguars|Leopards|Wolves|Sharks|Seahawks|Lancers|Royals|Monarchs|Spartans|Trojans|Titans|Generals|Cadets|Crusaders|Friars|Monks|Blue Devils|Red Devils|Golden|Moose|Pilgrims|Penmen|Greyhounds|Skyhawks|Crimson|Stags|Patriots|Highlanders|River Hawks|Black Bears|Catamounts|Big Green|Billikens|Great Danes|Raiders|Golden Eagles|Thunderbirds|Bison)$/i;
   cleaned = cleaned.replace(mascotPattern, '');
   
-  // Clean up common suffixes if still present
-  return cleaned
-    .replace(/\s+(University|College)$/i, '')
-    .trim();
-}
-
-
-/**
- * Fetch and parse schedule for a school
- */
-async function scrapeSchoolSchedule(school, gender) {
-  const path = (gender === 'Boys' || gender === 'Men') ? school.mensPath : school.womensPath;
-  const pageUrl = `https://${school.site}${path}`;
-  
-  console.log(`  Fetching ${school.shortname} ${gender}...`);
-  
-  try {
-    // First fetch the schedule page to get the text export URL
-    const pageResponse = await fetch(pageUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; Ball603/1.0)',
-        'Accept': 'text/html'
-      }
-    });
-    
-    if (!pageResponse.ok) {
-      throw new Error(`HTTP ${pageResponse.status}`);
-    }
-    
-    const html = await pageResponse.text();
-    
-    // Extract the text export URL (format: /services/schedule_txt.ashx?schedule=XXX)
-    const textUrlMatch = html.match(/\/services\/schedule_txt\.ashx\?schedule=(\d+)/);
-    
-    if (textUrlMatch) {
-      // Fetch the text export - much cleaner format
-      const textUrl = `https://${school.site}${textUrlMatch[0]}`;
-      const textResponse = await fetch(textUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; Ball603/1.0)',
-          'Accept': 'text/plain'
-        }
-      });
-      
-      if (textResponse.ok) {
-        const textContent = await textResponse.text();
-        const games = parseSIDEARMTextExport(textContent, school, gender);
-        console.log(`    Found ${games.length} games (text export)`);
-        return games;
-      }
-    }
-    
-    // Fallback to HTML parsing if text export not available
-    const games = parseSIDEARMSchedule(html, school, gender);
-    console.log(`    Found ${games.length} games (HTML fallback)`);
-    return games;
-    
-  } catch (error) {
-    console.error(`    Error: ${error.message}`);
-    return [];
-  }
+  return cleaned.replace(/\s+(University|College)$/i, '').trim();
 }
 
 /**
  * Parse SIDEARM text export format
- * Tab-delimited format: Date | Time | At | Opponent | Location | Tournament | Result
- * Example: "Nov 14 (Tue)	5:00 PM	Away	Marquette	Milwaukee, Wis.		L 61-78"
  */
 function parseSIDEARMTextExport(text, school, gender) {
   const games = [];
   const lines = text.split('\n');
   
   for (const line of lines) {
-    // Skip empty lines and header lines
     if (!line.trim()) continue;
     if (/^(Date|Overall|Conference|Streak|Home|Away|Neutral|\d+\s*-\s*\d+)/i.test(line.trim())) continue;
     if (line.includes('Schedule') && !line.includes('(')) continue;
     
-    // Split by tabs or multiple spaces
     const parts = line.split(/\t+|\s{2,}/);
     if (parts.length < 4) continue;
     
-    // Try to parse date pattern like "Nov 14 (Fri)" or "11/14/2025"
     const dateMatch = parts[0].match(/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2})/i);
     if (!dateMatch) continue;
     
-    // Parse date
     const parsedDate = parseSIDEARMDate(dateMatch[1], dateMatch[2]);
     if (!parsedDate) continue;
     
-    // Extract fields
     let time = '';
     let homeAway = '';
     let opponent = '';
-    let result = '';
     
-    // Time is usually in parts[1]
     const timeMatch = parts[1] && parts[1].match(/(\d{1,2}:\d{2}\s*(?:AM|PM))/i);
     if (timeMatch) {
       time = timeMatch[1].toUpperCase().replace(/\s+/g, ' ');
     }
     
-    // Find Home/Away indicator
     for (let i = 1; i < parts.length && i < 4; i++) {
       if (/^(Home|Away|Neutral)$/i.test(parts[i].trim())) {
         homeAway = parts[i].trim().toLowerCase();
-        // Opponent is usually the next non-empty field
         for (let j = i + 1; j < parts.length; j++) {
           if (parts[j].trim() && !/^(Home|Away|Neutral|\d{1,2}:\d{2}|TBA)$/i.test(parts[j].trim())) {
             opponent = parts[j].trim();
@@ -503,16 +303,13 @@ function parseSIDEARMTextExport(text, school, gender) {
       }
     }
     
-    // If no explicit Home/Away, try to find it in the line
     if (!homeAway) {
       if (/\bAway\b/i.test(line)) homeAway = 'away';
       else if (/\bHome\b/i.test(line)) homeAway = 'home';
       else if (/\bNeutral\b/i.test(line)) homeAway = 'neutral';
     }
     
-    // Find opponent if not found yet
     if (!opponent) {
-      // Look for opponent after Home/Away marker
       const oppMatch = line.match(/(?:Home|Away|Neutral)\s+(.+?)(?:\t|$|\s{2,}|[A-Z][a-z]+,\s*[A-Z]{2})/i);
       if (oppMatch) {
         opponent = oppMatch[1].trim();
@@ -520,32 +317,23 @@ function parseSIDEARMTextExport(text, school, gender) {
     }
     
     if (!opponent || opponent.length < 2) continue;
-    
-    // Skip exhibition games and scrimmages
     if (/\(EXH\)|Exhibition|Scrimmage/i.test(opponent) || /\(EXH\)|Exhibition|Scrimmage/i.test(line)) continue;
     
-    // Clean opponent name
     opponent = opponent
       .replace(/\s*\(EXH\)/gi, '')
-      .replace(/\s*\*\s*$/, '')  // Remove trailing asterisk (conference marker)
+      .replace(/\s*\*\s*$/, '')
       .replace(/\s+/g, ' ')
       .trim();
     
     opponent = normalizeOpponentName(opponent);
-    
-    // Skip if normalizeOpponentName returned null (tournament matchup listing)
     if (!opponent) continue;
     
-    // Treat neutral as away for simplicity (school is traveling)
     const isAway = homeAway === 'away' || homeAway === 'neutral';
-    
-    // Determine home/away teams
     const homeTeam = isAway ? opponent : school.shortname;
     const awayTeam = isAway ? school.shortname : opponent;
     
-    // Check for result at end of line (various formats: W 75-60, W, 75-60, W 75 - 60, etc.)
-    let homeScore = '';
-    let awayScore = '';
+    let homeScore = null;
+    let awayScore = null;
     const resultMatch = line.match(/([WLT])[,\s]+(\d+)\s*[-–]\s*(\d+)\s*$/);
     if (resultMatch) {
       const [, winLossTie, score1, score2] = resultMatch;
@@ -553,16 +341,15 @@ function parseSIDEARMTextExport(text, school, gender) {
       const oppScore = parseInt(score2);
       
       if (isAway) {
-        awayScore = schoolScore.toString();
-        homeScore = oppScore.toString();
+        awayScore = schoolScore;
+        homeScore = oppScore;
       } else {
-        homeScore = schoolScore.toString();
-        awayScore = oppScore.toString();
+        homeScore = schoolScore;
+        awayScore = oppScore;
       }
       time = 'FINAL';
     }
     
-    // Generate game ID
     const genderCode = (gender === 'Boys' || gender === 'Men') ? 'm' : 'w';
     const dateCode = parsedDate.replace(/-/g, '');
     const homeCode = homeTeam.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 12);
@@ -579,8 +366,7 @@ function parseSIDEARMTextExport(text, school, gender) {
       home_score: homeScore,
       gender: gender,
       level: 'College',
-      division: school.division,
-      schoolAbbrev: school.abbrev
+      division: school.division
     });
   }
   
@@ -588,7 +374,57 @@ function parseSIDEARMTextExport(text, school, gender) {
 }
 
 /**
- * Deduplicate games (same matchup from different team schedules)
+ * Fetch and parse schedule for a school
+ */
+async function scrapeSchoolSchedule(school, gender) {
+  const path = (gender === 'Boys' || gender === 'Men') ? school.mensPath : school.womensPath;
+  const pageUrl = `https://${school.site}${path}`;
+  
+  console.log(`  Fetching ${school.shortname} ${gender}...`);
+  
+  try {
+    const pageResponse = await fetch(pageUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; Ball603/1.0)',
+        'Accept': 'text/html'
+      }
+    });
+    
+    if (!pageResponse.ok) {
+      throw new Error(`HTTP ${pageResponse.status}`);
+    }
+    
+    const html = await pageResponse.text();
+    const textUrlMatch = html.match(/\/services\/schedule_txt\.ashx\?schedule=(\d+)/);
+    
+    if (textUrlMatch) {
+      const textUrl = `https://${school.site}${textUrlMatch[0]}`;
+      const textResponse = await fetch(textUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; Ball603/1.0)',
+          'Accept': 'text/plain'
+        }
+      });
+      
+      if (textResponse.ok) {
+        const textContent = await textResponse.text();
+        const games = parseSIDEARMTextExport(textContent, school, gender);
+        console.log(`    Found ${games.length} games (text export)`);
+        return games;
+      }
+    }
+    
+    console.log(`    No text export found, skipping HTML parsing`);
+    return [];
+    
+  } catch (error) {
+    console.error(`    Error: ${error.message}`);
+    return [];
+  }
+}
+
+/**
+ * Deduplicate games
  */
 function deduplicateGames(games) {
   const seen = new Map();
@@ -600,7 +436,6 @@ function deduplicateGames(games) {
     if (!seen.has(key)) {
       seen.set(key, game);
     } else {
-      // Prefer game with scores
       const existing = seen.get(key);
       if (game.home_score && !existing.home_score) {
         seen.set(key, game);
@@ -612,18 +447,9 @@ function deduplicateGames(games) {
 }
 
 /**
- * Filter to only NH home games
- */
-function filterNHHomeGames(games) {
-  const nhTeams = Object.values(SIDEARM_SCHOOLS).map(s => s.shortname);
-  return games.filter(g => nhTeams.includes(g.home_team));
-}
-
-/**
  * Get existing games from Supabase
  */
 async function getExistingGames(supabaseUrl, supabaseKey) {
-  // Fetch all college games from Supabase
   const response = await fetch(
     `${supabaseUrl}/rest/v1/games?level=eq.College&select=*`,
     {
@@ -642,34 +468,11 @@ async function getExistingGames(supabaseUrl, supabaseKey) {
   }
   
   const rows = await response.json();
-  
   const existingGames = {};
+  
   for (const row of rows) {
     if (row.game_id) {
-      existingGames[row.game_id] = {
-        date: row.date || '',
-        time: row.time || '',
-        away_team: row.away_team || '',
-        away_score: row.away_score || '',
-        home_team: row.home_team || '',
-        home_score: row.home_score || '',
-        gender: row.gender || '',
-        level: row.level || '',
-        division: row.division || '',
-        photog1: row.photog1 || '',
-        photog2: row.photog2 || '',
-        videog: row.videog || '',
-        writer: row.writer || '',
-        notes: row.notes || '',
-        original_date: row.original_date || '',
-        schedule_changed: row.schedule_changed || '',
-        photos_url: row.photos_url || '',
-        recap_url: row.recap_url || '',
-        highlights_url: row.highlights_url || '',
-        live_stream_url: row.live_stream_url || '',
-        game_description: row.game_description || '',
-        special_event: row.special_event || ''
-      };
+      existingGames[row.game_id] = row;
     }
   }
   
@@ -678,89 +481,78 @@ async function getExistingGames(supabaseUrl, supabaseKey) {
 
 /**
  * Update Supabase with scraped games
- * MERGES with existing data - preserves assignments and games not in scrape
  */
 async function updateSupabase(scrapedGames) {
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
     console.log('  Supabase credentials not configured');
-    return { updated: 0, added: 0, preserved: 0 };
+    return { updated: 0, added: 0, total: 0 };
   }
   
   const supabaseUrl = process.env.SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
   
-  // Get ALL existing college games (including D1 from ESPN scraper)
   const existingGames = await getExistingGames(supabaseUrl, supabaseKey);
   console.log(`  Found ${Object.keys(existingGames).length} existing games in database`);
   
-  // Track stats
   let updated = 0;
   let added = 0;
   let changesDetected = 0;
   
-  // Build map of scraped games by ID
   const scrapedMap = new Map();
   for (const game of scrapedGames) {
     scrapedMap.set(game.game_id, game);
   }
   
-  // Prepare games for upsert
   const gamesToUpsert = [];
   
-  // First, process existing games that we're updating
   for (const [gameId, existing] of Object.entries(existingGames)) {
     const scraped = scrapedMap.get(gameId);
     
     if (scraped) {
-      // Game exists in both - update scores but PRESERVE assignments
       const hasAssignment = existing.photog1 || existing.photog2 || existing.videog || existing.writer;
       
-      // Check for schedule change
-      let originalDate = existing.original_date || '';
-      let scheduleChanged = existing.schedule_changed || '';
+      let originalDate = existing.original_date;
+      let scheduleChanged = existing.schedule_changed || false;
       
       if (hasAssignment && existing.date && existing.date !== scraped.date) {
         originalDate = existing.original_date || existing.date;
-        scheduleChanged = 'YES';
+        scheduleChanged = true;
         changesDetected++;
         console.log(`  ⚠️ Schedule change: ${scraped.home_team} vs ${scraped.away_team} moved from ${existing.date} to ${scraped.date}`);
       }
       
-      const awayScore = scraped.away_score || existing.away_score || null;
-      const homeScore = scraped.home_score || existing.home_score || null;
+      const awayScore = toIntOrNull(scraped.away_score) ?? toIntOrNull(existing.away_score);
+      const homeScore = toIntOrNull(scraped.home_score) ?? toIntOrNull(existing.home_score);
       
       gamesToUpsert.push({
         game_id: gameId,
         date: scraped.date,
         time: scraped.time || existing.time,
         away_team: scraped.away_team,
-        away_score: awayScore ? parseInt(awayScore) : null,
+        away_score: awayScore,
         home_team: scraped.home_team,
-        home_score: homeScore ? parseInt(homeScore) : null,
+        home_score: homeScore,
         gender: scraped.gender,
         level: scraped.level,
         division: scraped.division,
-        // PRESERVE all assignments
-        photog1: existing.photog1,
-        photog2: existing.photog2,
-        videog: existing.videog,
-        writer: existing.writer,
-        notes: existing.notes,
-        original_date: originalDate,
+        photog1: toStringOrNull(existing.photog1),
+        photog2: toStringOrNull(existing.photog2),
+        videog: toStringOrNull(existing.videog),
+        writer: toStringOrNull(existing.writer),
+        notes: toStringOrNull(existing.notes),
+        original_date: toDateOrNull(originalDate),
         schedule_changed: scheduleChanged,
-        photos_url: existing.photos_url,
-        recap_url: existing.recap_url,
-        highlights_url: existing.highlights_url,
-        live_stream_url: existing.live_stream_url,
-        game_description: existing.game_description,
-        special_event: existing.special_event
+        photos_url: toStringOrNull(existing.photos_url),
+        recap_url: toStringOrNull(existing.recap_url),
+        highlights_url: toStringOrNull(existing.highlights_url),
+        live_stream_url: toStringOrNull(existing.live_stream_url),
+        game_description: toStringOrNull(existing.game_description),
+        special_event: toStringOrNull(existing.special_event)
       });
       updated++;
     }
-    // Note: Games not in scrape are preserved in database automatically (no delete)
   }
   
-  // Add new games from scrape
   for (const [gameId, game] of scrapedMap) {
     if (!existingGames[gameId]) {
       gamesToUpsert.push({
@@ -768,25 +560,25 @@ async function updateSupabase(scrapedGames) {
         date: game.date,
         time: game.time,
         away_team: game.away_team,
-        away_score: game.away_score ? parseInt(game.away_score) : null,
+        away_score: toIntOrNull(game.away_score),
         home_team: game.home_team,
-        home_score: game.home_score ? parseInt(game.home_score) : null,
+        home_score: toIntOrNull(game.home_score),
         gender: game.gender,
         level: game.level,
         division: game.division,
-        photog1: '',
-        photog2: '',
-        videog: '',
-        writer: '',
-        notes: '',
-        original_date: '',
-        schedule_changed: '',
-        photos_url: '',
-        recap_url: '',
-        highlights_url: '',
-        live_stream_url: '',
-        game_description: '',
-        special_event: ''
+        photog1: null,
+        photog2: null,
+        videog: null,
+        writer: null,
+        notes: null,
+        original_date: null,
+        schedule_changed: false,
+        photos_url: null,
+        recap_url: null,
+        highlights_url: null,
+        live_stream_url: null,
+        game_description: null,
+        special_event: null
       });
       added++;
     }
@@ -798,7 +590,6 @@ async function updateSupabase(scrapedGames) {
     console.log(`  ⚠️ Schedule changes detected: ${changesDetected}`);
   }
   
-  // Upsert to Supabase in batches
   const BATCH_SIZE = 500;
   let totalUpserted = 0;
   
@@ -842,27 +633,21 @@ export default async (request) => {
   try {
     const allGames = [];
     
-    // Scrape all schools
     for (const [name, school] of Object.entries(SIDEARM_SCHOOLS)) {
-      // Men's basketball
       const mensGames = await scrapeSchoolSchedule(school, 'Men');
       allGames.push(...mensGames);
       
-      // Women's basketball
       const womensGames = await scrapeSchoolSchedule(school, 'Women');
       allGames.push(...womensGames);
       
-      // Small delay between schools to be nice
       await new Promise(r => setTimeout(r, 500));
     }
     
     console.log(`Total games scraped: ${allGames.length}`);
     
-    // Deduplicate
     const uniqueGames = deduplicateGames(allGames);
     console.log(`After deduplication: ${uniqueGames.length}`);
     
-    // Update Supabase (merges with existing, preserves assignments)
     const stats = await updateSupabase(uniqueGames);
     
     const result = {
@@ -893,7 +678,6 @@ export default async (request) => {
   }
 };
 
-// Run daily at 6 AM during basketball season
 export const config = {
   schedule: "0 6 * 11,12,1,2,3 *"
 };
