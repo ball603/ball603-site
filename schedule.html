@@ -218,6 +218,21 @@
     .calendar-day.selected.has-games::after { background: #fff; }
     .calendar-btn { cursor: pointer; background: #fff; border: 1px solid #ddd; border-radius: 5px; padding: 0 10px; font-size: 14px; height: 32px; line-height: 30px; }
     .calendar-btn:hover { background: #f5f5f5; }
+    
+    /* Date Range Picker */
+    .date-range-section { border-top: 1px solid #eee; margin-top: 15px; padding-top: 15px; }
+    .date-range-toggle { display: flex; justify-content: space-between; align-items: center; cursor: pointer; padding: 8px 10px; border-radius: 5px; background: #f5f5f5; font-size: 14px; color: #333; }
+    .date-range-toggle:hover { background: #eee; }
+    .date-range-inputs { margin-top: 12px; }
+    .date-range-row { display: flex; align-items: center; margin-bottom: 10px; gap: 10px; }
+    .date-range-row label { font-size: 13px; color: #666; min-width: 45px; }
+    .date-range-row input[type="date"] { flex: 1; padding: 8px 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; }
+    .date-range-apply { width: 100%; padding: 10px; background: #f57c00; color: #fff; border: none; border-radius: 5px; font-size: 14px; font-weight: 600; cursor: pointer; }
+    .date-range-apply:hover { background: #e65100; }
+    
+    /* Date header row for range mode */
+    .date-header-row { background: #f5f5f5; }
+    .date-header { font-weight: 600; font-size: 14px; color: #333; padding: 10px 15px !important; border-bottom: 2px solid #ddd; }
   </style>
 </head>
 <body>
@@ -286,6 +301,23 @@
       </div>
       <div class="calendar-grid" id="calendarGrid">
         <!-- Days populated by JS -->
+      </div>
+      <div class="date-range-section">
+        <div class="date-range-toggle" onclick="toggleDateRange()">
+          <span>📅 Choose Date Range</span>
+          <span id="dateRangeArrow">▼</span>
+        </div>
+        <div class="date-range-inputs" id="dateRangeInputs" style="display: none;">
+          <div class="date-range-row">
+            <label>From:</label>
+            <input type="date" id="dateRangeStart">
+          </div>
+          <div class="date-range-row">
+            <label>To:</label>
+            <input type="date" id="dateRangeEnd">
+          </div>
+          <button class="date-range-apply" onclick="applyDateRange()">Apply Range</button>
+        </div>
       </div>
     </div>
   </div>
@@ -477,6 +509,76 @@
       return cleaned + '.png';
     }
     
+    // NH Colleges (teams we cover)
+    const NH_COLLEGES = new Set([
+      'unh', 'dartmouth', 'southern new hampshire', 'saint anselm', 
+      'franklin pierce', 'plymouth state', 'keene state', 'colby-sawyer',
+      'new england college', 'rivier'
+    ]);
+    
+    // Check if a team is a NH team (high school or college we cover)
+    function isNHTeam(teamName) {
+      if (!teamName) return false;
+      const lower = teamName.toLowerCase().trim();
+      
+      // Check if it's a NH college
+      if (NH_COLLEGES.has(lower)) return true;
+      
+      // High school teams are NH teams - check if the logo file exists
+      // by checking if it's NOT a known out-of-state pattern
+      const outOfStatePatterns = [
+        /university/i, /college/i, /state$/i, /tech$/i,
+        /^suny/i, /^umass/i, /^uconn/i, /^boston/i, /^holy cross/i,
+        /^providence/i, /^yale/i, /^brown/i, /^harvard/i, /^cornell/i,
+        /^northeastern/i, /^merrimack$/i, /^stonehill/i, /^bentley/i,
+        /^assumption/i, /^american international/i, /^saint michael/i,
+        /^pace/i, /^adelphi/i, /^bridgeport/i, /^molloy/i, /^felician/i,
+        /^dominican/i, /^caldwell/i, /^post$/i, /^le moyne/i, /^sacred heart/i,
+        /^fairfield/i, /^quinnipiac/i, /^maine/i, /^vermont/i, /^vtsu/i,
+        /^albany/i, /^binghamton/i, /^umbc/i, /^njit/i, /^bryant/i,
+        /^syracuse/i, /^clemson/i, /^george mason/i, /^nebraska/i, /^saint louis/i,
+        /^rhode island/i, /^central conn/i, /^southern conn/i, /^eastern conn/i,
+        /^western conn/i, /^worcester/i, /^fitchburg/i, /^salem state/i,
+        /^bridgewater state/i, /^une$/i, /^norwich/i, /^gordon$/i, /^curry$/i,
+        /^lesley/i, /^nichols/i, /^elms/i, /^dean$/i, /^mitchell/i, /^regis/i,
+        /^albertus/i, /^anna maria/i, /^lasell/i, /^emmanuel/i, /^saint joseph/i,
+        /^brandeis/i, /^tufts/i, /^wpi$/i, /^trinity/i, /^colby$/i, /^amherst$/i,
+        /^new haven/i, /^daemen/i, /^suffolk/i, /^framingham/i, /^westfield/i,
+        /^hartford/i, /^fisher/i, /^geneseo/i, /^canton/i, /^cobleskill/i
+      ];
+      
+      // If matches out-of-state pattern, not NH
+      for (const pattern of outOfStatePatterns) {
+        if (pattern.test(lower)) return false;
+      }
+      
+      // Otherwise assume it's a NH high school team
+      return true;
+    }
+    
+    // Render team name - link only if NH team
+    function renderTeamName(teamName, isAway = false) {
+      if (!teamName) return '';
+      const logo = getLogoFilename(teamName);
+      const logoHtml = `<img class="team-logo" src="/logos/100px/${logo}" alt="" onerror="this.onerror=null; this.src='/logos/100px/Ball603-white.png'">`;
+      
+      if (isNHTeam(teamName)) {
+        const link = `/teams/${logo.replace('.png', '.html')}`;
+        if (isAway) {
+          return `<a class="team-name" href="${link}">${teamName}</a>${logoHtml}`;
+        } else {
+          return `${logoHtml}<a class="team-name" href="${link}">${teamName}</a>`;
+        }
+      } else {
+        // No link for out-of-state teams
+        if (isAway) {
+          return `<span class="team-name">${teamName}</span>${logoHtml}`;
+        } else {
+          return `${logoHtml}<span class="team-name">${teamName}</span>`;
+        }
+      }
+    }
+    
     async function loadGames() {
       try {
         const response = await fetch('/.netlify/functions/get-games');
@@ -501,22 +603,16 @@
     
     function prevDay() {
       currentDate.setDate(currentDate.getDate() - 1);
+      dateRangeEnd = null; // Clear date range when using arrow navigation
       updateDateDisplay();
       renderSchedule();
     }
     
     function nextDay() {
       currentDate.setDate(currentDate.getDate() + 1);
+      dateRangeEnd = null; // Clear date range when using arrow navigation
       updateDateDisplay();
       renderSchedule();
-    }
-    
-    function updateDateDisplay() {
-      const dayName = DAY_NAMES[currentDate.getDay()];
-      const monthName = MONTH_NAMES[currentDate.getMonth()];
-      const day = currentDate.getDate();
-      const year = currentDate.getFullYear();
-      document.getElementById('currentDate').textContent = `${dayName}, ${monthName} ${day}, ${year}`;
     }
     
     function getDateString(date) {
@@ -537,10 +633,18 @@
       const gender = document.getElementById('genderFilter').value;
       const level = document.getElementById('levelFilter').value;
       const dateStr = getDateString(currentDate);
+      const endDateStr = dateRangeEnd ? getDateString(dateRangeEnd) : null;
       
       // Filter games
       let games = allGames.filter(g => {
-        if (g.date !== dateStr) return false;
+        // Date filtering - single date or range
+        if (endDateStr) {
+          // Range mode: include games from currentDate to dateRangeEnd
+          if (g.date < dateStr || g.date > endDateStr) return false;
+        } else {
+          // Single date mode
+          if (g.date !== dateStr) return false;
+        }
         if (level && g.level !== level) return false;
         if (gender && g.gender !== gender) return false;
         if (search && !g.home.toLowerCase().includes(search) && !g.away.toLowerCase().includes(search)) return false;
@@ -558,8 +662,13 @@
         return 5; // Has description but not a recognized round
       }
       
-      // Sort games: grouped games first (by priority, then by description, then by time), then ungrouped by time
+      // Sort games
       games.sort((a, b) => {
+        // In range mode, sort by date first
+        if (endDateStr) {
+          if (a.date !== b.date) return a.date.localeCompare(b.date);
+        }
+        
         const aPriority = getDescriptionPriority(a.gamedescription);
         const bPriority = getDescriptionPriority(b.gamedescription);
         
@@ -589,9 +698,12 @@
       });
       
       if (games.length === 0) {
+        const emptyMsg = endDateStr 
+          ? 'No games scheduled for this date range.'
+          : 'No games scheduled for this date.';
         document.getElementById('scheduleContainer').innerHTML = `
           <div class="empty-state">
-            <p>No games scheduled for this date.</p>
+            <p>${emptyMsg}</p>
           </div>
         `;
         return;
@@ -614,6 +726,7 @@
       
       // Track which game descriptions we've already shown headers for
       const shownDescriptions = new Set();
+      let lastDate = null; // Track last date for range mode headers
       
       // Helper to get priority class
       function getPriorityClass(desc) {
@@ -626,7 +739,22 @@
         return 'priority-4'; // Default for other descriptions
       }
       
+      // Helper to format date for display
+      function formatDateHeader(dateStr) {
+        const d = new Date(dateStr + 'T00:00:00');
+        return `${DAY_NAMES[d.getDay()]}, ${MONTH_NAMES[d.getMonth()]} ${d.getDate()}`;
+      }
+      
       games.forEach(game => {
+        // In range mode, add date header when date changes
+        if (endDateStr && game.date !== lastDate) {
+          lastDate = game.date;
+          html += `
+            <tr class="date-header-row">
+              <td colspan="6" class="date-header">${formatDateHeader(game.date)}</td>
+            </tr>
+          `;
+        }
         // Build coverage icons - only show if link exists (used for both games and special events)
         let coverageHtml = '';
         if (game.photos_url) coverageHtml += `<a class="coverage-icon" href="${game.photos_url}" target="_blank" title="Photos">📸</a>`;
@@ -706,15 +834,13 @@
             <td class="gender-col">${game.gender || ''}</td>
             <td class="team-col away">
               <div class="team away-team">
-                <a class="team-name" href="/teams/${getLogoFilename(game.away).replace('.png', '.html')}">${game.away}</a>
-                <img class="team-logo" src="/logos/100px/${getLogoFilename(game.away)}" alt="" onerror="this.onerror=null; this.src='/logos/100px/Ball603-white.png'">
+                ${renderTeamName(game.away, true)}
               </div>
             </td>
             <td class="score-col">${scoreHtml}</td>
             <td class="team-col">
               <div class="team">
-                <img class="team-logo" src="/logos/100px/${getLogoFilename(game.home)}" alt="" onerror="this.onerror=null; this.src='/logos/100px/Ball603-white.png'">
-                <a class="team-name" href="/teams/${getLogoFilename(game.home).replace('.png', '.html')}">${game.home}</a>
+                ${renderTeamName(game.home, false)}
               </div>
             </td>
             <td class="time-col">
@@ -823,9 +949,68 @@
     function selectDate(year, month, day) {
       currentDate = new Date(year, month, day);
       currentDate.setHours(0, 0, 0, 0);
+      dateRangeEnd = null; // Clear any date range
       updateDateDisplay();
       renderSchedule();
       document.getElementById('calendarOverlay').classList.remove('show');
+    }
+    
+    // Date range functionality
+    let dateRangeEnd = null;
+    
+    function toggleDateRange() {
+      const inputs = document.getElementById('dateRangeInputs');
+      const arrow = document.getElementById('dateRangeArrow');
+      if (inputs.style.display === 'none') {
+        inputs.style.display = 'block';
+        arrow.textContent = '▲';
+        // Set default values
+        const today = new Date();
+        document.getElementById('dateRangeStart').value = getDateString(today);
+        const nextWeek = new Date(today);
+        nextWeek.setDate(nextWeek.getDate() + 7);
+        document.getElementById('dateRangeEnd').value = getDateString(nextWeek);
+      } else {
+        inputs.style.display = 'none';
+        arrow.textContent = '▼';
+      }
+    }
+    
+    function applyDateRange() {
+      const startStr = document.getElementById('dateRangeStart').value;
+      const endStr = document.getElementById('dateRangeEnd').value;
+      
+      if (!startStr || !endStr) {
+        alert('Please select both start and end dates');
+        return;
+      }
+      
+      const startDate = new Date(startStr + 'T00:00:00');
+      const endDate = new Date(endStr + 'T00:00:00');
+      
+      if (endDate < startDate) {
+        alert('End date must be after start date');
+        return;
+      }
+      
+      currentDate = startDate;
+      dateRangeEnd = endDate;
+      updateDateDisplay();
+      renderSchedule();
+      document.getElementById('calendarOverlay').classList.remove('show');
+    }
+    
+    function updateDateDisplay() {
+      const dateDisplay = document.getElementById('currentDate');
+      if (dateRangeEnd) {
+        // Show range
+        const startStr = `${MONTH_NAMES[currentDate.getMonth()].substring(0,3)} ${currentDate.getDate()}`;
+        const endStr = `${MONTH_NAMES[dateRangeEnd.getMonth()].substring(0,3)} ${dateRangeEnd.getDate()}, ${dateRangeEnd.getFullYear()}`;
+        dateDisplay.textContent = `${startStr} - ${endStr}`;
+      } else {
+        // Show single date
+        dateDisplay.textContent = `${DAY_NAMES[currentDate.getDay()]}, ${MONTH_NAMES[currentDate.getMonth()]} ${currentDate.getDate()}, ${currentDate.getFullYear()}`;
+      }
     }
     
     // Initialize
