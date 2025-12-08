@@ -3494,7 +3494,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     
     async function loadGames() {
       try {
-        const response = await fetch('/.netlify/functions/games');
+        const response = await fetch('/.netlify/functions/games?limit=5000');
         allGames = await response.json();
         filterGames();
         populateTeamsDatalist();
@@ -3569,11 +3569,15 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           <div>Actions</div>
         </div>
         ${filteredGames.map(game => {
-          const hasCoverage = game.photog1 || game.photog2 || game.videog || game.writer;
+          // Check for non-empty string values
+          const hasPhotog = (game.photog1 && game.photog1.trim()) || (game.photog2 && game.photog2.trim());
+          const hasVideog = game.videog && game.videog.trim();
+          const hasWriter = game.writer && game.writer.trim();
+          
           const coverageIcons = [];
-          if (game.photog1 || game.photog2) coverageIcons.push('📷');
-          if (game.videog) coverageIcons.push('🎥');
-          if (game.writer) coverageIcons.push('✍️');
+          if (hasPhotog) coverageIcons.push('📷');
+          if (hasVideog) coverageIcons.push('🎥');
+          if (hasWriter) coverageIcons.push('✍️');
           
           const score = game.status === 'final' 
             ? `${game.away_score || 0}-${game.home_score || 0}`
