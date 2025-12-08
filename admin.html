@@ -61,6 +61,7 @@
     .article-status { font-size: 12px; padding: 4px 10px; border-radius: 20px; display: inline-block; }
     .article-status.draft { background: #fff3e0; color: #e65100; }
     .article-status.published { background: #e8f5e9; color: #2e7d32; }
+    .article-status.scheduled { background: #f3e5f5; color: #7b1fa2; }
     .article-date { font-size: 13px; color: #666; }
     .article-actions { display: flex; gap: 8px; }
     .btn-edit, .btn-delete { padding: 6px 12px; border: none; border-radius: 4px; font-size: 12px; cursor: pointer; }
@@ -1110,6 +1111,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           <button class="btn-back" onclick="closeEditor()">← Back</button>
           <button class="btn-preview" onclick="openPreview()">👁 Preview</button>
           <button class="btn-save" onclick="saveArticle()">Save Draft</button>
+          <button class="btn-save" onclick="saveAndPreviewSocial()" style="background: #9c27b0;" title="Save as draft and preview social posts">📱 Social Preview</button>
           <button class="btn-publish" onclick="publishArticle()">Publish</button>
         </div>
       </div>
@@ -1160,24 +1162,53 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           <input type="hidden" id="selectedGameId">
           
           <div class="sidebar-card">
-            <h4>📱 Social Media</h4>
-            <div class="social-buttons">
-              <button class="btn-social facebook" onclick="postToSocial('facebook')" id="btnFacebook">
-                📘 Post to Facebook
-                <span class="posted" id="facebookPosted" style="display: none;">✓ Posted</span>
-              </button>
-              <button class="btn-social instagram" onclick="postToSocial('instagram')" id="btnInstagram">
-                📸 Copy for Instagram
-                <span class="posted" id="instagramPosted" style="display: none;">✓ Copied</span>
-              </button>
-              <button class="btn-social twitter" onclick="postToSocial('twitter')" id="btnTwitter">
-                𝕏 Post to X
-                <span class="posted" id="twitterPosted" style="display: none;">✓ Posted</span>
-              </button>
+            <h4>✍️ Author</h4>
+            <div class="form-group">
+              <select id="articleAuthor">
+                <option value="KJ Maroney">KJ Maroney</option>
+                <option value="Ball603 Staff">Ball603 Staff</option>
+                <option value="Guest Contributor">Guest Contributor</option>
+              </select>
             </div>
-            <small style="display: block; margin-top: 10px; color: #999;">Social posting available after publishing</small>
+          </div>
+          
+          <div class="sidebar-card">
+            <h4>📅 Schedule</h4>
+            <div class="form-group">
+              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="checkbox" id="schedulePost" onchange="toggleScheduleOptions()">
+                <span>Schedule for later</span>
+              </label>
+            </div>
+            <div id="scheduleOptions" style="display: none; margin-top: 10px;">
+              <div class="form-group">
+                <label>Date & Time</label>
+                <input type="datetime-local" id="scheduledDateTime">
+              </div>
+            </div>
+          </div>
+          
+          <div class="sidebar-card" id="socialPostsCard" style="display: none;">
+            <h4>📱 Social Posts</h4>
+            <button onclick="viewSocialPosts()" style="width: 100%; padding: 10px; background: #9c27b0; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 13px;">
+              📱 View Social Posts
+            </button>
+            <small style="display: block; margin-top: 8px; color: #888;">Edit and copy social media posts</small>
           </div>
         </div>
+      </div>
+      
+      <!-- Tags Section -->
+      <div style="margin-top: 20px; padding: 15px; background: #f9f9f9; border-radius: 8px;">
+        <h4 style="margin: 0 0 12px 0; font-size: 13px; font-weight: 600; color: #555;">🏷️ Tags</h4>
+        <div id="tagsContainer" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;">
+          <!-- Tags will be rendered here -->
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <input type="text" id="newTagInput" placeholder="Add custom tag..." style="flex: 1; padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px;" onkeypress="if(event.key==='Enter'){event.preventDefault();addCustomTag();}">
+          <button onclick="addCustomTag()" style="padding: 8px 15px; background: #f57c00; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 13px;">Add</button>
+        </div>
+        <small style="color: #999; font-size: 11px; margin-top: 8px; display: block;">Tags are auto-generated based on linked game. Click × to remove.</small>
       </div>
     </div>
     
@@ -1457,17 +1488,36 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           <div>Date</div>
           <div>Actions</div>
         </div>
-        ${filtered.map(article => `
+        ${filtered.map(article => {
+          const isPublished = article.status === 'published';
+          const articleUrl = isPublished ? `https://ball603.com/articles/${article.slug}` : '';
+          const shareButtons = isPublished ? `
+            <div style="display: flex; gap: 4px; margin-top: 4px;">
+              <button onclick="event.stopPropagation(); shareArticle('facebook', '${articleUrl}')" style="padding: 3px 6px; font-size: 10px; background: #1877f2; color: white; border: none; border-radius: 3px; cursor: pointer;" title="Share to Facebook">FB</button>
+              <button onclick="event.stopPropagation(); shareArticle('twitter', '${articleUrl}', '${article.title.replace(/'/g, "\\'")}')" style="padding: 3px 6px; font-size: 10px; background: #000; color: white; border: none; border-radius: 3px; cursor: pointer;" title="Share to X">X</button>
+              <button onclick="event.stopPropagation(); copyArticleUrl('${articleUrl}')" style="padding: 3px 6px; font-size: 10px; background: #666; color: white; border: none; border-radius: 3px; cursor: pointer;" title="Copy Link">🔗</button>
+              ${article.social_posts ? `<button onclick="event.stopPropagation(); viewStoredSocialPosts('${article.id}')" style="padding: 3px 6px; font-size: 10px; background: #9c27b0; color: white; border: none; border-radius: 3px; cursor: pointer;" title="View Social Posts">📱</button>` : ''}
+            </div>
+          ` : '';
+          const scheduledInfo = article.scheduled_at ? `<div style="font-size: 10px; color: #9c27b0;">📅 ${formatDateTime(article.scheduled_at)}</div>` : '';
+          
+          return `
           <div class="article-row">
-            <div class="article-title" onclick="editArticle('${article.id}')">${article.title || 'Untitled'}</div>
-            <div><span class="article-status ${article.status}">${article.status}</span></div>
+            <div>
+              <div class="article-title" onclick="editArticle('${article.id}')">${article.title || 'Untitled'}</div>
+              ${shareButtons}
+            </div>
+            <div>
+              <span class="article-status ${article.status}">${article.status}</span>
+              ${scheduledInfo}
+            </div>
             <div class="article-date">${formatDate(article.created_at)}</div>
             <div class="article-actions">
               <button class="btn-edit" onclick="editArticle('${article.id}')">Edit</button>
               <button class="btn-delete" onclick="deleteArticle('${article.id}')">Delete</button>
             </div>
           </div>
-        `).join('')}
+        `}).join('')}
       `;
     }
     
@@ -1479,6 +1529,145 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       if (!dateStr) return '-';
       const date = new Date(dateStr);
       return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+    
+    function formatDateTime(dateStr) {
+      if (!dateStr) return '-';
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + 
+             date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    }
+    
+    // Social sharing functions
+    function shareArticle(platform, url, title = '') {
+      let shareUrl;
+      if (platform === 'facebook') {
+        shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`;
+      } else if (platform === 'twitter') {
+        shareUrl = `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(title)}`;
+      }
+      window.open(shareUrl, '_blank', 'width=600,height=400');
+    }
+    
+    function copyArticleUrl(url) {
+      navigator.clipboard.writeText(url).then(() => {
+        showToast('Link copied!', 'success');
+      });
+    }
+    
+    async function viewStoredSocialPosts(articleId) {
+      const article = articles.find(a => a.id === articleId);
+      if (!article || !article.social_posts) {
+        showToast('No social posts found', 'error');
+        return;
+      }
+      
+      // Load the social posts into the generatedSocialPosts object
+      generatedSocialPosts = article.social_posts;
+      currentArticle = article;
+      
+      // Show the social publishing panel
+      showSocialPublishing(article);
+    }
+    
+    // Schedule toggle
+    function toggleScheduleOptions() {
+      const checkbox = document.getElementById('schedulePost');
+      const options = document.getElementById('scheduleOptions');
+      options.style.display = checkbox.checked ? 'block' : 'none';
+      
+      if (checkbox.checked && !document.getElementById('scheduledDateTime').value) {
+        // Default to tomorrow at 9 AM
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(9, 0, 0, 0);
+        document.getElementById('scheduledDateTime').value = tomorrow.toISOString().slice(0, 16);
+      }
+    }
+    
+    // Tags management
+    let currentTags = [];
+    
+    function generateAutoTags() {
+      let tags = ['news'];
+      
+      if (selectedGame) {
+        if (selectedGame.home) tags.push(selectedGame.home.toLowerCase().replace(/\s+/g, '-'));
+        if (selectedGame.away) tags.push(selectedGame.away.toLowerCase().replace(/\s+/g, '-'));
+        if (selectedGame.level) tags.push(selectedGame.level.toLowerCase());
+        if (selectedGame.gender) tags.push(selectedGame.gender.toLowerCase());
+        if (selectedGame.division) tags.push(selectedGame.division.toLowerCase().replace(/\s+/g, '-'));
+        if (selectedGame.conference) tags.push(selectedGame.conference.toLowerCase().replace(/\s+/g, '-'));
+      }
+      
+      const youtubeUrl = document.getElementById('youtubeUrl').value;
+      const smugmugUrl = document.getElementById('smugmugUrl').value;
+      if (youtubeUrl) tags.push('video');
+      if (smugmugUrl) tags.push('photo-gallery');
+      
+      return [...new Set(tags)]; // Remove duplicates
+    }
+    
+    function renderTags() {
+      const container = document.getElementById('tagsContainer');
+      if (!container) return;
+      
+      // Generate auto tags if currentTags is empty
+      if (currentTags.length === 0) {
+        currentTags = generateAutoTags();
+      }
+      
+      container.innerHTML = currentTags.map(tag => `
+        <span style="display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; background: #e3f2fd; color: #1565c0; border-radius: 20px; font-size: 12px;">
+          ${tag}
+          <button onclick="removeTag('${tag}')" style="background: none; border: none; cursor: pointer; color: #1565c0; font-size: 14px; line-height: 1; padding: 0;">&times;</button>
+        </span>
+      `).join('');
+    }
+    
+    function removeTag(tag) {
+      currentTags = currentTags.filter(t => t !== tag);
+      renderTags();
+    }
+    
+    function addCustomTag() {
+      const input = document.getElementById('newTagInput');
+      const tag = input.value.trim().toLowerCase().replace(/\s+/g, '-');
+      
+      if (tag && !currentTags.includes(tag)) {
+        currentTags.push(tag);
+        renderTags();
+      }
+      
+      input.value = '';
+    }
+    
+    function refreshTags() {
+      // Refresh auto-generated tags based on current game selection
+      const autoTags = generateAutoTags();
+      // Keep custom tags (tags not in auto-generated list that were manually added)
+      const customTags = currentTags.filter(t => !['news', 'video', 'photo-gallery'].includes(t) && 
+        !(selectedGame && [
+          selectedGame.home?.toLowerCase().replace(/\s+/g, '-'),
+          selectedGame.away?.toLowerCase().replace(/\s+/g, '-'),
+          selectedGame.level?.toLowerCase(),
+          selectedGame.gender?.toLowerCase(),
+          selectedGame.division?.toLowerCase().replace(/\s+/g, '-'),
+          selectedGame.conference?.toLowerCase().replace(/\s+/g, '-')
+        ].includes(t)));
+      
+      currentTags = [...new Set([...autoTags, ...customTags])];
+      renderTags();
+    }
+    
+    // View social posts for current article
+    function viewSocialPosts() {
+      if (!currentArticle || !currentArticle.social_posts) {
+        showToast('No social posts available', 'error');
+        return;
+      }
+      generatedSocialPosts = currentArticle.social_posts;
+      showSocialPublishing(currentArticle);
     }
     
     // Load games for selector (Scorebook/Boxscore Story modals)
@@ -1993,6 +2182,15 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           selectedGame = gsSelectedGame;
           document.getElementById('smugmugUrl').value = '';
           document.getElementById('youtubeUrl').value = '';
+          document.getElementById('articleAuthor').value = 'KJ Maroney';
+          document.getElementById('schedulePost').checked = false;
+          document.getElementById('scheduleOptions').style.display = 'none';
+          document.getElementById('scheduledDateTime').value = '';
+          document.getElementById('socialPostsCard').style.display = 'block';
+          
+          // Generate auto tags based on linked game
+          currentTags = generateAutoTags();
+          renderTags();
           
           document.getElementById('articlesPanel').style.display = 'none';
           document.getElementById('editorPanel').style.display = 'block';
@@ -2223,6 +2421,15 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           selectedGame = bsSelectedGame;
           document.getElementById('smugmugUrl').value = '';
           document.getElementById('youtubeUrl').value = '';
+          document.getElementById('articleAuthor').value = 'KJ Maroney';
+          document.getElementById('schedulePost').checked = false;
+          document.getElementById('scheduleOptions').style.display = 'none';
+          document.getElementById('scheduledDateTime').value = '';
+          document.getElementById('socialPostsCard').style.display = 'block';
+          
+          // Generate auto tags based on linked game
+          currentTags = generateAutoTags();
+          renderTags();
           
           document.getElementById('articlesPanel').style.display = 'none';
           document.getElementById('editorPanel').style.display = 'block';
@@ -2265,6 +2472,11 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       selectedGame = null;
       document.getElementById('smugmugUrl').value = '';
       document.getElementById('youtubeUrl').value = '';
+      document.getElementById('articleAuthor').value = 'KJ Maroney';
+      document.getElementById('schedulePost').checked = false;
+      document.getElementById('scheduleOptions').style.display = 'none';
+      document.getElementById('scheduledDateTime').value = '';
+      document.getElementById('socialPostsCard').style.display = 'none';
       
       // Clear generated social posts (this is a manual article)
       generatedSocialPosts = {
@@ -2273,11 +2485,14 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         twitterPost: null
       };
       
+      // Reset tags
+      currentTags = [];
+      renderTags();
+      
       document.getElementById('articlesPanel').style.display = 'none';
       document.getElementById('editorPanel').style.display = 'block';
       
       renderGameSelector();
-      updateSocialButtons(false);
     }
     
     async function editArticle(id) {
@@ -2293,19 +2508,43 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       selectedGame = article.game_id ? games.find(g => g.game_id === article.game_id) : null;
       document.getElementById('smugmugUrl').value = article.smugmug_gallery_url || '';
       document.getElementById('youtubeUrl').value = article.youtube_url || '';
+      document.getElementById('articleAuthor').value = article.author || 'KJ Maroney';
       
-      // Clear generated social posts (editing existing article, no stored social versions)
-      generatedSocialPosts = {
-        facebookPost: null,
-        instagramPost: null,
-        twitterPost: null
-      };
+      // Handle scheduling
+      if (article.scheduled_at) {
+        document.getElementById('schedulePost').checked = true;
+        document.getElementById('scheduleOptions').style.display = 'block';
+        document.getElementById('scheduledDateTime').value = article.scheduled_at.slice(0, 16);
+      } else {
+        document.getElementById('schedulePost').checked = false;
+        document.getElementById('scheduleOptions').style.display = 'none';
+        document.getElementById('scheduledDateTime').value = '';
+      }
+      
+      // Handle tags
+      currentTags = article.tags || [];
+      if (currentTags.length === 0) {
+        currentTags = generateAutoTags();
+      }
+      renderTags();
+      
+      // Handle social posts
+      if (article.social_posts) {
+        generatedSocialPosts = article.social_posts;
+        document.getElementById('socialPostsCard').style.display = 'block';
+      } else {
+        generatedSocialPosts = {
+          facebookPost: null,
+          instagramPost: null,
+          twitterPost: null
+        };
+        document.getElementById('socialPostsCard').style.display = 'none';
+      }
       
       document.getElementById('articlesPanel').style.display = 'none';
       document.getElementById('editorPanel').style.display = 'block';
       
       renderGameSelector();
-      updateSocialButtons(article.status === 'published', article);
     }
     
     function closeEditor() {
@@ -2343,12 +2582,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('socialPublishingPanel').style.display = 'none';
       document.getElementById('articlesPanel').style.display = 'block';
       
-      // Clear generated social posts
-      generatedSocialPosts = {
-        facebookPost: null,
-        instagramPost: null,
-        twitterPost: null
-      };
+      // Don't clear generatedSocialPosts - they're stored with the article
+      // and can be re-accessed via the View Social Posts button
     }
     
     function updateCharCount(platform) {
@@ -2394,14 +2629,99 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         return;
       }
       
+      // Check if this was a published article (will unpublish it)
+      const wasPublished = currentArticle && currentArticle.status === 'published';
+      
+      // Handle scheduling
+      let scheduledAt = null;
+      if (document.getElementById('schedulePost').checked) {
+        scheduledAt = document.getElementById('scheduledDateTime').value;
+        if (scheduledAt) {
+          scheduledAt = new Date(scheduledAt).toISOString();
+        }
+      }
+      
       const articleData = {
         title,
-        slug: generateSlug(title) + '-' + Date.now(),
+        slug: currentArticle?.slug || (generateSlug(title) + '-' + Date.now()),
         content: document.getElementById('articleContent').value,
         excerpt: document.getElementById('articleExcerpt').value,
         game_id: document.getElementById('selectedGameId').value || null,
         smugmug_gallery_url: document.getElementById('smugmugUrl').value || null,
         youtube_url: document.getElementById('youtubeUrl').value || null,
+        author: document.getElementById('articleAuthor').value,
+        tags: currentTags,
+        scheduled_at: scheduledAt,
+        status: 'draft',
+        published_at: null, // Clear published_at when saving as draft
+        updated_at: new Date().toISOString()
+      };
+      
+      let result;
+      if (currentArticle) {
+        result = await supabase
+          .from('articles')
+          .update(articleData)
+          .eq('id', currentArticle.id)
+          .select();
+      } else {
+        result = await supabase
+          .from('articles')
+          .insert([articleData])
+          .select();
+      }
+      
+      if (result.error) {
+        console.error('Save error:', result.error);
+        showToast('Error saving article', 'error');
+        return;
+      }
+      
+      if (wasPublished) {
+        showToast('Article unpublished and saved as draft!', 'success');
+      } else {
+        showToast('Article saved!', 'success');
+      }
+      currentArticle = result.data[0];
+      loadArticles();
+    }
+    
+    async function saveAndPreviewSocial() {
+      // First save the article
+      const title = document.getElementById('articleTitle').value.trim();
+      if (!title) {
+        showToast('Please enter a headline', 'error');
+        return;
+      }
+      
+      // Handle scheduling
+      let scheduledAt = null;
+      if (document.getElementById('schedulePost').checked) {
+        scheduledAt = document.getElementById('scheduledDateTime').value;
+        if (scheduledAt) {
+          scheduledAt = new Date(scheduledAt).toISOString();
+        }
+      }
+      
+      // Build social posts object for storage
+      const socialPosts = (generatedSocialPosts.facebookPost || generatedSocialPosts.instagramPost || generatedSocialPosts.twitterPost) ? {
+        facebookPost: generatedSocialPosts.facebookPost || null,
+        instagramPost: generatedSocialPosts.instagramPost || null,
+        twitterPost: generatedSocialPosts.twitterPost || null
+      } : null;
+      
+      const articleData = {
+        title,
+        slug: currentArticle?.slug || (generateSlug(title) + '-' + Date.now()),
+        content: document.getElementById('articleContent').value,
+        excerpt: document.getElementById('articleExcerpt').value,
+        game_id: document.getElementById('selectedGameId').value || null,
+        smugmug_gallery_url: document.getElementById('smugmugUrl').value || null,
+        youtube_url: document.getElementById('youtubeUrl').value || null,
+        author: document.getElementById('articleAuthor').value,
+        tags: currentTags,
+        social_posts: socialPosts,
+        scheduled_at: scheduledAt,
         status: 'draft',
         updated_at: new Date().toISOString()
       };
@@ -2426,9 +2746,18 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         return;
       }
       
-      showToast('Article saved!', 'success');
       currentArticle = result.data[0];
       loadArticles();
+      
+      // Check if we have social posts to preview
+      if (generatedSocialPosts.facebookPost || generatedSocialPosts.instagramPost || generatedSocialPosts.twitterPost) {
+        showToast('Draft saved! Opening social preview...', 'success');
+        showSocialPublishing(currentArticle);
+      } else {
+        // Show preview modal instead (which shows social posts placeholder)
+        showToast('Draft saved! Note: Use Scorebook or Boxscore Story to generate social posts.', 'success');
+        openPreview();
+      }
     }
     
     async function publishArticle() {
@@ -2441,20 +2770,30 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const gameId = document.getElementById('selectedGameId').value || null;
       const smugmugUrl = document.getElementById('smugmugUrl').value || null;
       const youtubeUrl = document.getElementById('youtubeUrl').value || null;
-      const slug = generateSlug(title) + '-' + Date.now();
+      const slug = currentArticle?.slug || (generateSlug(title) + '-' + Date.now());
       
-      // Generate tags based on game info
-      let tags = ['news'];
-      if (selectedGame) {
-        if (selectedGame.home) tags.push(selectedGame.home.toLowerCase().replace(/\s+/g, '-'));
-        if (selectedGame.away) tags.push(selectedGame.away.toLowerCase().replace(/\s+/g, '-'));
-        if (selectedGame.level) tags.push(selectedGame.level.toLowerCase());
-        if (selectedGame.gender) tags.push(selectedGame.gender.toLowerCase());
-        if (selectedGame.division) tags.push(selectedGame.division.toLowerCase());
-        if (selectedGame.conference) tags.push(selectedGame.conference.toLowerCase().replace(/\s+/g, '-'));
+      // Check if scheduling
+      const isScheduled = document.getElementById('schedulePost').checked;
+      let scheduledAt = null;
+      if (isScheduled) {
+        scheduledAt = document.getElementById('scheduledDateTime').value;
+        if (scheduledAt) {
+          scheduledAt = new Date(scheduledAt).toISOString();
+        }
       }
-      if (youtubeUrl) tags.push('video');
-      if (smugmugUrl) tags.push('photo-gallery');
+      
+      // Use currentTags (which may have been edited by user)
+      // Refresh auto tags first to make sure we have latest
+      if (currentTags.length === 0) {
+        currentTags = generateAutoTags();
+      }
+      
+      // Build social posts object for storage
+      const socialPosts = (generatedSocialPosts.facebookPost || generatedSocialPosts.instagramPost || generatedSocialPosts.twitterPost) ? {
+        facebookPost: generatedSocialPosts.facebookPost || null,
+        instagramPost: generatedSocialPosts.instagramPost || null,
+        twitterPost: generatedSocialPosts.twitterPost || null
+      } : null;
       
       const articleData = {
         title,
@@ -2464,9 +2803,12 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         game_id: gameId,
         smugmug_gallery_url: smugmugUrl,
         youtube_url: youtubeUrl,
-        tags: tags,
-        status: 'published',
-        published_at: new Date().toISOString(),
+        author: document.getElementById('articleAuthor').value,
+        tags: currentTags,
+        social_posts: socialPosts,
+        scheduled_at: scheduledAt,
+        status: isScheduled ? 'scheduled' : 'published',
+        published_at: isScheduled ? null : new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
       
@@ -2492,8 +2834,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       
       currentArticle = result.data[0];
       
-      // Update game record with URLs if we have a game linked
-      if (gameId && selectedGame) {
+      // Update game record with URLs if we have a game linked (and not scheduled)
+      if (gameId && selectedGame && !isScheduled) {
         const gameUpdate = {};
         const articleUrl = `https://ball603.com/articles/${slug}`;
         
@@ -2511,14 +2853,19 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         }
       }
       
-      showToast('Article published!', 'success');
-      loadArticles();
-      
-      // Show social publishing page if we have generated posts
-      if (generatedSocialPosts.facebookPost || generatedSocialPosts.instagramPost || generatedSocialPosts.twitterPost) {
-        showSocialPublishing(currentArticle);
-      } else {
+      if (isScheduled) {
+        showToast(`Article scheduled for ${formatDateTime(scheduledAt)}!`, 'success');
         closeEditor();
+      } else {
+        showToast('Article published!', 'success');
+        loadArticles();
+        
+        // Show social publishing page if we have generated posts
+        if (generatedSocialPosts.facebookPost || generatedSocialPosts.instagramPost || generatedSocialPosts.twitterPost) {
+          showSocialPublishing(currentArticle);
+        } else {
+          closeEditor();
+        }
       }
     }
     
@@ -2959,84 +3306,6 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     }
     
     // Social posting
-    function updateSocialButtons(enabled, article = null) {
-      const btns = ['btnFacebook', 'btnInstagram', 'btnTwitter'];
-      btns.forEach(id => {
-        document.getElementById(id).disabled = !enabled;
-      });
-      
-      if (article) {
-        document.getElementById('facebookPosted').style.display = article.posted_facebook ? 'inline' : 'none';
-        document.getElementById('instagramPosted').style.display = article.posted_instagram ? 'inline' : 'none';
-        document.getElementById('twitterPosted').style.display = article.posted_twitter ? 'inline' : 'none';
-      }
-    }
-    
-    async function postToSocial(platform) {
-      const title = document.getElementById('articleTitle').value;
-      const content = document.getElementById('articleContent').value;
-      const excerpt = document.getElementById('articleExcerpt').value || content.substring(0, 200);
-      const gallery = document.getElementById('smugmugUrl').value;
-      const photographer = document.getElementById('photographerCredit').value;
-      
-      let postText = '';
-      
-      // Use pre-generated content if available (from story generators)
-      if (platform === 'facebook' && generatedSocialPosts.facebookPost) {
-        postText = generatedSocialPosts.facebookPost;
-        // Update with current gallery URL if changed
-        if (gallery && !postText.includes(gallery)) {
-          postText = postText.replace(/over at https?:\/\/[^\s]+|over at Ball603\.com/, `over at ${gallery}`);
-        }
-      } else if (platform === 'instagram' && generatedSocialPosts.instagramPost) {
-        postText = generatedSocialPosts.instagramPost;
-      } else if (platform === 'twitter' && generatedSocialPosts.twitterPost) {
-        postText = generatedSocialPosts.twitterPost;
-        // Update with current gallery URL if changed
-        if (gallery && !postText.includes(gallery)) {
-          postText = postText.replace(/over at https?:\/\/[^\s]+|over at Ball603\.com/, `over at ${gallery}`);
-        }
-      } else {
-        // Fallback to old behavior for non-generated articles
-        if (platform === 'facebook') {
-          postText = content;
-          if (photographer && gallery) {
-            postText += `\n\nCheck out the full photo gallery by ${photographer} over at ${gallery}`;
-          } else if (gallery) {
-            postText += `\n\nCheck out the full photo gallery over at ${gallery}`;
-          }
-        } else if (platform === 'instagram') {
-          postText = `🏀 ${title}\n\n${excerpt}\n\n📸 Link in bio for full gallery!\n`;
-          if (photographer) postText += `📷 @${photographer.replace(/\s+/g, '')}\n`;
-          postText += `\n#Ball603 #NHBasketball #NHIAA`;
-        } else if (platform === 'twitter') {
-          postText = `🏀 ${title}\n\n${excerpt.substring(0, 180)}...\n\n`;
-          if (gallery) postText += `📸 ${gallery}\n`;
-          postText += `#NHBasketball`;
-        }
-      }
-      
-      // Copy to clipboard
-      try {
-        await navigator.clipboard.writeText(postText);
-        showToast(`${platform.charAt(0).toUpperCase() + platform.slice(1)} post copied to clipboard!`, 'success');
-        
-        // Mark as posted
-        if (currentArticle) {
-          const update = {};
-          update[`posted_${platform}`] = true;
-          await supabase
-            .from('articles')
-            .update(update)
-            .eq('id', currentArticle.id);
-          
-          document.getElementById(`${platform}Posted`).style.display = 'inline';
-        }
-      } catch (err) {
-        showToast('Could not copy to clipboard', 'error');
-      }
-    }
-    
     // Toast
     function showToast(message, type = 'success') {
       const toast = document.getElementById('toast');
