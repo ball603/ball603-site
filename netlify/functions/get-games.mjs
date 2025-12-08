@@ -115,9 +115,16 @@ export default async (request) => {
     // Columns: game_id, date, time, away, away_score, home, home_score, gender, level, division, 
     //          photog1, photog2, videog, writer, notes, original_date, schedule_changed,
     //          photos_url, recap_url, highlights_url, live_stream_url, gamedescription, specialevent
-    const mapRowToGame = (row) => {
+    const mapRowToGame = (row, isCollege = false) => {
       const away = row[3] || '';
       const home = row[5] || '';
+      let gender = row[7] || '';
+      
+      // Convert Boys/Girls to Men/Women for college games
+      if (isCollege) {
+        if (gender === 'Boys') gender = 'Men';
+        if (gender === 'Girls') gender = 'Women';
+      }
       
       return {
         game_id: row[0] || '',
@@ -129,7 +136,7 @@ export default async (request) => {
         home: home,
         home_abbrev: teamsMap[home] || home.substring(0, 3).toUpperCase(),
         home_score: row[6] || '',
-        gender: row[7] || '',
+        gender: gender,
         level: row[8] || '',
         division: row[9] || '',
         photog1: row[10] || '',
@@ -149,8 +156,8 @@ export default async (request) => {
     };
     
     // Skip header rows, map to objects, combine both sources
-    const hsGames = hsRows.slice(1).map(mapRowToGame);
-    const collegeGames = collegeRows.slice(1).map(mapRowToGame);
+    const hsGames = hsRows.slice(1).map(row => mapRowToGame(row, false));
+    const collegeGames = collegeRows.slice(1).map(row => mapRowToGame(row, true));
     const games = [...hsGames, ...collegeGames];
     
     // Sort all games by date, then time
