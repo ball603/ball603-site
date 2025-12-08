@@ -454,19 +454,28 @@ DO NOT include a headline - just the article body starting with the dateline.`;
   // Generate social posts
   const winnerMascot = winnerSchoolInfo.mascot || '';
   const winnerEmoji = winnerSchoolInfo.emoji || MASCOT_EMOJIS[winnerMascot] || '🏀';
-  const awayAbbrev = SCHOOL_ABBREVIATIONS[proofData.awayTeam] || proofData.awayTeam.substring(0, 3).toUpperCase();
-  const homeAbbrev = SCHOOL_ABBREVIATIONS[proofData.homeTeam] || proofData.homeTeam.substring(0, 3).toUpperCase();
+  const winnerAbbrev = SCHOOL_ABBREVIATIONS[winner] || winner.substring(0, 3).toUpperCase();
+  const loserAbbrev = SCHOOL_ABBREVIATIONS[loser] || loser.substring(0, 3).toUpperCase();
   
-  function formatTwitterScorers(scorers) {
+  // Sort scorers by points (highest first)
+  const sortedWinnerScorers = [...winnerScorers].sort((a, b) => b.points - a.points);
+  const sortedLoserScorers = [...loserScorers].sort((a, b) => b.points - a.points);
+  
+  // Format scorers for Instagram: "Watson (11), Moulton (10)"
+  function formatIgScorers(scorers) {
     const top = scorers.filter(s => s.points >= 10);
     const list = top.length > 0 ? top : [scorers[0]].filter(Boolean);
     return list.map(s => `${s.name.split(' ').pop()} (${s.points})`).join(', ');
   }
   
+  // Format scorers for Twitter: "Watson-11, Moulton-10"
+  function formatTwitterScorers(scorers) {
+    const top = scorers.filter(s => s.points >= 10);
+    const list = top.length > 0 ? top : [scorers[0]].filter(Boolean);
+    return list.map(s => `${s.name.split(' ').pop()}-${s.points}`).join(', ');
+  }
+  
   const igHeader = `${winnerEmoji} 🏀 ${winner} ${winnerScore}, ${loser} ${loserScore} 🏀`;
-  const igScorers = [];
-  if (winnerScorers[0]) igScorers.push(`${winnerScorers[0].name} (${winner}): ${winnerScorers[0].points} pts`);
-  if (loserScorers[0]) igScorers.push(`${loserScorers[0].name} (${loser}): ${loserScorers[0].points} pts`);
   
   const articleSentences = article.replace(/^[A-Z]+,\s*N\.H\.\s*[–-]\s*/, '').split(/(?<=[.!?])\s+/);
   const igLede = articleSentences.slice(0, 2).join(' ');
@@ -475,10 +484,10 @@ DO NOT include a headline - just the article body starting with the dateline.`;
   if (photographerName && galleryUrl) facebookPost += `\n\nCheck out the full photo gallery by ${photographerName} over at ${galleryUrl}`;
   else if (galleryUrl) facebookPost += `\n\nCheck out the full photo gallery over at ${galleryUrl}`;
   
-  let instagramPost = `${igHeader}\n\n${igLede}\n\n📊 Leading Scorers:\n${igScorers.join('\n')}\n\n`;
+  let instagramPost = `${igHeader}\n\n${igLede}\n\n📊 Leading Scorers\n${winnerAbbrev}: ${formatIgScorers(sortedWinnerScorers)}\n${loserAbbrev}: ${formatIgScorers(sortedLoserScorers)}\n\n`;
   instagramPost += photographerName ? `READ MORE & check out the full photo gallery by ${photographerName} over at Ball603.com` : `READ MORE & check out the full photo gallery over at Ball603.com`;
   
-  let twitterPost = `${igHeader}\n\n${awayAbbrev}: ${formatTwitterScorers(awayScorersEnhanced)}\n${homeAbbrev}: ${formatTwitterScorers(homeScorersEnhanced)}\n\n`;
+  let twitterPost = `${igHeader}\n\n${winnerAbbrev}: ${formatTwitterScorers(sortedWinnerScorers)}\n${loserAbbrev}: ${formatTwitterScorers(sortedLoserScorers)}\n\n`;
   twitterPost += galleryUrl ? `READ MORE & check out the full gallery over at ${galleryUrl}` : `READ MORE & check out the full gallery over at Ball603.com`;
   
   return {
@@ -664,22 +673,28 @@ DO NOT include a headline - just the article body starting with the dateline.`;
   const winnerSchoolInfo = awayWon ? awaySchoolInfo : homeSchoolInfo;
   const winnerMascot = winnerSchoolInfo.mascot || '';
   const winnerEmoji = winnerSchoolInfo.emoji || MASCOT_EMOJIS[winnerMascot] || '🏀';
-  const awayAbbrev = SCHOOL_ABBREVIATIONS[gameInfo.awayTeam] || gameInfo.awayTeam.substring(0, 3).toUpperCase();
-  const homeAbbrev = SCHOOL_ABBREVIATIONS[gameInfo.homeTeam] || gameInfo.homeTeam.substring(0, 3).toUpperCase();
+  const winnerAbbrev = SCHOOL_ABBREVIATIONS[winner] || winner.substring(0, 3).toUpperCase();
+  const loserAbbrev = SCHOOL_ABBREVIATIONS[loser] || loser.substring(0, 3).toUpperCase();
   
-  function formatTwitterScorers(players) {
-    const top = (players || []).filter(p => p.points >= 10).sort((a, b) => b.points - a.points).slice(0, 3);
-    const list = top.length > 0 ? top : [(players || [])[0]].filter(Boolean);
+  // Sort players by points (highest first)
+  const sortedWinnerPlayers = [...(winnerPlayers || [])].sort((a, b) => b.points - a.points);
+  const sortedLoserPlayers = [...(loserPlayers || [])].sort((a, b) => b.points - a.points);
+  
+  // Format scorers for Instagram: "Watson (11), Moulton (10)"
+  function formatIgScorers(players) {
+    const top = (players || []).filter(p => p.points >= 10);
+    const list = top.length > 0 ? top : [players[0]].filter(Boolean);
     return list.map(p => `${p.name.split(' ').pop()} (${p.points})`).join(', ');
   }
   
-  const igHeader = `${winnerEmoji} 🏀 ${winner} ${winnerScore}, ${loser} ${loserScore} 🏀`;
+  // Format scorers for Twitter: "Watson-11, Moulton-10"
+  function formatTwitterScorers(players) {
+    const top = (players || []).filter(p => p.points >= 10);
+    const list = top.length > 0 ? top : [players[0]].filter(Boolean);
+    return list.map(p => `${p.name.split(' ').pop()}-${p.points}`).join(', ');
+  }
   
-  const topWinnerPlayer = (winnerPlayers || []).sort((a, b) => b.points - a.points)[0];
-  const topLoserPlayer = (loserPlayers || []).sort((a, b) => b.points - a.points)[0];
-  const igScorers = [];
-  if (topWinnerPlayer) igScorers.push(`${topWinnerPlayer.name} (${winner}): ${topWinnerPlayer.points} pts${topWinnerPlayer.rebounds ? `, ${topWinnerPlayer.rebounds} reb` : ''}`);
-  if (topLoserPlayer) igScorers.push(`${topLoserPlayer.name} (${loser}): ${topLoserPlayer.points} pts${topLoserPlayer.rebounds ? `, ${topLoserPlayer.rebounds} reb` : ''}`);
+  const igHeader = `${winnerEmoji} 🏀 ${winner} ${winnerScore}, ${loser} ${loserScore} 🏀`;
   
   const articleSentences = article.replace(/^[A-Z]+\s*[–-]\s*/, '').split(/(?<=[.!?])\s+/);
   const igLede = articleSentences.slice(0, 2).join(' ');
@@ -688,10 +703,10 @@ DO NOT include a headline - just the article body starting with the dateline.`;
   if (photographerName && galleryUrl) facebookPost += `\n\nCheck out the full photo gallery by ${photographerName} over at ${galleryUrl}`;
   else if (galleryUrl) facebookPost += `\n\nCheck out the full photo gallery over at ${galleryUrl}`;
   
-  let instagramPost = `${igHeader}\n\n${igLede}\n\n📊 Leading Scorers:\n${igScorers.join('\n')}\n\n`;
+  let instagramPost = `${igHeader}\n\n${igLede}\n\n📊 Leading Scorers\n${winnerAbbrev}: ${formatIgScorers(sortedWinnerPlayers)}\n${loserAbbrev}: ${formatIgScorers(sortedLoserPlayers)}\n\n`;
   instagramPost += photographerName ? `READ MORE & check out the full photo gallery by ${photographerName} over at Ball603.com` : `READ MORE & check out the full photo gallery over at Ball603.com`;
   
-  let twitterPost = `${igHeader}\n\n${awayAbbrev}: ${formatTwitterScorers(boxData.awayPlayers)}\n${homeAbbrev}: ${formatTwitterScorers(boxData.homePlayers)}\n\n`;
+  let twitterPost = `${igHeader}\n\n${winnerAbbrev}: ${formatTwitterScorers(sortedWinnerPlayers)}\n${loserAbbrev}: ${formatTwitterScorers(sortedLoserPlayers)}\n\n`;
   twitterPost += galleryUrl ? `READ MORE & check out the full gallery over at ${galleryUrl}` : `READ MORE & check out the full gallery over at Ball603.com`;
   
   return {
