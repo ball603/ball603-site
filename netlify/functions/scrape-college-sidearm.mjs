@@ -37,7 +37,7 @@ const SIDEARM_SCHOOLS = {
     shortname: 'Plymouth State',
     abbrev: 'PSU',
     division: 'D3',
-    site: 'plymouthstatepanthers.com',
+    site: 'athletics.plymouth.edu',
     mensPath: '/sports/mens-basketball/schedule/2025-26',
     womensPath: '/sports/womens-basketball/schedule/2025-26',
     location: 'Plymouth'
@@ -56,7 +56,7 @@ const SIDEARM_SCHOOLS = {
     shortname: 'Colby-Sawyer',
     abbrev: 'CSC',
     division: 'D3',
-    site: 'cscchargers.com',
+    site: 'www.colby-sawyerathletics.com',
     mensPath: '/sports/mens-basketball/schedule/2025-26',
     womensPath: '/sports/womens-basketball/schedule/2025-26',
     location: 'New London'
@@ -65,7 +65,7 @@ const SIDEARM_SCHOOLS = {
     shortname: 'New England College',
     abbrev: 'NEC',
     division: 'D3',
-    site: 'necpilgrims.com',
+    site: 'athletics.nec.edu',
     mensPath: '/sports/mens-basketball/schedule/2025-26',
     womensPath: '/sports/womens-basketball/schedule/2025-26',
     location: 'Henniker'
