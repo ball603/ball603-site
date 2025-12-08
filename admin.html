@@ -2846,8 +2846,60 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         return;
       }
       
-      const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/[^a-z_]/g, ''));
+      const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/[^a-z_\s]/g, ''));
       const teams = [];
+      
+      // Header mapping from Google Sheets to database columns
+      const headerMap = {
+        'team id': '_skip',
+        'full school name': 'full_name',
+        'fullschoolname': 'full_name',
+        'full_name': 'full_name',
+        'fullname': 'full_name',
+        'name': 'full_name',
+        'shortname': 'shortname',
+        'short': 'shortname',
+        'abbrev': 'abbrev',
+        'abbr': 'abbrev',
+        'abbreviation': 'abbrev',
+        'level': 'level',
+        'conference': 'conference',
+        'gender': 'gender',
+        'division': 'division',
+        'location': 'location',
+        'town': 'location',
+        'city': 'location',
+        'mascot': 'mascot',
+        'primary color': 'primary_color',
+        'primarycolor': 'primary_color',
+        'primary_color': 'primary_color',
+        'primary hex': 'primary_hex',
+        'primaryhex': 'primary_hex',
+        'primary_hex': 'primary_hex',
+        'secondary color': 'secondary_color',
+        'secondarycolor': 'secondary_color',
+        'secondary_color': 'secondary_color',
+        'secondary hex': 'secondary_hex',
+        'secondaryhex': 'secondary_hex',
+        'secondary_hex': 'secondary_hex',
+        'official website': 'website',
+        'officialwebsite': 'website',
+        'website': 'website',
+        'live stream link': 'livestream_url',
+        'livestreamlink': 'livestream_url',
+        'livestream_url': 'livestream_url',
+        'livestream': 'livestream_url',
+        'combined team': 'combined_team',
+        'combinedteam': 'combined_team',
+        'combined_team': 'combined_team',
+        'combined with team ids': 'combined_with',
+        'combinedwithteamids': 'combined_with',
+        'combined_with': 'combined_with',
+        'active': 'active',
+        'active_': 'active',
+        'notes': 'notes',
+        'emoji': 'emoji'
+      };
       
       for (let i = 1; i < lines.length; i++) {
         const values = parseCSVLine(lines[i]);
@@ -2856,13 +2908,29 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         const team = {};
         headers.forEach((h, idx) => {
           let val = values[idx]?.trim() || null;
-          // Convert common field names
-          if (h === 'name' || h === 'fullname' || h === 'full_name') team.full_name = val;
-          else if (h === 'short' || h === 'shortname') team.shortname = val;
-          else if (h === 'abbr' || h === 'abbreviation' || h === 'abbrev') team.abbrev = val;
-          else if (h === 'town' || h === 'city' || h === 'location') team.location = val;
-          else if (h === 'active') team.active = val?.toLowerCase() !== 'false' && val !== '0';
-          else team[h] = val;
+          
+          // Map header to database column
+          const dbColumn = headerMap[h] || h.replace(/\s+/g, '_');
+          
+          // Skip certain columns
+          if (dbColumn === '_skip' || !dbColumn) return;
+          
+          // Handle boolean fields
+          if (dbColumn === 'active' || dbColumn === 'combined_team') {
+            if (val === null || val === '') {
+              val = dbColumn === 'active' ? true : false;
+            } else {
+              val = val.toLowerCase() === 'true' || val === '1' || val.toLowerCase() === 'yes';
+            }
+          }
+          
+          // Handle combined_with as array (skip for now, complex)
+          if (dbColumn === 'combined_with' && val) {
+            // Could parse comma-separated IDs, but skip for initial import
+            return;
+          }
+          
+          team[dbColumn] = val;
         });
         
         // Only add if has required fields
@@ -2872,7 +2940,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       }
       
       if (teams.length === 0) {
-        showToast('No valid teams found in CSV', 'error');
+        showToast('No valid teams found in CSV. Check required fields: Full School Name, Shortname, abbrev, Level', 'error');
         return;
       }
       
