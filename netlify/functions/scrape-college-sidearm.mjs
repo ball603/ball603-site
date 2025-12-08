@@ -62,7 +62,7 @@ const SIDEARM_SCHOOLS = {
     location: 'New London'
   },
   'New England College': {
-    shortname: 'New England College',
+    shortname: 'NEC',
     abbrev: 'NEC',
     division: 'D3',
     site: 'athletics.nec.edu',
@@ -156,6 +156,9 @@ function parseSIDEARMSchedule(html, school, gender) {
     // Normalize opponent name
     opponent = normalizeOpponentName(opponent);
     
+    // Skip if normalizeOpponentName returned null (tournament matchup listing)
+    if (!opponent) continue;
+    
     // Determine home/away teams
     const homeTeam = isAway ? opponent : school.shortname;
     const awayTeam = isAway ? school.shortname : opponent;
@@ -246,8 +249,14 @@ function normalizeOpponentName(name) {
     .replace(/\s+/g, ' ')
     .trim();
   
-  // Handle Vermont State University campuses → VTSU-Campus
-  const vtsuMatch = cleaned.match(/Vermont State University\s+(.+)/i);
+  // Skip tournament matchup listings (opponent shows as "Team A vs. Team B")
+  // Return null to signal this should be skipped
+  if (/\svs\.?\s/i.test(cleaned)) {
+    return null;
+  }
+  
+  // Handle Vermont State campuses (with or without "University") → VTSU-Campus
+  const vtsuMatch = cleaned.match(/Vermont State(?:\s+University)?\s+(.+)/i);
   if (vtsuMatch) {
     return `VTSU-${vtsuMatch[1].trim()}`;
   }
@@ -261,7 +270,8 @@ function normalizeOpponentName(name) {
     'Plymouth State University': 'Plymouth State',
     'Keene State College': 'Keene State',
     'Colby-Sawyer College': 'Colby-Sawyer',
-    'New England College': 'New England College',
+    'New England College': 'NEC',
+    'NEC': 'NEC',
     'Rivier University': 'Rivier',
     'Bentley University': 'Bentley',
     'Assumption University': 'Assumption',
@@ -295,27 +305,42 @@ function normalizeOpponentName(name) {
     'Norwich University': 'Norwich',
     'Castleton University': 'VTSU-Castleton',
     'Vermont State University Castleton': 'VTSU-Castleton',
+    'Vermont State Castleton': 'VTSU-Castleton',
     'VTSU Castleton': 'VTSU-Castleton',
+    'VTSU-Castleton': 'VTSU-Castleton',
     'Johnson State': 'VTSU-Johnson',
     'Vermont State University Johnson': 'VTSU-Johnson',
+    'Vermont State Johnson': 'VTSU-Johnson',
     'Lyndon State': 'VTSU-Lyndon',
     'Vermont State University Lyndon': 'VTSU-Lyndon',
+    'Vermont State Lyndon': 'VTSU-Lyndon',
     'Gordon College': 'Gordon',
+    'Gordon': 'Gordon',
     'Curry College': 'Curry',
+    'Curry': 'Curry',
     'Lesley University': 'Lesley',
     'Nichols College': 'Nichols',
+    'Nichols': 'Nichols',
     'Elms College': 'Elms',
+    'Elms': 'Elms',
     'Dean College': 'Dean',
+    'Dean': 'Dean',
     'Mitchell College': 'Mitchell',
+    'Mitchell': 'Mitchell',
     'Regis College': 'Regis (Mass.)',
+    'Regis': 'Regis (Mass.)',
     'Albertus Magnus College': 'Albertus Magnus',
+    'Albertus Magnus': 'Albertus Magnus',
     'SUNY Canton': 'SUNY Canton',
     'SUNY Cobleskill': 'SUNY Cobleskill',
     'Anna Maria College': 'Anna Maria',
     'Anna Maria': 'Anna Maria',
     'Lasell University': 'Lasell',
+    'Lasell': 'Lasell',
     'Emmanuel College': 'Emmanuel (Mass.)',
     'Emmanuel College (Mass.)': 'Emmanuel (Mass.)',
+    'Emmanuel': 'Emmanuel (Mass.)',
+    'Saint Joseph\'s College of Maine': 'Saint Joseph\'s (Maine)',
     'Saint Joseph\'s (Maine)': 'Saint Joseph\'s (Maine)',
     'Saint Joseph (Conn.)': 'Saint Joseph (Conn.)',
     'University of Saint Joseph': 'Saint Joseph (Conn.)',
@@ -337,7 +362,14 @@ function normalizeOpponentName(name) {
     'SUNY Geneseo': 'SUNY Geneseo',
     'University of Hartford': 'Hartford',
     'Fisher College (Mass.)': 'Fisher (Mass.)',
-    'Fisher College': 'Fisher (Mass.)'
+    'Fisher College': 'Fisher (Mass.)',
+    'Thomas College': 'Thomas',
+    'Thomas College of Maine': 'Thomas',
+    'Thomas': 'Thomas',
+    'Maine-Augusta': 'Maine-Augusta',
+    'University of Maine at Augusta': 'Maine-Augusta',
+    'Colgate University': 'Colgate',
+    'Colgate': 'Colgate'
   };
   
   // Try exact match first
@@ -349,8 +381,8 @@ function normalizeOpponentName(name) {
     if (key.toLowerCase() === lower) return value;
   }
   
-  // Strip common mascot suffixes
-  const mascotPattern = / (Chargers|Blazers|Hawks|Knights|Warriors|Ravens|Panthers|Eagles|Bulldogs|Bears|Tigers|Lions|Wildcats|Huskies|Falcons|Owls|Cardinals|Rams|Vikings|Pioneers|Saints|Gaels|Colonels|Terriers|Retrievers|Bearcats|Bobcats|Dolphins|Griffins|Phoenix|Thunder|Storm|Wave|Pride|Mustangs|Broncos|Cougars|Jaguars|Leopards|Wolves|Sharks|Seahawks|Lancers|Royals|Monarchs|Spartans|Trojans|Titans|Generals|Cadets|Crusaders|Friars|Monks|Blue Devils|Red Devils|Golden)$/i;
+  // Strip common mascot suffixes (expanded list)
+  const mascotPattern = / (Chargers|Blazers|Hawks|Knights|Warriors|Ravens|Panthers|Eagles|Bulldogs|Bears|Tigers|Lions|Wildcats|Huskies|Falcons|Owls|Cardinals|Rams|Vikings|Pioneers|Saints|Gaels|Colonels|Terriers|Retrievers|Bearcats|Bobcats|Dolphins|Griffins|Phoenix|Thunder|Storm|Wave|Pride|Mustangs|Broncos|Cougars|Jaguars|Leopards|Wolves|Sharks|Seahawks|Lancers|Royals|Monarchs|Spartans|Trojans|Titans|Generals|Cadets|Crusaders|Friars|Monks|Blue Devils|Red Devils|Golden|Moose|Pilgrims|Penmen|Greyhounds|Skyhawks|Crimson|Stags|Patriots|Highlanders|River Hawks|Black Bears|Catamounts|Big Green|Billikens|Great Danes|Raiders|Golden Eagles|Thunderbirds|Bison)$/i;
   cleaned = cleaned.replace(mascotPattern, '');
   
   // Clean up common suffixes if still present
@@ -499,6 +531,9 @@ function parseSIDEARMTextExport(text, school, gender) {
       .trim();
     
     opponent = normalizeOpponentName(opponent);
+    
+    // Skip if normalizeOpponentName returned null (tournament matchup listing)
+    if (!opponent) continue;
     
     // Treat neutral as away for simplicity (school is traveling)
     const isAway = homeAway === 'away' || homeAway === 'neutral';

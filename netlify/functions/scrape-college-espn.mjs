@@ -79,6 +79,7 @@ function normalizeCollegeName(name) {
     'Syracuse': 'Syracuse',
     'Syracuse Orange': 'Syracuse',
     'UConn': 'UConn',
+    'Connecticut': 'UConn',
     'Connecticut Huskies': 'UConn',
     'Rhode Island': 'Rhode Island',
     'Rhode Island Rams': 'Rhode Island',
@@ -86,6 +87,7 @@ function normalizeCollegeName(name) {
     'Merrimack Warriors': 'Merrimack',
     'Central Connecticut': 'Central Conn',
     'Central Connecticut State': 'Central Conn',
+    'Central Connecticut State Blue Devils': 'Central Conn',
     'Sacred Heart': 'Sacred Heart',
     'Sacred Heart Pioneers': 'Sacred Heart',
     'Fairfield': 'Fairfield',
@@ -103,8 +105,27 @@ function normalizeCollegeName(name) {
     'Nebraska Cornhuskers': 'Nebraska',
     'Saint Louis': 'Saint Louis',
     'Saint Louis Billikens': 'Saint Louis',
+    'Colgate': 'Colgate',
+    'Colgate Raiders': 'Colgate',
+    'Maine-Augusta': 'Maine-Augusta',
+    'Maine-Augusta Moose': 'Maine-Augusta',
+    'New England College': 'NEC',
+    'New England College Pilgrims': 'NEC',
+    'Thomas': 'Thomas',
+    'Thomas College': 'Thomas',
+    'Thomas College of Maine': 'Thomas',
+    'Curry': 'Curry',
     'Curry College': 'Curry',
-    'Emmanuel (MA)': 'Emmanuel'
+    'Emmanuel': 'Emmanuel',
+    'Emmanuel (MA)': 'Emmanuel',
+    'Southern New Hampshire': 'Southern New Hampshire',
+    'Southern New Hampshire Penmen': 'Southern New Hampshire',
+    'Saint Anselm': 'Saint Anselm',
+    'Saint Anselm Hawks': 'Saint Anselm',
+    'Franklin Pierce': 'Franklin Pierce',
+    'Franklin Pierce Ravens': 'Franklin Pierce',
+    'Assumption': 'Assumption',
+    'Assumption Greyhounds': 'Assumption'
   };
   
   // Try direct match first
@@ -112,8 +133,8 @@ function normalizeCollegeName(name) {
     return normalizations[name];
   }
   
-  // Strip common mascot suffixes
-  const mascotPattern = / (Wildcats|Big Green|Terriers|Catamounts|Black Bears|River Hawks|Retrievers|Bearcats|Great Danes|Highlanders|Bulldogs|Skyhawks|Crimson|Bears|Friars|Crusaders|Eagles|Huskies|Orange|Rams|Warriors|Pioneers|Stags|Bobcats|Dolphins|Tigers|Patriots|Cornhuskers|Billikens|Gaels|Jaspers|Hoyas|Peacocks|Seawolves|Hawks|Knights|Broncs|Golden Griffins|Bonnies|Explorers|Musketeers|Blue Demons|Bluejays|Friars|Hoosiers|Badgers|Buckeyes|Spartans|Wolverines|Fighting Irish|Bruins|Trojans|Cardinal|Ducks|Beavers|Cougars|Sun Devils|Wildcats|Buffaloes|Jayhawks|Sooners|Longhorns|Aggies|Red Raiders|Horned Frogs|Bears|Mountaineers|Cyclones|Hawkeyes|Golden Gophers|Boilermakers|Illini|Scarlet Knights|Nittany Lions|Tar Heels|Blue Devils|Demon Deacons|Wolfpack|Cavaliers|Hokies|Hurricanes|Seminoles|Yellow Jackets|Tigers|Gamecocks|Volunteers|Razorbacks|Rebels|Bulldogs|Crimson Tide|War Eagles|Gators|Commodores|Wildcats)$/i;
+  // Strip common mascot suffixes (expanded list)
+  const mascotPattern = / (Wildcats|Big Green|Terriers|Catamounts|Black Bears|River Hawks|Retrievers|Bearcats|Great Danes|Highlanders|Bulldogs|Skyhawks|Crimson|Bears|Friars|Crusaders|Eagles|Huskies|Orange|Rams|Warriors|Pioneers|Stags|Bobcats|Dolphins|Tigers|Patriots|Cornhuskers|Billikens|Gaels|Jaspers|Hoyas|Peacocks|Seawolves|Hawks|Knights|Broncs|Golden Griffins|Bonnies|Explorers|Musketeers|Blue Demons|Bluejays|Hoosiers|Badgers|Buckeyes|Spartans|Wolverines|Fighting Irish|Bruins|Trojans|Cardinal|Ducks|Beavers|Cougars|Sun Devils|Buffaloes|Jayhawks|Sooners|Longhorns|Aggies|Red Raiders|Horned Frogs|Mountaineers|Cyclones|Hawkeyes|Golden Gophers|Boilermakers|Illini|Scarlet Knights|Nittany Lions|Tar Heels|Blue Devils|Demon Deacons|Wolfpack|Cavaliers|Hokies|Hurricanes|Seminoles|Yellow Jackets|Gamecocks|Volunteers|Razorbacks|Rebels|Crimson Tide|War Eagles|Gators|Commodores|Raiders|Moose|Pilgrims|Penmen|Ravens|Greyhounds|Owls|Panthers|Falcons|Lions|Jaguars|Leopards|Wolves|Sharks|Seahawks|Lancers|Royals|Monarchs|Titans|Generals|Cadets|Monks|Phoenix|Thunder|Storm|Wave|Pride|Mustangs|Broncos|Chargers|Blazers|Golden Eagles|Thunderbirds|Bison|Colonels|Terrapins|Flames|Anteaters|Banana Slugs|Chanticleers|Governors|Governors|Gaels|Hatters|Hilltoppers|Ichabods|Keydets|Lakers|Mavericks|Midshipmen|Miners|Mocs|Norsemen|Ospreys|Paladins|Phoenix|Ramblers|Red Storm|Redbirds|Redhawks|Roadrunners|Rockets|Salukis|Shockers|Spiders|Thundering Herd|Tritons|Vandals|Zips)$/i;
   const cleaned = name.replace(mascotPattern, '');
   
   // Check if cleaned version has a mapping
