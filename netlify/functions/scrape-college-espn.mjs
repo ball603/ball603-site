@@ -541,13 +541,20 @@ async function updateGoogleSheets(games) {
     return (a[2] || '').localeCompare(b[2] || '');
   });
   
+  console.log(`  Writing ${rows.length} total rows to sheet...`);
+  
   // Clear and update sheet
-  await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/CollegeSchedules!A:W:clear`, {
+  const clearResponse = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/CollegeSchedules!A:W:clear`, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${access_token}` }
   });
   
-  await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/CollegeSchedules!A1?valueInputOption=RAW`, {
+  if (!clearResponse.ok) {
+    const clearError = await clearResponse.text();
+    console.error(`  Clear failed: ${clearResponse.status} - ${clearError}`);
+  }
+  
+  const writeResponse = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/CollegeSchedules!A1?valueInputOption=RAW`, {
     method: 'PUT',
     headers: {
       'Authorization': `Bearer ${access_token}`,
@@ -555,6 +562,15 @@ async function updateGoogleSheets(games) {
     },
     body: JSON.stringify({ values: [header, ...rows] })
   });
+  
+  if (!writeResponse.ok) {
+    const writeError = await writeResponse.text();
+    console.error(`  Write failed: ${writeResponse.status} - ${writeError}`);
+    return { rowCount: 0, changesDetected, sheetsUpdated: false, error: writeError };
+  }
+  
+  const writeResult = await writeResponse.json();
+  console.log(`  Write successful: ${writeResult.updatedRows || rows.length + 1} rows written`);
   
   return { rowCount: rows.length, changesDetected, sheetsUpdated: true, updated, added, preserved };
 }
