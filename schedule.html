@@ -11,8 +11,8 @@
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #333; min-height: 100vh; }
     
     /* Header */
-    .header { background: #fff; padding: 15px 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-    .header-inner { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+    .header { background: #fff; padding: 15px 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); position: relative; z-index: 1000; }
+    .header-inner { max-width: 1100px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; position: relative; }
     .header-left { display: flex; align-items: center; gap: 15px; }
     .header-left img { height: 50px; cursor: pointer; }
     .header-left h1 { font-size: 20px; color: #333; }
@@ -20,9 +20,11 @@
     .header-nav a { color: #666; text-decoration: none; font-size: 14px; font-weight: 500; }
     .header-nav a:hover { color: #f57c00; }
     .header-nav a.active { color: #f57c00; }
+    .hamburger { display: none; flex-direction: column; gap: 5px; cursor: pointer; padding: 5px; }
+    .hamburger span { display: block; width: 24px; height: 3px; background: #333; border-radius: 2px; }
     
     /* Main container */
-    .container { width: 720px; margin: 0 auto; padding: 20px; }
+    .container { max-width: 720px; margin: 0 auto; padding: 20px; }
     
     /* Controls */
     .controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: nowrap; gap: 10px; width: 100%; }
@@ -155,7 +157,22 @@
     @media (max-width: 768px) {
       .container { width: auto; min-width: auto; padding: 10px; }
       .controls { flex-wrap: wrap; }
-      .header-nav { display: none; }
+      .header-nav { 
+        display: none;
+        position: absolute;
+        top: 100%;
+        right: 0;
+        background: #fff;
+        flex-direction: column;
+        padding: 10px 0;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        border-radius: 0 0 8px 8px;
+        min-width: 150px;
+        z-index: 1000;
+      }
+      .header-nav.open { display: flex; }
+      .header-nav a { padding: 10px 20px; }
+      .hamburger { display: flex; }
       .header-left h1 { font-size: 16px; }
       .controls { flex-direction: column; align-items: stretch; }
       .date-nav { justify-content: center; }
@@ -210,12 +227,17 @@
         <img src="logo.png" alt="Ball603" onclick="window.location.href='/'">
         <h1>Schedule</h1>
       </div>
-      <nav class="header-nav">
+      <nav class="header-nav" id="headerNav">
         <a href="/">Home</a>
         <a href="/schedule.html" class="active">Schedule</a>
         <a href="/standings.html">Standings</a>
         <a href="/teams.html">Teams</a>
       </nav>
+      <div class="hamburger" onclick="toggleMenu()">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
     </div>
   </div>
   
@@ -267,6 +289,10 @@
   </div>
 
   <script>
+    function toggleMenu() {
+      document.getElementById('headerNav').classList.toggle('open');
+    }
+    
     const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
     const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     
@@ -399,7 +425,7 @@
     
     // Team name to logo mapping
     function getLogoFilename(teamName) {
-      if (!teamName) return 'Ball603.png';
+      if (!teamName) return 'Ball603-white.png';
       
       // Special cases mapping (database name -> logo filename without .png)
       const specialCases = {
@@ -679,13 +705,13 @@
             <td class="team-col away">
               <div class="team away-team">
                 <a class="team-name" href="/teams/${getLogoFilename(game.away).replace('.png', '.html')}">${game.away}</a>
-                <img class="team-logo" src="/logos/100px/${getLogoFilename(game.away)}" alt="" onerror="this.onerror=null; this.src='/logos/100px/Ball603.png'">
+                <img class="team-logo" src="/logos/100px/${getLogoFilename(game.away)}" alt="" onerror="this.onerror=null; this.src='/logos/100px/Ball603-white.png'">
               </div>
             </td>
             <td class="score-col">${scoreHtml}</td>
             <td class="team-col">
               <div class="team">
-                <img class="team-logo" src="/logos/100px/${getLogoFilename(game.home)}" alt="" onerror="this.onerror=null; this.src='/logos/100px/Ball603.png'">
+                <img class="team-logo" src="/logos/100px/${getLogoFilename(game.home)}" alt="" onerror="this.onerror=null; this.src='/logos/100px/Ball603-white.png'">
                 <a class="team-name" href="/teams/${getLogoFilename(game.home).replace('.png', '.html')}">${game.home}</a>
               </div>
             </td>
