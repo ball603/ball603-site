@@ -35,6 +35,9 @@ const ESPN_API = {
 function normalizeCollegeName(name) {
   if (!name) return name;
   
+  // Trim whitespace
+  name = name.trim();
+  
   const normalizations = {
     'New Hampshire': 'UNH',
     'New Hampshire Wildcats': 'UNH',
@@ -118,14 +121,41 @@ function normalizeCollegeName(name) {
     'Curry College': 'Curry',
     'Emmanuel': 'Emmanuel',
     'Emmanuel (MA)': 'Emmanuel',
-    'Southern New Hampshire': 'Southern New Hampshire',
-    'Southern New Hampshire Penmen': 'Southern New Hampshire',
+    'Southern New Hampshire': 'SNHU',
+    'Southern New Hampshire Penmen': 'SNHU',
     'Saint Anselm': 'Saint Anselm',
     'Saint Anselm Hawks': 'Saint Anselm',
     'Franklin Pierce': 'Franklin Pierce',
     'Franklin Pierce Ravens': 'Franklin Pierce',
     'Assumption': 'Assumption',
-    'Assumption Greyhounds': 'Assumption'
+    'Assumption Greyhounds': 'Assumption',
+    'Louisville': 'Louisville',
+    'Louisville Cardinals': 'Louisville',
+    'Marist': 'Marist',
+    'Marist Red Foxes': 'Marist',
+    'Iona': 'Iona',
+    'Iona Gaels': 'Iona',
+    'Manhattan': 'Manhattan',
+    'Manhattan Jaspers': 'Manhattan',
+    'Siena': 'Siena',
+    'Siena Saints': 'Siena',
+    'Niagara': 'Niagara',
+    'Niagara Purple Eagles': 'Niagara',
+    'Canisius': 'Canisius',
+    'Canisius Golden Griffins': 'Canisius',
+    'Rider': 'Rider',
+    'Rider Broncs': 'Rider',
+    'Saint Peter\'s': 'Saint Peter\'s',
+    'Saint Peter\'s Peacocks': 'Saint Peter\'s',
+    'Monmouth': 'Monmouth',
+    'Monmouth Hawks': 'Monmouth',
+    'Wagner': 'Wagner',
+    'Wagner Seahawks': 'Wagner',
+    'Long Island': 'LIU',
+    'LIU': 'LIU',
+    'LIU Sharks': 'LIU',
+    'Stony Brook': 'Stony Brook',
+    'Stony Brook Seawolves': 'Stony Brook'
   };
   
   // Try direct match first
@@ -134,7 +164,7 @@ function normalizeCollegeName(name) {
   }
   
   // Strip common mascot suffixes (expanded list)
-  const mascotPattern = / (Wildcats|Big Green|Terriers|Catamounts|Black Bears|River Hawks|Retrievers|Bearcats|Great Danes|Highlanders|Bulldogs|Skyhawks|Crimson|Bears|Friars|Crusaders|Eagles|Huskies|Orange|Rams|Warriors|Pioneers|Stags|Bobcats|Dolphins|Tigers|Patriots|Cornhuskers|Billikens|Gaels|Jaspers|Hoyas|Peacocks|Seawolves|Hawks|Knights|Broncs|Golden Griffins|Bonnies|Explorers|Musketeers|Blue Demons|Bluejays|Hoosiers|Badgers|Buckeyes|Spartans|Wolverines|Fighting Irish|Bruins|Trojans|Cardinal|Ducks|Beavers|Cougars|Sun Devils|Buffaloes|Jayhawks|Sooners|Longhorns|Aggies|Red Raiders|Horned Frogs|Mountaineers|Cyclones|Hawkeyes|Golden Gophers|Boilermakers|Illini|Scarlet Knights|Nittany Lions|Tar Heels|Blue Devils|Demon Deacons|Wolfpack|Cavaliers|Hokies|Hurricanes|Seminoles|Yellow Jackets|Gamecocks|Volunteers|Razorbacks|Rebels|Crimson Tide|War Eagles|Gators|Commodores|Raiders|Moose|Pilgrims|Penmen|Ravens|Greyhounds|Owls|Panthers|Falcons|Lions|Jaguars|Leopards|Wolves|Sharks|Seahawks|Lancers|Royals|Monarchs|Titans|Generals|Cadets|Monks|Phoenix|Thunder|Storm|Wave|Pride|Mustangs|Broncos|Chargers|Blazers|Golden Eagles|Thunderbirds|Bison|Colonels|Terrapins|Flames|Anteaters|Banana Slugs|Chanticleers|Governors|Governors|Gaels|Hatters|Hilltoppers|Ichabods|Keydets|Lakers|Mavericks|Midshipmen|Miners|Mocs|Norsemen|Ospreys|Paladins|Phoenix|Ramblers|Red Storm|Redbirds|Redhawks|Roadrunners|Rockets|Salukis|Shockers|Spiders|Thundering Herd|Tritons|Vandals|Zips)$/i;
+  const mascotPattern = / (Wildcats|Big Green|Terriers|Catamounts|Black Bears|River Hawks|Retrievers|Bearcats|Great Danes|Highlanders|Bulldogs|Skyhawks|Crimson|Bears|Friars|Crusaders|Eagles|Huskies|Orange|Rams|Warriors|Pioneers|Stags|Bobcats|Dolphins|Tigers|Patriots|Cornhuskers|Billikens|Gaels|Jaspers|Hoyas|Peacocks|Seawolves|Hawks|Knights|Broncs|Golden Griffins|Bonnies|Explorers|Musketeers|Blue Demons|Bluejays|Hoosiers|Badgers|Buckeyes|Spartans|Wolverines|Fighting Irish|Bruins|Trojans|Cardinal|Cardinals|Ducks|Beavers|Cougars|Sun Devils|Buffaloes|Jayhawks|Sooners|Longhorns|Aggies|Red Raiders|Horned Frogs|Mountaineers|Cyclones|Hawkeyes|Golden Gophers|Boilermakers|Illini|Scarlet Knights|Nittany Lions|Tar Heels|Blue Devils|Demon Deacons|Wolfpack|Cavaliers|Hokies|Hurricanes|Seminoles|Yellow Jackets|Gamecocks|Volunteers|Razorbacks|Rebels|Crimson Tide|War Eagles|Gators|Commodores|Raiders|Moose|Pilgrims|Penmen|Ravens|Greyhounds|Owls|Panthers|Falcons|Lions|Jaguars|Leopards|Wolves|Sharks|Seahawks|Lancers|Royals|Monarchs|Titans|Generals|Cadets|Monks|Phoenix|Thunder|Storm|Wave|Pride|Mustangs|Broncos|Chargers|Blazers|Golden Eagles|Thunderbirds|Bison|Colonels|Terrapins|Flames|Anteaters|Banana Slugs|Chanticleers|Governors|Hatters|Hilltoppers|Ichabods|Keydets|Lakers|Mavericks|Midshipmen|Miners|Mocs|Norsemen|Ospreys|Paladins|Ramblers|Red Storm|Red Foxes|Redbirds|Redhawks|Roadrunners|Rockets|Salukis|Shockers|Spiders|Thundering Herd|Tritons|Vandals|Zips|Saints|Purple Eagles)$/i;
   const cleaned = name.replace(mascotPattern, '');
   
   // Check if cleaned version has a mapping
@@ -177,8 +207,8 @@ function parseESPNAPIResponse(data, team, gender) {
       
       if (!homeCompetitor || !awayCompetitor) continue;
       
-      const homeTeamName = homeCompetitor.team?.displayName || homeCompetitor.team?.name || '';
-      const awayTeamName = awayCompetitor.team?.displayName || awayCompetitor.team?.name || '';
+      const homeTeamName = (homeCompetitor.team?.displayName || homeCompetitor.team?.name || '').trim();
+      const awayTeamName = (awayCompetitor.team?.displayName || awayCompetitor.team?.name || '').trim();
       
       // Parse date - ESPN returns ISO format
       const gameDate = event.date;
