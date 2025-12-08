@@ -1132,23 +1132,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         
         <div class="form-sidebar">
           <div class="sidebar-card">
-            <h4>📸 Link to Game</h4>
-            <input type="text" id="gameSearch" placeholder="Search games..." style="width: 100%; margin-bottom: 10px;" oninput="searchGames(this.value)">
-            <div class="game-selector" id="gameSelector">
-              <div class="loading">Loading games...</div>
-            </div>
-            <input type="hidden" id="selectedGameId">
-          </div>
-          
-          <div class="sidebar-card" style="background: #e3f2fd;">
-            <div style="text-align: center; padding: 15px; color: #1565c0;">
-              <div style="font-size: 20px; margin-bottom: 8px;">📝</div>
-              <p style="font-size: 12px; margin: 0;">Use <strong>+ Game Story</strong> button to quickly create game recaps with box scores</p>
-            </div>
-          </div>
-          
-          <div class="sidebar-card">
-            <h4>📷 Media</h4>
+            <h4>📸 Photo Gallery</h4>
             <div class="form-group">
               <label>SmugMug Gallery</label>
               <div style="display: flex; gap: 8px;">
@@ -1160,11 +1144,17 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
                 <small id="albumInfo" style="color: #666;"></small>
               </div>
             </div>
+          </div>
+          
+          <div class="sidebar-card">
+            <h4>🎥 Video</h4>
             <div class="form-group">
-              <label>Photographer Credit</label>
-              <input type="text" id="photographerCredit" placeholder="Photo by...">
+              <label>YouTube URL</label>
+              <input type="text" id="youtubeUrl" placeholder="https://youtube.com/watch?v=...">
             </div>
           </div>
+          
+          <input type="hidden" id="selectedGameId">
           
           <div class="sidebar-card">
             <h4>📱 Social Media</h4>
@@ -1898,11 +1888,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           document.getElementById('articleExcerpt').value = data.excerpt || '';
           document.getElementById('selectedGameId').value = gsSelectedGame.game_id;
           selectedGame = gsSelectedGame;
-          
-          // Set photographer credit if we had one
-          if (photographerName) {
-            document.getElementById('photographerCredit').value = photographerName;
-          }
+          document.getElementById('smugmugUrl').value = '';
+          document.getElementById('youtubeUrl').value = '';
           
           document.getElementById('articlesPanel').style.display = 'none';
           document.getElementById('editorPanel').style.display = 'block';
@@ -2131,11 +2118,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           document.getElementById('articleExcerpt').value = data.excerpt || '';
           document.getElementById('selectedGameId').value = bsSelectedGame.game_id;
           selectedGame = bsSelectedGame;
-          
-          // Set photographer credit if we had one
-          if (photographerName) {
-            document.getElementById('photographerCredit').value = photographerName;
-          }
+          document.getElementById('smugmugUrl').value = '';
+          document.getElementById('youtubeUrl').value = '';
           
           document.getElementById('articlesPanel').style.display = 'none';
           document.getElementById('editorPanel').style.display = 'block';
@@ -2177,8 +2161,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('selectedGameId').value = '';
       selectedGame = null;
       document.getElementById('smugmugUrl').value = '';
-      document.getElementById('photographerCredit').value = '';
-      selectedGame = null;
+      document.getElementById('youtubeUrl').value = '';
       
       // Clear generated social posts (this is a manual article)
       generatedSocialPosts = {
@@ -2206,7 +2189,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('selectedGameId').value = article.game_id || '';
       selectedGame = article.game_id ? games.find(g => g.game_id === article.game_id) : null;
       document.getElementById('smugmugUrl').value = article.smugmug_gallery_url || '';
-      document.getElementById('photographerCredit').value = article.photographer_credit || '';
+      document.getElementById('youtubeUrl').value = article.youtube_url || '';
       
       // Clear generated social posts (editing existing article, no stored social versions)
       generatedSocialPosts = {
@@ -2250,7 +2233,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         excerpt: document.getElementById('articleExcerpt').value,
         game_id: document.getElementById('selectedGameId').value || null,
         smugmug_gallery_url: document.getElementById('smugmugUrl').value || null,
-        photographer_credit: document.getElementById('photographerCredit').value || null,
+        youtube_url: document.getElementById('youtubeUrl').value || null,
         status: 'draft',
         updated_at: new Date().toISOString()
       };
@@ -2287,14 +2270,33 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         return;
       }
       
+      const gameId = document.getElementById('selectedGameId').value || null;
+      const smugmugUrl = document.getElementById('smugmugUrl').value || null;
+      const youtubeUrl = document.getElementById('youtubeUrl').value || null;
+      const slug = generateSlug(title) + '-' + Date.now();
+      
+      // Generate tags based on game info
+      let tags = ['news'];
+      if (selectedGame) {
+        if (selectedGame.home) tags.push(selectedGame.home.toLowerCase().replace(/\s+/g, '-'));
+        if (selectedGame.away) tags.push(selectedGame.away.toLowerCase().replace(/\s+/g, '-'));
+        if (selectedGame.level) tags.push(selectedGame.level.toLowerCase());
+        if (selectedGame.gender) tags.push(selectedGame.gender.toLowerCase());
+        if (selectedGame.division) tags.push(selectedGame.division.toLowerCase());
+        if (selectedGame.conference) tags.push(selectedGame.conference.toLowerCase().replace(/\s+/g, '-'));
+      }
+      if (youtubeUrl) tags.push('video');
+      if (smugmugUrl) tags.push('photo-gallery');
+      
       const articleData = {
         title,
-        slug: generateSlug(title) + '-' + Date.now(),
+        slug,
         content: document.getElementById('articleContent').value,
         excerpt: document.getElementById('articleExcerpt').value,
-        game_id: document.getElementById('selectedGameId').value || null,
-        smugmug_gallery_url: document.getElementById('smugmugUrl').value || null,
-        photographer_credit: document.getElementById('photographerCredit').value || null,
+        game_id: gameId,
+        smugmug_gallery_url: smugmugUrl,
+        youtube_url: youtubeUrl,
+        tags: tags,
         status: 'published',
         published_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
@@ -2320,8 +2322,28 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         return;
       }
       
-      showToast('Article published!', 'success');
       currentArticle = result.data[0];
+      
+      // Update game record with URLs if we have a game linked
+      if (gameId && selectedGame) {
+        const gameUpdate = {};
+        const articleUrl = `https://ball603.com/articles/${slug}`;
+        
+        gameUpdate.recap_url = articleUrl;
+        if (smugmugUrl) gameUpdate.photos_url = smugmugUrl;
+        if (youtubeUrl) gameUpdate.highlights_url = youtubeUrl;
+        
+        const { error: gameError } = await supabase
+          .from('games')
+          .update(gameUpdate)
+          .eq('game_id', gameId);
+        
+        if (gameError) {
+          console.error('Error updating game:', gameError);
+        }
+      }
+      
+      showToast('Article published!', 'success');
       loadArticles();
       updateSocialButtons(true, currentArticle);
     }
