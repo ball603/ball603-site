@@ -303,6 +303,7 @@
         <div style="padding: 20px;">
           <input type="hidden" id="teamId">
           
+          <!-- Row 1: Names -->
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
             <div class="form-group">
               <label>Full Name *</label>
@@ -314,6 +315,7 @@
             </div>
           </div>
           
+          <!-- Row 2: Abbrev, Emoji, Mascot -->
           <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px;">
             <div class="form-group">
               <label>Abbreviation *</label>
@@ -329,6 +331,7 @@
             </div>
           </div>
           
+          <!-- Row 3: Level, Division, Gender -->
           <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px;">
             <div class="form-group">
               <label>Level *</label>
@@ -360,6 +363,7 @@
             </div>
           </div>
           
+          <!-- Row 4: Location, Conference -->
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
             <div class="form-group">
               <label>Location (Town)</label>
@@ -371,31 +375,25 @@
             </div>
           </div>
           
-          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+          <!-- Row 5: Colors (simplified - hex only) -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
             <div class="form-group">
               <label>Primary Color</label>
-              <input type="text" id="teamPrimaryColor" placeholder="Black">
-            </div>
-            <div class="form-group">
-              <label>Primary Hex</label>
-              <div style="display: flex; gap: 5px;">
-                <input type="color" id="teamPrimaryHexPicker" style="width: 40px; height: 36px; border: 1px solid #ddd; border-radius: 4px; cursor: pointer;" onchange="document.getElementById('teamPrimaryHex').value = this.value">
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <input type="color" id="teamPrimaryHexPicker" style="width: 50px; height: 36px; border: 1px solid #ddd; border-radius: 4px; cursor: pointer;" onchange="document.getElementById('teamPrimaryHex').value = this.value">
                 <input type="text" id="teamPrimaryHex" placeholder="#000000" style="flex: 1;" oninput="syncColorPicker('teamPrimaryHexPicker', this.value)">
               </div>
             </div>
             <div class="form-group">
               <label>Secondary Color</label>
-              <input type="text" id="teamSecondaryColor" placeholder="Orange">
-            </div>
-            <div class="form-group">
-              <label>Secondary Hex</label>
-              <div style="display: flex; gap: 5px;">
-                <input type="color" id="teamSecondaryHexPicker" style="width: 40px; height: 36px; border: 1px solid #ddd; border-radius: 4px; cursor: pointer;" onchange="document.getElementById('teamSecondaryHex').value = this.value">
-                <input type="text" id="teamSecondaryHex" placeholder="#FF6600" style="flex: 1;" oninput="syncColorPicker('teamSecondaryHexPicker', this.value)">
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <input type="color" id="teamSecondaryHexPicker" style="width: 50px; height: 36px; border: 1px solid #ddd; border-radius: 4px; cursor: pointer;" onchange="document.getElementById('teamSecondaryHex').value = this.value">
+                <input type="text" id="teamSecondaryHex" placeholder="#FFFFFF" style="flex: 1;" oninput="syncColorPicker('teamSecondaryHexPicker', this.value)">
               </div>
             </div>
           </div>
           
+          <!-- Row 6: Website, Livestream -->
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
             <div class="form-group">
               <label>Website URL</label>
@@ -407,6 +405,26 @@
             </div>
           </div>
           
+          <!-- Row 7: Combined Team -->
+          <div style="background: #f9f9f9; border: 1px solid #eee; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-bottom: 10px;">
+              <input type="checkbox" id="teamCombined" onchange="toggleCombinedSection()">
+              <span style="font-weight: 600;">This is a combined team</span>
+              <span style="font-size: 12px; color: #666;">(e.g., Pittsburg-Canaan)</span>
+            </label>
+            <div id="combinedTeamSection" style="display: none;">
+              <label style="font-size: 13px; color: #555; display: block; margin-bottom: 6px;">Select teams being combined:</label>
+              <input type="text" id="combinedTeamSearch" placeholder="Search teams..." oninput="filterCombinedTeams()" style="width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 8px; font-size: 13px;">
+              <div id="combinedTeamList" style="max-height: 150px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; background: #fff;">
+                <!-- Populated dynamically -->
+              </div>
+              <div id="selectedCombinedTeams" style="margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px;">
+                <!-- Selected teams shown as chips -->
+              </div>
+            </div>
+          </div>
+          
+          <!-- Row 8: Notes and Active -->
           <div style="display: grid; grid-template-columns: 1fr auto; gap: 15px; margin-bottom: 15px;">
             <div class="form-group">
               <label>Notes</label>
@@ -2648,10 +2666,13 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           <div class="article-row" style="grid-template-columns: 40px 1fr 100px 80px 80px 100px 120px; ${!team.active ? 'opacity: 0.5;' : ''}">
             <div style="text-align: center; font-size: 18px;">${team.emoji || '🏀'}</div>
             <div>
-              <div style="font-weight: 500; color: #333;">${team.shortname}</div>
+              <div style="font-weight: 500; color: #333;">
+                ${team.shortname}
+                ${team.combined_team ? '<span style="background: #e3f2fd; color: #1565c0; font-size: 9px; padding: 2px 5px; border-radius: 3px; margin-left: 5px;">COMBINED</span>' : ''}
+              </div>
               <div style="font-size: 11px; color: #888;">${team.mascot || ''} ${team.abbrev ? '(' + team.abbrev + ')' : ''}</div>
             </div>
-            <div style="font-size: 12px;">${team.level === 'High School' ? 'HS' : 'College'}</div>
+            <div style="font-size: 12px;">${team.level === 'High School' ? 'HS' : team.level === 'Prep School' ? 'Prep' : 'College'}</div>
             <div style="font-size: 12px;">${team.division || '-'}</div>
             <div style="font-size: 12px;">${team.gender || '-'}</div>
             <div style="font-size: 12px; color: #666;">${team.location || '-'}</div>
@@ -2682,16 +2703,108 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('teamGender').value = team?.gender || '';
       document.getElementById('teamLocation').value = team?.location || '';
       document.getElementById('teamConference').value = team?.conference || '';
-      document.getElementById('teamPrimaryColor').value = team?.primary_color || '';
       document.getElementById('teamPrimaryHex').value = team?.primary_hex || '';
       document.getElementById('teamPrimaryHexPicker').value = team?.primary_hex || '#000000';
-      document.getElementById('teamSecondaryColor').value = team?.secondary_color || '';
       document.getElementById('teamSecondaryHex').value = team?.secondary_hex || '';
       document.getElementById('teamSecondaryHexPicker').value = team?.secondary_hex || '#ffffff';
       document.getElementById('teamWebsite').value = team?.website || '';
       document.getElementById('teamLivestream').value = team?.livestream_url || '';
       document.getElementById('teamNotes').value = team?.notes || '';
       document.getElementById('teamActive').checked = team?.active !== false;
+      
+      // Combined team handling
+      document.getElementById('teamCombined').checked = team?.combined_team || false;
+      selectedCombinedTeamIds = team?.combined_with || [];
+      toggleCombinedSection();
+      renderSelectedCombinedTeams();
+    }
+    
+    // Combined team variables and functions
+    let selectedCombinedTeamIds = [];
+    
+    function toggleCombinedSection() {
+      const isChecked = document.getElementById('teamCombined').checked;
+      document.getElementById('combinedTeamSection').style.display = isChecked ? 'block' : 'none';
+      if (isChecked) {
+        renderCombinedTeamList();
+      }
+    }
+    
+    function renderCombinedTeamList(filter = '') {
+      const currentTeamId = parseInt(document.getElementById('teamId').value) || 0;
+      const currentGender = document.getElementById('teamGender').value;
+      const currentLevel = document.getElementById('teamLevel').value;
+      
+      // Filter to same gender and level, exclude current team
+      let eligibleTeams = allTeams.filter(t => 
+        t.id !== currentTeamId &&
+        t.gender === currentGender &&
+        t.level === currentLevel
+      );
+      
+      if (filter) {
+        const search = filter.toLowerCase();
+        eligibleTeams = eligibleTeams.filter(t => 
+          t.shortname.toLowerCase().includes(search) ||
+          t.full_name.toLowerCase().includes(search)
+        );
+      }
+      
+      const list = document.getElementById('combinedTeamList');
+      
+      if (eligibleTeams.length === 0) {
+        list.innerHTML = '<div style="padding: 10px; color: #888; font-size: 12px;">No matching teams found</div>';
+        return;
+      }
+      
+      list.innerHTML = eligibleTeams.slice(0, 30).map(t => `
+        <div style="padding: 8px 12px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 8px; ${selectedCombinedTeamIds.includes(t.id) ? 'background: #fff3e0;' : ''}" 
+             onclick="toggleCombinedTeam(${t.id}, '${t.shortname}', '${t.emoji || '🏀'}')">
+          <input type="checkbox" ${selectedCombinedTeamIds.includes(t.id) ? 'checked' : ''} style="pointer-events: none;">
+          <span>${t.emoji || '🏀'}</span>
+          <span>${t.shortname}</span>
+          <span style="color: #888; font-size: 11px;">${t.gender || ''}</span>
+        </div>
+      `).join('');
+    }
+    
+    function filterCombinedTeams() {
+      const filter = document.getElementById('combinedTeamSearch').value;
+      renderCombinedTeamList(filter);
+    }
+    
+    function toggleCombinedTeam(teamId, shortname, emoji) {
+      const idx = selectedCombinedTeamIds.indexOf(teamId);
+      if (idx > -1) {
+        selectedCombinedTeamIds.splice(idx, 1);
+      } else {
+        selectedCombinedTeamIds.push(teamId);
+      }
+      renderCombinedTeamList(document.getElementById('combinedTeamSearch').value);
+      renderSelectedCombinedTeams();
+    }
+    
+    function renderSelectedCombinedTeams() {
+      const container = document.getElementById('selectedCombinedTeams');
+      
+      if (selectedCombinedTeamIds.length === 0) {
+        container.innerHTML = '<span style="font-size: 12px; color: #888;">No teams selected</span>';
+        return;
+      }
+      
+      const selectedTeams = allTeams.filter(t => selectedCombinedTeamIds.includes(t.id));
+      container.innerHTML = selectedTeams.map(t => `
+        <span style="background: #f57c00; color: white; padding: 4px 10px; border-radius: 20px; font-size: 12px; display: inline-flex; align-items: center; gap: 5px;">
+          ${t.emoji || '🏀'} ${t.shortname}
+          <span style="cursor: pointer; margin-left: 3px;" onclick="removeCombinedTeam(${t.id})">&times;</span>
+        </span>
+      `).join('');
+    }
+    
+    function removeCombinedTeam(teamId) {
+      selectedCombinedTeamIds = selectedCombinedTeamIds.filter(id => id !== teamId);
+      renderCombinedTeamList(document.getElementById('combinedTeamSearch').value);
+      renderSelectedCombinedTeams();
     }
     
     function closeTeamModal() {
@@ -2759,14 +2872,16 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         gender: document.getElementById('teamGender').value || null,
         location: document.getElementById('teamLocation').value.trim() || null,
         conference: document.getElementById('teamConference').value.trim() || null,
-        primary_color: document.getElementById('teamPrimaryColor').value.trim() || null,
         primary_hex: document.getElementById('teamPrimaryHex').value.trim() || null,
-        secondary_color: document.getElementById('teamSecondaryColor').value.trim() || null,
         secondary_hex: document.getElementById('teamSecondaryHex').value.trim() || null,
         website: document.getElementById('teamWebsite').value.trim() || null,
         livestream_url: document.getElementById('teamLivestream').value.trim() || null,
         notes: document.getElementById('teamNotes').value.trim() || null,
-        active: document.getElementById('teamActive').checked
+        active: document.getElementById('teamActive').checked,
+        combined_team: document.getElementById('teamCombined').checked,
+        combined_with: document.getElementById('teamCombined').checked && selectedCombinedTeamIds.length > 0 
+          ? selectedCombinedTeamIds 
+          : null
       };
       
       // Validation
