@@ -110,7 +110,24 @@ export default async (request) => {
       }
       
       const endpoint = `games?${queryParts.join('&')}`;
-      const data = await supabaseRequest(endpoint);
+      
+      // Make direct fetch with Range header to get all results
+      const fetchUrl = `${SUPABASE_URL}/rest/v1/${endpoint}`;
+      const fetchResponse = await fetch(fetchUrl, {
+        method: 'GET',
+        headers: {
+          'apikey': SUPABASE_SERVICE_KEY,
+          'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+          'Range': '0-9999',
+          'Prefer': 'count=exact'
+        }
+      });
+      
+      if (!fetchResponse.ok) {
+        throw new Error(`Supabase error: ${fetchResponse.status}`);
+      }
+      
+      const data = await fetchResponse.json();
       
       // Single game request by id or game_id
       if (params.id) {

@@ -1,6 +1,10 @@
 // Ball603 NHIAA Schedule Scraper
 // Runs 3x daily via Netlify scheduled functions
 // Preserves assignments and detects schedule changes
+// Now uses Supabase instead of Google Sheets
+
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
 const SCHEDULE_URLS = [
   { url: 'https://www.nhiaa.org/sports/schedules/boys-basketball/division-1', gender: 'Boys', division: 'D-I' },
@@ -184,8 +188,12 @@ function parseSchedulePage(html, gender, division) {
         time = cells[4];
       }
       
-      // Game ID based on teams only (not date) so we can track reschedules
-      const gameId = `${homeTeam}-vs-${awayTeam}-${gender}-${division}`.replace(/\s+/g, '-').toLowerCase();
+      // Game ID based on home team, gender, date, and away team
+      const homeSlug = homeTeam.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const awaySlug = awayTeam.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const genderCode = gender === 'Boys' ? 'b' : 'g';
+      const dateStr = isoDate.replace(/-/g, '');
+      const gameId = `nhiaa_${homeSlug}_${genderCode}_${dateStr}_${awaySlug}`;
       
       games.push({
         game_id: gameId,
@@ -193,11 +201,12 @@ function parseSchedulePage(html, gender, division) {
         time: time,
         away_team: awayTeam,
         home_team: homeTeam,
-        away_score: awayScore,
-        home_score: homeScore,
+        away_score: awayScore ? parseInt(awayScore) : null,
+        home_score: homeScore ? parseInt(homeScore) : null,
         gender: gender,
         level: 'NHIAA',
-        division: division
+        division: division,
+        status: time === 'FINAL' ? 'final' : 'scheduled'
       });
     }
   }
@@ -214,87 +223,57 @@ function deduplicateGames(games) {
   });
 }
 
-async function getExistingData(accessToken, spreadsheetId) {
+async function getExistingGames() {
+  // Fetch all NHIAA games from Supabase
   const response = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Schedules!A:W`,
-    { headers: { 'Authorization': `Bearer ${accessToken}` } }
+    `${SUPABASE_URL}/rest/v1/games?level=eq.NHIAA&select=game_id,date,photog1,photog2,videog,writer,notes,original_date,schedule_changed,photos_url,recap_url,highlights_url,live_stream_url,game_description,special_event`,
+    {
+      headers: {
+        'apikey': SUPABASE_SERVICE_KEY,
+        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+        'Range': '0-9999'
+      }
+    }
   );
   
-  const data = await response.json();
-  const rows = data.values || [];
-  
-  if (rows.length === 0) return {};
-  
-  // Columns: game_id, date, time, away, away_score, home, home_score, gender, level, division, photog1, photog2, videog, writer, notes, original_date, schedule_changed, photos_url, recap_url, highlights_url, live_stream_url, gamedescription, specialevent
-  const existingGames = {};
-  for (let i = 1; i < rows.length; i++) {
-    const row = rows[i];
-    const gameId = row[0];
-    if (gameId) {
-      existingGames[gameId] = {
-        date: row[1] || '',
-        time: row[2] || '',
-        away_score: row[4] || '',
-        home_score: row[6] || '',
-        photog1: row[10] || '',
-        photog2: row[11] || '',
-        videog: row[12] || '',
-        writer: row[13] || '',
-        notes: row[14] || '',
-        original_date: row[15] || '',
-        schedule_changed: row[16] || '',
-        photos_url: row[17] || '',
-        recap_url: row[18] || '',
-        highlights_url: row[19] || '',
-        live_stream_url: row[20] || '',
-        gamedescription: row[21] || '',
-        specialevent: row[22] || ''
-      };
-    }
+  if (!response.ok) {
+    console.error('Failed to fetch existing games:', response.status);
+    return {};
   }
   
-  return existingGames;
+  const games = await response.json();
+  
+  // Build lookup by game_id
+  const lookup = {};
+  for (const game of games) {
+    lookup[game.game_id] = game;
+  }
+  
+  return lookup;
 }
 
-async function updateGoogleSheets(games) {
-  const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
-  const spreadsheetId = process.env.GOOGLE_SHEETS_SCHEDULE_ID;
-  
-  const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-      assertion: await createJWT(credentials)
-    })
-  });
-  
-  const { access_token } = await tokenResponse.json();
-  
-  // Get existing data
-  const existingGames = await getExistingData(access_token, spreadsheetId);
-  console.log(`  Found ${Object.keys(existingGames).length} existing games`);
-  
-  // Header row with score and coverage columns
-  const header = ['game_id', 'date', 'time', 'away', 'away_score', 'home', 'home_score', 'gender', 'level', 'division', 'photog1', 'photog2', 'videog', 'writer', 'notes', 'original_date', 'schedule_changed', 'photos_url', 'recap_url', 'highlights_url', 'live_stream_url', 'gamedescription', 'specialevent'];
+async function updateSupabase(games) {
+  // Get existing games to preserve assignments
+  const existingGames = await getExistingGames();
+  console.log(`  Found ${Object.keys(existingGames).length} existing NHIAA games`);
   
   let changesDetected = 0;
   
-  // Build rows, preserving assignments and detecting changes
-  const rows = games.map(g => {
+  // Build upsert data, preserving assignments
+  const upsertData = games.map(g => {
     const existing = existingGames[g.game_id] || {};
     
     // Check if this game has an assignment
     const hasAssignment = existing.photog1 || existing.photog2 || existing.videog || existing.writer;
     
     // Detect schedule change
-    let originalDate = existing.original_date || '';
-    let scheduleChanged = existing.schedule_changed || '';
+    let originalDate = existing.original_date || null;
+    let scheduleChanged = existing.schedule_changed || false;
     
     if (hasAssignment && existing.date && existing.date !== g.date) {
       // Date changed for a claimed game!
       originalDate = existing.original_date || existing.date;
-      scheduleChanged = 'YES';
+      scheduleChanged = true;
       changesDetected++;
       console.log(`  ⚠️ Schedule change detected: ${g.home_team} vs ${g.away_team} moved from ${existing.date} to ${g.date}`);
     }
@@ -304,104 +283,69 @@ async function updateGoogleSheets(games) {
       originalDate = g.date;
     }
     
-    // Use scraped scores, or preserve existing scores if manually entered
-    const awayScore = g.away_score || existing.away_score || '';
-    const homeScore = g.home_score || existing.home_score || '';
-    // If we have scores but time isn't FINAL yet, mark it FINAL
-    const time = (awayScore && homeScore && g.time !== 'FINAL') ? 'FINAL' : g.time;
-    
-    return [
-      g.game_id,
-      g.date,
-      time,
-      g.away_team,
-      awayScore,
-      g.home_team,
-      homeScore,
-      g.gender,
-      g.level,
-      g.division,
-      existing.photog1 || '',
-      existing.photog2 || '',
-      existing.videog || '',
-      existing.writer || '',
-      existing.notes || '',
-      originalDate,
-      scheduleChanged,
-      existing.photos_url || '',
-      existing.recap_url || '',
-      existing.highlights_url || '',
-      existing.live_stream_url || '',
-      existing.gamedescription || '',
-      existing.specialevent || ''
-    ];
+    return {
+      game_id: g.game_id,
+      date: g.date,
+      time: g.time || null,
+      away_team: g.away_team,
+      home_team: g.home_team,
+      away_score: g.away_score,
+      home_score: g.home_score,
+      gender: g.gender,
+      level: g.level,
+      division: g.division,
+      status: g.status,
+      // Preserve existing coverage data
+      photog1: existing.photog1 || null,
+      photog2: existing.photog2 || null,
+      videog: existing.videog || null,
+      writer: existing.writer || null,
+      notes: existing.notes || null,
+      photos_url: existing.photos_url || null,
+      recap_url: existing.recap_url || null,
+      highlights_url: existing.highlights_url || null,
+      live_stream_url: existing.live_stream_url || null,
+      game_description: existing.game_description || null,
+      special_event: existing.special_event || null,
+      original_date: originalDate,
+      schedule_changed: scheduleChanged
+    };
   });
   
   if (changesDetected > 0) {
     console.log(`  ⚠️ Total schedule changes detected: ${changesDetected}`);
   }
   
-  // Sort by date, then time
-  rows.sort((a, b) => {
-    if (a[1] !== b[1]) return a[1].localeCompare(b[1]);
-    return a[2].localeCompare(b[2]);
-  });
+  // Batch upsert to Supabase
+  const batchSize = 100;
+  let totalUpserted = 0;
   
-  // Clear and update sheet
-  await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Schedules!A:W:clear`, {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${access_token}` }
-  });
+  for (let i = 0; i < upsertData.length; i += batchSize) {
+    const batch = upsertData.slice(i, i + batchSize);
+    
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/games?on_conflict=game_id`,
+      {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_SERVICE_KEY,
+          'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'resolution=merge-duplicates'
+        },
+        body: JSON.stringify(batch)
+      }
+    );
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Batch ${i}-${i+batchSize} error:`, errorText);
+    } else {
+      totalUpserted += batch.length;
+    }
+  }
   
-  await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Schedules!A1?valueInputOption=RAW`, {
-    method: 'PUT',
-    headers: {
-      'Authorization': `Bearer ${access_token}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ values: [header, ...rows] })
-  });
-  
-  return { rowCount: rows.length, changesDetected };
-}
-
-async function createJWT(credentials) {
-  const header = { alg: 'RS256', typ: 'JWT' };
-  const now = Math.floor(Date.now() / 1000);
-  const payload = {
-    iss: credentials.client_email,
-    scope: 'https://www.googleapis.com/auth/spreadsheets',
-    aud: 'https://oauth2.googleapis.com/token',
-    iat: now,
-    exp: now + 3600
-  };
-  
-  const encoder = new TextEncoder();
-  const headerB64 = btoa(JSON.stringify(header)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-  const payloadB64 = btoa(JSON.stringify(payload)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-  const unsignedToken = `${headerB64}.${payloadB64}`;
-  
-  const pemContents = credentials.private_key.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\n/g, '');
-  const binaryKey = Uint8Array.from(atob(pemContents), c => c.charCodeAt(0));
-  
-  const cryptoKey = await crypto.subtle.importKey(
-    'pkcs8',
-    binaryKey,
-    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
-  
-  const signature = await crypto.subtle.sign(
-    'RSASSA-PKCS1-v1_5',
-    cryptoKey,
-    encoder.encode(unsignedToken)
-  );
-  
-  const signatureB64 = btoa(String.fromCharCode(...new Uint8Array(signature)))
-    .replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-  
-  return `${unsignedToken}.${signatureB64}`;
+  return { rowCount: totalUpserted, changesDetected };
 }
 
 export default async (request) => {
@@ -422,18 +366,25 @@ export default async (request) => {
     const dedupedGames = deduplicateGames(allGames);
     console.log(`Total unique games: ${dedupedGames.length}`);
     
-    const { rowCount, changesDetected } = await updateGoogleSheets(dedupedGames);
+    const { rowCount, changesDetected } = await updateSupabase(dedupedGames);
     
     return new Response(JSON.stringify({
       success: true,
       gamesScraped: dedupedGames.length,
+      gamesUpserted: rowCount,
       scheduleChanges: changesDetected,
       timestamp: new Date().toISOString()
-    }), { status: 200 });
+    }), { 
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    });
     
   } catch (error) {
     console.error('Scraper error:', error);
-    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+    return new Response(JSON.stringify({ error: error.message }), { 
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 };
 
