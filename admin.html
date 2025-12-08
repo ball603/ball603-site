@@ -606,6 +606,13 @@
     let currentArticle = null;
     let selectedGame = null;
     
+    // Generated social posts (populated by story generator)
+    let generatedSocialPosts = {
+      facebookPost: null,
+      instagramPost: null,
+      twitterPost: null
+    };
+    
     // Login
     function login() {
       const password = document.getElementById('loginPassword').value;
@@ -974,6 +981,19 @@
       return { away: awayRoster, home: homeRoster };
     }
     
+    // Get school info (mascot, town, colors) from ROSTERS_DATA.schools
+    function getSchoolInfo(schoolName) {
+      if (typeof ROSTERS_DATA === 'undefined' || !ROSTERS_DATA.schools) return null;
+      
+      // Try exact match first
+      for (const [fullName, info] of Object.entries(ROSTERS_DATA.schools)) {
+        if (info.shortname === schoolName || fullName === schoolName || fullName.includes(schoolName)) {
+          return info;
+        }
+      }
+      return null;
+    }
+    
     function populateGSRoster(team, roster, teamName) {
       const container = document.getElementById(`gs${team.charAt(0).toUpperCase() + team.slice(1)}Roster`);
       container.innerHTML = '';
@@ -1161,6 +1181,17 @@
       
       const rosters = getTeamRosters();
       
+      // Get school info for mascots and towns
+      const awaySchoolInfo = getSchoolInfo(gsSelectedGame.away);
+      const homeSchoolInfo = getSchoolInfo(gsSelectedGame.home);
+      
+      // Get selected photographer(s)
+      const selectedPhotogs = [];
+      document.querySelectorAll('input[name="gsPhotog"]:checked').forEach(cb => {
+        selectedPhotogs.push(cb.value);
+      });
+      const photographerName = selectedPhotogs.join(' & ');
+      
       const proofData = {
         awayTeam: gsSelectedGame.away,
         homeTeam: gsSelectedGame.home,
@@ -1185,7 +1216,13 @@
             mode: 'write',
             proofData,
             awayRoster: rosters.away,
-            homeRoster: rosters.home
+            homeRoster: rosters.home,
+            schoolData: {
+              away: awaySchoolInfo,
+              home: homeSchoolInfo
+            },
+            photographerName: photographerName || null,
+            galleryUrl: null // Will be set later via SmugMug browser
           })
         });
         
@@ -1195,6 +1232,13 @@
           // Close modal and open editor with generated content
           closeGameStory();
           
+          // Store generated social posts for later use
+          generatedSocialPosts = {
+            facebookPost: data.facebookPost || null,
+            instagramPost: data.instagramPost || null,
+            twitterPost: data.twitterPost || null
+          };
+          
           // Set up article editor
           currentArticle = null;
           document.getElementById('editorTitle').textContent = 'New Article';
@@ -1203,6 +1247,11 @@
           document.getElementById('articleExcerpt').value = data.excerpt || '';
           document.getElementById('selectedGameId').value = gsSelectedGame.game_id;
           selectedGame = gsSelectedGame;
+          
+          // Set photographer credit if we had one
+          if (photographerName) {
+            document.getElementById('photographerCredit').value = photographerName;
+          }
           
           document.getElementById('articlesPanel').style.display = 'none';
           document.getElementById('editorPanel').style.display = 'block';
@@ -1234,6 +1283,13 @@
       document.getElementById('photographerCredit').value = '';
       selectedGame = null;
       
+      // Clear generated social posts (this is a non-game article)
+      generatedSocialPosts = {
+        facebookPost: null,
+        instagramPost: null,
+        twitterPost: null
+      };
+      
       document.getElementById('articlesPanel').style.display = 'none';
       document.getElementById('editorPanel').style.display = 'block';
       
@@ -1254,6 +1310,13 @@
       selectedGame = article.game_id ? games.find(g => g.game_id === article.game_id) : null;
       document.getElementById('smugmugUrl').value = article.smugmug_gallery_url || '';
       document.getElementById('photographerCredit').value = article.photographer_credit || '';
+      
+      // Clear generated social posts (editing existing article, no stored social versions)
+      generatedSocialPosts = {
+        facebookPost: null,
+        instagramPost: null,
+        twitterPost: null
+      };
       
       document.getElementById('articlesPanel').style.display = 'none';
       document.getElementById('editorPanel').style.display = 'block';
@@ -1825,19 +1888,39 @@
       
       let postText = '';
       
-      if (platform === 'facebook') {
-        postText = `🏀 ${title}\n\n${excerpt}\n\n`;
-        if (gallery) postText += `📸 Full gallery: ${gallery}\n`;
-        if (photographer) postText += `📷 Photos by ${photographer}\n`;
-        postText += `\n#Ball603 #NHBasketball`;
-      } else if (platform === 'instagram') {
-        postText = `🏀 ${title}\n\n${excerpt}\n\n📸 Link in bio for full gallery!\n`;
-        if (photographer) postText += `📷 @${photographer.replace(/\s+/g, '')}\n`;
-        postText += `\n#Ball603 #NHBasketball #NHIAA`;
-      } else if (platform === 'twitter') {
-        postText = `🏀 ${title}\n\n${excerpt.substring(0, 180)}...\n\n`;
-        if (gallery) postText += `📸 ${gallery}\n`;
-        postText += `#NHBasketball`;
+      // Use pre-generated content if available (from story generator)
+      if (platform === 'facebook' && generatedSocialPosts.facebookPost) {
+        postText = generatedSocialPosts.facebookPost;
+        // Update with current gallery URL if changed
+        if (gallery && !postText.includes(gallery)) {
+          postText = postText.replace(/over at https?:\/\/[^\s]+|over at Ball603\.com/, `over at ${gallery}`);
+        }
+      } else if (platform === 'instagram' && generatedSocialPosts.instagramPost) {
+        postText = generatedSocialPosts.instagramPost;
+      } else if (platform === 'twitter' && generatedSocialPosts.twitterPost) {
+        postText = generatedSocialPosts.twitterPost;
+        // Update with current gallery URL if changed
+        if (gallery && !postText.includes(gallery)) {
+          postText = postText.replace(/over at https?:\/\/[^\s]+|over at Ball603\.com/, `over at ${gallery}`);
+        }
+      } else {
+        // Fallback to old behavior for non-generated articles
+        if (platform === 'facebook') {
+          postText = content;
+          if (photographer && gallery) {
+            postText += `\n\nCheck out the full photo gallery by ${photographer} over at ${gallery}`;
+          } else if (gallery) {
+            postText += `\n\nCheck out the full photo gallery over at ${gallery}`;
+          }
+        } else if (platform === 'instagram') {
+          postText = `🏀 ${title}\n\n${excerpt}\n\n📸 Link in bio for full gallery!\n`;
+          if (photographer) postText += `📷 @${photographer.replace(/\s+/g, '')}\n`;
+          postText += `\n#Ball603 #NHBasketball #NHIAA`;
+        } else if (platform === 'twitter') {
+          postText = `🏀 ${title}\n\n${excerpt.substring(0, 180)}...\n\n`;
+          if (gallery) postText += `📸 ${gallery}\n`;
+          postText += `#NHBasketball`;
+        }
       }
       
       // Copy to clipboard
