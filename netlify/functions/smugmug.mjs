@@ -124,25 +124,28 @@ export const handler = async (event) => {
     }
     
     if (action === 'albums') {
-      // First get the user's root node, then get children (albums)
-      // Using the node structure which is how SmugMug organizes content
-      let endpoint = '/api/v2/node/xTJBFN!children?count=100&Type=Album&_expand=HighlightImage';
+      // Query albums from the root folder
+      let endpoint = '/api/v2/folder/user/ball603!albums?count=100&_expand=HighlightImage&SortDirection=Descending&SortMethod=DateModified';
       const result = await smugmugRequest(endpoint);
       
-      const nodes = result?.Response?.Node || [];
+      const albums = result?.Response?.Album || [];
       return {
         statusCode: 200,
         headers,
         body: JSON.stringify({
           success: true,
-          albums: nodes.map(node => ({
-            key: node.NodeID,
-            name: node.Name,
-            url: node.WebUri,
-            imageCount: node.ImageCount || 0,
-            date: node.DateModified || node.DateAdded,
-            highlightImage: node.Uris?.HighlightImage?.Image?.ThumbnailUrl || null
-          }))
+          albums: albums.map(album => ({
+            key: album.AlbumKey,
+            name: album.Name,
+            url: album.WebUri,
+            imageCount: album.ImageCount || 0,
+            date: album.DateModified || album.DateAdded || album.Date,
+            highlightImage: album.Uris?.HighlightImage?.Image?.ThumbnailUrl || null
+          })),
+          debug: {
+            totalReturned: albums.length,
+            endpoint: endpoint
+          }
         })
       };
       
