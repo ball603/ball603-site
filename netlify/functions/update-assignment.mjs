@@ -1,104 +1,36 @@
 // Update game assignments (photog1, photog2, videog, writer, notes, schedule_changed)
+// Updated to use Supabase instead of Google Sheets
 
-async function createJWT(credentials) {
-  const header = { alg: 'RS256', typ: 'JWT' };
-  const now = Math.floor(Date.now() / 1000);
-  const payload = {
-    iss: credentials.client_email,
-    scope: 'https://www.googleapis.com/auth/spreadsheets',
-    aud: 'https://oauth2.googleapis.com/token',
-    iat: now,
-    exp: now + 3600
-  };
-  
-  const encoder = new TextEncoder();
-  const headerB64 = btoa(JSON.stringify(header)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-  const payloadB64 = btoa(JSON.stringify(payload)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-  const unsignedToken = `${headerB64}.${payloadB64}`;
-  
-  const pemContents = credentials.private_key.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\n/g, '');
-  const binaryKey = Uint8Array.from(atob(pemContents), c => c.charCodeAt(0));
-  
-  const cryptoKey = await crypto.subtle.importKey(
-    'pkcs8',
-    binaryKey,
-    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
-  
-  const signature = await crypto.subtle.sign(
-    'RSASSA-PKCS1-v1_5',
-    cryptoKey,
-    encoder.encode(unsignedToken)
-  );
-  
-  const signatureB64 = btoa(String.fromCharCode(...new Uint8Array(signature)))
-    .replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-  
-  return `${unsignedToken}.${signatureB64}`;
-}
-
-async function getAccessToken(credentials) {
-  const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-      assertion: await createJWT(credentials)
-    })
-  });
-  
-  const { access_token } = await tokenResponse.json();
-  return access_token;
-}
-
-// Map field names to column letters (A=game_id, B=date, C=time, D=away, E=away_score, F=home, G=home_score, H=gender, I=level, J=division, K=photog1, L=photog2, M=videog, N=writer, O=notes, P=original_date, Q=schedule_changed)
-const FIELD_COLUMNS = {
-  photog1: 'K',
-  photog2: 'L',
-  videog: 'M',
-  writer: 'N',
-  notes: 'O',
-  original_date: 'P',
-  schedule_changed: 'Q'
-};
-
-async function findGameRow(accessToken, spreadsheetId, sheetName, gameId) {
-  const response = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!A:A`,
-    { headers: { 'Authorization': `Bearer ${accessToken}` } }
-  );
-  
-  const data = await response.json();
-  const rows = data.values || [];
-  
-  for (let i = 0; i < rows.length; i++) {
-    if (rows[i][0] === gameId) {
-      return i + 1; // 1-indexed for Sheets API
-    }
-  }
-  
-  return null;
-}
-
-async function updateCell(accessToken, spreadsheetId, sheetName, row, column, value) {
-  const range = `${sheetName}!${column}${row}`;
-  
-  await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}?valueInputOption=RAW`,
-    {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ values: [[value]] })
-    }
-  );
-}
+// Allowed fields that can be updated
+const ALLOWED_FIELDS = [
+  'photog1',
+  'photog2', 
+  'videog',
+  'writer',
+  'notes',
+  'original_date',
+  'schedule_changed',
+  'photos_url',
+  'recap_url',
+  'highlights_url',
+  'live_stream_url',
+  'gamedescription',
+  'specialevent'
+];
 
 export default async (request) => {
+  // Handle CORS preflight
+  if (request.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type'
+      }
+    });
+  }
+  
   if (request.method !== 'POST') {
     return new Response('Method not allowed', { status: 405 });
   }
@@ -106,29 +38,77 @@ export default async (request) => {
   try {
     const { gameId, field, value } = await request.json();
     
-    if (!gameId || !field || !FIELD_COLUMNS[field]) {
-      return new Response(JSON.stringify({ error: 'Invalid request' }), { status: 400 });
+    // Validate request
+    if (!gameId || !field) {
+      return new Response(JSON.stringify({ error: 'Invalid request - missing gameId or field' }), { 
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
     
-    const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
-    const spreadsheetId = process.env.GOOGLE_SHEETS_SCHEDULE_ID;
-    const accessToken = await getAccessToken(credentials);
+    if (!ALLOWED_FIELDS.includes(field)) {
+      return new Response(JSON.stringify({ error: `Invalid field: ${field}` }), { 
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
     
-    // Try to find the game in each sheet
-    const sheets = ['Schedules', 'College', 'Prep'];
-    let found = false;
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     
-    for (const sheetName of sheets) {
-      const row = await findGameRow(accessToken, spreadsheetId, sheetName, gameId);
-      if (row) {
-        await updateCell(accessToken, spreadsheetId, sheetName, row, FIELD_COLUMNS[field], value);
-        found = true;
-        break;
+    if (!supabaseUrl || !supabaseKey) {
+      return new Response(JSON.stringify({ error: 'Supabase not configured' }), { 
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+    
+    // Update the specific field for this game
+    const updateData = {};
+    updateData[field] = value || '';
+    
+    const response = await fetch(
+      `${supabaseUrl}/rest/v1/games?game_id=eq.${encodeURIComponent(gameId)}`,
+      {
+        method: 'PATCH',
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify(updateData)
       }
+    );
+    
+    if (!response.ok) {
+      const error = await response.text();
+      console.error(`Supabase update failed: ${response.status} - ${error}`);
+      return new Response(JSON.stringify({ error: 'Database update failed' }), { 
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
     
-    if (!found) {
-      return new Response(JSON.stringify({ error: 'Game not found' }), { status: 404 });
+    // Check if any rows were updated (Supabase returns empty on PATCH with return=minimal)
+    // We need to verify the game exists
+    const checkResponse = await fetch(
+      `${supabaseUrl}/rest/v1/games?game_id=eq.${encodeURIComponent(gameId)}&select=game_id`,
+      {
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`
+        }
+      }
+    );
+    
+    const checkData = await checkResponse.json();
+    
+    if (!checkData || checkData.length === 0) {
+      return new Response(JSON.stringify({ error: 'Game not found' }), { 
+        status: 404,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
     
     return new Response(JSON.stringify({ success: true }), {
