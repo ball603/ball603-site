@@ -329,32 +329,190 @@ function normalizeOpponentName(name) {
  */
 async function scrapeSchoolSchedule(school, gender) {
   const path = (gender === 'Boys' || gender === 'Men') ? school.mensPath : school.womensPath;
-  const url = `https://${school.site}${path}`;
+  const pageUrl = `https://${school.site}${path}`;
   
   console.log(`  Fetching ${school.shortname} ${gender}...`);
   
   try {
-    const response = await fetch(url, {
+    // First fetch the schedule page to get the text export URL
+    const pageResponse = await fetch(pageUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; Ball603/1.0)',
         'Accept': 'text/html'
       }
     });
     
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+    if (!pageResponse.ok) {
+      throw new Error(`HTTP ${pageResponse.status}`);
     }
     
-    const html = await response.text();
-    const games = parseSIDEARMSchedule(html, school, gender);
+    const html = await pageResponse.text();
     
-    console.log(`    Found ${games.length} games`);
+    // Extract the text export URL (format: /services/schedule_txt.ashx?schedule=XXX)
+    const textUrlMatch = html.match(/\/services\/schedule_txt\.ashx\?schedule=(\d+)/);
+    
+    if (textUrlMatch) {
+      // Fetch the text export - much cleaner format
+      const textUrl = `https://${school.site}${textUrlMatch[0]}`;
+      const textResponse = await fetch(textUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; Ball603/1.0)',
+          'Accept': 'text/plain'
+        }
+      });
+      
+      if (textResponse.ok) {
+        const textContent = await textResponse.text();
+        const games = parseSIDEARMTextExport(textContent, school, gender);
+        console.log(`    Found ${games.length} games (text export)`);
+        return games;
+      }
+    }
+    
+    // Fallback to HTML parsing if text export not available
+    const games = parseSIDEARMSchedule(html, school, gender);
+    console.log(`    Found ${games.length} games (HTML fallback)`);
     return games;
     
   } catch (error) {
     console.error(`    Error: ${error.message}`);
     return [];
   }
+}
+
+/**
+ * Parse SIDEARM text export format
+ * Tab-delimited format: Date | Time | At | Opponent | Location | Tournament | Result
+ * Example: "Nov 14 (Tue)	5:00 PM	Away	Marquette	Milwaukee, Wis.		L 61-78"
+ */
+function parseSIDEARMTextExport(text, school, gender) {
+  const games = [];
+  const lines = text.split('\n');
+  
+  for (const line of lines) {
+    // Skip empty lines and header lines
+    if (!line.trim()) continue;
+    if (/^(Date|Overall|Conference|Streak|Home|Away|Neutral|\d+\s*-\s*\d+)/i.test(line.trim())) continue;
+    if (line.includes('Schedule') && !line.includes('(')) continue;
+    
+    // Split by tabs or multiple spaces
+    const parts = line.split(/\t+|\s{2,}/);
+    if (parts.length < 4) continue;
+    
+    // Try to parse date pattern like "Nov 14 (Fri)" or "11/14/2025"
+    const dateMatch = parts[0].match(/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2})/i);
+    if (!dateMatch) continue;
+    
+    // Parse date
+    const parsedDate = parseSIDEARMDate(dateMatch[1], dateMatch[2]);
+    if (!parsedDate) continue;
+    
+    // Extract fields
+    let time = '';
+    let homeAway = '';
+    let opponent = '';
+    let result = '';
+    
+    // Time is usually in parts[1]
+    const timeMatch = parts[1] && parts[1].match(/(\d{1,2}:\d{2}\s*(?:AM|PM))/i);
+    if (timeMatch) {
+      time = timeMatch[1].toUpperCase().replace(/\s+/g, ' ');
+    }
+    
+    // Find Home/Away indicator
+    for (let i = 1; i < parts.length && i < 4; i++) {
+      if (/^(Home|Away|Neutral)$/i.test(parts[i].trim())) {
+        homeAway = parts[i].trim().toLowerCase();
+        // Opponent is usually the next non-empty field
+        for (let j = i + 1; j < parts.length; j++) {
+          if (parts[j].trim() && !/^(Home|Away|Neutral|\d{1,2}:\d{2}|TBA)$/i.test(parts[j].trim())) {
+            opponent = parts[j].trim();
+            break;
+          }
+        }
+        break;
+      }
+    }
+    
+    // If no explicit Home/Away, try to find it in the line
+    if (!homeAway) {
+      if (/\bAway\b/i.test(line)) homeAway = 'away';
+      else if (/\bHome\b/i.test(line)) homeAway = 'home';
+      else if (/\bNeutral\b/i.test(line)) homeAway = 'neutral';
+    }
+    
+    // Find opponent if not found yet
+    if (!opponent) {
+      // Look for opponent after Home/Away marker
+      const oppMatch = line.match(/(?:Home|Away|Neutral)\s+(.+?)(?:\t|$|\s{2,}|[A-Z][a-z]+,\s*[A-Z]{2})/i);
+      if (oppMatch) {
+        opponent = oppMatch[1].trim();
+      }
+    }
+    
+    if (!opponent || opponent.length < 2) continue;
+    
+    // Skip exhibition games
+    if (/\(EXH\)|Exhibition/i.test(opponent) || /\(EXH\)|Exhibition/i.test(line)) continue;
+    
+    // Clean opponent name
+    opponent = opponent
+      .replace(/\s*\(EXH\)/gi, '')
+      .replace(/\s*\*\s*$/, '')  // Remove trailing asterisk (conference marker)
+      .replace(/\s+/g, ' ')
+      .trim();
+    
+    opponent = normalizeOpponentName(opponent);
+    
+    // Treat neutral as away for simplicity (school is traveling)
+    const isAway = homeAway === 'away' || homeAway === 'neutral';
+    
+    // Determine home/away teams
+    const homeTeam = isAway ? opponent : school.shortname;
+    const awayTeam = isAway ? school.shortname : opponent;
+    
+    // Check for result at end of line (W/L XX-XX)
+    let homeScore = '';
+    let awayScore = '';
+    const resultMatch = line.match(/([WLT])\s+(\d+)\s*-\s*(\d+)\s*$/);
+    if (resultMatch) {
+      const [, winLossTie, score1, score2] = resultMatch;
+      const schoolScore = parseInt(score1);
+      const oppScore = parseInt(score2);
+      
+      if (isAway) {
+        awayScore = schoolScore.toString();
+        homeScore = oppScore.toString();
+      } else {
+        homeScore = schoolScore.toString();
+        awayScore = oppScore.toString();
+      }
+      time = 'FINAL';
+    }
+    
+    // Generate game ID
+    const genderCode = (gender === 'Boys' || gender === 'Men') ? 'm' : 'w';
+    const dateCode = parsedDate.replace(/-/g, '');
+    const homeCode = homeTeam.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 12);
+    const awayCode = awayTeam.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 12);
+    const gameId = `college_${homeCode}_${genderCode}_${dateCode}_${awayCode}`;
+    
+    games.push({
+      game_id: gameId,
+      date: parsedDate,
+      time: time,
+      away_team: awayTeam,
+      away_score: awayScore,
+      home_team: homeTeam,
+      home_score: homeScore,
+      gender: gender,
+      level: 'College',
+      division: school.division,
+      schoolAbbrev: school.abbrev
+    });
+  }
+  
+  return games;
 }
 
 /**
