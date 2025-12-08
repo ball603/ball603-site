@@ -128,9 +128,13 @@ export const handler = async (event) => {
       const recentEndpoint = '/api/v2/user/ball603!recentimages?count=5';
       const recentResult = await smugmugRequest(recentEndpoint);
       
-      // Try to get folder contents
-      const folderEndpoint = '/api/v2/folder/user/ball603';
-      const folderResult = await smugmugRequest(folderEndpoint);
+      // Try to get folder albums directly
+      const albumsEndpoint = '/api/v2/folder/user/ball603!albums?count=10';
+      const albumsResult = await smugmugRequest(albumsEndpoint);
+      
+      // Try FolderAlbums with different path
+      const folderAlbumsEndpoint = '/api/v2/folder/user/ball603!albumlist?count=10';
+      const folderAlbumsResult = await smugmugRequest(folderAlbumsEndpoint);
       
       return {
         statusCode: 200,
@@ -140,13 +144,23 @@ export const handler = async (event) => {
           recentImages: {
             endpoint: recentEndpoint,
             count: recentResult?.Response?.Image?.length || 0,
-            responseKeys: recentResult?.Response ? Object.keys(recentResult.Response) : null
+            responseKeys: recentResult?.Response ? Object.keys(recentResult.Response) : null,
+            code: recentResult?.Code,
+            message: recentResult?.Message
           },
-          folder: {
-            endpoint: folderEndpoint,
-            name: folderResult?.Response?.Folder?.Name,
-            responseKeys: folderResult?.Response ? Object.keys(folderResult.Response) : null,
-            uris: folderResult?.Response?.Folder?.Uris ? Object.keys(folderResult?.Response?.Folder?.Uris) : null
+          albums: {
+            endpoint: albumsEndpoint,
+            count: albumsResult?.Response?.Album?.length || 0,
+            responseKeys: albumsResult?.Response ? Object.keys(albumsResult.Response) : null,
+            code: albumsResult?.Code,
+            message: albumsResult?.Message
+          },
+          albumList: {
+            endpoint: folderAlbumsEndpoint,
+            count: folderAlbumsResult?.Response?.Album?.length || folderAlbumsResult?.Response?.AlbumList?.length || 0,
+            responseKeys: folderAlbumsResult?.Response ? Object.keys(folderAlbumsResult.Response) : null,
+            code: folderAlbumsResult?.Code,
+            message: folderAlbumsResult?.Message
           }
         })
       };
