@@ -93,9 +93,6 @@ function parseESPNSchedule(html, team, gender) {
     const homeTeam = isAway ? normalizeCollegeName(opponent) : team.shortname;
     const awayTeam = isAway ? team.shortname : normalizeCollegeName(opponent);
     
-    // Determine location - home games are in NH
-    const location = isAway ? '' : team.location;
-    
     // Parse result or time
     let time = '';
     let homeScore = '';
@@ -148,11 +145,12 @@ function parseESPNSchedule(html, team, gender) {
       }
     }
     
-    // Generate game ID
+    // Generate game ID - format: college_{home}_{m|w}_{YYYYMMDD}_{away}
     const genderCode = gender === 'Boys' ? 'm' : 'w';
     const dateCode = parsedDate.replace(/-/g, '');
-    const oppCode = normalizeForId(opponent);
-    const gameId = `college_${team.abbrev.toLowerCase()}_${genderCode}_${dateCode}_${oppCode}`;
+    const homeCode = homeTeam.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 12);
+    const awayCode = awayTeam.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 12);
+    const gameId = `college_${homeCode}_${genderCode}_${dateCode}_${awayCode}`;
     
     games.push({
       game_id: gameId,
@@ -165,11 +163,9 @@ function parseESPNSchedule(html, team, gender) {
       gender: gender,
       level: 'College',
       division: 'D1',
-      location: location,
       status: status,
       source: 'ESPN',
-      school: team.shortname,
-      conference: team.shortname === 'UNH' ? 'America East' : 'Ivy League'
+      school: team.shortname
     });
   }
   
@@ -313,16 +309,6 @@ function normalizeCollegeName(name) {
 }
 
 /**
- * Normalize name for use in game ID
- */
-function normalizeForId(name) {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, '')
-    .substring(0, 15);
-}
-
-/**
  * Fetch and parse schedule for a team
  */
 async function scrapeTeamSchedule(team, gender) {
@@ -382,10 +368,11 @@ function deduplicateGames(games) {
 
 /**
  * Filter games to only those in New Hampshire (for contributor scheduling)
+ * NH home games = games where UNH or Dartmouth is the home team
  */
 function filterNHGames(games) {
-  const nhLocations = ['Durham', 'Hanover'];
-  return games.filter(g => nhLocations.includes(g.location));
+  const nhTeams = ['UNH', 'Dartmouth'];
+  return games.filter(g => nhTeams.includes(g.home_team));
 }
 
 /**
@@ -442,6 +429,7 @@ async function getExistingCollegeGames(accessToken, spreadsheetId) {
   const { values: rows = [] } = await response.json();
   if (rows.length === 0) return {};
   
+  // Columns match high school: game_id, date, time, away, away_score, home, home_score, gender, level, division, photog1, photog2, videog, writer, notes, original_date, schedule_changed, photos_url, recap_url, highlights_url, live_stream_url, gamedescription, specialevent
   const existingGames = {};
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
@@ -462,7 +450,9 @@ async function getExistingCollegeGames(accessToken, spreadsheetId) {
         photos_url: row[17] || '',
         recap_url: row[18] || '',
         highlights_url: row[19] || '',
-        live_stream_url: row[20] || ''
+        live_stream_url: row[20] || '',
+        gamedescription: row[21] || '',
+        specialevent: row[22] || ''
       };
     }
   }
@@ -498,12 +488,12 @@ async function updateGoogleSheets(games) {
   const existingGames = await getExistingCollegeGames(access_token, spreadsheetId);
   console.log(`  Found ${Object.keys(existingGames).length} existing college games`);
   
-  // Header row
+  // Header row - matches high school Schedules format exactly (23 columns)
   const header = [
     'game_id', 'date', 'time', 'away', 'away_score', 'home', 'home_score',
     'gender', 'level', 'division', 'photog1', 'photog2', 'videog', 'writer',
     'notes', 'original_date', 'schedule_changed', 'photos_url', 'recap_url',
-    'highlights_url', 'live_stream_url', 'location', 'conference'
+    'highlights_url', 'live_stream_url', 'gamedescription', 'specialevent'
   ];
   
   let changesDetected = 0;
@@ -555,8 +545,8 @@ async function updateGoogleSheets(games) {
       existing.recap_url || '',
       existing.highlights_url || '',
       existing.live_stream_url || '',
-      g.location || '',
-      g.conference || ''
+      existing.gamedescription || '',
+      existing.specialevent || ''
     ];
   });
   

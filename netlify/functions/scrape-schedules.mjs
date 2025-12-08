@@ -184,8 +184,12 @@ function parseSchedulePage(html, gender, division) {
         time = cells[4];
       }
       
-      // Game ID based on teams only (not date) so we can track reschedules
-      const gameId = `${homeTeam}-vs-${awayTeam}-${gender}-${division}`.replace(/\s+/g, '-').toLowerCase();
+      // Game ID format: nhiaa_{home}_{b|g}_{YYYYMMDD}_{away}
+      const genderCode = gender === 'Boys' ? 'b' : 'g';
+      const dateCode = isoDate.replace(/-/g, '');
+      const homeCode = homeTeam.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 12);
+      const awayCode = awayTeam.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 12);
+      const gameId = `nhiaa_${homeCode}_${genderCode}_${dateCode}_${awayCode}`;
       
       games.push({
         game_id: gameId,
