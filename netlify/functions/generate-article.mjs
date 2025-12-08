@@ -453,7 +453,7 @@ DO NOT include a headline - just the article body starting with the dateline.`;
   
   // Generate social posts
   const winnerMascot = winnerSchoolInfo.mascot || '';
-  const winnerEmoji = MASCOT_EMOJIS[winnerMascot] || '🏀';
+  const winnerEmoji = winnerSchoolInfo.emoji || MASCOT_EMOJIS[winnerMascot] || '🏀';
   const awayAbbrev = SCHOOL_ABBREVIATIONS[proofData.awayTeam] || proofData.awayTeam.substring(0, 3).toUpperCase();
   const homeAbbrev = SCHOOL_ABBREVIATIONS[proofData.homeTeam] || proofData.homeTeam.substring(0, 3).toUpperCase();
   
@@ -463,7 +463,7 @@ DO NOT include a headline - just the article body starting with the dateline.`;
     return list.map(s => `${s.name.split(' ').pop()} (${s.points})`).join(', ');
   }
   
-  const igHeader = `${winnerEmoji}🏀 at ${proofData.homeTeam} ${winnerScore}, ${loserScore} 🏀`;
+  const igHeader = `${winnerEmoji} 🏀 ${winner} ${winnerScore}, ${loser} ${loserScore} 🏀`;
   const igScorers = [];
   if (winnerScorers[0]) igScorers.push(`${winnerScorers[0].name} (${winner}): ${winnerScorers[0].points} pts`);
   if (loserScorers[0]) igScorers.push(`${loserScorers[0].name} (${loser}): ${loserScorers[0].points} pts`);
@@ -663,7 +663,7 @@ DO NOT include a headline - just the article body starting with the dateline.`;
   // Generate social posts
   const winnerSchoolInfo = awayWon ? awaySchoolInfo : homeSchoolInfo;
   const winnerMascot = winnerSchoolInfo.mascot || '';
-  const winnerEmoji = MASCOT_EMOJIS[winnerMascot] || '🏀';
+  const winnerEmoji = winnerSchoolInfo.emoji || MASCOT_EMOJIS[winnerMascot] || '🏀';
   const awayAbbrev = SCHOOL_ABBREVIATIONS[gameInfo.awayTeam] || gameInfo.awayTeam.substring(0, 3).toUpperCase();
   const homeAbbrev = SCHOOL_ABBREVIATIONS[gameInfo.homeTeam] || gameInfo.homeTeam.substring(0, 3).toUpperCase();
   
@@ -673,7 +673,7 @@ DO NOT include a headline - just the article body starting with the dateline.`;
     return list.map(p => `${p.name.split(' ').pop()} (${p.points})`).join(', ');
   }
   
-  const igHeader = `${winnerEmoji}🏀 at ${gameInfo.homeTeam} ${winnerScore}, ${loserScore} 🏀`;
+  const igHeader = `${winnerEmoji} 🏀 ${winner} ${winnerScore}, ${loser} ${loserScore} 🏀`;
   
   const topWinnerPlayer = (winnerPlayers || []).sort((a, b) => b.points - a.points)[0];
   const topLoserPlayer = (loserPlayers || []).sort((a, b) => b.points - a.points)[0];
