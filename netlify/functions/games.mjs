@@ -10,7 +10,8 @@ async function supabaseRequest(endpoint, options = {}) {
     'apikey': SUPABASE_SERVICE_KEY,
     'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
     'Content-Type': 'application/json',
-    'Prefer': options.prefer || 'return=representation'
+    'Prefer': options.prefer || 'return=representation',
+    'Range': '0-4999'  // Get up to 5000 rows
   };
   
   const response = await fetch(url, {

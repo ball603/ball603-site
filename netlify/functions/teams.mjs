@@ -14,6 +14,7 @@ async function supabaseRequest(endpoint, options = {}) {
       'Authorization': `Bearer ${SUPABASE_KEY}`,
       'Content-Type': 'application/json',
       'Prefer': options.prefer || 'return=representation',
+      'Range': '0-999',  // Get up to 1000 rows
       ...options.headers
     }
   });
