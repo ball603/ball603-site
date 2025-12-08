@@ -239,6 +239,10 @@
         <button class="btn-new" style="background: #fff3e0; color: #e65100;" onclick="exportGames()">
           <span>📤</span> Export CSV
         </button>
+        <button class="btn-new" style="background: #e8f5e9; color: #2e7d32;" onclick="document.getElementById('coverageRestoreInput').click()">
+          <span>🔄</span> Restore Coverage
+        </button>
+        <input type="file" id="coverageRestoreInput" accept=".csv" style="display: none;" onchange="restoreCoverageFromCSV(this.files[0])">
         <div style="display: flex; gap: 8px; align-items: center; margin-left: auto; flex-wrap: wrap;">
           <input type="date" id="gameStartDate" onchange="filterGames()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px;">
           <span style="color: #888;">to</span>
@@ -3970,6 +3974,76 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       URL.revokeObjectURL(url);
       
       showToast('Schedule exported!', 'success');
+    }
+    
+    // Restore coverage data from CSV (updates ONLY coverage fields, not game data)
+    async function restoreCoverageFromCSV(file) {
+      if (!file || !file.name.endsWith('.csv')) {
+        showToast('Please select a CSV file', 'error');
+        return;
+      }
+      
+      showToast('Reading CSV...', 'success');
+      
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const csv = e.target.result;
+          const lines = csv.split('\n').filter(line => line.trim());
+          
+          if (lines.length < 2) {
+            showToast('CSV file appears empty', 'error');
+            return;
+          }
+          
+          const delimiter = lines[0].includes('\t') ? '\t' : ',';
+          const headers = lines[0].split(delimiter).map(h => h.trim().toLowerCase().replace(/[^a-z_]/g, ''));
+          
+          const games = [];
+          for (let i = 1; i < lines.length; i++) {
+            const values = delimiter === '\t' ? lines[i].split('\t') : parseCSVLine(lines[i]);
+            if (values.length < headers.length - 1) continue;
+            
+            const game = {};
+            headers.forEach((h, idx) => {
+              game[h] = values[idx]?.trim() || null;
+            });
+            
+            // Only include if has game_id and any coverage data
+            if (game.game_id && (game.photog1 || game.photog2 || game.videog || game.writer || 
+                game.photos_url || game.recap_url || game.highlights_url || game.live_stream_url)) {
+              games.push(game);
+            }
+          }
+          
+          if (games.length === 0) {
+            showToast('No games with coverage data found in CSV', 'error');
+            return;
+          }
+          
+          showToast(`Restoring coverage for ${games.length} games...`, 'success');
+          
+          // Send to restore endpoint
+          const response = await fetch('/.netlify/functions/import-coverage-restore', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ games })
+          });
+          
+          const result = await response.json();
+          
+          if (result.success) {
+            showToast(`Coverage restored for ${result.updated} games!`, 'success');
+            loadGames();
+          } else {
+            showToast(result.error || 'Restore failed', 'error');
+          }
+        } catch (err) {
+          console.error('Restore error:', err);
+          showToast('Failed to restore coverage', 'error');
+        }
+      };
+      reader.readAsText(file);
     }
     
     // ==================== END SCHEDULE MANAGER ====================
