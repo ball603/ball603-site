@@ -6,7 +6,7 @@
 const SIDEARM_SCHOOLS = {
   // D2 - Northeast-10 Conference
   'Southern New Hampshire': {
-    shortname: 'Southern New Hampshire',
+    shortname: 'SNHU',
     abbrev: 'SNHU',
     division: 'D2',
     site: 'snhupenmen.com',
@@ -163,13 +163,12 @@ function parseSIDEARMSchedule(html, school, gender) {
     const homeTeam = isAway ? opponent : school.shortname;
     const awayTeam = isAway ? school.shortname : opponent;
     
-    // Check for result (W, XX-XX or L, XX-XX)
+    // Check for result (W, XX-XX or L, XX-XX or W XX-XX)
     let homeScore = '';
     let awayScore = '';
-    const resultMatch = gameContent.match(/([WL])\s*,\s*(\d+)\s*-\s*(\d+)/i);
+    const resultMatch = gameContent.match(/([WLT])[,\s]+(\d+)\s*[-–]\s*(\d+)/i);
     if (resultMatch) {
       const [, winLoss, score1, score2] = resultMatch;
-      const schoolWon = winLoss.toUpperCase() === 'W';
       const schoolScore = parseInt(score1);
       const oppScore = parseInt(score2);
       
@@ -263,8 +262,9 @@ function normalizeOpponentName(name) {
   
   // Common normalizations
   const normalizations = {
-    'Southern New Hampshire University': 'Southern New Hampshire',
-    'SNHU': 'Southern New Hampshire',
+    'Southern New Hampshire University': 'SNHU',
+    'Southern New Hampshire': 'SNHU',
+    'SNHU': 'SNHU',
     'Saint Anselm College': 'Saint Anselm',
     'Franklin Pierce University': 'Franklin Pierce',
     'Plymouth State University': 'Plymouth State',
@@ -542,10 +542,10 @@ function parseSIDEARMTextExport(text, school, gender) {
     const homeTeam = isAway ? opponent : school.shortname;
     const awayTeam = isAway ? school.shortname : opponent;
     
-    // Check for result at end of line (W/L XX-XX)
+    // Check for result at end of line (various formats: W 75-60, W, 75-60, W 75 - 60, etc.)
     let homeScore = '';
     let awayScore = '';
-    const resultMatch = line.match(/([WLT])\s+(\d+)\s*-\s*(\d+)\s*$/);
+    const resultMatch = line.match(/([WLT])[,\s]+(\d+)\s*[-–]\s*(\d+)\s*$/);
     if (resultMatch) {
       const [, winLossTie, score1, score2] = resultMatch;
       const schoolScore = parseInt(score1);

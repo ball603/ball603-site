@@ -254,7 +254,7 @@ function parseESPNAPIResponse(data, team, gender) {
           hour12: true,
           timeZone: 'America/New_York'
         });
-        time = timeStr.replace(':00', '').toUpperCase();
+        time = timeStr.toUpperCase();
       }
       
       // Normalize team names
