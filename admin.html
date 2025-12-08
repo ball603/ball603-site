@@ -195,6 +195,7 @@
   <div class="main-container" id="mainContainer">
     <div class="tabs">
       <button class="tab active" onclick="showTab('articles')">Articles</button>
+      <button class="tab" onclick="showTab('schedule')">Schedule</button>
       <button class="tab" onclick="showTab('teams')">Teams</button>
       <button class="tab" onclick="showTab('sponsors')">Sponsors</button>
       <button class="tab" onclick="showTab('products')">Webstore</button>
@@ -223,6 +224,284 @@
           <div>Actions</div>
         </div>
         <div class="loading">Loading articles...</div>
+      </div>
+    </div>
+    
+    <!-- Schedule Panel -->
+    <div class="panel" id="schedulePanel" style="display: none;">
+      <div class="toolbar" style="flex-wrap: wrap; gap: 10px;">
+        <button class="btn-new" onclick="openGameModal()">
+          <span>+</span> Add Game
+        </button>
+        <button class="btn-new" style="background: #e3f2fd; color: #1565c0;" onclick="openGameImportModal()">
+          <span>📥</span> Import CSV
+        </button>
+        <button class="btn-new" style="background: #fff3e0; color: #e65100;" onclick="exportGames()">
+          <span>📤</span> Export CSV
+        </button>
+        <div style="display: flex; gap: 8px; align-items: center; margin-left: auto; flex-wrap: wrap;">
+          <input type="date" id="gameStartDate" onchange="filterGames()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px;">
+          <span style="color: #888;">to</span>
+          <input type="date" id="gameEndDate" onchange="filterGames()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px;">
+          <select id="gameLevelFilter" onchange="filterGames()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px;">
+            <option value="">All Levels</option>
+            <option value="NHIAA">NHIAA</option>
+            <option value="College">College</option>
+            <option value="Prep School">Prep School</option>
+          </select>
+          <select id="gameDivisionFilter" onchange="filterGames()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px;">
+            <option value="">All Divisions</option>
+            <optgroup label="High School">
+              <option value="D-I">D-I</option>
+              <option value="D-II">D-II</option>
+              <option value="D-III">D-III</option>
+              <option value="D-IV">D-IV</option>
+            </optgroup>
+            <optgroup label="College">
+              <option value="D1">D1 (NCAA)</option>
+              <option value="D2">D2 (NCAA)</option>
+              <option value="D3">D3 (NCAA)</option>
+            </optgroup>
+            <optgroup label="Prep">
+              <option value="NEPSAC">NEPSAC</option>
+            </optgroup>
+          </select>
+          <select id="gameGenderFilter" onchange="filterGames()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px;">
+            <option value="">All Genders</option>
+            <option value="Boys">Boys</option>
+            <option value="Girls">Girls</option>
+            <option value="Men">Men</option>
+            <option value="Women">Women</option>
+          </select>
+          <input type="text" id="gameSearchBox" placeholder="Search games..." oninput="filterGames()" style="width: 150px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px;">
+        </div>
+      </div>
+      
+      <div style="padding: 10px 15px; background: #f5f5f5; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
+        <span id="gameCount" style="font-size: 13px; color: #666;">Loading games...</span>
+        <div style="display: flex; gap: 10px;">
+          <label style="font-size: 12px; display: flex; align-items: center; gap: 5px; cursor: pointer;">
+            <input type="checkbox" id="showCoverageOnly" onchange="filterGames()"> With coverage
+          </label>
+          <label style="font-size: 12px; display: flex; align-items: center; gap: 5px; cursor: pointer;">
+            <input type="checkbox" id="showFinalOnly" onchange="filterGames()"> Final only
+          </label>
+        </div>
+      </div>
+      
+      <div class="article-list" id="gameList">
+        <div class="article-row header" style="grid-template-columns: 90px 1fr 1fr 70px 80px 80px 100px;">
+          <div>Date</div>
+          <div>Away</div>
+          <div>Home</div>
+          <div>Score</div>
+          <div>Division</div>
+          <div>Coverage</div>
+          <div>Actions</div>
+        </div>
+        <div class="loading">Loading games...</div>
+      </div>
+    </div>
+    
+    <!-- Game Edit Modal -->
+    <div id="gameModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 2000; overflow-y: auto;">
+      <div style="max-width: 800px; margin: 30px auto; background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+        <div style="background: #1565c0; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
+          <h2 style="margin: 0; font-size: 16px; font-weight: 500;" id="gameModalTitle">Add Game</h2>
+          <button onclick="closeGameModal()" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer; line-height: 1;">&times;</button>
+        </div>
+        
+        <div style="padding: 20px;">
+          <input type="hidden" id="gameId">
+          <input type="hidden" id="gameExternalId">
+          
+          <!-- Row 1: Date, Time, Status -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+            <div class="form-group">
+              <label>Date *</label>
+              <input type="date" id="gameDate">
+            </div>
+            <div class="form-group">
+              <label>Time</label>
+              <input type="text" id="gameTime" placeholder="7:00 PM or FINAL">
+            </div>
+            <div class="form-group">
+              <label>Status</label>
+              <select id="gameStatus">
+                <option value="scheduled">Scheduled</option>
+                <option value="final">Final</option>
+                <option value="postponed">Postponed</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+          </div>
+          
+          <!-- Row 2: Teams -->
+          <div style="display: grid; grid-template-columns: 1fr 80px 1fr 80px; gap: 15px; margin-bottom: 15px;">
+            <div class="form-group">
+              <label>Away Team *</label>
+              <input type="text" id="gameAwayTeam" placeholder="Farmington" list="teamsList">
+            </div>
+            <div class="form-group">
+              <label>Away Score</label>
+              <input type="number" id="gameAwayScore" min="0">
+            </div>
+            <div class="form-group">
+              <label>Home Team *</label>
+              <input type="text" id="gameHomeTeam" placeholder="Berlin" list="teamsList">
+            </div>
+            <div class="form-group">
+              <label>Home Score</label>
+              <input type="number" id="gameHomeScore" min="0">
+            </div>
+          </div>
+          <datalist id="teamsList"></datalist>
+          
+          <!-- Row 3: Classification -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+            <div class="form-group">
+              <label>Level *</label>
+              <select id="gameLevel" onchange="updateGameDivisionOptions()">
+                <option value="NHIAA">NHIAA</option>
+                <option value="College">College</option>
+                <option value="Prep School">Prep School</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Division</label>
+              <select id="gameDivision">
+                <option value="">None</option>
+                <option value="D-I">D-I</option>
+                <option value="D-II">D-II</option>
+                <option value="D-III">D-III</option>
+                <option value="D-IV">D-IV</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Gender</label>
+              <select id="gameGender">
+                <option value="Boys">Boys</option>
+                <option value="Girls">Girls</option>
+                <option value="Men">Men</option>
+                <option value="Women">Women</option>
+              </select>
+            </div>
+          </div>
+          
+          <!-- Coverage Section -->
+          <div style="background: #f9f9f9; border: 1px solid #eee; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+            <h3 style="margin: 0 0 12px 0; font-size: 14px; color: #333;">Coverage Assignments</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px;">
+              <div class="form-group">
+                <label>Photographer 1</label>
+                <input type="text" id="gamePhotog1" placeholder="Name">
+              </div>
+              <div class="form-group">
+                <label>Photographer 2</label>
+                <input type="text" id="gamePhotog2" placeholder="Name">
+              </div>
+              <div class="form-group">
+                <label>Videographer</label>
+                <input type="text" id="gameVideog" placeholder="Name">
+              </div>
+              <div class="form-group">
+                <label>Writer</label>
+                <input type="text" id="gameWriter" placeholder="Name">
+              </div>
+            </div>
+          </div>
+          
+          <!-- Links Section -->
+          <div style="background: #e3f2fd; border: 1px solid #bbdefb; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+            <h3 style="margin: 0 0 12px 0; font-size: 14px; color: #1565c0;">Coverage Links</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+              <div class="form-group">
+                <label>Photos URL</label>
+                <input type="url" id="gamePhotosUrl" placeholder="https://ball603.smugmug.com/...">
+              </div>
+              <div class="form-group">
+                <label>Recap/Article URL</label>
+                <input type="url" id="gameRecapUrl" placeholder="https://ball603.com/...">
+              </div>
+              <div class="form-group">
+                <label>Highlights URL</label>
+                <input type="url" id="gameHighlightsUrl" placeholder="https://youtube.com/...">
+              </div>
+              <div class="form-group">
+                <label>Live Stream URL</label>
+                <input type="url" id="gameLiveStreamUrl" placeholder="https://...">
+              </div>
+            </div>
+          </div>
+          
+          <!-- Additional Info -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+            <div class="form-group">
+              <label>Special Event</label>
+              <input type="text" id="gameSpecialEvent" placeholder="Tournament name, rivalry, etc.">
+            </div>
+            <div class="form-group">
+              <label>Location (if not home team)</label>
+              <input type="text" id="gameLocation" placeholder="Venue name">
+            </div>
+          </div>
+          
+          <div class="form-group" style="margin-bottom: 15px;">
+            <label>Notes</label>
+            <textarea id="gameNotes" rows="2" placeholder="Internal notes..." style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; resize: vertical;"></textarea>
+          </div>
+          
+          <div style="display: flex; justify-content: flex-end; gap: 10px; padding-top: 15px; border-top: 1px solid #eee;">
+            <button onclick="closeGameModal()" style="padding: 10px 20px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 5px; cursor: pointer;">Cancel</button>
+            <button onclick="saveGame()" style="padding: 10px 25px; background: #1565c0; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500;">Save Game</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Game Import Modal -->
+    <div id="gameImportModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 2000; overflow-y: auto;">
+      <div style="max-width: 700px; margin: 30px auto; background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+        <div style="background: #1565c0; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
+          <h2 style="margin: 0; font-size: 16px; font-weight: 500;">Import Games from CSV</h2>
+          <button onclick="closeGameImportModal()" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer; line-height: 1;">&times;</button>
+        </div>
+        
+        <div style="padding: 20px;">
+          <div id="gameImportDropZone" style="border: 2px dashed #1565c0; border-radius: 10px; padding: 40px; text-align: center; margin-bottom: 15px; cursor: pointer; transition: all 0.2s;"
+               ondragover="event.preventDefault(); this.style.background='#e3f2fd';"
+               ondragleave="this.style.background='transparent';"
+               ondrop="event.preventDefault(); this.style.background='transparent'; handleGameCsvFile(event.dataTransfer.files[0]);"
+               onclick="document.getElementById('gameFileInput').click();">
+            <div style="font-size: 48px; margin-bottom: 10px;">📄</div>
+            <p style="margin: 0; color: #666;">Drop CSV file here or click to browse</p>
+            <p style="margin: 5px 0 0 0; font-size: 12px; color: #999;">Supports Ball603 schedule export format</p>
+            <input type="file" id="gameFileInput" accept=".csv" style="display: none;" onchange="handleGameCsvFile(this.files[0])">
+          </div>
+          
+          <div id="gameImportPreview" style="display: none;">
+            <div style="background: #e8f5e9; padding: 10px 15px; border-radius: 5px; margin-bottom: 15px;">
+              <strong id="gameImportPreviewCount">0 games</strong> ready to import from <span id="gameImportPreviewFile"></span>
+            </div>
+            <div style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; border-radius: 5px;">
+              <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                <thead style="background: #f5f5f5; position: sticky; top: 0;">
+                  <tr>
+                    <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">Date</th>
+                    <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">Away</th>
+                    <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">Home</th>
+                    <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">Level</th>
+                  </tr>
+                </thead>
+                <tbody id="gameImportPreviewBody"></tbody>
+              </table>
+            </div>
+            <div style="margin-top: 15px; display: flex; justify-content: flex-end; gap: 10px;">
+              <button onclick="closeGameImportModal()" style="padding: 10px 20px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 5px; cursor: pointer;">Cancel</button>
+              <button id="btnExecuteGameImport" onclick="executeGameImport()" style="padding: 10px 25px; background: #1565c0; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500;">Import Games</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
     
@@ -1018,6 +1297,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       event.target.classList.add('active');
       
       document.getElementById('articlesPanel').style.display = tab === 'articles' ? 'block' : 'none';
+      document.getElementById('schedulePanel').style.display = tab === 'schedule' ? 'block' : 'none';
       document.getElementById('teamsPanel').style.display = tab === 'teams' ? 'block' : 'none';
       document.getElementById('sponsorsPanel').style.display = tab === 'sponsors' ? 'block' : 'none';
       document.getElementById('productsPanel').style.display = tab === 'products' ? 'block' : 'none';
@@ -1026,6 +1306,11 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       // Load teams when tab is selected
       if (tab === 'teams' && allTeams.length === 0) {
         loadTeams();
+      }
+      
+      // Load games when schedule tab is selected
+      if (tab === 'schedule' && allGames.length === 0) {
+        loadGames();
       }
     }
     
@@ -3200,6 +3485,490 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       
       showToast('Teams exported!', 'success');
     }
+    
+    // ==================== SCHEDULE MANAGER ====================
+    
+    let allGames = [];
+    let filteredGames = [];
+    let importGamesData = [];
+    
+    async function loadGames() {
+      try {
+        const response = await fetch('/.netlify/functions/games');
+        allGames = await response.json();
+        filterGames();
+        populateTeamsDatalist();
+      } catch (err) {
+        console.error('Failed to load games:', err);
+        document.getElementById('gameList').innerHTML = '<div class="loading" style="color: #c62828;">Failed to load games</div>';
+      }
+    }
+    
+    function populateTeamsDatalist() {
+      const datalist = document.getElementById('teamsList');
+      if (!datalist || !allTeams) return;
+      datalist.innerHTML = allTeams.map(t => `<option value="${t.shortname}">`).join('');
+    }
+    
+    function filterGames() {
+      const startDate = document.getElementById('gameStartDate')?.value;
+      const endDate = document.getElementById('gameEndDate')?.value;
+      const level = document.getElementById('gameLevelFilter')?.value;
+      const division = document.getElementById('gameDivisionFilter')?.value;
+      const gender = document.getElementById('gameGenderFilter')?.value;
+      const search = document.getElementById('gameSearchBox')?.value?.toLowerCase();
+      const coverageOnly = document.getElementById('showCoverageOnly')?.checked;
+      const finalOnly = document.getElementById('showFinalOnly')?.checked;
+      
+      filteredGames = allGames.filter(g => {
+        if (startDate && g.date < startDate) return false;
+        if (endDate && g.date > endDate) return false;
+        if (level && g.level !== level) return false;
+        if (division && g.division !== division) return false;
+        if (gender && g.gender !== gender) return false;
+        if (search && !g.home_team?.toLowerCase().includes(search) && !g.away_team?.toLowerCase().includes(search)) return false;
+        if (coverageOnly && !g.photog1 && !g.photog2 && !g.videog && !g.writer) return false;
+        if (finalOnly && g.status !== 'final') return false;
+        return true;
+      });
+      
+      renderGameList();
+    }
+    
+    function renderGameList() {
+      const container = document.getElementById('gameList');
+      const countEl = document.getElementById('gameCount');
+      
+      const finalCount = filteredGames.filter(g => g.status === 'final').length;
+      countEl.textContent = `${filteredGames.length} games (${finalCount} final)`;
+      
+      if (filteredGames.length === 0) {
+        container.innerHTML = `
+          <div class="article-row header" style="grid-template-columns: 90px 1fr 1fr 70px 80px 80px 100px;">
+            <div>Date</div>
+            <div>Away</div>
+            <div>Home</div>
+            <div>Score</div>
+            <div>Division</div>
+            <div>Coverage</div>
+            <div>Actions</div>
+          </div>
+          <div style="padding: 40px; text-align: center; color: #888;">No games found</div>
+        `;
+        return;
+      }
+      
+      container.innerHTML = `
+        <div class="article-row header" style="grid-template-columns: 90px 1fr 1fr 70px 80px 80px 100px;">
+          <div>Date</div>
+          <div>Away</div>
+          <div>Home</div>
+          <div>Score</div>
+          <div>Division</div>
+          <div>Coverage</div>
+          <div>Actions</div>
+        </div>
+        ${filteredGames.map(game => {
+          const hasCoverage = game.photog1 || game.photog2 || game.videog || game.writer;
+          const coverageIcons = [];
+          if (game.photog1 || game.photog2) coverageIcons.push('📷');
+          if (game.videog) coverageIcons.push('🎥');
+          if (game.writer) coverageIcons.push('✍️');
+          
+          const score = game.status === 'final' 
+            ? `${game.away_score || 0}-${game.home_score || 0}`
+            : (game.time || '-');
+          
+          const dateDisplay = new Date(game.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          
+          return `
+            <div class="article-row" style="grid-template-columns: 90px 1fr 1fr 70px 80px 80px 100px; ${game.status === 'cancelled' ? 'opacity: 0.5; text-decoration: line-through;' : ''}">
+              <div style="font-size: 12px;">
+                <div>${dateDisplay}</div>
+                <div style="font-size: 10px; color: #888;">${game.gender || ''}</div>
+              </div>
+              <div style="font-size: 13px;">${game.away_team || '-'}</div>
+              <div style="font-size: 13px; font-weight: 500;">${game.home_team || '-'}</div>
+              <div style="font-size: 12px; ${game.status === 'final' ? 'font-weight: 600;' : 'color: #888;'}">${score}</div>
+              <div style="font-size: 11px; color: #666;">${game.division || '-'}</div>
+              <div style="font-size: 14px;">${coverageIcons.join(' ') || '-'}</div>
+              <div class="article-actions">
+                <button class="btn-edit" onclick="editGame(${game.id})">Edit</button>
+                <button class="btn-delete" onclick="deleteGame(${game.id})">Delete</button>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      `;
+    }
+    
+    function openGameModal(game = null) {
+      document.getElementById('gameModalTitle').textContent = game ? 'Edit Game' : 'Add Game';
+      document.getElementById('gameModal').style.display = 'block';
+      document.body.style.overflow = 'hidden';
+      
+      // Reset form
+      document.getElementById('gameId').value = game?.id || '';
+      document.getElementById('gameExternalId').value = game?.game_id || '';
+      document.getElementById('gameDate').value = game?.date || '';
+      document.getElementById('gameTime').value = game?.time || '';
+      document.getElementById('gameStatus').value = game?.status || 'scheduled';
+      document.getElementById('gameAwayTeam').value = game?.away_team || '';
+      document.getElementById('gameAwayScore').value = game?.away_score ?? '';
+      document.getElementById('gameHomeTeam').value = game?.home_team || '';
+      document.getElementById('gameHomeScore').value = game?.home_score ?? '';
+      document.getElementById('gameLevel').value = game?.level || 'NHIAA';
+      updateGameDivisionOptions();
+      document.getElementById('gameDivision').value = game?.division || '';
+      document.getElementById('gameGender').value = game?.gender || 'Boys';
+      document.getElementById('gamePhotog1').value = game?.photog1 || '';
+      document.getElementById('gamePhotog2').value = game?.photog2 || '';
+      document.getElementById('gameVideog').value = game?.videog || '';
+      document.getElementById('gameWriter').value = game?.writer || '';
+      document.getElementById('gamePhotosUrl').value = game?.photos_url || '';
+      document.getElementById('gameRecapUrl').value = game?.recap_url || '';
+      document.getElementById('gameHighlightsUrl').value = game?.highlights_url || '';
+      document.getElementById('gameLiveStreamUrl').value = game?.live_stream_url || '';
+      document.getElementById('gameSpecialEvent').value = game?.special_event || '';
+      document.getElementById('gameLocation').value = game?.location || '';
+      document.getElementById('gameNotes').value = game?.notes || '';
+    }
+    
+    function closeGameModal() {
+      document.getElementById('gameModal').style.display = 'none';
+      document.body.style.overflow = 'auto';
+    }
+    
+    function updateGameDivisionOptions() {
+      const level = document.getElementById('gameLevel').value;
+      const divSelect = document.getElementById('gameDivision');
+      const currentVal = divSelect.value;
+      
+      if (level === 'NHIAA') {
+        divSelect.innerHTML = `
+          <option value="">None</option>
+          <option value="D-I">D-I</option>
+          <option value="D-II">D-II</option>
+          <option value="D-III">D-III</option>
+          <option value="D-IV">D-IV</option>
+        `;
+      } else if (level === 'Prep School') {
+        divSelect.innerHTML = `
+          <option value="">None</option>
+          <option value="NEPSAC">NEPSAC</option>
+        `;
+      } else {
+        divSelect.innerHTML = `
+          <option value="">None</option>
+          <option value="D1">D1 (NCAA)</option>
+          <option value="D2">D2 (NCAA)</option>
+          <option value="D3">D3 (NCAA)</option>
+        `;
+      }
+      
+      const validOptions = [...divSelect.options].map(o => o.value);
+      if (validOptions.includes(currentVal)) {
+        divSelect.value = currentVal;
+      }
+    }
+    
+    async function editGame(gameId) {
+      const game = allGames.find(g => g.id === gameId);
+      if (game) {
+        openGameModal(game);
+      }
+    }
+    
+    async function saveGame() {
+      const gameId = document.getElementById('gameId').value;
+      
+      const gameData = {
+        date: document.getElementById('gameDate').value,
+        time: document.getElementById('gameTime').value || null,
+        status: document.getElementById('gameStatus').value,
+        away_team: document.getElementById('gameAwayTeam').value.trim(),
+        home_team: document.getElementById('gameHomeTeam').value.trim(),
+        away_score: document.getElementById('gameAwayScore').value ? parseInt(document.getElementById('gameAwayScore').value) : null,
+        home_score: document.getElementById('gameHomeScore').value ? parseInt(document.getElementById('gameHomeScore').value) : null,
+        level: document.getElementById('gameLevel').value,
+        division: document.getElementById('gameDivision').value || null,
+        gender: document.getElementById('gameGender').value,
+        photog1: document.getElementById('gamePhotog1').value.trim() || null,
+        photog2: document.getElementById('gamePhotog2').value.trim() || null,
+        videog: document.getElementById('gameVideog').value.trim() || null,
+        writer: document.getElementById('gameWriter').value.trim() || null,
+        photos_url: document.getElementById('gamePhotosUrl').value.trim() || null,
+        recap_url: document.getElementById('gameRecapUrl').value.trim() || null,
+        highlights_url: document.getElementById('gameHighlightsUrl').value.trim() || null,
+        live_stream_url: document.getElementById('gameLiveStreamUrl').value.trim() || null,
+        special_event: document.getElementById('gameSpecialEvent').value.trim() || null,
+        location: document.getElementById('gameLocation').value.trim() || null,
+        notes: document.getElementById('gameNotes').value.trim() || null
+      };
+      
+      // Validation
+      if (!gameData.date || !gameData.away_team || !gameData.home_team || !gameData.level) {
+        showToast('Please fill in required fields', 'error');
+        return;
+      }
+      
+      // Generate game_id for new games
+      if (!gameId) {
+        const homeSlug = gameData.home_team.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const awaySlug = gameData.away_team.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const genderCode = gameData.gender === 'Boys' ? 'b' : gameData.gender === 'Girls' ? 'g' : gameData.gender === 'Men' ? 'm' : 'w';
+        const dateStr = gameData.date.replace(/-/g, '');
+        const levelPrefix = gameData.level === 'NHIAA' ? 'nhiaa' : gameData.level === 'College' ? 'college' : 'prep';
+        gameData.game_id = `${levelPrefix}_${homeSlug}_${genderCode}_${dateStr}_${awaySlug}`;
+      }
+      
+      try {
+        const url = gameId 
+          ? `/.netlify/functions/games?id=${gameId}`
+          : '/.netlify/functions/games';
+        
+        const response = await fetch(url, {
+          method: gameId ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(gameData)
+        });
+        
+        if (response.ok) {
+          showToast(gameId ? 'Game updated!' : 'Game created!', 'success');
+          closeGameModal();
+          loadGames();
+        } else {
+          const err = await response.json();
+          showToast(err.error || 'Failed to save game', 'error');
+        }
+      } catch (err) {
+        console.error('Save game error:', err);
+        showToast('Failed to save game', 'error');
+      }
+    }
+    
+    async function deleteGame(gameId) {
+      if (!confirm('Delete this game?')) return;
+      
+      try {
+        const response = await fetch(`/.netlify/functions/games?id=${gameId}`, {
+          method: 'DELETE'
+        });
+        
+        if (response.ok) {
+          showToast('Game deleted', 'success');
+          loadGames();
+        } else {
+          showToast('Failed to delete game', 'error');
+        }
+      } catch (err) {
+        console.error('Delete game error:', err);
+        showToast('Failed to delete game', 'error');
+      }
+    }
+    
+    // Game CSV Import
+    function openGameImportModal() {
+      document.getElementById('gameImportModal').style.display = 'block';
+      document.body.style.overflow = 'hidden';
+      document.getElementById('gameImportPreview').style.display = 'none';
+      document.getElementById('gameFileInput').value = '';
+      importGamesData = [];
+    }
+    
+    function closeGameImportModal() {
+      document.getElementById('gameImportModal').style.display = 'none';
+      document.body.style.overflow = 'auto';
+    }
+    
+    function handleGameCsvFile(file) {
+      if (!file || !file.name.endsWith('.csv')) {
+        showToast('Please select a CSV file', 'error');
+        return;
+      }
+      
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        parseGameCsv(e.target.result, file.name);
+      };
+      reader.readAsText(file);
+    }
+    
+    function parseGameCsv(csv, filename) {
+      const lines = csv.split('\n').filter(line => line.trim());
+      if (lines.length < 2) {
+        showToast('CSV file appears empty', 'error');
+        return;
+      }
+      
+      // Detect delimiter
+      const firstLine = lines[0];
+      const delimiter = firstLine.includes('\t') ? '\t' : ',';
+      
+      const headers = firstLine.split(delimiter).map(h => h.trim().toLowerCase().replace(/[^a-z_]/g, ''));
+      const games = [];
+      
+      for (let i = 1; i < lines.length; i++) {
+        const values = delimiter === '\t' ? lines[i].split('\t') : parseCSVLine(lines[i]);
+        if (values.length < headers.length - 1) continue;
+        
+        const game = {};
+        headers.forEach((h, idx) => {
+          let val = values[idx]?.trim() || null;
+          game[h] = val;
+        });
+        
+        // Map CSV columns to database columns
+        const mappedGame = {
+          game_id: game.game_id || game.gameid,
+          date: game.date,
+          time: game.time,
+          away_team: game.away || game.away_team || game.awayteam,
+          home_team: game.home || game.home_team || game.hometeam,
+          away_score: game.away_score || game.awayscore,
+          home_score: game.home_score || game.homescore,
+          gender: game.gender,
+          level: game.level,
+          division: game.division,
+          photog1: game.photog || game.photog1,
+          photog2: game.photog2,
+          videog: game.videog,
+          writer: game.writer,
+          photos_url: game.photos_url || game.photosurl,
+          recap_url: game.recap_url || game.recapurl,
+          highlights_url: game.highlights_url || game.highlightsurl,
+          live_stream_url: game.live_stream_url || game.livestreamurl || game.livestream_url,
+          game_description: game.gamedescription || game.game_description,
+          special_event: game.specialevent || game.special_event,
+          notes: game.notes,
+          original_date: game.original_date || game.originaldate,
+          schedule_changed: game.schedule_changed || game.schedulechanged
+        };
+        
+        // Only add if has required fields
+        if (mappedGame.game_id && mappedGame.date && mappedGame.away_team && mappedGame.home_team) {
+          games.push(mappedGame);
+        }
+      }
+      
+      if (games.length === 0) {
+        showToast('No valid games found in CSV', 'error');
+        return;
+      }
+      
+      importGamesData = games;
+      showGameImportPreview(games, filename);
+    }
+    
+    function showGameImportPreview(games, filename) {
+      document.getElementById('gameImportPreview').style.display = 'block';
+      document.getElementById('gameImportPreviewCount').textContent = `${games.length} games`;
+      document.getElementById('gameImportPreviewFile').textContent = filename;
+      
+      const tbody = document.getElementById('gameImportPreviewBody');
+      tbody.innerHTML = games.slice(0, 50).map(g => `
+        <tr>
+          <td style="padding: 6px 8px;">${g.date}</td>
+          <td style="padding: 6px 8px;">${g.away_team}</td>
+          <td style="padding: 6px 8px;">${g.home_team}</td>
+          <td style="padding: 6px 8px;">${g.level}</td>
+        </tr>
+      `).join('');
+      
+      if (games.length > 50) {
+        tbody.innerHTML += `<tr><td colspan="4" style="padding: 8px; color: #888; text-align: center;">...and ${games.length - 50} more</td></tr>`;
+      }
+    }
+    
+    async function executeGameImport() {
+      if (importGamesData.length === 0) return;
+      
+      document.getElementById('btnExecuteGameImport').disabled = true;
+      document.getElementById('btnExecuteGameImport').textContent = 'Importing...';
+      
+      try {
+        const response = await fetch('/.netlify/functions/games', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ games: importGamesData })
+        });
+        
+        const result = await response.json();
+        
+        showToast(`Import complete: ${result.inserted} inserted, ${result.updated} updated, ${result.errors?.length || 0} errors`, 'success');
+        closeGameImportModal();
+        loadGames();
+        
+        if (result.errors && result.errors.length > 0) {
+          console.log('Import errors:', result.errors);
+        }
+      } catch (err) {
+        console.error('Import error:', err);
+        showToast('Import failed', 'error');
+      }
+      
+      document.getElementById('btnExecuteGameImport').disabled = false;
+      document.getElementById('btnExecuteGameImport').textContent = 'Import Games';
+    }
+    
+    function exportGames() {
+      if (allGames.length === 0) {
+        showToast('No games to export', 'error');
+        return;
+      }
+      
+      const headers = ['game_id', 'date', 'time', 'away', 'away_score', 'home', 'home_score', 'gender', 'level', 'division', 'photog1', 'photog2', 'videog', 'writer', 'notes', 'original_date', 'schedule_changed', 'photos_url', 'recap_url', 'highlights_url', 'live_stream_url', 'gamedescription', 'specialevent'];
+      
+      let csv = headers.join(',') + '\n';
+      
+      filteredGames.forEach(game => {
+        const row = [
+          game.game_id,
+          game.date,
+          game.time,
+          game.away_team,
+          game.away_score ?? '',
+          game.home_team,
+          game.home_score ?? '',
+          game.gender,
+          game.level,
+          game.division,
+          game.photog1 || '',
+          game.photog2 || '',
+          game.videog || '',
+          game.writer || '',
+          game.notes || '',
+          game.original_date || '',
+          game.schedule_changed ? 'YES' : '',
+          game.photos_url || '',
+          game.recap_url || '',
+          game.highlights_url || '',
+          game.live_stream_url || '',
+          game.game_description || '',
+          game.special_event || ''
+        ].map(val => {
+          if (val === null || val === undefined) return '';
+          val = String(val);
+          if (val.includes(',') || val.includes('"') || val.includes('\n')) {
+            return '"' + val.replace(/"/g, '""') + '"';
+          }
+          return val;
+        });
+        csv += row.join(',') + '\n';
+      });
+      
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ball603-schedule-${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      
+      showToast('Schedule exported!', 'success');
+    }
+    
+    // ==================== END SCHEDULE MANAGER ====================
     
     // Drag and drop for CSV
     document.addEventListener('DOMContentLoaded', function() {
