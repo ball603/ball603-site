@@ -53,15 +53,15 @@ async function getAccessToken(credentials) {
   return access_token;
 }
 
-// Map field names to column letters (updated for new column order)
+// Map field names to column letters (A=game_id, B=date, C=time, D=away, E=away_score, F=home, G=home_score, H=gender, I=level, J=division, K=photog1, L=photog2, M=videog, N=writer, O=notes, P=original_date, Q=schedule_changed)
 const FIELD_COLUMNS = {
-  photog1: 'I',
-  photog2: 'J',
-  videog: 'K',
-  writer: 'L',
-  notes: 'M',
-  original_date: 'N',
-  schedule_changed: 'O'
+  photog1: 'K',
+  photog2: 'L',
+  videog: 'M',
+  writer: 'N',
+  notes: 'O',
+  original_date: 'P',
+  schedule_changed: 'Q'
 };
 
 async function findGameRow(accessToken, spreadsheetId, sheetName, gameId) {

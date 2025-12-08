@@ -1,13 +1,31 @@
 // Ball603 Teams API
 // Netlify Function: /.netlify/functions/teams
-// Handles CRUD operations for teams table
+// Uses fetch to call Supabase REST API directly (no npm dependencies)
 
-import { createClient } from '@supabase/supabase-js';
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://suncdkxfqkwwnmhosxcf.supabase.co';
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY;
 
-const supabase = createClient(
-  process.env.SUPABASE_URL || 'https://suncdkxfqkwwnmhosxcf.supabase.co',
-  process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY
-);
+async function supabaseRequest(endpoint, options = {}) {
+  const url = `${SUPABASE_URL}/rest/v1/${endpoint}`;
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Content-Type': 'application/json',
+      'Prefer': options.prefer || 'return=representation',
+      ...options.headers
+    }
+  });
+  
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(error);
+  }
+  
+  const text = await response.text();
+  return text ? JSON.parse(text) : null;
+}
 
 export async function handler(event) {
   const headers = {
@@ -29,46 +47,52 @@ export async function handler(event) {
 
     // GET - List teams with filters
     if (method === 'GET') {
-      // Single team by ID
+      // Build query string for filters
+      let queryParts = [];
+      
       if (params.id) {
-        const { data, error } = await supabase
-          .from('teams')
-          .select('*')
-          .eq('id', params.id)
-          .single();
-        
-        if (error) throw error;
+        queryParts.push(`id=eq.${params.id}`);
+      }
+      if (params.level) {
+        queryParts.push(`level=eq.${encodeURIComponent(params.level)}`);
+      }
+      if (params.division) {
+        queryParts.push(`division=eq.${encodeURIComponent(params.division)}`);
+      }
+      if (params.gender) {
+        queryParts.push(`gender=eq.${encodeURIComponent(params.gender)}`);
+      }
+      if (params.active !== undefined) {
+        queryParts.push(`active=eq.${params.active}`);
+      }
+      if (params.search) {
+        // Search across multiple fields
+        const search = encodeURIComponent(`%${params.search}%`);
+        queryParts.push(`or=(shortname.ilike.${search},full_name.ilike.${search},mascot.ilike.${search})`);
+      }
+      
+      // Add ordering
+      queryParts.push('order=level.asc,division.asc,shortname.asc');
+      
+      const endpoint = `teams?${queryParts.join('&')}`;
+      const data = await supabaseRequest(endpoint);
+      
+      // Single team request
+      if (params.id) {
         return {
           statusCode: 200,
           headers,
-          body: JSON.stringify({ success: true, team: data })
+          body: JSON.stringify({ success: true, team: data[0] || null })
         };
       }
-
-      // List teams with optional filters
-      let query = supabase.from('teams').select('*');
       
-      if (params.level) query = query.eq('level', params.level);
-      if (params.division) query = query.eq('division', params.division);
-      if (params.gender) query = query.eq('gender', params.gender);
-      if (params.active !== undefined) query = query.eq('active', params.active === 'true');
-      if (params.search) {
-        query = query.or(`shortname.ilike.%${params.search}%,full_name.ilike.%${params.search}%,mascot.ilike.%${params.search}%`);
-      }
-      
-      // Default ordering
-      query = query.order('level').order('division').order('shortname');
-
-      const { data, error } = await query;
-      if (error) throw error;
-
       return {
         statusCode: 200,
         headers,
         body: JSON.stringify({ 
           success: true, 
-          teams: data,
-          count: data.length 
+          teams: data || [],
+          count: data?.length || 0
         })
       };
     }
@@ -80,37 +104,30 @@ export async function handler(event) {
         const results = { inserted: 0, updated: 0, errors: [] };
         
         for (const team of body.teams) {
-          // Check if team exists by shortname
-          const { data: existing } = await supabase
-            .from('teams')
-            .select('id')
-            .eq('shortname', team.shortname)
-            .eq('gender', team.gender || null)
-            .single();
-
-          if (existing) {
-            // Update existing
-            const { error } = await supabase
-              .from('teams')
-              .update(team)
-              .eq('id', existing.id);
+          try {
+            // Check if team exists by shortname + gender
+            const genderFilter = team.gender ? `gender=eq.${encodeURIComponent(team.gender)}` : 'gender=is.null';
+            const existing = await supabaseRequest(
+              `teams?shortname=eq.${encodeURIComponent(team.shortname)}&${genderFilter}&limit=1`
+            );
             
-            if (error) {
-              results.errors.push({ team: team.shortname, error: error.message });
-            } else {
+            if (existing && existing.length > 0) {
+              // Update existing
+              await supabaseRequest(
+                `teams?id=eq.${existing[0].id}`,
+                { method: 'PATCH', body: JSON.stringify(team) }
+              );
               results.updated++;
-            }
-          } else {
-            // Insert new
-            const { error } = await supabase
-              .from('teams')
-              .insert(team);
-            
-            if (error) {
-              results.errors.push({ team: team.shortname, error: error.message });
             } else {
+              // Insert new
+              await supabaseRequest(
+                'teams',
+                { method: 'POST', body: JSON.stringify(team) }
+              );
               results.inserted++;
             }
+          } catch (err) {
+            results.errors.push({ team: team.shortname, error: err.message });
           }
         }
 
@@ -125,23 +142,22 @@ export async function handler(event) {
       }
 
       // Single team create
-      const { data, error } = await supabase
-        .from('teams')
-        .insert(body)
-        .select()
-        .single();
+      const data = await supabaseRequest('teams', {
+        method: 'POST',
+        body: JSON.stringify(body)
+      });
       
-      if (error) throw error;
       return {
         statusCode: 201,
         headers,
-        body: JSON.stringify({ success: true, team: data })
+        body: JSON.stringify({ success: true, team: data[0] })
       };
     }
 
     // PUT - Update team
     if (method === 'PUT') {
-      if (!params.id && !body.id) {
+      const teamId = params.id || body.id;
+      if (!teamId) {
         return {
           statusCode: 400,
           headers,
@@ -149,21 +165,19 @@ export async function handler(event) {
         };
       }
 
-      const teamId = params.id || body.id;
-      delete body.id; // Remove id from update payload
+      // Remove id from update payload
+      const updateData = { ...body };
+      delete updateData.id;
 
-      const { data, error } = await supabase
-        .from('teams')
-        .update(body)
-        .eq('id', teamId)
-        .select()
-        .single();
+      const data = await supabaseRequest(
+        `teams?id=eq.${teamId}`,
+        { method: 'PATCH', body: JSON.stringify(updateData) }
+      );
       
-      if (error) throw error;
       return {
         statusCode: 200,
         headers,
-        body: JSON.stringify({ success: true, team: data })
+        body: JSON.stringify({ success: true, team: data[0] })
       };
     }
 
@@ -177,12 +191,11 @@ export async function handler(event) {
         };
       }
 
-      const { error } = await supabase
-        .from('teams')
-        .delete()
-        .eq('id', params.id);
+      await supabaseRequest(
+        `teams?id=eq.${params.id}`,
+        { method: 'DELETE', prefer: 'return=minimal' }
+      );
       
-      if (error) throw error;
       return {
         statusCode: 200,
         headers,

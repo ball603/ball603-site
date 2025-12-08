@@ -95,36 +95,32 @@ export default async (request) => {
     // Fetch teams data for abbreviations
     const teamsMap = teamsSheetId ? await getTeamsData(access_token, teamsSheetId) : {};
     
-    // Fetch high school schedule data
-    const hsResponse = await fetch(
+    // Fetch schedule data
+    const response = await fetch(
       `https://sheets.googleapis.com/v4/spreadsheets/${scheduleSheetId}/values/Schedules!A:W`,
       { headers: { 'Authorization': `Bearer ${access_token}` } }
     );
-    const hsData = await hsResponse.json();
-    const hsRows = hsData.values || [];
     
-    // Fetch college schedule data
-    const collegeResponse = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${scheduleSheetId}/values/CollegeSchedules!A:W`,
-      { headers: { 'Authorization': `Bearer ${access_token}` } }
-    );
-    const collegeData = await collegeResponse.json();
-    const collegeRows = collegeData.values || [];
+    const data = await response.json();
+    const rows = data.values || [];
     
-    // Helper to map a row to a game object
+    if (rows.length === 0) {
+      return new Response(JSON.stringify({ games: [] }), {
+        status: 200,
+        headers: { 
+          'Content-Type': 'application/json',
+          'Cache-Control': 'public, max-age=60'
+        }
+      });
+    }
+    
+    // Skip header row, map to objects
     // Columns: game_id, date, time, away, away_score, home, home_score, gender, level, division, 
     //          photog1, photog2, videog, writer, notes, original_date, schedule_changed,
     //          photos_url, recap_url, highlights_url, live_stream_url, gamedescription, specialevent
-    const mapRowToGame = (row, isCollege = false) => {
+    const games = rows.slice(1).map(row => {
       const away = row[3] || '';
       const home = row[5] || '';
-      let gender = row[7] || '';
-      
-      // Convert Boys/Girls to Men/Women for college games
-      if (isCollege) {
-        if (gender === 'Boys') gender = 'Men';
-        if (gender === 'Girls') gender = 'Women';
-      }
       
       return {
         game_id: row[0] || '',
@@ -136,7 +132,7 @@ export default async (request) => {
         home: home,
         home_abbrev: teamsMap[home] || home.substring(0, 3).toUpperCase(),
         home_score: row[6] || '',
-        gender: gender,
+        gender: row[7] || '',
         level: row[8] || '',
         division: row[9] || '',
         photog1: row[10] || '',
@@ -153,25 +149,9 @@ export default async (request) => {
         gamedescription: row[21] || '',
         specialevent: row[22] || ''
       };
-    };
-    
-    // Skip header rows, map to objects, combine both sources
-    const hsGames = hsRows.slice(1).map(row => mapRowToGame(row, false));
-    const collegeGames = collegeRows.slice(1).map(row => mapRowToGame(row, true));
-    const games = [...hsGames, ...collegeGames];
-    
-    // Sort all games by date, then time
-    games.sort((a, b) => {
-      if (a.date !== b.date) return a.date.localeCompare(b.date);
-      return (a.time || '').localeCompare(b.time || '');
     });
     
-    return new Response(JSON.stringify({ 
-      games, 
-      teamsLoaded: Object.keys(teamsMap).length,
-      highSchoolGames: hsGames.length,
-      collegeGames: collegeGames.length
-    }), {
+    return new Response(JSON.stringify({ games, teamsLoaded: Object.keys(teamsMap).length }), {
       status: 200,
       headers: { 
         'Content-Type': 'application/json',
