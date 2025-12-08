@@ -124,22 +124,24 @@ export const handler = async (event) => {
     }
     
     if (action === 'albums') {
-      let endpoint = '/api/v2/user/ball603!albums?count=50&_expand=HighlightImage';
+      // First get the user's root node, then get children (albums)
+      // Using the node structure which is how SmugMug organizes content
+      let endpoint = '/api/v2/node/xTJBFN!children?count=100&Type=Album&_expand=HighlightImage';
       const result = await smugmugRequest(endpoint);
       
-      const albums = result?.Response?.Album || [];
+      const nodes = result?.Response?.Node || [];
       return {
         statusCode: 200,
         headers,
         body: JSON.stringify({
           success: true,
-          albums: albums.map(album => ({
-            key: album.AlbumKey,
-            name: album.Name,
-            url: album.WebUri,
-            imageCount: album.ImageCount,
-            date: album.Date,
-            highlightImage: album.Uris?.HighlightImage?.Image?.ThumbnailUrl || null
+          albums: nodes.map(node => ({
+            key: node.NodeID,
+            name: node.Name,
+            url: node.WebUri,
+            imageCount: node.ImageCount || 0,
+            date: node.DateModified || node.DateAdded,
+            highlightImage: node.Uris?.HighlightImage?.Image?.ThumbnailUrl || null
           }))
         })
       };
