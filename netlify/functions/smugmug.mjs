@@ -40,7 +40,7 @@ function generateSignature(method, url, params, consumerSecret, tokenSecret = ''
   return crypto.createHmac('sha1', signingKey).update(signatureBase).digest('base64');
 }
 
-function generateOAuthHeader(method, url) {
+function generateOAuthHeader(method, url, queryParams = {}) {
   const oauthParams = {
     oauth_consumer_key: SMUGMUG_API_KEY,
     oauth_nonce: generateNonce(),
@@ -50,10 +50,13 @@ function generateOAuthHeader(method, url) {
     oauth_version: '1.0'
   };
   
+  // Combine OAuth params with query params for signature
+  const allParams = { ...oauthParams, ...queryParams };
+  
   oauthParams.oauth_signature = generateSignature(
     method, 
     url, 
-    oauthParams, 
+    allParams, 
     SMUGMUG_API_SECRET, 
     SMUGMUG_ACCESS_SECRET
   );
@@ -67,13 +70,27 @@ function generateOAuthHeader(method, url) {
 
 async function smugmugRequest(endpoint) {
   const baseUrl = 'https://api.smugmug.com';
-  const url = `${baseUrl}${endpoint}`;
+  const fullUrl = `${baseUrl}${endpoint}`;
+  
+  // Parse query parameters from endpoint
+  const [path, queryString] = endpoint.split('?');
+  const baseUrlWithPath = `${baseUrl}${path}`;
+  const queryParams = {};
+  
+  if (queryString) {
+    queryString.split('&').forEach(param => {
+      const [key, value] = param.split('=');
+      if (key && value !== undefined) {
+        queryParams[decodeURIComponent(key)] = decodeURIComponent(value);
+      }
+    });
+  }
   
   // If we have access tokens, use OAuth
   if (SMUGMUG_ACCESS_TOKEN && SMUGMUG_ACCESS_SECRET) {
-    const authHeader = generateOAuthHeader('GET', url.split('?')[0]);
+    const authHeader = generateOAuthHeader('GET', baseUrlWithPath, queryParams);
     
-    const response = await fetch(url, {
+    const response = await fetch(fullUrl, {
       headers: {
         'Accept': 'application/json',
         'Authorization': authHeader
@@ -84,7 +101,7 @@ async function smugmugRequest(endpoint) {
   }
   
   // Otherwise, try anonymous access (public content only)
-  const response = await fetch(`${url}${url.includes('?') ? '&' : '?'}APIKey=${SMUGMUG_API_KEY}`, {
+  const response = await fetch(`${fullUrl}${fullUrl.includes('?') ? '&' : '?'}APIKey=${SMUGMUG_API_KEY}`, {
     headers: {
       'Accept': 'application/json'
     }
