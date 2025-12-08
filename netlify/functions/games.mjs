@@ -140,83 +140,67 @@ export default async (request) => {
       if (body.games && Array.isArray(body.games)) {
         const results = { inserted: 0, updated: 0, errors: [] };
         
-        for (const game of body.games) {
+        // Process in batches of 100 for speed
+        const batchSize = 100;
+        const games = body.games;
+        
+        for (let i = 0; i < games.length; i += batchSize) {
+          const batch = games.slice(i, i + batchSize);
+          
+          // Prepare batch for upsert
+          const upsertData = batch.map(game => ({
+            game_id: game.game_id,
+            date: game.date,
+            time: game.time || null,
+            away_team: game.away_team || game.away,
+            home_team: game.home_team || game.home,
+            away_score: game.away_score ? parseInt(game.away_score) : null,
+            home_score: game.home_score ? parseInt(game.home_score) : null,
+            gender: game.gender || null,
+            level: game.level || null,
+            division: game.division || null,
+            status: game.time === 'FINAL' ? 'final' : (game.status || 'scheduled'),
+            photog1: game.photog1 || null,
+            photog2: game.photog2 || null,
+            videog: game.videog || null,
+            writer: game.writer || null,
+            photos_url: game.photos_url || null,
+            recap_url: game.recap_url || null,
+            highlights_url: game.highlights_url || null,
+            live_stream_url: game.live_stream_url || null,
+            notes: game.notes || null,
+            game_description: game.game_description || game.gamedescription || null,
+            special_event: game.special_event || game.specialevent || null,
+            original_date: game.original_date || null,
+            schedule_changed: game.schedule_changed === 'YES' || game.schedule_changed === true
+          }));
+          
           try {
-            // Check if game exists by game_id
-            const existing = await supabaseRequest(`games?game_id=eq.${encodeURIComponent(game.game_id)}&select=id,photog1,photog2,videog,writer,original_date,photos_url,recap_url,highlights_url,live_stream_url,notes,game_description,special_event`);
+            // Use Supabase upsert with on_conflict
+            const url = `${SUPABASE_URL}/rest/v1/games?on_conflict=game_id`;
+            const response = await fetch(url, {
+              method: 'POST',
+              headers: {
+                'apikey': SUPABASE_SERVICE_KEY,
+                'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+                'Content-Type': 'application/json',
+                'Prefer': 'resolution=merge-duplicates,return=representation'
+              },
+              body: JSON.stringify(upsertData)
+            });
             
-            if (existing && existing.length > 0) {
-              // Update existing game, preserving coverage assignments
-              const existingGame = existing[0];
-              const updateData = {
-                date: game.date,
-                time: game.time,
-                away_team: game.away_team || game.away,
-                home_team: game.home_team || game.home,
-                away_score: game.away_score ? parseInt(game.away_score) : null,
-                home_score: game.home_score ? parseInt(game.home_score) : null,
-                gender: game.gender,
-                level: game.level,
-                division: game.division,
-                status: game.time === 'FINAL' ? 'final' : (game.status || 'scheduled'),
-                // Preserve existing coverage data unless explicitly provided
-                photog1: game.photog1 || existingGame.photog1,
-                photog2: game.photog2 || existingGame.photog2,
-                videog: game.videog || existingGame.videog,
-                writer: game.writer || existingGame.writer,
-                photos_url: game.photos_url || existingGame.photos_url,
-                recap_url: game.recap_url || existingGame.recap_url,
-                highlights_url: game.highlights_url || existingGame.highlights_url,
-                live_stream_url: game.live_stream_url || existingGame.live_stream_url,
-                notes: game.notes || existingGame.notes,
-                game_description: game.game_description || game.gamedescription || existingGame.game_description,
-                special_event: game.special_event || game.specialevent || existingGame.special_event,
-                original_date: game.original_date || existingGame.original_date,
-                schedule_changed: game.schedule_changed === 'YES' || game.schedule_changed === true
-              };
-              
-              await supabaseRequest(`games?id=eq.${existingGame.id}`, {
-                method: 'PATCH',
-                body: updateData
-              });
-              results.updated++;
+            if (!response.ok) {
+              const errorText = await response.text();
+              console.error(`Batch ${i}-${i+batchSize} error:`, errorText);
+              results.errors.push({ batch: `${i}-${i+batchSize}`, error: errorText });
             } else {
-              // Insert new game
-              const insertData = {
-                game_id: game.game_id,
-                date: game.date,
-                time: game.time,
-                away_team: game.away_team || game.away,
-                home_team: game.home_team || game.home,
-                away_score: game.away_score ? parseInt(game.away_score) : null,
-                home_score: game.home_score ? parseInt(game.home_score) : null,
-                gender: game.gender,
-                level: game.level,
-                division: game.division,
-                status: game.time === 'FINAL' ? 'final' : (game.status || 'scheduled'),
-                photog1: game.photog1 || null,
-                photog2: game.photog2 || null,
-                videog: game.videog || null,
-                writer: game.writer || null,
-                photos_url: game.photos_url || null,
-                recap_url: game.recap_url || null,
-                highlights_url: game.highlights_url || null,
-                live_stream_url: game.live_stream_url || null,
-                notes: game.notes || null,
-                game_description: game.game_description || game.gamedescription || null,
-                special_event: game.special_event || game.specialevent || null,
-                original_date: game.original_date || null,
-                schedule_changed: game.schedule_changed === 'YES' || game.schedule_changed === true
-              };
-              
-              await supabaseRequest('games', {
-                method: 'POST',
-                body: insertData
-              });
-              results.inserted++;
+              const data = await response.json();
+              // Count is approximate since upsert doesn't tell us insert vs update
+              results.inserted += data.length;
             }
           } catch (err) {
-            results.errors.push({ game_id: game.game_id, error: err.message });
+            console.error(`Batch ${i}-${i+batchSize} error:`, err.message);
+            results.errors.push({ batch: `${i}-${i+batchSize}`, error: err.message });
           }
         }
         
