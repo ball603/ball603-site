@@ -155,7 +155,18 @@ function normalizeCollegeName(name) {
     'LIU': 'LIU',
     'LIU Sharks': 'LIU',
     'Stony Brook': 'Stony Brook',
-    'Stony Brook Seawolves': 'Stony Brook'
+    'Stony Brook Seawolves': 'Stony Brook',
+    'Army': 'Army',
+    'Army Black Knights': 'Army',
+    'Army West Point': 'Army',
+    'Army West Point Black Knights': 'Army',
+    'Wyoming': 'Wyoming',
+    'Wyoming Cowboys': 'Wyoming',
+    'Wyoming Cowgirls': 'Wyoming',
+    'Navy': 'Navy',
+    'Navy Midshipmen': 'Navy',
+    'Air Force': 'Air Force',
+    'Air Force Falcons': 'Air Force'
   };
   
   // Try direct match first
@@ -164,7 +175,7 @@ function normalizeCollegeName(name) {
   }
   
   // Strip common mascot suffixes (expanded list)
-  const mascotPattern = / (Wildcats|Big Green|Terriers|Catamounts|Black Bears|River Hawks|Retrievers|Bearcats|Great Danes|Highlanders|Bulldogs|Skyhawks|Crimson|Bears|Friars|Crusaders|Eagles|Huskies|Orange|Rams|Warriors|Pioneers|Stags|Bobcats|Dolphins|Tigers|Patriots|Cornhuskers|Billikens|Gaels|Jaspers|Hoyas|Peacocks|Seawolves|Hawks|Knights|Broncs|Golden Griffins|Bonnies|Explorers|Musketeers|Blue Demons|Bluejays|Hoosiers|Badgers|Buckeyes|Spartans|Wolverines|Fighting Irish|Bruins|Trojans|Cardinal|Cardinals|Ducks|Beavers|Cougars|Sun Devils|Buffaloes|Jayhawks|Sooners|Longhorns|Aggies|Red Raiders|Horned Frogs|Mountaineers|Cyclones|Hawkeyes|Golden Gophers|Boilermakers|Illini|Scarlet Knights|Nittany Lions|Tar Heels|Blue Devils|Demon Deacons|Wolfpack|Cavaliers|Hokies|Hurricanes|Seminoles|Yellow Jackets|Gamecocks|Volunteers|Razorbacks|Rebels|Crimson Tide|War Eagles|Gators|Commodores|Raiders|Moose|Pilgrims|Penmen|Ravens|Greyhounds|Owls|Panthers|Falcons|Lions|Jaguars|Leopards|Wolves|Sharks|Seahawks|Lancers|Royals|Monarchs|Titans|Generals|Cadets|Monks|Phoenix|Thunder|Storm|Wave|Pride|Mustangs|Broncos|Chargers|Blazers|Golden Eagles|Thunderbirds|Bison|Colonels|Terrapins|Flames|Anteaters|Banana Slugs|Chanticleers|Governors|Hatters|Hilltoppers|Ichabods|Keydets|Lakers|Mavericks|Midshipmen|Miners|Mocs|Norsemen|Ospreys|Paladins|Ramblers|Red Storm|Red Foxes|Redbirds|Redhawks|Roadrunners|Rockets|Salukis|Shockers|Spiders|Thundering Herd|Tritons|Vandals|Zips|Saints|Purple Eagles)$/i;
+  const mascotPattern = / (Wildcats|Big Green|Terriers|Catamounts|Black Bears|River Hawks|Retrievers|Bearcats|Great Danes|Highlanders|Bulldogs|Skyhawks|Crimson|Bears|Friars|Crusaders|Eagles|Huskies|Orange|Rams|Warriors|Pioneers|Stags|Bobcats|Dolphins|Tigers|Patriots|Cornhuskers|Billikens|Gaels|Jaspers|Hoyas|Peacocks|Seawolves|Hawks|Knights|Broncs|Golden Griffins|Bonnies|Explorers|Musketeers|Blue Demons|Bluejays|Hoosiers|Badgers|Buckeyes|Spartans|Wolverines|Fighting Irish|Bruins|Trojans|Cardinal|Cardinals|Ducks|Beavers|Cougars|Sun Devils|Buffaloes|Jayhawks|Sooners|Longhorns|Aggies|Red Raiders|Horned Frogs|Mountaineers|Cyclones|Hawkeyes|Golden Gophers|Boilermakers|Illini|Scarlet Knights|Nittany Lions|Tar Heels|Blue Devils|Demon Deacons|Wolfpack|Cavaliers|Hokies|Hurricanes|Seminoles|Yellow Jackets|Gamecocks|Volunteers|Razorbacks|Rebels|Crimson Tide|War Eagles|Gators|Commodores|Raiders|Moose|Pilgrims|Penmen|Ravens|Greyhounds|Owls|Panthers|Falcons|Lions|Jaguars|Leopards|Wolves|Sharks|Seahawks|Lancers|Royals|Monarchs|Titans|Generals|Cadets|Monks|Phoenix|Thunder|Storm|Wave|Pride|Mustangs|Broncos|Chargers|Blazers|Golden Eagles|Thunderbirds|Bison|Colonels|Terrapins|Flames|Anteaters|Banana Slugs|Chanticleers|Governors|Hatters|Hilltoppers|Ichabods|Keydets|Lakers|Mavericks|Midshipmen|Miners|Mocs|Norsemen|Ospreys|Paladins|Ramblers|Red Storm|Red Foxes|Redbirds|Redhawks|Roadrunners|Rockets|Salukis|Shockers|Spiders|Thundering Herd|Tritons|Vandals|Zips|Saints|Purple Eagles|Cowboys|Cowgirls|Black Knights|Lumberjacks|Demon Deacons|Scarlet Hawks|Mean Green|Ragin Cajuns|Golden Hurricane|Golden Flashes|RedHawks|Dukes|Tribe|Shockers|Toreros|Toppers|Warhawks|Blue Hose|Camels|Catamounts|Chippewas|Flames|Hoosiers|Kangaroos|Leathernecks|Mastodons|Musketeers|Penguins|Racers|River Hawks|Skyhawks|Blue Raiders|Retrievers)$/i;
   const cleaned = name.replace(mascotPattern, '');
   
   // Check if cleaned version has a mapping
