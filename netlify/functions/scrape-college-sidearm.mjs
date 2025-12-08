@@ -238,6 +238,20 @@ function parseSIDEARMDate(month, day) {
 function normalizeOpponentName(name) {
   if (!name) return name;
   
+  // First, clean up SIDEARM artifacts that get pulled in
+  let cleaned = name
+    .replace(/^.*?History\s+(?:at|vs)\s+/i, '')  // "College History at X" → "X"
+    .replace(/Watch\s+Live\s+Stats?\s*/gi, '')   // Remove "Watch Live Stats"
+    .replace(/History\s*$/i, '')                  // Trailing "History"
+    .replace(/\s+/g, ' ')
+    .trim();
+  
+  // Handle Vermont State University campuses → VTSU-Campus
+  const vtsuMatch = cleaned.match(/Vermont State University\s+(.+)/i);
+  if (vtsuMatch) {
+    return `VTSU-${vtsuMatch[1].trim()}`;
+  }
+  
   // Common normalizations
   const normalizations = {
     'Southern New Hampshire University': 'Southern New Hampshire',
@@ -279,10 +293,13 @@ function normalizeOpponentName(name) {
     'University of New England': 'UNE',
     'UNE': 'UNE',
     'Norwich University': 'Norwich',
-    'Castleton University': 'VTSU Castleton',
-    'VTSU Castleton': 'VTSU Castleton',
-    'Johnson State': 'VTSU Johnson',
-    'Lyndon State': 'VTSU Lyndon',
+    'Castleton University': 'VTSU-Castleton',
+    'Vermont State University Castleton': 'VTSU-Castleton',
+    'VTSU Castleton': 'VTSU-Castleton',
+    'Johnson State': 'VTSU-Johnson',
+    'Vermont State University Johnson': 'VTSU-Johnson',
+    'Lyndon State': 'VTSU-Lyndon',
+    'Vermont State University Lyndon': 'VTSU-Lyndon',
     'Gordon College': 'Gordon',
     'Curry College': 'Curry',
     'Lesley University': 'Lesley',
@@ -295,10 +312,14 @@ function normalizeOpponentName(name) {
     'SUNY Canton': 'SUNY Canton',
     'SUNY Cobleskill': 'SUNY Cobleskill',
     'Anna Maria College': 'Anna Maria',
+    'Anna Maria': 'Anna Maria',
     'Lasell University': 'Lasell',
     'Emmanuel College': 'Emmanuel (Mass.)',
+    'Emmanuel College (Mass.)': 'Emmanuel (Mass.)',
     'Saint Joseph\'s (Maine)': 'Saint Joseph\'s (Maine)',
     'Saint Joseph (Conn.)': 'Saint Joseph (Conn.)',
+    'University of Saint Joseph': 'Saint Joseph (Conn.)',
+    'University of Saint Joseph (Conn.)': 'Saint Joseph (Conn.)',
     'Brandeis University': 'Brandeis',
     'Tufts University': 'Tufts',
     'WPI': 'WPI',
@@ -306,23 +327,38 @@ function normalizeOpponentName(name) {
     'Colby College': 'Colby',
     'Goldey-Beacom College': 'Goldey-Beacom',
     'New Haven': 'New Haven',
-    'Daemen University': 'Daemen'
+    'University of New Haven': 'New Haven',
+    'Daemen University': 'Daemen',
+    'Amherst College': 'Amherst',
+    'Amherst': 'Amherst',
+    'Suffolk University': 'Suffolk',
+    'Framingham State University': 'Framingham State',
+    'Westfield State University': 'Westfield State',
+    'SUNY Geneseo': 'SUNY Geneseo',
+    'University of Hartford': 'Hartford',
+    'Fisher College (Mass.)': 'Fisher (Mass.)',
+    'Fisher College': 'Fisher (Mass.)'
   };
   
   // Try exact match first
-  if (normalizations[name]) return normalizations[name];
+  if (normalizations[cleaned]) return normalizations[cleaned];
   
   // Try case-insensitive
-  const lower = name.toLowerCase();
+  const lower = cleaned.toLowerCase();
   for (const [key, value] of Object.entries(normalizations)) {
     if (key.toLowerCase() === lower) return value;
   }
   
-  // Clean up common suffixes
-  return name
-    .replace(/\s+(University|College|State)$/i, '')
+  // Strip common mascot suffixes
+  const mascotPattern = / (Chargers|Blazers|Hawks|Knights|Warriors|Ravens|Panthers|Eagles|Bulldogs|Bears|Tigers|Lions|Wildcats|Huskies|Falcons|Owls|Cardinals|Rams|Vikings|Pioneers|Saints|Gaels|Colonels|Terriers|Retrievers|Bearcats|Bobcats|Dolphins|Griffins|Phoenix|Thunder|Storm|Wave|Pride|Mustangs|Broncos|Cougars|Jaguars|Leopards|Wolves|Sharks|Seahawks|Lancers|Royals|Monarchs|Spartans|Trojans|Titans|Generals|Cadets|Crusaders|Friars|Monks|Blue Devils|Red Devils|Golden)$/i;
+  cleaned = cleaned.replace(mascotPattern, '');
+  
+  // Clean up common suffixes if still present
+  return cleaned
+    .replace(/\s+(University|College)$/i, '')
     .trim();
 }
+
 
 /**
  * Fetch and parse schedule for a school
