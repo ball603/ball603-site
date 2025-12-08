@@ -1208,6 +1208,62 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         </div>
       </div>
     </div>
+    
+    <!-- Social Publishing Panel -->
+    <div class="panel" id="socialPublishingPanel" style="display: none;">
+      <div class="editor-header">
+        <h2>📱 Social Media Posts</h2>
+        <div class="editor-actions">
+          <button class="btn-back" onclick="closeSocialPublishing()">← Done</button>
+        </div>
+      </div>
+      
+      <p style="color: #666; margin-bottom: 20px;">Your article has been published! Edit and copy these posts for social media.</p>
+      
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
+        <!-- Facebook -->
+        <div class="sidebar-card" style="background: #fff; border: 2px solid #1877f2;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <h4 style="color: #1877f2; margin: 0;">📘 Facebook</h4>
+            <button onclick="copySocialPost('facebook')" style="background: #1877f2; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">Copy</button>
+          </div>
+          <textarea id="socialFacebookPost" style="width: 100%; min-height: 300px; border: 1px solid #ddd; border-radius: 6px; padding: 10px; font-size: 13px; line-height: 1.5; resize: vertical; font-family: inherit;"></textarea>
+          <div style="margin-top: 8px; font-size: 11px; color: #888;">
+            <span id="fbCharCount">0</span> characters
+          </div>
+        </div>
+        
+        <!-- Instagram -->
+        <div class="sidebar-card" style="background: #fff; border: 2px solid #e1306c;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <h4 style="color: #e1306c; margin: 0;">📸 Instagram</h4>
+            <button onclick="copySocialPost('instagram')" style="background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); color: #fff; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">Copy</button>
+          </div>
+          <textarea id="socialInstagramPost" style="width: 100%; min-height: 300px; border: 1px solid #ddd; border-radius: 6px; padding: 10px; font-size: 13px; line-height: 1.5; resize: vertical; font-family: inherit;"></textarea>
+          <div style="margin-top: 8px; font-size: 11px; color: #888;">
+            <span id="igCharCount">0</span> / 2,200 characters
+          </div>
+        </div>
+        
+        <!-- Twitter -->
+        <div class="sidebar-card" style="background: #fff; border: 2px solid #000;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <h4 style="color: #000; margin: 0;">𝕏 Twitter</h4>
+            <button onclick="copySocialPost('twitter')" style="background: #000; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">Copy</button>
+          </div>
+          <textarea id="socialTwitterPost" style="width: 100%; min-height: 300px; border: 1px solid #ddd; border-radius: 6px; padding: 10px; font-size: 13px; line-height: 1.5; resize: vertical; font-family: inherit;"></textarea>
+          <div style="margin-top: 8px; font-size: 11px;">
+            <span id="twCharCount" style="color: #888;">0</span><span style="color: #888;"> / 280 characters</span>
+          </div>
+        </div>
+      </div>
+      
+      <div style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px;">
+        <p style="margin: 0; font-size: 13px; color: #666;">
+          💡 <strong>Tip:</strong> Copy each post, then paste into Hootsuite. Select your images from your photo gallery and schedule or post.
+        </p>
+      </div>
+    </div>
   </div>
   
   <!-- Toast -->
@@ -2258,6 +2314,71 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       currentArticle = null;
     }
     
+    function showSocialPublishing(article) {
+      // Hide editor, show social publishing panel
+      document.getElementById('editorPanel').style.display = 'none';
+      document.getElementById('socialPublishingPanel').style.display = 'block';
+      
+      // Populate the textareas
+      const fbPost = generatedSocialPosts.facebookPost || '';
+      const igPost = generatedSocialPosts.instagramPost || '';
+      const twPost = generatedSocialPosts.twitterPost || '';
+      
+      document.getElementById('socialFacebookPost').value = fbPost;
+      document.getElementById('socialInstagramPost').value = igPost;
+      document.getElementById('socialTwitterPost').value = twPost;
+      
+      // Update character counts
+      updateCharCount('facebook');
+      updateCharCount('instagram');
+      updateCharCount('twitter');
+      
+      // Add input listeners for character counts
+      document.getElementById('socialFacebookPost').oninput = () => updateCharCount('facebook');
+      document.getElementById('socialInstagramPost').oninput = () => updateCharCount('instagram');
+      document.getElementById('socialTwitterPost').oninput = () => updateCharCount('twitter');
+    }
+    
+    function closeSocialPublishing() {
+      document.getElementById('socialPublishingPanel').style.display = 'none';
+      document.getElementById('articlesPanel').style.display = 'block';
+      
+      // Clear generated social posts
+      generatedSocialPosts = {
+        facebookPost: null,
+        instagramPost: null,
+        twitterPost: null
+      };
+    }
+    
+    function updateCharCount(platform) {
+      const textareaId = `social${platform.charAt(0).toUpperCase() + platform.slice(1)}Post`;
+      const text = document.getElementById(textareaId).value;
+      const count = text.length;
+      
+      if (platform === 'facebook') {
+        document.getElementById('fbCharCount').textContent = count;
+      } else if (platform === 'instagram') {
+        document.getElementById('igCharCount').textContent = count;
+        document.getElementById('igCharCount').style.color = count > 2200 ? '#c00' : '#888';
+      } else if (platform === 'twitter') {
+        document.getElementById('twCharCount').textContent = count;
+        document.getElementById('twCharCount').style.color = count > 280 ? '#c00' : '#888';
+      }
+    }
+    
+    function copySocialPost(platform) {
+      const textareaId = `social${platform.charAt(0).toUpperCase() + platform.slice(1)}Post`;
+      const text = document.getElementById(textareaId).value;
+      
+      navigator.clipboard.writeText(text).then(() => {
+        showToast(`${platform.charAt(0).toUpperCase() + platform.slice(1)} post copied!`, 'success');
+      }).catch(err => {
+        console.error('Copy failed:', err);
+        showToast('Failed to copy', 'error');
+      });
+    }
+    
     function generateSlug(title) {
       return title
         .toLowerCase()
@@ -2392,7 +2513,13 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       
       showToast('Article published!', 'success');
       loadArticles();
-      updateSocialButtons(true, currentArticle);
+      
+      // Show social publishing page if we have generated posts
+      if (generatedSocialPosts.facebookPost || generatedSocialPosts.instagramPost || generatedSocialPosts.twitterPost) {
+        showSocialPublishing(currentArticle);
+      } else {
+        closeEditor();
+      }
     }
     
     async function deleteArticle(id) {
