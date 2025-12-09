@@ -608,7 +608,9 @@ export default async (request) => {
 };
 
 export const config = {
-  schedule: "0 */2 * 11,12,1,2,3 *"
+  // Nov-Mar: 5am, 11am, 2pm, 3pm, 4pm, 5pm, 6pm, 7pm, 8pm, 9pm, 10pm, 11pm, 12am, 1am EST
+  // Converted to UTC (EST+5): 0,1,2,3,4,5,6,10,16,19,20,21,22,23
+  schedule: "0 0,1,2,3,4,5,6,10,16,19,20,21,22,23 * 1,2,3,11,12 *"
 };
 
 export {
