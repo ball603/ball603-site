@@ -1,13 +1,9 @@
 // submit-roster.mjs
 // Netlify Function to handle roster form submissions with PDF upload support
-// Place in: netlify/functions/submit-roster.mjs
-
-import { createClient } from '@supabase/supabase-js';
+// Uses fetch directly - no npm dependencies required
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
-
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 // CORS headers
 const headers = {
@@ -41,7 +37,6 @@ export async function handler(event, context) {
     if (contentType.includes('application/json')) {
       data = JSON.parse(event.body);
     } else if (contentType.includes('multipart/form-data')) {
-      // Parse multipart form data
       const parsed = parseMultipartForm(event.body, contentType, event.isBase64Encoded);
       data = parsed.fields;
       pdfBuffer = parsed.file?.buffer;
@@ -49,7 +44,6 @@ export async function handler(event, context) {
     } else if (contentType.includes('application/x-www-form-urlencoded')) {
       data = parseUrlEncoded(event.body);
     } else {
-      // Try JSON as fallback
       try {
         data = JSON.parse(event.body);
       } catch {
@@ -77,34 +71,33 @@ export async function handler(event, context) {
     let pdfUrl = null;
     if (pdfBuffer && pdfFilename) {
       try {
-        // Generate unique filename
         const timestamp = Date.now();
         const safeName = data.school.toLowerCase().replace(/[^a-z0-9]/g, '-');
         const safeGender = data.gender.toLowerCase();
         const storagePath = `${safeName}-${safeGender}-${timestamp}.pdf`;
 
-        // Upload to Supabase Storage
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('roster-pdfs')
-          .upload(storagePath, pdfBuffer, {
-            contentType: 'application/pdf',
-            upsert: false
-          });
+        // Upload to Supabase Storage via REST API
+        const uploadResponse = await fetch(
+          `${supabaseUrl}/storage/v1/object/roster-pdfs/${storagePath}`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${supabaseKey}`,
+              'Content-Type': 'application/pdf',
+              'x-upsert': 'false'
+            },
+            body: pdfBuffer
+          }
+        );
 
-        if (uploadError) {
-          console.error('PDF upload error:', uploadError);
-          // Continue without PDF - don't fail the whole submission
+        if (uploadResponse.ok) {
+          // Construct public URL
+          pdfUrl = `${supabaseUrl}/storage/v1/object/public/roster-pdfs/${storagePath}`;
         } else {
-          // Get public URL
-          const { data: urlData } = supabase.storage
-            .from('roster-pdfs')
-            .getPublicUrl(storagePath);
-          
-          pdfUrl = urlData?.publicUrl;
+          console.error('PDF upload failed:', await uploadResponse.text());
         }
       } catch (uploadErr) {
         console.error('PDF upload exception:', uploadErr);
-        // Continue without PDF
       }
     }
 
@@ -134,15 +127,24 @@ export async function handler(event, context) {
       })).filter(p => p.name);
     }
 
-    // Insert into database
-    const { data: inserted, error } = await supabase
-      .from('roster_submissions')
-      .insert([submission])
-      .select()
-      .single();
+    // Insert into database via Supabase REST API
+    const insertResponse = await fetch(
+      `${supabaseUrl}/rest/v1/roster_submissions`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${supabaseKey}`,
+          'apikey': supabaseKey,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify(submission)
+      }
+    );
 
-    if (error) {
-      console.error('Supabase error:', error);
+    if (!insertResponse.ok) {
+      const errorText = await insertResponse.text();
+      console.error('Supabase insert error:', errorText);
       return {
         statusCode: 500,
         headers,
@@ -153,6 +155,8 @@ export async function handler(event, context) {
       };
     }
 
+    const inserted = await insertResponse.json();
+
     return {
       statusCode: 200,
       headers,
@@ -161,7 +165,7 @@ export async function handler(event, context) {
         message: pdfUrl 
           ? 'PDF roster uploaded successfully! We\'ll review and enter the data soon.'
           : 'Roster submitted successfully!',
-        id: inserted.id,
+        id: inserted[0]?.id,
         hasPdf: !!pdfUrl
       })
     };
@@ -184,14 +188,12 @@ function parseMultipartForm(body, contentType, isBase64Encoded) {
   const fields = {};
   let file = null;
 
-  // Get boundary from content type
   const boundaryMatch = contentType.match(/boundary=(?:"([^"]+)"|([^;]+))/i);
   if (!boundaryMatch) {
     return { fields, file };
   }
   const boundary = boundaryMatch[1] || boundaryMatch[2];
 
-  // Decode body if base64 encoded
   let bodyBuffer;
   if (isBase64Encoded) {
     bodyBuffer = Buffer.from(body, 'base64');
@@ -205,32 +207,27 @@ function parseMultipartForm(body, contentType, isBase64Encoded) {
   for (const part of parts) {
     if (part.trim() === '' || part.trim() === '--') continue;
 
-    // Split headers and content
     const headerEndIndex = part.indexOf('\r\n\r\n');
     if (headerEndIndex === -1) continue;
 
     const headerSection = part.substring(0, headerEndIndex);
     const content = part.substring(headerEndIndex + 4);
 
-    // Parse Content-Disposition
     const dispositionMatch = headerSection.match(/Content-Disposition:\s*form-data;\s*name="([^"]+)"(?:;\s*filename="([^"]+)")?/i);
     if (!dispositionMatch) continue;
 
     const fieldName = dispositionMatch[1];
     const filename = dispositionMatch[2];
 
-    // Remove trailing \r\n
     let value = content;
     if (value.endsWith('\r\n')) {
       value = value.slice(0, -2);
     }
 
     if (filename) {
-      // This is a file
       const contentTypeMatch = headerSection.match(/Content-Type:\s*([^\r\n]+)/i);
       const fileContentType = contentTypeMatch ? contentTypeMatch[1].trim() : 'application/octet-stream';
       
-      // Only accept PDFs
       if (fileContentType === 'application/pdf' || filename.toLowerCase().endsWith('.pdf')) {
         file = {
           filename: filename,
@@ -239,11 +236,9 @@ function parseMultipartForm(body, contentType, isBase64Encoded) {
         };
       }
     } else {
-      // Regular field
-      // Handle array notation like player[0][name]
       const arrayMatch = fieldName.match(/^(\w+)\[(\d+)\]\[(\w+)\]$/);
       if (arrayMatch) {
-        const arrayName = arrayMatch[1] + 's'; // player -> players
+        const arrayName = arrayMatch[1] + 's';
         const index = parseInt(arrayMatch[2]);
         const prop = arrayMatch[3];
         
@@ -256,7 +251,6 @@ function parseMultipartForm(body, contentType, isBase64Encoded) {
     }
   }
 
-  // Clean up players array (remove empty slots)
   if (fields.players) {
     fields.players = fields.players.filter(p => p && p.name);
   }
