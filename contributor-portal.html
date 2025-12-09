@@ -1,0 +1,1130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ball603 Contributor Portal</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #333; min-height: 100vh; }
+    
+    /* Login Screen */
+    .login-screen { display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+    .login-box { background: #fff; padding: 40px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; max-width: 400px; width: 100%; }
+    .login-box img { height: 80px; margin-bottom: 20px; cursor: pointer; }
+    .login-box h2 { margin-bottom: 10px; color: #333; font-size: 20px; }
+    .login-box p { color: #666; margin-bottom: 25px; font-size: 14px; }
+    .login-box input { width: 100%; padding: 12px 15px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; margin-bottom: 15px; }
+    .login-box input:focus { outline: none; border-color: #f57c00; }
+    .login-box button { width: 100%; padding: 12px; background: #f57c00; color: #fff; border: none; border-radius: 5px; font-size: 14px; font-weight: 600; cursor: pointer; }
+    .login-box button:hover { background: #e56a00; }
+    .login-error { color: #c00; font-size: 13px; margin-bottom: 15px; min-height: 20px; }
+    .login-success { color: #4CAF50; font-size: 13px; margin-bottom: 15px; }
+    .login-link { margin-top: 15px; font-size: 13px; color: #666; }
+    .login-link a { color: #f57c00; cursor: pointer; }
+    .login-link a:hover { text-decoration: underline; }
+    
+    /* Header */
+    .header { background: #fff; padding: 15px 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+    .header-inner { max-width: 1000px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+    .header-left { display: flex; align-items: center; gap: 15px; }
+    .header-left img { height: 50px; cursor: pointer; }
+    .header-left h1 { font-size: 18px; color: #333; }
+    .header-right { display: flex; align-items: center; gap: 15px; }
+    .user-name { font-size: 14px; color: #666; }
+    .btn-logout { background: #eee; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-size: 13px; }
+    .btn-logout:hover { background: #ddd; }
+    
+    /* Main Container */
+    .main-container { max-width: 1000px; margin: 0 auto; padding: 20px; display: none; }
+    
+    /* Action Buttons */
+    .action-buttons { display: flex; gap: 10px; margin-bottom: 25px; flex-wrap: wrap; }
+    .action-btn { padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; display: flex; align-items: center; gap: 8px; }
+    .action-btn.primary { background: #f57c00; color: white; }
+    .action-btn.primary:hover { background: #e56a00; }
+    .action-btn.secondary { background: #e0e0e0; color: #333; }
+    .action-btn.secondary:hover { background: #d0d0d0; }
+    
+    /* Sections */
+    .section { background: #fff; border-radius: 10px; padding: 25px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+    .section h2 { font-size: 16px; color: #333; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #f57c00; }
+    .section h3 { font-size: 14px; color: #555; margin: 20px 0 12px 0; }
+    
+    /* Form Grid */
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 15px; }
+    .form-row.three { grid-template-columns: 1fr 1fr 1fr; }
+    .form-row.single { grid-template-columns: 1fr; }
+    @media (max-width: 600px) {
+      .form-row, .form-row.three { grid-template-columns: 1fr; }
+    }
+    
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group label { font-size: 12px; font-weight: 600; color: #555; }
+    .form-group input, .form-group select, .form-group textarea { padding: 10px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; font-family: inherit; }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: #f57c00; }
+    .form-group textarea { resize: vertical; min-height: 80px; }
+    .form-group small { font-size: 11px; color: #999; }
+    .form-group .char-count { text-align: right; font-size: 11px; color: #999; }
+    .form-group .char-count.over { color: #c00; }
+    
+    /* Checkboxes */
+    .checkbox-group { display: flex; flex-wrap: wrap; gap: 15px; }
+    .checkbox-item { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+    .checkbox-item input { width: auto; margin: 0; }
+    
+    /* Radio Groups */
+    .radio-group { display: flex; flex-wrap: wrap; gap: 15px; }
+    .radio-item { display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 14px; }
+    .radio-item input { width: auto; margin: 0; }
+    
+    /* Image Upload */
+    .image-upload-area { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
+    .image-preview { width: 120px; height: 120px; border: 2px dashed #ddd; border-radius: 8px; display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: pointer; background: #fafafa; transition: all 0.2s; }
+    .image-preview:hover { border-color: #f57c00; background: #fff8f0; }
+    .image-preview.has-image { border-style: solid; }
+    .image-preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
+    .image-preview .placeholder { text-align: center; color: #999; font-size: 11px; padding: 10px; }
+    .image-upload-info { flex: 1; min-width: 200px; }
+    .image-upload-info p { font-size: 12px; color: #666; margin-bottom: 8px; }
+    .btn-remove-image { background: #ffebee; color: #c62828; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; margin-top: 8px; }
+    .btn-remove-image:hover { background: #ffcdd2; }
+    
+    /* Portfolio */
+    .portfolio-list { display: flex; flex-direction: column; gap: 10px; }
+    .portfolio-item { display: flex; align-items: center; gap: 12px; padding: 12px; background: #f9f9f9; border-radius: 6px; }
+    .portfolio-item.auto { background: #e3f2fd; }
+    .portfolio-icon { font-size: 20px; }
+    .portfolio-info { flex: 1; }
+    .portfolio-title { font-weight: 500; font-size: 14px; }
+    .portfolio-url { font-size: 12px; color: #666; word-break: break-all; }
+    .portfolio-type { font-size: 11px; color: #888; background: #eee; padding: 2px 8px; border-radius: 10px; }
+    .portfolio-type.auto { background: #bbdefb; color: #1565c0; }
+    .btn-remove-portfolio { background: none; border: none; color: #999; cursor: pointer; font-size: 16px; padding: 5px; }
+    .btn-remove-portfolio:hover { color: #c00; }
+    
+    .add-portfolio { margin-top: 15px; padding: 15px; background: #f5f5f5; border-radius: 8px; }
+    .add-portfolio h4 { font-size: 13px; margin-bottom: 12px; color: #555; }
+    .add-portfolio-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .add-portfolio-row input, .add-portfolio-row select { flex: 1; min-width: 150px; }
+    .btn-add-portfolio { background: #f57c00; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 13px; white-space: nowrap; }
+    .btn-add-portfolio:hover { background: #e56a00; }
+    
+    /* Save Button */
+    .save-section { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee; }
+    .btn-save { background: #f57c00; color: white; border: none; padding: 12px 30px; border-radius: 5px; font-size: 14px; font-weight: 600; cursor: pointer; }
+    .btn-save:hover { background: #e56a00; }
+    .btn-save:disabled { background: #ccc; cursor: not-allowed; }
+    
+    /* Toast */
+    .toast { position: fixed; bottom: 20px; right: 20px; padding: 15px 25px; border-radius: 8px; color: white; font-size: 14px; z-index: 9999; animation: slideIn 0.3s ease; }
+    .toast.success { background: #4CAF50; }
+    .toast.error { background: #f44336; }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    
+    /* Cropper Modal */
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 1000; justify-content: center; align-items: center; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: #fff; border-radius: 10px; max-width: 600px; width: 90%; max-height: 90vh; overflow: hidden; }
+    .modal-header { padding: 15px 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+    .modal-header h3 { font-size: 16px; }
+    .modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: #999; }
+    .modal-body { padding: 20px; }
+    .modal-footer { padding: 15px 20px; border-top: 1px solid #eee; display: flex; justify-content: flex-end; gap: 10px; }
+    .cropper-container-wrapper { max-height: 400px; overflow: hidden; }
+    .cropper-container-wrapper img { max-width: 100%; display: block; }
+    .btn-modal { padding: 10px 20px; border-radius: 5px; font-size: 14px; cursor: pointer; }
+    .btn-modal-cancel { background: #eee; border: none; color: #333; }
+    .btn-modal-save { background: #f57c00; border: none; color: white; }
+    
+    /* Loading */
+    .loading { text-align: center; padding: 40px; color: #666; }
+  </style>
+</head>
+<body>
+  <!-- Login Screen -->
+  <div id="loginScreen" class="login-screen">
+    <div class="login-box">
+      <img src="/images/ball603-logo.png" alt="Ball603" onclick="window.location.href='https://ball603.com'">
+      <h2>Contributor Portal</h2>
+      <p id="loginSubtitle">Sign in to manage your profile</p>
+      
+      <div id="loginError" class="login-error"></div>
+      
+      <!-- Login Form -->
+      <div id="loginForm">
+        <input type="email" id="loginEmail" placeholder="Email address">
+        <input type="password" id="loginPassword" placeholder="Password">
+        <button onclick="handleLogin()">Sign In</button>
+        <div class="login-link">
+          <a onclick="showForgotPassword()">Forgot password?</a>
+        </div>
+      </div>
+      
+      <!-- Forgot Password Form -->
+      <div id="forgotForm" style="display: none;">
+        <input type="email" id="resetEmail" placeholder="Email address">
+        <button onclick="handleResetPassword()">Send Reset Link</button>
+        <div class="login-link">
+          <a onclick="showLogin()">Back to login</a>
+        </div>
+      </div>
+      
+      <!-- Set Password Form (for first-time users) -->
+      <div id="setPasswordForm" style="display: none;">
+        <input type="password" id="newPassword" placeholder="Create password (min 6 characters)">
+        <input type="password" id="confirmPassword" placeholder="Confirm password">
+        <button onclick="handleSetPassword()">Set Password</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Header -->
+  <div class="header" id="mainHeader" style="display: none;">
+    <div class="header-inner">
+      <div class="header-left">
+        <img src="/images/ball603-logo.png" alt="Ball603" onclick="window.location.href='https://ball603.com'">
+        <h1>Contributor Portal</h1>
+      </div>
+      <div class="header-right">
+        <span class="user-name" id="userName"></span>
+        <button class="btn-logout" onclick="handleLogout()">Log Out</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Main Content -->
+  <div class="main-container" id="mainContent">
+    <!-- Action Buttons -->
+    <div class="action-buttons">
+      <button class="action-btn primary" onclick="window.location.href='/contributors.html'">
+        📅 SCHEDULE
+      </button>
+      <button class="action-btn secondary" onclick="openTop10Upload()">
+        ⬆️ UPLOAD TOP-10
+      </button>
+      <button class="action-btn secondary" onclick="window.open('https://smugmug.com', '_blank')">
+        📸 UPLOAD FULL GALLERY
+      </button>
+    </div>
+    
+    <!-- Profile Section -->
+    <div class="section">
+      <h2>👤 Personal Information</h2>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label>Full Name *</label>
+          <input type="text" id="profileName" placeholder="Your name">
+        </div>
+        <div class="form-group">
+          <label>Email Address *</label>
+          <input type="email" id="profileEmail" placeholder="email@example.com" readonly style="background: #f5f5f5;">
+        </div>
+      </div>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label>Primary School/Area</label>
+          <input type="text" id="profileArea" placeholder="e.g., Manchester area, Plymouth State">
+        </div>
+        <div class="form-group">
+          <label>Cell Phone</label>
+          <input type="tel" id="profileCell" placeholder="(603) 555-1234">
+        </div>
+      </div>
+      
+      <div class="form-row single">
+        <div class="form-group">
+          <label>Mailing Address</label>
+          <input type="text" id="profileAddress" placeholder="Street, City, State ZIP">
+        </div>
+      </div>
+      
+      <div class="form-row three">
+        <div class="form-group">
+          <label>Venmo Handle</label>
+          <input type="text" id="profileVenmo" placeholder="@username">
+        </div>
+        <div class="form-group">
+          <label>Shirt Size</label>
+          <select id="profileShirtSize">
+            <option value="">Select...</option>
+            <option value="XS">XS</option>
+            <option value="S">S</option>
+            <option value="M">M</option>
+            <option value="L">L</option>
+            <option value="XL">XL</option>
+            <option value="2XL">2XL</option>
+            <option value="3XL">3XL</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>NHIAA Alma Mater</label>
+          <select id="profileAlmaMater">
+            <option value="">Select school...</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label>College</label>
+          <input type="text" id="profileCollege" placeholder="College/University attended">
+        </div>
+      </div>
+      
+      <h3>Contributor Type (select all that apply)</h3>
+      <div class="checkbox-group">
+        <label class="checkbox-item">
+          <input type="checkbox" id="typePhotographer"> 📸 Photographer
+        </label>
+        <label class="checkbox-item">
+          <input type="checkbox" id="typeVideographer"> 🎥 Videographer
+        </label>
+        <label class="checkbox-item">
+          <input type="checkbox" id="typeWriter"> 📝 Reporter/Writer
+        </label>
+        <label class="checkbox-item">
+          <input type="checkbox" id="typeGraphics"> 🎨 Graphics
+        </label>
+      </div>
+    </div>
+    
+    <!-- Links Section -->
+    <div class="section">
+      <h2>🔗 Links & Social Media</h2>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label>Website</label>
+          <input type="url" id="profileWebsite" placeholder="https://yourwebsite.com">
+        </div>
+        <div class="form-group">
+          <label>Instagram</label>
+          <input type="text" id="profileInstagram" placeholder="@username or full URL">
+        </div>
+      </div>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label>Facebook</label>
+          <input type="text" id="profileFacebook" placeholder="Profile or page URL">
+        </div>
+        <div class="form-group">
+          <label>Twitter/X</label>
+          <input type="text" id="profileTwitter" placeholder="@username or full URL">
+        </div>
+      </div>
+    </div>
+    
+    <!-- Equipment Section -->
+    <div class="section">
+      <h2>📷 Equipment & Preferences</h2>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label>Camera Brand</label>
+          <div class="radio-group">
+            <label class="radio-item"><input type="radio" name="cameraBrand" value="Canon"> Canon</label>
+            <label class="radio-item"><input type="radio" name="cameraBrand" value="Nikon"> Nikon</label>
+            <label class="radio-item"><input type="radio" name="cameraBrand" value="Sony"> Sony</label>
+            <label class="radio-item"><input type="radio" name="cameraBrand" value="Other"> Other</label>
+          </div>
+          <input type="text" id="cameraBrandOther" placeholder="Specify brand..." style="display: none; margin-top: 8px;">
+        </div>
+        <div class="form-group">
+          <label>Computer Preference</label>
+          <div class="radio-group">
+            <label class="radio-item"><input type="radio" name="computerPref" value="Mac"> Mac</label>
+            <label class="radio-item"><input type="radio" name="computerPref" value="PC"> PC</label>
+            <label class="radio-item"><input type="radio" name="computerPref" value="Other"> Other</label>
+          </div>
+          <input type="text" id="computerPrefOther" placeholder="Specify..." style="display: none; margin-top: 8px;">
+        </div>
+      </div>
+    </div>
+    
+    <!-- Bio Section -->
+    <div class="section">
+      <h2>📝 About You</h2>
+      
+      <div class="form-group">
+        <label>Brief Bio</label>
+        <textarea id="profileBio" placeholder="Tell us why you're a Ball603 contributor..." oninput="updateCharCount()"></textarea>
+        <div class="char-count" id="bioCharCount">0 / 100 words</div>
+        <small>This may appear on your public contributor page.</small>
+      </div>
+    </div>
+    
+    <!-- Images Section -->
+    <div class="section">
+      <h2>🖼️ Images & Branding</h2>
+      
+      <h3>Headshot</h3>
+      <div class="image-upload-area">
+        <div class="image-preview" id="headshotPreview" onclick="triggerUpload('headshot')">
+          <div class="placeholder">Click to upload</div>
+        </div>
+        <input type="file" id="headshotInput" accept="image/*" style="display: none;" onchange="handleImageSelect(event, 'headshot')">
+        <input type="hidden" id="headshotUrl">
+        <div class="image-upload-info">
+          <p>Square photo (1:1 ratio) recommended</p>
+          <p>Max file size: 2MB</p>
+          <button class="btn-remove-image" id="headshotRemove" style="display: none;" onclick="removeImage('headshot')">Remove</button>
+        </div>
+      </div>
+      
+      <h3>Photography Watermark</h3>
+      <div class="image-upload-area">
+        <div class="image-preview" id="watermarkPreview" onclick="triggerUpload('watermark')" style="width: 200px;">
+          <div class="placeholder">Click to upload</div>
+        </div>
+        <input type="file" id="watermarkInput" accept="image/*" style="display: none;" onchange="handleImageSelect(event, 'watermark')">
+        <input type="hidden" id="watermarkUrl">
+        <div class="image-upload-info">
+          <p>Upload at 100% opacity</p>
+          <p>Max file size: 2MB</p>
+          <button class="btn-remove-image" id="watermarkRemove" style="display: none;" onclick="removeImage('watermark')">Remove</button>
+        </div>
+      </div>
+      
+      <h3>Photography Logo (if different from watermark)</h3>
+      <div class="image-upload-area">
+        <div class="image-preview" id="logoPreview" onclick="triggerUpload('logo')">
+          <div class="placeholder">Click to upload</div>
+        </div>
+        <input type="file" id="logoInput" accept="image/*" style="display: none;" onchange="handleImageSelect(event, 'logo')">
+        <input type="hidden" id="logoUrl">
+        <div class="image-upload-info">
+          <p>Optional - only if different from watermark</p>
+          <p>Max file size: 2MB</p>
+          <button class="btn-remove-image" id="logoRemove" style="display: none;" onclick="removeImage('logo')">Remove</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Portfolio Section -->
+    <div class="section">
+      <h2>📂 Portfolio</h2>
+      <p style="font-size: 13px; color: #666; margin-bottom: 15px;">
+        SmugMug galleries with your name are automatically listed. Add links to other work below.
+      </p>
+      
+      <div class="portfolio-list" id="portfolioList">
+        <div class="loading">Loading portfolio...</div>
+      </div>
+      
+      <div class="add-portfolio">
+        <h4>Add External Link</h4>
+        <div class="add-portfolio-row">
+          <input type="text" id="newPortfolioTitle" placeholder="Title (e.g., State Championship Photos)">
+          <input type="url" id="newPortfolioUrl" placeholder="https://...">
+          <select id="newPortfolioType">
+            <option value="gallery">Photo Gallery</option>
+            <option value="video">Video</option>
+            <option value="article">Article/Story</option>
+            <option value="graphics">Graphics</option>
+            <option value="other">Other</option>
+          </select>
+          <button class="btn-add-portfolio" onclick="addPortfolioLink()">Add Link</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Save Button -->
+    <div class="save-section">
+      <button class="btn-save" onclick="saveProfile()">Save Changes</button>
+    </div>
+  </div>
+  
+  <!-- Cropper Modal -->
+  <div class="modal-overlay" id="cropperModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Crop Image</h3>
+        <button class="modal-close" onclick="closeCropper()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="cropper-container-wrapper">
+          <img id="cropperImage" src="">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-modal btn-modal-cancel" onclick="closeCropper()">Cancel</button>
+        <button class="btn-modal btn-modal-save" onclick="applyCrop()">Apply</button>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    // Supabase setup
+    const SUPABASE_URL = 'https://hkvfqjahvgpqjnpzywdr.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrdmZxamFodmdwcWpucHp5d2RyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzIzMDMzOTAsImV4cCI6MjA0Nzg3OTM5MH0.LRVhLYBP1P4EvGcPPMRlDMW7hfDgCbXLawkMpIJwfzw';
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    
+    let currentUser = null;
+    let currentContributor = null;
+    let portfolioItems = [];
+    let cropper = null;
+    let currentUploadType = null;
+    
+    // NHIAA Schools for dropdown
+    const NHIAA_SCHOOLS = [
+      'Alvirne', 'Bedford', 'Belmont', 'Berlin', 'Bishop Brady', 'Bishop Guertin', 'Bow',
+      'Campbell', 'Coe-Brown', 'Colebrook', 'Conant', 'Concord', 'Concord Christian', 'ConVal',
+      'Derryfield', 'Dover', 'Epping', 'Exeter', 'Fall Mountain', 'Farmington', 'Franklin',
+      'Gilford', 'Goffstown', 'Gorham', 'Groveton', 'Hanover', 'Hillsboro-Deering', 'Hinsdale',
+      'Hollis-Brookline', 'Holy Family', 'Hopkinton', 'Inter-Lakes', 'John Stark', 'Kearsarge',
+      'Keene', 'Kennett', 'Kingswood', 'Laconia', 'Lebanon', 'Lin-Wood', 'Lisbon', 'Littleton',
+      'Londonderry', 'Manchester Central', 'Manchester Memorial', 'Manchester West', 'Mascenic',
+      'Mascoma', 'Merrimack', 'Merrimack Valley', 'Milford', 'Monadnock', 'Moultonborough',
+      'Mount Royal', 'Nashua North', 'Nashua South', 'Newfound', 'Newmarket', 'Newport',
+      'Nute', 'Oyster River', 'Pelham', 'Pembroke', 'Pinkerton', 'Pittsburg-Canaan',
+      'Pittsfield', 'Plymouth', 'Portsmouth', 'Portsmouth Christian', 'Profile',
+      'Prospect Mountain', 'Raymond', 'Salem', 'Sanborn', 'Somersworth', 'Souhegan',
+      'Spaulding', 'Stevens', 'St. Thomas Aquinas', 'Sunapee', 'Timberlane', 'Trinity',
+      'White Mountains', 'Wilton-Lyndeborough', 'Windham', 'Winnacunnet', 'Winnisquam', 'Woodsville'
+    ];
+    
+    // Initialize
+    document.addEventListener('DOMContentLoaded', async () => {
+      // Populate alma mater dropdown
+      const almaMaterSelect = document.getElementById('profileAlmaMater');
+      NHIAA_SCHOOLS.forEach(school => {
+        const opt = document.createElement('option');
+        opt.value = school;
+        opt.textContent = school;
+        almaMaterSelect.appendChild(opt);
+      });
+      
+      // Set up radio button listeners for "Other" options
+      document.querySelectorAll('input[name="cameraBrand"]').forEach(radio => {
+        radio.addEventListener('change', () => {
+          document.getElementById('cameraBrandOther').style.display = 
+            document.querySelector('input[name="cameraBrand"][value="Other"]').checked ? 'block' : 'none';
+        });
+      });
+      
+      document.querySelectorAll('input[name="computerPref"]').forEach(radio => {
+        radio.addEventListener('change', () => {
+          document.getElementById('computerPrefOther').style.display = 
+            document.querySelector('input[name="computerPref"][value="Other"]').checked ? 'block' : 'none';
+        });
+      });
+      
+      // Check for existing session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        currentUser = session.user;
+        await loadContributorProfile();
+      }
+      
+      // Listen for auth changes
+      supabase.auth.onAuthStateChange(async (event, session) => {
+        if (event === 'SIGNED_IN' && session) {
+          currentUser = session.user;
+          await loadContributorProfile();
+        } else if (event === 'SIGNED_OUT') {
+          currentUser = null;
+          currentContributor = null;
+          showLoginScreen();
+        }
+      });
+    });
+    
+    // Auth functions
+    function showLogin() {
+      document.getElementById('loginForm').style.display = 'block';
+      document.getElementById('forgotForm').style.display = 'none';
+      document.getElementById('setPasswordForm').style.display = 'none';
+      document.getElementById('loginSubtitle').textContent = 'Sign in to manage your profile';
+      document.getElementById('loginError').textContent = '';
+      document.getElementById('loginError').className = 'login-error';
+    }
+    
+    function showForgotPassword() {
+      document.getElementById('loginForm').style.display = 'none';
+      document.getElementById('forgotForm').style.display = 'block';
+      document.getElementById('setPasswordForm').style.display = 'none';
+      document.getElementById('loginSubtitle').textContent = 'Reset your password';
+      document.getElementById('loginError').textContent = '';
+      document.getElementById('loginError').className = 'login-error';
+    }
+    
+    function showSetPassword() {
+      document.getElementById('loginForm').style.display = 'none';
+      document.getElementById('forgotForm').style.display = 'none';
+      document.getElementById('setPasswordForm').style.display = 'block';
+      document.getElementById('loginSubtitle').textContent = 'Create your password';
+      document.getElementById('loginError').textContent = '';
+      document.getElementById('loginError').className = 'login-error';
+    }
+    
+    function showLoginScreen() {
+      document.getElementById('loginScreen').style.display = 'flex';
+      document.getElementById('mainHeader').style.display = 'none';
+      document.getElementById('mainContent').style.display = 'none';
+    }
+    
+    function showMainScreen() {
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('mainHeader').style.display = 'block';
+      document.getElementById('mainContent').style.display = 'block';
+    }
+    
+    async function handleLogin() {
+      const email = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      const errorEl = document.getElementById('loginError');
+      
+      if (!email || !password) {
+        errorEl.textContent = 'Please enter email and password';
+        return;
+      }
+      
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        
+        if (error) {
+          if (error.message.includes('Invalid login')) {
+            errorEl.textContent = 'Invalid email or password';
+          } else {
+            errorEl.textContent = error.message;
+          }
+          return;
+        }
+        
+        currentUser = data.user;
+        await loadContributorProfile();
+      } catch (err) {
+        errorEl.textContent = 'Login failed. Please try again.';
+      }
+    }
+    
+    async function handleResetPassword() {
+      const email = document.getElementById('resetEmail').value.trim();
+      const errorEl = document.getElementById('loginError');
+      
+      if (!email) {
+        errorEl.textContent = 'Please enter your email';
+        return;
+      }
+      
+      try {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: window.location.origin + '/contributor-portal.html'
+        });
+        
+        if (error) {
+          errorEl.textContent = error.message;
+          return;
+        }
+        
+        errorEl.className = 'login-success';
+        errorEl.textContent = 'Check your email for the reset link!';
+      } catch (err) {
+        errorEl.textContent = 'Failed to send reset email';
+      }
+    }
+    
+    async function handleLogout() {
+      await supabase.auth.signOut();
+      showLoginScreen();
+    }
+    
+    // Load contributor profile
+    async function loadContributorProfile() {
+      if (!currentUser) return;
+      
+      try {
+        // Find contributor by email
+        const { data: contributor, error } = await supabase
+          .from('contributors')
+          .select('*')
+          .eq('email', currentUser.email)
+          .single();
+        
+        if (error || !contributor) {
+          document.getElementById('loginError').textContent = 'No contributor account found for this email. Contact Ball603 admin.';
+          await supabase.auth.signOut();
+          return;
+        }
+        
+        // Check if contributor is active
+        if (!contributor.active) {
+          document.getElementById('loginError').textContent = 'Your contributor account is inactive. Contact Ball603 admin.';
+          await supabase.auth.signOut();
+          return;
+        }
+        
+        // Link auth user to contributor if not already linked
+        if (!contributor.auth_user_id) {
+          await supabase
+            .from('contributors')
+            .update({ auth_user_id: currentUser.id })
+            .eq('id', contributor.id);
+        }
+        
+        currentContributor = contributor;
+        populateForm(contributor);
+        await loadPortfolio();
+        
+        document.getElementById('userName').textContent = contributor.name;
+        showMainScreen();
+        
+      } catch (err) {
+        console.error('Error loading profile:', err);
+        document.getElementById('loginError').textContent = 'Error loading profile';
+      }
+    }
+    
+    // Populate form with contributor data
+    function populateForm(c) {
+      document.getElementById('profileName').value = c.name || '';
+      document.getElementById('profileEmail').value = c.email || '';
+      document.getElementById('profileArea').value = c.primary_area || '';
+      document.getElementById('profileCell').value = c.cell || '';
+      document.getElementById('profileAddress').value = c.mailing_address || '';
+      document.getElementById('profileVenmo').value = c.venmo || '';
+      document.getElementById('profileShirtSize').value = c.shirt_size || '';
+      document.getElementById('profileAlmaMater').value = c.nhiaa_alma_mater || '';
+      document.getElementById('profileCollege').value = c.college || '';
+      
+      document.getElementById('typePhotographer').checked = c.is_photographer || false;
+      document.getElementById('typeVideographer').checked = c.is_videographer || false;
+      document.getElementById('typeWriter').checked = c.is_writer || false;
+      document.getElementById('typeGraphics').checked = c.is_graphics || false;
+      
+      document.getElementById('profileWebsite').value = c.website_url || '';
+      document.getElementById('profileInstagram').value = c.instagram_url || '';
+      document.getElementById('profileFacebook').value = c.facebook_url || '';
+      document.getElementById('profileTwitter').value = c.twitter_url || '';
+      
+      // Camera brand
+      if (c.camera_brand) {
+        const validBrands = ['Canon', 'Nikon', 'Sony'];
+        if (validBrands.includes(c.camera_brand)) {
+          const radio = document.querySelector(`input[name="cameraBrand"][value="${c.camera_brand}"]`);
+          if (radio) radio.checked = true;
+        } else {
+          document.querySelector('input[name="cameraBrand"][value="Other"]').checked = true;
+          document.getElementById('cameraBrandOther').value = c.camera_brand;
+          document.getElementById('cameraBrandOther').style.display = 'block';
+        }
+      }
+      if (c.camera_brand_other) {
+        document.getElementById('cameraBrandOther').value = c.camera_brand_other;
+        document.getElementById('cameraBrandOther').style.display = 'block';
+      }
+      
+      // Computer preference
+      if (c.computer_preference) {
+        const validPrefs = ['Mac', 'PC'];
+        if (validPrefs.includes(c.computer_preference)) {
+          const radio = document.querySelector(`input[name="computerPref"][value="${c.computer_preference}"]`);
+          if (radio) radio.checked = true;
+        } else {
+          document.querySelector('input[name="computerPref"][value="Other"]').checked = true;
+          document.getElementById('computerPrefOther').value = c.computer_preference;
+          document.getElementById('computerPrefOther').style.display = 'block';
+        }
+      }
+      if (c.computer_preference_other) {
+        document.getElementById('computerPrefOther').value = c.computer_preference_other;
+        document.getElementById('computerPrefOther').style.display = 'block';
+      }
+      
+      document.getElementById('profileBio').value = c.bio || '';
+      updateCharCount();
+      
+      // Images
+      if (c.headshot_url) {
+        setImagePreview('headshot', c.headshot_url);
+      }
+      if (c.watermark_url) {
+        setImagePreview('watermark', c.watermark_url);
+      }
+      if (c.logo_url) {
+        setImagePreview('logo', c.logo_url);
+      }
+    }
+    
+    // Save profile
+    async function saveProfile() {
+      if (!currentContributor) return;
+      
+      // Get camera brand
+      let cameraBrand = null;
+      let cameraBrandOther = null;
+      const selectedCamera = document.querySelector('input[name="cameraBrand"]:checked');
+      if (selectedCamera) {
+        if (selectedCamera.value === 'Other') {
+          cameraBrand = 'Other';
+          cameraBrandOther = document.getElementById('cameraBrandOther').value.trim() || null;
+        } else {
+          cameraBrand = selectedCamera.value;
+        }
+      }
+      
+      // Get computer preference
+      let computerPref = null;
+      let computerPrefOther = null;
+      const selectedComputer = document.querySelector('input[name="computerPref"]:checked');
+      if (selectedComputer) {
+        if (selectedComputer.value === 'Other') {
+          computerPref = 'Other';
+          computerPrefOther = document.getElementById('computerPrefOther').value.trim() || null;
+        } else {
+          computerPref = selectedComputer.value;
+        }
+      }
+      
+      const updates = {
+        name: document.getElementById('profileName').value.trim(),
+        primary_area: document.getElementById('profileArea').value.trim() || null,
+        cell: document.getElementById('profileCell').value.trim() || null,
+        mailing_address: document.getElementById('profileAddress').value.trim() || null,
+        venmo: document.getElementById('profileVenmo').value.trim() || null,
+        shirt_size: document.getElementById('profileShirtSize').value || null,
+        nhiaa_alma_mater: document.getElementById('profileAlmaMater').value || null,
+        college: document.getElementById('profileCollege').value.trim() || null,
+        is_photographer: document.getElementById('typePhotographer').checked,
+        is_videographer: document.getElementById('typeVideographer').checked,
+        is_writer: document.getElementById('typeWriter').checked,
+        is_graphics: document.getElementById('typeGraphics').checked,
+        website_url: document.getElementById('profileWebsite').value.trim() || null,
+        instagram_url: document.getElementById('profileInstagram').value.trim() || null,
+        facebook_url: document.getElementById('profileFacebook').value.trim() || null,
+        twitter_url: document.getElementById('profileTwitter').value.trim() || null,
+        camera_brand: cameraBrand,
+        camera_brand_other: cameraBrandOther,
+        computer_preference: computerPref,
+        computer_preference_other: computerPrefOther,
+        bio: document.getElementById('profileBio').value.trim() || null,
+        headshot_url: document.getElementById('headshotUrl').value || null,
+        watermark_url: document.getElementById('watermarkUrl').value || null,
+        logo_url: document.getElementById('logoUrl').value || null,
+        updated_at: new Date().toISOString()
+      };
+      
+      try {
+        const { error } = await supabase
+          .from('contributors')
+          .update(updates)
+          .eq('id', currentContributor.id);
+        
+        if (error) throw error;
+        
+        currentContributor = { ...currentContributor, ...updates };
+        document.getElementById('userName').textContent = updates.name;
+        showToast('Profile saved!', 'success');
+      } catch (err) {
+        console.error('Save error:', err);
+        showToast('Error saving profile', 'error');
+      }
+    }
+    
+    // Portfolio functions
+    async function loadPortfolio() {
+      if (!currentContributor) return;
+      
+      const listEl = document.getElementById('portfolioList');
+      listEl.innerHTML = '<div class="loading">Loading portfolio...</div>';
+      
+      portfolioItems = [];
+      
+      // Load manual portfolio links
+      try {
+        const { data: manualLinks } = await supabase
+          .from('contributor_portfolio')
+          .select('*')
+          .eq('contributor_id', currentContributor.id)
+          .order('created_at', { ascending: false });
+        
+        if (manualLinks) {
+          portfolioItems = manualLinks.map(link => ({
+            ...link,
+            isAuto: false
+          }));
+        }
+      } catch (err) {
+        console.error('Error loading portfolio:', err);
+      }
+      
+      // Auto-fetch SmugMug galleries with contributor name
+      if (currentContributor.smugmug_name) {
+        try {
+          const response = await fetch('/.netlify/functions/smugmug?action=albums');
+          const data = await response.json();
+          
+          if (data.success && data.albums) {
+            // Filter galleries that end with "- ContributorName"
+            const searchName = currentContributor.smugmug_name.toLowerCase();
+            const myGalleries = data.albums.filter(album => {
+              const name = album.name.toLowerCase();
+              return name.endsWith('- ' + searchName) || name.includes(' - ' + searchName);
+            });
+            
+            // Add SmugMug galleries to portfolio
+            myGalleries.forEach(album => {
+              portfolioItems.push({
+                id: 'sm-' + album.key,
+                title: album.name,
+                url: album.url,
+                link_type: 'smugmug',
+                isAuto: true,
+                imageCount: album.imageCount,
+                date: album.date
+              });
+            });
+          }
+        } catch (err) {
+          console.error('Error fetching SmugMug galleries:', err);
+        }
+      }
+      
+      renderPortfolio();
+    }
+    
+    function renderPortfolio() {
+      const listEl = document.getElementById('portfolioList');
+      
+      if (portfolioItems.length === 0) {
+        listEl.innerHTML = '<p style="color: #999; font-size: 13px;">No portfolio items yet. Add links to your work below!</p>';
+        return;
+      }
+      
+      const typeIcons = {
+        'gallery': '📸',
+        'video': '🎥',
+        'article': '📝',
+        'graphics': '🎨',
+        'other': '🔗',
+        'smugmug': '📷'
+      };
+      
+      listEl.innerHTML = portfolioItems.map(item => `
+        <div class="portfolio-item ${item.isAuto ? 'auto' : ''}">
+          <span class="portfolio-icon">${typeIcons[item.link_type] || '🔗'}</span>
+          <div class="portfolio-info">
+            <div class="portfolio-title">${escapeHtml(item.title)}</div>
+            <div class="portfolio-url">
+              <a href="${escapeHtml(item.url)}" target="_blank">${escapeHtml(item.url)}</a>
+              ${item.isAuto && item.imageCount ? `<span style="margin-left: 8px; color: #888;">${item.imageCount} photos</span>` : ''}
+            </div>
+          </div>
+          <span class="portfolio-type ${item.isAuto ? 'auto' : ''}">${item.isAuto ? 'SmugMug' : item.link_type}</span>
+          ${!item.isAuto ? `<button class="btn-remove-portfolio" onclick="removePortfolioItem(${item.id})">×</button>` : ''}
+        </div>
+      `).join('');
+      `).join('');
+    }
+    
+    async function addPortfolioLink() {
+      const title = document.getElementById('newPortfolioTitle').value.trim();
+      const url = document.getElementById('newPortfolioUrl').value.trim();
+      const type = document.getElementById('newPortfolioType').value;
+      
+      if (!title || !url) {
+        showToast('Please enter title and URL', 'error');
+        return;
+      }
+      
+      try {
+        const { data, error } = await supabase
+          .from('contributor_portfolio')
+          .insert({
+            contributor_id: currentContributor.id,
+            title,
+            url,
+            link_type: type
+          })
+          .select()
+          .single();
+        
+        if (error) throw error;
+        
+        portfolioItems.unshift({ ...data, isAuto: false });
+        renderPortfolio();
+        
+        // Clear inputs
+        document.getElementById('newPortfolioTitle').value = '';
+        document.getElementById('newPortfolioUrl').value = '';
+        
+        showToast('Link added!', 'success');
+      } catch (err) {
+        console.error('Error adding link:', err);
+        showToast('Error adding link', 'error');
+      }
+    }
+    
+    async function removePortfolioItem(id) {
+      if (!confirm('Remove this link?')) return;
+      
+      try {
+        const { error } = await supabase
+          .from('contributor_portfolio')
+          .delete()
+          .eq('id', id);
+        
+        if (error) throw error;
+        
+        portfolioItems = portfolioItems.filter(p => p.id !== id);
+        renderPortfolio();
+        showToast('Link removed', 'success');
+      } catch (err) {
+        showToast('Error removing link', 'error');
+      }
+    }
+    
+    // Image upload functions
+    function triggerUpload(type) {
+      document.getElementById(`${type}Input`).click();
+    }
+    
+    function handleImageSelect(event, type) {
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      // Check file size (2MB max)
+      if (file.size > 2 * 1024 * 1024) {
+        showToast('File too large. Max 2MB allowed.', 'error');
+        return;
+      }
+      
+      currentUploadType = type;
+      
+      // For headshot, open cropper with 1:1 ratio
+      if (type === 'headshot') {
+        openCropper(file, 1);
+      } else {
+        // For watermark/logo, upload directly
+        uploadImage(file, type);
+      }
+    }
+    
+    function openCropper(file, aspectRatio) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        document.getElementById('cropperImage').src = e.target.result;
+        document.getElementById('cropperModal').classList.add('open');
+        
+        if (cropper) cropper.destroy();
+        
+        setTimeout(() => {
+          cropper = new Cropper(document.getElementById('cropperImage'), {
+            aspectRatio: aspectRatio,
+            viewMode: 1,
+            autoCropArea: 1
+          });
+        }, 100);
+      };
+      reader.readAsDataURL(file);
+    }
+    
+    function closeCropper() {
+      document.getElementById('cropperModal').classList.remove('open');
+      if (cropper) {
+        cropper.destroy();
+        cropper = null;
+      }
+      currentUploadType = null;
+    }
+    
+    async function applyCrop() {
+      if (!cropper || !currentUploadType) return;
+      
+      const canvas = cropper.getCroppedCanvas({
+        maxWidth: 800,
+        maxHeight: 800
+      });
+      
+      canvas.toBlob(async (blob) => {
+        await uploadImage(blob, currentUploadType);
+        closeCropper();
+      }, 'image/jpeg', 0.9);
+    }
+    
+    async function uploadImage(file, type) {
+      const preview = document.getElementById(`${type}Preview`);
+      preview.innerHTML = '<div class="placeholder">Uploading...</div>';
+      
+      try {
+        const filename = `contributors/${currentContributor.id}/${type}-${Date.now()}.jpg`;
+        
+        const { data, error } = await supabase.storage
+          .from('images')
+          .upload(filename, file, {
+            cacheControl: '3600',
+            upsert: true
+          });
+        
+        if (error) throw error;
+        
+        const { data: urlData } = supabase.storage
+          .from('images')
+          .getPublicUrl(filename);
+        
+        document.getElementById(`${type}Url`).value = urlData.publicUrl;
+        setImagePreview(type, urlData.publicUrl);
+        showToast('Image uploaded!', 'success');
+        
+      } catch (err) {
+        console.error('Upload error:', err);
+        preview.innerHTML = '<div class="placeholder">Click to upload</div>';
+        showToast('Upload failed: ' + err.message, 'error');
+      }
+    }
+    
+    function setImagePreview(type, url) {
+      const preview = document.getElementById(`${type}Preview`);
+      preview.innerHTML = `<img src="${url}" alt="${type}">`;
+      preview.classList.add('has-image');
+      document.getElementById(`${type}Url`).value = url;
+      document.getElementById(`${type}Remove`).style.display = 'inline-block';
+    }
+    
+    function removeImage(type) {
+      document.getElementById(`${type}Preview`).innerHTML = '<div class="placeholder">Click to upload</div>';
+      document.getElementById(`${type}Preview`).classList.remove('has-image');
+      document.getElementById(`${type}Url`).value = '';
+      document.getElementById(`${type}Remove`).style.display = 'none';
+    }
+    
+    // Helper functions
+    function updateCharCount() {
+      const text = document.getElementById('profileBio').value;
+      const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+      const countEl = document.getElementById('bioCharCount');
+      countEl.textContent = `${words} / 100 words`;
+      countEl.classList.toggle('over', words > 100);
+    }
+    
+    function openTop10Upload() {
+      if (currentContributor?.top10_dropbox_url) {
+        window.open(currentContributor.top10_dropbox_url, '_blank');
+      } else {
+        showToast('Top-10 upload link not configured yet', 'error');
+      }
+    }
+    
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+    
+    function showToast(message, type = 'success') {
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    }
+  </script>
+</body>
+</html>
