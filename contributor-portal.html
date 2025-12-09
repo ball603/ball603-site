@@ -267,10 +267,10 @@
           <span class="nav-icon">📅</span> Manage Schedule
         </button>
         <button class="nav-link" onclick="openTop10Upload()">
-          Upload Top-10
+          <span class="nav-icon">🔟</span> Upload Top-10
         </button>
         <button class="nav-link" onclick="window.open('https://smugmug.com', '_blank')">
-          Upload Full Gallery
+          <span class="nav-icon">📸</span> Upload Full Gallery
         </button>
         <button class="nav-link" id="navProfile" onclick="showView('profile')">
           <span class="nav-icon">👤</span> Edit Profile
@@ -857,8 +857,16 @@
     }
     
     async function handleLogout() {
-      await supabase.auth.signOut();
-      showLoginScreen();
+      try {
+        await supabase.auth.signOut();
+        currentUser = null;
+        currentContributor = null;
+        // Force reload to clear any cached state
+        window.location.reload();
+      } catch (err) {
+        console.error('Logout error:', err);
+        window.location.reload();
+      }
     }
     
     // Load contributor profile
@@ -960,7 +968,6 @@
                 <div class="calendar-away">${awayTeam}</div>
                 <div class="calendar-home">@ ${homeTeam}</div>
                 <div class="calendar-meta">${time} • ${game.gender || ''}</div>
-                <div class="calendar-role">${roles.map(r => `<span>${r}</span>`).join('')}</div>
               </div>
             </div>
           `;
@@ -1406,20 +1413,27 @@
     }
     
     async function fetchSmugMugGalleries() {
-      // FIXED: Query games where THIS contributor is assigned, not just any photographer
+      // Query games where THIS contributor is assigned
       try {
-        const contributorName = currentContributor.name;
+        const contributorName = (currentContributor.name || '').trim();
+        if (!contributorName) return [];
+        
         const response = await fetch(`/.netlify/functions/games?limit=500`);
         const games = await response.json();
         
-        // Filter client-side for games where this contributor was assigned and has photos
-        const myGalleries = games.filter(g => 
-          g.photos_url && 
-          (g.photog1 === contributorName || g.photog2 === contributorName)
-        ).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 20);
+        // Filter for games where this contributor was assigned and has photos
+        // Use exact match after trimming whitespace
+        const myGalleries = games.filter(g => {
+          if (!g.photos_url) return false;
+          const photog1 = (g.photog1 || '').trim();
+          const photog2 = (g.photog2 || '').trim();
+          return photog1 === contributorName || photog2 === contributorName;
+        }).sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 20);
+        
+        console.log('SmugMug galleries for', contributorName, ':', myGalleries.length, 'found');
         
         return myGalleries.map(g => ({
-          title: `${g.away} @ ${g.home}`,
+          title: `${g.away || 'TBD'} @ ${g.home || 'TBD'}`,
           url: g.photos_url,
           link_type: 'smugmug',
           date: g.date
