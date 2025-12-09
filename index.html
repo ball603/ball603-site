@@ -1,32 +1,460 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Ball603 - New Hampshire High School and College Basketball Coverage. Schedules, scores, standings, photos, and stories.">
+  <meta name="theme-color" content="#f57c00">
+  <title>Ball603 | NH Basketball Coverage</title>
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="apple-touch-icon" href="/logo.png">
+  
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <!-- Styles -->
+  <link rel="stylesheet" href="/styles.css">
+  
+  <!-- PWA Meta -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Ball603">
+  
+  <!-- Open Graph -->
+  <meta property="og:title" content="Ball603 | NH Basketball Coverage">
+  <meta property="og:description" content="New Hampshire High School and College Basketball Coverage">
+  <meta property="og:image" content="https://ball603.com/logo.png">
+  <meta property="og:url" content="https://ball603.com">
+  <meta property="og:type" content="website">
+  
+  <!-- Redirect for OAuth callback -->
   <script>
     if (window.location.hash && window.location.hash.includes('access_token')) {
       window.location.replace('/contributor-portal.html' + window.location.hash);
     }
   </script>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ball 603</title>
-  <style>
-    body {
-      font-family: sans-serif;
-      background: #1a1a1a;
-      color: white;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-    }
-    h1 { color: #f5831f; }
-  </style>
 </head>
 <body>
-  <div>
-    <h1>Ball 603</h1>
-    <p>Coming soon.</p>
+  <!-- Scores Ticker -->
+  <div class="ticker" id="ticker">
+    <div class="ticker-header">
+      <span class="ticker-title">Scores</span>
+      <button class="ticker-toggle" onclick="Ball603.toggleTicker()" title="Hide scores">✕</button>
+    </div>
+    <div class="ticker-scroll hide-scrollbar" id="tickerScroll">
+      <!-- Populated by JS -->
+      <div class="skeleton" style="width: 180px; height: 100px;"></div>
+      <div class="skeleton" style="width: 180px; height: 100px;"></div>
+      <div class="skeleton" style="width: 180px; height: 100px;"></div>
+    </div>
   </div>
+  <div class="ticker-expand" onclick="Ball603.toggleTicker()">
+    <span>📊 Show Scores</span>
+  </div>
+  
+  <!-- Desktop Header -->
+  <header class="header-desktop">
+    <a href="/">
+      <img src="/logo.png" alt="Ball603" class="header-logo" onerror="this.outerHTML='<span class=\'header-logo-text\'><span class=\'ball\'>BALL</span>603</span>'">
+    </a>
+    <nav class="header-nav">
+      <a href="/" class="active">Home</a>
+      <a href="/schedule">Schedule</a>
+      <a href="/standings">Standings</a>
+      <a href="/galleries">Galleries</a>
+      <a href="/teams.html">Teams</a>
+      <a href="/boys">Boys ▾</a>
+      <a href="/girls">Girls ▾</a>
+      <a href="/college">College ▾</a>
+    </nav>
+    <div class="header-actions">
+      <div class="header-search">
+        <span>🔍</span>
+        <input type="text" placeholder="Search..." id="searchInput">
+      </div>
+      <button class="btn btn-primary btn-pill" onclick="openMyTeams()">⭐ My Teams</button>
+    </div>
+  </header>
+  
+  <!-- Mobile Header -->
+  <header class="header-mobile">
+    <a href="/">
+      <img src="/logo.png" alt="Ball603" class="header-logo" onerror="this.outerHTML='<span class=\'header-logo-text\'><span class=\'ball\'>BALL</span>603</span>'">
+    </a>
+    <div class="header-mobile-actions">
+      <button onclick="openSearch()" title="Search">🔍</button>
+      <button onclick="openMyTeams()" title="My Teams">⭐</button>
+    </div>
+  </header>
+  
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- Hero Section -->
+    <section class="hero" id="heroSection">
+      <!-- Featured Article -->
+      <article class="hero-main" id="heroMain">
+        <div class="skeleton" style="width: 100%; height: 100%;"></div>
+      </article>
+      
+      <!-- Secondary Articles -->
+      <div class="hero-sidebar" id="heroSidebar">
+        <article class="hero-secondary">
+          <div class="skeleton" style="width: 100%; height: 100%;"></div>
+        </article>
+        <article class="hero-secondary">
+          <div class="skeleton" style="width: 100%; height: 100%;"></div>
+        </article>
+      </div>
+    </section>
+    
+    <!-- Happening Today -->
+    <section class="today-section" id="todaySection">
+      <div class="section-header">
+        <h2 class="section-title">🏀 Happening Today</h2>
+        <a href="/schedule" class="section-link">Full Schedule →</a>
+      </div>
+      <div class="today-scroll hide-scrollbar" id="todayGames">
+        <!-- Populated by JS -->
+        <div class="skeleton" style="width: 280px; height: 160px; flex-shrink: 0;"></div>
+        <div class="skeleton" style="width: 280px; height: 160px; flex-shrink: 0;"></div>
+        <div class="skeleton" style="width: 280px; height: 160px; flex-shrink: 0;"></div>
+      </div>
+    </section>
+    
+    <!-- Stories Feed -->
+    <section class="feed">
+      <div class="feed-main" id="feedMain">
+        <div class="section-header">
+          <h2 class="section-title">Latest Stories</h2>
+          <a href="/articles" class="section-link">All Stories →</a>
+        </div>
+        
+        <!-- Story cards populated by JS -->
+        <div class="skeleton" style="height: 120px;"></div>
+        <div class="skeleton" style="height: 120px;"></div>
+        <div class="skeleton" style="height: 120px;"></div>
+      </div>
+      
+      <!-- Sidebar -->
+      <aside class="feed-sidebar">
+        <!-- Standings -->
+        <div class="sidebar-card" id="standingsCard">
+          <div class="sidebar-card-header">
+            <h3 class="sidebar-card-title">Boys D-I Standings</h3>
+            <a href="/standings" class="sidebar-card-link">Full Standings →</a>
+          </div>
+          <div class="sidebar-card-content">
+            <div class="standings-mini" id="standingsMini">
+              <!-- Populated by JS -->
+              <div class="skeleton" style="height: 40px; margin-bottom: 8px;"></div>
+              <div class="skeleton" style="height: 40px; margin-bottom: 8px;"></div>
+              <div class="skeleton" style="height: 40px; margin-bottom: 8px;"></div>
+              <div class="skeleton" style="height: 40px; margin-bottom: 8px;"></div>
+              <div class="skeleton" style="height: 40px;"></div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Recent Galleries -->
+        <div class="sidebar-card">
+          <div class="sidebar-card-header">
+            <h3 class="sidebar-card-title">📸 Recent Galleries</h3>
+            <a href="/galleries" class="sidebar-card-link">All Galleries →</a>
+          </div>
+          <div class="sidebar-card-content">
+            <div class="photos-grid" id="recentGalleries">
+              <!-- Populated by JS -->
+              <div class="skeleton" style="aspect-ratio: 16/9;"></div>
+              <div class="skeleton" style="aspect-ratio: 16/9;"></div>
+              <div class="skeleton" style="aspect-ratio: 16/9;"></div>
+              <div class="skeleton" style="aspect-ratio: 16/9;"></div>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </section>
+  </main>
+  
+  <!-- Bottom Navigation (Mobile) -->
+  <nav class="bottom-nav">
+    <div class="bottom-nav-items">
+      <a href="/" class="bottom-nav-item active">
+        <span class="bottom-nav-icon">🏠</span>
+        <span>Home</span>
+      </a>
+      <a href="/schedule" class="bottom-nav-item">
+        <span class="bottom-nav-icon">📅</span>
+        <span>Schedule</span>
+      </a>
+      <a href="/galleries" class="bottom-nav-item">
+        <span class="bottom-nav-icon">📸</span>
+        <span>Galleries</span>
+      </a>
+      <a href="/my-teams" class="bottom-nav-item">
+        <span class="bottom-nav-icon">⭐</span>
+        <span>My Teams</span>
+      </a>
+      <button class="bottom-nav-item" onclick="openMoreMenu()">
+        <span class="bottom-nav-icon">☰</span>
+        <span>More</span>
+      </button>
+    </div>
+  </nav>
+  
+  <!-- Photo Gallery Overlay -->
+  <div class="gallery-overlay" id="galleryOverlay">
+    <div class="gallery-header">
+      <button class="gallery-close" onclick="Ball603.closeGallery()">✕</button>
+      <span class="gallery-title" id="galleryTitle"></span>
+      <span class="gallery-count" id="galleryCount"></span>
+    </div>
+    <div class="gallery-main">
+      <img src="" alt="" id="galleryImage">
+      <div class="gallery-nav-arrows">
+        <button class="gallery-arrow" onclick="Ball603.prevPhoto()">‹</button>
+        <button class="gallery-arrow" onclick="Ball603.nextPhoto()">›</button>
+      </div>
+    </div>
+    <div class="gallery-dots" id="galleryDots"></div>
+    <div class="gallery-info">
+      <p class="gallery-caption" id="galleryCaption"></p>
+      <p class="gallery-credit" id="galleryCredit">📸 Ball603</p>
+      <div class="gallery-actions">
+        <button class="gallery-action-btn">💾 Save</button>
+        <button class="gallery-action-btn">↗️ Share</button>
+        <button class="gallery-action-btn" onclick="window.open('https://ball603.smugmug.com', '_blank')">🖼️ Full Gallery</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- App Script -->
+  <script src="/app.js"></script>
+  
+  <!-- Page-specific Script -->
+  <script>
+    // Default placeholder image
+    const PLACEHOLDER_IMG = 'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=800&h=450&fit=crop';
+    
+    // Listen for app ready
+    document.addEventListener('ball603:ready', (e) => {
+      const { games, articles } = e.detail;
+      renderHomepage(games, articles);
+    });
+    
+    /**
+     * Render the homepage with real data
+     */
+    function renderHomepage(games, articles) {
+      renderHero(articles);
+      renderTodaysGames(games);
+      renderStories(articles);
+      renderGalleries(articles);
+      renderStandings();
+    }
+    
+    /**
+     * Render hero section with featured articles
+     */
+    function renderHero(articles) {
+      const publishedArticles = articles.filter(a => a.status === 'published');
+      
+      // Main hero
+      const heroMain = document.getElementById('heroMain');
+      if (publishedArticles.length > 0) {
+        const featured = publishedArticles[0];
+        heroMain.innerHTML = `
+          <img src="${featured.featured_image_url || PLACEHOLDER_IMG}" alt="${featured.title}">
+          ${featured.youtube_url ? '<button class="hero-play">▶</button>' : ''}
+          <div class="hero-overlay">
+            <span class="hero-tag ${featured.youtube_url ? 'video' : ''}">${featured.youtube_url ? '🎬 Video' : '📸 Coverage'}</span>
+            <h2 class="hero-title">${featured.title}</h2>
+            <p class="hero-meta">${Ball603.formatDate(featured.published_at?.split('T')[0], 'short')} • ${featured.author || 'Ball603'}</p>
+          </div>
+        `;
+        heroMain.onclick = () => Ball603.goToArticle(featured.slug);
+      }
+      
+      // Secondary heroes
+      const heroSidebar = document.getElementById('heroSidebar');
+      if (publishedArticles.length > 1) {
+        heroSidebar.innerHTML = publishedArticles.slice(1, 3).map(article => `
+          <article class="hero-secondary" onclick="Ball603.goToArticle('${article.slug}')">
+            <img src="${article.featured_image_url || PLACEHOLDER_IMG}" alt="${article.title}">
+            <div class="hero-overlay">
+              <span class="hero-tag">${getArticleTag(article)}</span>
+              <h2 class="hero-title">${article.title}</h2>
+            </div>
+          </article>
+        `).join('');
+      }
+    }
+    
+    /**
+     * Render today's games
+     */
+    function renderTodaysGames(games) {
+      const todayGames = Ball603.getTodaysGames();
+      const upcomingGames = Ball603.getUpcomingGames(3);
+      const gamesToShow = todayGames.length > 0 ? todayGames : upcomingGames.slice(0, 8);
+      
+      const container = document.getElementById('todayGames');
+      const section = document.getElementById('todaySection');
+      
+      // Update section title if showing upcoming instead of today
+      if (todayGames.length === 0 && upcomingGames.length > 0) {
+        section.querySelector('.section-title').textContent = '🏀 Upcoming Games';
+      }
+      
+      if (gamesToShow.length === 0) {
+        container.innerHTML = '<div class="empty-state"><p>No games scheduled</p></div>';
+        return;
+      }
+      
+      container.innerHTML = gamesToShow.map(game => {
+        let coverageHtml = '';
+        if (game.photog1 || game.photog2) coverageHtml += '<span class="coverage-badge">📸 Photos</span>';
+        if (game.writer) coverageHtml += '<span class="coverage-badge">✍️ Story</span>';
+        
+        return `
+          <article class="game-card" onclick="Ball603.goToGame('${game.game_id}')">
+            <div class="game-card-header">
+              <span class="game-card-time">${Ball603.formatTime(game.time)}</span>
+              <span class="game-card-division">${Ball603.formatDivision(game)}</span>
+            </div>
+            <div class="game-card-teams">
+              <div class="game-card-team">
+                <img class="game-card-logo" src="${Ball603.getLogoUrl(game.away)}" alt="" onerror="this.src='/logos/100px/Ball603-white.png'">
+                <span class="game-card-name">${Ball603.getShortName(game.away)}</span>
+              </div>
+              <div class="game-card-team">
+                <img class="game-card-logo" src="${Ball603.getLogoUrl(game.home)}" alt="" onerror="this.src='/logos/100px/Ball603-white.png'">
+                <span class="game-card-name">${Ball603.getShortName(game.home)}</span>
+              </div>
+            </div>
+            ${coverageHtml ? `<div class="game-card-coverage">${coverageHtml}</div>` : ''}
+          </article>
+        `;
+      }).join('');
+    }
+    
+    /**
+     * Render story cards
+     */
+    function renderStories(articles) {
+      const container = document.getElementById('feedMain');
+      const publishedArticles = articles.filter(a => a.status === 'published').slice(3); // Skip first 3 (used in hero)
+      
+      if (publishedArticles.length === 0) {
+        container.innerHTML = `
+          <div class="section-header">
+            <h2 class="section-title">Latest Stories</h2>
+            <a href="/articles" class="section-link">All Stories →</a>
+          </div>
+          <div class="empty-state">
+            <p>No stories yet. Check back soon!</p>
+          </div>
+        `;
+        return;
+      }
+      
+      container.innerHTML = `
+        <div class="section-header">
+          <h2 class="section-title">Latest Stories</h2>
+          <a href="/articles" class="section-link">All Stories →</a>
+        </div>
+        ${publishedArticles.slice(0, 6).map(article => `
+          <article class="story-card" onclick="Ball603.goToArticle('${article.slug}')">
+            <img src="${article.featured_image_url || PLACEHOLDER_IMG}" alt="" class="story-image">
+            <div class="story-content">
+              <span class="story-tag">${getArticleTag(article)}</span>
+              <h3 class="story-title">${article.title}</h3>
+              <p class="story-excerpt">${article.excerpt || ''}</p>
+              <p class="story-meta">${Ball603.formatDate(article.published_at?.split('T')[0], 'short')} • ${article.author || 'Ball603'}</p>
+            </div>
+          </article>
+        `).join('')}
+      `;
+    }
+    
+    /**
+     * Render recent galleries in sidebar
+     */
+    function renderGalleries(articles) {
+      const container = document.getElementById('recentGalleries');
+      const articlesWithPhotos = articles.filter(a => a.smugmug_gallery_url && a.featured_image_url).slice(0, 4);
+      
+      if (articlesWithPhotos.length === 0) {
+        container.innerHTML = '<p class="text-muted text-center">No galleries yet</p>';
+        return;
+      }
+      
+      container.innerHTML = articlesWithPhotos.map(article => `
+        <div class="photo-thumb" onclick="Ball603.goToArticle('${article.slug}')">
+          <img src="${article.featured_image_url}" alt="${article.title}">
+          <div class="photo-thumb-overlay">${article.title.substring(0, 30)}${article.title.length > 30 ? '...' : ''}</div>
+        </div>
+      `).join('');
+    }
+    
+    /**
+     * Render standings mini in sidebar
+     * For now showing placeholder - will connect to real standings data
+     */
+    function renderStandings() {
+      const container = document.getElementById('standingsMini');
+      
+      // Placeholder standings - will be replaced with real data
+      const sampleStandings = [
+        { rank: 1, team: 'Bedford', record: '5-0' },
+        { rank: 2, team: 'Pinkerton', record: '4-1' },
+        { rank: 3, team: 'Winnacunnet', record: '4-1' },
+        { rank: 4, team: 'Londonderry', record: '3-2' },
+        { rank: 5, team: 'Manchester Central', record: '3-2' }
+      ];
+      
+      container.innerHTML = sampleStandings.map(s => `
+        <div class="standings-row">
+          <span class="standings-rank">${s.rank}</span>
+          <img class="standings-logo" src="${Ball603.getLogoUrl(s.team)}" alt="" onerror="this.src='/logos/100px/Ball603-white.png'">
+          <span class="standings-team">${Ball603.getShortName(s.team)}</span>
+          <span class="standings-record">${s.record}</span>
+        </div>
+      `).join('');
+    }
+    
+    /**
+     * Get display tag for an article based on its metadata
+     */
+    function getArticleTag(article) {
+      if (article.tags && article.tags.length > 0) {
+        return article.tags[0];
+      }
+      // Try to extract from game_id if linked
+      return 'Coverage';
+    }
+    
+    /**
+     * Open search modal (placeholder)
+     */
+    function openSearch() {
+      Ball603.showToast('Search coming soon!');
+    }
+    
+    /**
+     * Open My Teams modal (placeholder)
+     */
+    function openMyTeams() {
+      Ball603.showToast('My Teams coming soon!');
+    }
+    
+    /**
+     * Open More menu (placeholder)
+     */
+    function openMoreMenu() {
+      Ball603.showToast('More menu coming soon!');
+    }
+  </script>
 </body>
 </html>

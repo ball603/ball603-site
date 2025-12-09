@@ -3,260 +3,666 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Ball603 - New Hampshire High School and College Basketball Schedule">
+  <meta name="theme-color" content="#f57c00">
   <title>Schedule | Ball603</title>
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="apple-touch-icon" href="/logo.png">
+  
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <!-- Shared Styles -->
+  <link rel="stylesheet" href="/styles.css">
+  
+  <!-- Schedule-specific styles -->
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    html { overflow-y: scroll; scrollbar-width: none; -ms-overflow-style: none; }
-    html::-webkit-scrollbar { display: none; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #333; min-height: 100vh; }
+    /* ===== SCHEDULE PAGE STYLES ===== */
     
-    /* Header */
-    .header { background: #fff; padding: 15px 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); position: relative; z-index: 1000; }
-    .header-inner { max-width: 1100px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; position: relative; }
-    .header-left { display: flex; align-items: center; gap: 15px; }
-    .header-left img { height: 50px; cursor: pointer; }
-    .header-left h1 { font-size: 20px; color: #333; }
-    .header-nav { display: flex; gap: 20px; }
-    .header-nav a { color: #666; text-decoration: none; font-size: 14px; font-weight: 500; }
-    .header-nav a:hover { color: #f57c00; }
-    .header-nav a.active { color: #f57c00; }
-    .hamburger { display: none; flex-direction: column; gap: 5px; cursor: pointer; padding: 5px; }
-    .hamburger span { display: block; width: 24px; height: 3px; background: #333; border-radius: 2px; }
+    /* Page header */
+    .page-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: var(--space-lg);
+    }
     
-    /* Main container */
-    .container { max-width: 720px; margin: 0 auto; padding: 20px; }
+    .page-title {
+      font-size: var(--font-size-2xl);
+      font-weight: var(--font-weight-bold);
+      color: var(--text-primary);
+    }
     
-    /* Controls */
-    .controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: nowrap; gap: 10px; width: 100%; }
-    .date-nav { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-    .date-nav button { background: #fff; border: 1px solid #ddd; border-radius: 5px; padding: 0 10px; cursor: pointer; font-size: 14px; flex-shrink: 0; height: 32px; line-height: 32px; }
-    .date-nav button:hover { background: #f5f5f5; }
-    .date-nav .current-date { font-size: 13px; font-weight: 600; white-space: nowrap; width: 230px; text-align: center; }
-    .filters { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
-    .filters select, .filters input { padding: 0 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px; height: 32px; }
-    .filters select { width: 85px; }
-    .filters input { width: 110px; }
+    @media (max-width: 768px) {
+      .page-title {
+        font-size: var(--font-size-xl);
+      }
+    }
+    
+    /* Controls bar */
+    .controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: var(--space-md);
+      margin-bottom: var(--space-lg);
+      flex-wrap: wrap;
+    }
+    
+    .date-nav {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+    
+    .date-nav button {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 0 var(--space-md);
+      cursor: pointer;
+      font-size: var(--font-size-base);
+      height: 36px;
+      color: var(--text-primary);
+      transition: background var(--transition-fast), border-color var(--transition-fast);
+    }
+    
+    .date-nav button:hover {
+      background: var(--bg-tertiary);
+      border-color: var(--accent);
+    }
+    
+    .current-date {
+      font-size: var(--font-size-base);
+      font-weight: var(--font-weight-semibold);
+      color: var(--text-primary);
+      white-space: nowrap;
+      min-width: 220px;
+      text-align: center;
+    }
+    
+    .filters {
+      display: flex;
+      gap: var(--space-sm);
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    
+    .filters select,
+    .filters input {
+      padding: 0 var(--space-md);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      font-size: var(--font-size-sm);
+      height: 36px;
+      background: var(--bg-card);
+      color: var(--text-primary);
+      transition: border-color var(--transition-fast);
+    }
+    
+    .filters select:focus,
+    .filters input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    
+    .filters select {
+      width: 90px;
+      cursor: pointer;
+    }
+    
+    .filters input {
+      width: 140px;
+    }
+    
+    .filters input::placeholder {
+      color: var(--text-muted);
+    }
+    
+    .calendar-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 0 var(--space-md);
+      height: 36px;
+      cursor: pointer;
+      font-size: var(--font-size-md);
+      transition: background var(--transition-fast), border-color var(--transition-fast);
+    }
+    
+    .calendar-btn:hover {
+      background: var(--bg-tertiary);
+      border-color: var(--accent);
+    }
+    
+    @media (max-width: 768px) {
+      .controls {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      
+      .date-nav {
+        justify-content: center;
+      }
+      
+      .filters {
+        justify-content: center;
+      }
+      
+      .filters input {
+        width: 100%;
+        flex: 1;
+      }
+    }
     
     /* Schedule container */
-    .schedule-container { 
-      background: #fff; 
-      border-radius: 10px; 
-      box-shadow: 0 2px 5px rgba(0,0,0,0.05); 
-      overflow-x: auto;
-      max-height: calc(100vh - 250px);
-      overflow-y: auto;
-      scrollbar-width: none;
-      -ms-overflow-style: none;
+    .schedule-container {
+      background: var(--bg-card);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-color);
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
     }
-    .schedule-container::-webkit-scrollbar { display: none; }
     
-    /* Date header */
-    .date-header { background: #f8f8f8; padding: 12px 20px; font-weight: 600; font-size: 15px; border-bottom: 1px solid #eee; color: #333; }
+    .schedule-scroll {
+      overflow-x: auto;
+      max-height: calc(100vh - 320px);
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border-color) transparent;
+    }
+    
+    @media (max-width: 768px) {
+      .schedule-scroll {
+        max-height: calc(100vh - 380px);
+      }
+    }
     
     /* Games table */
-    .games-table { width: 100%; min-width: 550px; border-collapse: collapse; background: #fff; font-size: 12px; }
-    .games-table thead th { position: sticky; top: 0; z-index: 100; background: #e8e8e8; }
-    .games-table th { background: #e8e8e8; padding: 8px 4px; text-align: left; font-weight: 600; color: #333; white-space: nowrap; }
-    .games-table td { padding: 5px 4px; border-bottom: 1px solid #eee; vertical-align: middle; white-space: nowrap; }
-    .games-table tr:nth-child(even) { background: #f9f9f9; }
-    .games-table tr:hover { background: #f0f0f0; }
+    .games-table {
+      width: 100%;
+      min-width: 580px;
+      border-collapse: collapse;
+      font-size: var(--font-size-sm);
+    }
     
-    /* Gender column */
-    .gender-col { width: 36px; font-size: 12px; color: #333; text-align: center; }
+    .games-table thead th {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: var(--bg-tertiary);
+      padding: var(--space-sm) var(--space-sm);
+      text-align: left;
+      font-weight: var(--font-weight-semibold);
+      color: var(--text-secondary);
+      white-space: nowrap;
+      border-bottom: 1px solid var(--border-color);
+      font-size: var(--font-size-xs);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
     
-    /* Team columns */
+    .games-table td {
+      padding: var(--space-sm);
+      border-bottom: 1px solid var(--border-color);
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+    
+    .games-table tbody tr:hover {
+      background: var(--bg-tertiary);
+    }
+    
+    /* Column widths */
+    .gender-col { width: 50px; text-align: center; }
     .team-col { white-space: nowrap; }
     .team-col.away { text-align: right; }
-    .team { display: flex; align-items: center; gap: 5px; }
-    .team.away-team { justify-content: flex-end; }
-    .team-logo { width: 24px; height: 24px; border-radius: 4px; object-fit: contain; flex-shrink: 0; }
-    .team-name { font-size: 12px; color: #333; text-decoration: none; }
-    a.team-name:hover { color: #f57c00; }
+    .score-col { width: 90px; text-align: center !important; }
+    .time-col { width: 60px; text-align: center; }
+    .coverage-col { width: 80px; }
     
-    /* Score column (between teams) */
-    .score-col { width: 70px; text-align: center !important; padding: 0 4px !important; }
-    .score-display { display: flex; align-items: center; justify-content: center; gap: 3px; font-weight: 700; font-size: 14px; }
-    .score-box { min-width: 32px; height: 24px; line-height: 24px; padding: 0 6px; background: #f0f0f0; border-radius: 4px; text-align: center; }
-    .score-box.winner { background: #e8f5e9; color: #2e7d32; }
-    .score-dash { color: #999; font-weight: 400; }
-    .score-pending { color: #ccc; font-size: 16px; font-weight: 400; }
-    
-    /* Time/Score column */
-    .time-col { width: 55px; text-align: center; padding: 0 4px !important; }
-    .game-time { color: #333; font-size: 12px; }
-    .game-final { font-size: 11px; color: #666; text-transform: uppercase; font-weight: 600; }
-    
-    /* Coverage column */
-    .coverage-col { width: 70px; }
-    .coverage-icons { display: flex; gap: 5px; }
-    .coverage-icon { font-size: 15px; text-decoration: none; }
-    .coverage-icon:hover { transform: scale(1.15); }
-    
-    /* Game description row */
-    .game-description-row td { 
-      padding: 8px 6px 2px 6px !important; 
-      border-bottom: none !important; 
+    /* Team display */
+    .team {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
     }
-    .game-description { 
-      font-size: 11px; 
-      font-weight: 600; 
-      color: #666; 
-      text-transform: uppercase; 
+    
+    .team.away-team {
+      justify-content: flex-end;
+    }
+    
+    .team-logo {
+      width: 24px;
+      height: 24px;
+      border-radius: var(--radius-sm);
+      object-fit: contain;
+      flex-shrink: 0;
+      background: var(--bg-tertiary);
+    }
+    
+    .team-name {
+      font-size: var(--font-size-sm);
+      color: var(--text-primary);
+      text-decoration: none;
+      font-weight: var(--font-weight-medium);
+    }
+    
+    a.team-name:hover {
+      color: var(--accent);
+    }
+    
+    /* Score display */
+    .score-display {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      font-weight: var(--font-weight-bold);
+      font-size: var(--font-size-base);
+    }
+    
+    .score-box {
+      min-width: 32px;
+      height: 26px;
+      line-height: 26px;
+      padding: 0 var(--space-sm);
+      background: var(--bg-tertiary);
+      border-radius: var(--radius-sm);
+      text-align: center;
+      color: var(--text-secondary);
+    }
+    
+    .score-box.winner {
+      background: var(--score-win-bg);
+      color: var(--score-win);
+    }
+    
+    .score-dash {
+      color: var(--text-muted);
+      font-weight: var(--font-weight-normal);
+    }
+    
+    .score-pending {
+      color: var(--text-muted);
+      font-size: var(--font-size-lg);
+    }
+    
+    /* Time display */
+    .game-time {
+      color: var(--text-secondary);
+      font-size: var(--font-size-sm);
+    }
+    
+    .game-final {
+      font-size: var(--font-size-xs);
+      color: var(--score-win);
+      text-transform: uppercase;
+      font-weight: var(--font-weight-bold);
+    }
+    
+    /* Coverage icons */
+    .coverage-icons {
+      display: flex;
+      gap: var(--space-sm);
+    }
+    
+    .coverage-icon {
+      font-size: var(--font-size-md);
+      text-decoration: none;
+      transition: transform var(--transition-fast);
+    }
+    
+    .coverage-icon:hover {
+      transform: scale(1.15);
+    }
+    
+    /* Date header row (for multi-day view) */
+    .date-header-row td {
+      background: var(--bg-secondary) !important;
+      font-weight: var(--font-weight-bold);
+      font-size: var(--font-size-base);
+      color: var(--text-primary);
+      padding: var(--space-md) !important;
+      border-bottom: 2px solid var(--border-color);
+    }
+    
+    /* Game description row (tournament rounds, etc) */
+    .game-description-row td {
+      padding: var(--space-md) var(--space-sm) var(--space-xs) !important;
+      border-bottom: none !important;
+    }
+    
+    .game-description {
+      font-size: var(--font-size-xs);
+      font-weight: var(--font-weight-bold);
+      color: var(--accent);
+      text-transform: uppercase;
       letter-spacing: 0.5px;
       text-align: center;
     }
     
-    /* Grouped game rows - 4 priority levels */
-    .grouped-game td {
-      border-bottom: 1px solid #ffe0b3 !important;
+    /* Tournament priority styling */
+    .game-description-row.priority-1 td,
+    .grouped-game.priority-1 td {
+      background: rgba(245, 124, 0, 0.08);
     }
-    .grouped-game:hover td { filter: brightness(0.97); }
     
-    /* Priority 1: Championship/Final/Title - lightest */
-    .game-description-row.priority-1 td { background: #fffaf0 !important; }
-    .grouped-game.priority-1 td { background: #fffaf0 !important; }
+    .game-description-row.priority-2 td,
+    .grouped-game.priority-2 td {
+      background: rgba(245, 124, 0, 0.06);
+    }
     
-    /* Priority 2: Semifinal/Semi/Semis */
-    .game-description-row.priority-2 td { background: #fff5e6 !important; }
-    .grouped-game.priority-2 td { background: #fff5e6 !important; }
+    .game-description-row.priority-3 td,
+    .grouped-game.priority-3 td {
+      background: rgba(245, 124, 0, 0.04);
+    }
     
-    /* Priority 3: Quarterfinal/Quarter/Quarters */
-    .game-description-row.priority-3 td { background: #ffedcc !important; }
-    .grouped-game.priority-3 td { background: #ffedcc !important; }
+    .game-description-row.priority-4 td,
+    .grouped-game.priority-4 td {
+      background: rgba(245, 124, 0, 0.02);
+    }
     
-    /* Priority 4: First Round */
-    .game-description-row.priority-4 td { background: #ffe4b3 !important; }
-    .grouped-game.priority-4 td { background: #ffe4b3 !important; }
+    .grouped-game td {
+      border-bottom: 1px solid rgba(245, 124, 0, 0.2) !important;
+    }
     
     /* Special event row */
-    .special-event-row td { 
-      padding: 12px 6px !important; 
-      background: #fff8e1 !important;
+    .special-event-row td {
+      padding: var(--space-md) !important;
+      background: var(--accent-light) !important;
     }
-    .special-event-row:hover td { background: #fff3c4 !important; }
-    .special-event { 
-      font-size: 13px; 
-      font-weight: 600; 
-      color: #f57c00;
+    
+    .special-event {
+      font-size: var(--font-size-base);
+      font-weight: var(--font-weight-semibold);
+      color: var(--accent);
       text-align: center;
     }
     
     /* Empty state */
-    .empty-state { padding: 60px 20px; text-align: center; color: #888; }
-    .empty-state p { font-size: 16px; }
+    .empty-state {
+      padding: var(--space-2xl);
+      text-align: center;
+      color: var(--text-muted);
+    }
     
-    /* Loading */
-    .loading { padding: 60px 20px; text-align: center; color: #888; }
+    .empty-state p {
+      font-size: var(--font-size-md);
+    }
     
-    /* Footer */
-    .footer { text-align: center; padding: 40px 20px; }
-    .footer img { height: 40px; opacity: 0.7; cursor: pointer; }
-    .footer img:hover { opacity: 1; }
+    /* Loading state */
+    .loading {
+      padding: var(--space-2xl);
+      text-align: center;
+      color: var(--text-muted);
+    }
     
-    /* Mobile */
+    /* Calendar Modal */
+    .calendar-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: var(--z-modal);
+      backdrop-filter: blur(4px);
+    }
+    
+    .calendar-overlay.show {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .calendar-modal {
+      background: var(--bg-card);
+      border-radius: var(--radius-lg);
+      padding: var(--space-lg);
+      box-shadow: var(--shadow-lg);
+      min-width: 320px;
+      max-width: 360px;
+      border: 1px solid var(--border-color);
+    }
+    
+    .calendar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: var(--space-md);
+    }
+    
+    .calendar-header button {
+      background: none;
+      border: none;
+      font-size: var(--font-size-lg);
+      cursor: pointer;
+      padding: var(--space-sm);
+      color: var(--text-secondary);
+      border-radius: var(--radius-sm);
+      transition: background var(--transition-fast), color var(--transition-fast);
+    }
+    
+    .calendar-header button:hover {
+      background: var(--bg-tertiary);
+      color: var(--accent);
+    }
+    
+    .calendar-month {
+      font-size: var(--font-size-md);
+      font-weight: var(--font-weight-bold);
+      color: var(--text-primary);
+    }
+    
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 2px;
+      text-align: center;
+    }
+    
+    .calendar-day-header {
+      font-size: var(--font-size-xs);
+      color: var(--text-muted);
+      padding: var(--space-sm) 0;
+      font-weight: var(--font-weight-semibold);
+    }
+    
+    .calendar-day {
+      padding: var(--space-sm) 0;
+      cursor: pointer;
+      border-radius: var(--radius-sm);
+      font-size: var(--font-size-sm);
+      color: var(--text-primary);
+      transition: background var(--transition-fast);
+    }
+    
+    .calendar-day:hover {
+      background: var(--bg-tertiary);
+    }
+    
+    .calendar-day.other-month {
+      color: var(--text-muted);
+    }
+    
+    .calendar-day.today {
+      background: var(--accent-light);
+      font-weight: var(--font-weight-bold);
+    }
+    
+    .calendar-day.selected {
+      background: var(--accent);
+      color: white;
+    }
+    
+    .calendar-day.has-games {
+      font-weight: var(--font-weight-bold);
+    }
+    
+    .calendar-day.has-games::after {
+      content: '';
+      display: block;
+      width: 4px;
+      height: 4px;
+      background: var(--accent);
+      border-radius: 50%;
+      margin: 2px auto 0;
+    }
+    
+    .calendar-day.selected.has-games::after {
+      background: white;
+    }
+    
+    /* Date Range Picker */
+    .date-range-section {
+      border-top: 1px solid var(--border-color);
+      margin-top: var(--space-md);
+      padding-top: var(--space-md);
+    }
+    
+    .date-range-toggle {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      padding: var(--space-sm) var(--space-md);
+      border-radius: var(--radius-md);
+      background: var(--bg-tertiary);
+      font-size: var(--font-size-sm);
+      color: var(--text-primary);
+      transition: background var(--transition-fast);
+    }
+    
+    .date-range-toggle:hover {
+      background: var(--border-color);
+    }
+    
+    .date-range-inputs {
+      margin-top: var(--space-md);
+    }
+    
+    .date-range-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: var(--space-sm);
+      gap: var(--space-md);
+    }
+    
+    .date-range-row label {
+      font-size: var(--font-size-sm);
+      color: var(--text-secondary);
+      min-width: 45px;
+    }
+    
+    .date-range-row input[type="date"] {
+      flex: 1;
+      padding: var(--space-sm) var(--space-md);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      font-size: var(--font-size-sm);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+    }
+    
+    .date-range-apply {
+      width: 100%;
+      padding: var(--space-sm) var(--space-md);
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: var(--radius-md);
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-semibold);
+      cursor: pointer;
+      margin-top: var(--space-sm);
+      transition: background var(--transition-fast);
+    }
+    
+    .date-range-apply:hover {
+      background: var(--accent-hover);
+    }
+    
+    /* Mobile adjustments */
     @media (max-width: 768px) {
-      .container { width: auto; min-width: auto; padding: 10px; }
-      .controls { flex-wrap: wrap; }
-      .header-nav { 
-        display: none;
-        position: absolute;
-        top: 100%;
-        right: 0;
-        background: #fff;
-        flex-direction: column;
-        padding: 10px 0;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-        border-radius: 0 0 8px 8px;
-        min-width: 150px;
-        z-index: 1000;
-      }
-      .header-nav.open { display: flex; }
-      .header-nav a { padding: 10px 20px; }
-      .hamburger { display: flex; }
-      .header-left h1 { font-size: 16px; }
-      .controls { flex-direction: column; align-items: stretch; }
-      .date-nav { justify-content: center; }
-      .filters { justify-content: center; flex-wrap: wrap; }
-      .filters input { width: 100%; }
-      
       .games-table { min-width: auto; }
-      .games-table th, .games-table td { padding: 10px 8px; }
-      .gender-col { width: 40px; font-size: 11px; }
+      .games-table th, .games-table td { padding: var(--space-sm) var(--space-xs); }
+      .gender-col { width: 40px; font-size: var(--font-size-xs); }
       .team-logo { width: 20px; height: 20px; }
-      .team-name { font-size: 13px; }
-      .score-col { width: 70px; }
-      .score-display { font-size: 12px; }
-      .score-box { min-width: 24px; padding: 2px 4px; }
-      .time-col { width: 60px; font-size: 12px; }
-      .coverage-col { width: 80px; }
-      .coverage-icons { gap: 6px; }
-      .coverage-icon { font-size: 15px; }
+      .team-name { font-size: var(--font-size-sm); }
+      .score-col { width: 80px; }
+      .score-display { font-size: var(--font-size-sm); }
+      .score-box { min-width: 26px; height: 22px; line-height: 22px; padding: 0 4px; }
+      .time-col { width: 55px; font-size: var(--font-size-xs); }
+      .coverage-col { width: 70px; }
+      .coverage-icons { gap: var(--space-xs); }
+      .coverage-icon { font-size: var(--font-size-sm); }
     }
     
     @media (max-width: 480px) {
       .team-logo { display: none; }
       .gender-col { display: none; }
     }
-    
-    /* Calendar Modal */
-    .calendar-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.4); z-index: 1000; }
-    .calendar-overlay.show { display: flex; align-items: center; justify-content: center; }
-    .calendar-modal { background: #fff; border-radius: 10px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); min-width: 300px; }
-    .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-    .calendar-header button { background: none; border: none; font-size: 18px; cursor: pointer; padding: 5px 10px; }
-    .calendar-header button:hover { background: #f5f5f5; border-radius: 5px; }
-    .calendar-month { font-size: 16px; font-weight: 600; }
-    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; }
-    .calendar-day-header { font-size: 11px; color: #666; padding: 8px 0; font-weight: 600; }
-    .calendar-day { padding: 10px 0; cursor: pointer; border-radius: 5px; font-size: 13px; }
-    .calendar-day:hover { background: #f5f5f5; }
-    .calendar-day.other-month { color: #ccc; }
-    .calendar-day.today { background: #fff3e0; font-weight: 600; }
-    .calendar-day.selected { background: #f57c00; color: #fff; }
-    .calendar-day.has-games { font-weight: 600; }
-    .calendar-day.has-games::after { content: ''; display: block; width: 4px; height: 4px; background: #f57c00; border-radius: 50%; margin: 2px auto 0; }
-    .calendar-day.selected.has-games::after { background: #fff; }
-    .calendar-btn { cursor: pointer; background: #fff; border: 1px solid #ddd; border-radius: 5px; padding: 0 10px; font-size: 14px; height: 32px; line-height: 30px; }
-    .calendar-btn:hover { background: #f5f5f5; }
-    
-    /* Date Range Picker */
-    .date-range-section { border-top: 1px solid #eee; margin-top: 15px; padding-top: 15px; }
-    .date-range-toggle { display: flex; justify-content: space-between; align-items: center; cursor: pointer; padding: 8px 10px; border-radius: 5px; background: #f5f5f5; font-size: 14px; color: #333; }
-    .date-range-toggle:hover { background: #eee; }
-    .date-range-inputs { margin-top: 12px; }
-    .date-range-row { display: flex; align-items: center; margin-bottom: 10px; gap: 10px; }
-    .date-range-row label { font-size: 13px; color: #666; min-width: 45px; }
-    .date-range-row input[type="date"] { flex: 1; padding: 8px 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; }
-    .date-range-apply { width: 100%; padding: 10px; background: #f57c00; color: #fff; border: none; border-radius: 5px; font-size: 14px; font-weight: 600; cursor: pointer; }
-    .date-range-apply:hover { background: #e65100; }
-    
-    /* Date header row for range mode */
-    .date-header-row { background: #f5f5f5; }
-    .date-header { font-weight: 600; font-size: 14px; color: #333; padding: 10px 15px !important; border-bottom: 2px solid #ddd; }
   </style>
 </head>
 <body>
-  <div class="header">
-    <div class="header-inner">
-      <div class="header-left">
-        <img src="logo.png" alt="Ball603" onclick="window.location.href='/'">
-        <h1>Schedule</h1>
-      </div>
-      <nav class="header-nav" id="headerNav">
-        <a href="/">Home</a>
-        <a href="/schedule.html" class="active">Schedule</a>
-        <a href="/standings.html">Standings</a>
-        <a href="/teams.html">Teams</a>
-      </nav>
-      <div class="hamburger" onclick="toggleMenu()">
-        <span></span>
-        <span></span>
-        <span></span>
-      </div>
+  <!-- Scores Ticker -->
+  <div class="ticker" id="ticker">
+    <div class="ticker-header">
+      <span class="ticker-title">Scores</span>
+      <button class="ticker-toggle" onclick="Ball603.toggleTicker()" title="Hide scores">✕</button>
+    </div>
+    <div class="ticker-scroll hide-scrollbar" id="tickerScroll">
+      <div class="skeleton" style="width: 180px; height: 100px;"></div>
+      <div class="skeleton" style="width: 180px; height: 100px;"></div>
+      <div class="skeleton" style="width: 180px; height: 100px;"></div>
     </div>
   </div>
+  <div class="ticker-expand" onclick="Ball603.toggleTicker()">
+    <span>📊 Show Scores</span>
+  </div>
   
-  <div class="container">
+  <!-- Desktop Header -->
+  <header class="header-desktop">
+    <a href="/">
+      <img src="/logo.png" alt="Ball603" class="header-logo" onerror="this.outerHTML='<span class=\'header-logo-text\'><span class=\'ball\'>BALL</span>603</span>'">
+    </a>
+    <nav class="header-nav">
+      <a href="/">Home</a>
+      <a href="/schedule" class="active">Schedule</a>
+      <a href="/standings">Standings</a>
+      <a href="/galleries">Galleries</a>
+      <a href="/teams.html">Teams</a>
+      <a href="/boys">Boys ▾</a>
+      <a href="/girls">Girls ▾</a>
+      <a href="/college">College ▾</a>
+    </nav>
+    <div class="header-actions">
+      <div class="header-search">
+        <span>🔍</span>
+        <input type="text" placeholder="Search..." id="headerSearchInput">
+      </div>
+      <button class="btn btn-primary btn-pill" onclick="openMyTeams()">⭐ My Teams</button>
+    </div>
+  </header>
+  
+  <!-- Mobile Header -->
+  <header class="header-mobile">
+    <a href="/">
+      <img src="/logo.png" alt="Ball603" class="header-logo" onerror="this.outerHTML='<span class=\'header-logo-text\'><span class=\'ball\'>BALL</span>603</span>'">
+    </a>
+    <div class="header-mobile-actions">
+      <button onclick="openSearch()" title="Search">🔍</button>
+      <button onclick="openMyTeams()" title="My Teams">⭐</button>
+    </div>
+  </header>
+  
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- Controls -->
     <div class="controls">
       <div class="date-nav">
         <button onclick="prevDay()">◀</button>
@@ -282,14 +688,39 @@
       </div>
     </div>
     
-    <div class="schedule-container" id="scheduleContainer">
-      <div class="loading">Loading schedule...</div>
+    <!-- Schedule -->
+    <div class="schedule-container">
+      <div class="schedule-scroll" id="scheduleContainer">
+        <div class="loading">Loading schedule...</div>
+      </div>
     </div>
-  </div>
+  </main>
   
-  <div class="footer">
-    <img src="logo.png" alt="Ball603" onclick="window.location.href='/'">
-  </div>
+  <!-- Bottom Navigation (Mobile) -->
+  <nav class="bottom-nav">
+    <div class="bottom-nav-items">
+      <a href="/" class="bottom-nav-item">
+        <span class="bottom-nav-icon">🏠</span>
+        <span>Home</span>
+      </a>
+      <a href="/schedule" class="bottom-nav-item active">
+        <span class="bottom-nav-icon">📅</span>
+        <span>Schedule</span>
+      </a>
+      <a href="/galleries" class="bottom-nav-item">
+        <span class="bottom-nav-icon">📸</span>
+        <span>Galleries</span>
+      </a>
+      <a href="/my-teams" class="bottom-nav-item">
+        <span class="bottom-nav-icon">⭐</span>
+        <span>My Teams</span>
+      </a>
+      <button class="bottom-nav-item" onclick="openMoreMenu()">
+        <span class="bottom-nav-icon">☰</span>
+        <span>More</span>
+      </button>
+    </div>
+  </nav>
   
   <!-- Calendar Modal -->
   <div class="calendar-overlay" id="calendarOverlay" onclick="closeCalendar(event)">
@@ -321,20 +752,28 @@
       </div>
     </div>
   </div>
-
+  
+  <!-- Toast container is created by app.js -->
+  
+  <!-- Shared JS -->
+  <script src="/app.js"></script>
+  
+  <!-- Schedule-specific JS -->
   <script>
-    function toggleMenu() {
-      document.getElementById('headerNav').classList.toggle('open');
-    }
-    
+    // ===== CONSTANTS =====
     const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
     const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     
+    // ===== STATE =====
     let allGames = [];
     let currentDate = new Date();
     currentDate.setHours(0, 0, 0, 0);
+    let dateRangeEnd = null;
+    let calendarDate = new Date();
     
-    // Normalize team names to short versions
+    // ===== TEAM HELPERS =====
+    
+    // Team name normalization (uses Ball603.getShortName for display, but this keeps full names in data)
     function normalizeTeamName(name) {
       if (!name) return name;
       const normalizations = {
@@ -457,17 +896,17 @@
       return normalizations[name] || name;
     }
     
-    // Team name to logo mapping
+    // Team name to logo mapping (uses same patterns as old schedule)
     function getLogoFilename(teamName) {
       if (!teamName) return 'Ball603-white.png';
       
-      // Special cases mapping (database name -> logo filename without .png)
       const specialCases = {
         'coe-brown': 'CoeBrown',
         'bishop brady': 'BishopBrady',
         'bishop guertin': 'BishopGuertin',
         'concord christian': 'ConcordChristian',
         'con-val': 'ConVal',
+        'conval': 'ConVal',
         'fall mountain': 'FallMountain',
         'hillsboro-deering': 'HillsboroDeering',
         'hollis-brookline': 'HollisBrookline',
@@ -494,13 +933,11 @@
       
       const lower = teamName.toLowerCase().trim();
       
-      // Check special cases first
       if (specialCases[lower]) {
         return specialCases[lower] + '.png';
       }
       
       // Default: capitalize first letter, remove spaces/hyphens
-      // e.g., "exeter" -> "Exeter", "berlin" -> "Berlin"
       const cleaned = teamName
         .split(/[\s-]+/)
         .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
@@ -516,16 +953,13 @@
       'new england college', 'nec', 'rivier'
     ]);
     
-    // Check if a team is a NH team (high school or college we cover)
+    // Check if a team is a NH team
     function isNHTeam(teamName) {
       if (!teamName) return false;
       const lower = teamName.toLowerCase().trim();
       
-      // Check if it's a NH college
       if (NH_COLLEGES.has(lower)) return true;
       
-      // High school teams are NH teams - check if the logo file exists
-      // by checking if it's NOT a known out-of-state pattern
       const outOfStatePatterns = [
         /university/i, /college/i, /state$/i, /tech$/i,
         /^suny/i, /^umass/i, /^uconn/i, /^boston/i, /^holy cross/i,
@@ -547,16 +981,14 @@
         /^hartford/i, /^fisher/i, /^geneseo/i, /^canton/i, /^cobleskill/i
       ];
       
-      // If matches out-of-state pattern, not NH
       for (const pattern of outOfStatePatterns) {
         if (pattern.test(lower)) return false;
       }
       
-      // Otherwise assume it's a NH high school team
       return true;
     }
     
-    // Render team name - link only if NH team
+    // Render team name with logo - link only if NH team
     function renderTeamName(teamName, isAway = false) {
       if (!teamName) return '';
       const logo = getLogoFilename(teamName);
@@ -570,7 +1002,6 @@
           return `${logoHtml}<a class="team-name" href="${link}">${teamName}</a>`;
         }
       } else {
-        // No link for out-of-state teams
         if (isAway) {
           return `<span class="team-name">${teamName}</span>${logoHtml}`;
         } else {
@@ -579,11 +1010,58 @@
       }
     }
     
+    // ===== DATE HELPERS =====
+    
+    function getDateString(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+    
+    function formatTime(time) {
+      if (!time) return 'TBD';
+      return time.replace(/^0/, '');
+    }
+    
+    function formatDateHeader(dateStr) {
+      const d = new Date(dateStr + 'T00:00:00');
+      return `${DAY_NAMES[d.getDay()]}, ${MONTH_NAMES[d.getMonth()]} ${d.getDate()}`;
+    }
+    
+    function updateDateDisplay() {
+      const dateDisplay = document.getElementById('currentDate');
+      if (dateRangeEnd) {
+        const startStr = `${MONTH_NAMES[currentDate.getMonth()].substring(0,3)} ${currentDate.getDate()}`;
+        const endStr = `${MONTH_NAMES[dateRangeEnd.getMonth()].substring(0,3)} ${dateRangeEnd.getDate()}, ${dateRangeEnd.getFullYear()}`;
+        dateDisplay.textContent = `${startStr} - ${endStr}`;
+      } else {
+        dateDisplay.textContent = `${DAY_NAMES[currentDate.getDay()]}, ${MONTH_NAMES[currentDate.getMonth()]} ${currentDate.getDate()}, ${currentDate.getFullYear()}`;
+      }
+    }
+    
+    // ===== NAVIGATION =====
+    
+    function prevDay() {
+      currentDate.setDate(currentDate.getDate() - 1);
+      dateRangeEnd = null;
+      updateDateDisplay();
+      renderSchedule();
+    }
+    
+    function nextDay() {
+      currentDate.setDate(currentDate.getDate() + 1);
+      dateRangeEnd = null;
+      updateDateDisplay();
+      renderSchedule();
+    }
+    
+    // ===== DATA LOADING =====
+    
     async function loadGames() {
       try {
         const response = await fetch('/.netlify/functions/get-games');
         const data = await response.json();
-        // Normalize team names
         allGames = (data.games || []).map(g => ({
           ...g,
           home: normalizeTeamName(g.home),
@@ -597,36 +1075,12 @@
         
         renderSchedule();
       } catch (err) {
+        console.error('Error loading games:', err);
         document.getElementById('scheduleContainer').innerHTML = '<div class="empty-state"><p>Error loading schedule. Please refresh.</p></div>';
       }
     }
     
-    function prevDay() {
-      currentDate.setDate(currentDate.getDate() - 1);
-      dateRangeEnd = null; // Clear date range when using arrow navigation
-      updateDateDisplay();
-      renderSchedule();
-    }
-    
-    function nextDay() {
-      currentDate.setDate(currentDate.getDate() + 1);
-      dateRangeEnd = null; // Clear date range when using arrow navigation
-      updateDateDisplay();
-      renderSchedule();
-    }
-    
-    function getDateString(date) {
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    }
-    
-    function formatTime(time) {
-      if (!time) return 'TBD';
-      // Remove leading zero from hour (e.g., "07:00 PM" -> "7:00 PM")
-      return time.replace(/^0/, '');
-    }
+    // ===== RENDER SCHEDULE =====
     
     function renderSchedule() {
       const search = document.getElementById('searchInput').value.toLowerCase();
@@ -637,12 +1091,9 @@
       
       // Filter games
       let games = allGames.filter(g => {
-        // Date filtering - single date or range
         if (endDateStr) {
-          // Range mode: include games from currentDate to dateRangeEnd
           if (g.date < dateStr || g.date > endDateStr) return false;
         } else {
-          // Single date mode
           if (g.date !== dateStr) return false;
         }
         if (level && g.level !== level) return false;
@@ -651,25 +1102,13 @@
         return true;
       });
       
-      // Get priority for a game description (lower number = higher priority)
-      function getDescriptionPriority(desc) {
-        if (!desc) return 99; // No description = lowest priority
-        const upper = desc.toUpperCase();
-        if (upper.includes('FINAL') || upper.includes('CHAMPIONSHIP') || upper.includes('TITLE')) return 1;
-        if (upper.includes('SEMIFINAL') || upper.includes('SEMI') || upper.includes('SEMIS')) return 2;
-        if (upper.includes('QUARTERFINAL') || upper.includes('QUARTER') || upper.includes('QUARTERS')) return 3;
-        if (upper.includes('FIRST ROUND')) return 4;
-        return 5; // Has description but not a recognized round
-      }
-      
-      // Parse time string to minutes since midnight for proper sorting
+      // Parse time for sorting
       function parseTimeForSort(timeStr) {
-        if (!timeStr) return 9999; // No time sorts last
+        if (!timeStr) return 9999;
         const upper = timeStr.toUpperCase().trim();
         if (upper === 'TBD' || upper === 'TBA') return 9998;
-        if (upper === 'FINAL') return -1; // Completed games first
+        if (upper === 'FINAL') return -1;
         
-        // Handle formats: "2 PM", "2:00 PM", "14:00", "2:30 PM"
         const match = upper.match(/(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?/i);
         if (!match) return 9997;
         
@@ -687,12 +1126,9 @@
       
       // Sort games
       games.sort((a, b) => {
-        // In range mode, sort by date first
         if (endDateStr) {
           if (a.date !== b.date) return a.date.localeCompare(b.date);
         }
-        
-        // Sort by time, then by home team alphabetically
         const timeCompare = parseTimeForSort(a.time) - parseTimeForSort(b.time);
         if (timeCompare !== 0) return timeCompare;
         return (a.home_team || '').localeCompare(b.home_team || '');
@@ -710,6 +1146,17 @@
         return;
       }
       
+      // Helper to get priority class
+      function getPriorityClass(desc) {
+        if (!desc) return '';
+        const upper = desc.toUpperCase();
+        if (upper.includes('FINAL') || upper.includes('CHAMPIONSHIP') || upper.includes('TITLE')) return 'priority-1';
+        if (upper.includes('SEMIFINAL') || upper.includes('SEMI') || upper.includes('SEMIS')) return 'priority-2';
+        if (upper.includes('QUARTERFINAL') || upper.includes('QUARTER') || upper.includes('QUARTERS')) return 'priority-3';
+        if (upper.includes('FIRST ROUND')) return 'priority-4';
+        return 'priority-4';
+      }
+      
       let html = `
         <table class="games-table">
           <thead>
@@ -725,45 +1172,28 @@
           <tbody>
       `;
       
-      // Track which game descriptions we've already shown headers for
       const shownDescriptions = new Set();
-      let lastDate = null; // Track last date for range mode headers
-      
-      // Helper to get priority class
-      function getPriorityClass(desc) {
-        if (!desc) return '';
-        const upper = desc.toUpperCase();
-        if (upper.includes('FINAL') || upper.includes('CHAMPIONSHIP') || upper.includes('TITLE')) return 'priority-1';
-        if (upper.includes('SEMIFINAL') || upper.includes('SEMI') || upper.includes('SEMIS')) return 'priority-2';
-        if (upper.includes('QUARTERFINAL') || upper.includes('QUARTER') || upper.includes('QUARTERS')) return 'priority-3';
-        if (upper.includes('FIRST ROUND')) return 'priority-4';
-        return 'priority-4'; // Default for other descriptions
-      }
-      
-      // Helper to format date for display
-      function formatDateHeader(dateStr) {
-        const d = new Date(dateStr + 'T00:00:00');
-        return `${DAY_NAMES[d.getDay()]}, ${MONTH_NAMES[d.getMonth()]} ${d.getDate()}`;
-      }
+      let lastDate = null;
       
       games.forEach(game => {
-        // In range mode, add date header when date changes
+        // Date header for multi-day view
         if (endDateStr && game.date !== lastDate) {
           lastDate = game.date;
           html += `
             <tr class="date-header-row">
-              <td colspan="6" class="date-header">${formatDateHeader(game.date)}</td>
+              <td colspan="6">${formatDateHeader(game.date)}</td>
             </tr>
           `;
         }
-        // Build coverage icons - only show if link exists (used for both games and special events)
+        
+        // Coverage icons
         let coverageHtml = '';
         if (game.photos_url) coverageHtml += `<a class="coverage-icon" href="${game.photos_url}" target="_blank" title="Photos">📸</a>`;
         if (game.recap_url) coverageHtml += `<a class="coverage-icon" href="${game.recap_url}" target="_blank" title="Recap">📝</a>`;
         if (game.highlights_url) coverageHtml += `<a class="coverage-icon" href="${game.highlights_url}" target="_blank" title="Highlights">🎥</a>`;
         if (game.live_stream_url) coverageHtml += `<a class="coverage-icon" href="${game.live_stream_url}" target="_blank" title="Live Stream">📺</a>`;
         
-        // Check if this is a special event (no teams)
+        // Special event (no teams)
         if (game.specialevent && !game.away && !game.home) {
           html += `
             <tr class="special-event-row">
@@ -780,17 +1210,15 @@
           return;
         }
         
-        // Check for scores - must be non-empty strings (handles "0" as valid score)
+        // Score handling
         const awayScore = String(game.away_score || '').trim();
         const homeScore = String(game.home_score || '').trim();
         const hasScore = awayScore !== '' && homeScore !== '';
         const isFinal = game.time === 'FINAL' || hasScore;
         
-        // Determine winner for highlighting
         const awayWins = hasScore && parseInt(awayScore) > parseInt(homeScore);
         const homeWins = hasScore && parseInt(homeScore) > parseInt(awayScore);
         
-        // Build score display
         let scoreHtml = '';
         if (hasScore) {
           scoreHtml = `
@@ -804,18 +1232,17 @@
           scoreHtml = `<span class="score-pending">-</span>`;
         }
         
-        // Check if this game has a description
+        // Game description handling
         const hasDescription = game.gamedescription && game.gamedescription.trim();
         const descriptionKey = hasDescription ? game.gamedescription.trim().toUpperCase() : '';
         const isFirstInGroup = hasDescription && !shownDescriptions.has(descriptionKey);
         const priorityClass = hasDescription ? getPriorityClass(game.gamedescription) : '';
         
-        // Mark this description as shown
         if (hasDescription) {
           shownDescriptions.add(descriptionKey);
         }
         
-        // Add game description header row if this is the first game with this description
+        // Game description header row
         if (isFirstInGroup) {
           html += `
             <tr class="game-description-row ${priorityClass}">
@@ -827,7 +1254,6 @@
           `;
         }
         
-        // Add grouped-game class if this game has a description
         const rowClass = hasDescription ? `grouped-game ${priorityClass}` : '';
         
         html += `
@@ -858,8 +1284,7 @@
       document.getElementById('scheduleContainer').innerHTML = html;
     }
     
-    // Calendar functions
-    let calendarDate = new Date();
+    // ===== CALENDAR FUNCTIONS =====
     
     function openCalendar() {
       calendarDate = new Date(currentDate);
@@ -897,7 +1322,6 @@
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       
-      // Get dates with games
       const gameDates = new Set(allGames.map(g => g.date));
       
       let html = `
@@ -950,14 +1374,13 @@
     function selectDate(year, month, day) {
       currentDate = new Date(year, month, day);
       currentDate.setHours(0, 0, 0, 0);
-      dateRangeEnd = null; // Clear any date range
+      dateRangeEnd = null;
       updateDateDisplay();
       renderSchedule();
       document.getElementById('calendarOverlay').classList.remove('show');
     }
     
-    // Date range functionality
-    let dateRangeEnd = null;
+    // ===== DATE RANGE =====
     
     function toggleDateRange() {
       const inputs = document.getElementById('dateRangeInputs');
@@ -965,7 +1388,6 @@
       if (inputs.style.display === 'none') {
         inputs.style.display = 'block';
         arrow.textContent = '▲';
-        // Set default values
         const today = new Date();
         document.getElementById('dateRangeStart').value = getDateString(today);
         const nextWeek = new Date(today);
@@ -982,7 +1404,7 @@
       const endStr = document.getElementById('dateRangeEnd').value;
       
       if (!startStr || !endStr) {
-        alert('Please select both start and end dates');
+        Ball603.showToast('Please select both start and end dates', 'error');
         return;
       }
       
@@ -990,7 +1412,7 @@
       const endDate = new Date(endStr + 'T00:00:00');
       
       if (endDate < startDate) {
-        alert('End date must be after start date');
+        Ball603.showToast('End date must be after start date', 'error');
         return;
       }
       
@@ -1001,20 +1423,28 @@
       document.getElementById('calendarOverlay').classList.remove('show');
     }
     
-    function updateDateDisplay() {
-      const dateDisplay = document.getElementById('currentDate');
-      if (dateRangeEnd) {
-        // Show range
-        const startStr = `${MONTH_NAMES[currentDate.getMonth()].substring(0,3)} ${currentDate.getDate()}`;
-        const endStr = `${MONTH_NAMES[dateRangeEnd.getMonth()].substring(0,3)} ${dateRangeEnd.getDate()}, ${dateRangeEnd.getFullYear()}`;
-        dateDisplay.textContent = `${startStr} - ${endStr}`;
-      } else {
-        // Show single date
-        dateDisplay.textContent = `${DAY_NAMES[currentDate.getDay()]}, ${MONTH_NAMES[currentDate.getMonth()]} ${currentDate.getDate()}, ${currentDate.getFullYear()}`;
-      }
+    // ===== PLACEHOLDER FUNCTIONS =====
+    
+    function openSearch() {
+      Ball603.showToast('Search coming soon!');
     }
     
-    // Initialize
+    function openMyTeams() {
+      Ball603.showToast('My Teams coming soon!');
+    }
+    
+    function openMoreMenu() {
+      Ball603.showToast('More menu coming soon!');
+    }
+    
+    // ===== INITIALIZATION =====
+    
+    // Wait for Ball603 app to be ready
+    document.addEventListener('ball603:ready', () => {
+      // Ticker is already initialized by app.js
+    });
+    
+    // Initialize schedule page
     updateDateDisplay();
     loadGames();
   </script>
