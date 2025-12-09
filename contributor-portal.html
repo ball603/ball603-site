@@ -609,50 +609,20 @@
         });
       });
       
-      // Check for invite tokens
-      const hashParams = new URLSearchParams(window.location.hash.substring(1));
-      const accessToken = hashParams.get('access_token');
-      const refreshToken = hashParams.get('refresh_token');
-      const tokenType = hashParams.get('type');
-      
-      if (accessToken && refreshToken) {
-        history.replaceState(null, '', window.location.pathname);
-        try {
-          const { data, error } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken
-          });
-          if (error) {
-            document.getElementById('loginError').textContent = 'Invalid or expired link.';
-            showLogin();
-            return;
-          }
-          if (data.session) {
-            currentUser = data.session.user;
-            if (tokenType === 'invite' || tokenType === 'recovery' || tokenType === 'magiclink') {
-              showSetPassword();
-              return;
-            }
-            await loadContributorProfile();
-          }
-        } catch (err) {
-          document.getElementById('loginError').textContent = 'Error processing link.';
-          showLogin();
-        }
-        return;
-      }
-      
-      // Check existing session
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        currentUser = session.user;
-        await loadContributorProfile();
-      }
-      
-      // Auth state listener
+      // Set up auth state listener FIRST - this handles all auth events including recovery/magic links
       supabase.auth.onAuthStateChange(async (event, session) => {
+        console.log('Auth event:', event, session ? 'has session' : 'no session');
+        
+        if (event === 'PASSWORD_RECOVERY') {
+          // User clicked password reset link - show set password form
+          currentUser = session.user;
+          showSetPassword();
+          return;
+        }
+        
         if (event === 'SIGNED_IN' && session) {
           currentUser = session.user;
+          // Only load profile if not in password set mode
           if (document.getElementById('setPasswordForm').style.display !== 'block') {
             await loadContributorProfile();
           }
@@ -660,8 +630,30 @@
           currentUser = null;
           currentContributor = null;
           showLoginScreen();
+        } else if (event === 'INITIAL_SESSION' && session) {
+          // Existing session on page load
+          currentUser = session.user;
+          await loadContributorProfile();
         }
       });
+      
+      // Check if URL has auth tokens (hash fragment) - let Supabase handle them
+      // The onAuthStateChange listener above will fire with the appropriate event
+      if (window.location.hash && window.location.hash.includes('access_token')) {
+        // Tokens present - Supabase will process them and fire onAuthStateChange
+        // Clear the hash from URL for cleaner display
+        const cleanUrl = window.location.pathname + window.location.search;
+        history.replaceState(null, '', cleanUrl);
+        return; // Wait for onAuthStateChange to handle it
+      }
+      
+      // No tokens in URL - check for existing session
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error) {
+        console.error('Session check error:', error);
+      }
+      // If there's a session, INITIAL_SESSION event will fire from onAuthStateChange
+      // If no session, just show login screen (it's already visible by default)
     });
     
     // View Management
@@ -788,14 +780,27 @@
       if (password !== confirmPassword) { errorEl.textContent = 'Passwords do not match'; return; }
       
       try {
+        // Verify we have an active session before attempting to update
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          errorEl.textContent = 'Session expired. Please request a new password reset link.';
+          setTimeout(() => showForgotPassword(), 2000);
+          return;
+        }
+        
         const { error } = await supabase.auth.updateUser({ password });
-        if (error) { errorEl.textContent = error.message; return; }
+        if (error) { 
+          console.error('Password update error:', error);
+          errorEl.textContent = error.message; 
+          return; 
+        }
         document.getElementById('newPassword').value = '';
         document.getElementById('confirmPassword').value = '';
         showToast('Password set successfully!', 'success');
         await loadContributorProfile();
       } catch (err) {
-        errorEl.textContent = 'Error setting password.';
+        console.error('Password set error:', err);
+        errorEl.textContent = 'Error setting password. Please try again.';
       }
     }
     
