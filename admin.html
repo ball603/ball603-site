@@ -352,12 +352,13 @@
       </div>
       
       <div class="article-list" id="gameList">
-        <div class="article-row header" style="grid-template-columns: 90px 1fr 1fr 70px 80px 80px 100px;">
+        <div class="article-row header" style="grid-template-columns: 90px 1fr 1fr 70px 80px 50px 80px 100px;">
           <div>Date</div>
           <div>Away</div>
           <div>Home</div>
           <div>Score</div>
           <div>Division</div>
+          <div>URLs</div>
           <div>Coverage</div>
           <div>Actions</div>
         </div>
@@ -516,6 +517,78 @@
           <div style="display: flex; justify-content: flex-end; gap: 10px; padding-top: 15px; border-top: 1px solid #eee;">
             <button onclick="closeGameModal()" style="padding: 10px 20px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 5px; cursor: pointer;">Cancel</button>
             <button onclick="saveGame()" style="padding: 10px 25px; background: #1565c0; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500;">Save Game</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- URL Management Modal -->
+    <div id="urlModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 2000; overflow-y: auto;">
+      <div style="max-width: 550px; margin: 80px auto; background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+        <div style="background: #7b1fa2; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
+          <h2 style="margin: 0; font-size: 16px; font-weight: 500;">🔗 Manage Coverage URLs</h2>
+          <button onclick="closeUrlModal()" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer; line-height: 1;">&times;</button>
+        </div>
+        
+        <div style="padding: 20px;">
+          <input type="hidden" id="urlGameId">
+          
+          <!-- Game Info Header -->
+          <div style="background: #f5f5f5; border-radius: 8px; padding: 12px 15px; margin-bottom: 20px;">
+            <div style="font-weight: 600; font-size: 14px;" id="urlGameTitle">Loading...</div>
+            <div style="font-size: 12px; color: #666; margin-top: 4px;" id="urlGameMeta"></div>
+          </div>
+          
+          <!-- URL Fields -->
+          <div style="display: flex; flex-direction: column; gap: 15px;">
+            <div class="form-group">
+              <label style="display: flex; align-items: center; gap: 6px;">
+                <span>📷</span> Photos URL
+              </label>
+              <div style="display: flex; gap: 8px;">
+                <input type="url" id="urlPhotos" placeholder="https://ball603.smugmug.com/..." style="flex: 1;">
+                <button onclick="clearUrlField('urlPhotos')" style="padding: 8px 12px; background: #ffebee; color: #c62828; border: none; border-radius: 5px; cursor: pointer;" title="Clear">✕</button>
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label style="display: flex; align-items: center; gap: 6px;">
+                <span>📰</span> Recap/Article URL
+              </label>
+              <div style="display: flex; gap: 8px;">
+                <input type="url" id="urlRecap" placeholder="https://ball603.com/..." style="flex: 1;">
+                <button onclick="clearUrlField('urlRecap')" style="padding: 8px 12px; background: #ffebee; color: #c62828; border: none; border-radius: 5px; cursor: pointer;" title="Clear">✕</button>
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label style="display: flex; align-items: center; gap: 6px;">
+                <span>🎬</span> Highlights URL
+              </label>
+              <div style="display: flex; gap: 8px;">
+                <input type="url" id="urlHighlights" placeholder="https://youtube.com/..." style="flex: 1;">
+                <button onclick="clearUrlField('urlHighlights')" style="padding: 8px 12px; background: #ffebee; color: #c62828; border: none; border-radius: 5px; cursor: pointer;" title="Clear">✕</button>
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label style="display: flex; align-items: center; gap: 6px;">
+                <span>📺</span> Live Stream URL
+              </label>
+              <div style="display: flex; gap: 8px;">
+                <input type="url" id="urlLiveStream" placeholder="https://..." style="flex: 1;">
+                <button onclick="clearUrlField('urlLiveStream')" style="padding: 8px 12px; background: #ffebee; color: #c62828; border: none; border-radius: 5px; cursor: pointer;" title="Clear">✕</button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Actions -->
+          <div style="display: flex; justify-content: space-between; gap: 10px; padding-top: 20px; margin-top: 20px; border-top: 1px solid #eee;">
+            <button onclick="clearAllUrls()" style="padding: 10px 16px; background: #ffebee; color: #c62828; border: none; border-radius: 5px; cursor: pointer; font-size: 13px;">Clear All URLs</button>
+            <div style="display: flex; gap: 10px;">
+              <button onclick="closeUrlModal()" style="padding: 10px 20px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 5px; cursor: pointer;">Cancel</button>
+              <button onclick="saveUrls()" style="padding: 10px 25px; background: #7b1fa2; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500;">Save URLs</button>
+            </div>
           </div>
         </div>
       </div>
@@ -5513,12 +5586,13 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       
       if (filteredGames.length === 0) {
         container.innerHTML = `
-          <div class="article-row header" style="grid-template-columns: 90px 1fr 1fr 70px 80px 80px 100px;">
+          <div class="article-row header" style="grid-template-columns: 90px 1fr 1fr 70px 80px 50px 80px 100px;">
             <div>Date</div>
             <div>Away</div>
             <div>Home</div>
             <div>Score</div>
             <div>Division</div>
+            <div>URLs</div>
             <div>Coverage</div>
             <div>Actions</div>
           </div>
@@ -5528,12 +5602,13 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       }
       
       container.innerHTML = `
-        <div class="article-row header" style="grid-template-columns: 90px 1fr 1fr 70px 80px 80px 100px;">
+        <div class="article-row header" style="grid-template-columns: 90px 1fr 1fr 70px 80px 50px 80px 100px;">
           <div>Date</div>
           <div>Away</div>
           <div>Home</div>
           <div>Score</div>
           <div>Division</div>
+          <div>URLs</div>
           <div>Coverage</div>
           <div>Actions</div>
         </div>
@@ -5548,6 +5623,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           if (hasVideog) coverageIcons.push('🎥');
           if (hasWriter) coverageIcons.push('✍️');
           
+          // Check for URLs
+          const hasUrls = game.photos_url || game.recap_url || game.highlights_url || game.live_stream_url;
+          const urlCount = [game.photos_url, game.recap_url, game.highlights_url, game.live_stream_url].filter(Boolean).length;
+          
           const score = game.status === 'final' 
             ? `${game.away_score || 0}-${game.home_score || 0}`
             : (game.time || '-');
@@ -5555,7 +5634,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           const dateDisplay = new Date(game.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
           
           return `
-            <div class="article-row" style="grid-template-columns: 90px 1fr 1fr 70px 80px 80px 100px; ${game.status === 'cancelled' ? 'opacity: 0.5; text-decoration: line-through;' : ''}">
+            <div class="article-row" style="grid-template-columns: 90px 1fr 1fr 70px 80px 50px 80px 100px; ${game.status === 'cancelled' ? 'opacity: 0.5; text-decoration: line-through;' : ''}">
               <div style="font-size: 12px;">
                 <div>${dateDisplay}</div>
                 <div style="font-size: 10px; color: #888;">${game.gender || ''}</div>
@@ -5564,6 +5643,11 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
               <div style="font-size: 13px; font-weight: 500;">${game.home_team || '-'}</div>
               <div style="font-size: 12px; ${game.status === 'final' ? 'font-weight: 600;' : 'color: #888;'}">${score}</div>
               <div style="font-size: 11px; color: #666;">${game.division || '-'}</div>
+              <div style="text-align: center;">
+                <button onclick="openUrlModal(${game.id})" style="background: ${hasUrls ? '#f3e5f5' : '#f5f5f5'}; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px;" title="${hasUrls ? urlCount + ' URL(s) set' : 'No URLs'}">
+                  ${hasUrls ? '🔗' : '○'}
+                </button>
+              </div>
               <div style="font-size: 14px;">${coverageIcons.join(' ') || '-'}</div>
               <div class="article-actions">
                 <button class="btn-edit" onclick="editGame(${game.id})">Edit</button>
@@ -5649,6 +5733,83 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const game = allGames.find(g => g.id === gameId);
       if (game) {
         openGameModal(game);
+      }
+    }
+    
+    // URL Modal Functions
+    function openUrlModal(gameId) {
+      const game = allGames.find(g => g.id === gameId);
+      if (!game) return;
+      
+      document.getElementById('urlGameId').value = gameId;
+      document.getElementById('urlGameTitle').textContent = `${game.away_team} @ ${game.home_team}`;
+      
+      const dateDisplay = new Date(game.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+      document.getElementById('urlGameMeta').textContent = `${dateDisplay} • ${game.gender || ''} ${game.level || ''} ${game.division || ''}`.trim();
+      
+      document.getElementById('urlPhotos').value = game.photos_url || '';
+      document.getElementById('urlRecap').value = game.recap_url || '';
+      document.getElementById('urlHighlights').value = game.highlights_url || '';
+      document.getElementById('urlLiveStream').value = game.live_stream_url || '';
+      
+      document.getElementById('urlModal').style.display = 'block';
+      document.body.style.overflow = 'hidden';
+    }
+    
+    function closeUrlModal() {
+      document.getElementById('urlModal').style.display = 'none';
+      document.body.style.overflow = 'auto';
+    }
+    
+    function clearUrlField(fieldId) {
+      document.getElementById(fieldId).value = '';
+    }
+    
+    function clearAllUrls() {
+      if (!confirm('Clear all URLs for this game?')) return;
+      document.getElementById('urlPhotos').value = '';
+      document.getElementById('urlRecap').value = '';
+      document.getElementById('urlHighlights').value = '';
+      document.getElementById('urlLiveStream').value = '';
+    }
+    
+    async function saveUrls() {
+      const gameId = document.getElementById('urlGameId').value;
+      if (!gameId) return;
+      
+      const urlData = {
+        photos_url: document.getElementById('urlPhotos').value.trim() || null,
+        recap_url: document.getElementById('urlRecap').value.trim() || null,
+        highlights_url: document.getElementById('urlHighlights').value.trim() || null,
+        live_stream_url: document.getElementById('urlLiveStream').value.trim() || null
+      };
+      
+      try {
+        const response = await fetch(`/.netlify/functions/games?id=${gameId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(urlData)
+        });
+        
+        if (response.ok) {
+          // Update local data
+          const game = allGames.find(g => g.id === parseInt(gameId));
+          if (game) {
+            game.photos_url = urlData.photos_url;
+            game.recap_url = urlData.recap_url;
+            game.highlights_url = urlData.highlights_url;
+            game.live_stream_url = urlData.live_stream_url;
+          }
+          
+          closeUrlModal();
+          renderGameList();
+          showToast('URLs saved!', 'success');
+        } else {
+          throw new Error('Failed to save');
+        }
+      } catch (err) {
+        console.error('Error saving URLs:', err);
+        showToast('Error saving URLs', 'error');
       }
     }
     
