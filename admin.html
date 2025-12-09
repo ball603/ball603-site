@@ -1348,11 +1348,14 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     <!-- Contributors Panel -->
     <div class="panel" id="contributorsPanel" style="display: none;">
       <div class="toolbar" style="flex-wrap: wrap; gap: 10px;">
-        <button class="btn-new" onclick="inviteContributor()">
-          <span>+</span> Invite Contributor
+        <button class="btn-new" onclick="showCreateAccount()">
+          <span>+</span> Create Account
         </button>
-        <button onclick="bulkInviteContributors()" style="background: #9c27b0; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-size: 13px;">
-          📧 Bulk Invite (No Account)
+        <button onclick="bulkCreateAccounts()" style="background: #555; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-size: 13px;">
+          👥 Create All Accounts
+        </button>
+        <button onclick="exportContributorsCSV()" style="background: #666; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-size: 13px;">
+          📥 Export CSV
         </button>
         <div style="margin-left: auto; display: flex; gap: 10px; flex-wrap: wrap;">
           <select id="contributorTypeFilter" onchange="filterContributors()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px;">
@@ -1361,6 +1364,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             <option value="videographer">Videographers</option>
             <option value="writer">Writers</option>
             <option value="graphics">Graphics</option>
+            <option value="administrative">Administrative</option>
           </select>
           <select id="contributorStatusFilter" onchange="filterContributors()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px;">
             <option value="active">Active</option>
@@ -1503,6 +1507,9 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
               <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
                 <input type="checkbox" id="contribIsGraphics"> 🎨 Graphics
               </label>
+              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                <input type="checkbox" id="contribIsAdministrative"> 🔧 Administrative
+              </label>
             </div>
           </div>
           
@@ -1532,14 +1539,9 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           
           <!-- Save -->
           <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 15px; border-top: 1px solid #eee;">
-            <div style="display: flex; gap: 10px;">
-              <button onclick="sendPasswordReset()" id="resetPasswordBtn" style="background: #e3f2fd; color: #1565c0; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 13px;">
-                📧 Send Password Reset
-              </button>
-              <button onclick="deleteContributor()" id="deleteContribBtn" style="background: #ffebee; color: #c62828; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 13px;">
-                🗑️ Delete
-              </button>
-            </div>
+            <button onclick="deleteContributor()" id="deleteContribBtn" style="background: #ffebee; color: #c62828; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 13px;">
+              🗑️ Delete
+            </button>
             <div style="display: flex; gap: 10px;">
               <button onclick="closeContributorModal()" style="background: #eee; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">Cancel</button>
               <button onclick="saveContributor()" style="background: #f57c00; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: 500;">Save</button>
@@ -1549,44 +1551,33 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       </div>
     </div>
     
-    <!-- Invite Contributor Modal -->
-    <div id="inviteContributorModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 2000; overflow-y: auto;">
+    <!-- Create Account Modal -->
+    <div id="createAccountModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 2000; overflow-y: auto;">
       <div style="max-width: 500px; margin: 100px auto; background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
-        <div style="background: #9c27b0; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
-          <h2 style="margin: 0; font-size: 16px; font-weight: 500;">Invite New Contributor</h2>
-          <button onclick="closeInviteModal()" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer; line-height: 1;">&times;</button>
+        <div style="background: #555; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
+          <h2 style="margin: 0; font-size: 16px; font-weight: 500;">Create Contributor Account</h2>
+          <button onclick="closeCreateAccountModal()" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer; line-height: 1;">&times;</button>
         </div>
         
         <div style="padding: 20px;">
-          <p style="font-size: 13px; color: #666; margin-bottom: 20px;">Enter the contributor's details. They'll receive an email to set up their password.</p>
+          <p style="font-size: 13px; color: #666; margin-bottom: 20px;">Create a new contributor account with login credentials.</p>
           
           <div class="form-group" style="margin-bottom: 15px;">
             <label>Full Name *</label>
-            <input type="text" id="inviteName">
+            <input type="text" id="createName">
           </div>
           <div class="form-group" style="margin-bottom: 15px;">
             <label>Email Address *</label>
-            <input type="email" id="inviteEmail">
+            <input type="email" id="createEmail">
           </div>
-          
-          <div style="display: flex; gap: 20px; margin-bottom: 20px;">
-            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
-              <input type="checkbox" id="inviteIsPhotographer" checked> 📸 Photographer
-            </label>
-            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
-              <input type="checkbox" id="inviteIsVideographer"> 🎥 Videographer
-            </label>
-            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
-              <input type="checkbox" id="inviteIsWriter"> 📝 Writer
-            </label>
-            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
-              <input type="checkbox" id="inviteIsGraphics"> 🎨 Graphics
-            </label>
+          <div class="form-group" style="margin-bottom: 15px;">
+            <label>Password *</label>
+            <input type="text" id="createPassword" value="Gr@niteSt@teHoops">
           </div>
           
           <div style="display: flex; justify-content: flex-end; gap: 10px;">
-            <button onclick="closeInviteModal()" style="background: #eee; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">Cancel</button>
-            <button onclick="sendInvite()" style="background: #9c27b0; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: 500;">Send Invite</button>
+            <button onclick="closeCreateAccountModal()" style="background: #eee; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">Cancel</button>
+            <button onclick="createAccount()" style="background: #555; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: 500;">Create Account</button>
           </div>
         </div>
       </div>
@@ -5094,6 +5085,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       else if (typeFilter === 'videographer') filtered = filtered.filter(c => c.is_videographer);
       else if (typeFilter === 'writer') filtered = filtered.filter(c => c.is_writer);
       else if (typeFilter === 'graphics') filtered = filtered.filter(c => c.is_graphics);
+      else if (typeFilter === 'administrative') filtered = filtered.filter(c => c.is_administrative);
       
       // Status filter
       if (statusFilter === 'active') filtered = filtered.filter(c => c.active);
@@ -5148,6 +5140,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           if (c.is_videographer) types.push('🎥');
           if (c.is_writer) types.push('📝');
           if (c.is_graphics) types.push('🎨');
+          if (c.is_administrative) types.push('🔧');
           
           return `
           <div class="article-row" style="grid-template-columns: 50px 1fr 150px 120px 100px 120px; ${!c.active ? 'opacity: 0.5;' : ''}">
@@ -5241,6 +5234,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('contribIsVideographer').checked = contrib.is_videographer || false;
       document.getElementById('contribIsWriter').checked = contrib.is_writer || false;
       document.getElementById('contribIsGraphics').checked = contrib.is_graphics || false;
+      document.getElementById('contribIsAdministrative').checked = contrib.is_administrative || false;
       
       document.getElementById('contribTop10Url').value = contrib.top10_dropbox_url || '';
       document.getElementById('contribActive').checked = contrib.active !== false;
@@ -5270,6 +5264,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         is_videographer: document.getElementById('contribIsVideographer').checked,
         is_writer: document.getElementById('contribIsWriter').checked,
         is_graphics: document.getElementById('contribIsGraphics').checked,
+        is_administrative: document.getElementById('contribIsAdministrative').checked,
         top10_dropbox_url: document.getElementById('contribTop10Url').value.trim() || null,
         active: document.getElementById('contribActive').checked,
         updated_at: new Date().toISOString()
@@ -5326,54 +5321,26 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       }
     }
     
-    async function sendPasswordReset() {
-      const email = document.getElementById('contribEmail').value.trim();
-      if (!email) {
-        showToast('No email address', 'error');
-        return;
-      }
-      
-      try {
-        const response = await fetch('/.netlify/functions/contributor-invite', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'reset-password', email })
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-          showToast(result.message, 'success');
-        } else {
-          showToast('Error: ' + (result.error || 'Unknown error'), 'error');
-        }
-      } catch (err) {
-        showToast('Error sending reset email', 'error');
-      }
-    }
-    
-    function inviteContributor() {
-      document.getElementById('inviteContributorModal').style.display = 'block';
+    function showCreateAccount() {
+      document.getElementById('createAccountModal').style.display = 'block';
       document.body.style.overflow = 'hidden';
-      document.getElementById('inviteName').value = '';
-      document.getElementById('inviteEmail').value = '';
-      document.getElementById('inviteIsPhotographer').checked = true;
-      document.getElementById('inviteIsVideographer').checked = false;
-      document.getElementById('inviteIsWriter').checked = false;
-      document.getElementById('inviteIsGraphics').checked = false;
+      document.getElementById('createName').value = '';
+      document.getElementById('createEmail').value = '';
+      document.getElementById('createPassword').value = 'Gr@niteSt@teHoops';
     }
     
-    function closeInviteModal() {
-      document.getElementById('inviteContributorModal').style.display = 'none';
+    function closeCreateAccountModal() {
+      document.getElementById('createAccountModal').style.display = 'none';
       document.body.style.overflow = 'auto';
     }
     
-    async function sendInvite() {
-      const name = document.getElementById('inviteName').value.trim();
-      const email = document.getElementById('inviteEmail').value.trim();
+    async function createAccount() {
+      const name = document.getElementById('createName').value.trim();
+      const email = document.getElementById('createEmail').value.trim();
+      const password = document.getElementById('createPassword').value;
       
-      if (!name || !email) {
-        showToast('Name and email are required', 'error');
+      if (!name || !email || !password) {
+        showToast('Name, email, and password are required', 'error');
         return;
       }
       
@@ -5382,13 +5349,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            action: 'invite',
+            action: 'create-account',
             name,
             email,
-            is_photographer: document.getElementById('inviteIsPhotographer').checked,
-            is_videographer: document.getElementById('inviteIsVideographer').checked,
-            is_writer: document.getElementById('inviteIsWriter').checked,
-            is_graphics: document.getElementById('inviteIsGraphics').checked
+            password
           })
         });
         
@@ -5396,39 +5360,38 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         
         if (result.success) {
           showToast(result.message, 'success');
-          closeInviteModal();
+          closeCreateAccountModal();
           loadContributors();
         } else {
           showToast('Error: ' + (result.error || 'Unknown error'), 'error');
         }
       } catch (err) {
-        showToast('Error sending invite', 'error');
+        showToast('Error creating account', 'error');
       }
     }
     
-    async function bulkInviteContributors() {
+    async function bulkCreateAccounts() {
       // Find contributors without auth accounts
-      const noAuth = allContributors.filter(c => !c.auth_user_id && c.active);
+      const noAuth = allContributors.filter(c => !c.auth_user_id);
       
       if (noAuth.length === 0) {
-        showToast('All active contributors already have accounts!', 'success');
+        showToast('All contributors already have accounts!', 'success');
         return;
       }
       
-      const confirmMsg = `Send invite emails to ${noAuth.length} contributor(s) without accounts?\n\n` +
-        noAuth.map(c => c.name).join('\n');
+      const password = prompt(`Create accounts for ${noAuth.length} contributor(s):\n\n${noAuth.map(c => c.name).join('\n')}\n\nEnter password for all accounts:`, 'Gr@niteSt@teHoops');
       
-      if (!confirm(confirmMsg)) return;
+      if (!password) return;
       
-      showToast(`Sending ${noAuth.length} invites...`, 'success');
+      showToast(`Creating ${noAuth.length} accounts...`, 'success');
       
       try {
         const response = await fetch('/.netlify/functions/contributor-invite', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            action: 'bulk-invite',
-            contributorIds: noAuth.map(c => c.id)
+            action: 'bulk-create',
+            password
           })
         });
         
@@ -5436,13 +5399,60 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         
         if (result.success) {
           showToast(result.message, 'success');
+          if (result.results?.failed?.length > 0) {
+            console.log('Failed:', result.results.failed);
+          }
           loadContributors();
         } else {
           showToast('Error: ' + (result.error || 'Unknown error'), 'error');
         }
       } catch (err) {
-        showToast('Error sending bulk invites', 'error');
+        showToast('Error creating accounts', 'error');
       }
+    }
+    
+    function exportContributorsCSV() {
+      const headers = ['Name', 'Email', 'Primary Area', 'Cell', 'Mailing Address', 'Venmo', 'Shirt Size', 
+                       'NHIAA Alma Mater', 'College', 'Photographer', 'Videographer', 'Writer', 'Graphics', 
+                       'Administrative', 'Website', 'Instagram', 'Facebook', 'Twitter', 'Camera Brand', 
+                       'Computer Preference', 'Bio', 'SmugMug Name', 'Active', 'Has Account'];
+      
+      const rows = allContributors.map(c => [
+        c.name || '',
+        c.email || '',
+        c.primary_area || '',
+        c.cell || '',
+        c.mailing_address || '',
+        c.venmo || '',
+        c.shirt_size || '',
+        c.nhiaa_alma_mater || '',
+        c.college || '',
+        c.is_photographer ? 'Yes' : 'No',
+        c.is_videographer ? 'Yes' : 'No',
+        c.is_writer ? 'Yes' : 'No',
+        c.is_graphics ? 'Yes' : 'No',
+        c.is_administrative ? 'Yes' : 'No',
+        c.website_url || '',
+        c.instagram_url || '',
+        c.facebook_url || '',
+        c.twitter_url || '',
+        c.camera_brand || '',
+        c.computer_preference || '',
+        (c.bio || '').replace(/"/g, '""'),
+        c.smugmug_name || '',
+        c.active ? 'Yes' : 'No',
+        c.auth_user_id ? 'Yes' : 'No'
+      ].map(val => `"${val}"`).join(','));
+      
+      const csv = [headers.join(','), ...rows].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ball603-contributors-${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('CSV exported!', 'success');
     }
     
     // ==================== SCHEDULE MANAGER ====================
