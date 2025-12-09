@@ -4732,6 +4732,225 @@ const ROSTERS_DATA = {
       "head_coach": "Sam Bonney-Liles",
       "assistant_coaches": "John Fisher, Cam Kruger, Buddy O'Hearn",
       "managers": ""
+    },
+    {
+      "school": "Portsmouth Christian",
+      "gender": "Boys",
+      "players": [
+        {
+          "number": "1",
+          "name": "Truman Smith",
+          "class": "JR",
+          "position": "F"
+        },
+        {
+          "number": "2",
+          "name": "Josiah Ludwig",
+          "class": "SR",
+          "position": "F"
+        },
+        {
+          "number": "3",
+          "name": "Isaac Conant",
+          "class": "FR",
+          "position": "F"
+        },
+        {
+          "number": "4",
+          "name": "Ezra Chamberlain",
+          "class": "FR",
+          "position": "G"
+        },
+        {
+          "number": "5",
+          "name": "Lorden Trayer",
+          "class": "FR",
+          "position": "G"
+        },
+        {
+          "number": "10",
+          "name": "Jackson Malone",
+          "class": "JR",
+          "position": "G"
+        },
+        {
+          "number": "12",
+          "name": "Josh Gerwig",
+          "class": "JR",
+          "position": "G"
+        },
+        {
+          "number": "15",
+          "name": "Logan Summers",
+          "class": "SO",
+          "position": "G"
+        },
+        {
+          "number": "20",
+          "name": "Hoaming Zhu",
+          "class": "SR",
+          "position": "G"
+        },
+        {
+          "number": "24",
+          "name": "Zech Beal",
+          "class": "SO",
+          "position": "C"
+        },
+        {
+          "number": "30",
+          "name": "Zealand Marquis",
+          "class": "SO",
+          "position": "G"
+        },
+        {
+          "number": "32",
+          "name": "Cai Summers",
+          "class": "JR",
+          "position": "G"
+        },
+        {
+          "number": "33",
+          "name": "Noah Hasty",
+          "class": "SR",
+          "position": "C"
+        }
+      ],
+      "head_coach": "Derek Summers",
+      "assistant_coaches": "Brian Marquis, Shaun Bradley, Mike Catapano IV",
+      "managers": "Sam Monahan"
+    },
+    {
+      "school": "Bishop Brady",
+      "gender": "Girls",
+      "players": [
+        {
+          "number": "1",
+          "name": "Bella Flattery",
+          "class": "SO",
+          "position": "G"
+        },
+        {
+          "number": "3",
+          "name": "Maia Dow",
+          "class": "JR",
+          "position": "F"
+        },
+        {
+          "number": "4",
+          "name": "Emily Gaby",
+          "class": "SO",
+          "position": "F"
+        },
+        {
+          "number": "5",
+          "name": "Ella Blanchette",
+          "class": "SO",
+          "position": "G"
+        },
+        {
+          "number": "10",
+          "name": "Juliette McLaughlin",
+          "class": "SO",
+          "position": "F"
+        },
+        {
+          "number": "11",
+          "name": "Kenzie Packer",
+          "class": "SO",
+          "position": "G"
+        },
+        {
+          "number": "12",
+          "name": "Caitlin Michaud",
+          "class": "SO",
+          "position": "G"
+        },
+        {
+          "number": "13",
+          "name": "Vuye Nare",
+          "class": "SO",
+          "position": "G"
+        },
+        {
+          "number": "15",
+          "name": "Hailey Whitehouse",
+          "class": "SO",
+          "position": "G/F"
+        }
+      ],
+      "head_coach": "Dana Young",
+      "assistant_coaches": "Marianne Thebodeau II",
+      "managers": "Mari Shedd"
+    },
+    {
+      "school": "Pittsfield",
+      "gender": "Boys",
+      "players": [
+        {
+          "number": "0",
+          "name": "Mason Weldon",
+          "class": "SO",
+          "position": "G"
+        },
+        {
+          "number": "1",
+          "name": "Braiden Elliott",
+          "class": "FR",
+          "position": "G"
+        },
+        {
+          "number": "2",
+          "name": "Owen Clark",
+          "class": "SO",
+          "position": "G"
+        },
+        {
+          "number": "3",
+          "name": "Sawyer Morse",
+          "class": "7th",
+          "position": "G"
+        },
+        {
+          "number": "4",
+          "name": "Gavin Martin",
+          "class": "SO",
+          "position": "F"
+        },
+        {
+          "number": "21",
+          "name": "Ben Anderson",
+          "class": "FR",
+          "position": "F"
+        },
+        {
+          "number": "23",
+          "name": "Micha Dodds",
+          "class": "JR",
+          "position": "F"
+        },
+        {
+          "number": "24",
+          "name": "Jon Lee",
+          "class": "SO",
+          "position": "G"
+        },
+        {
+          "number": "32",
+          "name": "Chayce Presby",
+          "class": "JR",
+          "position": "F"
+        },
+        {
+          "number": "33",
+          "name": "Riley Lavigne",
+          "class": "8th",
+          "position": "F"
+        }
+      ],
+      "head_coach": "Jay Darrah",
+      "assistant_coaches": "Cam Darrah, Dan Chagnon IV",
+      "managers": ""
     }
   ]
 };
