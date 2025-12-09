@@ -1254,11 +1254,13 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           <div class="sidebar-card">
             <h4>✍️ Author</h4>
             <div class="form-group">
-              <select id="articleAuthor">
+              <select id="articleAuthor" onchange="toggleOtherAuthor()">
                 <option value="KJ Cardinal">KJ Cardinal</option>
                 <option value="Ball603 Staff">Ball603 Staff</option>
                 <option value="Guest Contributor">Guest Contributor</option>
+                <option value="other">Other...</option>
               </select>
+              <input type="text" id="articleAuthorOther" placeholder="Enter author name..." style="display: none; margin-top: 8px;">
             </div>
           </div>
           
@@ -1420,10 +1422,19 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         <button class="modal-close" onclick="closeFeaturedImageModal()">&times;</button>
       </div>
       <div class="modal-body" style="padding: 20px;">
+        <!-- Upload Section -->
+        <div class="form-group">
+          <label>Upload Image</label>
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <input type="file" id="featuredImageFile" accept="image/*" onchange="handleFeaturedImageUpload(this)" style="flex: 1;">
+            <span id="featuredUploadStatus" style="font-size: 12px; color: #888;"></span>
+          </div>
+        </div>
+        <div style="text-align: center; color: #999; font-size: 12px; margin: 10px 0;">— or —</div>
         <div class="form-group">
           <label>Image URL</label>
           <input type="text" id="featuredImageUrlInput" placeholder="https://...">
-          <small>Enter image URL or paste from SmugMug</small>
+          <small>Paste URL from SmugMug or elsewhere</small>
         </div>
         <div class="form-group">
           <label>Caption (optional)</label>
@@ -1448,6 +1459,15 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         <button class="modal-close" onclick="closeInsertImageModal()">&times;</button>
       </div>
       <div class="modal-body" style="padding: 20px;">
+        <!-- Upload Section -->
+        <div class="form-group">
+          <label>Upload Image</label>
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <input type="file" id="insertImageFile" accept="image/*" onchange="handleInsertImageUpload(this)" style="flex: 1;">
+            <span id="insertUploadStatus" style="font-size: 12px; color: #888;"></span>
+          </div>
+        </div>
+        <div style="text-align: center; color: #999; font-size: 12px; margin: 10px 0;">— or —</div>
         <div class="form-group">
           <label>Image URL</label>
           <input type="text" id="insertImageUrl" placeholder="https://...">
@@ -1598,6 +1618,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       
       document.getElementById('featuredImageUrlInput').value = currentUrl || '';
       document.getElementById('featuredImageCaptionInput').value = currentCaption || '';
+      document.getElementById('featuredImageFile').value = ''; // Reset file input
+      document.getElementById('featuredUploadStatus').textContent = ''; // Reset status
       
       if (currentUrl) {
         document.getElementById('featuredImagePreviewImg').src = currentUrl;
@@ -1661,6 +1683,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.querySelector('input[name="imageAlign"][value="center"]').checked = true;
       document.querySelector('input[name="imageSize"][value="medium"]').checked = true;
       document.getElementById('insertImagePreviewBox').style.display = 'none';
+      document.getElementById('insertImageFile').value = ''; // Reset file input
+      document.getElementById('insertUploadStatus').textContent = ''; // Reset status
       
       document.getElementById('insertImageModal').classList.add('open');
       
@@ -1738,6 +1762,122 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         return quillEditor.getText().trim();
       }
       return '';
+    }
+    
+    // Author "Other" toggle
+    function toggleOtherAuthor() {
+      const select = document.getElementById('articleAuthor');
+      const otherInput = document.getElementById('articleAuthorOther');
+      
+      if (select.value === 'other') {
+        otherInput.style.display = 'block';
+        otherInput.focus();
+      } else {
+        otherInput.style.display = 'none';
+        otherInput.value = '';
+      }
+    }
+    
+    // Get the actual author value (handles "other" option)
+    function getAuthorValue() {
+      const select = document.getElementById('articleAuthor');
+      if (select.value === 'other') {
+        return document.getElementById('articleAuthorOther').value.trim() || 'Guest Contributor';
+      }
+      return select.value;
+    }
+    
+    // Set author value (handles custom names)
+    function setAuthorValue(author) {
+      const select = document.getElementById('articleAuthor');
+      const otherInput = document.getElementById('articleAuthorOther');
+      
+      // Check if author matches one of the preset options
+      const options = Array.from(select.options).map(o => o.value);
+      if (options.includes(author) && author !== 'other') {
+        select.value = author;
+        otherInput.style.display = 'none';
+        otherInput.value = '';
+      } else {
+        // Custom author - select "other" and fill in the name
+        select.value = 'other';
+        otherInput.style.display = 'block';
+        otherInput.value = author || '';
+      }
+    }
+    
+    // Image Upload to Supabase Storage
+    async function uploadImageToSupabase(file, folder = 'articles') {
+      const timestamp = Date.now();
+      const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const filePath = `${folder}/${timestamp}-${safeName}`;
+      
+      const { data, error } = await supabase.storage
+        .from('images')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+      
+      if (error) {
+        console.error('Upload error:', error);
+        throw error;
+      }
+      
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('images')
+        .getPublicUrl(filePath);
+      
+      return urlData.publicUrl;
+    }
+    
+    // Featured Image Upload Handler
+    async function handleFeaturedImageUpload(input) {
+      const file = input.files[0];
+      if (!file) return;
+      
+      const status = document.getElementById('featuredUploadStatus');
+      status.textContent = 'Uploading...';
+      status.style.color = '#f57c00';
+      
+      try {
+        const url = await uploadImageToSupabase(file, 'featured');
+        document.getElementById('featuredImageUrlInput').value = url;
+        document.getElementById('featuredImagePreviewImg').src = url;
+        document.getElementById('featuredImagePreviewBox').style.display = 'block';
+        status.textContent = '✓ Uploaded';
+        status.style.color = '#4CAF50';
+      } catch (err) {
+        console.error('Featured image upload failed:', err);
+        status.textContent = '✗ Upload failed';
+        status.style.color = '#f44336';
+        showToast('Image upload failed. Make sure the "images" storage bucket exists.', 'error');
+      }
+    }
+    
+    // Insert Image Upload Handler
+    async function handleInsertImageUpload(input) {
+      const file = input.files[0];
+      if (!file) return;
+      
+      const status = document.getElementById('insertUploadStatus');
+      status.textContent = 'Uploading...';
+      status.style.color = '#f57c00';
+      
+      try {
+        const url = await uploadImageToSupabase(file, 'articles');
+        document.getElementById('insertImageUrl').value = url;
+        document.getElementById('insertImagePreviewImg').src = url;
+        document.getElementById('insertImagePreviewBox').style.display = 'block';
+        status.textContent = '✓ Uploaded';
+        status.style.color = '#4CAF50';
+      } catch (err) {
+        console.error('Insert image upload failed:', err);
+        status.textContent = '✗ Upload failed';
+        status.style.color = '#f44336';
+        showToast('Image upload failed. Make sure the "images" storage bucket exists.', 'error');
+      }
     }
     
     // Login
@@ -2538,7 +2678,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           selectedGame = gsSelectedGame;
           document.getElementById('smugmugUrl').value = '';
           document.getElementById('youtubeUrl').value = '';
-          document.getElementById('articleAuthor').value = 'KJ Cardinal';
+          setAuthorValue('KJ Cardinal');
           document.getElementById('schedulePost').checked = false;
           document.getElementById('scheduleOptions').style.display = 'none';
           document.getElementById('scheduledDateTime').value = '';
@@ -2777,7 +2917,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           selectedGame = bsSelectedGame;
           document.getElementById('smugmugUrl').value = '';
           document.getElementById('youtubeUrl').value = '';
-          document.getElementById('articleAuthor').value = 'KJ Cardinal';
+          setAuthorValue('KJ Cardinal');
           document.getElementById('schedulePost').checked = false;
           document.getElementById('scheduleOptions').style.display = 'none';
           document.getElementById('scheduledDateTime').value = '';
@@ -2828,7 +2968,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       selectedGame = null;
       document.getElementById('smugmugUrl').value = '';
       document.getElementById('youtubeUrl').value = '';
-      document.getElementById('articleAuthor').value = 'KJ Cardinal';
+      setAuthorValue('KJ Cardinal');
       document.getElementById('schedulePost').checked = false;
       document.getElementById('scheduleOptions').style.display = 'none';
       document.getElementById('scheduledDateTime').value = '';
@@ -2867,7 +3007,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       selectedGame = article.game_id ? games.find(g => g.game_id === article.game_id) : null;
       document.getElementById('smugmugUrl').value = article.smugmug_gallery_url || '';
       document.getElementById('youtubeUrl').value = article.youtube_url || '';
-      document.getElementById('articleAuthor').value = article.author || 'KJ Cardinal';
+      setAuthorValue(article.author || 'KJ Cardinal');
       
       // Handle featured image
       if (article.featured_image_url) {
@@ -3023,7 +3163,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         youtube_url: document.getElementById('youtubeUrl').value || null,
         featured_image_url: document.getElementById('featuredImageUrl').value || null,
         featured_image_caption: document.getElementById('featuredImageCaption').value || null,
-        author: document.getElementById('articleAuthor').value,
+        author: getAuthorValue(),
         tags: currentTags,
         scheduled_at: scheduledAt,
         status: 'draft',
@@ -3094,7 +3234,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         youtube_url: document.getElementById('youtubeUrl').value || null,
         featured_image_url: document.getElementById('featuredImageUrl').value || null,
         featured_image_caption: document.getElementById('featuredImageCaption').value || null,
-        author: document.getElementById('articleAuthor').value,
+        author: getAuthorValue(),
         tags: currentTags,
         social_posts: socialPosts,
         scheduled_at: scheduledAt,
@@ -3181,7 +3321,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         youtube_url: youtubeUrl,
         featured_image_url: document.getElementById('featuredImageUrl').value || null,
         featured_image_caption: document.getElementById('featuredImageCaption').value || null,
-        author: document.getElementById('articleAuthor').value,
+        author: getAuthorValue(),
         tags: currentTags,
         social_posts: socialPosts,
         scheduled_at: scheduledAt,
