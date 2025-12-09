@@ -516,6 +516,32 @@
         });
       });
       
+      // Check for tokens in URL hash (from invite/reset links)
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const accessToken = hashParams.get('access_token');
+      const type = hashParams.get('type');
+      
+      if (accessToken) {
+        // Clear the hash from URL for cleaner look
+        history.replaceState(null, '', window.location.pathname);
+        
+        // Let Supabase handle the session from the hash
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (session) {
+          currentUser = session.user;
+          
+          // If this is an invite, prompt to set password
+          if (type === 'invite' || type === 'recovery') {
+            showSetPassword();
+            return;
+          }
+          
+          await loadContributorProfile();
+          return;
+        }
+      }
+      
       // Check for existing session
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
@@ -525,6 +551,7 @@
       
       // Listen for auth changes
       supabase.auth.onAuthStateChange(async (event, session) => {
+        console.log('Auth event:', event);
         if (event === 'SIGNED_IN' && session) {
           currentUser = session.user;
           await loadContributorProfile();
@@ -532,6 +559,9 @@
           currentUser = null;
           currentContributor = null;
           showLoginScreen();
+        } else if (event === 'PASSWORD_RECOVERY') {
+          // User clicked password reset link
+          showSetPassword();
         }
       });
     });
@@ -628,6 +658,42 @@
         errorEl.textContent = 'Check your email for the reset link!';
       } catch (err) {
         errorEl.textContent = 'Failed to send reset email';
+      }
+    }
+    
+    async function handleSetPassword() {
+      const password = document.getElementById('newPassword').value;
+      const confirmPassword = document.getElementById('confirmPassword').value;
+      const errorEl = document.getElementById('loginError');
+      
+      if (!password || !confirmPassword) {
+        errorEl.textContent = 'Please enter and confirm your password';
+        return;
+      }
+      
+      if (password.length < 6) {
+        errorEl.textContent = 'Password must be at least 6 characters';
+        return;
+      }
+      
+      if (password !== confirmPassword) {
+        errorEl.textContent = 'Passwords do not match';
+        return;
+      }
+      
+      try {
+        const { data, error } = await supabase.auth.updateUser({ password });
+        
+        if (error) {
+          errorEl.textContent = error.message;
+          return;
+        }
+        
+        // Password set successfully, now load profile
+        showToast('Password set successfully!', 'success');
+        await loadContributorProfile();
+      } catch (err) {
+        errorEl.textContent = 'Failed to set password';
       }
     }
     
