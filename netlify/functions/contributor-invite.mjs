@@ -63,7 +63,11 @@ async function supabaseRest(endpoint, options = {}) {
 
 // Helper: Supabase Auth Admin API call
 async function supabaseAuthAdmin(endpoint, method = 'POST', body = null) {
-  const url = `${SUPABASE_URL}/auth/v1/admin/${endpoint}`;
+  // The invite endpoint is /auth/v1/invite, not /auth/v1/admin/invite
+  const url = endpoint === 'invite' 
+    ? `${SUPABASE_URL}/auth/v1/invite`
+    : `${SUPABASE_URL}/auth/v1/admin/${endpoint}`;
+    
   const response = await fetch(url, {
     method,
     headers: {
@@ -75,9 +79,25 @@ async function supabaseAuthAdmin(endpoint, method = 'POST', body = null) {
   });
   
   const text = await response.text();
+  let data = null;
+  
+  // Try to parse JSON, but handle non-JSON responses
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      // Response is not JSON
+      return {
+        data: null,
+        error: { message: text || 'Unknown error' },
+        status: response.status
+      };
+    }
+  }
+  
   return {
-    data: text ? JSON.parse(text) : null,
-    error: response.ok ? null : { message: text },
+    data: data,
+    error: response.ok ? null : { message: data?.error_description || data?.message || data?.msg || text },
     status: response.status
   };
 }
@@ -102,13 +122,20 @@ async function inviteContributor(data, headers) {
   // Create Supabase Auth user with invite
   const { data: authUser, error: authError } = await supabaseAuthAdmin('invite', 'POST', {
     email: email,
-    data: { name: name },
-    redirect_to: `${SITE_URL}/contributor-portal.html`
+    data: { name: name }
   });
 
-  if (authError) {
+  if (authError || !authUser) {
     console.error('Auth invite error:', authError);
-    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to send invite: ' + authError.message }) };
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to send invite: ' + (authError?.message || 'Unknown error') }) };
+  }
+
+  // Get user ID - response might have different structures
+  const userId = authUser.id || authUser.user?.id;
+  
+  if (!userId) {
+    console.error('No user ID in response:', authUser);
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to get user ID from invite response' }) };
   }
 
   // Create contributor record
@@ -117,7 +144,7 @@ async function inviteContributor(data, headers) {
     body: JSON.stringify({
       name,
       email: email.toLowerCase(),
-      auth_user_id: authUser.id,
+      auth_user_id: userId,
       smugmug_name: name,
       is_photographer: is_photographer || false,
       is_videographer: is_videographer || false,
@@ -130,7 +157,7 @@ async function inviteContributor(data, headers) {
   if (dbError) {
     console.error('DB insert error:', dbError);
     // Try to clean up the auth user
-    await supabaseAuthAdmin(`users/${authUser.id}`, 'DELETE');
+    await supabaseAuthAdmin(`users/${userId}`, 'DELETE');
     return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to create contributor record' }) };
   }
 
@@ -164,18 +191,19 @@ async function sendPasswordReset(data, headers) {
   if (!contributor.auth_user_id) {
     const { data: authUser, error: authError } = await supabaseAuthAdmin('invite', 'POST', {
       email: email,
-      data: { name: contributor.name },
-      redirect_to: `${SITE_URL}/contributor-portal.html`
+      data: { name: contributor.name }
     });
 
-    if (authError) {
-      return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to send invite: ' + authError.message }) };
+    if (authError || !authUser) {
+      return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to send invite: ' + (authError?.message || 'Unknown error') }) };
     }
+
+    const userId = authUser.id || authUser.user?.id;
 
     // Link auth user to contributor
     await supabaseRest(`contributors?id=eq.${contributor.id}`, {
       method: 'PATCH',
-      body: JSON.stringify({ auth_user_id: authUser.id })
+      body: JSON.stringify({ auth_user_id: userId })
     });
 
     return { statusCode: 200, headers, body: JSON.stringify({ success: true, message: `Invite sent to ${email} (new account created)` }) };
@@ -234,19 +262,20 @@ async function bulkInvite(data, headers) {
     try {
       const { data: authUser, error: authError } = await supabaseAuthAdmin('invite', 'POST', {
         email: contrib.email,
-        data: { name: contrib.name },
-        redirect_to: `${SITE_URL}/contributor-portal.html`
+        data: { name: contrib.name }
       });
 
-      if (authError) {
-        results.failed.push({ email: contrib.email, error: authError.message });
+      if (authError || !authUser) {
+        results.failed.push({ email: contrib.email, error: authError?.message || 'Unknown error' });
         continue;
       }
+
+      const userId = authUser.id || authUser.user?.id;
 
       // Link auth user to contributor
       await supabaseRest(`contributors?id=eq.${contrib.id}`, {
         method: 'PATCH',
-        body: JSON.stringify({ auth_user_id: authUser.id })
+        body: JSON.stringify({ auth_user_id: userId })
       });
 
       results.success.push(contrib.email);
