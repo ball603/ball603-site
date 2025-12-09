@@ -520,19 +520,24 @@
       const hashParams = new URLSearchParams(window.location.hash.substring(1));
       const accessToken = hashParams.get('access_token');
       const type = hashParams.get('type');
+      const isInviteOrRecovery = type === 'invite' || type === 'recovery';
       
+      // If there's a token, let Supabase process it first
       if (accessToken) {
+        // Set session from URL - Supabase will read the hash
+        const { data, error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: hashParams.get('refresh_token')
+        });
+        
         // Clear the hash from URL for cleaner look
         history.replaceState(null, '', window.location.pathname);
         
-        // Let Supabase handle the session from the hash
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (session) {
-          currentUser = session.user;
+        if (data?.session) {
+          currentUser = data.session.user;
           
-          // If this is an invite, prompt to set password
-          if (type === 'invite' || type === 'recovery') {
+          // If this is an invite or recovery, prompt to set password
+          if (isInviteOrRecovery) {
             showSetPassword();
             return;
           }
