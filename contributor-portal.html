@@ -868,12 +868,14 @@
       container.innerHTML = '<div class="loading"><span class="loading-spinner"></span> Loading...</div>';
       
       try {
-        const response = await fetch(`/.netlify/functions/games?start_date=${today}&limit=100`);
+        const response = await fetch(`/.netlify/functions/games?start_date=${today}&limit=500`);
         const games = await response.json();
         
         const myGames = games.filter(g => 
-          g.photog1 === contributorName || g.photog2 === contributorName || 
-          g.videog === contributorName || g.writer === contributorName
+          (g.photog1 || '').trim() === contributorName || 
+          (g.photog2 || '').trim() === contributorName || 
+          (g.videog || '').trim() === contributorName || 
+          (g.writer || '').trim() === contributorName
         ).slice(0, 6);
         
         if (myGames.length === 0) {
@@ -921,12 +923,14 @@
       container.innerHTML = '<div class="loading"><span class="loading-spinner"></span> Loading...</div>';
       
       try {
-        const response = await fetch(`/.netlify/functions/games?end_date=${today}&limit=200`);
+        const response = await fetch(`/.netlify/functions/games?end_date=${today}&limit=500`);
         const games = await response.json();
         
         const myGames = games.filter(g => 
-          (g.photog1 === contributorName || g.photog2 === contributorName || 
-           g.videog === contributorName || g.writer === contributorName) &&
+          ((g.photog1 || '').trim() === contributorName || 
+           (g.photog2 || '').trim() === contributorName || 
+           (g.videog || '').trim() === contributorName || 
+           (g.writer || '').trim() === contributorName) &&
           (g.photos_url || g.recap_url)
         ).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8);
         
