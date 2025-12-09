@@ -619,8 +619,8 @@
       </div>
       
       <div class="article-list" id="teamList">
-        <div class="article-row header" style="grid-template-columns: 40px 1fr 100px 80px 80px 100px 120px;">
-          <div></div>
+        <div class="article-row header" style="grid-template-columns: 50px 1fr 100px 80px 80px 100px 120px;">
+          <div>Logo</div>
           <div>Team</div>
           <div>Level</div>
           <div>Division</div>
@@ -1181,17 +1181,17 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     <div class="panel editor-panel" id="editorPanel">
       <div class="editor-header">
         <h2 id="editorTitle">New Article</h2>
-        <div class="editor-actions">
-          <button class="btn-back" onclick="closeEditor()">← Back</button>
-          <button class="btn-preview" onclick="openPreview()">👁 Preview</button>
-          <button class="btn-preview" onclick="saveAndPreviewSocial()" title="Save as draft and preview social posts">📱 Social Preview</button>
-          <button class="btn-save" onclick="saveArticle()">Save Draft</button>
-          <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
+          <div class="editor-actions">
+            <button class="btn-back" onclick="closeEditor()">← Back</button>
+            <button class="btn-preview" onclick="openPreview()">👁 Preview</button>
+            <button class="btn-preview" onclick="saveAndPreviewSocial()" title="Save as draft and preview social posts">📱 Social</button>
+            <button class="btn-preview" onclick="saveArticle()">Save Draft</button>
             <button class="btn-publish" onclick="publishArticle()">Publish</button>
-            <button onclick="openScheduleModal()" style="background: none; border: none; color: #666; font-size: 12px; cursor: pointer; padding: 2px 0;" id="scheduleBtn">
-              📅 <span id="scheduleBtnText">Schedule for later</span>
-            </button>
           </div>
+          <button onclick="openScheduleModal()" style="background: none; border: none; color: #666; font-size: 12px; cursor: pointer; padding: 2px 0;" id="scheduleBtn">
+            📅 <span id="scheduleBtnText">Schedule for later</span>
+          </button>
         </div>
       </div>
       
@@ -4061,8 +4061,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     
     async function loadTeams() {
       document.getElementById('teamList').innerHTML = `
-        <div class="article-row header" style="grid-template-columns: 40px 1fr 100px 80px 80px 100px 120px;">
-          <div></div>
+        <div class="article-row header" style="grid-template-columns: 50px 1fr 100px 80px 80px 100px 120px;">
+          <div>Logo</div>
           <div>Team</div>
           <div>Level</div>
           <div>Division</div>
@@ -4118,8 +4118,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       
       if (teams.length === 0) {
         list.innerHTML = `
-          <div class="article-row header" style="grid-template-columns: 40px 1fr 100px 80px 80px 100px 120px;">
-            <div></div>
+          <div class="article-row header" style="grid-template-columns: 50px 1fr 100px 80px 80px 100px 120px;">
+            <div>Logo</div>
             <div>Team</div>
             <div>Level</div>
             <div>Division</div>
@@ -4136,8 +4136,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       }
       
       list.innerHTML = `
-        <div class="article-row header" style="grid-template-columns: 40px 1fr 100px 80px 80px 100px 120px;">
-          <div></div>
+        <div class="article-row header" style="grid-template-columns: 50px 1fr 100px 80px 80px 100px 120px;">
+          <div>Logo</div>
           <div>Team</div>
           <div>Level</div>
           <div>Division</div>
@@ -4145,12 +4145,17 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           <div>Location</div>
           <div>Actions</div>
         </div>
-        ${teams.map(team => `
-          <div class="article-row" style="grid-template-columns: 40px 1fr 100px 80px 80px 100px 120px; ${!team.active ? 'opacity: 0.5;' : ''}">
-            <div style="text-align: center; font-size: 18px;">${team.emoji || '🏀'}</div>
+        ${teams.map(team => {
+          const logoName = (team.shortname || '').replace(/[^a-zA-Z0-9]/g, '');
+          return `
+          <div class="article-row" style="grid-template-columns: 50px 1fr 100px 80px 80px 100px 120px; ${!team.active ? 'opacity: 0.5;' : ''}">
+            <div style="text-align: center;">
+              <img src="/logos/100px/${logoName}.png" alt="" style="width: 32px; height: 32px; object-fit: contain;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+              <span style="display: none; font-size: 18px;">🏀</span>
+            </div>
             <div>
               <div style="font-weight: 500; color: #333;">
-                ${team.shortname}
+                ${team.shortname} ${team.emoji || ''}
                 ${team.combined_team ? '<span style="background: #e3f2fd; color: #1565c0; font-size: 9px; padding: 2px 5px; border-radius: 3px; margin-left: 5px;">COMBINED</span>' : ''}
               </div>
               <div style="font-size: 11px; color: #888;">${team.mascot || ''} ${team.abbrev ? '(' + team.abbrev + ')' : ''}</div>
@@ -4164,7 +4169,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
               <button class="btn-delete" onclick="deleteTeam(${team.id}, '${team.shortname}')">Delete</button>
             </div>
           </div>
-        `).join('')}
+        `}).join('')}
       `;
     }
     
