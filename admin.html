@@ -1348,6 +1348,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
               <label>SmugMug Gallery</label>
               <div style="display: flex; gap: 8px;">
                 <input type="text" id="smugmugUrl" placeholder="https://ball603.smugmug.com/..." style="flex: 1;">
+                <input type="hidden" id="smugmugThumbUrl">
                 <button type="button" class="btn-browse" onclick="openSmugMugBrowser()">Browse</button>
               </div>
               <div id="selectedAlbumPreview" style="margin-top: 8px; display: none;">
@@ -3217,6 +3218,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           document.getElementById('selectedGameId').value = gsSelectedGame.game_id;
           selectedGame = gsSelectedGame;
           document.getElementById('smugmugUrl').value = '';
+          document.getElementById('smugmugThumbUrl').value = '';
           document.getElementById('youtubeUrl').value = '';
           setAuthorValue('KJ Cardinal');
           isScheduled = false;
@@ -3457,6 +3459,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           document.getElementById('selectedGameId').value = bsSelectedGame.game_id;
           selectedGame = bsSelectedGame;
           document.getElementById('smugmugUrl').value = '';
+          document.getElementById('smugmugThumbUrl').value = '';
           document.getElementById('youtubeUrl').value = '';
           setAuthorValue('KJ Cardinal');
           isScheduled = false;
@@ -3509,6 +3512,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('selectedGameId').value = '';
       selectedGame = null;
       document.getElementById('smugmugUrl').value = '';
+      document.getElementById('smugmugThumbUrl').value = '';
       document.getElementById('youtubeUrl').value = '';
       setAuthorValue('KJ Cardinal');
       isScheduled = false;
@@ -3890,9 +3894,11 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       if (gameId && selectedGame && !isScheduled) {
         const gameUpdate = {};
         const articleUrl = `https://ball603.com/articles/${slug}`;
+        const smugmugThumbUrl = document.getElementById('smugmugThumbUrl').value || null;
         
         gameUpdate.recap_url = articleUrl;
         if (smugmugUrl) gameUpdate.photos_url = smugmugUrl;
+        if (smugmugThumbUrl) gameUpdate.photos_thumb_url = smugmugThumbUrl;
         if (youtubeUrl) gameUpdate.highlights_url = youtubeUrl;
         
         const { error: gameError } = await supabase
@@ -3959,6 +3965,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 photos_url: null,
+                photos_thumb_url: null,
                 recap_url: null,
                 highlights_url: null
               })
@@ -3967,6 +3974,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             if (response.ok) {
               // Update local game data
               game.photos_url = null;
+              game.photos_thumb_url = null;
               game.recap_url = null;
               game.highlights_url = null;
               showToast('Article deleted & URLs cleared', 'success');
@@ -6388,6 +6396,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       if (!selectedAlbum) return;
       
       document.getElementById('smugmugUrl').value = selectedAlbum.url;
+      document.getElementById('smugmugThumbUrl').value = selectedAlbum.highlightImage || '';
       
       // Show preview
       const preview = document.getElementById('selectedAlbumPreview');
