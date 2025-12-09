@@ -53,6 +53,10 @@
       padding-bottom: 10px;
     }
     
+    .card h2.pdf-header {
+      border-bottom-color: #1565c0;
+    }
+    
     .form-row {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -179,6 +183,13 @@
       cursor: not-allowed;
     }
     
+    .btn-submit.pdf-btn {
+      background: #1565c0;
+    }
+    .btn-submit.pdf-btn:hover {
+      background: #0d47a1;
+    }
+    
     .divider {
       text-align: center;
       margin: 40px 0;
@@ -198,6 +209,45 @@
       position: relative;
       color: #888;
       font-size: 14px;
+    }
+    
+    /* File Upload */
+    .file-upload-area {
+      border: 2px dashed #ddd;
+      border-radius: 8px;
+      padding: 30px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: #fafafa;
+      margin-bottom: 20px;
+    }
+    .file-upload-area:hover {
+      border-color: #1565c0;
+      background: #e3f2fd;
+    }
+    .file-upload-area.has-file {
+      border-color: #2e7d32;
+      background: #e8f5e9;
+    }
+    .file-upload-area input[type="file"] {
+      display: none;
+    }
+    .file-upload-icon {
+      font-size: 40px;
+      margin-bottom: 10px;
+    }
+    .file-upload-text {
+      color: #666;
+      font-size: 14px;
+    }
+    .file-upload-text strong {
+      color: #1565c0;
+    }
+    .file-name {
+      margin-top: 10px;
+      font-weight: 600;
+      color: #2e7d32;
     }
     
     /* Success/Error Messages */
@@ -233,6 +283,9 @@
       animation: spin 1s linear infinite;
       margin: 0 auto 10px;
     }
+    .spinner.blue {
+      border-top-color: #1565c0;
+    }
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
@@ -243,6 +296,10 @@
       padding: 30px;
       color: #888;
       font-size: 13px;
+    }
+    .footer a {
+      color: #f57c00;
+      text-decoration: none;
     }
   </style>
 </head>
@@ -255,11 +312,11 @@
   
   <div class="container">
     <h1>🏀 Roster Submission Form</h1>
-    <p class="intro">Submit your team roster for the 2025-26 season. Fill out the form below or upload a PDF roster.</p>
+    <p class="intro">Submit your team roster for the 2025-26 season. Fill out the form below <strong>or</strong> upload a PDF roster.</p>
     
     <div class="message success" id="successMessage">
       <strong>✓ Roster submitted successfully!</strong><br>
-      Thank you for your submission. We'll review it and add it to our database soon.
+      <span id="successText">Thank you for your submission. We'll review it and add it to our database soon.</span>
     </div>
     
     <div class="message error" id="errorMessage">
@@ -267,16 +324,16 @@
       <span id="errorText">Please try again.</span>
     </div>
     
-    <div class="loading" id="loadingIndicator">
-      <div class="spinner"></div>
-      <div>Submitting roster...</div>
-    </div>
-    
-    <!-- Main Form -->
-    <form id="rosterForm">
-      <div class="card">
-        <h2>Team Information</h2>
-        
+    <!-- Option 1: Full Form -->
+    <div class="card">
+      <h2>Option 1: Enter Roster Details</h2>
+      
+      <div class="loading" id="formLoading">
+        <div class="spinner"></div>
+        <div>Submitting roster...</div>
+      </div>
+      
+      <form id="rosterForm">
         <div class="form-row">
           <div class="form-group">
             <label>School <span class="required">*</span></label>
@@ -422,11 +479,9 @@
             <input type="email" name="submitted_email" placeholder="For follow-up questions">
           </div>
         </div>
-      </div>
-      
-      <div class="card">
-        <h2>Player Roster</h2>
-        <p style="color: #666; margin-bottom: 20px; font-size: 14px;">
+        
+        <h3 style="margin: 30px 0 15px; font-size: 16px; color: #333;">Player Roster</h3>
+        <p style="color: #666; margin-bottom: 15px; font-size: 14px;">
           Add all players on your roster. Minimum 5 players required.
         </p>
         
@@ -441,7 +496,6 @@
             </tr>
           </thead>
           <tbody id="playerTableBody">
-            <!-- Player rows will be added here -->
           </tbody>
         </table>
         
@@ -452,33 +506,125 @@
         <button type="submit" class="btn-submit" id="submitBtn">
           Submit Roster
         </button>
-      </div>
-    </form>
+      </form>
+    </div>
     
     <div class="divider">
       <span>OR</span>
     </div>
     
-    <!-- PDF Upload Option -->
+    <!-- Option 2: PDF Upload -->
     <div class="card">
-      <h2>Upload PDF Roster</h2>
+      <h2 class="pdf-header">Option 2: Upload PDF Roster</h2>
       <p style="color: #666; margin-bottom: 20px; font-size: 14px;">
         Already have a roster as a PDF? Upload it here and we'll enter the data for you.
       </p>
+      
+      <div class="loading" id="pdfLoading">
+        <div class="spinner blue"></div>
+        <div>Uploading PDF...</div>
+      </div>
       
       <form id="pdfForm">
         <div class="form-row">
           <div class="form-group">
             <label>School <span class="required">*</span></label>
-            <select name="school" required>
+            <select name="school" id="pdfSchoolSelect" required>
               <option value="">Select School...</option>
-              <!-- Same options as above -->
+              <option value="Alvirne">Alvirne</option>
+              <option value="Bedford">Bedford</option>
+              <option value="Belmont">Belmont</option>
+              <option value="Berlin">Berlin</option>
+              <option value="Bishop Brady">Bishop Brady</option>
+              <option value="Bishop Guertin">Bishop Guertin</option>
+              <option value="Bow">Bow</option>
+              <option value="Campbell">Campbell</option>
+              <option value="Coe-Brown Northwood">Coe-Brown Northwood</option>
+              <option value="Colebrook">Colebrook</option>
+              <option value="Conant">Conant</option>
+              <option value="Concord">Concord</option>
+              <option value="Concord Christian">Concord Christian</option>
+              <option value="ConVal">ConVal</option>
+              <option value="Derryfield">Derryfield</option>
+              <option value="Dover">Dover</option>
+              <option value="Epping">Epping</option>
+              <option value="Exeter">Exeter</option>
+              <option value="Fall Mountain">Fall Mountain</option>
+              <option value="Farmington">Farmington</option>
+              <option value="Franklin">Franklin</option>
+              <option value="Gilford">Gilford</option>
+              <option value="Goffstown">Goffstown</option>
+              <option value="Gorham">Gorham</option>
+              <option value="Groveton">Groveton</option>
+              <option value="Hanover">Hanover</option>
+              <option value="Hillsboro-Deering">Hillsboro-Deering</option>
+              <option value="Hinsdale">Hinsdale</option>
+              <option value="Hollis-Brookline">Hollis-Brookline</option>
+              <option value="Holy Family">Holy Family</option>
+              <option value="Hopkinton">Hopkinton</option>
+              <option value="Inter-Lakes">Inter-Lakes</option>
+              <option value="John Stark">John Stark</option>
+              <option value="Kearsarge">Kearsarge</option>
+              <option value="Keene">Keene</option>
+              <option value="Kennett">Kennett</option>
+              <option value="Kingswood">Kingswood</option>
+              <option value="Laconia">Laconia</option>
+              <option value="Lebanon">Lebanon</option>
+              <option value="Lin-Wood">Lin-Wood</option>
+              <option value="Lisbon">Lisbon</option>
+              <option value="Littleton">Littleton</option>
+              <option value="Londonderry">Londonderry</option>
+              <option value="Manchester Central">Manchester Central</option>
+              <option value="Manchester Memorial">Manchester Memorial</option>
+              <option value="Manchester West">Manchester West</option>
+              <option value="Mascenic">Mascenic</option>
+              <option value="Mascoma Valley">Mascoma Valley</option>
+              <option value="Merrimack">Merrimack</option>
+              <option value="Merrimack Valley">Merrimack Valley</option>
+              <option value="Milford">Milford</option>
+              <option value="Monadnock">Monadnock</option>
+              <option value="Moultonborough">Moultonborough</option>
+              <option value="Mount Royal">Mount Royal</option>
+              <option value="Nashua North">Nashua North</option>
+              <option value="Nashua South">Nashua South</option>
+              <option value="Newfound">Newfound</option>
+              <option value="Newmarket">Newmarket</option>
+              <option value="Newport">Newport</option>
+              <option value="Nute">Nute</option>
+              <option value="Oyster River">Oyster River</option>
+              <option value="Pelham">Pelham</option>
+              <option value="Pembroke">Pembroke</option>
+              <option value="Pinkerton">Pinkerton</option>
+              <option value="Pittsburg-Canaan">Pittsburg-Canaan</option>
+              <option value="Pittsfield">Pittsfield</option>
+              <option value="Plymouth">Plymouth</option>
+              <option value="Portsmouth">Portsmouth</option>
+              <option value="Portsmouth Christian">Portsmouth Christian</option>
+              <option value="Profile">Profile</option>
+              <option value="Prospect Mountain">Prospect Mountain</option>
+              <option value="Raymond">Raymond</option>
+              <option value="Salem">Salem</option>
+              <option value="Sanborn">Sanborn</option>
+              <option value="Somersworth">Somersworth</option>
+              <option value="Souhegan">Souhegan</option>
+              <option value="Spaulding">Spaulding</option>
+              <option value="St. Thomas Aquinas">St. Thomas Aquinas</option>
+              <option value="Stevens">Stevens</option>
+              <option value="Sunapee">Sunapee</option>
+              <option value="Timberlane">Timberlane</option>
+              <option value="Trinity">Trinity</option>
+              <option value="White Mountains">White Mountains</option>
+              <option value="Wilton-Lyndeborough">Wilton-Lyndeborough</option>
+              <option value="Windham">Windham</option>
+              <option value="Winnacunnet">Winnacunnet</option>
+              <option value="Winnisquam">Winnisquam</option>
+              <option value="Woodsville">Woodsville</option>
             </select>
           </div>
           
           <div class="form-group">
             <label>Gender <span class="required">*</span></label>
-            <select name="gender" required>
+            <select name="gender" id="pdfGender" required>
               <option value="">Select...</option>
               <option value="Boys">Boys</option>
               <option value="Girls">Girls</option>
@@ -487,7 +633,7 @@
           
           <div class="form-group">
             <label>Division</label>
-            <select name="division">
+            <select name="division" id="pdfDivision">
               <option value="">Select...</option>
               <option value="D-I">Division I</option>
               <option value="D-II">Division II</option>
@@ -497,13 +643,29 @@
           </div>
         </div>
         
-        <div class="form-group" style="margin-bottom: 20px;">
-          <label>Roster PDF <span class="required">*</span></label>
-          <input type="file" name="pdf" accept=".pdf" required style="padding: 10px; background: #f9f9f9; border: 2px dashed #ddd; border-radius: 6px;">
-          <small>PDF files only, max 5MB</small>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Your Name</label>
+            <input type="text" name="submitted_by" id="pdfSubmittedBy" placeholder="Who is submitting this?">
+          </div>
+          
+          <div class="form-group">
+            <label>Your Email</label>
+            <input type="email" name="submitted_email" id="pdfEmail" placeholder="For follow-up questions">
+          </div>
         </div>
         
-        <button type="submit" class="btn-submit" style="background: #1565c0;">
+        <div class="file-upload-area" id="fileUploadArea" onclick="document.getElementById('pdfFile').click()">
+          <input type="file" id="pdfFile" name="pdf" accept=".pdf" required>
+          <div class="file-upload-icon">📄</div>
+          <div class="file-upload-text">
+            <strong>Click to select a PDF</strong> or drag and drop<br>
+            <small>PDF files only, max 5MB</small>
+          </div>
+          <div class="file-name" id="fileName" style="display: none;"></div>
+        </div>
+        
+        <button type="submit" class="btn-submit pdf-btn" id="pdfSubmitBtn">
           Upload PDF Roster
         </button>
       </form>
@@ -511,7 +673,7 @@
   </div>
   
   <div class="footer">
-    © 2025 Ball603 • <a href="https://ball603.com" style="color: #f57c00;">Back to Ball603</a>
+    © 2025 Ball603 • <a href="https://ball603.com">Back to Ball603</a>
   </div>
   
   <script>
@@ -519,6 +681,37 @@
     document.addEventListener('DOMContentLoaded', () => {
       for (let i = 0; i < 5; i++) {
         addPlayer();
+      }
+      
+      // Setup drag and drop for PDF
+      const dropArea = document.getElementById('fileUploadArea');
+      
+      ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, preventDefaults, false);
+      });
+      
+      function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      
+      ['dragenter', 'dragover'].forEach(eventName => {
+        dropArea.addEventListener(eventName, () => dropArea.style.borderColor = '#1565c0', false);
+      });
+      
+      ['dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, () => dropArea.style.borderColor = '#ddd', false);
+      });
+      
+      dropArea.addEventListener('drop', handleDrop, false);
+      
+      function handleDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        if (files.length > 0 && files[0].type === 'application/pdf') {
+          document.getElementById('pdfFile').files = files;
+          updateFileName(files[0]);
+        }
       }
     });
     
@@ -579,7 +772,35 @@
       if (row) row.remove();
     }
     
-    // Form submission
+    // File input change handler
+    document.getElementById('pdfFile').addEventListener('change', function(e) {
+      if (this.files.length > 0) {
+        updateFileName(this.files[0]);
+      }
+    });
+    
+    function updateFileName(file) {
+      const fileNameEl = document.getElementById('fileName');
+      const uploadArea = document.getElementById('fileUploadArea');
+      
+      if (file) {
+        // Check file size (5MB max)
+        if (file.size > 5 * 1024 * 1024) {
+          showError('File is too large. Maximum size is 5MB.');
+          document.getElementById('pdfFile').value = '';
+          return;
+        }
+        
+        fileNameEl.textContent = `✓ ${file.name}`;
+        fileNameEl.style.display = 'block';
+        uploadArea.classList.add('has-file');
+      } else {
+        fileNameEl.style.display = 'none';
+        uploadArea.classList.remove('has-file');
+      }
+    }
+    
+    // Form submission (JSON)
     document.getElementById('rosterForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       
@@ -601,7 +822,7 @@
       
       // Collect players
       const rows = document.querySelectorAll('#playerTableBody tr');
-      rows.forEach((row, index) => {
+      rows.forEach((row) => {
         const name = row.querySelector(`input[name*="[name]"]`)?.value;
         if (name && name.trim()) {
           data.players.push({
@@ -620,7 +841,7 @@
       }
       
       // Submit
-      showLoading(true);
+      showLoading('form', true);
       hideMessages();
       
       try {
@@ -633,9 +854,8 @@
         const result = await response.json();
         
         if (result.success) {
-          showSuccess();
+          showSuccess('Thank you for your submission! We\'ll review it and add it to our database soon.');
           form.reset();
-          // Reset player table
           document.getElementById('playerTableBody').innerHTML = '';
           playerCount = 0;
           for (let i = 0; i < 5; i++) addPlayer();
@@ -646,22 +866,76 @@
         console.error('Submit error:', err);
         showError('Network error. Please try again.');
       } finally {
-        showLoading(false);
+        showLoading('form', false);
       }
     });
     
-    // PDF form (placeholder - needs Supabase Storage integration)
+    // PDF form submission (multipart)
     document.getElementById('pdfForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      alert('PDF upload coming soon! For now, please use the form above or email your PDF to contact@ball603.com');
+      
+      const form = e.target;
+      const fileInput = document.getElementById('pdfFile');
+      
+      if (!fileInput.files.length) {
+        showError('Please select a PDF file to upload.');
+        return;
+      }
+      
+      const file = fileInput.files[0];
+      if (file.size > 5 * 1024 * 1024) {
+        showError('File is too large. Maximum size is 5MB.');
+        return;
+      }
+      
+      // Build FormData for multipart submission
+      const formData = new FormData();
+      formData.append('school', document.getElementById('pdfSchoolSelect').value);
+      formData.append('gender', document.getElementById('pdfGender').value);
+      formData.append('division', document.getElementById('pdfDivision').value);
+      formData.append('submitted_by', document.getElementById('pdfSubmittedBy').value);
+      formData.append('submitted_email', document.getElementById('pdfEmail').value);
+      formData.append('pdf', file);
+      
+      showLoading('pdf', true);
+      hideMessages();
+      
+      try {
+        const response = await fetch('/.netlify/functions/submit-roster', {
+          method: 'POST',
+          body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          showSuccess('PDF roster uploaded successfully! We\'ll review and enter the data soon.');
+          form.reset();
+          document.getElementById('fileName').style.display = 'none';
+          document.getElementById('fileUploadArea').classList.remove('has-file');
+        } else {
+          showError(result.error || 'Failed to upload PDF');
+        }
+      } catch (err) {
+        console.error('Upload error:', err);
+        showError('Network error. Please try again.');
+      } finally {
+        showLoading('pdf', false);
+      }
     });
     
-    function showLoading(show) {
-      document.getElementById('loadingIndicator').style.display = show ? 'block' : 'none';
-      document.getElementById('submitBtn').disabled = show;
+    function showLoading(type, show) {
+      if (type === 'form') {
+        document.getElementById('formLoading').style.display = show ? 'block' : 'none';
+        document.getElementById('submitBtn').disabled = show;
+      } else {
+        document.getElementById('pdfLoading').style.display = show ? 'block' : 'none';
+        document.getElementById('pdfSubmitBtn').disabled = show;
+      }
     }
     
-    function showSuccess() {
+    function showSuccess(text) {
+      document.getElementById('successText').textContent = text;
       document.getElementById('successMessage').style.display = 'block';
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
