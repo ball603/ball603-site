@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Roster Submission - Ball603</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f5f5;
+      color: #333;
+      line-height: 1.6;
+    }
+    
+    .header {
+      background: #1a1a1a;
+      padding: 15px 20px;
+      text-align: center;
+    }
+    .header img { height: 50px; }
+    
+    .container {
+      max-width: 800px;
+      margin: 30px auto;
+      padding: 0 20px;
+    }
+    
+    h1 {
+      font-size: 28px;
+      margin-bottom: 10px;
+      color: #333;
+    }
+    
+    .intro {
+      color: #666;
+      margin-bottom: 30px;
+    }
+    
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+      padding: 30px;
+      margin-bottom: 30px;
+    }
+    
+    .card h2 {
+      font-size: 18px;
+      margin-bottom: 20px;
+      color: #333;
+      border-bottom: 2px solid #f57c00;
+      padding-bottom: 10px;
+    }
+    
+    .form-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    
+    .form-group label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #555;
+    }
+    
+    .form-group label .required {
+      color: #c00;
+    }
+    
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      padding: 12px 14px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 15px;
+      font-family: inherit;
+      transition: border-color 0.2s;
+    }
+    
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: #f57c00;
+    }
+    
+    .form-group small {
+      font-size: 11px;
+      color: #888;
+    }
+    
+    /* Player Table */
+    .player-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 15px;
+    }
+    
+    .player-table th {
+      background: #f5f5f5;
+      padding: 10px;
+      text-align: left;
+      font-size: 12px;
+      font-weight: 600;
+      color: #555;
+      border-bottom: 2px solid #ddd;
+    }
+    
+    .player-table td {
+      padding: 8px;
+      border-bottom: 1px solid #eee;
+    }
+    
+    .player-table input,
+    .player-table select {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    
+    .player-table .num-col { width: 70px; }
+    .player-table .class-col { width: 80px; }
+    .player-table .pos-col { width: 80px; }
+    .player-table .action-col { width: 50px; text-align: center; }
+    
+    .btn-remove {
+      background: #ffebee;
+      color: #c62828;
+      border: none;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    .btn-remove:hover { background: #ffcdd2; }
+    
+    .btn-add {
+      background: #f5f5f5;
+      color: #333;
+      border: 1px solid #ddd;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-add:hover { background: #eee; }
+    
+    .btn-submit {
+      background: #f57c00;
+      color: #fff;
+      border: none;
+      padding: 14px 40px;
+      border-radius: 6px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 20px;
+    }
+    .btn-submit:hover { background: #e56a00; }
+    .btn-submit:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    
+    .divider {
+      text-align: center;
+      margin: 40px 0;
+      position: relative;
+    }
+    .divider::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 0;
+      right: 0;
+      border-top: 1px solid #ddd;
+    }
+    .divider span {
+      background: #f5f5f5;
+      padding: 0 20px;
+      position: relative;
+      color: #888;
+      font-size: 14px;
+    }
+    
+    /* Success/Error Messages */
+    .message {
+      padding: 15px 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      display: none;
+    }
+    .message.success {
+      background: #e8f5e9;
+      color: #2e7d32;
+      border: 1px solid #a5d6a7;
+    }
+    .message.error {
+      background: #ffebee;
+      color: #c62828;
+      border: 1px solid #ef9a9a;
+    }
+    
+    /* Loading */
+    .loading {
+      display: none;
+      text-align: center;
+      padding: 20px;
+    }
+    .spinner {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #f57c00;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 10px;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .footer {
+      text-align: center;
+      padding: 30px;
+      color: #888;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <a href="https://ball603.com">
+      <img src="https://ball603.com/wp-content/uploads/2021/12/LogoHeader.png" alt="Ball603">
+    </a>
+  </div>
+  
+  <div class="container">
+    <h1>🏀 Roster Submission Form</h1>
+    <p class="intro">Submit your team roster for the 2025-26 season. Fill out the form below or upload a PDF roster.</p>
+    
+    <div class="message success" id="successMessage">
+      <strong>✓ Roster submitted successfully!</strong><br>
+      Thank you for your submission. We'll review it and add it to our database soon.
+    </div>
+    
+    <div class="message error" id="errorMessage">
+      <strong>Error submitting roster.</strong><br>
+      <span id="errorText">Please try again.</span>
+    </div>
+    
+    <div class="loading" id="loadingIndicator">
+      <div class="spinner"></div>
+      <div>Submitting roster...</div>
+    </div>
+    
+    <!-- Main Form -->
+    <form id="rosterForm">
+      <div class="card">
+        <h2>Team Information</h2>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label>School <span class="required">*</span></label>
+            <select name="school" id="schoolSelect" required>
+              <option value="">Select School...</option>
+              <option value="Alvirne">Alvirne</option>
+              <option value="Bedford">Bedford</option>
+              <option value="Belmont">Belmont</option>
+              <option value="Berlin">Berlin</option>
+              <option value="Bishop Brady">Bishop Brady</option>
+              <option value="Bishop Guertin">Bishop Guertin</option>
+              <option value="Bow">Bow</option>
+              <option value="Campbell">Campbell</option>
+              <option value="Coe-Brown Northwood">Coe-Brown Northwood</option>
+              <option value="Colebrook">Colebrook</option>
+              <option value="Conant">Conant</option>
+              <option value="Concord">Concord</option>
+              <option value="Concord Christian">Concord Christian</option>
+              <option value="ConVal">ConVal</option>
+              <option value="Derryfield">Derryfield</option>
+              <option value="Dover">Dover</option>
+              <option value="Epping">Epping</option>
+              <option value="Exeter">Exeter</option>
+              <option value="Fall Mountain">Fall Mountain</option>
+              <option value="Farmington">Farmington</option>
+              <option value="Franklin">Franklin</option>
+              <option value="Gilford">Gilford</option>
+              <option value="Goffstown">Goffstown</option>
+              <option value="Gorham">Gorham</option>
+              <option value="Groveton">Groveton</option>
+              <option value="Hanover">Hanover</option>
+              <option value="Hillsboro-Deering">Hillsboro-Deering</option>
+              <option value="Hinsdale">Hinsdale</option>
+              <option value="Hollis-Brookline">Hollis-Brookline</option>
+              <option value="Holy Family">Holy Family</option>
+              <option value="Hopkinton">Hopkinton</option>
+              <option value="Inter-Lakes">Inter-Lakes</option>
+              <option value="John Stark">John Stark</option>
+              <option value="Kearsarge">Kearsarge</option>
+              <option value="Keene">Keene</option>
+              <option value="Kennett">Kennett</option>
+              <option value="Kingswood">Kingswood</option>
+              <option value="Laconia">Laconia</option>
+              <option value="Lebanon">Lebanon</option>
+              <option value="Lin-Wood">Lin-Wood</option>
+              <option value="Lisbon">Lisbon</option>
+              <option value="Littleton">Littleton</option>
+              <option value="Londonderry">Londonderry</option>
+              <option value="Manchester Central">Manchester Central</option>
+              <option value="Manchester Memorial">Manchester Memorial</option>
+              <option value="Manchester West">Manchester West</option>
+              <option value="Mascenic">Mascenic</option>
+              <option value="Mascoma Valley">Mascoma Valley</option>
+              <option value="Merrimack">Merrimack</option>
+              <option value="Merrimack Valley">Merrimack Valley</option>
+              <option value="Milford">Milford</option>
+              <option value="Monadnock">Monadnock</option>
+              <option value="Moultonborough">Moultonborough</option>
+              <option value="Mount Royal">Mount Royal</option>
+              <option value="Nashua North">Nashua North</option>
+              <option value="Nashua South">Nashua South</option>
+              <option value="Newfound">Newfound</option>
+              <option value="Newmarket">Newmarket</option>
+              <option value="Newport">Newport</option>
+              <option value="Nute">Nute</option>
+              <option value="Oyster River">Oyster River</option>
+              <option value="Pelham">Pelham</option>
+              <option value="Pembroke">Pembroke</option>
+              <option value="Pinkerton">Pinkerton</option>
+              <option value="Pittsburg-Canaan">Pittsburg-Canaan</option>
+              <option value="Pittsfield">Pittsfield</option>
+              <option value="Plymouth">Plymouth</option>
+              <option value="Portsmouth">Portsmouth</option>
+              <option value="Portsmouth Christian">Portsmouth Christian</option>
+              <option value="Profile">Profile</option>
+              <option value="Prospect Mountain">Prospect Mountain</option>
+              <option value="Raymond">Raymond</option>
+              <option value="Salem">Salem</option>
+              <option value="Sanborn">Sanborn</option>
+              <option value="Somersworth">Somersworth</option>
+              <option value="Souhegan">Souhegan</option>
+              <option value="Spaulding">Spaulding</option>
+              <option value="St. Thomas Aquinas">St. Thomas Aquinas</option>
+              <option value="Stevens">Stevens</option>
+              <option value="Sunapee">Sunapee</option>
+              <option value="Timberlane">Timberlane</option>
+              <option value="Trinity">Trinity</option>
+              <option value="White Mountains">White Mountains</option>
+              <option value="Wilton-Lyndeborough">Wilton-Lyndeborough</option>
+              <option value="Windham">Windham</option>
+              <option value="Winnacunnet">Winnacunnet</option>
+              <option value="Winnisquam">Winnisquam</option>
+              <option value="Woodsville">Woodsville</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label>Gender <span class="required">*</span></label>
+            <select name="gender" required>
+              <option value="">Select...</option>
+              <option value="Boys">Boys</option>
+              <option value="Girls">Girls</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label>Division</label>
+            <select name="division">
+              <option value="">Select...</option>
+              <option value="D-I">Division I</option>
+              <option value="D-II">Division II</option>
+              <option value="D-III">Division III</option>
+              <option value="D-IV">Division IV</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label>Head Coach</label>
+            <input type="text" name="head_coach" placeholder="Coach's full name">
+          </div>
+          
+          <div class="form-group">
+            <label>Assistant Coaches</label>
+            <input type="text" name="assistant_coaches" placeholder="Comma-separated names">
+          </div>
+          
+          <div class="form-group">
+            <label>Managers</label>
+            <input type="text" name="managers" placeholder="Comma-separated names">
+          </div>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label>Your Name</label>
+            <input type="text" name="submitted_by" placeholder="Who is submitting this?">
+          </div>
+          
+          <div class="form-group">
+            <label>Your Email</label>
+            <input type="email" name="submitted_email" placeholder="For follow-up questions">
+          </div>
+        </div>
+      </div>
+      
+      <div class="card">
+        <h2>Player Roster</h2>
+        <p style="color: #666; margin-bottom: 20px; font-size: 14px;">
+          Add all players on your roster. Minimum 5 players required.
+        </p>
+        
+        <table class="player-table">
+          <thead>
+            <tr>
+              <th class="num-col">#</th>
+              <th>Name</th>
+              <th class="class-col">Class</th>
+              <th class="pos-col">Position</th>
+              <th class="action-col"></th>
+            </tr>
+          </thead>
+          <tbody id="playerTableBody">
+            <!-- Player rows will be added here -->
+          </tbody>
+        </table>
+        
+        <button type="button" class="btn-add" onclick="addPlayer()">
+          <span>+</span> Add Player
+        </button>
+        
+        <button type="submit" class="btn-submit" id="submitBtn">
+          Submit Roster
+        </button>
+      </div>
+    </form>
+    
+    <div class="divider">
+      <span>OR</span>
+    </div>
+    
+    <!-- PDF Upload Option -->
+    <div class="card">
+      <h2>Upload PDF Roster</h2>
+      <p style="color: #666; margin-bottom: 20px; font-size: 14px;">
+        Already have a roster as a PDF? Upload it here and we'll enter the data for you.
+      </p>
+      
+      <form id="pdfForm">
+        <div class="form-row">
+          <div class="form-group">
+            <label>School <span class="required">*</span></label>
+            <select name="school" required>
+              <option value="">Select School...</option>
+              <!-- Same options as above -->
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label>Gender <span class="required">*</span></label>
+            <select name="gender" required>
+              <option value="">Select...</option>
+              <option value="Boys">Boys</option>
+              <option value="Girls">Girls</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label>Division</label>
+            <select name="division">
+              <option value="">Select...</option>
+              <option value="D-I">Division I</option>
+              <option value="D-II">Division II</option>
+              <option value="D-III">Division III</option>
+              <option value="D-IV">Division IV</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 20px;">
+          <label>Roster PDF <span class="required">*</span></label>
+          <input type="file" name="pdf" accept=".pdf" required style="padding: 10px; background: #f9f9f9; border: 2px dashed #ddd; border-radius: 6px;">
+          <small>PDF files only, max 5MB</small>
+        </div>
+        
+        <button type="submit" class="btn-submit" style="background: #1565c0;">
+          Upload PDF Roster
+        </button>
+      </form>
+    </div>
+  </div>
+  
+  <div class="footer">
+    © 2025 Ball603 • <a href="https://ball603.com" style="color: #f57c00;">Back to Ball603</a>
+  </div>
+  
+  <script>
+    // Initialize with 5 player rows
+    document.addEventListener('DOMContentLoaded', () => {
+      for (let i = 0; i < 5; i++) {
+        addPlayer();
+      }
+    });
+    
+    let playerCount = 0;
+    
+    function addPlayer() {
+      const tbody = document.getElementById('playerTableBody');
+      const row = document.createElement('tr');
+      row.id = `player-${playerCount}`;
+      row.innerHTML = `
+        <td class="num-col">
+          <select name="player[${playerCount}][number]">
+            <option value="">-</option>
+            <option>00</option><option>0</option><option>1</option><option>2</option><option>3</option>
+            <option>4</option><option>5</option><option>10</option><option>11</option><option>12</option>
+            <option>13</option><option>14</option><option>15</option><option>20</option><option>21</option>
+            <option>22</option><option>23</option><option>24</option><option>25</option><option>30</option>
+            <option>31</option><option>32</option><option>33</option><option>34</option><option>35</option>
+            <option>40</option><option>41</option><option>42</option><option>43</option><option>44</option>
+            <option>45</option><option>50</option><option>51</option><option>52</option><option>53</option>
+            <option>54</option><option>55</option>
+          </select>
+        </td>
+        <td>
+          <input type="text" name="player[${playerCount}][name]" placeholder="Player name">
+        </td>
+        <td class="class-col">
+          <select name="player[${playerCount}][class]">
+            <option value="">-</option>
+            <option value="FR">FR</option>
+            <option value="SO">SO</option>
+            <option value="JR">JR</option>
+            <option value="SR">SR</option>
+            <option value="8th">8th</option>
+            <option value="7th">7th</option>
+          </select>
+        </td>
+        <td class="pos-col">
+          <select name="player[${playerCount}][position]">
+            <option value="">-</option>
+            <option value="G">G</option>
+            <option value="F">F</option>
+            <option value="C">C</option>
+            <option value="G/F">G/F</option>
+            <option value="F/C">F/C</option>
+          </select>
+        </td>
+        <td class="action-col">
+          <button type="button" class="btn-remove" onclick="removePlayer(${playerCount})">×</button>
+        </td>
+      `;
+      tbody.appendChild(row);
+      playerCount++;
+    }
+    
+    function removePlayer(id) {
+      const row = document.getElementById(`player-${id}`);
+      if (row) row.remove();
+    }
+    
+    // Form submission
+    document.getElementById('rosterForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const form = e.target;
+      const formData = new FormData(form);
+      
+      // Build the data object
+      const data = {
+        school: formData.get('school'),
+        gender: formData.get('gender'),
+        division: formData.get('division'),
+        head_coach: formData.get('head_coach'),
+        assistant_coaches: formData.get('assistant_coaches'),
+        managers: formData.get('managers'),
+        submitted_by: formData.get('submitted_by'),
+        submitted_email: formData.get('submitted_email'),
+        players: []
+      };
+      
+      // Collect players
+      const rows = document.querySelectorAll('#playerTableBody tr');
+      rows.forEach((row, index) => {
+        const name = row.querySelector(`input[name*="[name]"]`)?.value;
+        if (name && name.trim()) {
+          data.players.push({
+            number: row.querySelector(`select[name*="[number]"]`)?.value || '',
+            name: name.trim(),
+            class: row.querySelector(`select[name*="[class]"]`)?.value || '',
+            position: row.querySelector(`select[name*="[position]"]`)?.value || ''
+          });
+        }
+      });
+      
+      // Validate
+      if (data.players.length < 5) {
+        showError('Please add at least 5 players to the roster.');
+        return;
+      }
+      
+      // Submit
+      showLoading(true);
+      hideMessages();
+      
+      try {
+        const response = await fetch('/.netlify/functions/submit-roster', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          showSuccess();
+          form.reset();
+          // Reset player table
+          document.getElementById('playerTableBody').innerHTML = '';
+          playerCount = 0;
+          for (let i = 0; i < 5; i++) addPlayer();
+        } else {
+          showError(result.error || 'Failed to submit roster');
+        }
+      } catch (err) {
+        console.error('Submit error:', err);
+        showError('Network error. Please try again.');
+      } finally {
+        showLoading(false);
+      }
+    });
+    
+    // PDF form (placeholder - needs Supabase Storage integration)
+    document.getElementById('pdfForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      alert('PDF upload coming soon! For now, please use the form above or email your PDF to contact@ball603.com');
+    });
+    
+    function showLoading(show) {
+      document.getElementById('loadingIndicator').style.display = show ? 'block' : 'none';
+      document.getElementById('submitBtn').disabled = show;
+    }
+    
+    function showSuccess() {
+      document.getElementById('successMessage').style.display = 'block';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    
+    function showError(text) {
+      document.getElementById('errorText').textContent = text;
+      document.getElementById('errorMessage').style.display = 'block';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    
+    function hideMessages() {
+      document.getElementById('successMessage').style.display = 'none';
+      document.getElementById('errorMessage').style.display = 'none';
+    }
+  </script>
+</body>
+</html>

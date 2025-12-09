@@ -257,6 +257,7 @@
       <button class="tab" onclick="showTab('contributors')">Contributors</button>
       <button class="tab" onclick="showTab('sponsors')">Sponsors</button>
       <button class="tab" onclick="showTab('products')">Webstore</button>
+      <button class="tab" onclick="showTab('rosters')">Rosters</button>
     </div>
     
     <!-- Articles List Panel -->
@@ -1671,6 +1672,163 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       </div>
     </div>
     
+    <!-- Rosters Panel -->
+    <div class="panel" id="rostersPanel" style="display: none;">
+      <div class="toolbar" style="flex-wrap: wrap; gap: 10px;">
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <span style="font-size: 13px; color: #666;">Status:</span>
+          <select id="rosterStatusFilter" onchange="filterRosters()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px;">
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+            <option value="all">All</option>
+          </select>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <span style="font-size: 13px; color: #666;">Gender:</span>
+          <select id="rosterGenderFilter" onchange="filterRosters()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px;">
+            <option value="">All</option>
+            <option value="Boys">Boys</option>
+            <option value="Girls">Girls</option>
+          </select>
+        </div>
+        <input type="text" id="rosterSearchBox" placeholder="Search school..." oninput="filterRosters()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px; width: 180px; margin-left: auto;">
+      </div>
+      
+      <div style="padding: 10px 15px; background: #f5f5f5; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; margin-top: 15px;">
+        <span id="rosterCount" style="font-size: 13px; color: #666;">Loading submissions...</span>
+        <button onclick="loadRosters()" style="background: #f5f5f5; border: 1px solid #ddd; padding: 6px 12px; border-radius: 5px; cursor: pointer; font-size: 12px;">🔄 Refresh</button>
+      </div>
+      
+      <div class="article-list" id="rosterList">
+        <div class="article-row header" style="grid-template-columns: 1fr 100px 100px 150px 120px 120px;">
+          <div>School</div>
+          <div>Gender</div>
+          <div>Division</div>
+          <div>Submitted</div>
+          <div>Status</div>
+          <div>Actions</div>
+        </div>
+        <div class="loading">Loading roster submissions...</div>
+      </div>
+    </div>
+    
+    <!-- Roster Review Modal -->
+    <div id="rosterModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 2000; overflow-y: auto;">
+      <div style="max-width: 900px; margin: 30px auto; background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+        <div style="background: #2e7d32; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
+          <h2 style="margin: 0; font-size: 16px; font-weight: 500;" id="rosterModalTitle">Review Roster Submission</h2>
+          <button onclick="closeRosterModal()" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer; line-height: 1;">&times;</button>
+        </div>
+        
+        <div style="padding: 20px; max-height: 75vh; overflow-y: auto;">
+          <input type="hidden" id="rosterId">
+          
+          <!-- Team Info Section -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+            <div class="form-group">
+              <label>School *</label>
+              <input type="text" id="rosterSchool" list="schoolsList">
+            </div>
+            <div class="form-group">
+              <label>Gender *</label>
+              <select id="rosterGender">
+                <option value="Boys">Boys</option>
+                <option value="Girls">Girls</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Division</label>
+              <select id="rosterDivision">
+                <option value="">Select...</option>
+                <option value="D-I">D-I</option>
+                <option value="D-II">D-II</option>
+                <option value="D-III">D-III</option>
+                <option value="D-IV">D-IV</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Season</label>
+              <input type="text" id="rosterSeason" placeholder="2025-26" value="2025-26">
+            </div>
+          </div>
+          <datalist id="schoolsList"></datalist>
+          
+          <!-- Coaches Section -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+            <div class="form-group">
+              <label>Head Coach</label>
+              <input type="text" id="rosterHeadCoach">
+            </div>
+            <div class="form-group">
+              <label>Assistant Coaches</label>
+              <input type="text" id="rosterAssistants" placeholder="Comma-separated">
+            </div>
+            <div class="form-group">
+              <label>Managers</label>
+              <input type="text" id="rosterManagers" placeholder="Comma-separated">
+            </div>
+          </div>
+          
+          <!-- Submission Info -->
+          <div style="background: #f5f5f5; border-radius: 8px; padding: 12px 15px; margin-bottom: 20px;">
+            <div style="font-size: 12px; color: #666;">
+              <span>Submitted by: <strong id="rosterSubmitter">-</strong></span>
+              <span style="margin-left: 20px;">Email: <strong id="rosterEmail">-</strong></span>
+              <span style="margin-left: 20px;">Type: <strong id="rosterType">-</strong></span>
+              <span style="margin-left: 20px;">Date: <strong id="rosterSubmitDate">-</strong></span>
+            </div>
+          </div>
+          
+          <!-- PDF Link if applicable -->
+          <div id="rosterPdfSection" style="display: none; background: #e3f2fd; border-radius: 8px; padding: 12px 15px; margin-bottom: 20px;">
+            <a id="rosterPdfLink" href="#" target="_blank" style="color: #1565c0; font-weight: 500;">📄 View Uploaded PDF</a>
+          </div>
+          
+          <!-- Players Section -->
+          <div style="background: #fafafa; border: 1px solid #eee; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <h3 style="margin: 0; font-size: 14px; color: #333;">Players</h3>
+              <button onclick="addPlayerRow()" style="background: #2e7d32; color: white; border: none; padding: 6px 14px; border-radius: 5px; cursor: pointer; font-size: 12px;">+ Add Player</button>
+            </div>
+            <div id="playersContainer" style="max-height: 350px; overflow-y: auto;">
+              <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                <thead>
+                  <tr style="background: #e8f5e9; text-align: left;">
+                    <th style="padding: 8px 10px; width: 60px;">#</th>
+                    <th style="padding: 8px 10px;">Name</th>
+                    <th style="padding: 8px 10px; width: 80px;">Class</th>
+                    <th style="padding: 8px 10px; width: 80px;">Position</th>
+                    <th style="padding: 8px 10px; width: 50px;"></th>
+                  </tr>
+                </thead>
+                <tbody id="playersTableBody">
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+          <!-- Admin Notes -->
+          <div class="form-group" style="margin-bottom: 20px;">
+            <label>Admin Notes</label>
+            <textarea id="rosterNotes" rows="2" placeholder="Internal notes about this submission..." style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; resize: vertical;"></textarea>
+          </div>
+          
+          <!-- Actions -->
+          <div style="display: flex; justify-content: space-between; padding-top: 15px; border-top: 1px solid #eee;">
+            <div>
+              <button onclick="rejectRoster()" style="padding: 10px 20px; background: #ffebee; color: #c62828; border: none; border-radius: 5px; cursor: pointer; font-weight: 500;">Reject</button>
+            </div>
+            <div style="display: flex; gap: 10px;">
+              <button onclick="closeRosterModal()" style="padding: 10px 20px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 5px; cursor: pointer;">Cancel</button>
+              <button onclick="saveRosterChanges()" style="padding: 10px 20px; background: #1565c0; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500;">Save Changes</button>
+              <button onclick="approveRoster()" style="padding: 10px 25px; background: #2e7d32; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500;">✓ Approve & Export</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
     <!-- Social Publishing Panel -->
     <div class="panel" id="socialPublishingPanel" style="display: none;">
       <div class="editor-header">
@@ -2418,6 +2576,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('contributorsPanel').style.display = tab === 'contributors' ? 'block' : 'none';
       document.getElementById('sponsorsPanel').style.display = tab === 'sponsors' ? 'block' : 'none';
       document.getElementById('productsPanel').style.display = tab === 'products' ? 'block' : 'none';
+      document.getElementById('rostersPanel').style.display = tab === 'rosters' ? 'block' : 'none';
       document.getElementById('editorPanel').style.display = 'none';
       
       // Load teams when tab is selected
@@ -2433,6 +2592,11 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       // Load contributors when tab is selected
       if (tab === 'contributors' && allContributors.length === 0) {
         loadContributors();
+      }
+      
+      // Load rosters when tab is selected
+      if (tab === 'rosters' && allRosterSubmissions.length === 0) {
+        loadRosters();
       }
     }
     
@@ -6411,6 +6575,466 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       
       closeSmugMugBrowser();
       showToast('Album selected!', 'success');
+    }
+    
+    // =====================================
+    // ROSTER SUBMISSIONS MANAGEMENT
+    // =====================================
+    
+    let allRosterSubmissions = [];
+    let currentRoster = null;
+    
+    async function loadRosters() {
+      document.getElementById('rosterList').innerHTML = `
+        <div class="article-row header" style="grid-template-columns: 1fr 100px 100px 150px 120px 120px;">
+          <div>School</div>
+          <div>Gender</div>
+          <div>Division</div>
+          <div>Submitted</div>
+          <div>Status</div>
+          <div>Actions</div>
+        </div>
+        <div class="loading">Loading roster submissions...</div>
+      `;
+      
+      try {
+        const { data, error } = await supabase
+          .from('roster_submissions')
+          .select('*')
+          .order('created_at', { ascending: false });
+        
+        if (error) throw error;
+        
+        allRosterSubmissions = data || [];
+        renderRosters();
+        populateSchoolsDatalist();
+      } catch (err) {
+        console.error('Error loading rosters:', err);
+        showToast('Error loading roster submissions', 'error');
+        document.getElementById('rosterList').innerHTML = `
+          <div class="article-row header" style="grid-template-columns: 1fr 100px 100px 150px 120px 120px;">
+            <div>School</div>
+            <div>Gender</div>
+            <div>Division</div>
+            <div>Submitted</div>
+            <div>Status</div>
+            <div>Actions</div>
+          </div>
+          <div class="empty-state"><p>Error loading submissions. <button onclick="loadRosters()">Try again</button></p></div>
+        `;
+      }
+    }
+    
+    function filterRosters() {
+      renderRosters();
+    }
+    
+    function renderRosters() {
+      const statusFilter = document.getElementById('rosterStatusFilter').value;
+      const genderFilter = document.getElementById('rosterGenderFilter').value;
+      const searchTerm = document.getElementById('rosterSearchBox').value.toLowerCase();
+      
+      let filtered = allRosterSubmissions;
+      
+      if (statusFilter && statusFilter !== 'all') {
+        filtered = filtered.filter(r => r.status === statusFilter);
+      }
+      if (genderFilter) {
+        filtered = filtered.filter(r => r.gender === genderFilter);
+      }
+      if (searchTerm) {
+        filtered = filtered.filter(r => 
+          r.school?.toLowerCase().includes(searchTerm) ||
+          r.submitted_by?.toLowerCase().includes(searchTerm)
+        );
+      }
+      
+      document.getElementById('rosterCount').textContent = `${filtered.length} submission${filtered.length !== 1 ? 's' : ''}`;
+      
+      const list = document.getElementById('rosterList');
+      
+      if (filtered.length === 0) {
+        list.innerHTML = `
+          <div class="article-row header" style="grid-template-columns: 1fr 100px 100px 150px 120px 120px;">
+            <div>School</div>
+            <div>Gender</div>
+            <div>Division</div>
+            <div>Submitted</div>
+            <div>Status</div>
+            <div>Actions</div>
+          </div>
+          <div class="empty-state"><p>No roster submissions found</p></div>
+        `;
+        return;
+      }
+      
+      list.innerHTML = `
+        <div class="article-row header" style="grid-template-columns: 1fr 100px 100px 150px 120px 120px;">
+          <div>School</div>
+          <div>Gender</div>
+          <div>Division</div>
+          <div>Submitted</div>
+          <div>Status</div>
+          <div>Actions</div>
+        </div>
+        ${filtered.map(roster => {
+          const statusClass = roster.status === 'approved' ? 'published' : 
+                              roster.status === 'rejected' ? 'draft' : 'scheduled';
+          const playerCount = roster.players_json ? roster.players_json.length : 0;
+          return `
+            <div class="article-row" style="grid-template-columns: 1fr 100px 100px 150px 120px 120px;">
+              <div>
+                <div class="article-title" onclick="openRosterModal('${roster.id}')">${roster.school || 'Unknown'}</div>
+                <div style="font-size: 11px; color: #888;">${playerCount} players • ${roster.submission_type || 'form'}</div>
+              </div>
+              <div>${roster.gender || '-'}</div>
+              <div>${roster.division || '-'}</div>
+              <div class="article-date">${formatDate(roster.created_at)}</div>
+              <div>
+                <span class="article-status ${statusClass}">${roster.status || 'pending'}</span>
+              </div>
+              <div class="article-actions">
+                <button class="btn-edit" onclick="openRosterModal('${roster.id}')">Review</button>
+                <button class="btn-delete" onclick="deleteRoster('${roster.id}')">Delete</button>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      `;
+    }
+    
+    function populateSchoolsDatalist() {
+      // Use the teams list if available, or a basic list
+      const datalist = document.getElementById('schoolsList');
+      if (!datalist) return;
+      
+      // If teams are loaded, use those
+      if (allTeams && allTeams.length > 0) {
+        datalist.innerHTML = allTeams
+          .map(t => `<option value="${t.shortname}">`)
+          .join('');
+      }
+    }
+    
+    function openRosterModal(id) {
+      currentRoster = allRosterSubmissions.find(r => r.id == id);
+      if (!currentRoster) {
+        showToast('Roster not found', 'error');
+        return;
+      }
+      
+      document.getElementById('rosterId').value = id;
+      document.getElementById('rosterSchool').value = currentRoster.school || '';
+      document.getElementById('rosterGender').value = currentRoster.gender || 'Boys';
+      document.getElementById('rosterDivision').value = currentRoster.division || '';
+      document.getElementById('rosterSeason').value = currentRoster.season || '2025-26';
+      document.getElementById('rosterHeadCoach').value = currentRoster.head_coach || '';
+      document.getElementById('rosterAssistants').value = currentRoster.assistant_coaches || '';
+      document.getElementById('rosterManagers').value = currentRoster.managers || '';
+      document.getElementById('rosterNotes').value = currentRoster.notes || '';
+      
+      // Submission info
+      document.getElementById('rosterSubmitter').textContent = currentRoster.submitted_by || 'Anonymous';
+      document.getElementById('rosterEmail').textContent = currentRoster.submitted_email || '-';
+      document.getElementById('rosterType').textContent = currentRoster.submission_type || 'form';
+      document.getElementById('rosterSubmitDate').textContent = formatDate(currentRoster.created_at);
+      
+      // PDF section
+      if (currentRoster.pdf_url) {
+        document.getElementById('rosterPdfSection').style.display = 'block';
+        document.getElementById('rosterPdfLink').href = currentRoster.pdf_url;
+      } else {
+        document.getElementById('rosterPdfSection').style.display = 'none';
+      }
+      
+      // Render players
+      renderPlayersTable(currentRoster.players_json || []);
+      
+      document.getElementById('rosterModalTitle').textContent = 
+        `Review: ${currentRoster.school} ${currentRoster.gender}`;
+      document.getElementById('rosterModal').style.display = 'block';
+      document.body.style.overflow = 'hidden';
+    }
+    
+    function closeRosterModal() {
+      document.getElementById('rosterModal').style.display = 'none';
+      document.body.style.overflow = 'auto';
+      currentRoster = null;
+    }
+    
+    function renderPlayersTable(players) {
+      const tbody = document.getElementById('playersTableBody');
+      
+      if (!players || players.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="5" style="padding: 20px; text-align: center; color: #888;">
+              No players added yet. Click "Add Player" to start.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+      
+      tbody.innerHTML = players.map((player, index) => `
+        <tr style="border-bottom: 1px solid #eee;">
+          <td style="padding: 6px 10px;">
+            <input type="text" value="${player.number || ''}" 
+                   onchange="updatePlayer(${index}, 'number', this.value)"
+                   style="width: 50px; padding: 5px; border: 1px solid #ddd; border-radius: 3px; font-size: 13px;">
+          </td>
+          <td style="padding: 6px 10px;">
+            <input type="text" value="${escapeHtml(player.name || '')}" 
+                   onchange="updatePlayer(${index}, 'name', this.value)"
+                   style="width: 100%; padding: 5px; border: 1px solid #ddd; border-radius: 3px; font-size: 13px;">
+          </td>
+          <td style="padding: 6px 10px;">
+            <select onchange="updatePlayer(${index}, 'class', this.value)"
+                    style="padding: 5px; border: 1px solid #ddd; border-radius: 3px; font-size: 13px;">
+              <option value="" ${!player.class ? 'selected' : ''}>-</option>
+              <option value="FR" ${player.class === 'FR' ? 'selected' : ''}>FR</option>
+              <option value="SO" ${player.class === 'SO' ? 'selected' : ''}>SO</option>
+              <option value="JR" ${player.class === 'JR' ? 'selected' : ''}>JR</option>
+              <option value="SR" ${player.class === 'SR' ? 'selected' : ''}>SR</option>
+              <option value="8th" ${player.class === '8th' ? 'selected' : ''}>8th</option>
+              <option value="7th" ${player.class === '7th' ? 'selected' : ''}>7th</option>
+            </select>
+          </td>
+          <td style="padding: 6px 10px;">
+            <select onchange="updatePlayer(${index}, 'position', this.value)"
+                    style="padding: 5px; border: 1px solid #ddd; border-radius: 3px; font-size: 13px;">
+              <option value="" ${!player.position ? 'selected' : ''}>-</option>
+              <option value="G" ${player.position === 'G' ? 'selected' : ''}>G</option>
+              <option value="F" ${player.position === 'F' ? 'selected' : ''}>F</option>
+              <option value="C" ${player.position === 'C' ? 'selected' : ''}>C</option>
+              <option value="G/F" ${player.position === 'G/F' ? 'selected' : ''}>G/F</option>
+              <option value="F/C" ${player.position === 'F/C' ? 'selected' : ''}>F/C</option>
+            </select>
+          </td>
+          <td style="padding: 6px 10px;">
+            <button onclick="removePlayer(${index})" 
+                    style="background: #ffebee; color: #c62828; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 11px;">✕</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+    
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+    
+    function getPlayersFromTable() {
+      const players = [];
+      const rows = document.querySelectorAll('#playersTableBody tr');
+      
+      rows.forEach(row => {
+        const inputs = row.querySelectorAll('input, select');
+        if (inputs.length >= 4) {
+          const number = inputs[0].value.trim();
+          const name = inputs[1].value.trim();
+          const playerClass = inputs[2].value;
+          const position = inputs[3].value;
+          
+          if (name) { // Only add if name exists
+            players.push({
+              number: number,
+              name: name,
+              class: playerClass,
+              position: position
+            });
+          }
+        }
+      });
+      
+      return players;
+    }
+    
+    function updatePlayer(index, field, value) {
+      if (!currentRoster) return;
+      if (!currentRoster.players_json) currentRoster.players_json = [];
+      if (!currentRoster.players_json[index]) currentRoster.players_json[index] = {};
+      currentRoster.players_json[index][field] = value;
+    }
+    
+    function addPlayerRow() {
+      if (!currentRoster) return;
+      if (!currentRoster.players_json) currentRoster.players_json = [];
+      currentRoster.players_json.push({ number: '', name: '', class: '', position: '' });
+      renderPlayersTable(currentRoster.players_json);
+      
+      // Scroll to bottom of players container
+      const container = document.getElementById('playersContainer');
+      container.scrollTop = container.scrollHeight;
+    }
+    
+    function removePlayer(index) {
+      if (!currentRoster || !currentRoster.players_json) return;
+      currentRoster.players_json.splice(index, 1);
+      renderPlayersTable(currentRoster.players_json);
+    }
+    
+    async function saveRosterChanges() {
+      const id = document.getElementById('rosterId').value;
+      if (!id) return;
+      
+      const players = getPlayersFromTable();
+      
+      const updates = {
+        school: document.getElementById('rosterSchool').value,
+        gender: document.getElementById('rosterGender').value,
+        division: document.getElementById('rosterDivision').value,
+        season: document.getElementById('rosterSeason').value,
+        head_coach: document.getElementById('rosterHeadCoach').value,
+        assistant_coaches: document.getElementById('rosterAssistants').value,
+        managers: document.getElementById('rosterManagers').value,
+        notes: document.getElementById('rosterNotes').value,
+        players_json: players
+      };
+      
+      try {
+        const { error } = await supabase
+          .from('roster_submissions')
+          .update(updates)
+          .eq('id', id);
+        
+        if (error) throw error;
+        
+        showToast('Changes saved!', 'success');
+        await loadRosters();
+      } catch (err) {
+        console.error('Error saving roster:', err);
+        showToast('Error saving changes', 'error');
+      }
+    }
+    
+    async function approveRoster() {
+      const id = document.getElementById('rosterId').value;
+      if (!id) return;
+      
+      // First save any changes
+      const players = getPlayersFromTable();
+      
+      const rosterData = {
+        school: document.getElementById('rosterSchool').value,
+        gender: document.getElementById('rosterGender').value,
+        division: document.getElementById('rosterDivision').value,
+        season: document.getElementById('rosterSeason').value,
+        head_coach: document.getElementById('rosterHeadCoach').value,
+        assistant_coaches: document.getElementById('rosterAssistants').value,
+        managers: document.getElementById('rosterManagers').value,
+        notes: document.getElementById('rosterNotes').value,
+        players_json: players,
+        status: 'approved',
+        reviewed_at: new Date().toISOString(),
+        reviewed_by: 'Admin'
+      };
+      
+      try {
+        const { error } = await supabase
+          .from('roster_submissions')
+          .update(rosterData)
+          .eq('id', id);
+        
+        if (error) throw error;
+        
+        // Generate the roster export
+        generateRosterExport(rosterData);
+        
+        showToast('Roster approved!', 'success');
+        closeRosterModal();
+        await loadRosters();
+      } catch (err) {
+        console.error('Error approving roster:', err);
+        showToast('Error approving roster', 'error');
+      }
+    }
+    
+    function generateRosterExport(roster) {
+      // Generate rosters_data.js format
+      const entry = {
+        school: roster.school,
+        gender: roster.gender,
+        players: roster.players_json.map(p => ({
+          number: p.number,
+          name: p.name,
+          class: p.class,
+          position: p.position
+        })),
+        head_coach: roster.head_coach,
+        assistant_coaches: roster.assistant_coaches,
+        managers: roster.managers
+      };
+      
+      const jsonStr = JSON.stringify(entry, null, 2);
+      
+      // Create download
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `roster_${roster.school.toLowerCase().replace(/\s+/g, '-')}_${roster.gender.toLowerCase()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      // Also show in a modal/alert for easy copy
+      const copyText = `// ${roster.school} ${roster.gender}\n${jsonStr}`;
+      
+      if (confirm('Roster exported! Would you like to copy the formatted entry to clipboard?')) {
+        navigator.clipboard.writeText(copyText).then(() => {
+          showToast('Copied to clipboard!', 'success');
+        });
+      }
+    }
+    
+    async function rejectRoster() {
+      const id = document.getElementById('rosterId').value;
+      if (!id) return;
+      
+      if (!confirm('Are you sure you want to reject this roster submission?')) return;
+      
+      try {
+        const { error } = await supabase
+          .from('roster_submissions')
+          .update({
+            status: 'rejected',
+            notes: document.getElementById('rosterNotes').value,
+            reviewed_at: new Date().toISOString(),
+            reviewed_by: 'Admin'
+          })
+          .eq('id', id);
+        
+        if (error) throw error;
+        
+        showToast('Roster rejected', 'success');
+        closeRosterModal();
+        await loadRosters();
+      } catch (err) {
+        console.error('Error rejecting roster:', err);
+        showToast('Error rejecting roster', 'error');
+      }
+    }
+    
+    async function deleteRoster(id) {
+      if (!confirm('Are you sure you want to permanently delete this roster submission?')) return;
+      
+      try {
+        const { error } = await supabase
+          .from('roster_submissions')
+          .delete()
+          .eq('id', id);
+        
+        if (error) throw error;
+        
+        showToast('Roster deleted', 'success');
+        await loadRosters();
+      } catch (err) {
+        console.error('Error deleting roster:', err);
+        showToast('Error deleting roster', 'error');
+      }
     }
   </script>
 </body>
