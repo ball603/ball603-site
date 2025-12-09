@@ -676,17 +676,22 @@
             <div style="display: flex; align-items: center; gap: 20px;">
               <div>
                 <label style="font-size: 13px; font-weight: 600; color: #555; display: block; margin-bottom: 8px;">Team Logo</label>
-                <div id="teamLogoPreview" style="width: 100px; height: 100px; border: 1px solid #ddd; border-radius: 8px; background: #fff; display: flex; align-items: center; justify-content: center; overflow: hidden;">
-                  <span style="color: #ccc; font-size: 12px;">No logo</span>
+                <div id="teamLogoPreview" onclick="triggerLogoUpload()" style="width: 100px; height: 100px; border: 2px dashed #ddd; border-radius: 8px; background: #fff; display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.borderColor='#f57c00'; this.style.background='#fff8f0';" onmouseout="this.style.borderColor='#ddd'; this.style.background='#fff';">
+                  <span style="color: #ccc; font-size: 12px; text-align: center;">Click to<br>upload</span>
                 </div>
+                <input type="file" id="logoUploadInput" accept="image/*" style="display: none;" onchange="handleLogoUpload(event)">
+                <input type="hidden" id="teamLogoUrl">
               </div>
               <div style="flex: 1;">
                 <p style="font-size: 12px; color: #666; margin: 0 0 8px 0;">
-                  Logos are loaded from <code style="background: #eee; padding: 2px 6px; border-radius: 3px;">/logos/100px/{ShortName}.png</code>
+                  Click to upload a logo, or it will look for <code style="background: #eee; padding: 2px 6px; border-radius: 3px;">/logos/100px/{ShortName}.png</code>
                 </p>
                 <p style="font-size: 11px; color: #999; margin: 0;">
-                  Files use the short name with spaces removed (e.g., "Bishop Brady" → BishopBrady.png)
+                  Uploaded logos are stored in Supabase. Recommended size: 100x100px or larger (square).
                 </p>
+                <button type="button" id="removeLogoBtn" onclick="removeTeamLogo()" style="display: none; margin-top: 8px; background: #ffebee; color: #c62828; border: none; padding: 5px 10px; border-radius: 4px; font-size: 11px; cursor: pointer;">
+                  Remove uploaded logo
+                </button>
               </div>
             </div>
           </div>
@@ -4147,10 +4152,11 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         </div>
         ${teams.map(team => {
           const logoName = (team.shortname || '').replace(/[^a-zA-Z0-9]/g, '');
+          const logoSrc = team.logo_url || `/logos/100px/${logoName}.png`;
           return `
           <div class="article-row" style="grid-template-columns: 50px 1fr 100px 80px 80px 100px 120px; ${!team.active ? 'opacity: 0.5;' : ''}">
             <div style="text-align: center;">
-              <img src="/logos/100px/${logoName}.png" alt="" style="width: 32px; height: 32px; object-fit: contain;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+              <img src="${logoSrc}" alt="" style="width: 32px; height: 32px; object-fit: contain;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
               <span style="display: none; font-size: 18px;">🏀</span>
             </div>
             <div>
@@ -4200,6 +4206,9 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('teamNotes').value = team?.notes || '';
       document.getElementById('teamActive').checked = team?.active !== false;
       
+      // Logo URL
+      document.getElementById('teamLogoUrl').value = team?.logo_url || '';
+      
       // Combined team handling
       document.getElementById('teamCombined').checked = team?.combined_team || false;
       selectedCombinedTeamIds = team?.combined_with || [];
@@ -4210,20 +4219,97 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       updateLogoPreview();
     }
     
-    // Update logo preview based on shortname (spaces removed)
+    // Update logo preview - check custom URL first, then fall back to static path
     function updateLogoPreview() {
+      const customLogoUrl = document.getElementById('teamLogoUrl').value;
       const shortname = document.getElementById('teamShortname').value.trim();
       const container = document.getElementById('teamLogoPreview');
+      const removeBtn = document.getElementById('removeLogoBtn');
       
-      if (!shortname) {
-        container.innerHTML = '<span style="color: #ccc; font-size: 12px;">No logo</span>';
+      // If there's a custom uploaded logo, show it
+      if (customLogoUrl) {
+        container.innerHTML = `<img src="${customLogoUrl}" alt="Team logo" style="max-width: 100%; max-height: 100%; object-fit: contain;">`;
+        container.style.borderStyle = 'solid';
+        removeBtn.style.display = 'inline-block';
         return;
       }
       
-      // Remove spaces and special characters, keep letters and numbers
+      removeBtn.style.display = 'none';
+      container.style.borderStyle = 'dashed';
+      
+      if (!shortname) {
+        container.innerHTML = '<span style="color: #ccc; font-size: 12px; text-align: center;">Click to<br>upload</span>';
+        return;
+      }
+      
+      // Try to load from static path
       const logoName = shortname.replace(/[^a-zA-Z0-9]/g, '');
       const logoUrl = `/logos/100px/${logoName}.png`;
-      container.innerHTML = `<img src="${logoUrl}" alt="${shortname} logo" style="max-width: 100%; max-height: 100%; object-fit: contain;" onerror="this.parentElement.innerHTML='<span style=\\'color: #999; font-size: 11px; text-align: center;\\'>Logo not found<br><code>${logoName}.png</code></span>'">`;
+      container.innerHTML = `<img src="${logoUrl}" alt="${shortname} logo" style="max-width: 100%; max-height: 100%; object-fit: contain;" onerror="this.parentElement.innerHTML='<span style=\\'color: #ccc; font-size: 11px; text-align: center;\\'>Click to<br>upload</span>'">`;
+    }
+    
+    // Logo upload functions
+    function triggerLogoUpload() {
+      document.getElementById('logoUploadInput').click();
+    }
+    
+    async function handleLogoUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        showToast('Please select an image file', 'error');
+        return;
+      }
+      
+      // Show loading state
+      const container = document.getElementById('teamLogoPreview');
+      container.innerHTML = '<span style="color: #666; font-size: 11px;">Uploading...</span>';
+      
+      try {
+        // Generate unique filename
+        const shortname = document.getElementById('teamShortname').value.trim() || 'team';
+        const logoName = shortname.replace(/[^a-zA-Z0-9]/g, '');
+        const ext = file.name.split('.').pop();
+        const filename = `logos/${logoName}-${Date.now()}.${ext}`;
+        
+        // Upload to Supabase Storage
+        const { data, error } = await supabase.storage
+          .from('images')
+          .upload(filename, file, {
+            cacheControl: '3600',
+            upsert: false
+          });
+        
+        if (error) throw error;
+        
+        // Get public URL
+        const { data: urlData } = supabase.storage
+          .from('images')
+          .getPublicUrl(filename);
+        
+        const logoUrl = urlData.publicUrl;
+        
+        // Save to hidden field and update preview
+        document.getElementById('teamLogoUrl').value = logoUrl;
+        updateLogoPreview();
+        showToast('Logo uploaded!', 'success');
+        
+      } catch (err) {
+        console.error('Logo upload error:', err);
+        showToast('Failed to upload logo: ' + err.message, 'error');
+        updateLogoPreview(); // Reset preview
+      }
+      
+      // Clear the file input
+      event.target.value = '';
+    }
+    
+    function removeTeamLogo() {
+      document.getElementById('teamLogoUrl').value = '';
+      updateLogoPreview();
+      showToast('Logo removed (will use default if available)', 'success');
     }
     
     // Combined team variables and functions
@@ -4383,6 +4469,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         secondary_hex: document.getElementById('teamSecondaryHex').value.trim() || null,
         website: document.getElementById('teamWebsite').value.trim() || null,
         livestream_url: document.getElementById('teamLivestream').value.trim() || null,
+        logo_url: document.getElementById('teamLogoUrl').value.trim() || null,
         notes: document.getElementById('teamNotes').value.trim() || null,
         active: document.getElementById('teamActive').checked,
         combined_team: document.getElementById('teamCombined').checked,
