@@ -30,6 +30,8 @@ export async function handler(event) {
         return await sendPasswordReset(data, headers);
       case 'bulk-invite':
         return await bulkInvite(data, headers);
+      case 'delete':
+        return await deleteContributor(data, headers);
       default:
         return { statusCode: 400, headers, body: JSON.stringify({ error: 'Invalid action' }) };
     }
@@ -296,5 +298,50 @@ async function bulkInvite(data, headers) {
       message: `Sent ${results.success.length} invites, ${results.failed.length} failed`,
       results
     }) 
+  };
+}
+
+// Delete a contributor and their auth account
+async function deleteContributor(data, headers) {
+  const { contributorId } = data;
+
+  if (!contributorId) {
+    return { statusCode: 400, headers, body: JSON.stringify({ error: 'contributorId is required' }) };
+  }
+
+  // Get contributor to find auth_user_id
+  const { data: contributors } = await supabaseRest(
+    `contributors?id=eq.${contributorId}&select=id,name,email,auth_user_id`
+  );
+
+  if (!contributors || contributors.length === 0) {
+    return { statusCode: 404, headers, body: JSON.stringify({ error: 'Contributor not found' }) };
+  }
+
+  const contributor = contributors[0];
+
+  // Delete auth user if exists
+  if (contributor.auth_user_id) {
+    await supabaseAuthAdmin(`users/${contributor.auth_user_id}`, 'DELETE');
+  }
+
+  // Delete portfolio items first (foreign key constraint)
+  await supabaseRest(`contributor_portfolio?contributor_id=eq.${contributorId}`, {
+    method: 'DELETE'
+  });
+
+  // Delete contributor record
+  const { error: deleteError } = await supabaseRest(`contributors?id=eq.${contributorId}`, {
+    method: 'DELETE'
+  });
+
+  if (deleteError) {
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to delete contributor' }) };
+  }
+
+  return { 
+    statusCode: 200, 
+    headers, 
+    body: JSON.stringify({ success: true, message: `Deleted ${contributor.name}` }) 
   };
 }
