@@ -83,10 +83,10 @@
     .editor-actions { display: flex; gap: 10px; }
     .btn-back { background: #e0e0e0; color: #333; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 14px; }
     .btn-back:hover { background: #d0d0d0; }
-    .btn-save { background: #e0e0e0; color: #333; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 14px; font-weight: 500; }
-    .btn-save:hover { background: #d0d0d0; }
-    .btn-publish { background: #e0e0e0; color: #333; border: 2px solid #4CAF50; padding: 8px 18px; border-radius: 5px; cursor: pointer; font-size: 14px; font-weight: 500; }
-    .btn-publish:hover { background: #d0d0d0; }
+    .btn-save { background: #f57c00; color: #fff; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 14px; font-weight: 500; }
+    .btn-save:hover { background: #e56a00; }
+    .btn-publish { background: #f57c00; color: #fff; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 14px; font-weight: 500; }
+    .btn-publish:hover { background: #e56a00; }
     .btn-preview { background: #e0e0e0; color: #333; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 14px; font-weight: 500; }
     .btn-preview:hover { background: #d0d0d0; }
     
@@ -651,7 +651,7 @@
             </div>
             <div class="form-group">
               <label>Short Name *</label>
-              <input type="text" id="teamShortname" placeholder="Farmington">
+              <input type="text" id="teamShortname" placeholder="Farmington" oninput="updateLogoPreview()">
             </div>
           </div>
           
@@ -659,7 +659,7 @@
           <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px;">
             <div class="form-group">
               <label>Abbreviation *</label>
-              <input type="text" id="teamAbbrev" placeholder="FHS" maxlength="10" oninput="updateLogoPreview()">
+              <input type="text" id="teamAbbrev" placeholder="FHS" maxlength="10">
             </div>
             <div class="form-group">
               <label>Emoji</label>
@@ -682,10 +682,10 @@
               </div>
               <div style="flex: 1;">
                 <p style="font-size: 12px; color: #666; margin: 0 0 8px 0;">
-                  Logos are loaded from <code style="background: #eee; padding: 2px 6px; border-radius: 3px;">/logos/100px/{ABBREV}.png</code>
+                  Logos are loaded from <code style="background: #eee; padding: 2px 6px; border-radius: 3px;">/logos/100px/{ShortName}.png</code>
                 </p>
                 <p style="font-size: 11px; color: #999; margin: 0;">
-                  Upload logos to your site's /logos/100px/ folder using the team abbreviation as the filename.
+                  Files use the short name with spaces removed (e.g., "Bishop Brady" → BishopBrady.png)
                 </p>
               </div>
             </div>
@@ -1186,7 +1186,12 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           <button class="btn-preview" onclick="openPreview()">👁 Preview</button>
           <button class="btn-preview" onclick="saveAndPreviewSocial()" title="Save as draft and preview social posts">📱 Social Preview</button>
           <button class="btn-save" onclick="saveArticle()">Save Draft</button>
-          <button class="btn-publish" onclick="publishArticle()">Publish</button>
+          <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+            <button class="btn-publish" onclick="publishArticle()">Publish</button>
+            <button onclick="openScheduleModal()" style="background: none; border: none; color: #666; font-size: 12px; cursor: pointer; padding: 2px 0;" id="scheduleBtn">
+              📅 <span id="scheduleBtnText">Schedule for later</span>
+            </button>
+          </div>
         </div>
       </div>
       
@@ -1293,22 +1298,6 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
                 <option value="other">Other...</option>
               </select>
               <input type="text" id="articleAuthorOther" placeholder="Enter author name..." style="display: none; margin-top: 8px;">
-            </div>
-          </div>
-          
-          <div class="sidebar-card">
-            <h4>📅 Schedule</h4>
-            <div class="form-group">
-              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                <input type="checkbox" id="schedulePost" onchange="toggleScheduleOptions()">
-                <span>Schedule for later</span>
-              </label>
-            </div>
-            <div id="scheduleOptions" style="display: none; margin-top: 10px;">
-              <div class="form-group">
-                <label>Date & Time</label>
-                <input type="datetime-local" id="scheduledDateTime">
-              </div>
             </div>
           </div>
           
@@ -1566,6 +1555,29 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       <div class="modal-footer">
         <button class="btn-modal btn-modal-cancel" onclick="closeCropperModal()">Cancel</button>
         <button class="btn-modal btn-modal-select" onclick="applyCrop()">Apply Crop</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Schedule Modal -->
+  <div class="modal-overlay" id="scheduleModal">
+    <div class="modal" style="max-width: 400px;">
+      <div class="modal-header">
+        <h3>📅 Schedule Publication</h3>
+        <button class="modal-close" onclick="closeScheduleModal()">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 20px;">
+        <div class="form-group">
+          <label style="font-weight: 600; margin-bottom: 8px; display: block;">Publish Date & Time</label>
+          <input type="datetime-local" id="scheduledDateTime" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
+        </div>
+        <p style="font-size: 12px; color: #666; margin-top: 12px;">
+          The article will be automatically published at the scheduled time.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-modal btn-modal-cancel" onclick="clearSchedule()">Clear Schedule</button>
+        <button class="btn-modal btn-modal-select" onclick="setSchedule()">Set Schedule</button>
       </div>
     </div>
   </div>
@@ -2228,18 +2240,61 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       showSocialPublishing(article);
     }
     
-    // Schedule toggle
-    function toggleScheduleOptions() {
-      const checkbox = document.getElementById('schedulePost');
-      const options = document.getElementById('scheduleOptions');
-      options.style.display = checkbox.checked ? 'block' : 'none';
+    // Schedule modal functions
+    let isScheduled = false;
+    let scheduledTime = null;
+    
+    function openScheduleModal() {
+      const modal = document.getElementById('scheduleModal');
+      modal.classList.add('open');
+      document.body.style.overflow = 'hidden';
       
-      if (checkbox.checked && !document.getElementById('scheduledDateTime').value) {
-        // Default to tomorrow at 9 AM
+      // If already scheduled, show that time; otherwise default to tomorrow 9 AM
+      if (scheduledTime) {
+        document.getElementById('scheduledDateTime').value = scheduledTime;
+      } else if (!document.getElementById('scheduledDateTime').value) {
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
         tomorrow.setHours(9, 0, 0, 0);
         document.getElementById('scheduledDateTime').value = tomorrow.toISOString().slice(0, 16);
+      }
+    }
+    
+    function closeScheduleModal() {
+      document.getElementById('scheduleModal').classList.remove('open');
+      document.body.style.overflow = 'auto';
+    }
+    
+    function setSchedule() {
+      const dateTime = document.getElementById('scheduledDateTime').value;
+      if (dateTime) {
+        isScheduled = true;
+        scheduledTime = dateTime;
+        updateScheduleButton();
+        closeScheduleModal();
+        showToast('Schedule set!', 'success');
+      }
+    }
+    
+    function clearSchedule() {
+      isScheduled = false;
+      scheduledTime = null;
+      document.getElementById('scheduledDateTime').value = '';
+      updateScheduleButton();
+      closeScheduleModal();
+      showToast('Schedule cleared', 'success');
+    }
+    
+    function updateScheduleButton() {
+      const btn = document.getElementById('scheduleBtnText');
+      if (isScheduled && scheduledTime) {
+        const date = new Date(scheduledTime);
+        const formatted = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+        btn.textContent = `Scheduled: ${formatted}`;
+        btn.parentElement.style.color = '#9c27b0';
+      } else {
+        btn.textContent = 'Schedule for later';
+        btn.parentElement.style.color = '#666';
       }
     }
     
@@ -2841,9 +2896,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           document.getElementById('smugmugUrl').value = '';
           document.getElementById('youtubeUrl').value = '';
           setAuthorValue('KJ Cardinal');
-          document.getElementById('schedulePost').checked = false;
-          document.getElementById('scheduleOptions').style.display = 'none';
+          isScheduled = false;
+          scheduledTime = null;
           document.getElementById('scheduledDateTime').value = '';
+          updateScheduleButton();
           document.getElementById('socialPostsCard').style.display = 'block';
           
           // Generate auto tags based on linked game
@@ -3080,9 +3136,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           document.getElementById('smugmugUrl').value = '';
           document.getElementById('youtubeUrl').value = '';
           setAuthorValue('KJ Cardinal');
-          document.getElementById('schedulePost').checked = false;
-          document.getElementById('scheduleOptions').style.display = 'none';
+          isScheduled = false;
+          scheduledTime = null;
           document.getElementById('scheduledDateTime').value = '';
+          updateScheduleButton();
           document.getElementById('socialPostsCard').style.display = 'block';
           
           // Generate auto tags based on linked game
@@ -3131,9 +3188,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('smugmugUrl').value = '';
       document.getElementById('youtubeUrl').value = '';
       setAuthorValue('KJ Cardinal');
-      document.getElementById('schedulePost').checked = false;
-      document.getElementById('scheduleOptions').style.display = 'none';
+      isScheduled = false;
+      scheduledTime = null;
       document.getElementById('scheduledDateTime').value = '';
+      updateScheduleButton();
       document.getElementById('socialPostsCard').style.display = 'none';
       
       // Clear featured image
@@ -3186,14 +3244,15 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       
       // Handle scheduling
       if (article.scheduled_at) {
-        document.getElementById('schedulePost').checked = true;
-        document.getElementById('scheduleOptions').style.display = 'block';
-        document.getElementById('scheduledDateTime').value = article.scheduled_at.slice(0, 16);
+        isScheduled = true;
+        scheduledTime = article.scheduled_at.slice(0, 16);
+        document.getElementById('scheduledDateTime').value = scheduledTime;
       } else {
-        document.getElementById('schedulePost').checked = false;
-        document.getElementById('scheduleOptions').style.display = 'none';
+        isScheduled = false;
+        scheduledTime = null;
         document.getElementById('scheduledDateTime').value = '';
       }
+      updateScheduleButton();
       
       // Handle tags
       currentTags = article.tags || [];
@@ -3308,11 +3367,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       
       // Handle scheduling
       let scheduledAt = null;
-      if (document.getElementById('schedulePost').checked) {
-        scheduledAt = document.getElementById('scheduledDateTime').value;
-        if (scheduledAt) {
-          scheduledAt = new Date(scheduledAt).toISOString();
-        }
+      if (isScheduled && scheduledTime) {
+        scheduledAt = new Date(scheduledTime).toISOString();
       }
       
       const articleData = {
@@ -3372,11 +3428,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       
       // Handle scheduling
       let scheduledAt = null;
-      if (document.getElementById('schedulePost').checked) {
-        scheduledAt = document.getElementById('scheduledDateTime').value;
-        if (scheduledAt) {
-          scheduledAt = new Date(scheduledAt).toISOString();
-        }
+      if (isScheduled && scheduledTime) {
+        scheduledAt = new Date(scheduledTime).toISOString();
       }
       
       // Build social posts object for storage
@@ -3451,13 +3504,9 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const slug = currentArticle?.slug || (generateSlug(title) + '-' + Date.now());
       
       // Check if scheduling
-      const isScheduled = document.getElementById('schedulePost').checked;
       let scheduledAt = null;
-      if (isScheduled) {
-        scheduledAt = document.getElementById('scheduledDateTime').value;
-        if (scheduledAt) {
-          scheduledAt = new Date(scheduledAt).toISOString();
-        }
+      if (isScheduled && scheduledTime) {
+        scheduledAt = new Date(scheduledTime).toISOString();
       }
       
       // Use currentTags (which may have been edited by user)
@@ -4156,18 +4205,20 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       updateLogoPreview();
     }
     
-    // Update logo preview based on abbreviation
+    // Update logo preview based on shortname (spaces removed)
     function updateLogoPreview() {
-      const abbrev = document.getElementById('teamAbbrev').value.trim().toUpperCase();
+      const shortname = document.getElementById('teamShortname').value.trim();
       const container = document.getElementById('teamLogoPreview');
       
-      if (!abbrev) {
+      if (!shortname) {
         container.innerHTML = '<span style="color: #ccc; font-size: 12px;">No logo</span>';
         return;
       }
       
-      const logoUrl = `/logos/100px/${abbrev}.png`;
-      container.innerHTML = `<img src="${logoUrl}" alt="${abbrev} logo" style="max-width: 100%; max-height: 100%; object-fit: contain;" onerror="this.parentElement.innerHTML='<span style=\\'color: #999; font-size: 11px; text-align: center;\\'>Logo not found<br><code>${abbrev}.png</code></span>'">`;
+      // Remove spaces and special characters, keep letters and numbers
+      const logoName = shortname.replace(/[^a-zA-Z0-9]/g, '');
+      const logoUrl = `/logos/100px/${logoName}.png`;
+      container.innerHTML = `<img src="${logoUrl}" alt="${shortname} logo" style="max-width: 100%; max-height: 100%; object-fit: contain;" onerror="this.parentElement.innerHTML='<span style=\\'color: #999; font-size: 11px; text-align: center;\\'>Logo not found<br><code>${logoName}.png</code></span>'">`;
     }
     
     // Combined team variables and functions
