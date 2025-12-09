@@ -3922,19 +3922,81 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     }
     
     async function deleteArticle(id) {
-      if (!confirm('Delete this article?')) return;
+      // Find the article to check if it's linked to a game
+      const article = articles.find(a => a.id === id);
       
-      const { error } = await supabase
-        .from('articles')
-        .delete()
-        .eq('id', id);
-      
-      if (error) {
-        showToast('Error deleting article', 'error');
-        return;
+      if (article && article.game_id) {
+        // Article is linked to a game - offer to clear URLs
+        const game = allGames.find(g => g.game_id === article.game_id);
+        const gameLabel = game ? `${game.away_team} @ ${game.home_team} (${game.date})` : article.game_id;
+        
+        const clearUrls = confirm(
+          `This article is linked to:\n${gameLabel}\n\n` +
+          `Do you want to also clear the coverage URLs (photos, recap, highlights) from this game?\n\n` +
+          `Click OK to delete article AND clear URLs\n` +
+          `Click Cancel to just delete the article`
+        );
+        
+        // First, always confirm the delete itself
+        if (!confirm('Delete this article?')) return;
+        
+        // Delete the article
+        const { error } = await supabase
+          .from('articles')
+          .delete()
+          .eq('id', id);
+        
+        if (error) {
+          showToast('Error deleting article', 'error');
+          return;
+        }
+        
+        // If user wanted to clear URLs, do that too
+        if (clearUrls && game) {
+          try {
+            const response = await fetch(`/.netlify/functions/games?id=${game.id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                photos_url: null,
+                recap_url: null,
+                highlights_url: null
+              })
+            });
+            
+            if (response.ok) {
+              // Update local game data
+              game.photos_url = null;
+              game.recap_url = null;
+              game.highlights_url = null;
+              showToast('Article deleted & URLs cleared', 'success');
+            } else {
+              showToast('Article deleted (URL clear failed)', 'warning');
+            }
+          } catch (err) {
+            console.error('Error clearing game URLs:', err);
+            showToast('Article deleted (URL clear failed)', 'warning');
+          }
+        } else {
+          showToast('Article deleted', 'success');
+        }
+      } else {
+        // No game linked - simple delete
+        if (!confirm('Delete this article?')) return;
+        
+        const { error } = await supabase
+          .from('articles')
+          .delete()
+          .eq('id', id);
+        
+        if (error) {
+          showToast('Error deleting article', 'error');
+          return;
+        }
+        
+        showToast('Article deleted', 'success');
       }
       
-      showToast('Article deleted', 'success');
       loadArticles();
     }
     
