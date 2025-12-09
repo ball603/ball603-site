@@ -233,14 +233,14 @@ class ContributorSchedule {
         </div>
         <div class="cs-filters">
           <select class="cs-gender-filter">
-            <option value="">Gender</option>
+            <option value="">Gender (All)</option>
             <option value="Boys">Boys</option>
             <option value="Girls">Girls</option>
             <option value="Men">Men</option>
             <option value="Women">Women</option>
           </select>
           <select class="cs-division-filter">
-            <option value="">Division</option>
+            <option value="">Division (All)</option>
           </select>
           <select class="cs-assignment-filter">
             <option value="">Coverage</option>
@@ -286,7 +286,10 @@ class ContributorSchedule {
     });
     
     // Filter changes
-    this.container.querySelector('.cs-gender-filter').addEventListener('change', () => this.renderGames());
+    this.container.querySelector('.cs-gender-filter').addEventListener('change', () => {
+      this.updateDivisionOptions();
+      this.renderGames();
+    });
     this.container.querySelector('.cs-division-filter').addEventListener('change', () => this.renderGames());
     this.container.querySelector('.cs-assignment-filter').addEventListener('change', () => this.renderGames());
     
@@ -396,32 +399,127 @@ class ContributorSchedule {
     return Array.from(gameMap.values());
   }
   
-  // Populate division filter dropdown
+  // Populate division filter dropdown based on current tab and gender
   populateDivisionFilter() {
+    this.updateGenderOptions();
+    this.updateDivisionOptions();
+  }
+  
+  // Update gender options based on current tab
+  updateGenderOptions() {
+    const select = this.container.querySelector('.cs-gender-filter');
+    const currentValue = select.value;
+    
+    select.innerHTML = '<option value="">Gender (All)</option>';
+    
+    if (this.currentTab === 'NHIAA') {
+      // Only Boys/Girls for NHIAA
+      select.innerHTML += '<option value="Boys">Boys</option><option value="Girls">Girls</option>';
+    } else if (this.currentTab === 'College') {
+      // Only Men/Women for College
+      select.innerHTML += '<option value="Men">Men</option><option value="Women">Women</option>';
+    } else {
+      // All options for "All" tab
+      select.innerHTML += '<option value="Boys">Boys</option><option value="Girls">Girls</option>';
+      select.innerHTML += '<option value="Men">Men</option><option value="Women">Women</option>';
+    }
+    
+    // Try to restore previous value if still valid
+    const validOptions = Array.from(select.options).map(o => o.value);
+    if (validOptions.includes(currentValue)) {
+      select.value = currentValue;
+    } else {
+      select.value = '';
+    }
+  }
+  
+  // Update division options based on current tab and gender
+  updateDivisionOptions() {
     const select = this.container.querySelector('.cs-division-filter');
-    select.innerHTML = '<option value="">Division</option>';
+    const gender = this.container.querySelector('.cs-gender-filter').value;
+    const currentValue = select.value;
     
-    // NHIAA divisions
-    const nhiaaGroup = document.createElement('optgroup');
-    nhiaaGroup.label = 'NHIAA';
-    ['D-I', 'D-II', 'D-III', 'D-IV'].forEach(div => {
-      const opt = document.createElement('option');
-      opt.value = div;
-      opt.textContent = div;
-      nhiaaGroup.appendChild(opt);
-    });
-    select.appendChild(nhiaaGroup);
+    select.innerHTML = '<option value="">Division (All)</option>';
     
-    // College divisions
-    const collegeGroup = document.createElement('optgroup');
-    collegeGroup.label = 'College';
-    ['D1', 'D2', 'D3', 'Other'].forEach(div => {
-      const opt = document.createElement('option');
-      opt.value = div === 'Other' ? 'college-other' : div;
-      opt.textContent = div;
-      collegeGroup.appendChild(opt);
-    });
-    select.appendChild(collegeGroup);
+    // Determine which divisions to show
+    const showNHIAA = this.currentTab === 'all' || this.currentTab === 'NHIAA' || gender === 'Boys' || gender === 'Girls';
+    const showCollege = this.currentTab === 'all' || this.currentTab === 'College' || gender === 'Men' || gender === 'Women';
+    
+    // If tab is specific, override gender-based logic
+    if (this.currentTab === 'NHIAA') {
+      // Only NHIAA divisions
+      const nhiaaGroup = document.createElement('optgroup');
+      nhiaaGroup.label = 'NHIAA';
+      ['D-I', 'D-II', 'D-III', 'D-IV'].forEach(div => {
+        const opt = document.createElement('option');
+        opt.value = div;
+        opt.textContent = div;
+        nhiaaGroup.appendChild(opt);
+      });
+      select.appendChild(nhiaaGroup);
+    } else if (this.currentTab === 'College') {
+      // Only College divisions
+      const collegeGroup = document.createElement('optgroup');
+      collegeGroup.label = 'College';
+      ['D1', 'D2', 'D3', 'Other'].forEach(div => {
+        const opt = document.createElement('option');
+        opt.value = div === 'Other' ? 'college-other' : div;
+        opt.textContent = div;
+        collegeGroup.appendChild(opt);
+      });
+      select.appendChild(collegeGroup);
+    } else if (gender === 'Boys' || gender === 'Girls') {
+      // Gender implies NHIAA
+      const nhiaaGroup = document.createElement('optgroup');
+      nhiaaGroup.label = 'NHIAA';
+      ['D-I', 'D-II', 'D-III', 'D-IV'].forEach(div => {
+        const opt = document.createElement('option');
+        opt.value = div;
+        opt.textContent = div;
+        nhiaaGroup.appendChild(opt);
+      });
+      select.appendChild(nhiaaGroup);
+    } else if (gender === 'Men' || gender === 'Women') {
+      // Gender implies College
+      const collegeGroup = document.createElement('optgroup');
+      collegeGroup.label = 'College';
+      ['D1', 'D2', 'D3', 'Other'].forEach(div => {
+        const opt = document.createElement('option');
+        opt.value = div === 'Other' ? 'college-other' : div;
+        opt.textContent = div;
+        collegeGroup.appendChild(opt);
+      });
+      select.appendChild(collegeGroup);
+    } else {
+      // Show all divisions
+      const nhiaaGroup = document.createElement('optgroup');
+      nhiaaGroup.label = 'NHIAA';
+      ['D-I', 'D-II', 'D-III', 'D-IV'].forEach(div => {
+        const opt = document.createElement('option');
+        opt.value = div;
+        opt.textContent = div;
+        nhiaaGroup.appendChild(opt);
+      });
+      select.appendChild(nhiaaGroup);
+      
+      const collegeGroup = document.createElement('optgroup');
+      collegeGroup.label = 'College';
+      ['D1', 'D2', 'D3', 'Other'].forEach(div => {
+        const opt = document.createElement('option');
+        opt.value = div === 'Other' ? 'college-other' : div;
+        opt.textContent = div;
+        collegeGroup.appendChild(opt);
+      });
+      select.appendChild(collegeGroup);
+    }
+    
+    // Try to restore previous value if still valid
+    const validOptions = Array.from(select.options).map(o => o.value);
+    if (validOptions.includes(currentValue)) {
+      select.value = currentValue;
+    } else {
+      select.value = '';
+    }
   }
   
   // Set current tab
@@ -429,6 +527,15 @@ class ContributorSchedule {
     this.currentTab = tab;
     this.container.querySelectorAll('.cs-tab').forEach(t => t.classList.remove('active'));
     this.container.querySelector(`.cs-tab[data-tab="${tab}"]`).classList.add('active');
+    
+    // Reset gender and division filters when changing tabs
+    this.container.querySelector('.cs-gender-filter').value = '';
+    this.container.querySelector('.cs-division-filter').value = '';
+    
+    // Update filter options based on new tab
+    this.updateGenderOptions();
+    this.updateDivisionOptions();
+    
     this.renderGames();
   }
   
