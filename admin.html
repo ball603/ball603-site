@@ -8,6 +8,9 @@
   <!-- Quill.js Rich Text Editor -->
   <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
   <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+  <!-- Cropper.js for image cropping -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #333; min-height: 100vh; }
@@ -138,6 +141,15 @@
     .image-modal .alignment-options input, .image-modal .size-options input { display: none; }
     .image-modal .alignment-options input:checked + span, .image-modal .size-options input:checked + span { background: #f57c00; color: white; }
     .image-modal .alignment-options label:has(input:checked), .image-modal .size-options label:has(input:checked) { border-color: #f57c00; background: #fff8f0; }
+    
+    /* Cropper Modal */
+    .cropper-modal-content { max-width: 700px; }
+    .cropper-container-wrapper { max-height: 400px; overflow: hidden; background: #333; border-radius: 6px; }
+    .cropper-container-wrapper img { max-width: 100%; display: block; }
+    .crop-aspect-buttons { display: flex; gap: 8px; margin-bottom: 15px; flex-wrap: wrap; }
+    .crop-aspect-buttons button { padding: 8px 14px; border: 1px solid #ddd; background: #fff; border-radius: 5px; cursor: pointer; font-size: 13px; }
+    .crop-aspect-buttons button:hover { background: #f5f5f5; }
+    .crop-aspect-buttons button.active { background: #f57c00; color: white; border-color: #f57c00; }
     
     .game-selector { border: 1px solid #ddd; border-radius: 5px; max-height: 200px; overflow-y: auto; background: #fff; }
     .game-option { padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 13px; }
@@ -1511,6 +1523,33 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     </div>
   </div>
 
+  <!-- Image Cropper Modal -->
+  <div class="modal-overlay" id="cropperModal">
+    <div class="modal cropper-modal-content">
+      <div class="modal-header">
+        <h3>✂️ Crop Image</h3>
+        <button class="modal-close" onclick="closeCropperModal()">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 20px;">
+        <div class="crop-aspect-buttons">
+          <button onclick="setCropAspect(NaN)" class="active" id="aspectFree">Free</button>
+          <button onclick="setCropAspect(16/9)" id="aspect169">16:9</button>
+          <button onclick="setCropAspect(4/3)" id="aspect43">4:3</button>
+          <button onclick="setCropAspect(1)" id="aspect11">1:1</button>
+          <button onclick="setCropAspect(3/4)" id="aspect34">3:4</button>
+          <button onclick="setCropAspect(9/16)" id="aspect916">9:16</button>
+        </div>
+        <div class="cropper-container-wrapper">
+          <img id="cropperImage" src="" alt="Crop preview">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-modal btn-modal-cancel" onclick="closeCropperModal()">Cancel</button>
+        <button class="btn-modal btn-modal-select" onclick="applyCrop()">Apply Crop</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Preview Modal -->
   <div class="modal-overlay" id="previewModal">
     <div class="modal" style="max-width: 1000px; max-height: 90vh;">
@@ -1833,51 +1872,150 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     }
     
     // Featured Image Upload Handler
-    async function handleFeaturedImageUpload(input) {
-      const file = input.files[0];
-      if (!file) return;
+    // Cropper state
+    let cropper = null;
+    let cropperCallback = null;
+    let currentCropFile = null;
+    let currentCropFolder = 'articles';
+    let currentCropStatusEl = null;
+    let currentCropUrlInput = null;
+    let currentCropPreviewImg = null;
+    let currentCropPreviewBox = null;
+    
+    function openCropperModal(file, folder, statusEl, urlInput, previewImg, previewBox) {
+      currentCropFile = file;
+      currentCropFolder = folder;
+      currentCropStatusEl = statusEl;
+      currentCropUrlInput = urlInput;
+      currentCropPreviewImg = previewImg;
+      currentCropPreviewBox = previewBox;
       
-      const status = document.getElementById('featuredUploadStatus');
-      status.textContent = 'Uploading...';
-      status.style.color = '#f57c00';
+      // Create object URL for the image
+      const imageUrl = URL.createObjectURL(file);
+      const cropperImage = document.getElementById('cropperImage');
+      cropperImage.src = imageUrl;
       
-      try {
-        const url = await uploadImageToSupabase(file, 'featured');
-        document.getElementById('featuredImageUrlInput').value = url;
-        document.getElementById('featuredImagePreviewImg').src = url;
-        document.getElementById('featuredImagePreviewBox').style.display = 'block';
-        status.textContent = '✓ Uploaded';
-        status.style.color = '#4CAF50';
-      } catch (err) {
-        console.error('Featured image upload failed:', err);
-        status.textContent = '✗ Upload failed';
-        status.style.color = '#f44336';
-        showToast('Image upload failed. Make sure the "images" storage bucket exists.', 'error');
+      // Destroy existing cropper if any
+      if (cropper) {
+        cropper.destroy();
+        cropper = null;
+      }
+      
+      document.getElementById('cropperModal').classList.add('open');
+      
+      // Initialize cropper after image loads
+      cropperImage.onload = function() {
+        cropper = new Cropper(cropperImage, {
+          viewMode: 2,
+          autoCropArea: 1,
+          responsive: true,
+          background: false
+        });
+      };
+      
+      // Reset aspect buttons
+      document.querySelectorAll('.crop-aspect-buttons button').forEach(b => b.classList.remove('active'));
+      document.getElementById('aspectFree').classList.add('active');
+    }
+    
+    function closeCropperModal() {
+      document.getElementById('cropperModal').classList.remove('open');
+      if (cropper) {
+        cropper.destroy();
+        cropper = null;
+      }
+      // Revoke object URL
+      const cropperImage = document.getElementById('cropperImage');
+      if (cropperImage.src.startsWith('blob:')) {
+        URL.revokeObjectURL(cropperImage.src);
       }
     }
     
-    // Insert Image Upload Handler
-    async function handleInsertImageUpload(input) {
+    function setCropAspect(ratio) {
+      if (cropper) {
+        cropper.setAspectRatio(ratio);
+      }
+      // Update button states
+      document.querySelectorAll('.crop-aspect-buttons button').forEach(b => b.classList.remove('active'));
+      event.target.classList.add('active');
+    }
+    
+    async function applyCrop() {
+      if (!cropper) return;
+      
+      const statusEl = currentCropStatusEl;
+      statusEl.textContent = 'Processing...';
+      statusEl.style.color = '#f57c00';
+      
+      try {
+        // Get cropped canvas
+        const canvas = cropper.getCroppedCanvas({
+          maxWidth: 2000,
+          maxHeight: 2000
+        });
+        
+        // Convert to blob
+        const blob = await new Promise(resolve => {
+          canvas.toBlob(resolve, 'image/jpeg', 0.9);
+        });
+        
+        // Create file from blob
+        const croppedFile = new File([blob], currentCropFile.name.replace(/\.[^/.]+$/, '.jpg'), {
+          type: 'image/jpeg'
+        });
+        
+        statusEl.textContent = 'Uploading...';
+        
+        // Upload
+        const url = await uploadImageToSupabase(croppedFile, currentCropFolder);
+        
+        // Update the appropriate fields
+        document.getElementById(currentCropUrlInput).value = url;
+        document.getElementById(currentCropPreviewImg).src = url;
+        document.getElementById(currentCropPreviewBox).style.display = 'block';
+        
+        statusEl.textContent = '✓ Uploaded';
+        statusEl.style.color = '#4CAF50';
+        
+        closeCropperModal();
+        showToast('Image cropped and uploaded!', 'success');
+        
+      } catch (err) {
+        console.error('Crop/upload failed:', err);
+        statusEl.textContent = '✗ Failed';
+        statusEl.style.color = '#f44336';
+        showToast('Image processing failed', 'error');
+      }
+    }
+    
+    // Featured Image Upload Handler - Opens Cropper
+    function handleFeaturedImageUpload(input) {
       const file = input.files[0];
       if (!file) return;
       
-      const status = document.getElementById('insertUploadStatus');
-      status.textContent = 'Uploading...';
-      status.style.color = '#f57c00';
+      openCropperModal(
+        file,
+        'featured',
+        document.getElementById('featuredUploadStatus'),
+        'featuredImageUrlInput',
+        'featuredImagePreviewImg',
+        'featuredImagePreviewBox'
+      );
+    }
+    
+    // Insert Image Upload Handler - Opens Cropper
+    function handleInsertImageUpload(input) {
+      const file = input.files[0];
+      if (!file) return;
       
-      try {
-        const url = await uploadImageToSupabase(file, 'articles');
-        document.getElementById('insertImageUrl').value = url;
-        document.getElementById('insertImagePreviewImg').src = url;
-        document.getElementById('insertImagePreviewBox').style.display = 'block';
-        status.textContent = '✓ Uploaded';
-        status.style.color = '#4CAF50';
-      } catch (err) {
-        console.error('Insert image upload failed:', err);
-        status.textContent = '✗ Upload failed';
-        status.style.color = '#f44336';
-        showToast('Image upload failed. Make sure the "images" storage bucket exists.', 'error');
-      }
+      openCropperModal(
+        file,
+        'articles',
+        document.getElementById('insertUploadStatus'),
+        'insertImageUrl',
+        'insertImagePreviewImg',
+        'insertImagePreviewBox'
+      );
     }
     
     // Login
