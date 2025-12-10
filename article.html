@@ -246,7 +246,15 @@
       gap: var(--space-xs);
     }
     
-    /* Quarter Scores Box */
+    /* Quarter Scores Section (inside game box) */
+    .quarter-scores-section {
+      border-top: 1px solid var(--border-color);
+      margin-top: var(--space-md);
+      padding-top: var(--space-md);
+      overflow-x: auto;
+    }
+    
+    /* Quarter Scores Box (standalone, when no linked game) */
     .quarter-scores-box {
       background: var(--bg-card);
       border: 1px solid var(--border-color);
@@ -261,14 +269,14 @@
       border-collapse: collapse;
       font-size: var(--font-size-sm);
       text-align: center;
-      min-width: 400px;
+      min-width: 380px;
     }
     
     .quarter-scores-table th {
       padding: var(--space-sm) var(--space-xs);
       font-weight: var(--font-weight-semibold);
       color: var(--text-muted);
-      border-bottom: 2px solid var(--border-color);
+      border-bottom: 1px solid var(--border-color);
     }
     
     .quarter-scores-table th:first-child {
@@ -310,6 +318,14 @@
       font-size: var(--font-size-md);
       line-height: 1.8;
       color: var(--text-primary);
+    }
+    
+    .article-content p {
+      margin-bottom: var(--space-lg);
+    }
+    
+    .article-content p:last-child {
+      margin-bottom: 0;
     }
     
     .article-content p {
@@ -857,6 +873,47 @@
         const awayWins = hasScore && parseInt(awayScore) > parseInt(homeScore);
         const homeWins = hasScore && parseInt(homeScore) > parseInt(awayScore);
         
+        // Build quarter scores section if game_data exists
+        let quarterScoresSection = '';
+        if (article.game_data && article.game_data.awayQuarters && article.game_data.homeQuarters) {
+          const gd = article.game_data;
+          const gdAwayWins = gd.awayFinal > gd.homeFinal;
+          const gdHomeWins = gd.homeFinal > gd.awayFinal;
+          
+          // Build header row with quarters
+          let headerCells = '<th>Team</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th>';
+          let awayCells = `<td>${gd.awayTeam}</td><td>${gd.awayQuarters[0] || '-'}</td><td>${gd.awayQuarters[1] || '-'}</td><td>${gd.awayQuarters[2] || '-'}</td><td>${gd.awayQuarters[3] || '-'}</td>`;
+          let homeCells = `<td>${gd.homeTeam}</td><td>${gd.homeQuarters[0] || '-'}</td><td>${gd.homeQuarters[1] || '-'}</td><td>${gd.homeQuarters[2] || '-'}</td><td>${gd.homeQuarters[3] || '-'}</td>`;
+          
+          // Add OT columns if present
+          for (let i = 4; i < gd.awayQuarters.length; i++) {
+            const otNum = i - 3;
+            const otLabel = gd.awayQuarters.length === 5 ? 'OT' : `OT${otNum}`;
+            headerCells += `<th>${otLabel}</th>`;
+            awayCells += `<td>${gd.awayQuarters[i] || '-'}</td>`;
+            homeCells += `<td>${gd.homeQuarters[i] || '-'}</td>`;
+          }
+          
+          // Add final column
+          headerCells += '<th>Final</th>';
+          awayCells += `<td class="${gdAwayWins ? 'winner-final' : ''}">${gd.awayFinal}</td>`;
+          homeCells += `<td class="${gdHomeWins ? 'winner-final' : ''}">${gd.homeFinal}</td>`;
+          
+          quarterScoresSection = `
+            <div class="quarter-scores-section">
+              <table class="quarter-scores-table">
+                <thead>
+                  <tr>${headerCells}</tr>
+                </thead>
+                <tbody>
+                  <tr>${awayCells}</tr>
+                  <tr>${homeCells}</tr>
+                </tbody>
+              </table>
+            </div>
+          `;
+        }
+        
         gameBoxHtml = `
           <div class="game-box">
             <div class="game-box-header">${Ball603.formatDivision(linkedGame)}</div>
@@ -878,6 +935,7 @@
                 <div class="game-team-name">${linkedGame.home}</div>
               </div>
             </div>
+            ${quarterScoresSection}
             <div class="game-details">
               <div class="game-detail">📅 ${Ball603.formatDate(linkedGame.date, 'medium')}</div>
               ${linkedGame.location ? `<div class="game-detail">📍 ${linkedGame.location}</div>` : ''}
@@ -886,9 +944,9 @@
         `;
       }
       
-      // Build quarter scores box HTML if game_data exists
+      // Build quarter scores box HTML if game_data exists but no linked game
       let quarterScoresHtml = '';
-      if (article.game_data && article.game_data.awayQuarters && article.game_data.homeQuarters) {
+      if (!linkedGame && article.game_data && article.game_data.awayQuarters && article.game_data.homeQuarters) {
         const gd = article.game_data;
         const awayWins = gd.awayFinal > gd.homeFinal;
         const homeWins = gd.homeFinal > gd.awayFinal;
