@@ -432,13 +432,12 @@ function openGallery(photos, startIndex = 0, title = '') {
   const titleEl = overlay.querySelector('.gallery-title');
   if (titleEl) titleEl.textContent = title;
   
-  // Build carousel HTML with watermark div
+  // Build carousel HTML
   const galleryMain = overlay.querySelector('.gallery-main');
   if (galleryMain) {
     const slidesHtml = photos.map((photo, i) => `
       <div class="gallery-slide" data-index="${i}">
-        <img src="${photo.src || photo.url}" alt="${photo.caption || ''}" loading="${i <= startIndex + 2 ? 'eager' : 'lazy'}" onload="Ball603.positionWatermark(this)">
-        <div class="gallery-watermark"></div>
+        <img src="${photo.src || photo.url}" alt="${photo.caption || ''}" loading="${i <= startIndex + 2 ? 'eager' : 'lazy'}">
       </div>
     `).join('');
     
@@ -461,27 +460,6 @@ function openGallery(photos, startIndex = 0, title = '') {
   
   // Preload adjacent images
   preloadAdjacentImages();
-}
-
-/**
- * Position watermark relative to the actual image bounds
- */
-function positionWatermark(img) {
-  const slide = img.closest('.gallery-slide');
-  const watermark = slide?.querySelector('.gallery-watermark');
-  if (!slide || !watermark) return;
-  
-  // Get the actual rendered size and position of the image
-  const slideRect = slide.getBoundingClientRect();
-  const imgRect = img.getBoundingClientRect();
-  
-  // Calculate image position relative to slide
-  const imgRight = slideRect.right - imgRect.right;
-  const imgBottom = slideRect.bottom - imgRect.bottom;
-  
-  // Position watermark at bottom-right of actual image (with 15px padding)
-  watermark.style.right = (imgRight + 15) + 'px';
-  watermark.style.bottom = (imgBottom + 15) + 'px';
 }
 
 /**
@@ -843,7 +821,6 @@ window.Ball603 = {
   nextPhoto,
   prevPhoto,
   goToPhoto,
-  positionWatermark,
   goToGame,
   goToArticle,
   toggleFollowTeam,
