@@ -3361,12 +3361,26 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       btn.disabled = true;
       btn.textContent = '⏳ Generating social posts...';
       
-      // Get edited article from preview
+      // Get edited article from preview (textarea always has the value)
       const editedHeadline = document.getElementById('gsPreviewHeadline').value;
       const editedArticle = document.getElementById('gsPreviewArticle').value;
       
+      if (!editedArticle || editedArticle.trim() === '') {
+        showToast('Article text is empty', 'error');
+        btn.disabled = false;
+        btn.textContent = '✓ Save & Generate Social Media Posts';
+        return;
+      }
+      
       // Generate excerpt from first 2 sentences
       const excerpt = editedArticle.split('.').slice(0, 2).join('.').trim() + '.';
+      
+      console.log('Generating social posts with:', {
+        articleLength: editedArticle.length,
+        headline: editedHeadline,
+        hasProofData: !!gsGeneratedData.proofData,
+        hasSchoolData: !!gsGeneratedData.schoolData
+      });
       
       try {
         // Call API to generate social posts from the edited article
@@ -3385,6 +3399,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         });
         
         const data = await response.json();
+        console.log('Social API response:', data);
         
         if (data.success) {
           // Close modal and open editor with generated content
