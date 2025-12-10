@@ -1,11 +1,11 @@
 // Ball603 Update Assignment API
-// Updates game assignments (photog1, photog2, videog, writer, notes) in Supabase
+// Updates game assignments (photog1, photog2, videog, writer, notes, coverage_confirmed, scorebook_url) in Supabase
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
 // Valid fields that can be updated via this endpoint
-const VALID_FIELDS = ['photog1', 'photog2', 'videog', 'writer', 'notes', 'schedule_changed'];
+const VALID_FIELDS = ['photog1', 'photog2', 'videog', 'writer', 'notes', 'schedule_changed', 'coverage_confirmed', 'scorebook_url'];
 
 export default async (request) => {
   const corsHeaders = {
@@ -45,8 +45,8 @@ export default async (request) => {
     
     // Build update data
     const updateData = {};
-    if (field === 'schedule_changed') {
-      updateData[field] = value === 'YES' || value === true;
+    if (field === 'schedule_changed' || field === 'coverage_confirmed') {
+      updateData[field] = value === 'YES' || value === 'true' || value === true;
     } else {
       updateData[field] = value || null;
     }
