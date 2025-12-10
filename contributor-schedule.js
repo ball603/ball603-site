@@ -26,6 +26,7 @@ class ContributorSchedule {
       showHeader: false,
       adminUser: 'KJ Cardinal',
       onContributorChange: null,
+      hidePastGames: false, // NEW: Option to hide past games (default: show all)
       apiEndpoints: {
         getGames: '/.netlify/functions/get-games',
         updateAssignment: '/.netlify/functions/update-assignment'
@@ -232,6 +233,7 @@ class ContributorSchedule {
           <button class="cs-tab" data-tab="College">College</button>
         </div>
         <div class="cs-filters">
+          <button class="cs-today-btn" title="Jump to Today">📅 Today</button>
           <select class="cs-gender-filter">
             <option value="">Gender (All)</option>
             <option value="Boys">Boys</option>
@@ -293,6 +295,9 @@ class ContributorSchedule {
     this.container.querySelector('.cs-division-filter').addEventListener('change', () => this.renderGames());
     this.container.querySelector('.cs-assignment-filter').addEventListener('change', () => this.renderGames());
     
+    // Today button click
+    this.container.querySelector('.cs-today-btn').addEventListener('click', () => this.scrollToToday());
+    
     // Search input
     const searchInput = this.container.querySelector('.cs-search-input');
     searchInput.addEventListener('input', () => {
@@ -349,6 +354,9 @@ class ContributorSchedule {
       this.populateDivisionFilter();
       this.renderAlerts();
       this.renderGames();
+      
+      // Auto-scroll to today after initial load
+      setTimeout(() => this.scrollToToday(), 100);
     } catch (err) {
       console.error('Error loading games:', err);
       tableContainer.innerHTML = '<div class="cs-loading">Error loading games. Please refresh.</div>';
@@ -537,6 +545,9 @@ class ContributorSchedule {
     this.updateDivisionOptions();
     
     this.renderGames();
+    
+    // Auto-scroll to today after tab change
+    setTimeout(() => this.scrollToToday(), 50);
   }
   
   // Render alerts for schedule changes
@@ -671,6 +682,34 @@ class ContributorSchedule {
     }
   }
   
+  // Scroll to today's date in the table
+  scrollToToday() {
+    const tableContainer = this.container.querySelector('.cs-table-container');
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Find the first row with today's date or first future date
+    const todayRow = tableContainer.querySelector(`tr[data-date="${today}"]`);
+    
+    if (todayRow) {
+      // Scroll to today's row, positioning it near the top
+      const containerRect = tableContainer.getBoundingClientRect();
+      const rowRect = todayRow.getBoundingClientRect();
+      const headerHeight = tableContainer.querySelector('thead')?.offsetHeight || 0;
+      
+      tableContainer.scrollTop = todayRow.offsetTop - headerHeight - 10;
+    } else {
+      // Find first future game row
+      const allRows = tableContainer.querySelectorAll('tr[data-date]');
+      for (const row of allRows) {
+        if (row.dataset.date >= today) {
+          const headerHeight = tableContainer.querySelector('thead')?.offsetHeight || 0;
+          tableContainer.scrollTop = row.offsetTop - headerHeight - 10;
+          break;
+        }
+      }
+    }
+  }
+  
   // Render games table
   renderGames() {
     const search = this.container.querySelector('.cs-search-input').value.toLowerCase();
@@ -693,7 +732,8 @@ class ContributorSchedule {
         }
       }
       
-      if (g.date < today) return false;
+      // Only filter past games if hidePastGames is explicitly enabled
+      if (this.config.hidePastGames && g.date < today) return false;
       
       const hasClaim = g.photog1 || g.photog2 || g.videog || g.writer;
       const isMine = g.photog1 === me || g.photog2 === me || g.videog === me || g.writer === me;
@@ -735,18 +775,23 @@ class ContributorSchedule {
     `;
     
     games.forEach(game => {
-      const rowClass = game.schedule_changed ? 'cs-game-changed' : '';
+      const isPast = game.date < today;
+      const isToday = game.date === today;
+      let rowClass = game.schedule_changed ? 'cs-game-changed' : '';
+      if (isPast) rowClass += ' cs-game-past';
+      if (isToday) rowClass += ' cs-game-today';
+      
       html += `
-        <tr data-id="${game.game_id}" class="${rowClass}">
-          <td>${this.renderDateCell(game)}</td>
+        <tr data-id="${game.game_id}" data-date="${game.date}" class="${rowClass.trim()}">
+          <td>${this.renderDateCell(game, isToday)}</td>
           <td>${this.formatTime(game.time)}</td>
           <td>${game.away || ''}</td>
           <td>${game.home || ''}</td>
           <td>${game.gender || ''}</td>
           <td>${game.level || ''}</td>
-          <td>${this.renderClaimCell(game)}</td>
+          <td>${isPast ? '' : this.renderClaimCell(game)}</td>
           <td class="cs-coverage-cell">${this.renderCoverageCell(game)}</td>
-          <td><input class="cs-notes-input" value="${game.notes || ''}" data-game-id="${game.game_id}" placeholder="Notes..."></td>
+          <td>${isPast ? (game.notes || '') : `<input class="cs-notes-input" value="${game.notes || ''}" data-game-id="${game.game_id}" placeholder="Notes...">`}</td>
         </tr>
       `;
     });
@@ -760,16 +805,25 @@ class ContributorSchedule {
     });
   }
   
-  renderDateCell(game) {
+  renderDateCell(game, isToday = false) {
+    let content = '';
+    
     if (game.schedule_changed && game.original_date && game.original_date !== game.date) {
-      return `
+      content = `
         <div class="cs-date-change">
           <span class="cs-old-date">${this.formatDate(game.original_date)}</span>
           <span class="cs-new-date">${this.formatDate(game.date)}</span>
         </div>
       `;
+    } else {
+      content = this.formatDate(game.date);
     }
-    return this.formatDate(game.date);
+    
+    if (isToday) {
+      content = `<strong>${content}</strong>`;
+    }
+    
+    return content;
   }
   
   formatDate(isoDate) {
@@ -819,11 +873,14 @@ class ContributorSchedule {
     
     if (items.length === 0) return '<span style="color:#999">-</span>';
     
+    const today = new Date().toISOString().split('T')[0];
+    const isPast = game.date < today;
+    
     return items.map(item => `
       <div class="cs-coverage-entry">
         <span>${item.emoji}</span>
         <span>${item.name}</span>
-        ${item.name === me ? `<button class="cs-coverage-remove" data-game-id="${game.game_id}" data-field="${item.field}">✕</button>` : ''}
+        ${!isPast && item.name === me ? `<button class="cs-coverage-remove" data-game-id="${game.game_id}" data-field="${item.field}">✕</button>` : ''}
       </div>
     `).join('');
   }
