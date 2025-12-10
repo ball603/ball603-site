@@ -424,7 +424,6 @@ function goToArticle(slug) {
 function openGallery(photos, startIndex = 0, title = '') {
   state.currentGallery = photos;
   state.currentPhotoIndex = startIndex;
-  state.preloadedImages = new Set(); // Reset preload cache for new gallery
   
   const overlay = document.getElementById('galleryOverlay');
   if (!overlay) return;
@@ -484,38 +483,16 @@ function goToPhoto(index) {
 }
 
 /**
- * Update gallery display with progressive loading
+ * Update gallery display
  */
 function updateGalleryPhoto() {
   if (!state.currentGallery) return;
   
   const photo = state.currentGallery[state.currentPhotoIndex];
-  const img = document.getElementById('galleryImage');
   
-  if (img) {
-    // Show medium/thumb immediately if we have it, then swap to full size
-    const thumbSrc = photo.thumb || photo.medium;
-    const fullSrc = photo.src || photo.url;
-    
-    // If the full image is already cached, use it directly
-    if (state.preloadedImages && state.preloadedImages.has(fullSrc)) {
-      img.src = fullSrc;
-    } else if (thumbSrc && thumbSrc !== fullSrc) {
-      // Show thumbnail first, then load full size
-      img.src = thumbSrc;
-      const fullImg = new Image();
-      fullImg.onload = () => {
-        // Only update if we're still on the same photo
-        if (state.currentGallery && 
-            state.currentGallery[state.currentPhotoIndex] === photo) {
-          img.src = fullSrc;
-        }
-      };
-      fullImg.src = fullSrc;
-    } else {
-      img.src = fullSrc;
-    }
-  }
+  // Update image
+  const img = document.getElementById('galleryImage');
+  if (img) img.src = photo.src || photo.url;
   
   // Update caption
   const caption = document.getElementById('galleryCaption');
@@ -528,42 +505,6 @@ function updateGalleryPhoto() {
   // Update dots
   document.querySelectorAll('.gallery-dot').forEach((dot, i) => {
     dot.classList.toggle('active', i === state.currentPhotoIndex);
-  });
-  
-  // Preload adjacent images
-  preloadAdjacentImages();
-}
-
-/**
- * Preload adjacent images for faster navigation
- */
-function preloadAdjacentImages() {
-  if (!state.currentGallery) return;
-  
-  // Initialize preload cache
-  if (!state.preloadedImages) {
-    state.preloadedImages = new Set();
-  }
-  
-  const total = state.currentGallery.length;
-  const current = state.currentPhotoIndex;
-  
-  // Preload next 2 and previous 1
-  const toPreload = [
-    (current + 1) % total,
-    (current + 2) % total,
-    (current - 1 + total) % total
-  ];
-  
-  toPreload.forEach(index => {
-    const photo = state.currentGallery[index];
-    const src = photo.src || photo.url;
-    
-    if (src && !state.preloadedImages.has(src)) {
-      const img = new Image();
-      img.onload = () => state.preloadedImages.add(src);
-      img.src = src;
-    }
   });
 }
 
@@ -618,6 +559,13 @@ function initTouchHandlers() {
     touchStartY = e.touches[0].clientY;
   }, { passive: true });
   
+  // Prevent scrolling background while in gallery
+  overlay.addEventListener('touchmove', (e) => {
+    if (overlay.classList.contains('active')) {
+      e.preventDefault();
+    }
+  }, { passive: false });
+  
   overlay.addEventListener('touchend', (e) => {
     const touchEndX = e.changedTouches[0].clientX;
     const touchEndY = e.changedTouches[0].clientY;
@@ -633,6 +581,7 @@ function initTouchHandlers() {
     else if (diffY > 100) {
       closeGallery();
     }
+    // Swipe up does nothing (ignore it)
   }, { passive: true });
 }
 
