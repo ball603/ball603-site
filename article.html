@@ -480,6 +480,66 @@
       text-transform: capitalize;
     }
     
+    /* Gallery Grid */
+    .gallery-loading {
+      text-align: center;
+      padding: var(--space-xl);
+      color: var(--text-muted);
+    }
+    
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: var(--space-sm);
+    }
+    
+    @media (max-width: 768px) {
+      .gallery-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+    
+    @media (max-width: 480px) {
+      .gallery-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    
+    .gallery-thumb {
+      aspect-ratio: 1;
+      overflow: hidden;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    
+    .gallery-thumb:hover {
+      transform: scale(1.02);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    .gallery-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    
+    .gallery-more {
+      text-align: center;
+      margin-top: var(--space-lg);
+    }
+    
+    .gallery-more-link {
+      color: var(--accent);
+      font-weight: var(--font-weight-semibold);
+      text-decoration: none;
+      font-size: var(--font-size-md);
+    }
+    
+    .gallery-more-link:hover {
+      text-decoration: underline;
+    }
+    
     .gallery-link:hover {
       text-decoration: underline;
     }
@@ -1111,7 +1171,7 @@
     }
     
     /**
-     * Load gallery from SmugMug - show preview card linking to gallery
+     * Load gallery from SmugMug API and display embedded
      */
     async function loadGalleryPhotos(article) {
       if (!article.smugmug_gallery_url) return;
@@ -1119,24 +1179,87 @@
       document.getElementById('gallerySection').style.display = 'block';
       document.getElementById('smugmugLink').href = article.smugmug_gallery_url;
       
-      console.log('SmugMug gallery URL:', article.smugmug_gallery_url);
-      
       const embedContainer = document.getElementById('smugmugEmbed');
+      embedContainer.innerHTML = '<div class="gallery-loading">Loading photos...</div>';
       
-      // SmugMug blocks iframe embedding, so show a clickable preview instead
-      // Try to get the gallery name from the URL
-      const urlParts = article.smugmug_gallery_url.split('/');
-      const galleryName = urlParts[urlParts.length - 1].replace(/-/g, ' ');
+      try {
+        // Extract gallery path from URL
+        // URL format: https://ball603.smugmug.com/Gallery-Name
+        const urlParts = article.smugmug_gallery_url.replace(/\/$/, '').split('/');
+        const galleryPath = urlParts[urlParts.length - 1];
+        
+        console.log('Fetching gallery:', galleryPath);
+        
+        const response = await fetch(`/.netlify/functions/smugmug?action=galleryImages&path=${encodeURIComponent(galleryPath)}`);
+        const data = await response.json();
+        
+        if (data.success && data.images && data.images.length > 0) {
+          // Store images for lightbox
+          window.galleryImages = data.images;
+          
+          // Render gallery grid
+          const gridHtml = data.images.slice(0, 12).map((img, index) => `
+            <div class="gallery-thumb" onclick="openGalleryLightbox(${index})">
+              <img src="${img.medium || img.thumbnail}" alt="${img.caption || img.title || ''}" loading="lazy">
+            </div>
+          `).join('');
+          
+          const moreCount = data.images.length > 12 ? data.images.length - 12 : 0;
+          
+          embedContainer.innerHTML = `
+            <div class="gallery-grid">
+              ${gridHtml}
+            </div>
+            ${moreCount > 0 ? `
+              <div class="gallery-more">
+                <a href="${article.smugmug_gallery_url}" target="_blank" class="gallery-more-link">
+                  +${moreCount} more photos on SmugMug →
+                </a>
+              </div>
+            ` : ''}
+          `;
+        } else {
+          // Fallback to link if API fails
+          embedContainer.innerHTML = `
+            <a href="${article.smugmug_gallery_url}" target="_blank" class="gallery-preview-card">
+              <div class="gallery-preview-overlay">
+                <div class="gallery-preview-icon">📸</div>
+                <div class="gallery-preview-text">View photo gallery on SmugMug</div>
+              </div>
+            </a>
+          `;
+        }
+      } catch (err) {
+        console.error('Gallery load error:', err);
+        embedContainer.innerHTML = `
+          <a href="${article.smugmug_gallery_url}" target="_blank" class="gallery-preview-card">
+            <div class="gallery-preview-overlay">
+              <div class="gallery-preview-icon">📸</div>
+              <div class="gallery-preview-text">View photo gallery on SmugMug</div>
+            </div>
+          </a>
+        `;
+      }
+    }
+    
+    /**
+     * Open lightbox for gallery images
+     */
+    function openGalleryLightbox(index) {
+      if (!window.galleryImages || !window.galleryImages.length) return;
       
-      embedContainer.innerHTML = `
-        <a href="${article.smugmug_gallery_url}" target="_blank" class="gallery-preview-card">
-          <div class="gallery-preview-overlay">
-            <div class="gallery-preview-icon">📸</div>
-            <div class="gallery-preview-text">Click to view full photo gallery</div>
-            <div class="gallery-preview-subtext">${galleryName}</div>
-          </div>
-        </a>
-      `;
+      const images = window.galleryImages.map(img => ({
+        src: img.large || img.xlarge || img.medium,
+        thumb: img.thumbnail,
+        caption: img.caption || img.title || ''
+      }));
+      
+      // Use Ball603 lightbox if available, otherwise open image in new tab
+      if (typeof Ball603 !== 'undefined' && Ball603.openGallery) {
+        Ball603.openGallery(images, index, currentArticle?.title || 'Gallery');
+      } else {
+        window.open(window.galleryImages[index].webUrl || window.galleryImages[index].large, '_blank');
+      }
     }
     
     /**
