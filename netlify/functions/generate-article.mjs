@@ -427,6 +427,17 @@ async function handleWrite(body, headers) {
   let ledeStory = '';
   let gameFlowStory = '';
   let threePointStory = '';
+  let seasonOpenerNote = '';
+  
+  // Check for season openers
+  const winnerOpener = awayWon ? proofData.awaySeasonOpener : proofData.homeSeasonOpener;
+  const loserOpener = awayWon ? proofData.homeSeasonOpener : proofData.awaySeasonOpener;
+  
+  if (winnerOpener) {
+    seasonOpenerNote = `SEASON OPENER: This is ${winner}'s first game of the season - mention "season opener" or "opened their season" somewhere in the article (not necessarily the lede).`;
+  } else if (loserOpener) {
+    seasonOpenerNote = `SEASON OPENER: This is ${loser}'s first game of the season - mention it somewhere in the article.`;
+  }
   
   // LEDE PRIORITY:
   // 1. Winner has 25+ scorer -> lead with that player
@@ -498,13 +509,15 @@ ${proofData.notes ? `NOTES: ${proofData.notes}` : ''}
 ${ledeStory}
 ${gameFlowStory}
 ${threePointStory || ''}
+${seasonOpenerNote || ''}
 
 ARTICLE STRUCTURE:
 1. DATELINE: Start with "${gameTown.toUpperCase()}, N.H. – "
 2. FIRST SENTENCE: Follow the LEAD instruction above exactly.
 3. GAME FLOW: Use the game flow analysis above as the main narrative element.
 4. SUPPORTING SCORERS: Mention other double-digit scorers for both teams.
-5. LENGTH: 250-350 words. Be concise.
+5. DO NOT include team records or gallery references - those will be added separately.
+6. LENGTH: 250-350 words. Be concise.
 
 TONE RULES:
 - Factual and straightforward - report what happened
@@ -513,6 +526,18 @@ TONE RULES:
 - Do NOT use dramatic words like "dominated," "exploded," "heroic," "clutch"
 - No exclamation points
 - Let the numbers tell the story
+
+THREE-POINTER WRITING RULES:
+- NEVER write "[X] three-pointers that accounted for [Y] of his total points" - readers can do math
+- GOOD: "Fifteen of Bryson Fogg's team-high 20 points came from beyond the arc"
+- GOOD: "Smith hit four three-pointers in the win"
+- BAD: "Smith hit four three-pointers, accounting for 12 of his 18 points"
+
+STRICT RULES - DO NOT:
+- Mention playoffs, tournament implications, or postseason - it's too early in the season
+- Speculate about what the win/loss "means" for either team
+- Add commentary about team momentum or confidence
+- Write anything about "advancing" or "playoff positioning"
 
 DO NOT include a headline - just the article body starting with the dateline.`;
 
@@ -528,7 +553,37 @@ DO NOT include a headline - just the article body starting with the dateline.`;
   }
   
   const data = await response.json();
-  const article = data.content?.[0]?.text || '';
+  let article = data.content?.[0]?.text || '';
+  
+  // Build closing paragraph with records
+  const awayRecord = proofData.awayRecord;
+  const homeRecord = proofData.homeRecord;
+  const awaySeasonOpener = proofData.awaySeasonOpener;
+  const homeSeasonOpener = proofData.homeSeasonOpener;
+  
+  if (awayRecord && homeRecord) {
+    let closingParagraph = '\n\n';
+    
+    // Build record sentences
+    const winnerRecord = awayWon ? awayRecord : homeRecord;
+    const loserRecord = awayWon ? homeRecord : awayRecord;
+    const winnerOpener = awayWon ? awaySeasonOpener : homeSeasonOpener;
+    const loserOpener = awayWon ? homeSeasonOpener : awaySeasonOpener;
+    
+    if (winnerOpener) {
+      closingParagraph += `${winner} opens the season with a victory`;
+    } else {
+      closingParagraph += `${winner} improves to ${winnerRecord.wins}-${winnerRecord.losses}`;
+    }
+    
+    if (loserOpener) {
+      closingParagraph += `, while ${loser} falls to 0-1 in their season opener.`;
+    } else {
+      closingParagraph += `, while ${loser} falls to ${loserRecord.wins}-${loserRecord.losses}${loserRecord.wins === 0 ? ' on the young season' : ''}.`;
+    }
+    
+    article += closingParagraph;
+  }
   
   // Generate headline
   const headlineResponse = await fetch('https://api.anthropic.com/v1/messages', {
