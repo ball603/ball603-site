@@ -847,23 +847,51 @@
         left: 0;
         right: 0;
         bottom: 60px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
         overflow: hidden;
       }
       
-      .gallery-overlay .gallery-main img {
+      /* Carousel container for IG-style swipe */
+      .gallery-overlay .gallery-carousel {
+        display: flex;
+        height: 100%;
+        transition: transform 0.3s ease-out;
+      }
+      
+      .gallery-overlay .gallery-carousel.dragging {
+        transition: none;
+      }
+      
+      .gallery-overlay .gallery-slide {
+        flex: 0 0 100%;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+      }
+      
+      .gallery-overlay .gallery-slide img {
         max-width: 100%;
         max-height: 100%;
         object-fit: contain;
-        transition: transform 0.3s ease;
         user-select: none;
         -webkit-user-drag: none;
       }
       
-      .gallery-overlay .gallery-main img.swiping {
-        transition: none;
+      /* Watermark overlay */
+      .gallery-overlay .gallery-slide::after {
+        content: '';
+        position: absolute;
+        bottom: 20px;
+        right: 20px;
+        width: 80px;
+        height: 80px;
+        background-image: url('/logos/100px/Ball603-white.png');
+        background-size: contain;
+        background-repeat: no-repeat;
+        opacity: 0.5;
+        pointer-events: none;
       }
       
       .gallery-overlay .gallery-info {
@@ -907,6 +935,27 @@
       
       .gallery-overlay .gallery-action-btn:active {
         background: #333;
+      }
+    }
+    
+    /* Desktop watermark */
+    @media (min-width: 769px) {
+      .gallery-overlay .gallery-slide {
+        position: relative;
+      }
+      
+      .gallery-overlay .gallery-slide::after {
+        content: '';
+        position: absolute;
+        bottom: 20px;
+        right: 20px;
+        width: 100px;
+        height: 100px;
+        background-image: url('/logos/100px/Ball603-white.png');
+        background-size: contain;
+        background-repeat: no-repeat;
+        opacity: 0.4;
+        pointer-events: none;
       }
     }
   </style>
@@ -1363,7 +1412,7 @@
      */
     function setupStickyScoreboard(game, article) {
       const stickyEl = document.getElementById('stickyScoreboard');
-      const gameBox = document.querySelector('.game-box');
+      const gameBox = document.querySelector('.game-box') || document.querySelector('.quarter-scores-box');
       if (!stickyEl) return;
       
       // Get data from either linked game or game_data
@@ -1410,24 +1459,21 @@
         </div>
       `;
       
-      // Scroll handler
-      let lastScrollY = 0;
+      // Scroll handler - trigger immediately to check initial state
       const scrollHandler = () => {
-        const scrollY = window.scrollY;
-        
         if (gameBox) {
           const gameBoxBottom = gameBox.offsetTop + gameBox.offsetHeight;
-          if (scrollY > gameBoxBottom - 50) {
+          if (window.scrollY > gameBoxBottom - 50) {
             stickyEl.classList.add('visible');
           } else {
             stickyEl.classList.remove('visible');
           }
         }
-        
-        lastScrollY = scrollY;
       };
       
       window.addEventListener('scroll', scrollHandler, { passive: true });
+      // Check initial state
+      scrollHandler();
     }
     
     /**

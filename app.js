@@ -419,7 +419,7 @@ function goToArticle(slug) {
 // ===== GALLERY =====
 
 /**
- * Open gallery overlay
+ * Open gallery overlay with IG-style carousel
  */
 function openGallery(photos, startIndex = 0, title = '') {
   state.currentGallery = photos;
@@ -432,15 +432,34 @@ function openGallery(photos, startIndex = 0, title = '') {
   const titleEl = overlay.querySelector('.gallery-title');
   if (titleEl) titleEl.textContent = title;
   
+  // Build carousel HTML
+  const galleryMain = overlay.querySelector('.gallery-main');
+  if (galleryMain) {
+    const slidesHtml = photos.map((photo, i) => `
+      <div class="gallery-slide" data-index="${i}">
+        <img src="${photo.src || photo.url}" alt="${photo.caption || ''}" loading="${i <= startIndex + 2 ? 'eager' : 'lazy'}">
+      </div>
+    `).join('');
+    
+    galleryMain.innerHTML = `<div class="gallery-carousel" id="galleryCarousel">${slidesHtml}</div>`;
+  }
+  
   // Render dots
   renderGalleryDots();
   
-  // Update photo
-  updateGalleryPhoto();
+  // Position carousel at start index
+  updateCarouselPosition(false);
+  
+  // Update count
+  const count = document.getElementById('galleryCount');
+  if (count) count.textContent = `${startIndex + 1} / ${photos.length}`;
   
   // Show overlay
   overlay.classList.add('active');
   document.body.style.overflow = 'hidden';
+  
+  // Preload adjacent images
+  preloadAdjacentImages();
 }
 
 /**
@@ -461,7 +480,8 @@ function closeGallery() {
 function nextPhoto() {
   if (!state.currentGallery) return;
   state.currentPhotoIndex = (state.currentPhotoIndex + 1) % state.currentGallery.length;
-  updateGalleryPhoto();
+  updateCarouselPosition(true);
+  preloadAdjacentImages();
 }
 
 /**
@@ -470,7 +490,8 @@ function nextPhoto() {
 function prevPhoto() {
   if (!state.currentGallery) return;
   state.currentPhotoIndex = (state.currentPhotoIndex - 1 + state.currentGallery.length) % state.currentGallery.length;
-  updateGalleryPhoto();
+  updateCarouselPosition(true);
+  preloadAdjacentImages();
 }
 
 /**
@@ -479,27 +500,27 @@ function prevPhoto() {
 function goToPhoto(index) {
   if (!state.currentGallery) return;
   state.currentPhotoIndex = index;
-  updateGalleryPhoto();
+  updateCarouselPosition(true);
+  preloadAdjacentImages();
 }
 
 /**
- * Update gallery display
+ * Update carousel position (IG-style)
  */
-function updateGalleryPhoto() {
+function updateCarouselPosition(animate = true) {
   if (!state.currentGallery) return;
   
-  const photo = state.currentGallery[state.currentPhotoIndex];
-  
-  // Update image
-  const img = document.getElementById('galleryImage');
-  if (img) {
-    img.style.transform = '';
-    img.src = photo.src || photo.url;
+  const carousel = document.getElementById('galleryCarousel');
+  if (carousel) {
+    const offset = -state.currentPhotoIndex * 100;
+    carousel.style.transition = animate ? 'transform 0.3s ease-out' : 'none';
+    carousel.style.transform = `translateX(${offset}%)`;
   }
   
   // Update caption
+  const photo = state.currentGallery[state.currentPhotoIndex];
   const caption = document.getElementById('galleryCaption');
-  if (caption) caption.textContent = photo.caption || '';
+  if (caption) caption.textContent = photo?.caption || '';
   
   // Update count
   const count = document.getElementById('galleryCount');
@@ -509,9 +530,13 @@ function updateGalleryPhoto() {
   document.querySelectorAll('.gallery-dot').forEach((dot, i) => {
     dot.classList.toggle('active', i === state.currentPhotoIndex);
   });
-  
-  // Preload adjacent images
-  preloadAdjacentImages();
+}
+
+/**
+ * Update gallery display (legacy compatibility)
+ */
+function updateGalleryPhoto() {
+  updateCarouselPosition(true);
 }
 
 /**
@@ -579,20 +604,26 @@ function initTouchHandlers() {
   
   let touchStartX = 0;
   let touchStartY = 0;
-  let touchCurrentX = 0;
   let isDragging = false;
-  let dragDirection = null; // 'horizontal' or 'vertical'
+  let dragDirection = null;
+  let startTranslateX = 0;
   
   overlay.addEventListener('touchstart', (e) => {
     touchStartX = e.touches[0].clientX;
     touchStartY = e.touches[0].clientY;
-    touchCurrentX = touchStartX;
     isDragging = true;
     dragDirection = null;
     
-    // Add swiping class to disable transitions during drag
-    const img = document.getElementById('galleryImage');
-    if (img) img.classList.add('swiping');
+    // Calculate current translate position
+    if (state.currentGallery) {
+      startTranslateX = -state.currentPhotoIndex * window.innerWidth;
+    }
+    
+    // Disable transition during drag
+    const carousel = document.getElementById('galleryCarousel');
+    if (carousel) {
+      carousel.classList.add('dragging');
+    }
   }, { passive: true });
   
   overlay.addEventListener('touchmove', (e) => {
@@ -608,18 +639,18 @@ function initTouchHandlers() {
       dragDirection = Math.abs(diffX) > Math.abs(diffY) ? 'horizontal' : 'vertical';
     }
     
-    // Only handle horizontal swipes for image movement
+    // Move carousel with finger (IG-style)
     if (dragDirection === 'horizontal') {
       e.preventDefault();
-      touchCurrentX = currentX;
-      
-      // Move image with finger (IG-style)
-      const img = document.getElementById('galleryImage');
-      if (img) {
-        img.style.transform = `translateX(${diffX}px)`;
+      const carousel = document.getElementById('galleryCarousel');
+      if (carousel && state.currentGallery) {
+        // Calculate percentage offset
+        const percentOffset = (diffX / window.innerWidth) * 100;
+        const currentOffset = -state.currentPhotoIndex * 100;
+        carousel.style.transform = `translateX(${currentOffset + percentOffset}%)`;
       }
     } else if (dragDirection === 'vertical') {
-      e.preventDefault(); // Prevent background scroll
+      e.preventDefault();
     }
   }, { passive: false });
   
@@ -632,23 +663,25 @@ function initTouchHandlers() {
     const diffX = touchEndX - touchStartX;
     const diffY = touchEndY - touchStartY;
     
-    const img = document.getElementById('galleryImage');
-    if (img) {
-      img.classList.remove('swiping');
-      img.style.transform = '';
+    const carousel = document.getElementById('galleryCarousel');
+    if (carousel) {
+      carousel.classList.remove('dragging');
     }
     
-    // Horizontal swipe (left/right through photos)
-    if (dragDirection === 'horizontal' && Math.abs(diffX) > 50) {
+    // Horizontal swipe threshold
+    const swipeThreshold = window.innerWidth * 0.2; // 20% of screen width
+    
+    if (dragDirection === 'horizontal' && Math.abs(diffX) > swipeThreshold) {
       if (diffX > 0) {
-        // Swiped right - go to previous
         prevPhoto();
       } else {
-        // Swiped left - go to next
         nextPhoto();
       }
+    } else if (dragDirection === 'horizontal') {
+      // Snap back to current photo
+      updateCarouselPosition(true);
     }
-    // Vertical swipe (up or down) to close
+    // Vertical swipe to close
     else if (dragDirection === 'vertical' && Math.abs(diffY) > 80) {
       closeGallery();
     }
