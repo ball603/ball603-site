@@ -469,6 +469,11 @@ function closeGallery() {
   const overlay = document.getElementById('galleryOverlay');
   if (!overlay) return;
   
+  // Reset zoom if available
+  if (window.Ball603?._resetZoom) {
+    window.Ball603._resetZoom();
+  }
+  
   overlay.classList.remove('active');
   document.body.style.overflow = '';
   state.currentGallery = null;
@@ -606,45 +611,137 @@ function initTouchHandlers() {
   let touchStartY = 0;
   let isDragging = false;
   let dragDirection = null;
+  
+  // Pinch zoom state
+  let initialPinchDistance = 0;
+  let currentScale = 1;
+  let startScale = 1;
+  let isPinching = false;
+  let translateX = 0;
+  let translateY = 0;
   let startTranslateX = 0;
+  let startTranslateY = 0;
+  let lastTapTime = 0;
+  
+  function getDistance(touches) {
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+  
+  function getCurrentImage() {
+    const currentSlide = document.querySelector(`.gallery-slide[data-index="${state.currentPhotoIndex}"]`);
+    return currentSlide?.querySelector('img');
+  }
+  
+  function applyTransform(img) {
+    if (!img) return;
+    img.style.transform = `scale(${currentScale}) translate(${translateX}px, ${translateY}px)`;
+  }
+  
+  function resetZoom() {
+    currentScale = 1;
+    translateX = 0;
+    translateY = 0;
+    const img = getCurrentImage();
+    if (img) {
+      img.style.transition = 'transform 0.2s ease-out';
+      applyTransform(img);
+      setTimeout(() => { img.style.transition = ''; }, 200);
+    }
+  }
   
   overlay.addEventListener('touchstart', (e) => {
+    const img = getCurrentImage();
+    
+    // Double-tap detection
+    const now = Date.now();
+    if (e.touches.length === 1 && now - lastTapTime < 300) {
+      // Double tap - toggle zoom
+      e.preventDefault();
+      if (currentScale > 1) {
+        resetZoom();
+      } else {
+        currentScale = 2.5;
+        translateX = 0;
+        translateY = 0;
+        if (img) {
+          img.style.transition = 'transform 0.2s ease-out';
+          applyTransform(img);
+          setTimeout(() => { img.style.transition = ''; }, 200);
+        }
+      }
+      lastTapTime = 0;
+      return;
+    }
+    lastTapTime = now;
+    
+    // Pinch start
+    if (e.touches.length === 2) {
+      isPinching = true;
+      isDragging = false;
+      initialPinchDistance = getDistance(e.touches);
+      startScale = currentScale;
+      startTranslateX = translateX;
+      startTranslateY = translateY;
+      return;
+    }
+    
+    // Single touch start
     touchStartX = e.touches[0].clientX;
     touchStartY = e.touches[0].clientY;
     isDragging = true;
     dragDirection = null;
+    startTranslateX = translateX;
+    startTranslateY = translateY;
     
-    // Calculate current translate position
-    if (state.currentGallery) {
-      startTranslateX = -state.currentPhotoIndex * window.innerWidth;
-    }
-    
-    // Disable transition during drag
+    // Disable carousel transition during drag
     const carousel = document.getElementById('galleryCarousel');
-    if (carousel) {
+    if (carousel && currentScale === 1) {
       carousel.classList.add('dragging');
     }
-  }, { passive: true });
+  }, { passive: false });
   
   overlay.addEventListener('touchmove', (e) => {
-    if (!isDragging || !overlay.classList.contains('active')) return;
+    if (!overlay.classList.contains('active')) return;
+    
+    const img = getCurrentImage();
+    
+    // Pinch zoom
+    if (isPinching && e.touches.length === 2) {
+      e.preventDefault();
+      const newDistance = getDistance(e.touches);
+      const scale = (newDistance / initialPinchDistance) * startScale;
+      currentScale = Math.max(1, Math.min(5, scale));
+      applyTransform(img);
+      return;
+    }
+    
+    if (!isDragging) return;
     
     const currentX = e.touches[0].clientX;
     const currentY = e.touches[0].clientY;
     const diffX = currentX - touchStartX;
     const diffY = currentY - touchStartY;
     
-    // Determine drag direction on first significant movement
+    // If zoomed in, pan the image
+    if (currentScale > 1) {
+      e.preventDefault();
+      translateX = startTranslateX + diffX / currentScale;
+      translateY = startTranslateY + diffY / currentScale;
+      applyTransform(img);
+      return;
+    }
+    
+    // Normal swipe behavior when not zoomed
     if (!dragDirection && (Math.abs(diffX) > 10 || Math.abs(diffY) > 10)) {
       dragDirection = Math.abs(diffX) > Math.abs(diffY) ? 'horizontal' : 'vertical';
     }
     
-    // Move carousel with finger (IG-style)
     if (dragDirection === 'horizontal') {
       e.preventDefault();
       const carousel = document.getElementById('galleryCarousel');
       if (carousel && state.currentGallery) {
-        // Calculate percentage offset
         const percentOffset = (diffX / window.innerWidth) * 100;
         const currentOffset = -state.currentPhotoIndex * 100;
         carousel.style.transform = `translateX(${currentOffset + percentOffset}%)`;
@@ -655,6 +752,18 @@ function initTouchHandlers() {
   }, { passive: false });
   
   overlay.addEventListener('touchend', (e) => {
+    const img = getCurrentImage();
+    
+    // End pinch
+    if (isPinching) {
+      isPinching = false;
+      // Snap to 1 if close
+      if (currentScale < 1.1) {
+        resetZoom();
+      }
+      return;
+    }
+    
     if (!isDragging) return;
     isDragging = false;
     
@@ -668,26 +777,40 @@ function initTouchHandlers() {
       carousel.classList.remove('dragging');
     }
     
+    // If zoomed, don't do swipe navigation
+    if (currentScale > 1) {
+      return;
+    }
+    
     // Horizontal swipe threshold
-    const swipeThreshold = window.innerWidth * 0.2; // 20% of screen width
+    const swipeThreshold = window.innerWidth * 0.2;
     
     if (dragDirection === 'horizontal' && Math.abs(diffX) > swipeThreshold) {
+      // Reset zoom when changing photos
+      resetZoom();
       if (diffX > 0) {
         prevPhoto();
       } else {
         nextPhoto();
       }
     } else if (dragDirection === 'horizontal') {
-      // Snap back to current photo
       updateCarouselPosition(true);
     }
     // Vertical swipe to close
     else if (dragDirection === 'vertical' && Math.abs(diffY) > 80) {
+      resetZoom();
       closeGallery();
     }
     
     dragDirection = null;
   }, { passive: true });
+  
+  // Reset zoom when photo changes
+  const originalNextPhoto = nextPhoto;
+  const originalPrevPhoto = prevPhoto;
+  const originalGoToPhoto = goToPhoto;
+  
+  window.Ball603._resetZoom = resetZoom;
 }
 
 // ===== FOLLOWED TEAMS =====
