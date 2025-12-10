@@ -1089,17 +1089,58 @@
             <div style="width: 80px;"></div>
           </div>
           
+          <!-- Quarter Scores Display Box -->
+          <div id="gsQuarterScoresBox" style="background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px; text-align: center;">
+              <thead>
+                <tr style="border-bottom: 2px solid #ddd;">
+                  <th style="text-align: left; padding: 8px 10px; font-weight: 600;">Team</th>
+                  <th style="padding: 8px 6px; font-weight: 500; color: #666;">Q1</th>
+                  <th style="padding: 8px 6px; font-weight: 500; color: #666;">Q2</th>
+                  <th style="padding: 8px 6px; font-weight: 500; color: #666;">Q3</th>
+                  <th style="padding: 8px 6px; font-weight: 500; color: #666;">Q4</th>
+                  <th id="gsPreviewOTHeaders"></th>
+                  <th style="padding: 8px 10px; font-weight: 600;">Final</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr id="gsPreviewAwayRow">
+                  <td id="gsPreviewAwayName" style="text-align: left; padding: 10px; font-weight: 600;"></td>
+                  <td id="gsPreviewAwayQ1" style="padding: 10px;"></td>
+                  <td id="gsPreviewAwayQ2" style="padding: 10px;"></td>
+                  <td id="gsPreviewAwayQ3" style="padding: 10px;"></td>
+                  <td id="gsPreviewAwayQ4" style="padding: 10px;"></td>
+                  <td id="gsPreviewAwayOT"></td>
+                  <td id="gsPreviewAwayFinal" style="padding: 10px; font-weight: 700; font-size: 15px;"></td>
+                </tr>
+                <tr id="gsPreviewHomeRow" style="border-top: 1px solid #eee;">
+                  <td id="gsPreviewHomeName" style="text-align: left; padding: 10px; font-weight: 600;"></td>
+                  <td id="gsPreviewHomeQ1" style="padding: 10px;"></td>
+                  <td id="gsPreviewHomeQ2" style="padding: 10px;"></td>
+                  <td id="gsPreviewHomeQ3" style="padding: 10px;"></td>
+                  <td id="gsPreviewHomeQ4" style="padding: 10px;"></td>
+                  <td id="gsPreviewHomeOT"></td>
+                  <td id="gsPreviewHomeFinal" style="padding: 10px; font-weight: 700; font-size: 15px;"></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          
           <!-- Headline -->
           <div style="margin-bottom: 12px;">
             <label style="font-size: 12px; font-weight: 600; color: #333; display: block; margin-bottom: 5px;">Headline</label>
             <input type="text" id="gsPreviewHeadline" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; font-weight: 600;">
           </div>
           
-          <!-- Article Body -->
+          <!-- Article Body - WYSIWYG style preview -->
           <div style="margin-bottom: 12px;">
             <label style="font-size: 12px; font-weight: 600; color: #333; display: block; margin-bottom: 5px;">Article</label>
-            <textarea id="gsPreviewArticle" style="width: 100%; min-height: 300px; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; line-height: 1.6; font-family: Georgia, serif; resize: vertical;"></textarea>
-            <small style="color: #888; font-size: 11px;">Edit the article as needed. Social media posts will be generated from this text.</small>
+            <div id="gsPreviewArticleDisplay" style="background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 15px; font-size: 14px; line-height: 1.8; font-family: Georgia, serif; min-height: 200px; max-height: 350px; overflow-y: auto;"></div>
+            <textarea id="gsPreviewArticle" style="display: none;"></textarea>
+            <div style="margin-top: 8px; display: flex; gap: 8px;">
+              <button onclick="toggleArticleEdit()" id="gsEditToggleBtn" style="background: #f0f0f0; border: 1px solid #ccc; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">✏️ Edit Text</button>
+              <small style="color: #888; font-size: 11px; line-height: 28px;">Click to edit. Social media posts will be generated from this text.</small>
+            </div>
           </div>
           
           <!-- Save & Generate Social Button -->
@@ -2157,6 +2198,9 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     let games = [];
     let currentArticle = null;
     let selectedGame = null;
+    
+    // Game data for articles (quarter scores, player stats)
+    let currentGameData = null;
     
     // Generated social posts (populated by story generators)
     let generatedSocialPosts = {
@@ -3277,6 +3321,36 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('gsStep3').style.display = 'none';
     }
     
+    function toggleArticleEdit() {
+      const display = document.getElementById('gsPreviewArticleDisplay');
+      const textarea = document.getElementById('gsPreviewArticle');
+      const btn = document.getElementById('gsEditToggleBtn');
+      
+      if (textarea.style.display === 'none') {
+        // Switch to edit mode
+        textarea.style.display = 'block';
+        textarea.style.width = '100%';
+        textarea.style.minHeight = '300px';
+        textarea.style.padding = '12px';
+        textarea.style.border = '1px solid #ddd';
+        textarea.style.borderRadius = '6px';
+        textarea.style.fontSize = '14px';
+        textarea.style.lineHeight = '1.6';
+        textarea.style.fontFamily = 'Georgia, serif';
+        textarea.style.resize = 'vertical';
+        display.style.display = 'none';
+        btn.textContent = '👁️ Preview';
+        textarea.focus();
+      } else {
+        // Switch to preview mode - update display with edited text
+        const articleHtml = textarea.value.split('\n\n').map(p => `<p style="margin: 0 0 1em 0;">${p}</p>`).join('');
+        display.innerHTML = articleHtml;
+        display.style.display = 'block';
+        textarea.style.display = 'none';
+        btn.textContent = '✏️ Edit Text';
+      }
+    }
+    
     async function saveAndGenerateSocial() {
       if (!gsGeneratedData) {
         showToast('No article data found', 'error');
@@ -3321,6 +3395,22 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             facebookPost: data.facebookPost || null,
             instagramPost: data.instagramPost || null,
             twitterPost: data.twitterPost || null
+          };
+          
+          // Store game data for saving with article
+          currentGameData = {
+            awayTeam: gsGeneratedData.proofData.awayTeam,
+            homeTeam: gsGeneratedData.proofData.homeTeam,
+            awayQuarters: gsGeneratedData.proofData.awayQuarters,
+            homeQuarters: gsGeneratedData.proofData.homeQuarters,
+            awayFinal: gsGeneratedData.proofData.awayFinal,
+            homeFinal: gsGeneratedData.proofData.homeFinal,
+            awayScorers: gsGeneratedData.proofData.awayScorers,
+            homeScorers: gsGeneratedData.proofData.homeScorers,
+            gender: gsGeneratedData.proofData.gender,
+            division: gsGeneratedData.proofData.division,
+            awayRecord: gsGeneratedData.proofData.awayRecord,
+            homeRecord: gsGeneratedData.proofData.homeRecord
           };
           
           // Set up article editor
@@ -3557,6 +3647,53 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           document.getElementById('gsStep3').style.display = 'block';
           document.getElementById('gsPreviewHeadline').value = data.headline || '';
           document.getElementById('gsPreviewArticle').value = data.article || '';
+          
+          // Format article with paragraphs for display
+          const articleHtml = (data.article || '').split('\n\n').map(p => `<p style="margin: 0 0 1em 0;">${p}</p>`).join('');
+          document.getElementById('gsPreviewArticleDisplay').innerHTML = articleHtml;
+          
+          // Populate quarter scores box
+          document.getElementById('gsPreviewAwayName').textContent = gsSelectedGame.away;
+          document.getElementById('gsPreviewHomeName').textContent = gsSelectedGame.home;
+          document.getElementById('gsPreviewAwayQ1').textContent = awayQuarters[0] || '-';
+          document.getElementById('gsPreviewAwayQ2').textContent = awayQuarters[1] || '-';
+          document.getElementById('gsPreviewAwayQ3').textContent = awayQuarters[2] || '-';
+          document.getElementById('gsPreviewAwayQ4').textContent = awayQuarters[3] || '-';
+          document.getElementById('gsPreviewHomeQ1').textContent = homeQuarters[0] || '-';
+          document.getElementById('gsPreviewHomeQ2').textContent = homeQuarters[1] || '-';
+          document.getElementById('gsPreviewHomeQ3').textContent = homeQuarters[2] || '-';
+          document.getElementById('gsPreviewHomeQ4').textContent = homeQuarters[3] || '-';
+          document.getElementById('gsPreviewAwayFinal').textContent = awayFinal;
+          document.getElementById('gsPreviewHomeFinal').textContent = homeFinal;
+          
+          // Handle OT columns
+          let otHeadersHtml = '';
+          let awayOTHtml = '';
+          let homeOTHtml = '';
+          for (let i = 4; i < awayQuarters.length; i++) {
+            const otNum = i - 3;
+            const otLabel = awayQuarters.length === 5 ? 'OT' : `OT${otNum}`;
+            otHeadersHtml += `<th style="padding: 8px 6px; font-weight: 500; color: #666;">${otLabel}</th>`;
+            awayOTHtml += `<td style="padding: 10px;">${awayQuarters[i] || '-'}</td>`;
+            homeOTHtml += `<td style="padding: 10px;">${homeQuarters[i] || '-'}</td>`;
+          }
+          document.getElementById('gsPreviewOTHeaders').innerHTML = otHeadersHtml;
+          document.getElementById('gsPreviewAwayOT').innerHTML = awayOTHtml;
+          document.getElementById('gsPreviewHomeOT').innerHTML = homeOTHtml;
+          
+          // Highlight winner row
+          if (awayFinal > homeFinal) {
+            document.getElementById('gsPreviewAwayFinal').style.color = '#2e7d32';
+            document.getElementById('gsPreviewHomeFinal').style.color = '#333';
+          } else {
+            document.getElementById('gsPreviewHomeFinal').style.color = '#2e7d32';
+            document.getElementById('gsPreviewAwayFinal').style.color = '#333';
+          }
+          
+          // Reset edit mode
+          document.getElementById('gsPreviewArticleDisplay').style.display = 'block';
+          document.getElementById('gsPreviewArticle').style.display = 'none';
+          document.getElementById('gsEditToggleBtn').textContent = '✏️ Edit Text';
           
           showToast('Story generated! Review and edit before generating social posts.', 'success');
         } else {
@@ -3828,6 +3965,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     // Article CRUD
     function newArticle() {
       currentArticle = null;
+      currentGameData = null;
       document.getElementById('editorTitle').textContent = 'New Article';
       document.getElementById('articleTitle').value = '';
       setEditorContent(''); // Clear Quill editor
@@ -3934,6 +4072,9 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         };
         document.getElementById('socialPostsCard').style.display = 'none';
       }
+      
+      // Handle game data (quarter scores, player stats)
+      currentGameData = article.game_data || null;
       
       document.getElementById('articlesPanel').style.display = 'none';
       document.getElementById('editorPanel').style.display = 'block';
@@ -4046,6 +4187,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         tags: currentTags,
         article_date: document.getElementById('articleDate').value || null,
         scheduled_at: scheduledAt,
+        game_data: currentGameData || null,
         status: 'draft',
         published_at: null, // Clear published_at when saving as draft
         updated_at: new Date().toISOString()
@@ -4199,6 +4341,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         tags: currentTags,
         article_date: document.getElementById('articleDate').value || null,
         social_posts: socialPosts,
+        game_data: currentGameData || currentArticle?.game_data || null,
         scheduled_at: scheduledAt,
         status: isScheduled ? 'scheduled' : 'published',
         published_at: isScheduled ? null : new Date().toISOString(),
