@@ -386,6 +386,90 @@ async function handleWrite(body, headers) {
   const highScorer = allScorers.reduce((max, s) => s.points > max.points ? s : max, { points: 0 });
   const has25PlusScorer = highScorer.points >= 25;
   
+  // Pre-analyze the data to find the real story
+  const quarterDiffs = proofData.awayQuarters.map((q, i) => {
+    const awayQ = parseInt(q) || 0;
+    const homeQ = parseInt(proofData.homeQuarters[i]) || 0;
+    return { quarter: i + 1, diff: Math.abs(awayQ - homeQ), awayQ, homeQ, winnerLed: awayWon ? awayQ > homeQ : homeQ > awayQ };
+  });
+  const biggestQuarterSwing = quarterDiffs.reduce((max, q) => q.diff > max.diff ? q : max, { diff: 0 });
+  
+  // Calculate half differentials
+  const awayFirstHalf = (parseInt(proofData.awayQuarters[0]) || 0) + (parseInt(proofData.awayQuarters[1]) || 0);
+  const awaySecondHalf = (parseInt(proofData.awayQuarters[2]) || 0) + (parseInt(proofData.awayQuarters[3]) || 0);
+  const homeFirstHalf = (parseInt(proofData.homeQuarters[0]) || 0) + (parseInt(proofData.homeQuarters[1]) || 0);
+  const homeSecondHalf = (parseInt(proofData.homeQuarters[2]) || 0) + (parseInt(proofData.homeQuarters[3]) || 0);
+  const firstHalfDiff = Math.abs(awayFirstHalf - homeFirstHalf);
+  const secondHalfDiff = Math.abs(awaySecondHalf - homeSecondHalf);
+  const winnerFirstHalf = awayWon ? awayFirstHalf : homeFirstHalf;
+  const loserFirstHalf = awayWon ? homeFirstHalf : awayFirstHalf;
+  const winnerSecondHalf = awayWon ? awaySecondHalf : homeSecondHalf;
+  const loserSecondHalf = awayWon ? homeSecondHalf : awaySecondHalf;
+  
+  // Find top scorers for each team
+  const winnerTopScorer = winnerScorers.reduce((max, s) => s.points > max.points ? s : max, { points: 0 });
+  const loserTopScorer = loserScorers.reduce((max, s) => s.points > max.points ? s : max, { points: 0 });
+  
+  // Check for notable three-point shooting
+  function getThreePointStory(scorer) {
+    if (!scorer.threePointers || scorer.threePointers < 4) return null;
+    const threePointPts = scorer.threePointers * 3;
+    const pctFromThree = Math.round((threePointPts / scorer.points) * 100);
+    if (pctFromThree >= 50) {
+      return `${scorer.name} hit ${scorer.threePointers} three-pointers (${threePointPts} of ${scorer.points} points from beyond the arc)`;
+    }
+    return `${scorer.name} hit ${scorer.threePointers} three-pointers`;
+  }
+  
+  // Determine the "story" of the game - LEDE LOGIC
+  let ledeStory = '';
+  let gameFlowStory = '';
+  let threePointStory = '';
+  
+  // LEDE PRIORITY:
+  // 1. Winner has 25+ scorer -> lead with that player
+  // 2. Loser has 30+ scorer AND winner has no 20+ scorer -> "Despite X's performance..." lede
+  // 3. Otherwise -> standard "Team defeated Team" lede
+  
+  if (winnerTopScorer.points >= 25) {
+    ledeStory = `LEAD WITH WINNER'S STAR: ${winnerTopScorer.name} scored ${winnerTopScorer.points} points to lead ${winner} to victory. This player MUST be in the first sentence.`;
+    const threeStory = getThreePointStory(winnerTopScorer);
+    if (threeStory) threePointStory = `THREE-POINT SHOOTING: ${threeStory} - mention this prominently.`;
+  } else if (loserTopScorer.points >= 30 && winnerTopScorer.points < 20) {
+    ledeStory = `DESPITE LOSS PERFORMANCE: ${loserTopScorer.name} scored ${loserTopScorer.points} points in a losing effort. Start with "Despite ${loserTopScorer.name}'s ${loserTopScorer.points}-point performance, ${winner} defeated ${loser}..."`;
+    const threeStory = getThreePointStory(loserTopScorer);
+    if (threeStory) threePointStory = `THREE-POINT SHOOTING: ${threeStory} - mention this prominently.`;
+  } else if (winnerTopScorer.points >= 20) {
+    ledeStory = `LEAD SCORER: ${winnerTopScorer.name} led ${winner} with ${winnerTopScorer.points} points. Include in first paragraph.`;
+    const threeStory = getThreePointStory(winnerTopScorer);
+    if (threeStory) threePointStory = `THREE-POINT SHOOTING: ${threeStory}.`;
+  } else {
+    ledeStory = `BALANCED SCORING: No dominant individual scorer. Focus on team victory.`;
+  }
+  
+  // Check for other notable three-point performances
+  const allScorersWithThrees = [...winnerScorers, ...loserScorers].filter(s => s.threePointers >= 4);
+  if (!threePointStory && allScorersWithThrees.length > 0) {
+    const topThreeShooter = allScorersWithThrees.reduce((max, s) => s.threePointers > max.threePointers ? s : max);
+    threePointStory = `THREE-POINT SHOOTING: ${getThreePointStory(topThreeShooter)}.`;
+  }
+  
+  // GAME FLOW - check halves first, then quarters
+  if (Math.abs(winnerFirstHalf - loserFirstHalf) <= 4 && (winnerSecondHalf - loserSecondHalf) >= 10) {
+    gameFlowStory = `GAME FLOW: Close first half (${winnerFirstHalf}-${loserFirstHalf}), then ${winner} pulled away in the second half, outscoring ${loser} ${winnerSecondHalf}-${loserSecondHalf}.`;
+  } else if ((winnerFirstHalf - loserFirstHalf) >= 10 && Math.abs(winnerSecondHalf - loserSecondHalf) <= 4) {
+    gameFlowStory = `GAME FLOW: ${winner} built a big first-half lead (${winnerFirstHalf}-${loserFirstHalf}), then teams played evenly in the second half.`;
+  } else if (secondHalfDiff >= 12) {
+    const secondHalfWinner = winnerSecondHalf > loserSecondHalf ? winner : loser;
+    gameFlowStory = `GAME FLOW: The second half was decisive - ${secondHalfWinner} outscored opponent ${Math.max(winnerSecondHalf, loserSecondHalf)}-${Math.min(winnerSecondHalf, loserSecondHalf)} after halftime.`;
+  } else if (biggestQuarterSwing.diff >= 10) {
+    gameFlowStory = `KEY QUARTER: Q${biggestQuarterSwing.quarter} was the turning point with a ${biggestQuarterSwing.diff}-point differential.`;
+  } else if (biggestQuarterSwing.diff >= 6) {
+    gameFlowStory = `QUARTER NOTE: Q${biggestQuarterSwing.quarter} saw the biggest swing (${biggestQuarterSwing.diff}-point difference).`;
+  } else {
+    gameFlowStory = `GAME FLOW: Competitive throughout with no single decisive run.`;
+  }
+
   const prompt = `You are a factual sports reporter for Ball603.com, covering New Hampshire high school basketball. Write a straightforward game recap based ONLY on the facts provided.
 
 GAME RESULT: ${winner} ${winnerScore}, ${loser} ${loserScore}${hasOT ? ' (OT)' : ''}
@@ -394,9 +478,11 @@ DATE: ${gameDay}
 GENDER: ${proofData.gender || 'Varsity'}
 DIVISION: ${proofData.division || ''}
 
-SCORING BY PERIOD:
+SCORING BY QUARTER:
 ${proofData.awayTeam}: ${formatQuarters(proofData.awayQuarters)} = ${proofData.awayFinal}
 ${proofData.homeTeam}: ${formatQuarters(proofData.homeQuarters)} = ${proofData.homeFinal}
+
+HALFTIME: ${proofData.awayTeam} ${awayFirstHalf}, ${proofData.homeTeam} ${homeFirstHalf}
 
 ${proofData.awayTeam} (${awaySchoolInfo.mascot || 'Team'}) SCORERS:
 ${awayScorersEnhanced.map(formatScorer).join('\n')}
@@ -406,27 +492,25 @@ ${homeScorersEnhanced.map(formatScorer).join('\n')}
 
 ${proofData.notes ? `NOTES: ${proofData.notes}` : ''}
 
-MANDATORY STYLE GUIDELINES:
-1. DATELINE: Start with "${gameTown.toUpperCase()}, N.H. – " and then begin the story
-2. FIRST PARAGRAPH: State who won, final score, location, and date. Include top scorer if they scored 20+ points.
-3. BODY: Report the facts. Mention quarter scoring if relevant. ALTERNATE between school name and mascot.
-4. SCORING PARAGRAPH: List all double-digit scorers for both teams with their point totals.
+=== STORY ANALYSIS (FOLLOW THESE INSTRUCTIONS) ===
+${ledeStory}
+${gameFlowStory}
+${threePointStory || ''}
+
+ARTICLE STRUCTURE:
+1. DATELINE: Start with "${gameTown.toUpperCase()}, N.H. – "
+2. FIRST SENTENCE: Follow the LEAD instruction above exactly.
+3. GAME FLOW: Use the game flow analysis above as the main narrative element.
+4. SUPPORTING SCORERS: Mention other double-digit scorers for both teams.
 5. LENGTH: 250-350 words. Be concise.
-6. TONE: Factual and straightforward. Report what happened, not how exciting it was.
 
-STRICT RULES - DO NOT:
-- Speculate about player emotions, motivations, or thoughts
-- Use dramatic words like "dominated," "exploded," "heroic," "clutch," "electric," "sizzling"
-- Invent narrative drama or momentum shifts you can't prove from the stats
-- Add commentary about the "meaning" of the game
-- Use exclamation points
-- Describe plays you didn't witness (only report scoring totals)
-
-DO:
-- State facts from the scorebook
+TONE RULES:
+- Factual and straightforward - report what happened
 - Use neutral verbs: "scored," "led," "added," "contributed," "finished with"
-- Let the numbers speak for themselves
-- Keep sentences short and direct
+- Do NOT speculate about emotions, motivations, or drama
+- Do NOT use dramatic words like "dominated," "exploded," "heroic," "clutch"
+- No exclamation points
+- Let the numbers tell the story
 
 DO NOT include a headline - just the article body starting with the dateline.`;
 
