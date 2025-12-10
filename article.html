@@ -1457,9 +1457,9 @@
           // Store images for lightbox
           window.galleryImages = data.images;
           
-          // Preload first few large images in background for faster lightbox
+          // Preload first few images in background for faster lightbox
           data.images.slice(0, 4).forEach(img => {
-            const src = img.original || img.xlarge || img.large;
+            const src = img.archivedUri || img.original || img.xlarge || img.large;
             if (src) {
               const preload = new Image();
               preload.src = src;
@@ -1510,10 +1510,10 @@
       if (!window.galleryImages || !window.galleryImages.length) return;
       
       const images = window.galleryImages.map(img => ({
-        // Use medium for faster loading, keep original for save/purchase
-        src: img.medium || img.large || img.xlarge || img.original || img.thumbnail,
-        original: img.original || img.xlarge || img.large || img.medium,
-        thumb: img.thumbnail || img.medium,
+        // Use archivedUri (full res) - it's the only large size available from SmugMug API
+        src: img.archivedUri || img.original || img.xlarge || img.large || img.medium || img.thumbnail,
+        original: img.archivedUri || img.original || img.xlarge || img.large,
+        thumb: img.thumbnail,
         caption: img.caption || img.title || '',
         webUrl: img.webUrl || null
       }));
@@ -1523,7 +1523,7 @@
         Ball603.openGallery(images, index, currentArticle?.title || 'Gallery');
       } else {
         const img = window.galleryImages[index];
-        window.open(img.original || img.xlarge || img.large || img.webUrl, '_blank');
+        window.open(img.archivedUri || img.original || img.webUrl, '_blank');
       }
     }
     
