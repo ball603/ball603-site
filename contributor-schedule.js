@@ -983,7 +983,6 @@ class ContributorSchedule {
     });
     
     // Sort games: by date, then for past dates put claimed games at bottom
-    const today = new Date().toISOString().split('T')[0];
     games.sort((a, b) => {
       // First sort by date
       if (a.date !== b.date) return a.date.localeCompare(b.date);
