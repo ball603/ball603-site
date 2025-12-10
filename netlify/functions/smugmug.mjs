@@ -288,17 +288,23 @@ export const handler = async (event) => {
         body: JSON.stringify({
           success: true,
           albumKey: albumKey,
-          images: images.map(img => ({
-            key: img.ImageKey,
-            filename: img.FileName,
-            caption: img.Caption,
-            title: img.Title,
-            thumbnail: img.Uris?.ImageSizes?.ImageSizes?.ThumbImageUrl || img.Uris?.ImageSizes?.ImageSizes?.SmallImageUrl || img.ThumbnailUrl,
-            medium: img.Uris?.ImageSizes?.ImageSizes?.MediumImageUrl || img.Uris?.ImageSizes?.ImageSizes?.SmallImageUrl,
-            large: img.Uris?.ImageSizes?.ImageSizes?.LargeImageUrl || img.Uris?.ImageSizes?.ImageSizes?.XLargeImageUrl || img.Uris?.ImageSizes?.ImageSizes?.MediumImageUrl,
-            xlarge: img.Uris?.ImageSizes?.ImageSizes?.XLargeImageUrl || img.Uris?.ImageSizes?.ImageSizes?.LargeImageUrl,
-            webUrl: img.WebUri
-          }))
+          images: images.map(img => {
+            // SmugMug ImageSizes structure
+            const sizes = img.Uris?.ImageSizes?.ImageSizes || {};
+            return {
+              key: img.ImageKey,
+              filename: img.FileName,
+              caption: img.Caption,
+              title: img.Title,
+              thumbnail: sizes.ThumbImageUrl || sizes.TinyImageUrl || sizes.SmallImageUrl || img.ThumbnailUrl,
+              medium: sizes.MediumImageUrl || sizes.SmallImageUrl || sizes.LargeImageUrl,
+              large: sizes.LargeImageUrl || sizes.XLargeImageUrl || sizes.X2LargeImageUrl || sizes.MediumImageUrl,
+              xlarge: sizes.XLargeImageUrl || sizes.X2LargeImageUrl || sizes.X3LargeImageUrl || sizes.LargeImageUrl,
+              original: sizes.X3LargeImageUrl || sizes.X2LargeImageUrl || sizes.XLargeImageUrl || sizes.LargeImageUrl,
+              webUrl: img.WebUri,
+              archivedUri: img.ArchivedUri
+            };
+          })
         })
       };
     }
