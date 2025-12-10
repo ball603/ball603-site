@@ -660,6 +660,7 @@ class ContributorSchedule {
         existing.writer = existing.writer || game.writer;
         existing.notes = existing.notes || game.notes;
         existing.scorebook_url = existing.scorebook_url || game.scorebook_url;
+        existing.coverage_confirmed = existing.coverage_confirmed || game.coverage_confirmed;
         existing.schedule_changed = existing.schedule_changed || game.schedule_changed;
         existing.original_date = existing.original_date || game.original_date;
       } else {
@@ -981,8 +982,25 @@ class ContributorSchedule {
       return true;
     });
     
+    // Sort games: by date, then for past dates put claimed games at bottom
+    const today = new Date().toISOString().split('T')[0];
     games.sort((a, b) => {
+      // First sort by date
       if (a.date !== b.date) return a.date.localeCompare(b.date);
+      
+      // For past dates, sort unclaimed games first, claimed games last
+      const aIsPast = a.date < today;
+      const bIsPast = b.date < today;
+      
+      if (aIsPast && bIsPast) {
+        const aHasClaim = a.photog1 || a.photog2 || a.videog || a.writer;
+        const bHasClaim = b.photog1 || b.photog2 || b.videog || b.writer;
+        
+        if (aHasClaim && !bHasClaim) return 1;  // a (claimed) goes after b (unclaimed)
+        if (!aHasClaim && bHasClaim) return -1; // a (unclaimed) goes before b (claimed)
+      }
+      
+      // Then sort by time
       return (a.time || '').localeCompare(b.time || '');
     });
     
@@ -1004,6 +1022,7 @@ class ContributorSchedule {
             <th>Gender</th>
             <th>Level</th>
             <th></th>
+            <th>✅</th>
             <th>Coverage</th>
             <th>Scorebook</th>
             <th>Notes</th>
@@ -1028,6 +1047,7 @@ class ContributorSchedule {
           <td>${game.gender || ''}</td>
           <td>${game.level || ''}</td>
           <td>${isPast ? '' : this.renderClaimCell(game)}</td>
+          <td class="cs-confirm-cell">${this.renderConfirmCell(game)}</td>
           <td class="cs-coverage-cell">${this.renderCoverageCell(game)}</td>
           <td class="cs-scorebook-cell">${this.renderScorebookCell(game)}</td>
           <td>${isPast ? (game.notes || '') : `<input class="cs-notes-input" value="${game.notes || ''}" data-game-id="${game.game_id}" placeholder="Notes...">`}</td>
@@ -1043,6 +1063,11 @@ class ContributorSchedule {
       input.addEventListener('blur', () => this.updateNotes(input.dataset.gameId, input.value));
     });
     
+    // Bind confirm toggle buttons
+    tableContainer.querySelectorAll('.cs-confirm-btn').forEach(btn => {
+      btn.addEventListener('click', () => this.toggleConfirm(btn.dataset.gameId));
+    });
+    
     // Bind scorebook upload buttons
     tableContainer.querySelectorAll('.cs-scorebook-upload').forEach(btn => {
       btn.addEventListener('click', () => this.openScorebookModal(btn.dataset.gameId));
@@ -1054,6 +1079,40 @@ class ContributorSchedule {
     });
   }
   
+  // Render confirm/check cell
+  renderConfirmCell(game) {
+    const isConfirmed = game.coverage_confirmed;
+    if (isConfirmed) {
+      return `<button class="cs-confirm-btn confirmed" data-game-id="${game.game_id}" title="Click to unconfirm">✅</button>`;
+    }
+    return `<button class="cs-confirm-btn" data-game-id="${game.game_id}" title="Click to confirm">○</button>`;
+  }
+  
+  // Toggle coverage confirmed status
+  async toggleConfirm(gameId) {
+    const game = this.allGames.find(g => g.game_id === gameId);
+    if (!game) return;
+    
+    const newValue = game.coverage_confirmed ? '' : 'true';
+    
+    try {
+      const response = await fetch(this.config.apiEndpoints.updateAssignment, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameId, field: 'coverage_confirmed', value: newValue })
+      });
+      
+      if (response.ok) {
+        game.coverage_confirmed = newValue ? true : false;
+        this.renderGames();
+      } else {
+        this.showToast('Error updating. Please try again.', 'error');
+      }
+    } catch (err) {
+      this.showToast('Error updating. Please try again.', 'error');
+    }
+  }
+
   // Render scorebook cell
   renderScorebookCell(game) {
     if (game.scorebook_url) {
