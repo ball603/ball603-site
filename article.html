@@ -1403,8 +1403,10 @@
       loading.style.display = 'none';
       container.style.display = 'block';
       
-      // Setup sticky scoreboard if we have game data
-      setupStickyScoreboard(linkedGame, article);
+      // Setup sticky scoreboard after DOM has rendered
+      requestAnimationFrame(() => {
+        setupStickyScoreboard(linkedGame, article);
+      });
     }
     
     /**
@@ -1412,7 +1414,6 @@
      */
     function setupStickyScoreboard(game, article) {
       const stickyEl = document.getElementById('stickyScoreboard');
-      const gameBox = document.querySelector('.game-box') || document.querySelector('.quarter-scores-box');
       if (!stickyEl) return;
       
       // Get data from either linked game or game_data
@@ -1424,7 +1425,7 @@
         awayScore = game.awayScore || game.away_score;
         homeScore = game.homeScore || game.home_score;
         gender = game.gender || '';
-      } else if (article.game_data) {
+      } else if (article && article.game_data) {
         const gd = article.game_data;
         awayTeam = gd.awayTeam;
         homeTeam = gd.homeTeam;
@@ -1459,15 +1460,24 @@
         </div>
       `;
       
-      // Scroll handler - trigger immediately to check initial state
+      // Scroll handler - re-query gameBox each time in case DOM changed
       const scrollHandler = () => {
-        if (gameBox) {
-          const gameBoxBottom = gameBox.offsetTop + gameBox.offsetHeight;
-          if (window.scrollY > gameBoxBottom - 50) {
+        const gameBox = document.querySelector('.game-box') || document.querySelector('.quarter-scores-box');
+        if (!gameBox) {
+          // Fallback: show after scrolling 200px
+          if (window.scrollY > 200) {
             stickyEl.classList.add('visible');
           } else {
             stickyEl.classList.remove('visible');
           }
+          return;
+        }
+        
+        const gameBoxBottom = gameBox.offsetTop + gameBox.offsetHeight;
+        if (window.scrollY > gameBoxBottom - 50) {
+          stickyEl.classList.add('visible');
+        } else {
+          stickyEl.classList.remove('visible');
         }
       };
       
