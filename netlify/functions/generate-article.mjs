@@ -355,10 +355,28 @@ async function handleWrite(body, headers) {
   
   function formatScorer(s) {
     let line = `- ${s.name}`;
-    if (s.class) line += ` (${s.class}${s.position ? ', ' + s.position : ''})`;
+    // Only use first position if dual position (G/F -> G, F/C -> F)
+    let position = s.position || '';
+    if (position.includes('/')) {
+      position = position.split('/')[0];
+    }
+    if (s.class) line += ` (${s.class}${position ? ', ' + position : ''})`;
     line += `: ${s.points} pts`;
-    if (s.threePointers && s.threePointers > 0) line += ` (${s.threePointers} 3PT)`;
+    // Only include three-pointers if 3 or more
+    if (s.threePointers && s.threePointers >= 3) line += ` (${s.threePointers} 3PT)`;
     return line;
+  }
+  
+  // Filter scorers: only 10+ point scorers, OR just high scorer(s) if no one has 10+
+  function filterScorersForArticle(scorers) {
+    const doubleDigit = scorers.filter(s => s.points >= 10);
+    if (doubleDigit.length > 0) {
+      return doubleDigit;
+    }
+    // No double-digit scorers - return only high scorer(s) including ties
+    if (scorers.length === 0) return [];
+    const highScore = Math.max(...scorers.map(s => s.points));
+    return scorers.filter(s => s.points === highScore);
   }
   
   function formatQuarters(quarters) {
@@ -412,9 +430,9 @@ async function handleWrite(body, headers) {
   const winnerTopScorer = winnerScorers.reduce((max, s) => s.points > max.points ? s : max, { points: 0 });
   const loserTopScorer = loserScorers.reduce((max, s) => s.points > max.points ? s : max, { points: 0 });
   
-  // Check for notable three-point shooting
+  // Check for notable three-point shooting (3+ threes)
   function getThreePointStory(scorer) {
-    if (!scorer.threePointers || scorer.threePointers < 4) return null;
+    if (!scorer.threePointers || scorer.threePointers < 3) return null;
     const threePointPts = scorer.threePointers * 3;
     const pctFromThree = Math.round((threePointPts / scorer.points) * 100);
     if (pctFromThree >= 50) {
@@ -460,8 +478,8 @@ async function handleWrite(body, headers) {
     ledeStory = `BALANCED SCORING: No dominant individual scorer. Focus on team victory.`;
   }
   
-  // Check for other notable three-point performances
-  const allScorersWithThrees = [...winnerScorers, ...loserScorers].filter(s => s.threePointers >= 4);
+  // Check for other notable three-point performances (3+ threes)
+  const allScorersWithThrees = [...winnerScorers, ...loserScorers].filter(s => s.threePointers >= 3);
   if (!threePointStory && allScorersWithThrees.length > 0) {
     const topThreeShooter = allScorersWithThrees.reduce((max, s) => s.threePointers > max.threePointers ? s : max);
     threePointStory = `THREE-POINT SHOOTING: ${getThreePointStory(topThreeShooter)}.`;
@@ -497,11 +515,11 @@ ${proofData.homeTeam}: ${formatQuarters(proofData.homeQuarters)} = ${proofData.h
 
 HALFTIME: ${proofData.awayTeam} ${awayFirstHalf}, ${proofData.homeTeam} ${homeFirstHalf}
 
-${proofData.awayTeam} (${awaySchoolInfo.mascot || 'Team'}) SCORERS:
-${awayScorersEnhanced.map(formatScorer).join('\n')}
+${proofData.awayTeam} (${awaySchoolInfo.mascot || 'Team'}) SCORERS TO MENTION:
+${filterScorersForArticle(awayScorersEnhanced).map(formatScorer).join('\n')}
 
-${proofData.homeTeam} (${homeSchoolInfo.mascot || 'Team'}) SCORERS:
-${homeScorersEnhanced.map(formatScorer).join('\n')}
+${proofData.homeTeam} (${homeSchoolInfo.mascot || 'Team'}) SCORERS TO MENTION:
+${filterScorersForArticle(homeScorersEnhanced).map(formatScorer).join('\n')}
 
 ${proofData.notes ? `NOTES: ${proofData.notes}` : ''}
 
@@ -515,9 +533,35 @@ ARTICLE STRUCTURE:
 1. DATELINE: Start with "${gameTown.toUpperCase()}, N.H. – "
 2. FIRST SENTENCE: Follow the LEAD instruction above exactly.
 3. GAME FLOW: Use the game flow analysis above as the main narrative element.
-4. SUPPORTING SCORERS: Mention other double-digit scorers for both teams.
+4. SUPPORTING SCORERS: See SCORER RULES below - THIS IS CRITICAL.
 5. DO NOT include team records or gallery references - those will be added separately.
 6. LENGTH: 250-350 words. Be concise.
+
+=== SCORER RULES - READ THIS CAREFULLY ===
+THIS IS MANDATORY - VIOLATING THESE RULES IS A SERIOUS ERROR:
+
+1. ONLY mention players who scored 10+ points
+2. If a team has ZERO players with 10+ points, mention ONLY the high scorer(s) for that team
+3. NEVER list players who scored under 10 points unless they are the team's high scorer
+4. NEVER write sentences like "Five other players contributed..." or list multiple single-digit scorers
+5. If you don't have double-digit scorers to mention for a team, just state the high scorer and move on
+
+WRONG: "Parker (6), Eldridge (6), and Samson (6) each added six points. Rudd and Daigneault added four apiece."
+RIGHT: "Madison Parker led the team with six points." (only if no one scored 10+)
+
+=== THREE-POINTER RULES ===
+- Only mention three-pointers if a player made 3 OR MORE
+- Do NOT mention 1 or 2 three-pointers - not noteworthy
+- NEVER say "three three-pointers" - use: triples, trifectas, shots from deep, baskets from beyond the arc
+- NEVER write "[X] three-pointers that accounted for [Y] points" - readers can do math
+- GOOD: "Fifteen of Fogg's 20 points came from beyond the arc"
+- GOOD: "Smith knocked down four triples"
+- BAD: "Jones added a three-pointer"
+- BAD: "Smith hit three three-pointers" (awkward phrasing)
+
+=== POSITION RULES ===
+- If a player's position is listed as "G/F" or "F/C", only use the FIRST position (Guard or Forward)
+- Write "guard" not "guard/forward"
 
 TONE RULES:
 - Factual and straightforward - report what happened
@@ -526,12 +570,6 @@ TONE RULES:
 - Do NOT use dramatic words like "dominated," "exploded," "heroic," "clutch"
 - No exclamation points
 - Let the numbers tell the story
-
-THREE-POINTER WRITING RULES:
-- NEVER write "[X] three-pointers that accounted for [Y] of his total points" - readers can do math
-- GOOD: "Fifteen of Bryson Fogg's team-high 20 points came from beyond the arc"
-- GOOD: "Smith hit four three-pointers in the win"
-- BAD: "Smith hit four three-pointers, accounting for 12 of his 18 points"
 
 STRICT RULES - DO NOT:
 - Mention playoffs, tournament implications, or postseason - it's too early in the season
@@ -586,13 +624,28 @@ DO NOT include a headline - just the article body starting with the dateline.`;
   }
   
   // Generate headline
+  const marginOfVictory = winnerScore - loserScore;
+  let headlineHint = '';
+  if (marginOfVictory >= 20) {
+    headlineHint = 'Large margin - use softer terms like "cruises past", "rolls past", "eases by", "handles". NEVER use "blowout", "dominates", "destroys", "crushes".';
+  } else if (marginOfVictory >= 10) {
+    headlineHint = 'Comfortable win - use terms like "tops", "beats", "defeats", "gets past".';
+  } else if (marginOfVictory <= 5) {
+    headlineHint = 'Close game - use terms like "edges", "holds off", "survives", "slips past".';
+  }
+  
   const headlineResponse = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 50,
-      messages: [{ role: 'user', content: `Write a headline under 45 characters for this game. Use school name not mascot. No score. Just the headline.\n\nGame: ${winner} defeated ${loser} ${winnerScore}-${loserScore}` }]
+      messages: [{ role: 'user', content: `Write a headline under 45 characters for this basketball game. Use school name not mascot. No score in headline. Just the headline text, no quotes.
+
+Game: ${winner} defeated ${loser} ${winnerScore}-${loserScore}
+${headlineHint}
+
+BANNED WORDS: blowout, dominates, destroys, crushes, demolishes, embarrasses, routs` }]
     })
   });
   
