@@ -824,9 +824,15 @@
     /* Mobile Lightbox Fullscreen Styles */
     @media (max-width: 768px) {
       .gallery-overlay {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
         background: #000 !important;
         overflow: hidden;
         touch-action: none;
+        z-index: 9999;
       }
       
       .gallery-overlay .gallery-header-lightbox {
@@ -882,7 +888,7 @@
       }
       
       .gallery-overlay .gallery-info {
-        position: fixed;
+        position: absolute;
         bottom: 0;
         left: 0;
         right: 0;
@@ -1493,7 +1499,7 @@
           
           // Preload first few images in background for faster lightbox
           data.images.slice(0, 4).forEach(img => {
-            const src = img.archivedUri || img.original || img.xlarge || img.large;
+            const src = img.x2large || img.xlarge || img.large || img.archivedUri;
             if (src) {
               const preload = new Image();
               preload.src = src;
@@ -1544,9 +1550,10 @@
       if (!window.galleryImages || !window.galleryImages.length) return;
       
       const images = window.galleryImages.map(img => ({
-        // Use archivedUri (full res) - it's the only large size available from SmugMug API
-        src: img.archivedUri || img.original || img.xlarge || img.large || img.medium || img.thumbnail,
-        original: img.archivedUri || img.original || img.xlarge || img.large,
+        // Use x2large for display (good quality, faster than original)
+        // Fallback chain: x2large -> xlarge -> large -> original
+        src: img.x2large || img.xlarge || img.large || img.archivedUri || img.original || img.medium || img.thumbnail,
+        original: img.archivedUri || img.original || img.x2large || img.xlarge,
         thumb: img.thumbnail,
         caption: img.caption || img.title || '',
         webUrl: img.webUrl || null
