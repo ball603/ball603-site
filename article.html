@@ -144,6 +144,92 @@
       margin-bottom: var(--space-xl);
     }
     
+    /* Sticky Compact Scoreboard */
+    .sticky-scoreboard {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border-color);
+      padding: 8px 16px;
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .sticky-scoreboard.visible {
+      display: flex;
+    }
+    
+    .sticky-scoreboard .sticky-team {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .sticky-scoreboard .sticky-logo {
+      width: 28px;
+      height: 28px;
+      border-radius: 4px;
+      object-fit: contain;
+    }
+    
+    .sticky-scoreboard .sticky-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      max-width: 70px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    
+    .sticky-scoreboard .sticky-score {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-secondary);
+      min-width: 28px;
+      text-align: center;
+    }
+    
+    .sticky-scoreboard .sticky-score.winner {
+      color: var(--accent);
+    }
+    
+    .sticky-scoreboard .sticky-center {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0 4px;
+    }
+    
+    .sticky-scoreboard .sticky-dash {
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+    
+    .sticky-scoreboard .sticky-status {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+    
+    @media (max-width: 400px) {
+      .sticky-scoreboard .sticky-name {
+        max-width: 50px;
+        font-size: 12px;
+      }
+      .sticky-scoreboard .sticky-logo {
+        width: 24px;
+        height: 24px;
+      }
+    }
+    
     .game-box-header {
       font-size: var(--font-size-sm);
       font-weight: var(--font-weight-semibold);
@@ -739,6 +825,8 @@
     @media (max-width: 768px) {
       .gallery-overlay {
         background: #000 !important;
+        overflow: hidden;
+        touch-action: none;
       }
       
       .gallery-overlay .gallery-header-lightbox {
@@ -758,16 +846,24 @@
         top: 0;
         left: 0;
         right: 0;
-        bottom: 70px;
+        bottom: 60px;
         display: flex;
         align-items: center;
         justify-content: center;
+        overflow: hidden;
       }
       
       .gallery-overlay .gallery-main img {
         max-width: 100%;
         max-height: 100%;
         object-fit: contain;
+        transition: transform 0.3s ease;
+        user-select: none;
+        -webkit-user-drag: none;
+      }
+      
+      .gallery-overlay .gallery-main img.swiping {
+        transition: none;
       }
       
       .gallery-overlay .gallery-info {
@@ -776,8 +872,8 @@
         left: 0;
         right: 0;
         background: #000;
-        padding: 12px 16px;
-        padding-bottom: max(12px, env(safe-area-inset-bottom));
+        padding: 10px 12px;
+        padding-bottom: max(10px, env(safe-area-inset-bottom));
       }
       
       .gallery-overlay .gallery-caption,
@@ -788,23 +884,29 @@
       .gallery-overlay .gallery-actions {
         display: flex;
         justify-content: center;
-        gap: 8px;
+        gap: 6px;
       }
       
       .gallery-overlay .gallery-action-btn {
         flex: 1;
-        max-width: 120px;
-        padding: 12px 8px;
-        font-size: 14px;
-        background: #222;
-        border: none;
+        max-width: 100px;
+        padding: 10px 6px;
+        font-size: 12px;
+        background: #1a1a1a;
+        border: 1px solid #333;
         border-radius: 8px;
         color: #fff;
         cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+        line-height: 1.2;
       }
       
       .gallery-overlay .gallery-action-btn:active {
-        background: #444;
+        background: #333;
       }
     }
   </style>
@@ -817,6 +919,9 @@
   <meta property="og:type" content="article">
 </head>
 <body>
+  <!-- Sticky Compact Scoreboard (appears on scroll) -->
+  <div class="sticky-scoreboard" id="stickyScoreboard"></div>
+  
   <!-- Scores Ticker -->
   <div class="ticker" id="ticker">
     <div class="ticker-header">
@@ -1248,6 +1353,81 @@
       
       loading.style.display = 'none';
       container.style.display = 'block';
+      
+      // Setup sticky scoreboard if we have game data
+      setupStickyScoreboard(linkedGame, article);
+    }
+    
+    /**
+     * Setup sticky scoreboard for scroll behavior
+     */
+    function setupStickyScoreboard(game, article) {
+      const stickyEl = document.getElementById('stickyScoreboard');
+      const gameBox = document.querySelector('.game-box');
+      if (!stickyEl) return;
+      
+      // Get data from either linked game or game_data
+      let awayTeam, homeTeam, awayScore, homeScore, gender;
+      
+      if (game) {
+        awayTeam = game.away;
+        homeTeam = game.home;
+        awayScore = game.awayScore || game.away_score;
+        homeScore = game.homeScore || game.home_score;
+        gender = game.gender || '';
+      } else if (article.game_data) {
+        const gd = article.game_data;
+        awayTeam = gd.awayTeam;
+        homeTeam = gd.homeTeam;
+        awayScore = gd.awayFinal;
+        homeScore = gd.homeFinal;
+        gender = gd.gender || '';
+      } else {
+        return; // No game data
+      }
+      
+      if (!awayTeam || !homeTeam) return;
+      
+      const awayWins = parseInt(awayScore) > parseInt(homeScore);
+      const homeWins = parseInt(homeScore) > parseInt(awayScore);
+      const genderAbbr = gender ? (gender.charAt(0).toUpperCase()) : '';
+      
+      // Create sticky scoreboard content
+      stickyEl.innerHTML = `
+        <div class="sticky-team">
+          <img class="sticky-logo" src="${Ball603.getLogoUrl(awayTeam)}" alt="${awayTeam}" onerror="this.src='/logos/100px/Ball603-white.png'">
+          <span class="sticky-name">${Ball603.getShortName(awayTeam)}</span>
+          <span class="sticky-score ${awayWins ? 'winner' : ''}">${awayScore || '-'}</span>
+        </div>
+        <div class="sticky-center">
+          <span class="sticky-dash">-</span>
+          <span class="sticky-status">${genderAbbr} F</span>
+        </div>
+        <div class="sticky-team">
+          <span class="sticky-score ${homeWins ? 'winner' : ''}">${homeScore || '-'}</span>
+          <span class="sticky-name">${Ball603.getShortName(homeTeam)}</span>
+          <img class="sticky-logo" src="${Ball603.getLogoUrl(homeTeam)}" alt="${homeTeam}" onerror="this.src='/logos/100px/Ball603-white.png'">
+        </div>
+      `;
+      
+      // Scroll handler
+      let lastScrollY = 0;
+      const scrollHandler = () => {
+        const scrollY = window.scrollY;
+        
+        if (gameBox) {
+          const gameBoxBottom = gameBox.offsetTop + gameBox.offsetHeight;
+          if (scrollY > gameBoxBottom - 50) {
+            stickyEl.classList.add('visible');
+          } else {
+            stickyEl.classList.remove('visible');
+          }
+        }
+        
+        lastScrollY = scrollY;
+      };
+      
+      window.addEventListener('scroll', scrollHandler, { passive: true });
     }
     
     /**
@@ -1330,7 +1510,9 @@
       if (!window.galleryImages || !window.galleryImages.length) return;
       
       const images = window.galleryImages.map(img => ({
-        src: img.original || img.xlarge || img.large || img.medium || img.archivedUri || img.thumbnail,
+        // Use medium for faster loading, keep original for save/purchase
+        src: img.medium || img.large || img.xlarge || img.original || img.thumbnail,
+        original: img.original || img.xlarge || img.large || img.medium,
         thumb: img.thumbnail || img.medium,
         caption: img.caption || img.title || '',
         webUrl: img.webUrl || null
@@ -1454,7 +1636,7 @@
       });
     }
     
-    function downloadPhoto() {
+    async function downloadPhoto() {
       // Get current photo from Ball603 state
       const gallery = Ball603.state.currentGallery;
       const index = Ball603.state.currentPhotoIndex;
@@ -1465,17 +1647,37 @@
       }
       
       const photo = gallery[index];
-      const imageUrl = photo.src || photo.url;
+      // Use original/large for saving, not the medium display version
+      const imageUrl = photo.original || photo.src || photo.url;
       
       if (!imageUrl) {
         Ball603.showToast('Photo not available', 'error');
         return;
       }
       
-      // Open image in new tab (user can right-click save)
-      // Direct download is blocked by CORS for external images
+      // On mobile, try to share which allows saving to camera roll on iOS
+      if (navigator.share && navigator.canShare) {
+        try {
+          // Fetch image and convert to file
+          const response = await fetch(imageUrl);
+          const blob = await response.blob();
+          const file = new File([blob], 'ball603-photo.jpg', { type: blob.type });
+          
+          if (navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              files: [file],
+              title: 'Ball603 Photo'
+            });
+            return;
+          }
+        } catch (err) {
+          console.log('Share failed, falling back:', err);
+        }
+      }
+      
+      // Fallback: open in new tab
       window.open(imageUrl, '_blank');
-      Ball603.showToast('Photo opened - right-click to save', 'success');
+      Ball603.showToast('Long-press image to save', 'success');
     }
     
     function sharePhoto() {
