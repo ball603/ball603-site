@@ -506,6 +506,30 @@ function updateGalleryPhoto() {
   document.querySelectorAll('.gallery-dot').forEach((dot, i) => {
     dot.classList.toggle('active', i === state.currentPhotoIndex);
   });
+  
+  // Preload adjacent images for faster navigation
+  preloadAdjacentImages();
+}
+
+/**
+ * Preload next and previous images
+ */
+function preloadAdjacentImages() {
+  if (!state.currentGallery || state.currentGallery.length < 2) return;
+  
+  const preloadIndexes = [
+    (state.currentPhotoIndex + 1) % state.currentGallery.length,
+    (state.currentPhotoIndex - 1 + state.currentGallery.length) % state.currentGallery.length,
+    (state.currentPhotoIndex + 2) % state.currentGallery.length
+  ];
+  
+  preloadIndexes.forEach(idx => {
+    const photo = state.currentGallery[idx];
+    if (photo && (photo.src || photo.url)) {
+      const img = new Image();
+      img.src = photo.src || photo.url;
+    }
+  });
 }
 
 /**
