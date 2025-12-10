@@ -3449,6 +3449,47 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const awaySchoolInfo = getSchoolInfo(gsSelectedGame.away);
       const homeSchoolInfo = getSchoolInfo(gsSelectedGame.home);
       
+      // Calculate team records (games before this one)
+      function getTeamRecord(teamName, gender, beforeDate) {
+        let wins = 0, losses = 0;
+        games.forEach(g => {
+          if (g.gender !== gender) return;
+          if (g.date >= beforeDate) return; // Only count games before this one
+          if (!g.away_score || !g.home_score) return; // Skip games without scores
+          
+          const awayScore = parseInt(g.away_score) || 0;
+          const homeScore = parseInt(g.home_score) || 0;
+          if (awayScore === 0 && homeScore === 0) return;
+          
+          if (g.away === teamName) {
+            if (awayScore > homeScore) wins++;
+            else losses++;
+          } else if (g.home === teamName) {
+            if (homeScore > awayScore) wins++;
+            else losses++;
+          }
+        });
+        return { wins, losses };
+      }
+      
+      const awayRecordBefore = getTeamRecord(gsSelectedGame.away, gsSelectedGame.gender, gsSelectedGame.date);
+      const homeRecordBefore = getTeamRecord(gsSelectedGame.home, gsSelectedGame.gender, gsSelectedGame.date);
+      
+      // Determine new records after this game
+      const awayWon = awayFinal > homeFinal;
+      const awayRecordAfter = {
+        wins: awayRecordBefore.wins + (awayWon ? 1 : 0),
+        losses: awayRecordBefore.losses + (awayWon ? 0 : 1)
+      };
+      const homeRecordAfter = {
+        wins: homeRecordBefore.wins + (awayWon ? 0 : 1),
+        losses: homeRecordBefore.losses + (awayWon ? 1 : 0)
+      };
+      
+      // Check if this is a season opener
+      const awaySeasonOpener = awayRecordBefore.wins === 0 && awayRecordBefore.losses === 0;
+      const homeSeasonOpener = homeRecordBefore.wins === 0 && homeRecordBefore.losses === 0;
+      
       // Get selected photographer(s)
       const selectedPhotogs = [];
       document.querySelectorAll('input[name="gsPhotog"]:checked').forEach(cb => {
@@ -3469,7 +3510,11 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         division: gsSelectedGame.division || '',
         date: gsSelectedGame.date || '',
         notes: document.getElementById('gsNotes').value.trim(),
-        hasOT: otCount > 0
+        hasOT: otCount > 0,
+        awayRecord: awayRecordAfter,
+        homeRecord: homeRecordAfter,
+        awaySeasonOpener,
+        homeSeasonOpener
       };
       
       try {
