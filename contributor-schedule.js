@@ -450,18 +450,22 @@ class ContributorSchedule {
     }
   }
   
-  // View scorebook image
+  // View scorebook image in popup window
   viewScorebook(gameId) {
     const game = this.allGames.find(g => g.game_id === gameId);
     if (!game || !game.scorebook_url) return;
     
-    let viewerModal = document.getElementById('cs-image-viewer-modal');
-    if (!viewerModal) {
-      viewerModal = this.createImageViewerModal();
-    }
+    // Open in a resizable popup window
+    const width = 800;
+    const height = 900;
+    const left = (screen.width - width) / 2;
+    const top = (screen.height - height) / 2;
     
-    viewerModal.querySelector('#cs-viewer-image').src = game.scorebook_url;
-    viewerModal.classList.add('open');
+    window.open(
+      game.scorebook_url,
+      'ScorebookViewer',
+      `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
+    );
   }
   
   // Close image viewer
