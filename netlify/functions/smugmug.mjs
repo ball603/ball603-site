@@ -242,6 +242,7 @@ export const handler = async (event) => {
     } else if (action === 'galleryImages') {
       // Fetch images by gallery URL path (e.g., "Epping-Boys-at-Farmington-12-9-25-Michael-Griffin")
       const galleryPath = event.queryStringParameters?.path;
+      const debug = event.queryStringParameters?.debug === 'true';
       
       if (!galleryPath) {
         return {
@@ -282,6 +283,34 @@ export const handler = async (event) => {
       const imagesResult = await smugmugRequest(imagesEndpoint);
       
       const images = imagesResult?.Response?.AlbumImage || [];
+      
+      // If debug mode, return raw size info for first image
+      if (debug && images.length > 0) {
+        const firstImg = images[0];
+        const sizes = firstImg.Uris?.ImageSizes?.ImageSizes || {};
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({
+            success: true,
+            debug: true,
+            availableSizeKeys: Object.keys(sizes),
+            sampleSizes: {
+              TinyImageUrl: sizes.TinyImageUrl,
+              ThumbImageUrl: sizes.ThumbImageUrl,
+              SmallImageUrl: sizes.SmallImageUrl,
+              MediumImageUrl: sizes.MediumImageUrl,
+              LargeImageUrl: sizes.LargeImageUrl,
+              XLargeImageUrl: sizes.XLargeImageUrl,
+              X2LargeImageUrl: sizes.X2LargeImageUrl,
+              X3LargeImageUrl: sizes.X3LargeImageUrl,
+              OriginalImageUrl: sizes.OriginalImageUrl
+            },
+            rawSizes: sizes
+          })
+        };
+      }
+      
       return {
         statusCode: 200,
         headers,
