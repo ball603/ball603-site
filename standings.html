@@ -3,57 +3,77 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Ball603 - New Hampshire High School Basketball Standings">
+  <meta name="theme-color" content="#f57c00">
   <title>Standings | Ball603</title>
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="apple-touch-icon" href="/logo.png">
+  
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <!-- Shared Styles -->
+  <link rel="stylesheet" href="/styles.css">
+  
+  <!-- Standings-specific styles -->
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    html { overflow-y: scroll; scrollbar-width: none; -ms-overflow-style: none; }
-    html::-webkit-scrollbar { display: none; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #333; min-height: 100vh; }
+    /* ===== STANDINGS PAGE STYLES ===== */
     
-    /* Header */
-    .header { background: #fff; padding: 15px 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); position: relative; z-index: 1000; }
-    .header-inner { max-width: 1100px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; position: relative; }
-    .header-left { display: flex; align-items: center; gap: 15px; }
-    .header-left img { height: 50px; cursor: pointer; }
-    .header-left h1 { font-size: 20px; color: #333; }
-    .header-nav { display: flex; gap: 20px; }
-    .header-nav a { color: #666; text-decoration: none; font-size: 14px; font-weight: 500; }
-    .header-nav a:hover { color: #f57c00; }
-    .header-nav a.active { color: #f57c00; }
-    .hamburger { display: none; flex-direction: column; gap: 5px; cursor: pointer; padding: 5px; }
-    .hamburger span { display: block; width: 24px; height: 3px; background: #333; border-radius: 2px; }
+    /* Page title */
+    .page-header {
+      text-align: center;
+      margin-bottom: var(--space-lg);
+    }
     
-    /* Main container */
-    .container { max-width: 1100px; margin: 0 auto; padding: 20px; }
+    .page-title {
+      font-size: var(--font-size-xl);
+      font-weight: var(--font-weight-bold);
+      color: var(--text-primary);
+      margin-bottom: var(--space-xs);
+    }
     
-    /* Title */
-    .page-title { font-size: 18px; font-weight: 600; margin-bottom: 20px; text-align: center; }
+    .page-subtitle {
+      font-size: var(--font-size-sm);
+      color: var(--text-muted);
+    }
     
-    /* Standings Grid - 2 columns */
+    /* Standings Grid - 2 columns on desktop */
     .standings-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 30px;
+      gap: var(--space-lg);
+    }
+    
+    @media (max-width: 900px) {
+      .standings-grid {
+        grid-template-columns: 1fr;
+        gap: var(--space-md);
+      }
     }
     
     /* Each gender box */
     .gender-box {
-      background: #fff;
-      border-radius: 8px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      background: var(--bg-card);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-color);
       overflow: hidden;
       display: flex;
       flex-direction: column;
+      box-shadow: var(--shadow-sm);
     }
     
     /* Gender header with tabs */
     .gender-header {
       display: flex;
       align-items: flex-end;
-      padding: 12px 15px 0 15px;
-      gap: 15px;
+      padding: var(--space-md) var(--space-md) 0;
+      gap: var(--space-md);
       position: relative;
+      background: var(--bg-card);
     }
+    
     .gender-header::after {
       content: '';
       position: absolute;
@@ -61,178 +81,347 @@
       right: 0;
       bottom: 0;
       height: 2px;
-      background: #f57c00;
+      background: var(--accent);
       z-index: 5;
     }
+    
     .gender-title {
-      font-weight: 600;
-      font-size: 22px;
-      color: #333;
-      padding-bottom: 10px;
+      font-weight: var(--font-weight-bold);
+      font-size: var(--font-size-xl);
+      color: var(--text-primary);
+      padding-bottom: var(--space-sm);
     }
+    
     .division-tabs {
       display: flex;
-      gap: 5px;
+      gap: 4px;
       margin-left: auto;
     }
+    
     .division-tab {
-      padding: 8px 14px;
+      padding: var(--space-sm) var(--space-md);
       border: none;
-      border-radius: 6px 6px 0 0;
-      font-size: 12px;
-      font-weight: 600;
+      border-radius: var(--radius-md) var(--radius-md) 0 0;
+      font-size: var(--font-size-xs);
+      font-weight: var(--font-weight-bold);
       cursor: pointer;
-      background: #fff3e0;
-      color: #e65100;
-      transition: background 0.2s;
+      background: var(--accent-light);
+      color: var(--accent);
+      transition: background var(--transition-fast), color var(--transition-fast);
       position: relative;
       z-index: 1;
     }
-    .division-tab:hover { background: #ffe0b2; }
-    .division-tab.active { 
-      background: #f57c00; 
+    
+    .division-tab:hover {
+      background: var(--bg-tertiary);
+    }
+    
+    .division-tab.active {
+      background: var(--accent);
       color: white;
       z-index: 10;
     }
     
-    /* Division footer */
-    .division-footer {
-      background: #f0f0f0;
-      border-top: 1px solid #eee;
-      padding: 8px 12px;
-      font-size: 11px;
-      color: #666;
+    /* Scrollable table container */
+    .table-wrapper {
+      max-height: 360px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border-color) transparent;
+    }
+    
+    /* Standings table */
+    .standings-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: var(--font-size-sm);
+    }
+    
+    .standings-table thead {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    
+    .standings-table th {
+      background: var(--bg-tertiary);
+      padding: var(--space-sm);
+      text-align: left;
+      font-weight: var(--font-weight-semibold);
+      color: var(--text-secondary);
+      white-space: nowrap;
+      font-size: var(--font-size-xs);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .standings-table th.center {
       text-align: center;
     }
     
-    /* Scrollable table container - hide scrollbars */
-    .table-wrapper {
-      max-height: 340px;
-      overflow-y: auto;
-      scrollbar-width: none;
-      -ms-overflow-style: none;
+    .standings-table td {
+      padding: var(--space-sm);
+      border-bottom: 1px solid var(--border-color);
+      vertical-align: middle;
+      white-space: nowrap;
     }
-    .table-wrapper::-webkit-scrollbar { display: none; }
     
-    /* Standings table */
-    .standings-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    .standings-table thead { position: sticky; top: 0; z-index: 10; }
-    .standings-table th { background: #e8e8e8; padding: 10px 8px; text-align: left; font-weight: 600; color: #333; white-space: nowrap; }
-    .standings-table th.center { text-align: center; }
-    .standings-table td { padding: 8px; border-bottom: 1px solid #eee; vertical-align: middle; white-space: nowrap; }
-    .standings-table td.center { text-align: center; }
-    .standings-table tr:nth-child(even) { background: #f9f9f9; }
-    .standings-table tr:hover { background: #f0f0f0; }
+    .standings-table td.center {
+      text-align: center;
+    }
+    
+    .standings-table tbody tr:hover {
+      background: var(--bg-tertiary);
+    }
     
     /* Columns */
-    .seed-col { width: 32px; text-align: center; font-weight: 600; }
+    .seed-col {
+      width: 36px;
+      text-align: center;
+      font-weight: var(--font-weight-bold);
+    }
+    
     .team-col { }
-    .team { display: flex; align-items: center; gap: 8px; }
-    .team-logo { width: 22px; height: 22px; border-radius: 3px; object-fit: contain; }
-    .team-name { font-size: 13px; color: #333; text-decoration: none; }
-    .team-name:hover { color: #f57c00; }
-    .record-col { width: 35px; text-align: center; }
-    .rating-col { width: 55px; text-align: center; font-size: 12px; color: #666; }
+    
+    .team {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+    
+    .team-logo {
+      width: 24px;
+      height: 24px;
+      border-radius: var(--radius-sm);
+      object-fit: contain;
+      background: var(--bg-tertiary);
+    }
+    
+    .team-name {
+      font-size: var(--font-size-sm);
+      color: var(--text-primary);
+      text-decoration: none;
+      font-weight: var(--font-weight-medium);
+    }
+    
+    .team-name:hover {
+      color: var(--accent);
+    }
+    
+    .record-col {
+      width: 40px;
+      text-align: center;
+    }
+    
+    .rating-col {
+      width: 60px;
+      text-align: center;
+      font-size: var(--font-size-xs);
+      color: var(--text-muted);
+    }
     
     /* Playoff indicators */
-    .playoff-in { color: #4CAF50; }
-    .playoff-out { color: #999; }
-    .playoff-line { position: relative; }
-    .playoff-line td { border-bottom: none !important; }
+    .playoff-in {
+      color: var(--score-win);
+    }
+    
+    .playoff-out {
+      color: var(--text-muted);
+    }
+    
+    .playoff-line {
+      position: relative;
+    }
+    
+    .playoff-line td {
+      border-bottom: none !important;
+    }
+    
     .playoff-line::after {
       content: '';
       position: absolute;
       left: 0;
       right: 0;
       bottom: 0;
-      border-bottom: 2px dotted #f57c00;
+      border-bottom: 2px dashed var(--accent);
+    }
+    
+    /* Division footer */
+    .division-footer {
+      background: var(--bg-tertiary);
+      border-top: 1px solid var(--border-color);
+      padding: var(--space-sm) var(--space-md);
+      font-size: var(--font-size-xs);
+      color: var(--text-secondary);
+      text-align: center;
     }
     
     /* Loading / Empty */
-    .loading { padding: 40px 20px; text-align: center; color: #888; font-size: 13px; }
-    
-    /* Footer */
-    .footer { text-align: center; padding: 40px 20px; }
-    .footer img { height: 40px; opacity: 0.7; cursor: pointer; }
-    .footer img:hover { opacity: 1; }
-    
-    /* Mobile */
-    @media (max-width: 900px) {
-      .container { width: auto; padding: 10px; }
-      .header-nav { 
-        display: none;
-        position: absolute;
-        top: 100%;
-        right: 0;
-        background: #fff;
-        flex-direction: column;
-        padding: 10px 0;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-        border-radius: 0 0 8px 8px;
-        min-width: 150px;
-        z-index: 1000;
-      }
-      .header-nav.open { display: flex; }
-      .header-nav a { padding: 10px 20px; }
-      .hamburger { display: flex; }
-      .header-left h1 { font-size: 16px; }
-      .standings-grid { grid-template-columns: 1fr; gap: 20px; }
-      .gender-header { flex-wrap: wrap; }
-      .gender-header::after { display: none; }
-      .gender-box { border-bottom: 2px solid #f57c00; }
-      .gender-title { font-size: 18px; }
-      .division-tabs { margin-left: 0; }
-      .division-tab { padding: 5px 10px; font-size: 11px; }
-      .table-wrapper { max-height: 300px; }
-      .team-logo { width: 20px; height: 20px; }
-      .team-name { font-size: 12px; }
-      .rating-col { display: none; }
+    .loading {
+      padding: var(--space-2xl);
+      text-align: center;
+      color: var(--text-muted);
+      font-size: var(--font-size-sm);
     }
-    @media (min-width: 901px) {
-      .hamburger { display: none; }
+    
+    /* Mobile adjustments */
+    @media (max-width: 768px) {
+      .gender-header {
+        flex-wrap: wrap;
+        padding: var(--space-sm) var(--space-sm) 0;
+      }
+      
+      .gender-header::after {
+        display: none;
+      }
+      
+      .gender-box {
+        border-bottom: 2px solid var(--accent);
+      }
+      
+      .gender-title {
+        font-size: var(--font-size-lg);
+      }
+      
+      .division-tabs {
+        margin-left: 0;
+        width: 100%;
+        justify-content: center;
+        padding-bottom: var(--space-sm);
+      }
+      
+      .division-tab {
+        padding: var(--space-xs) var(--space-sm);
+        font-size: var(--font-size-xs);
+        flex: 1;
+        text-align: center;
+      }
+      
+      .table-wrapper {
+        max-height: 320px;
+      }
+      
+      .team-logo {
+        width: 20px;
+        height: 20px;
+      }
+      
+      .team-name {
+        font-size: var(--font-size-xs);
+      }
+      
+      .rating-col {
+        display: none;
+      }
+      
+      .record-col {
+        width: 32px;
+      }
+      
+      .seed-col {
+        width: 28px;
+      }
     }
   </style>
 </head>
 <body>
-  <div class="header">
-    <div class="header-inner">
-      <div class="header-left">
-        <img src="logo.png" alt="Ball603" onclick="window.location.href='/'">
-        <h1>Standings</h1>
-      </div>
-      <nav class="header-nav" id="headerNav">
-        <a href="/">Home</a>
-        <a href="/schedule.html">Schedule</a>
-        <a href="/standings.html" class="active">Standings</a>
-        <a href="/teams.html">Teams</a>
-      </nav>
-      <div class="hamburger" onclick="toggleMenu()">
-        <span></span>
-        <span></span>
-        <span></span>
-      </div>
+  <!-- Scores Ticker -->
+  <div class="ticker" id="ticker">
+    <div class="ticker-header">
+      <span class="ticker-title">Scores</span>
+      <button class="ticker-toggle" onclick="Ball603.toggleTicker()" title="Hide scores">✕</button>
+    </div>
+    <div class="ticker-scroll hide-scrollbar" id="tickerScroll">
+      <div class="skeleton" style="width: 180px; height: 100px;"></div>
+      <div class="skeleton" style="width: 180px; height: 100px;"></div>
+      <div class="skeleton" style="width: 180px; height: 100px;"></div>
     </div>
   </div>
+  <div class="ticker-expand" onclick="Ball603.toggleTicker()">
+    <span>📊 Show Scores</span>
+  </div>
   
-  <div class="container">
-    <h2 class="page-title">2025-26 NHIAA Basketball Standings</h2>
+  <!-- Desktop Header -->
+  <header class="header-desktop">
+    <a href="/">
+      <img src="/logo.png" alt="Ball603" class="header-logo" onerror="this.outerHTML='<span class=\'header-logo-text\'><span class=\'ball\'>BALL</span>603</span>'">
+    </a>
+    <nav class="header-nav">
+      <a href="/">Home</a>
+      <a href="/schedule">Schedule</a>
+      <a href="/standings" class="active">Standings</a>
+      <a href="/galleries">Galleries</a>
+      <a href="/teams.html">Teams</a>
+      <a href="/boys">Boys ▾</a>
+      <a href="/girls">Girls ▾</a>
+      <a href="/college">College ▾</a>
+    </nav>
+    <div class="header-actions">
+      <div class="header-search">
+        <span>🔍</span>
+        <input type="text" placeholder="Search..." id="headerSearchInput">
+      </div>
+      <button class="btn btn-primary btn-pill" onclick="openMyTeams()">⭐ My Teams</button>
+    </div>
+  </header>
+  
+  <!-- Mobile Header -->
+  <header class="header-mobile">
+    <a href="/">
+      <img src="/logo.png" alt="Ball603" class="header-logo" onerror="this.outerHTML='<span class=\'header-logo-text\'><span class=\'ball\'>BALL</span>603</span>'">
+    </a>
+    <div class="header-mobile-actions">
+      <button onclick="openSearch()" title="Search">🔍</button>
+      <button onclick="openMyTeams()" title="My Teams">⭐</button>
+    </div>
+  </header>
+  
+  <!-- Main Content -->
+  <main class="main-content">
+    <div class="page-header">
+      <h1 class="page-title">2025-26 NHIAA Basketball Standings</h1>
+      <p class="page-subtitle">Rankings based on NHIAA power ratings</p>
+    </div>
     
     <div class="standings-grid" id="standingsGrid">
       <div class="loading">Loading standings...</div>
     </div>
-  </div>
+  </main>
   
-  <div class="footer">
-    <img src="logo.png" alt="Ball603" onclick="window.location.href='/'">
-  </div>
-
+  <!-- Bottom Navigation (Mobile) -->
+  <nav class="bottom-nav">
+    <div class="bottom-nav-items">
+      <a href="/" class="bottom-nav-item">
+        <span class="bottom-nav-icon">🏠</span>
+        <span>Home</span>
+      </a>
+      <a href="/schedule" class="bottom-nav-item">
+        <span class="bottom-nav-icon">📅</span>
+        <span>Schedule</span>
+      </a>
+      <a href="/galleries" class="bottom-nav-item">
+        <span class="bottom-nav-icon">📸</span>
+        <span>Galleries</span>
+      </a>
+      <a href="/my-teams" class="bottom-nav-item">
+        <span class="bottom-nav-icon">⭐</span>
+        <span>My Teams</span>
+      </a>
+      <button class="bottom-nav-item" onclick="openMoreMenu()">
+        <span class="bottom-nav-icon">☰</span>
+        <span>More</span>
+      </button>
+    </div>
+  </nav>
+  
+  <!-- Shared JS -->
+  <script src="/app.js"></script>
+  
+  <!-- Standings-specific JS -->
   <script>
+    // ===== STATE =====
     let allStandings = [];
     let currentDivisions = { Boys: 'D-I', Girls: 'D-I' };
-    
-    function toggleMenu() {
-      document.getElementById('headerNav').classList.toggle('open');
-    }
     
     // 2025-26 NHIAA Basketball Playoff Teams (update each season based on 70% rule)
     const PLAYOFF_TEAMS = {
@@ -251,7 +440,8 @@
       renderStandings();
     }
     
-    // Normalize team names to short versions
+    // ===== TEAM HELPERS =====
+    
     function normalizeTeamName(name) {
       if (!name) return name;
       const normalizations = {
@@ -345,7 +535,7 @@
     }
     
     function getLogoFilename(teamName) {
-      if (!teamName) return 'Ball603.png';
+      if (!teamName) return 'Ball603-white.png';
       
       const specialCases = {
         'coe-brown': 'CoeBrown',
@@ -365,6 +555,7 @@
         'manchester memorial': 'ManchesterMemorial',
         'manchester west': 'ManchesterWest',
         'mascoma valley': 'Mascoma',
+        'mascoma': 'Mascoma',
         'merrimack valley': 'MerrimackValley',
         'mount royal': 'MountRoyal',
         'nashua north': 'NashuaNorth',
@@ -393,20 +584,24 @@
       return cleaned + '.png';
     }
     
+    // ===== DATA LOADING =====
+    
     async function loadStandings() {
       try {
         const response = await fetch('/.netlify/functions/get-standings');
         const data = await response.json();
-        // Normalize team names
         allStandings = (data.standings || []).map(s => ({
           ...s,
           school: normalizeTeamName(s.school)
         }));
         renderStandings();
       } catch (err) {
+        console.error('Error loading standings:', err);
         document.getElementById('standingsGrid').innerHTML = '<div class="loading">Error loading standings. Please refresh.</div>';
       }
     }
+    
+    // ===== RENDERING =====
     
     function renderGenderBox(gender) {
       const division = currentDivisions[gender];
@@ -417,7 +612,7 @@
       // Build tabs HTML
       const divisions = ['D-I', 'D-II', 'D-III', 'D-IV'];
       let tabsHtml = divisions.map(div => 
-        `<button class="division-tab ${div === division ? 'active' : ''}" onclick="selectDivision('${gender}', '${div}')">${div.replace('D-', 'Division ')}</button>`
+        `<button class="division-tab ${div === division ? 'active' : ''}" onclick="selectDivision('${gender}', '${div}')">${div}</button>`
       ).join('');
       
       if (standings.length === 0) {
@@ -449,7 +644,7 @@
                   <th class="team-col">Team</th>
                   <th class="record-col center">W</th>
                   <th class="record-col center">L</th>
-                  <th class="rating-col center">Rtg</th>
+                  <th class="rating-col center">Rating</th>
                 </tr>
               </thead>
               <tbody>
@@ -465,7 +660,7 @@
             <td class="seed-col center ${isPlayoffTeam ? 'playoff-in' : 'playoff-out'}">${seed}</td>
             <td class="team-col">
               <div class="team">
-                <img class="team-logo" src="/logos/100px/${getLogoFilename(team.school)}" alt="" onerror="this.onerror=null; this.src='/logos/100px/Ball603.png'">
+                <img class="team-logo" src="/logos/100px/${getLogoFilename(team.school)}" alt="" onerror="this.onerror=null; this.src='/logos/100px/Ball603-white.png'">
                 <a class="team-name" href="/teams/${getLogoFilename(team.school).replace('.png', '.html')}">${team.school}</a>
               </div>
             </td>
@@ -495,11 +690,30 @@
       let html = '';
       html += renderGenderBox('Boys');
       html += renderGenderBox('Girls');
-      
       document.getElementById('standingsGrid').innerHTML = html;
     }
     
-    // Initialize
+    // ===== PLACEHOLDER FUNCTIONS =====
+    
+    function openSearch() {
+      Ball603.showToast('Search coming soon!');
+    }
+    
+    function openMyTeams() {
+      Ball603.showToast('My Teams coming soon!');
+    }
+    
+    function openMoreMenu() {
+      Ball603.showToast('More menu coming soon!');
+    }
+    
+    // ===== INITIALIZATION =====
+    
+    document.addEventListener('ball603:ready', () => {
+      // Ticker is already initialized by app.js
+    });
+    
+    // Load standings
     loadStandings();
   </script>
 </body>
