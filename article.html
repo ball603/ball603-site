@@ -438,6 +438,48 @@
       text-decoration: none;
     }
     
+    /* Gallery Preview Card */
+    .gallery-preview-card {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 200px;
+      background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--bg-secondary) 100%);
+      border-radius: var(--radius-lg);
+      text-decoration: none;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      border: 1px solid var(--border-color);
+    }
+    
+    .gallery-preview-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+    }
+    
+    .gallery-preview-overlay {
+      text-align: center;
+      padding: var(--space-xl);
+    }
+    
+    .gallery-preview-icon {
+      font-size: 48px;
+      margin-bottom: var(--space-md);
+    }
+    
+    .gallery-preview-text {
+      font-size: var(--font-size-lg);
+      font-weight: var(--font-weight-semibold);
+      color: var(--text-primary);
+      margin-bottom: var(--space-xs);
+    }
+    
+    .gallery-preview-subtext {
+      font-size: var(--font-size-sm);
+      color: var(--text-muted);
+      text-transform: capitalize;
+    }
+    
     .gallery-link:hover {
       text-decoration: underline;
     }
@@ -1069,7 +1111,7 @@
     }
     
     /**
-     * Load gallery from SmugMug - embed using their widget
+     * Load gallery from SmugMug - show preview card linking to gallery
      */
     async function loadGalleryPhotos(article) {
       if (!article.smugmug_gallery_url) return;
@@ -1081,19 +1123,19 @@
       
       const embedContainer = document.getElementById('smugmugEmbed');
       
-      // SmugMug requires their embed script for proper gallery display
-      // Use their iframe with the gallery page directly
-      const galleryUrl = article.smugmug_gallery_url.replace(/\/$/, '');
+      // SmugMug blocks iframe embedding, so show a clickable preview instead
+      // Try to get the gallery name from the URL
+      const urlParts = article.smugmug_gallery_url.split('/');
+      const galleryName = urlParts[urlParts.length - 1].replace(/-/g, ' ');
       
       embedContainer.innerHTML = `
-        <div style="position: relative; width: 100%; height: 500px; border-radius: var(--radius-lg); overflow: hidden; background: var(--bg-tertiary);">
-          <iframe 
-            src="${galleryUrl}" 
-            style="width: 100%; height: 100%; border: none;"
-            allowfullscreen
-            loading="lazy">
-          </iframe>
-        </div>
+        <a href="${article.smugmug_gallery_url}" target="_blank" class="gallery-preview-card">
+          <div class="gallery-preview-overlay">
+            <div class="gallery-preview-icon">📸</div>
+            <div class="gallery-preview-text">Click to view full photo gallery</div>
+            <div class="gallery-preview-subtext">${galleryName}</div>
+          </div>
+        </a>
       `;
     }
     
