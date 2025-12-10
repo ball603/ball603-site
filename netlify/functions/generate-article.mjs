@@ -386,7 +386,7 @@ async function handleWrite(body, headers) {
   const highScorer = allScorers.reduce((max, s) => s.points > max.points ? s : max, { points: 0 });
   const has25PlusScorer = highScorer.points >= 25;
   
-  const prompt = `You are a veteran sports journalist writing for Ball603.com, covering New Hampshire high school basketball. Write an AP-style game recap following these EXACT guidelines:
+  const prompt = `You are a factual sports reporter for Ball603.com, covering New Hampshire high school basketball. Write a straightforward game recap based ONLY on the facts provided.
 
 GAME RESULT: ${winner} ${winnerScore}, ${loser} ${loserScore}${hasOT ? ' (OT)' : ''}
 LOCATION: ${gameTown}, N.H.
@@ -408,11 +408,25 @@ ${proofData.notes ? `NOTES: ${proofData.notes}` : ''}
 
 MANDATORY STYLE GUIDELINES:
 1. DATELINE: Start with "${gameTown.toUpperCase()}, N.H. – " and then begin the story
-2. FIRST PARAGRAPH (LEDE): Must include Who, What, Where, When${has25PlusScorer ? `. Include ${highScorer.name} with ${highScorer.points} points since they scored 25+` : ''}
-3. BODY: Analyze quarter scores for compelling narrative. ALTERNATE between school name and mascot.
-4. SCORING PARAGRAPH: List double-digit scorers for both teams
-5. LENGTH: Minimum 300 words, aim for 350-400 words
-6. TONE: Professional AP sports journalism style
+2. FIRST PARAGRAPH: State who won, final score, location, and date. Include top scorer if they scored 20+ points.
+3. BODY: Report the facts. Mention quarter scoring if relevant. ALTERNATE between school name and mascot.
+4. SCORING PARAGRAPH: List all double-digit scorers for both teams with their point totals.
+5. LENGTH: 250-350 words. Be concise.
+6. TONE: Factual and straightforward. Report what happened, not how exciting it was.
+
+STRICT RULES - DO NOT:
+- Speculate about player emotions, motivations, or thoughts
+- Use dramatic words like "dominated," "exploded," "heroic," "clutch," "electric," "sizzling"
+- Invent narrative drama or momentum shifts you can't prove from the stats
+- Add commentary about the "meaning" of the game
+- Use exclamation points
+- Describe plays you didn't witness (only report scoring totals)
+
+DO:
+- State facts from the scorebook
+- Use neutral verbs: "scored," "led," "added," "contributed," "finished with"
+- Let the numbers speak for themselves
+- Keep sentences short and direct
 
 DO NOT include a headline - just the article body starting with the dateline.`;
 
@@ -601,7 +615,7 @@ Include all available stats. Use 0 for any stats not provided. Include all playe
   }
   
   // Build article prompt
-  const articlePrompt = `You are a veteran sports journalist writing for Ball603.com. Write an AP-style game recap for this collegiate basketball game.
+  const articlePrompt = `You are a factual sports reporter for Ball603.com. Write a straightforward game recap for this collegiate basketball game based ONLY on the facts provided.
 
 GAME RESULT: ${winner} ${winnerScore}, ${loser} ${loserScore}
 LOCATION: ${gameTown}
@@ -622,15 +636,24 @@ ${notes ? `ADDITIONAL NOTES: ${notes}` : ''}
 
 MANDATORY STYLE GUIDELINES:
 1. DATELINE: Start with "${gameTown.toUpperCase()} – " and then begin the story
-2. FIRST PARAGRAPH: Include who won, final score, location, and date. Highlight any 20+ point scorers.
-3. BODY: 
-   - Incorporate stats like rebounds, assists, shooting percentages into the narrative
-   - Highlight players with double-doubles or near triple-doubles
-   - Mention shooting performances (hot from 3, struggled from the line, etc.)
-   - Analyze the flow of the game if period scores show interesting patterns
-4. SCORING/STATS PARAGRAPH: List key performers with full stat lines
-5. LENGTH: 350-450 words
-6. TONE: Professional AP sports journalism style for collegiate athletics
+2. FIRST PARAGRAPH: State who won, final score, location, and date. Include any 20+ point scorers.
+3. BODY: Report the facts. Include relevant stats like rebounds, assists, shooting percentages.
+4. SCORING/STATS PARAGRAPH: List key performers with their stat lines.
+5. LENGTH: 300-400 words. Be concise.
+6. TONE: Factual and straightforward. Report what happened.
+
+STRICT RULES - DO NOT:
+- Speculate about player emotions, motivations, or thoughts
+- Use dramatic words like "dominated," "exploded," "heroic," "clutch," "electric"
+- Invent narrative drama or momentum shifts you can't prove from the stats
+- Add commentary about the "meaning" of the game
+- Use exclamation points
+
+DO:
+- State facts from the boxscore
+- Use neutral verbs: "scored," "led," "added," "contributed," "finished with"
+- Let the numbers speak for themselves
+- Keep sentences short and direct
 
 DO NOT include a headline - just the article body starting with the dateline.`;
 
