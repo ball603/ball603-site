@@ -57,11 +57,12 @@
     .search-box { padding: 10px 15px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; width: 250px; margin-left: auto; }
     
     .article-list { border: 1px solid #eee; border-radius: 8px; overflow: hidden; }
-    .article-row { display: grid; grid-template-columns: 1fr 120px 150px 100px; padding: 15px; border-bottom: 1px solid #eee; align-items: center; }
+    .article-row { display: grid; grid-template-columns: 1fr 100px 80px 100px 120px 100px; padding: 15px; border-bottom: 1px solid #eee; align-items: center; }
     .article-row:last-child { border-bottom: none; }
     .article-row:hover { background: #f9f9f9; }
     .article-row.header { background: #f5f5f5; font-weight: 600; font-size: 12px; text-transform: uppercase; color: #666; }
     .article-row.header:hover { background: #f5f5f5; }
+    .article-row.header .sortable:hover { color: #1a73e8; }
     .article-title { font-weight: 500; color: #333; cursor: pointer; }
     .article-title:hover { color: #f57c00; }
     .article-status { font-size: 12px; padding: 4px 10px; border-radius: 20px; display: inline-block; }
@@ -69,6 +70,8 @@
     .article-status.published { background: #e8f5e9; color: #2e7d32; }
     .article-status.scheduled { background: #f3e5f5; color: #7b1fa2; }
     .article-date { font-size: 13px; color: #666; }
+    .article-level { font-size: 13px; color: #666; }
+    .article-gender { font-size: 13px; color: #666; }
     .article-actions { display: flex; gap: 8px; }
     .btn-edit, .btn-delete { padding: 6px 12px; border: none; border-radius: 4px; font-size: 12px; cursor: pointer; }
     .btn-edit { background: #e3f2fd; color: #1565c0; }
@@ -2697,20 +2700,67 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       renderArticles();
     }
     
+    // Article sorting state
+    let articleSortColumn = 'created_at';
+    let articleSortDirection = 'desc';
+    
     function renderArticles(filter = '') {
       const list = document.getElementById('articleList');
-      const filtered = articles.filter(a => 
+      let filtered = articles.filter(a => 
         a.title.toLowerCase().includes(filter.toLowerCase())
       );
       
+      // Sort articles
+      filtered.sort((a, b) => {
+        let aVal, bVal;
+        
+        switch (articleSortColumn) {
+          case 'title':
+            aVal = (a.title || '').toLowerCase();
+            bVal = (b.title || '').toLowerCase();
+            break;
+          case 'level':
+            aVal = getArticleLevel(a).toLowerCase();
+            bVal = getArticleLevel(b).toLowerCase();
+            break;
+          case 'gender':
+            aVal = getArticleGender(a).toLowerCase();
+            bVal = getArticleGender(b).toLowerCase();
+            break;
+          case 'status':
+            aVal = a.status || '';
+            bVal = b.status || '';
+            break;
+          case 'created_at':
+          default:
+            aVal = a.created_at || '';
+            bVal = b.created_at || '';
+            break;
+        }
+        
+        if (aVal < bVal) return articleSortDirection === 'asc' ? -1 : 1;
+        if (aVal > bVal) return articleSortDirection === 'asc' ? 1 : -1;
+        return 0;
+      });
+      
+      const sortIcon = (col) => {
+        if (articleSortColumn !== col) return '';
+        return articleSortDirection === 'asc' ? ' ↑' : ' ↓';
+      };
+      
+      const headerHtml = `
+        <div class="article-row header">
+          <div class="sortable" onclick="sortArticles('title')" style="cursor: pointer;">Title${sortIcon('title')}</div>
+          <div class="sortable" onclick="sortArticles('level')" style="cursor: pointer;">Level${sortIcon('level')}</div>
+          <div class="sortable" onclick="sortArticles('gender')" style="cursor: pointer;">Gender${sortIcon('gender')}</div>
+          <div class="sortable" onclick="sortArticles('status')" style="cursor: pointer;">Status${sortIcon('status')}</div>
+          <div class="sortable" onclick="sortArticles('created_at')" style="cursor: pointer;">Date${sortIcon('created_at')}</div>
+          <div>Actions</div>
+        </div>
+      `;
+      
       if (filtered.length === 0) {
-        list.innerHTML = `
-          <div class="article-row header">
-            <div>Title</div>
-            <div>Status</div>
-            <div>Date</div>
-            <div>Actions</div>
-          </div>
+        list.innerHTML = headerHtml + `
           <div class="empty-state">
             <p>No articles found</p>
             <button class="btn-new" onclick="newArticle()">Create your first article</button>
@@ -2719,14 +2769,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         return;
       }
       
-      list.innerHTML = `
-        <div class="article-row header">
-          <div>Title</div>
-          <div>Status</div>
-          <div>Date</div>
-          <div>Actions</div>
-        </div>
-        ${filtered.map(article => {
+      list.innerHTML = headerHtml +
+        filtered.map(article => {
           const isPublished = article.status === 'published';
           const articleUrl = isPublished ? `https://ball603.com/articles/${article.slug}` : '';
           const shareButtons = isPublished ? `
@@ -2739,12 +2783,17 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           ` : '';
           const scheduledInfo = article.scheduled_at ? `<div style="font-size: 10px; color: #9c27b0;">📅 ${formatDateTime(article.scheduled_at)}</div>` : '';
           
+          const level = getArticleLevel(article);
+          const gender = getArticleGender(article);
+          
           return `
           <div class="article-row">
             <div>
               <div class="article-title" onclick="editArticle('${article.id}')">${article.title || 'Untitled'}</div>
               ${shareButtons}
             </div>
+            <div class="article-level">${level}</div>
+            <div class="article-gender">${gender}</div>
             <div>
               <span class="article-status ${article.status}">${article.status}</span>
               ${scheduledInfo}
@@ -2755,8 +2804,50 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
               <button class="btn-delete" onclick="deleteArticle('${article.id}')">Delete</button>
             </div>
           </div>
-        `}).join('')}
-      `;
+        `}).join('');
+    }
+    
+    function getArticleLevel(article) {
+      // Try to get from game_data first
+      if (article.game_data?.division) {
+        // Infer level from division
+        const div = article.game_data.division.toLowerCase();
+        if (div.includes('d1') || div.includes('division i') || div.includes('d2') || div.includes('d3')) return 'College';
+        return 'High School';
+      }
+      // Try to get from linked game
+      if (article.game_id) {
+        const game = games.find(g => g.game_id === article.game_id);
+        if (game?.level) return game.level;
+        if (game?.division) {
+          const div = game.division.toLowerCase();
+          if (div.includes('d1') || div.includes('division i') || div.includes('d2') || div.includes('d3')) return 'College';
+          return 'High School';
+        }
+      }
+      return '-';
+    }
+    
+    function getArticleGender(article) {
+      // Try to get from game_data first
+      if (article.game_data?.gender) return article.game_data.gender;
+      // Try to get from linked game
+      if (article.game_id) {
+        const game = games.find(g => g.game_id === article.game_id);
+        if (game?.gender) return game.gender;
+      }
+      return '-';
+    }
+    
+    function sortArticles(column) {
+      if (articleSortColumn === column) {
+        // Toggle direction
+        articleSortDirection = articleSortDirection === 'asc' ? 'desc' : 'asc';
+      } else {
+        articleSortColumn = column;
+        articleSortDirection = column === 'created_at' ? 'desc' : 'asc';
+      }
+      renderArticles(document.getElementById('articleSearch')?.value || '');
     }
     
     function filterArticles(value) {
