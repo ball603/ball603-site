@@ -278,7 +278,7 @@ export const handler = async (event) => {
       }
       
       // Now fetch images for this album
-      const imagesEndpoint = `/api/v2/album/${albumKey}!images?count=50&_expand=ImageSizes`;
+      const imagesEndpoint = `/api/v2/album/${albumKey}!images?count=500&_expand=ImageSizes`;
       const imagesResult = await smugmugRequest(imagesEndpoint);
       
       const images = imagesResult?.Response?.AlbumImage || [];
