@@ -450,22 +450,51 @@ class ContributorSchedule {
     }
   }
   
-  // View scorebook image in popup window
+  // View scorebook image in popup window sized to image
   viewScorebook(gameId) {
     const game = this.allGames.find(g => g.game_id === gameId);
     if (!game || !game.scorebook_url) return;
     
-    // Open in a resizable popup window
-    const width = 800;
-    const height = 900;
-    const left = (screen.width - width) / 2;
-    const top = (screen.height - height) / 2;
+    // Load image first to get dimensions
+    const img = new Image();
+    img.onload = () => {
+      // Get image dimensions, constrain to screen size with some padding
+      const maxWidth = screen.width - 100;
+      const maxHeight = screen.height - 100;
+      
+      let width = img.naturalWidth;
+      let height = img.naturalHeight;
+      
+      // Scale down if larger than screen
+      if (width > maxWidth) {
+        height = height * (maxWidth / width);
+        width = maxWidth;
+      }
+      if (height > maxHeight) {
+        width = width * (maxHeight / height);
+        height = maxHeight;
+      }
+      
+      // Add a little padding for window chrome
+      width = Math.round(width) + 20;
+      height = Math.round(height) + 40;
+      
+      const left = (screen.width - width) / 2;
+      const top = (screen.height - height) / 2;
+      
+      window.open(
+        game.scorebook_url,
+        'ScorebookViewer',
+        `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
+      );
+    };
     
-    window.open(
-      game.scorebook_url,
-      'ScorebookViewer',
-      `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
-    );
+    img.onerror = () => {
+      // Fallback to default size if image fails to load
+      window.open(game.scorebook_url, 'ScorebookViewer', 'width=800,height=900,resizable=yes,scrollbars=yes');
+    };
+    
+    img.src = game.scorebook_url;
   }
   
   // Close image viewer
@@ -1025,8 +1054,8 @@ class ContributorSchedule {
             <th>Gender</th>
             <th>Level</th>
             <th></th>
-            <th>✅</th>
             <th>Coverage</th>
+            <th>✅</th>
             <th>Scorebook</th>
             <th>Notes</th>
           </tr>
@@ -1050,8 +1079,8 @@ class ContributorSchedule {
           <td>${game.gender || ''}</td>
           <td>${game.level || ''}</td>
           <td>${isPast ? '' : this.renderClaimCell(game)}</td>
-          <td class="cs-confirm-cell">${this.renderConfirmCell(game)}</td>
           <td class="cs-coverage-cell">${this.renderCoverageCell(game)}</td>
+          <td class="cs-confirm-cell">${this.renderConfirmCell(game)}</td>
           <td class="cs-scorebook-cell">${this.renderScorebookCell(game)}</td>
           <td>${isPast ? (game.notes || '') : `<input class="cs-notes-input" value="${game.notes || ''}" data-game-id="${game.game_id}" placeholder="Notes...">`}</td>
         </tr>
