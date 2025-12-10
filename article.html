@@ -734,6 +734,79 @@
       color: var(--text-secondary);
       margin-bottom: var(--space-lg);
     }
+    
+    /* Mobile Lightbox Fullscreen Styles */
+    @media (max-width: 768px) {
+      .gallery-overlay {
+        background: #000 !important;
+      }
+      
+      .gallery-overlay .gallery-header-lightbox {
+        display: none !important;
+      }
+      
+      .gallery-overlay .gallery-nav-arrows {
+        display: none !important;
+      }
+      
+      .gallery-overlay .gallery-dots {
+        display: none !important;
+      }
+      
+      .gallery-overlay .gallery-main {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 70px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      
+      .gallery-overlay .gallery-main img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+      }
+      
+      .gallery-overlay .gallery-info {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: #000;
+        padding: 12px 16px;
+        padding-bottom: max(12px, env(safe-area-inset-bottom));
+      }
+      
+      .gallery-overlay .gallery-caption,
+      .gallery-overlay .gallery-credit {
+        display: none !important;
+      }
+      
+      .gallery-overlay .gallery-actions {
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+      }
+      
+      .gallery-overlay .gallery-action-btn {
+        flex: 1;
+        max-width: 120px;
+        padding: 12px 8px;
+        font-size: 14px;
+        background: #222;
+        border: none;
+        border-radius: 8px;
+        color: #fff;
+        cursor: pointer;
+      }
+      
+      .gallery-overlay .gallery-action-btn:active {
+        background: #444;
+      }
+    }
   </style>
   
   <!-- Open Graph (updated by JS) -->
@@ -839,7 +912,7 @@
   
   <!-- Photo Gallery Overlay -->
   <div class="gallery-overlay" id="galleryOverlay">
-    <div class="gallery-header">
+    <div class="gallery-header gallery-header-lightbox">
       <button class="gallery-close" onclick="Ball603.closeGallery()">✕</button>
       <span class="gallery-title" id="galleryTitle"></span>
       <span class="gallery-count" id="galleryCount"></span>
@@ -854,11 +927,11 @@
     <div class="gallery-dots" id="galleryDots"></div>
     <div class="gallery-info">
       <p class="gallery-caption" id="galleryCaption"></p>
-      <p class="gallery-credit" id="galleryCredit">📸 Ball603</p>
+      <p class="gallery-credit" id="galleryCredit"></p>
       <div class="gallery-actions">
         <button class="gallery-action-btn" onclick="downloadPhoto()">💾 Save</button>
         <button class="gallery-action-btn" onclick="sharePhoto()">↗️ Share</button>
-        <button class="gallery-action-btn" onclick="openFullGallery()">🖼️ Full Gallery</button>
+        <button class="gallery-action-btn" onclick="purchasePhoto()">🛒 Purchase</button>
       </div>
     </div>
   </div>
@@ -1259,7 +1332,8 @@
       const images = window.galleryImages.map(img => ({
         src: img.original || img.xlarge || img.large || img.medium || img.archivedUri || img.thumbnail,
         thumb: img.thumbnail || img.medium,
-        caption: img.caption || img.title || ''
+        caption: img.caption || img.title || '',
+        webUrl: img.webUrl || null
       }));
       
       // Use Ball603 lightbox if available, otherwise open image in new tab
@@ -1330,6 +1404,29 @@
       const gallerySection = document.getElementById('gallerySection');
       if (gallerySection) {
         gallerySection.scrollIntoView({ behavior: 'smooth' });
+      } else if (currentArticle?.smugmug_gallery_url) {
+        window.open(currentArticle.smugmug_gallery_url, '_blank');
+      }
+    }
+    
+    function purchasePhoto() {
+      // Get current photo from Ball603 state
+      const gallery = Ball603.state.currentGallery;
+      const index = Ball603.state.currentPhotoIndex;
+      
+      if (!gallery || !gallery[index]) {
+        // Fallback to full gallery
+        if (currentArticle?.smugmug_gallery_url) {
+          window.open(currentArticle.smugmug_gallery_url, '_blank');
+        }
+        return;
+      }
+      
+      const photo = gallery[index];
+      
+      // Open the specific photo on SmugMug
+      if (photo.webUrl) {
+        window.open(photo.webUrl, '_blank');
       } else if (currentArticle?.smugmug_gallery_url) {
         window.open(currentArticle.smugmug_gallery_url, '_blank');
       }
