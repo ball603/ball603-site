@@ -320,6 +320,21 @@ export const handler = async (event) => {
           images: images.map(img => {
             // SmugMug ImageSizes structure
             const sizes = img.Uris?.ImageSizes?.ImageSizes || {};
+            
+            // Try to construct different size URLs from archivedUri
+            // ArchivedUri format: .../i-KEY/0/HASH/D/filename-D.jpg
+            // We can swap D for other size codes: Th, S, M, L, XL, X2, X3
+            let x2large = null;
+            let xlarge = null;
+            let large = null;
+            
+            if (img.ArchivedUri) {
+              // Replace /D/ and -D. with size codes
+              x2large = img.ArchivedUri.replace(/\/D\//g, '/X2/').replace(/-D\./g, '-X2.');
+              xlarge = img.ArchivedUri.replace(/\/D\//g, '/XL/').replace(/-D\./g, '-XL.');
+              large = img.ArchivedUri.replace(/\/D\//g, '/L/').replace(/-D\./g, '-L.');
+            }
+            
             return {
               key: img.ImageKey,
               filename: img.FileName,
@@ -327,9 +342,10 @@ export const handler = async (event) => {
               title: img.Title,
               thumbnail: sizes.ThumbImageUrl || sizes.TinyImageUrl || sizes.SmallImageUrl || img.ThumbnailUrl,
               medium: sizes.MediumImageUrl || sizes.SmallImageUrl || sizes.LargeImageUrl,
-              large: sizes.LargeImageUrl || sizes.XLargeImageUrl || sizes.X2LargeImageUrl || sizes.MediumImageUrl,
-              xlarge: sizes.XLargeImageUrl || sizes.X2LargeImageUrl || sizes.X3LargeImageUrl || sizes.LargeImageUrl,
-              original: sizes.X3LargeImageUrl || sizes.X2LargeImageUrl || sizes.XLargeImageUrl || sizes.LargeImageUrl,
+              large: sizes.LargeImageUrl || large,
+              xlarge: sizes.XLargeImageUrl || xlarge,
+              x2large: sizes.X2LargeImageUrl || x2large,
+              original: img.ArchivedUri,
               webUrl: img.WebUri,
               archivedUri: img.ArchivedUri
             };
