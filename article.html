@@ -1204,6 +1204,9 @@
           // Store images for lightbox
           window.galleryImages = data.images;
           
+          // Preload first 5 large images in background
+          preloadGalleryImages(data.images.slice(0, 5));
+          
           // Render gallery grid with ALL photos
           const gridHtml = data.images.map((img, index) => `
             <div class="gallery-thumb" onclick="openGalleryLightbox(${index})">
@@ -1242,6 +1245,19 @@
     }
     
     /**
+     * Preload gallery images in background for faster lightbox loading
+     */
+    function preloadGalleryImages(images) {
+      images.forEach(img => {
+        const src = img.original || img.xlarge || img.large || img.medium;
+        if (src) {
+          const preload = new Image();
+          preload.src = src;
+        }
+      });
+    }
+    
+    /**
      * Open lightbox for gallery images
      */
     function openGalleryLightbox(index) {
@@ -1249,7 +1265,8 @@
       
       const images = window.galleryImages.map(img => ({
         src: img.original || img.xlarge || img.large || img.medium || img.archivedUri || img.thumbnail,
-        thumb: img.thumbnail || img.medium,
+        thumb: img.medium || img.thumbnail,
+        medium: img.medium,
         caption: img.caption || img.title || ''
       }));
       
