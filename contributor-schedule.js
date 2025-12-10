@@ -8,6 +8,7 @@
  *     contributorName: 'KJ Cardinal',  // or null for dropdown mode
  *     showContributorDropdown: false,
  *     onContributorChange: (name) => {},  // callback when contributor changes
+ *     supabaseClient: supabase,  // Required for scorebook uploads
  *     apiEndpoints: {
  *       getGames: '/.netlify/functions/get-games',
  *       updateAssignment: '/.netlify/functions/update-assignment'
@@ -26,7 +27,8 @@ class ContributorSchedule {
       showHeader: false,
       adminUser: 'KJ Cardinal',
       onContributorChange: null,
-      hidePastGames: false, // NEW: Option to hide past games (default: show all)
+      hidePastGames: false,
+      supabaseClient: null, // Pass supabase client for scorebook uploads
       apiEndpoints: {
         getGames: '/.netlify/functions/get-games',
         updateAssignment: '/.netlify/functions/update-assignment'
@@ -38,6 +40,8 @@ class ContributorSchedule {
     this.allTeams = [];
     this.currentTab = 'all';
     this.openDropdown = null;
+    this.scorebookModal = null;
+    this.currentScorebookGameId = null;
     
     this.CONTRIBUTORS = [
       "Andy Romike", "Arinn Roy", "Betsy Hansen", "Cam Place", "Chris Laclair", "Chris Prangley",
@@ -181,6 +185,7 @@ class ContributorSchedule {
     }
     
     this.render();
+    this.createScorebookModal();
     this.bindEvents();
     await this.loadGames();
   }
@@ -208,6 +213,263 @@ class ContributorSchedule {
   // Check if current user is admin
   isAdmin() {
     return this.getContributor() === this.config.adminUser;
+  }
+  
+  // Create scorebook upload modal
+  createScorebookModal() {
+    // Remove existing modal if any
+    const existing = document.getElementById('cs-scorebook-modal');
+    if (existing) existing.remove();
+    
+    const modal = document.createElement('div');
+    modal.id = 'cs-scorebook-modal';
+    modal.className = 'cs-modal';
+    modal.innerHTML = `
+      <div class="cs-modal-overlay"></div>
+      <div class="cs-modal-content">
+        <div class="cs-modal-header">
+          <h3>📋 Upload Scorebook</h3>
+          <button class="cs-modal-close">&times;</button>
+        </div>
+        <div class="cs-modal-body">
+          <div class="cs-scorebook-game-info"></div>
+          <div class="cs-upload-area" id="cs-upload-area">
+            <div class="cs-upload-icon">📤</div>
+            <p>Click to select or drag & drop</p>
+            <p class="cs-upload-hint">Supports JPG, PNG, HEIC (max 10MB)</p>
+            <input type="file" id="cs-scorebook-input" accept="image/*,.heic,.heif" style="display:none">
+          </div>
+          <div class="cs-upload-preview" id="cs-upload-preview" style="display:none">
+            <img id="cs-preview-image" src="" alt="Preview">
+            <button class="cs-preview-remove" id="cs-preview-remove">✕ Remove</button>
+          </div>
+          <div class="cs-upload-status" id="cs-upload-status"></div>
+        </div>
+        <div class="cs-modal-footer">
+          <button class="cs-btn cs-btn-secondary" id="cs-scorebook-cancel">Cancel</button>
+          <button class="cs-btn cs-btn-primary" id="cs-scorebook-upload" disabled>Upload</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    this.scorebookModal = modal;
+    
+    // Bind modal events
+    modal.querySelector('.cs-modal-overlay').addEventListener('click', () => this.closeScorebookModal());
+    modal.querySelector('.cs-modal-close').addEventListener('click', () => this.closeScorebookModal());
+    modal.querySelector('#cs-scorebook-cancel').addEventListener('click', () => this.closeScorebookModal());
+    modal.querySelector('#cs-scorebook-upload').addEventListener('click', () => this.uploadScorebook());
+    
+    const uploadArea = modal.querySelector('#cs-upload-area');
+    const fileInput = modal.querySelector('#cs-scorebook-input');
+    
+    uploadArea.addEventListener('click', () => fileInput.click());
+    uploadArea.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      uploadArea.classList.add('dragover');
+    });
+    uploadArea.addEventListener('dragleave', () => {
+      uploadArea.classList.remove('dragover');
+    });
+    uploadArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      uploadArea.classList.remove('dragover');
+      const file = e.dataTransfer.files[0];
+      if (file) this.handleScorebookFile(file);
+    });
+    
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) this.handleScorebookFile(file);
+    });
+    
+    modal.querySelector('#cs-preview-remove').addEventListener('click', () => this.clearScorebookPreview());
+  }
+  
+  // Create image viewer modal
+  createImageViewerModal() {
+    const existing = document.getElementById('cs-image-viewer-modal');
+    if (existing) existing.remove();
+    
+    const modal = document.createElement('div');
+    modal.id = 'cs-image-viewer-modal';
+    modal.className = 'cs-modal cs-image-viewer';
+    modal.innerHTML = `
+      <div class="cs-modal-overlay"></div>
+      <div class="cs-modal-content cs-viewer-content">
+        <button class="cs-viewer-close">&times;</button>
+        <img id="cs-viewer-image" src="" alt="Scorebook">
+      </div>
+    `;
+    document.body.appendChild(modal);
+    
+    modal.querySelector('.cs-modal-overlay').addEventListener('click', () => this.closeImageViewer());
+    modal.querySelector('.cs-viewer-close').addEventListener('click', () => this.closeImageViewer());
+    
+    return modal;
+  }
+  
+  // Open scorebook upload modal
+  openScorebookModal(gameId) {
+    const game = this.allGames.find(g => g.game_id === gameId);
+    if (!game) return;
+    
+    this.currentScorebookGameId = gameId;
+    this.currentScorebookFile = null;
+    
+    // Update game info in modal
+    const gameInfo = this.scorebookModal.querySelector('.cs-scorebook-game-info');
+    gameInfo.innerHTML = `<strong>${game.away} @ ${game.home}</strong><br><span>${this.formatDate(game.date)} • ${game.gender || ''} ${game.level || ''}</span>`;
+    
+    // Reset modal state
+    this.clearScorebookPreview();
+    this.scorebookModal.querySelector('#cs-upload-status').textContent = '';
+    this.scorebookModal.querySelector('#cs-scorebook-upload').disabled = true;
+    this.scorebookModal.querySelector('#cs-scorebook-input').value = '';
+    
+    this.scorebookModal.classList.add('open');
+  }
+  
+  // Close scorebook modal
+  closeScorebookModal() {
+    this.scorebookModal.classList.remove('open');
+    this.currentScorebookGameId = null;
+    this.currentScorebookFile = null;
+  }
+  
+  // Handle scorebook file selection
+  handleScorebookFile(file) {
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/heic', 'image/heif'];
+    const isHeic = file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif');
+    
+    if (!validTypes.includes(file.type) && !isHeic) {
+      this.scorebookModal.querySelector('#cs-upload-status').textContent = 'Please select an image file (JPG, PNG, HEIC)';
+      return;
+    }
+    
+    // Validate file size (10MB max)
+    if (file.size > 10 * 1024 * 1024) {
+      this.scorebookModal.querySelector('#cs-upload-status').textContent = 'File too large. Maximum size is 10MB.';
+      return;
+    }
+    
+    this.currentScorebookFile = file;
+    
+    // Show preview
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      this.scorebookModal.querySelector('#cs-upload-area').style.display = 'none';
+      this.scorebookModal.querySelector('#cs-upload-preview').style.display = 'block';
+      this.scorebookModal.querySelector('#cs-preview-image').src = e.target.result;
+      this.scorebookModal.querySelector('#cs-scorebook-upload').disabled = false;
+      this.scorebookModal.querySelector('#cs-upload-status').textContent = '';
+    };
+    reader.readAsDataURL(file);
+  }
+  
+  // Clear scorebook preview
+  clearScorebookPreview() {
+    this.currentScorebookFile = null;
+    this.scorebookModal.querySelector('#cs-upload-area').style.display = 'block';
+    this.scorebookModal.querySelector('#cs-upload-preview').style.display = 'none';
+    this.scorebookModal.querySelector('#cs-preview-image').src = '';
+    this.scorebookModal.querySelector('#cs-scorebook-upload').disabled = true;
+    this.scorebookModal.querySelector('#cs-scorebook-input').value = '';
+  }
+  
+  // Upload scorebook to Supabase
+  async uploadScorebook() {
+    if (!this.currentScorebookFile || !this.currentScorebookGameId) return;
+    
+    const supabase = this.config.supabaseClient || window.supabase;
+    if (!supabase) {
+      this.showToast('Supabase not configured', 'error');
+      return;
+    }
+    
+    const uploadBtn = this.scorebookModal.querySelector('#cs-scorebook-upload');
+    const statusEl = this.scorebookModal.querySelector('#cs-upload-status');
+    
+    uploadBtn.disabled = true;
+    uploadBtn.textContent = 'Uploading...';
+    statusEl.textContent = 'Uploading image...';
+    
+    try {
+      const game = this.allGames.find(g => g.game_id === this.currentScorebookGameId);
+      const timestamp = Date.now();
+      const ext = this.currentScorebookFile.name.split('.').pop().toLowerCase();
+      const filename = `${game.date}_${this.currentScorebookGameId}_${timestamp}.${ext}`;
+      
+      // Upload to Supabase storage
+      const { data, error } = await supabase.storage
+        .from('scorebook_photos')
+        .upload(filename, this.currentScorebookFile, {
+          cacheControl: '3600',
+          upsert: false
+        });
+      
+      if (error) throw error;
+      
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('scorebook_photos')
+        .getPublicUrl(filename);
+      
+      const publicUrl = urlData.publicUrl;
+      
+      // Update game record with scorebook URL
+      statusEl.textContent = 'Saving...';
+      
+      const response = await fetch(this.config.apiEndpoints.updateAssignment, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          gameId: this.currentScorebookGameId, 
+          field: 'scorebook_url', 
+          value: publicUrl 
+        })
+      });
+      
+      if (!response.ok) throw new Error('Failed to save scorebook URL');
+      
+      // Update local game data
+      if (game) game.scorebook_url = publicUrl;
+      
+      this.closeScorebookModal();
+      this.renderGames();
+      this.showToast('Scorebook uploaded!', 'success');
+      
+    } catch (err) {
+      console.error('Scorebook upload error:', err);
+      statusEl.textContent = 'Upload failed. Please try again.';
+      this.showToast('Upload failed', 'error');
+    } finally {
+      uploadBtn.disabled = false;
+      uploadBtn.textContent = 'Upload';
+    }
+  }
+  
+  // View scorebook image
+  viewScorebook(gameId) {
+    const game = this.allGames.find(g => g.game_id === gameId);
+    if (!game || !game.scorebook_url) return;
+    
+    let viewerModal = document.getElementById('cs-image-viewer-modal');
+    if (!viewerModal) {
+      viewerModal = this.createImageViewerModal();
+    }
+    
+    viewerModal.querySelector('#cs-viewer-image').src = game.scorebook_url;
+    viewerModal.classList.add('open');
+  }
+  
+  // Close image viewer
+  closeImageViewer() {
+    const viewerModal = document.getElementById('cs-image-viewer-modal');
+    if (viewerModal) {
+      viewerModal.classList.remove('open');
+    }
   }
   
   // Render the schedule HTML structure
@@ -397,6 +659,7 @@ class ContributorSchedule {
         existing.videog = existing.videog || game.videog;
         existing.writer = existing.writer || game.writer;
         existing.notes = existing.notes || game.notes;
+        existing.scorebook_url = existing.scorebook_url || game.scorebook_url;
         existing.schedule_changed = existing.schedule_changed || game.schedule_changed;
         existing.original_date = existing.original_date || game.original_date;
       } else {
@@ -421,18 +684,14 @@ class ContributorSchedule {
     select.innerHTML = '<option value="">Gender (All)</option>';
     
     if (this.currentTab === 'NHIAA') {
-      // Only Boys/Girls for NHIAA
       select.innerHTML += '<option value="Boys">Boys</option><option value="Girls">Girls</option>';
     } else if (this.currentTab === 'College') {
-      // Only Men/Women for College
       select.innerHTML += '<option value="Men">Men</option><option value="Women">Women</option>';
     } else {
-      // All options for "All" tab
       select.innerHTML += '<option value="Boys">Boys</option><option value="Girls">Girls</option>';
       select.innerHTML += '<option value="Men">Men</option><option value="Women">Women</option>';
     }
     
-    // Try to restore previous value if still valid
     const validOptions = Array.from(select.options).map(o => o.value);
     if (validOptions.includes(currentValue)) {
       select.value = currentValue;
@@ -449,13 +708,7 @@ class ContributorSchedule {
     
     select.innerHTML = '<option value="">Division (All)</option>';
     
-    // Determine which divisions to show
-    const showNHIAA = this.currentTab === 'all' || this.currentTab === 'NHIAA' || gender === 'Boys' || gender === 'Girls';
-    const showCollege = this.currentTab === 'all' || this.currentTab === 'College' || gender === 'Men' || gender === 'Women';
-    
-    // If tab is specific, override gender-based logic
     if (this.currentTab === 'NHIAA') {
-      // Only NHIAA divisions
       const nhiaaGroup = document.createElement('optgroup');
       nhiaaGroup.label = 'NHIAA';
       ['D-I', 'D-II', 'D-III', 'D-IV'].forEach(div => {
@@ -466,7 +719,6 @@ class ContributorSchedule {
       });
       select.appendChild(nhiaaGroup);
     } else if (this.currentTab === 'College') {
-      // Only College divisions
       const collegeGroup = document.createElement('optgroup');
       collegeGroup.label = 'College';
       ['D1', 'D2', 'D3', 'Other'].forEach(div => {
@@ -477,7 +729,6 @@ class ContributorSchedule {
       });
       select.appendChild(collegeGroup);
     } else if (gender === 'Boys' || gender === 'Girls') {
-      // Gender implies NHIAA
       const nhiaaGroup = document.createElement('optgroup');
       nhiaaGroup.label = 'NHIAA';
       ['D-I', 'D-II', 'D-III', 'D-IV'].forEach(div => {
@@ -488,7 +739,6 @@ class ContributorSchedule {
       });
       select.appendChild(nhiaaGroup);
     } else if (gender === 'Men' || gender === 'Women') {
-      // Gender implies College
       const collegeGroup = document.createElement('optgroup');
       collegeGroup.label = 'College';
       ['D1', 'D2', 'D3', 'Other'].forEach(div => {
@@ -499,7 +749,6 @@ class ContributorSchedule {
       });
       select.appendChild(collegeGroup);
     } else {
-      // Show all divisions
       const nhiaaGroup = document.createElement('optgroup');
       nhiaaGroup.label = 'NHIAA';
       ['D-I', 'D-II', 'D-III', 'D-IV'].forEach(div => {
@@ -521,7 +770,6 @@ class ContributorSchedule {
       select.appendChild(collegeGroup);
     }
     
-    // Try to restore previous value if still valid
     const validOptions = Array.from(select.options).map(o => o.value);
     if (validOptions.includes(currentValue)) {
       select.value = currentValue;
@@ -536,17 +784,14 @@ class ContributorSchedule {
     this.container.querySelectorAll('.cs-tab').forEach(t => t.classList.remove('active'));
     this.container.querySelector(`.cs-tab[data-tab="${tab}"]`).classList.add('active');
     
-    // Reset gender and division filters when changing tabs
     this.container.querySelector('.cs-gender-filter').value = '';
     this.container.querySelector('.cs-division-filter').value = '';
     
-    // Update filter options based on new tab
     this.updateGenderOptions();
     this.updateDivisionOptions();
     
     this.renderGames();
     
-    // Auto-scroll to today after tab change
     setTimeout(() => this.scrollToToday(), 50);
   }
   
@@ -600,7 +845,6 @@ class ContributorSchedule {
       `;
     }).join('');
     
-    // Bind alert button events
     list.querySelectorAll('.cs-alert-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
         const gameId = btn.dataset.gameId;
@@ -687,18 +931,12 @@ class ContributorSchedule {
     const tableContainer = this.container.querySelector('.cs-table-container');
     const today = new Date().toISOString().split('T')[0];
     
-    // Find the first row with today's date or first future date
     const todayRow = tableContainer.querySelector(`tr[data-date="${today}"]`);
     
     if (todayRow) {
-      // Scroll to today's row, positioning it near the top
-      const containerRect = tableContainer.getBoundingClientRect();
-      const rowRect = todayRow.getBoundingClientRect();
       const headerHeight = tableContainer.querySelector('thead')?.offsetHeight || 0;
-      
       tableContainer.scrollTop = todayRow.offsetTop - headerHeight - 10;
     } else {
-      // Find first future game row
       const allRows = tableContainer.querySelectorAll('tr[data-date]');
       for (const row of allRows) {
         if (row.dataset.date >= today) {
@@ -732,7 +970,6 @@ class ContributorSchedule {
         }
       }
       
-      // Only filter past games if hidePastGames is explicitly enabled
       if (this.config.hidePastGames && g.date < today) return false;
       
       const hasClaim = g.photog1 || g.photog2 || g.videog || g.writer;
@@ -768,6 +1005,7 @@ class ContributorSchedule {
             <th>Level</th>
             <th></th>
             <th>Coverage</th>
+            <th>Scorebook</th>
             <th>Notes</th>
           </tr>
         </thead>
@@ -791,6 +1029,7 @@ class ContributorSchedule {
           <td>${game.level || ''}</td>
           <td>${isPast ? '' : this.renderClaimCell(game)}</td>
           <td class="cs-coverage-cell">${this.renderCoverageCell(game)}</td>
+          <td class="cs-scorebook-cell">${this.renderScorebookCell(game)}</td>
           <td>${isPast ? (game.notes || '') : `<input class="cs-notes-input" value="${game.notes || ''}" data-game-id="${game.game_id}" placeholder="Notes...">`}</td>
         </tr>
       `;
@@ -803,6 +1042,24 @@ class ContributorSchedule {
     tableContainer.querySelectorAll('.cs-notes-input').forEach(input => {
       input.addEventListener('blur', () => this.updateNotes(input.dataset.gameId, input.value));
     });
+    
+    // Bind scorebook upload buttons
+    tableContainer.querySelectorAll('.cs-scorebook-upload').forEach(btn => {
+      btn.addEventListener('click', () => this.openScorebookModal(btn.dataset.gameId));
+    });
+    
+    // Bind scorebook view buttons
+    tableContainer.querySelectorAll('.cs-scorebook-view').forEach(btn => {
+      btn.addEventListener('click', () => this.viewScorebook(btn.dataset.gameId));
+    });
+  }
+  
+  // Render scorebook cell
+  renderScorebookCell(game) {
+    if (game.scorebook_url) {
+      return `<button class="cs-scorebook-view" data-game-id="${game.game_id}">VIEW</button>`;
+    }
+    return `<button class="cs-scorebook-upload" data-game-id="${game.game_id}" title="Upload Scorebook">📤</button>`;
   }
   
   renderDateCell(game, isToday = false) {
@@ -885,7 +1142,7 @@ class ContributorSchedule {
     `).join('');
   }
   
-  // Toggle claim dropdown (called from event delegation)
+  // Toggle claim dropdown
   toggleClaimDropdown(gameId) {
     const dropdown = this.container.querySelector(`#cs-dropdown-${gameId}`);
     if (!dropdown) return;
@@ -988,7 +1245,6 @@ class ContributorSchedule {
     ).join('');
     list.classList.add('show');
     
-    // Bind click events
     list.querySelectorAll('.cs-autocomplete-item').forEach(item => {
       item.addEventListener('mousedown', () => {
         this.container.querySelector('.cs-search-input').value = item.dataset.team;
@@ -1053,7 +1309,6 @@ document.addEventListener('click', (e) => {
 function initContributorSchedule(config) {
   const schedule = new ContributorSchedule(config);
   
-  // Store instance reference for event delegation
   const container = document.querySelector(config.container);
   if (container) {
     container.setAttribute('data-schedule-instance', 'true');
