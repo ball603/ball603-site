@@ -497,6 +497,30 @@ class ContributorSchedule {
     img.src = game.scorebook_url;
   }
   
+  // Remove scorebook
+  async removeScorebook(gameId) {
+    if (!confirm('Remove this scorebook image?')) return;
+    
+    try {
+      const response = await fetch(this.config.apiEndpoints.updateAssignment, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameId, field: 'scorebook_url', value: '' })
+      });
+      
+      if (response.ok) {
+        const game = this.allGames.find(g => g.game_id === gameId);
+        if (game) game.scorebook_url = '';
+        this.renderGames();
+        this.showToast('Scorebook removed', 'success');
+      } else {
+        this.showToast('Error removing. Please try again.', 'error');
+      }
+    } catch (err) {
+      this.showToast('Error removing. Please try again.', 'error');
+    }
+  }
+  
   // Close image viewer
   closeImageViewer() {
     const viewerModal = document.getElementById('cs-image-viewer-modal');
@@ -1078,11 +1102,11 @@ class ContributorSchedule {
           <td>${game.home || ''}</td>
           <td>${game.gender || ''}</td>
           <td>${game.level || ''}</td>
-          <td>${isPast ? '' : this.renderClaimCell(game)}</td>
-          <td class="cs-coverage-cell">${this.renderCoverageCell(game)}</td>
-          <td class="cs-confirm-cell">${this.renderConfirmCell(game)}</td>
-          <td class="cs-scorebook-cell">${this.renderScorebookCell(game)}</td>
-          <td>${isPast ? (game.notes || '') : `<input class="cs-notes-input" value="${game.notes || ''}" data-game-id="${game.game_id}" placeholder="Notes...">`}</td>
+          <td class="cs-no-fade">${this.renderClaimCell(game)}</td>
+          <td class="cs-coverage-cell cs-no-fade">${this.renderCoverageCell(game)}</td>
+          <td class="cs-confirm-cell cs-no-fade">${this.renderConfirmCell(game)}</td>
+          <td class="cs-scorebook-cell cs-no-fade">${this.renderScorebookCell(game)}</td>
+          <td class="cs-no-fade"><input class="cs-notes-input" value="${game.notes || ''}" data-game-id="${game.game_id}" placeholder="Notes..."></td>
         </tr>
       `;
     });
@@ -1108,6 +1132,11 @@ class ContributorSchedule {
     // Bind scorebook view buttons
     tableContainer.querySelectorAll('.cs-scorebook-view').forEach(btn => {
       btn.addEventListener('click', () => this.viewScorebook(btn.dataset.gameId));
+    });
+    
+    // Bind scorebook delete buttons
+    tableContainer.querySelectorAll('.cs-scorebook-delete').forEach(btn => {
+      btn.addEventListener('click', () => this.removeScorebook(btn.dataset.gameId));
     });
   }
   
@@ -1148,7 +1177,7 @@ class ContributorSchedule {
   // Render scorebook cell
   renderScorebookCell(game) {
     if (game.scorebook_url) {
-      return `<button class="cs-scorebook-view" data-game-id="${game.game_id}">VIEW</button>`;
+      return `<button class="cs-scorebook-view" data-game-id="${game.game_id}">VIEW</button><button class="cs-scorebook-delete" data-game-id="${game.game_id}" title="Remove scorebook">✕</button>`;
     }
     return `<button class="cs-scorebook-upload" data-game-id="${game.game_id}" title="Upload Scorebook">📤</button>`;
   }
@@ -1221,14 +1250,11 @@ class ContributorSchedule {
     
     if (items.length === 0) return '<span style="color:#999">-</span>';
     
-    const today = new Date().toISOString().split('T')[0];
-    const isPast = game.date < today;
-    
     return items.map(item => `
       <div class="cs-coverage-entry">
         <span>${item.emoji}</span>
         <span>${item.name}</span>
-        ${!isPast && item.name === me ? `<button class="cs-coverage-remove" data-game-id="${game.game_id}" data-field="${item.field}">✕</button>` : ''}
+        ${item.name === me ? `<button class="cs-coverage-remove" data-game-id="${game.game_id}" data-field="${item.field}">✕</button>` : ''}
       </div>
     `).join('');
   }
