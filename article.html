@@ -1069,7 +1069,7 @@
     }
     
     /**
-     * Load gallery from SmugMug - embed iframe
+     * Load gallery from SmugMug - embed using their widget
      */
     async function loadGalleryPhotos(article) {
       if (!article.smugmug_gallery_url) return;
@@ -1077,30 +1077,23 @@
       document.getElementById('gallerySection').style.display = 'block';
       document.getElementById('smugmugLink').href = article.smugmug_gallery_url;
       
-      // Convert SmugMug gallery URL to embed URL
-      // SmugMug URLs look like: https://ball603.smugmug.com/2024-25/Gallery-Name
-      // Or: https://ball603.smugmug.com/frame/slideshow?key=abc123
-      let embedUrl = article.smugmug_gallery_url;
-      
-      // If it's already a frame URL, use as-is
-      if (!embedUrl.includes('/frame/')) {
-        // Remove trailing slash if present, then add embed path
-        embedUrl = embedUrl.replace(/\/$/, '') + '/frame/slideshow?speed=3&transition=fade&autoStart=0&captions=1&navigation=1&playButton=1&randomize=0&transitionSpeed=2';
-      }
-      
-      console.log('SmugMug embed URL:', embedUrl);
+      console.log('SmugMug gallery URL:', article.smugmug_gallery_url);
       
       const embedContainer = document.getElementById('smugmugEmbed');
+      
+      // SmugMug requires their embed script for proper gallery display
+      // Use their iframe with the gallery page directly
+      const galleryUrl = article.smugmug_gallery_url.replace(/\/$/, '');
+      
       embedContainer.innerHTML = `
-        <iframe 
-          src="${embedUrl}" 
-          width="100%" 
-          height="600" 
-          frameborder="0" 
-          allowfullscreen
-          loading="lazy"
-          style="border-radius: var(--radius-lg); background: var(--bg-tertiary);">
-        </iframe>
+        <div style="position: relative; width: 100%; height: 500px; border-radius: var(--radius-lg); overflow: hidden; background: var(--bg-tertiary);">
+          <iframe 
+            src="${galleryUrl}" 
+            style="width: 100%; height: 100%; border: none;"
+            allowfullscreen
+            loading="lazy">
+          </iframe>
+        </div>
       `;
     }
     
