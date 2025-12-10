@@ -858,7 +858,7 @@
       <div class="gallery-actions">
         <button class="gallery-action-btn" onclick="downloadPhoto()">💾 Save</button>
         <button class="gallery-action-btn" onclick="sharePhoto()">↗️ Share</button>
-        <button class="gallery-action-btn" id="galleryFullLink">🖼️ Full Gallery</button>
+        <button class="gallery-action-btn" onclick="openFullGallery()">🖼️ Full Gallery</button>
       </div>
     </div>
   </div>
@@ -1316,8 +1316,11 @@
     }
     
     function openFullGallery() {
-      if (galleryPhotos.length > 0) {
-        Ball603.openGallery(galleryPhotos, 0, currentArticle?.title || 'Gallery');
+      // Close lightbox and scroll to gallery section
+      Ball603.closeGallery();
+      const gallerySection = document.getElementById('gallerySection');
+      if (gallerySection) {
+        gallerySection.scrollIntoView({ behavior: 'smooth' });
       } else if (currentArticle?.smugmug_gallery_url) {
         window.open(currentArticle.smugmug_gallery_url, '_blank');
       }
@@ -1346,7 +1349,27 @@
     }
     
     function downloadPhoto() {
-      Ball603.showToast('Download coming soon!');
+      // Get current photo from Ball603 state
+      const gallery = Ball603.state.currentGallery;
+      const index = Ball603.state.currentPhotoIndex;
+      
+      if (!gallery || !gallery[index]) {
+        Ball603.showToast('No photo to download', 'error');
+        return;
+      }
+      
+      const photo = gallery[index];
+      const imageUrl = photo.src || photo.url;
+      
+      if (!imageUrl) {
+        Ball603.showToast('Photo not available', 'error');
+        return;
+      }
+      
+      // Open image in new tab (user can right-click save)
+      // Direct download is blocked by CORS for external images
+      window.open(imageUrl, '_blank');
+      Ball603.showToast('Photo opened - right-click to save', 'success');
     }
     
     function sharePhoto() {
