@@ -1046,8 +1046,6 @@
           ${article.content || '<p>No content available.</p>'}
         </div>
         
-        ${tagsHtml}
-        
         <section class="gallery-section" id="gallerySection" style="display: none;">
           <div class="gallery-header">
             <div>
@@ -1057,6 +1055,8 @@
           </div>
           <div class="smugmug-embed" id="smugmugEmbed"></div>
         </section>
+        
+        ${tagsHtml}
         
         <section class="related-section" id="relatedSection" style="display: none;">
           <h2 class="related-title">More Stories</h2>
@@ -1079,12 +1079,16 @@
       
       // Convert SmugMug gallery URL to embed URL
       // SmugMug URLs look like: https://ball603.smugmug.com/2024-25/Gallery-Name
-      // Embed URL adds /frame/slideshow at the end
+      // Or: https://ball603.smugmug.com/frame/slideshow?key=abc123
       let embedUrl = article.smugmug_gallery_url;
+      
+      // If it's already a frame URL, use as-is
       if (!embedUrl.includes('/frame/')) {
         // Remove trailing slash if present, then add embed path
         embedUrl = embedUrl.replace(/\/$/, '') + '/frame/slideshow?speed=3&transition=fade&autoStart=0&captions=1&navigation=1&playButton=1&randomize=0&transitionSpeed=2';
       }
+      
+      console.log('SmugMug embed URL:', embedUrl);
       
       const embedContainer = document.getElementById('smugmugEmbed');
       embedContainer.innerHTML = `
@@ -1094,6 +1098,7 @@
           height="600" 
           frameborder="0" 
           allowfullscreen
+          loading="lazy"
           style="border-radius: var(--radius-lg); background: var(--bg-tertiary);">
         </iframe>
       `;
