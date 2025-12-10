@@ -492,7 +492,10 @@ function updateGalleryPhoto() {
   
   // Update image
   const img = document.getElementById('galleryImage');
-  if (img) img.src = photo.src || photo.url;
+  if (img) {
+    img.style.transform = '';
+    img.src = photo.src || photo.url;
+  }
   
   // Update caption
   const caption = document.getElementById('galleryCaption');
@@ -505,6 +508,29 @@ function updateGalleryPhoto() {
   // Update dots
   document.querySelectorAll('.gallery-dot').forEach((dot, i) => {
     dot.classList.toggle('active', i === state.currentPhotoIndex);
+  });
+  
+  // Preload adjacent images
+  preloadAdjacentImages();
+}
+
+/**
+ * Preload next/prev images for faster navigation
+ */
+function preloadAdjacentImages() {
+  if (!state.currentGallery || state.currentGallery.length <= 1) return;
+  
+  const total = state.currentGallery.length;
+  const current = state.currentPhotoIndex;
+  
+  // Preload next and previous
+  [1, -1, 2].forEach(offset => {
+    const index = (current + offset + total) % total;
+    const photo = state.currentGallery[index];
+    if (photo && photo.src) {
+      const preload = new Image();
+      preload.src = photo.src;
+    }
   });
 }
 
@@ -553,35 +579,81 @@ function initTouchHandlers() {
   
   let touchStartX = 0;
   let touchStartY = 0;
+  let touchCurrentX = 0;
+  let isDragging = false;
+  let dragDirection = null; // 'horizontal' or 'vertical'
   
   overlay.addEventListener('touchstart', (e) => {
     touchStartX = e.touches[0].clientX;
     touchStartY = e.touches[0].clientY;
+    touchCurrentX = touchStartX;
+    isDragging = true;
+    dragDirection = null;
+    
+    // Add swiping class to disable transitions during drag
+    const img = document.getElementById('galleryImage');
+    if (img) img.classList.add('swiping');
   }, { passive: true });
   
-  // Prevent scrolling background while in gallery
   overlay.addEventListener('touchmove', (e) => {
-    if (overlay.classList.contains('active')) {
+    if (!isDragging || !overlay.classList.contains('active')) return;
+    
+    const currentX = e.touches[0].clientX;
+    const currentY = e.touches[0].clientY;
+    const diffX = currentX - touchStartX;
+    const diffY = currentY - touchStartY;
+    
+    // Determine drag direction on first significant movement
+    if (!dragDirection && (Math.abs(diffX) > 10 || Math.abs(diffY) > 10)) {
+      dragDirection = Math.abs(diffX) > Math.abs(diffY) ? 'horizontal' : 'vertical';
+    }
+    
+    // Only handle horizontal swipes for image movement
+    if (dragDirection === 'horizontal') {
       e.preventDefault();
+      touchCurrentX = currentX;
+      
+      // Move image with finger (IG-style)
+      const img = document.getElementById('galleryImage');
+      if (img) {
+        img.style.transform = `translateX(${diffX}px)`;
+      }
+    } else if (dragDirection === 'vertical') {
+      e.preventDefault(); // Prevent background scroll
     }
   }, { passive: false });
   
   overlay.addEventListener('touchend', (e) => {
+    if (!isDragging) return;
+    isDragging = false;
+    
     const touchEndX = e.changedTouches[0].clientX;
     const touchEndY = e.changedTouches[0].clientY;
     const diffX = touchEndX - touchStartX;
     const diffY = touchEndY - touchStartY;
     
-    // Horizontal swipe (left/right through photos)
-    if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 50) {
-      if (diffX > 0) prevPhoto();
-      else nextPhoto();
+    const img = document.getElementById('galleryImage');
+    if (img) {
+      img.classList.remove('swiping');
+      img.style.transform = '';
     }
-    // Vertical swipe down to close
-    else if (diffY > 100) {
+    
+    // Horizontal swipe (left/right through photos)
+    if (dragDirection === 'horizontal' && Math.abs(diffX) > 50) {
+      if (diffX > 0) {
+        // Swiped right - go to previous
+        prevPhoto();
+      } else {
+        // Swiped left - go to next
+        nextPhoto();
+      }
+    }
+    // Vertical swipe (up or down) to close
+    else if (dragDirection === 'vertical' && Math.abs(diffY) > 80) {
       closeGallery();
     }
-    // Swipe up does nothing (ignore it)
+    
+    dragDirection = null;
   }, { passive: true });
 }
 
