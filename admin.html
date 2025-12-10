@@ -1382,6 +1382,15 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             </div>
           </div>
           
+          <div class="sidebar-card">
+            <h4>📅 Article Date</h4>
+            <div class="form-group">
+              <label>Publication Date</label>
+              <input type="date" id="articleDate" style="width: 100%;">
+              <small>Date shown on the article (defaults to today)</small>
+            </div>
+          </div>
+          
           <div class="sidebar-card" id="socialPostsCard" style="display: none;">
             <h4>📱 Social Posts</h4>
             <button onclick="viewSocialPosts()" style="width: 100%; padding: 10px; background: #9c27b0; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 13px;">
@@ -3679,6 +3688,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('smugmugThumbUrl').value = '';
       document.getElementById('youtubeUrl').value = '';
       setAuthorValue('KJ Cardinal');
+      document.getElementById('articleDate').value = new Date().toISOString().split('T')[0];
       isScheduled = false;
       scheduledTime = null;
       document.getElementById('scheduledDateTime').value = '';
@@ -3719,6 +3729,16 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('smugmugUrl').value = article.smugmug_gallery_url || '';
       document.getElementById('youtubeUrl').value = article.youtube_url || '';
       setAuthorValue(article.author || 'KJ Cardinal');
+      
+      // Handle article date
+      if (article.article_date) {
+        document.getElementById('articleDate').value = article.article_date;
+      } else if (article.published_at) {
+        // Fallback to published_at date
+        document.getElementById('articleDate').value = article.published_at.split('T')[0];
+      } else {
+        document.getElementById('articleDate').value = new Date().toISOString().split('T')[0];
+      }
       
       // Handle featured image
       if (article.featured_image_url) {
@@ -3874,6 +3894,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         featured_image_caption: document.getElementById('featuredImageCaption').value || null,
         author: getAuthorValue(),
         tags: currentTags,
+        article_date: document.getElementById('articleDate').value || null,
         scheduled_at: scheduledAt,
         status: 'draft',
         published_at: null, // Clear published_at when saving as draft
@@ -3942,6 +3963,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         featured_image_caption: document.getElementById('featuredImageCaption').value || null,
         author: getAuthorValue(),
         tags: currentTags,
+        article_date: document.getElementById('articleDate').value || null,
         social_posts: socialPosts,
         scheduled_at: scheduledAt,
         status: 'draft',
@@ -4025,6 +4047,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         featured_image_caption: document.getElementById('featuredImageCaption').value || null,
         author: getAuthorValue(),
         tags: currentTags,
+        article_date: document.getElementById('articleDate').value || null,
         social_posts: socialPosts,
         scheduled_at: scheduledAt,
         status: isScheduled ? 'scheduled' : 'published',
@@ -6437,6 +6460,23 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     
     // Preview Modal
     function openPreview() {
+      // Save article first, then open in new window
+      const title = document.getElementById('articleTitle').value.trim();
+      if (!title) {
+        showToast('Please enter a headline first', 'error');
+        return;
+      }
+      
+      // If article exists, open preview in new window
+      if (currentArticle && currentArticle.slug) {
+        const previewUrl = `/articles/${currentArticle.slug}?preview=true`;
+        window.open(previewUrl, 'articlePreview', 'width=1200,height=800,scrollbars=yes,resizable=yes');
+      } else {
+        showToast('Save the article first to preview', 'error');
+      }
+    }
+    
+    function openPreviewOld() {
       const headline = document.getElementById('articleTitle').value || 'Untitled';
       const content = getEditorContent() || '<p>No content yet.</p>';
       const plainText = getEditorPlainText() || 'No content yet.';

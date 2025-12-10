@@ -367,7 +367,27 @@
       text-decoration: underline;
     }
     
-    /* Photo Grid */
+    /* SmugMug Embed */
+    .smugmug-embed {
+      margin-top: var(--space-md);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      background: var(--bg-tertiary);
+    }
+    
+    .smugmug-embed iframe {
+      display: block;
+      width: 100%;
+      min-height: 500px;
+    }
+    
+    @media (max-width: 768px) {
+      .smugmug-embed iframe {
+        min-height: 400px;
+      }
+    }
+    
+    /* Photo Grid (legacy - keeping for potential future use) */
     .photo-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -851,7 +871,7 @@
           <h1 class="article-title">${article.title}</h1>
           <div class="article-meta">
             <span class="article-author">${article.author || 'Ball603'}</span>
-            <span class="article-date">${Ball603.formatDate(article.published_at?.split('T')[0], 'long')}</span>
+            <span class="article-date">${Ball603.formatDate(article.article_date || article.published_at?.split('T')[0], 'long')}</span>
             <div class="article-share">
               <button class="share-btn" onclick="shareTwitter()" title="Share on Twitter">𝕏</button>
               <button class="share-btn" onclick="shareFacebook()" title="Share on Facebook">f</button>
@@ -873,14 +893,10 @@
           <div class="gallery-header">
             <div>
               <h2 class="gallery-title">📸 Photo Gallery</h2>
-              <span class="gallery-count" id="photoCount"></span>
             </div>
-            <a href="#" target="_blank" class="gallery-link" id="smugmugLink">View Full Gallery →</a>
+            <a href="#" target="_blank" class="gallery-link" id="smugmugLink">View on SmugMug →</a>
           </div>
-          <div class="photo-grid" id="photoGrid"></div>
-          <button class="view-all-photos" id="viewAllPhotosBtn" onclick="openFullGallery()">
-            📸 View All Photos
-          </button>
+          <div class="smugmug-embed" id="smugmugEmbed"></div>
         </section>
         
         <section class="related-section" id="relatedSection" style="display: none;">
@@ -894,8 +910,7 @@
     }
     
     /**
-     * Load gallery photos from SmugMug
-     * Currently uses placeholder - integrate with SmugMug API
+     * Load gallery from SmugMug - embed iframe
      */
     async function loadGalleryPhotos(article) {
       if (!article.smugmug_gallery_url) return;
@@ -903,32 +918,26 @@
       document.getElementById('gallerySection').style.display = 'block';
       document.getElementById('smugmugLink').href = article.smugmug_gallery_url;
       
-      const fullLinkBtn = document.getElementById('galleryFullLink');
-      fullLinkBtn.onclick = () => window.open(article.smugmug_gallery_url, '_blank');
-      
-      // Placeholder photos - in production, fetch from SmugMug API
-      const placeholderPhotos = [];
-      if (article.featured_image_url) {
-        for (let i = 0; i < 9; i++) {
-          placeholderPhotos.push({
-            src: article.featured_image_url,
-            thumb: article.featured_image_url,
-            caption: i === 0 ? (article.featured_image_caption || article.title) : `Photo ${i + 1}`
-          });
-        }
+      // Convert SmugMug gallery URL to embed URL
+      // SmugMug URLs look like: https://ball603.smugmug.com/2024-25/Gallery-Name
+      // Embed URL adds /frame/slideshow at the end
+      let embedUrl = article.smugmug_gallery_url;
+      if (!embedUrl.includes('/frame/')) {
+        // Remove trailing slash if present, then add embed path
+        embedUrl = embedUrl.replace(/\/$/, '') + '/frame/slideshow?speed=3&transition=fade&autoStart=0&captions=1&navigation=1&playButton=1&randomize=0&transitionSpeed=2';
       }
       
-      galleryPhotos = placeholderPhotos;
-      
-      document.getElementById('photoCount').textContent = `${galleryPhotos.length} photos`;
-      document.getElementById('viewAllPhotosBtn').innerHTML = `📸 View All ${galleryPhotos.length} Photos`;
-      
-      const grid = document.getElementById('photoGrid');
-      grid.innerHTML = galleryPhotos.slice(0, 9).map((photo, i) => `
-        <div class="photo-grid-item ${i === 0 ? 'featured' : ''}" onclick="openGalleryAt(${i})">
-          <img src="${photo.thumb}" alt="${photo.caption || ''}" loading="lazy">
-        </div>
-      `).join('');
+      const embedContainer = document.getElementById('smugmugEmbed');
+      embedContainer.innerHTML = `
+        <iframe 
+          src="${embedUrl}" 
+          width="100%" 
+          height="600" 
+          frameborder="0" 
+          allowfullscreen
+          style="border-radius: var(--radius-lg); background: var(--bg-tertiary);">
+        </iframe>
+      `;
     }
     
     /**
