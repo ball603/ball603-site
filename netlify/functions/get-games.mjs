@@ -108,6 +108,8 @@ export default async (request) => {
       videog: game.videog || '',
       writer: game.writer || '',
       notes: game.notes || '',
+      coverage_confirmed: game.coverage_confirmed || false,
+      scorebook_url: game.scorebook_url || '',
       original_date: game.original_date || '',
       schedule_changed: game.schedule_changed ? 'YES' : '',
       photos_url: game.photos_url || '',
