@@ -233,6 +233,70 @@ export const handler = async (event) => {
             filename: img.FileName,
             caption: img.Caption,
             thumbnail: img.Uris?.ImageSizes?.ImageSizes?.SmallImageUrl || img.ThumbnailUrl,
+            medium: img.Uris?.ImageSizes?.ImageSizes?.MediumImageUrl || img.Uris?.ImageSizes?.ImageSizes?.SmallImageUrl,
+            large: img.Uris?.ImageSizes?.ImageSizes?.LargeImageUrl || img.Uris?.ImageSizes?.ImageSizes?.MediumImageUrl,
+            webUrl: img.WebUri
+          }))
+        })
+      };
+    } else if (action === 'galleryImages') {
+      // Fetch images by gallery URL path (e.g., "Epping-Boys-at-Farmington-12-9-25-Michael-Griffin")
+      const galleryPath = event.queryStringParameters?.path;
+      
+      if (!galleryPath) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: 'Gallery path required' })
+        };
+      }
+      
+      // First, get the album info by URL path
+      const albumEndpoint = `/api/v2/album/ball603-${galleryPath}?_expand=HighlightImage`;
+      let albumResult = await smugmugRequest(albumEndpoint);
+      
+      // If that doesn't work, try looking up via user albums
+      let albumKey = albumResult?.Response?.Album?.AlbumKey;
+      
+      if (!albumKey) {
+        // Try searching for the album by name
+        const searchEndpoint = `/api/v2/user/ball603!albums?count=200&_expand=HighlightImage`;
+        const searchResult = await smugmugRequest(searchEndpoint);
+        const albums = searchResult?.Response?.Album || [];
+        
+        // Find album where URL contains the path
+        const matchingAlbum = albums.find(a => a.WebUri && a.WebUri.includes(galleryPath));
+        albumKey = matchingAlbum?.AlbumKey;
+      }
+      
+      if (!albumKey) {
+        return {
+          statusCode: 404,
+          headers,
+          body: JSON.stringify({ error: 'Gallery not found', path: galleryPath })
+        };
+      }
+      
+      // Now fetch images for this album
+      const imagesEndpoint = `/api/v2/album/${albumKey}!images?count=50&_expand=ImageSizes`;
+      const imagesResult = await smugmugRequest(imagesEndpoint);
+      
+      const images = imagesResult?.Response?.AlbumImage || [];
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+          success: true,
+          albumKey: albumKey,
+          images: images.map(img => ({
+            key: img.ImageKey,
+            filename: img.FileName,
+            caption: img.Caption,
+            title: img.Title,
+            thumbnail: img.Uris?.ImageSizes?.ImageSizes?.ThumbImageUrl || img.Uris?.ImageSizes?.ImageSizes?.SmallImageUrl || img.ThumbnailUrl,
+            medium: img.Uris?.ImageSizes?.ImageSizes?.MediumImageUrl || img.Uris?.ImageSizes?.ImageSizes?.SmallImageUrl,
+            large: img.Uris?.ImageSizes?.ImageSizes?.LargeImageUrl || img.Uris?.ImageSizes?.ImageSizes?.XLargeImageUrl || img.Uris?.ImageSizes?.ImageSizes?.MediumImageUrl,
+            xlarge: img.Uris?.ImageSizes?.ImageSizes?.XLargeImageUrl || img.Uris?.ImageSizes?.ImageSizes?.LargeImageUrl,
             webUrl: img.WebUri
           }))
         })
