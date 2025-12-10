@@ -535,7 +535,7 @@ ARTICLE STRUCTURE:
 3. GAME FLOW: Use the game flow analysis above as the main narrative element.
 4. SUPPORTING SCORERS: See SCORER RULES below - THIS IS CRITICAL.
 5. DO NOT include team records or gallery references - those will be added separately.
-6. LENGTH: 250-350 words. Be concise.
+6. LENGTH: Keep it concise. Only include pertinent information.
 
 === SCORER RULES - READ THIS CAREFULLY ===
 THIS IS MANDATORY - VIOLATING THESE RULES IS A SERIOUS ERROR:
@@ -795,7 +795,7 @@ MANDATORY STYLE GUIDELINES:
 2. FIRST PARAGRAPH: State who won, final score, location, and date. Include any 20+ point scorers.
 3. BODY: Report the facts. Include relevant stats like rebounds, assists, shooting percentages.
 4. SCORING/STATS PARAGRAPH: List key performers with their stat lines.
-5. LENGTH: 300-400 words. Be concise.
+5. LENGTH: Keep it concise. Only include pertinent information.
 6. TONE: Factual and straightforward. Report what happened.
 
 STRICT RULES - DO NOT:
