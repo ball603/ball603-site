@@ -100,7 +100,7 @@
         <h2 class="bash-section-title">Latest Stories</h2>
       </div>
       <div class="bash-stories-grid" id="bashStoriesGrid">
-        <div class="bash-loading">Loading stories...</div>
+        <div class="bash-no-stories">Coming soon...</div>
       </div>
     </section>
 
@@ -700,14 +700,60 @@
   <script src="/the-bash-data.js"></script>
 
   <script>
-    // Team logo helper - converts team name to logo path
+    // Team logos lookup - loaded from API
+    let teamsLookup = {};
+
+    // Load teams from API to get logo URLs
+    async function loadTeamsLookup() {
+      try {
+        const response = await fetch('/.netlify/functions/teams');
+        const data = await response.json();
+        if (data.success && data.teams) {
+          data.teams.forEach(team => {
+            const key = (team.shortname || team.school || '').toLowerCase().trim();
+            teamsLookup[key] = team;
+          });
+        }
+      } catch (e) {
+        console.log('Could not load teams lookup:', e);
+      }
+    }
+
+    // Team logo helper - checks API data first, then falls back to path
     function getTeamLogo(teamName) {
-      if (!teamName || teamName.includes('Winner') || teamName === 'TBD') {
+      if (!teamName || teamName.includes('Winner') || teamName.includes('Loser') || teamName === 'TBD' || teamName.includes('TBA')) {
         return '/logos/100px/Ball603-white.png';
       }
-      // Replace spaces with hyphens and handle special cases
+      
+      // Check lookup table
+      const key = teamName.toLowerCase().trim();
+      const team = teamsLookup[key];
+      
+      if (team && team.logo_url) {
+        return team.logo_url;
+      }
+      
+      // Fallback to path-based logo
       const logoName = teamName.replace(/\s+/g, '-');
       return `/logos/100px/${logoName}.png`;
+    }
+
+    // Get round name from game number
+    function getRoundName(gameNum, division) {
+      if (!gameNum) return null;
+      
+      if (division === 'Boys') {
+        if (gameNum >= 1 && gameNum <= 8) return 'First Round';
+        if (gameNum >= 9 && gameNum <= 12) return 'Quarterfinals';
+        if (gameNum >= 13 && gameNum <= 14) return 'Semifinals';
+        if (gameNum === 15) return 'Championship';
+      } else if (division === 'Girls') {
+        if (gameNum >= 1 && gameNum <= 4) return 'First Round';
+        if (gameNum >= 5 && gameNum <= 8) return 'Quarterfinals';
+        if (gameNum >= 9 && gameNum <= 10) return 'Semifinals';
+        if (gameNum === 11) return 'Championship';
+      }
+      return null;
     }
 
     // Snow effect
@@ -736,7 +782,7 @@
       localStorage.setItem('bashBannerDismissed', 'true');
     }
 
-    // Today's games with logos
+    // Today's games with logos and new footer format
     function renderTodayGames(games) {
       const container = document.getElementById('todayGames');
 
@@ -747,6 +793,22 @@
 
       container.innerHTML = games.map(g => {
         const hasScore = g.awayScore !== null && g.homeScore !== null;
+        const roundName = getRoundName(g.game, g.division);
+        
+        // Build footer text: "Round: Gender @ Site" or "Gender @ Site"
+        let footerText = '';
+        if (roundName) {
+          footerText = `${roundName}: ${g.division || ''} @ ${g.site || 'FHS'}`;
+        } else {
+          footerText = `${g.division || ''} @ ${g.site || 'FHS'}`;
+        }
+        
+        // Coverage icons
+        let coverageHtml = '';
+        if (g.recap) coverageHtml += `<a href="${g.recap}" class="bash-coverage-icon" title="Recap">📰</a>`;
+        if (g.photos) coverageHtml += `<a href="${g.photos}" class="bash-coverage-icon" title="Photos">📷</a>`;
+        if (g.video || g.highlights) coverageHtml += `<a href="${g.video || g.highlights}" class="bash-coverage-icon" title="Video">🎬</a>`;
+        
         return `
           <div class="bash-today-game">
             <div class="bash-today-time">${g.time}</div>
@@ -766,11 +828,10 @@
                 ${hasScore ? `<span class="team-score">${g.homeScore}</span>` : ''}
               </div>
             </div>
-            <div class="bash-today-meta">
-              <span class="bash-today-div">${g.division || ''}</span>
-              <span class="bash-today-site">${g.site || ''}</span>
+            <div class="bash-today-footer">
+              <span class="bash-today-info">${footerText}</span>
+              ${coverageHtml ? `<div class="bash-today-coverage">${coverageHtml}</div>` : ''}
             </div>
-            ${g.recap ? `<a href="${g.recap}" class="bash-today-recap">Recap</a>` : ''}
           </div>
         `;
       }).join('');
@@ -978,7 +1039,10 @@
     }
 
     // Initialize on load
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
+      // Load teams lookup first
+      await loadTeamsLookup();
+      
       createSnow();
       initTabs();
       initSchedule();
