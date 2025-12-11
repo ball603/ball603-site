@@ -5,6 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Ball603 CMS</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Fabric.js for Graphic Creator -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+  <!-- Google Fonts for Graphic Creator -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Covered+By+Your+Grace&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
   <!-- Quill.js Rich Text Editor -->
   <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
   <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
@@ -223,6 +229,13 @@
     /* Loading */
     .loading { text-align: center; padding: 40px; color: #888; }
     
+    /* Graphic Creator Styles */
+    #gcPhotoDropzone.drag-over { border-color: #f57c00; background: #fff3e0; }
+    #gcPhotoGrid .photo-card { border: 2px solid transparent; border-radius: 8px; overflow: hidden; cursor: pointer; transition: all 0.2s; }
+    #gcPhotoGrid .photo-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+    #gcPhotoGrid .photo-card.selected { border-color: #f57c00; }
+    #gcPhotoGrid .photo-card img { width: 100%; height: 120px; object-fit: cover; display: block; }
+    
     @media (max-width: 900px) {
       .form-grid { grid-template-columns: 1fr; }
       .article-row { grid-template-columns: 1fr; gap: 8px; }
@@ -295,6 +308,7 @@
       <button class="tab" onclick="showTab('products')">Webstore</button>
       <button class="tab" onclick="showTab('rosters')">Rosters</button>
       <button class="tab" onclick="showTab('bash')">The Bash</button>
+      <button class="tab" onclick="showTab('graphics')">🎨 Graphics</button>
     </div>
     
     <!-- Articles List Panel -->
@@ -2638,6 +2652,120 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     </div>
   </div>
   
+  <!-- Graphics Creator Panel -->
+  <div class="panel" id="graphicsPanel" style="display: none;">
+    <div class="toolbar" style="flex-wrap: wrap; gap: 10px; margin-bottom: 20px;">
+      <h2 style="margin: 0; font-size: 18px; color: #333;">🎨 Graphic Creator</h2>
+      <div style="margin-left: auto; display: flex; gap: 10px;">
+        <button class="btn-new" onclick="resetGraphicCreator()" style="background: #ffebee; color: #c62828;">
+          <span>🔄</span> Reset
+        </button>
+        <button class="btn-new" onclick="downloadGraphic()" style="background: #e8f5e9; color: #2e7d32;">
+          <span>💾</span> Download PNG
+        </button>
+      </div>
+    </div>
+    
+    <div style="display: grid; grid-template-columns: 300px 1fr; gap: 20px;">
+      <!-- Left Sidebar - Controls -->
+      <div style="display: flex; flex-direction: column; gap: 15px;">
+        
+        <!-- Team Selection -->
+        <div class="sidebar-card">
+          <h4>🏀 Team (Background Color)</h4>
+          <select id="gcTeamSelect" onchange="updateBackgroundColor()" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px;">
+            <option value="">Select winning team...</option>
+          </select>
+          <div style="margin-top: 10px; display: flex; align-items: center; gap: 10px;">
+            <div id="gcColorPreview" style="width: 40px; height: 40px; border-radius: 5px; border: 1px solid #ddd; background: #ccc;"></div>
+            <input type="color" id="gcCustomColor" value="#1a1a1a" onchange="updateBackgroundFromPicker()" style="width: 60px; height: 40px; border: none; cursor: pointer;">
+            <span style="font-size: 12px; color: #888;">or pick custom</span>
+          </div>
+        </div>
+        
+        <!-- Photo Upload -->
+        <div class="sidebar-card">
+          <h4>📷 Player Photo</h4>
+          <div id="gcPhotoDropzone" style="border: 2px dashed #ddd; border-radius: 8px; padding: 30px 15px; text-align: center; cursor: pointer; transition: all 0.2s; background: #fafafa;">
+            <div style="font-size: 32px; margin-bottom: 8px;">📸</div>
+            <div style="font-size: 13px; color: #666;">Drop image here or click to upload</div>
+            <input type="file" id="gcPhotoInput" accept="image/*" style="display: none;" onchange="handlePhotoUpload(this)">
+          </div>
+          <div style="text-align: center; color: #999; font-size: 12px; margin: 10px 0;">- or -</div>
+          <button class="btn-browse" onclick="openSmugMugPhotoBrowser()" style="width: 100%;">Browse SmugMug</button>
+        </div>
+        
+        <!-- Headline -->
+        <div class="sidebar-card">
+          <h4>📝 Headline</h4>
+          <textarea id="gcHeadline" placeholder="Enter headline text..." oninput="updateHeadline()" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; font-family: inherit; resize: vertical; min-height: 60px;"></textarea>
+          <div style="margin-top: 8px;">
+            <label style="font-size: 12px; color: #666;">Font Size</label>
+            <input type="range" id="gcHeadlineSize" min="60" max="180" value="120" oninput="updateHeadline()" style="width: 100%;">
+            <span id="gcHeadlineSizeLabel" style="font-size: 11px; color: #888;">120px</span>
+          </div>
+        </div>
+        
+        <!-- Photo Credit -->
+        <div class="sidebar-card">
+          <h4>📸 Photo Credit</h4>
+          <input type="text" id="gcPhotogName" placeholder="Photographer name..." oninput="updatePhotogCredit()" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px;">
+          <small style="color: #888; font-size: 11px;">Will display as: 📸 NAME (all caps)</small>
+        </div>
+        
+        <!-- Photo Controls -->
+        <div class="sidebar-card" id="gcPhotoControls" style="display: none;">
+          <h4>🖼️ Photo Adjustments</h4>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <div>
+              <label style="font-size: 12px; color: #666;">Scale</label>
+              <input type="range" id="gcPhotoScale" min="10" max="300" value="100" oninput="updatePhotoScale()" style="width: 100%;">
+              <span id="gcPhotoScaleLabel" style="font-size: 11px; color: #888;">100%</span>
+            </div>
+            <button onclick="centerPhoto()" style="padding: 8px; background: #e3f2fd; color: #1565c0; border: none; border-radius: 5px; cursor: pointer; font-size: 12px;">Center Photo</button>
+            <button onclick="fitPhotoToCanvas()" style="padding: 8px; background: #fff3e0; color: #e65100; border: none; border-radius: 5px; cursor: pointer; font-size: 12px;">Fit to Canvas</button>
+          </div>
+        </div>
+        
+      </div>
+      
+      <!-- Right Side - Canvas Preview -->
+      <div style="background: #e0e0e0; border-radius: 10px; padding: 20px; display: flex; justify-content: center; align-items: flex-start; min-height: 600px;">
+        <div style="background: white; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); overflow: hidden;">
+          <canvas id="gcCanvas" width="480" height="600"></canvas>
+        </div>
+        <div style="position: absolute; bottom: 20px; right: 20px; font-size: 11px; color: #888;">
+          Preview (scaled) • Export: 2400×3000px
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- SmugMug Photo Browser Modal (for individual photos) -->
+  <div class="modal-overlay" id="smugmugPhotoModal">
+    <div class="modal" style="max-width: 900px;">
+      <div class="modal-header">
+        <h3>📸 Select Photo from SmugMug</h3>
+        <button class="modal-close" onclick="closeSmugMugPhotoBrowser()">&times;</button>
+      </div>
+      <div style="padding: 15px 20px; border-bottom: 1px solid #eee; display: flex; gap: 10px;">
+        <select id="gcAlbumSelect" onchange="loadAlbumPhotos()" style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px;">
+          <option value="">Select an album...</option>
+        </select>
+        <input type="text" id="gcPhotoSearch" placeholder="Search photos..." oninput="filterAlbumPhotos(this.value)" style="width: 200px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px;">
+      </div>
+      <div class="modal-body" style="max-height: 500px;">
+        <div class="album-grid" id="gcPhotoGrid" style="grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));">
+          <div class="loading">Select an album to browse photos</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-modal btn-modal-cancel" onclick="closeSmugMugPhotoBrowser()">Cancel</button>
+        <button class="btn-modal btn-modal-select" id="btnSelectPhoto" onclick="selectSmugMugPhoto()" disabled>Select Photo</button>
+      </div>
+    </div>
+  </div>
+  
   <!-- Toast -->
   <div class="toast" id="toast"></div>
   
@@ -3362,6 +3490,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('productsPanel').style.display = tab === 'products' ? 'block' : 'none';
       document.getElementById('rostersPanel').style.display = tab === 'rosters' ? 'block' : 'none';
       document.getElementById('bashPanel').style.display = tab === 'bash' ? 'block' : 'none';
+      document.getElementById('graphicsPanel').style.display = tab === 'graphics' ? 'block' : 'none';
       document.getElementById('editorPanel').style.display = 'none';
       
       // Load teams when tab is selected
@@ -3387,6 +3516,11 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       // Load Bash data when tab is selected
       if (tab === 'bash' && bashSchedule.length === 0) {
         loadBashData();
+      }
+      
+      // Initialize Graphics Creator when tab is selected
+      if (tab === 'graphics') {
+        initGraphicCreator();
       }
     }
     
@@ -9242,6 +9376,668 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       if (bashSchedule.length > 0) {
         filterBashSBGames();
         loadBashRecapSummary();
+      }
+    }
+    
+    // =====================================
+    // GRAPHIC CREATOR
+    // =====================================
+    
+    let gcCanvas = null;
+    let gcInitialized = false;
+    let gcPhotoObject = null;
+    let gcHeadlineObject = null;
+    let gcPhotogObject = null;
+    let gcOverlayObject = null;
+    let gcBackgroundRect = null;
+    let gcSelectedSmugMugPhoto = null;
+    let gcAlbumPhotos = [];
+    
+    // Canvas dimensions (preview is 1/5 scale)
+    const GC_FULL_WIDTH = 2400;
+    const GC_FULL_HEIGHT = 3000;
+    const GC_PREVIEW_SCALE = 0.2;
+    const GC_PREVIEW_WIDTH = GC_FULL_WIDTH * GC_PREVIEW_SCALE;
+    const GC_PREVIEW_HEIGHT = GC_FULL_HEIGHT * GC_PREVIEW_SCALE;
+    
+    // The angled divider line Y position (where black bar starts)
+    // Based on your template, the angle starts around 65% from top
+    const GC_DIVIDER_START_Y = GC_FULL_HEIGHT * 0.62;
+    const GC_DIVIDER_END_Y = GC_FULL_HEIGHT * 0.72;
+    
+    async function initGraphicCreator() {
+      if (gcInitialized) return;
+      
+      // Update canvas element size
+      const canvasEl = document.getElementById('gcCanvas');
+      canvasEl.width = GC_PREVIEW_WIDTH;
+      canvasEl.height = GC_PREVIEW_HEIGHT;
+      
+      // Initialize Fabric canvas
+      gcCanvas = new fabric.Canvas('gcCanvas', {
+        backgroundColor: '#ffffff',
+        selection: false
+      });
+      
+      // Load teams for dropdown
+      await loadTeamsForGraphicCreator();
+      
+      // Setup drag and drop
+      setupPhotoDragDrop();
+      
+      // Create initial background (will be updated when team selected)
+      createBackgroundShape('#333333');
+      
+      // Load the overlay template
+      await loadOverlayTemplate();
+      
+      // Create headline text
+      createHeadlineText();
+      
+      // Create photographer credit
+      createPhotogCredit();
+      
+      gcInitialized = true;
+    }
+    
+    async function loadTeamsForGraphicCreator() {
+      // Use existing allTeams if loaded, otherwise fetch
+      let teams = allTeams;
+      if (teams.length === 0) {
+        const { data, error } = await supabase
+          .from('teams')
+          .select('id, full_name, shortname, primary_hex, gender, level, division')
+          .eq('active', true)
+          .order('shortname');
+        
+        if (!error && data) {
+          teams = data;
+        }
+      }
+      
+      const select = document.getElementById('gcTeamSelect');
+      select.innerHTML = '<option value="">Select winning team...</option>';
+      
+      // Group by level
+      const grouped = {};
+      teams.forEach(t => {
+        const key = t.level || 'Other';
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(t);
+      });
+      
+      Object.keys(grouped).sort().forEach(level => {
+        const optgroup = document.createElement('optgroup');
+        optgroup.label = level;
+        grouped[level].forEach(t => {
+          const opt = document.createElement('option');
+          opt.value = t.primary_hex || '#333333';
+          opt.textContent = `${t.shortname} (${t.gender || ''} ${t.division || ''})`.trim();
+          opt.dataset.teamName = t.shortname;
+          optgroup.appendChild(opt);
+        });
+        select.appendChild(optgroup);
+      });
+    }
+    
+    function createBackgroundShape(color) {
+      // Remove existing background
+      if (gcBackgroundRect) {
+        gcCanvas.remove(gcBackgroundRect);
+      }
+      
+      // Create angled polygon that matches the template
+      // The shape fills the bottom area below the diagonal line
+      const points = [
+        { x: 0, y: GC_DIVIDER_START_Y * GC_PREVIEW_SCALE },
+        { x: GC_PREVIEW_WIDTH, y: GC_DIVIDER_END_Y * GC_PREVIEW_SCALE },
+        { x: GC_PREVIEW_WIDTH, y: GC_PREVIEW_HEIGHT },
+        { x: 0, y: GC_PREVIEW_HEIGHT }
+      ];
+      
+      gcBackgroundRect = new fabric.Polygon(points, {
+        fill: color,
+        selectable: false,
+        evented: false
+      });
+      
+      gcCanvas.add(gcBackgroundRect);
+      gcCanvas.sendToBack(gcBackgroundRect);
+      
+      // Update color preview
+      document.getElementById('gcColorPreview').style.background = color;
+      document.getElementById('gcCustomColor').value = color;
+    }
+    
+    function updateBackgroundColor() {
+      const select = document.getElementById('gcTeamSelect');
+      const color = select.value || '#333333';
+      createBackgroundShape(color);
+      reorderLayers();
+    }
+    
+    function updateBackgroundFromPicker() {
+      const color = document.getElementById('gcCustomColor').value;
+      createBackgroundShape(color);
+      document.getElementById('gcTeamSelect').value = ''; // Deselect team
+      reorderLayers();
+    }
+    
+    async function loadOverlayTemplate() {
+      return new Promise((resolve) => {
+        fabric.Image.fromURL('TEMPLATE.png', (img) => {
+          if (!img) {
+            console.error('Failed to load overlay template');
+            resolve();
+            return;
+          }
+          
+          // Scale to fit preview
+          img.scaleToWidth(GC_PREVIEW_WIDTH);
+          img.set({
+            left: 0,
+            top: 0,
+            selectable: false,
+            evented: false
+          });
+          
+          gcOverlayObject = img;
+          gcCanvas.add(img);
+          reorderLayers();
+          resolve();
+        }, { crossOrigin: 'anonymous' });
+      });
+    }
+    
+    function createHeadlineText() {
+      gcHeadlineObject = new fabric.Textbox('', {
+        left: GC_PREVIEW_WIDTH / 2,
+        top: GC_PREVIEW_HEIGHT * 0.68,
+        width: GC_PREVIEW_WIDTH * 0.85,
+        fontFamily: 'Covered By Your Grace',
+        fontSize: 24, // Preview scale
+        fill: '#ffffff',
+        textAlign: 'center',
+        originX: 'center',
+        originY: 'center',
+        selectable: true,
+        editable: false,
+        shadow: new fabric.Shadow({
+          color: 'rgba(0,0,0,0.5)',
+          blur: 4,
+          offsetX: 2,
+          offsetY: 2
+        })
+      });
+      
+      gcCanvas.add(gcHeadlineObject);
+    }
+    
+    function updateHeadline() {
+      const text = document.getElementById('gcHeadline').value;
+      const size = parseInt(document.getElementById('gcHeadlineSize').value);
+      
+      document.getElementById('gcHeadlineSizeLabel').textContent = size + 'px';
+      
+      if (gcHeadlineObject) {
+        gcHeadlineObject.set({
+          text: text.toUpperCase(),
+          fontSize: size * GC_PREVIEW_SCALE
+        });
+        gcCanvas.renderAll();
+      }
+    }
+    
+    function createPhotogCredit() {
+      gcPhotogObject = new fabric.Text('', {
+        left: GC_PREVIEW_WIDTH - 20,
+        top: GC_PREVIEW_HEIGHT * 0.58,
+        fontFamily: 'Poppins',
+        fontSize: 14, // Preview scale
+        fill: '#ffffff',
+        originX: 'right',
+        originY: 'center',
+        selectable: true,
+        shadow: new fabric.Shadow({
+          color: 'rgba(0,0,0,0.7)',
+          blur: 6,
+          offsetX: 2,
+          offsetY: 2
+        })
+      });
+      
+      gcCanvas.add(gcPhotogObject);
+    }
+    
+    function updatePhotogCredit() {
+      const name = document.getElementById('gcPhotogName').value.trim();
+      
+      if (gcPhotogObject) {
+        gcPhotogObject.set({
+          text: name ? '📸 ' + name.toUpperCase() : ''
+        });
+        gcCanvas.renderAll();
+      }
+    }
+    
+    function setupPhotoDragDrop() {
+      const dropzone = document.getElementById('gcPhotoDropzone');
+      const input = document.getElementById('gcPhotoInput');
+      
+      dropzone.addEventListener('click', () => input.click());
+      
+      dropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropzone.classList.add('drag-over');
+      });
+      
+      dropzone.addEventListener('dragleave', () => {
+        dropzone.classList.remove('drag-over');
+      });
+      
+      dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('drag-over');
+        
+        const file = e.dataTransfer.files[0];
+        if (file && file.type.startsWith('image/')) {
+          loadPhotoFromFile(file);
+        }
+      });
+    }
+    
+    function handlePhotoUpload(input) {
+      const file = input.files[0];
+      if (file) {
+        loadPhotoFromFile(file);
+      }
+    }
+    
+    function loadPhotoFromFile(file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        loadPhotoToCanvas(e.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
+    
+    function loadPhotoToCanvas(url) {
+      // Remove existing photo
+      if (gcPhotoObject) {
+        gcCanvas.remove(gcPhotoObject);
+      }
+      
+      fabric.Image.fromURL(url, (img) => {
+        if (!img) {
+          showToast('Failed to load image', 'error');
+          return;
+        }
+        
+        // Scale to fit the upper portion of canvas
+        const maxWidth = GC_PREVIEW_WIDTH;
+        const maxHeight = GC_PREVIEW_HEIGHT * 0.65;
+        
+        const scale = Math.max(maxWidth / img.width, maxHeight / img.height);
+        
+        img.set({
+          scaleX: scale,
+          scaleY: scale,
+          left: GC_PREVIEW_WIDTH / 2,
+          top: maxHeight / 2,
+          originX: 'center',
+          originY: 'center',
+          selectable: true
+        });
+        
+        gcPhotoObject = img;
+        gcCanvas.add(img);
+        reorderLayers();
+        
+        // Show photo controls
+        document.getElementById('gcPhotoControls').style.display = 'block';
+        document.getElementById('gcPhotoScale').value = 100;
+        document.getElementById('gcPhotoScaleLabel').textContent = '100%';
+        
+        // Update dropzone appearance
+        document.getElementById('gcPhotoDropzone').innerHTML = `
+          <div style="font-size: 24px; margin-bottom: 5px;">✅</div>
+          <div style="font-size: 12px; color: #4CAF50;">Photo loaded! Drop another to replace.</div>
+        `;
+        
+        showToast('Photo added to canvas', 'success');
+      }, { crossOrigin: 'anonymous' });
+    }
+    
+    function updatePhotoScale() {
+      if (!gcPhotoObject) return;
+      
+      const scalePercent = parseInt(document.getElementById('gcPhotoScale').value);
+      document.getElementById('gcPhotoScaleLabel').textContent = scalePercent + '%';
+      
+      // Calculate base scale (what it was at 100%)
+      const maxWidth = GC_PREVIEW_WIDTH;
+      const maxHeight = GC_PREVIEW_HEIGHT * 0.65;
+      const baseScale = Math.max(maxWidth / gcPhotoObject.width, maxHeight / gcPhotoObject.height);
+      
+      const newScale = baseScale * (scalePercent / 100);
+      
+      gcPhotoObject.set({
+        scaleX: newScale,
+        scaleY: newScale
+      });
+      gcCanvas.renderAll();
+    }
+    
+    function centerPhoto() {
+      if (!gcPhotoObject) return;
+      
+      gcPhotoObject.set({
+        left: GC_PREVIEW_WIDTH / 2,
+        top: (GC_PREVIEW_HEIGHT * 0.65) / 2
+      });
+      gcCanvas.renderAll();
+    }
+    
+    function fitPhotoToCanvas() {
+      if (!gcPhotoObject) return;
+      
+      const maxWidth = GC_PREVIEW_WIDTH;
+      const maxHeight = GC_PREVIEW_HEIGHT * 0.65;
+      const scale = Math.max(maxWidth / gcPhotoObject.width, maxHeight / gcPhotoObject.height);
+      
+      gcPhotoObject.set({
+        scaleX: scale,
+        scaleY: scale,
+        left: GC_PREVIEW_WIDTH / 2,
+        top: maxHeight / 2
+      });
+      
+      document.getElementById('gcPhotoScale').value = 100;
+      document.getElementById('gcPhotoScaleLabel').textContent = '100%';
+      
+      gcCanvas.renderAll();
+    }
+    
+    function reorderLayers() {
+      // Ensure correct layer order: background -> photo -> overlay -> headline -> photog
+      if (gcBackgroundRect) gcCanvas.sendToBack(gcBackgroundRect);
+      if (gcPhotoObject) gcPhotoObject.moveTo(1);
+      if (gcOverlayObject) gcOverlayObject.moveTo(2);
+      if (gcHeadlineObject) gcHeadlineObject.moveTo(3);
+      if (gcPhotogObject) gcPhotogObject.moveTo(4);
+      gcCanvas.renderAll();
+    }
+    
+    function resetGraphicCreator() {
+      if (!gcCanvas) return;
+      
+      // Reset photo
+      if (gcPhotoObject) {
+        gcCanvas.remove(gcPhotoObject);
+        gcPhotoObject = null;
+      }
+      
+      // Reset form fields
+      document.getElementById('gcTeamSelect').value = '';
+      document.getElementById('gcHeadline').value = '';
+      document.getElementById('gcPhotogName').value = '';
+      document.getElementById('gcHeadlineSize').value = 120;
+      document.getElementById('gcHeadlineSizeLabel').textContent = '120px';
+      
+      // Reset background
+      createBackgroundShape('#333333');
+      
+      // Reset text objects
+      if (gcHeadlineObject) gcHeadlineObject.set({ text: '' });
+      if (gcPhotogObject) gcPhotogObject.set({ text: '' });
+      
+      // Hide photo controls
+      document.getElementById('gcPhotoControls').style.display = 'none';
+      
+      // Reset dropzone
+      document.getElementById('gcPhotoDropzone').innerHTML = `
+        <div style="font-size: 32px; margin-bottom: 8px;">📸</div>
+        <div style="font-size: 13px; color: #666;">Drop image here or click to upload</div>
+      `;
+      
+      reorderLayers();
+      showToast('Canvas reset', 'success');
+    }
+    
+    function downloadGraphic() {
+      if (!gcCanvas) {
+        showToast('Canvas not initialized', 'error');
+        return;
+      }
+      
+      // Create a full-resolution canvas
+      const exportCanvas = document.createElement('canvas');
+      exportCanvas.width = GC_FULL_WIDTH;
+      exportCanvas.height = GC_FULL_HEIGHT;
+      const ctx = exportCanvas.getContext('2d');
+      
+      // Fill white background
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, GC_FULL_WIDTH, GC_FULL_HEIGHT);
+      
+      // Draw colored background shape
+      const bgColor = document.getElementById('gcCustomColor').value;
+      ctx.fillStyle = bgColor;
+      ctx.beginPath();
+      ctx.moveTo(0, GC_DIVIDER_START_Y);
+      ctx.lineTo(GC_FULL_WIDTH, GC_DIVIDER_END_Y);
+      ctx.lineTo(GC_FULL_WIDTH, GC_FULL_HEIGHT);
+      ctx.lineTo(0, GC_FULL_HEIGHT);
+      ctx.closePath();
+      ctx.fill();
+      
+      // Draw photo if exists
+      if (gcPhotoObject) {
+        const photoScale = 1 / GC_PREVIEW_SCALE;
+        const img = gcPhotoObject.getElement();
+        const left = (gcPhotoObject.left - (gcPhotoObject.width * gcPhotoObject.scaleX / 2)) * photoScale;
+        const top = (gcPhotoObject.top - (gcPhotoObject.height * gcPhotoObject.scaleY / 2)) * photoScale;
+        const width = gcPhotoObject.width * gcPhotoObject.scaleX * photoScale;
+        const height = gcPhotoObject.height * gcPhotoObject.scaleY * photoScale;
+        
+        ctx.drawImage(img, left, top, width, height);
+      }
+      
+      // Draw overlay template
+      if (gcOverlayObject) {
+        const overlayImg = gcOverlayObject.getElement();
+        ctx.drawImage(overlayImg, 0, 0, GC_FULL_WIDTH, GC_FULL_HEIGHT);
+      }
+      
+      // Draw headline text
+      const headline = document.getElementById('gcHeadline').value.toUpperCase();
+      if (headline) {
+        const fontSize = parseInt(document.getElementById('gcHeadlineSize').value);
+        ctx.font = `${fontSize}px "Covered By Your Grace"`;
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        // Add shadow
+        ctx.shadowColor = 'rgba(0,0,0,0.5)';
+        ctx.shadowBlur = 20;
+        ctx.shadowOffsetX = 10;
+        ctx.shadowOffsetY = 10;
+        
+        // Word wrap if needed
+        const maxWidth = GC_FULL_WIDTH * 0.85;
+        const words = headline.split(' ');
+        const lines = [];
+        let currentLine = '';
+        
+        words.forEach(word => {
+          const testLine = currentLine ? currentLine + ' ' + word : word;
+          const metrics = ctx.measureText(testLine);
+          if (metrics.width > maxWidth && currentLine) {
+            lines.push(currentLine);
+            currentLine = word;
+          } else {
+            currentLine = testLine;
+          }
+        });
+        if (currentLine) lines.push(currentLine);
+        
+        const lineHeight = fontSize * 1.1;
+        const startY = GC_FULL_HEIGHT * 0.68 - ((lines.length - 1) * lineHeight / 2);
+        
+        lines.forEach((line, i) => {
+          ctx.fillText(line, GC_FULL_WIDTH / 2, startY + (i * lineHeight));
+        });
+        
+        // Reset shadow
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+      }
+      
+      // Draw photographer credit
+      const photogName = document.getElementById('gcPhotogName').value.trim();
+      if (photogName) {
+        ctx.font = '70px "Poppins"';
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        
+        // Add shadow
+        ctx.shadowColor = 'rgba(0,0,0,0.7)';
+        ctx.shadowBlur = 30;
+        ctx.shadowOffsetX = 10;
+        ctx.shadowOffsetY = 10;
+        
+        ctx.fillText('📸 ' + photogName.toUpperCase(), GC_FULL_WIDTH - 100, GC_FULL_HEIGHT * 0.58);
+        
+        // Reset shadow
+        ctx.shadowColor = 'transparent';
+      }
+      
+      // Generate filename
+      const teamSelect = document.getElementById('gcTeamSelect');
+      const teamName = teamSelect.selectedOptions[0]?.dataset?.teamName || 'graphic';
+      const timestamp = new Date().toISOString().slice(0, 10);
+      const filename = `ball603-${teamName}-${timestamp}.png`;
+      
+      // Download
+      const link = document.createElement('a');
+      link.download = filename;
+      link.href = exportCanvas.toDataURL('image/png');
+      link.click();
+      
+      showToast('Graphic downloaded!', 'success');
+    }
+    
+    // SmugMug Photo Browser
+    async function openSmugMugPhotoBrowser() {
+      document.getElementById('smugmugPhotoModal').classList.add('open');
+      gcSelectedSmugMugPhoto = null;
+      document.getElementById('btnSelectPhoto').disabled = true;
+      
+      // Load albums
+      const albumSelect = document.getElementById('gcAlbumSelect');
+      if (albumSelect.options.length <= 1) {
+        try {
+          const response = await fetch('/.netlify/functions/smugmug?action=albums');
+          const data = await response.json();
+          
+          if (data.success && data.albums) {
+            albumSelect.innerHTML = '<option value="">Select an album...</option>';
+            data.albums.forEach(album => {
+              const opt = document.createElement('option');
+              opt.value = album.key;
+              opt.textContent = `${album.name} (${album.imageCount || 0} photos)`;
+              opt.dataset.albumUri = album.uri;
+              albumSelect.appendChild(opt);
+            });
+          }
+        } catch (err) {
+          console.error('Failed to load albums:', err);
+          showToast('Could not load SmugMug albums', 'error');
+        }
+      }
+    }
+    
+    function closeSmugMugPhotoBrowser() {
+      document.getElementById('smugmugPhotoModal').classList.remove('open');
+    }
+    
+    async function loadAlbumPhotos() {
+      const albumSelect = document.getElementById('gcAlbumSelect');
+      const albumKey = albumSelect.value;
+      const grid = document.getElementById('gcPhotoGrid');
+      
+      if (!albumKey) {
+        grid.innerHTML = '<div class="loading">Select an album to browse photos</div>';
+        return;
+      }
+      
+      grid.innerHTML = '<div class="loading">Loading photos...</div>';
+      
+      try {
+        const response = await fetch(`/.netlify/functions/smugmug?action=images&albumKey=${albumKey}`);
+        const data = await response.json();
+        
+        if (data.success && data.images) {
+          gcAlbumPhotos = data.images;
+          renderPhotoGrid();
+        } else {
+          grid.innerHTML = '<div class="loading">No photos found</div>';
+        }
+      } catch (err) {
+        console.error('Failed to load photos:', err);
+        grid.innerHTML = '<div class="loading">Error loading photos</div>';
+      }
+    }
+    
+    function renderPhotoGrid(filter = '') {
+      const grid = document.getElementById('gcPhotoGrid');
+      
+      let photos = gcAlbumPhotos;
+      if (filter) {
+        photos = photos.filter(p => 
+          (p.title || p.filename || '').toLowerCase().includes(filter.toLowerCase())
+        );
+      }
+      
+      if (photos.length === 0) {
+        grid.innerHTML = '<div class="loading">No photos match your search</div>';
+        return;
+      }
+      
+      grid.innerHTML = photos.map(photo => `
+        <div class="photo-card ${gcSelectedSmugMugPhoto?.key === photo.key ? 'selected' : ''}" 
+             onclick="selectPhotoCard('${photo.key}')">
+          <img src="${photo.thumbUrl || photo.webUrl}" alt="${photo.title || 'Photo'}" 
+               onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect fill=%22%23f5f5f5%22 width=%22100%22 height=%22100%22/></svg>'">
+        </div>
+      `).join('');
+    }
+    
+    function filterAlbumPhotos(value) {
+      renderPhotoGrid(value);
+    }
+    
+    function selectPhotoCard(key) {
+      gcSelectedSmugMugPhoto = gcAlbumPhotos.find(p => p.key === key);
+      document.getElementById('btnSelectPhoto').disabled = !gcSelectedSmugMugPhoto;
+      renderPhotoGrid(document.getElementById('gcPhotoSearch').value);
+    }
+    
+    function selectSmugMugPhoto() {
+      if (!gcSelectedSmugMugPhoto) return;
+      
+      // Use the largest available URL
+      const imageUrl = gcSelectedSmugMugPhoto.largeUrl || gcSelectedSmugMugPhoto.webUrl || gcSelectedSmugMugPhoto.thumbUrl;
+      
+      if (imageUrl) {
+        loadPhotoToCanvas(imageUrl);
+        closeSmugMugPhotoBrowser();
+      } else {
+        showToast('Could not load image URL', 'error');
       }
     }
   </script>
