@@ -2316,37 +2316,37 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         </div>
       </div>
       
-      <!-- Stories Sub-Panel -->
+      <!-- Stories Sub-Panel (All Bash Content) -->
       <div class="bash-sub-panel" id="bashStoriesPanel">
         <div class="toolbar" style="margin-bottom: 15px;">
           <button class="btn-new" onclick="openBashStoryModal()">
             <span>+</span> New Story
           </button>
-          <select id="bashStoryTypeFilter" onchange="filterBashStories()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px; margin-left: 10px;">
-            <option value="">All Types</option>
-            <option value="recap">Game Recap</option>
-            <option value="preview">Preview</option>
-            <option value="feature">Feature</option>
-            <option value="daily">Daily Roundup</option>
+          <select id="bashContentTypeFilter" onchange="filterBashContent()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px; margin-left: 10px;">
+            <option value="">All Content</option>
+            <option value="scorebook">Scorebook Stories</option>
+            <option value="story">Feature Stories</option>
+            <option value="recap">Nightly Recaps</option>
           </select>
-          <span id="bashStoryCount" style="margin-left: auto; font-size: 13px; color: #666;">0 stories</span>
+          <span id="bashContentCount" style="margin-left: auto; font-size: 13px; color: #666;">0 items</span>
         </div>
         
         <div style="overflow-x: auto;">
-          <table class="bash-table" id="bashStoriesTable">
+          <table class="bash-table" id="bashContentTable">
             <thead>
               <tr>
                 <th style="width: 30px;">📌</th>
                 <th>Title</th>
                 <th>Type</th>
                 <th>Day</th>
-                <th>Author</th>
+                <th>Teams</th>
+                <th>Main Site</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
             </thead>
-            <tbody id="bashStoriesBody">
-              <tr><td colspan="7" class="loading">Loading stories...</td></tr>
+            <tbody id="bashContentBody">
+              <tr><td colspan="8" class="loading">Loading content...</td></tr>
             </tbody>
           </table>
         </div>
@@ -2706,15 +2706,6 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           
           <div class="bash-form-row cols-3">
             <div class="form-group">
-              <label>Type</label>
-              <select id="bashStoryType" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
-                <option value="recap">Game Recap</option>
-                <option value="preview">Preview</option>
-                <option value="feature">Feature</option>
-                <option value="daily">Daily Roundup</option>
-              </select>
-            </div>
-            <div class="form-group">
               <label>Day</label>
               <select id="bashStoryDay" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
                 <option value="">Select day...</option>
@@ -2726,9 +2717,22 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
               </select>
             </div>
             <div class="form-group">
-              <label>Author</label>
-              <input type="text" id="bashStoryAuthor" placeholder="Author name" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+              <label>Division</label>
+              <select id="bashStoryDivision" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                <option value="">Both/General</option>
+                <option value="Boys">Boys</option>
+                <option value="Girls">Girls</option>
+              </select>
             </div>
+            <div class="form-group">
+              <label>Author</label>
+              <input type="text" id="bashStoryAuthor" placeholder="Author name" value="Ball603 Staff" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+            </div>
+          </div>
+          
+          <div class="form-group" style="margin-bottom: 15px;">
+            <label>Teams (comma-separated, for team page display)</label>
+            <input type="text" id="bashStoryTeams" placeholder="e.g. Franklin, Kennett, Profile" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
           </div>
           
           <div class="form-group" style="margin-bottom: 15px;">
@@ -8608,7 +8612,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     let bashSchedule = [];
     let bashChampions = [];
     let bashAwards = [];
-    let bashStories = [];
+    let bashContent = [];
     let bashSettings = {
       year: 2025,
       startDate: '2025-12-26',
@@ -8655,66 +8659,74 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       renderBashAwards();
     }
     
-    // ===== BASH STORIES MANAGEMENT =====
-    async function loadBashStories() {
-      const { data, error } = await supabase.from('bash_stories').select('*').order('pinned', { ascending: false }).order('created_at', { ascending: false });
-      bashStories = error ? [] : (data || []);
-      renderBashStories();
+    // ===== BASH CONTENT MANAGEMENT (Unified: scorebook, story, recap) =====
+    async function loadBashContent() {
+      const { data, error } = await supabase.from('bash_content').select('*').order('pinned', { ascending: false }).order('published_at', { ascending: false });
+      bashContent = error ? [] : (data || []);
+      renderBashContent();
     }
     
-    function renderBashStories() {
-      const tbody = document.getElementById('bashStoriesBody');
-      const typeFilter = document.getElementById('bashStoryTypeFilter').value;
-      let filtered = bashStories.filter(s => !typeFilter || s.type === typeFilter);
-      document.getElementById('bashStoryCount').textContent = filtered.length + ' stories';
+    // Alias for backward compatibility
+    async function loadBashStories() { await loadBashContent(); }
+    
+    function renderBashContent() {
+      const tbody = document.getElementById('bashContentBody');
+      const typeFilter = document.getElementById('bashContentTypeFilter')?.value || '';
+      let filtered = bashContent.filter(c => !typeFilter || c.content_type === typeFilter);
+      document.getElementById('bashContentCount').textContent = filtered.length + ' items';
       
       if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: #888;">No stories found. Click "New Story" to create one.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #888;">No content found. Create stories using "New Story" or via the Scorebook.</td></tr>';
         return;
       }
       
-      const typeLabels = { recap: 'Game Recap', preview: 'Preview', feature: 'Feature', daily: 'Daily Roundup' };
-      tbody.innerHTML = filtered.map(s => `
+      const typeLabels = { scorebook: '📊 Scorebook', story: '📰 Story', recap: '🌙 Recap' };
+      const typeColors = { scorebook: '#e3f2fd', story: '#fff3e0', recap: '#e8f5e9' };
+      
+      tbody.innerHTML = filtered.map(c => `
         <tr>
           <td style="text-align: center;">
-            <button onclick="toggleBashStoryPin('${s.id}')" style="background: none; border: none; cursor: pointer; font-size: 16px; opacity: ${s.pinned ? '1' : '0.3'};">📌</button>
+            <button onclick="toggleBashContentPin('${c.id}')" style="background: none; border: none; cursor: pointer; font-size: 16px; opacity: ${c.pinned ? '1' : '0.3'};">📌</button>
           </td>
-          <td><strong>${s.title || 'Untitled'}</strong></td>
-          <td>${typeLabels[s.type] || s.type || '-'}</td>
-          <td>${s.day ? 'Day ' + s.day : '-'}</td>
-          <td>${s.author || '-'}</td>
-          <td><span style="padding: 3px 8px; border-radius: 10px; font-size: 11px; background: ${s.published ? '#e8f5e9' : '#ffebee'}; color: ${s.published ? '#2e7d32' : '#c62828'};">${s.published ? 'Published' : 'Draft'}</span></td>
+          <td><strong>${c.title || 'Untitled'}</strong></td>
+          <td><span style="padding: 3px 8px; border-radius: 10px; font-size: 11px; background: ${typeColors[c.content_type] || '#f5f5f5'};">${typeLabels[c.content_type] || c.content_type}</span></td>
+          <td>${c.day ? 'Day ' + c.day : '-'}</td>
+          <td style="font-size: 11px; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${(c.teams || []).join(', ') || '-'}</td>
+          <td style="text-align: center;">${c.show_on_main_site ? '✅' : '-'}</td>
+          <td><span style="padding: 3px 8px; border-radius: 10px; font-size: 11px; background: ${c.published ? '#e8f5e9' : '#ffebee'}; color: ${c.published ? '#2e7d32' : '#c62828'};">${c.published ? 'Published' : 'Draft'}</span></td>
           <td>
-            <button onclick="editBashStory('${s.id}')" style="background: none; border: none; color: #1976d2; cursor: pointer; font-size: 12px;">Edit</button>
-            <button onclick="deleteBashStory('${s.id}')" style="background: none; border: none; color: #d32f2f; cursor: pointer; font-size: 12px;">Delete</button>
+            ${c.content_type === 'story' ? `<button onclick="editBashStory('${c.id}')" style="background: none; border: none; color: #1976d2; cursor: pointer; font-size: 12px;">Edit</button>` : ''}
+            <button onclick="deleteBashContent('${c.id}')" style="background: none; border: none; color: #d32f2f; cursor: pointer; font-size: 12px;">Delete</button>
           </td>
         </tr>
       `).join('');
     }
     
-    function filterBashStories() { renderBashStories(); }
+    function filterBashContent() { renderBashContent(); }
     
     function openBashStoryModal(id) {
       document.getElementById('bashStoryModalTitle').textContent = id ? 'Edit Story' : 'New Story';
       document.getElementById('bashStoryId').value = id || '';
       
       if (id) {
-        const s = bashStories.find(x => x.id === id);
+        const s = bashContent.find(x => x.id === id);
         if (s) {
           document.getElementById('bashStoryTitle').value = s.title || '';
-          document.getElementById('bashStoryType').value = s.type || 'recap';
           document.getElementById('bashStoryDay').value = s.day || '';
-          document.getElementById('bashStoryAuthor').value = s.author || '';
-          document.getElementById('bashStoryImage').value = s.image_url || '';
+          document.getElementById('bashStoryDivision').value = s.division || '';
+          document.getElementById('bashStoryAuthor').value = s.author || 'Ball603 Staff';
+          document.getElementById('bashStoryTeams').value = (s.teams || []).join(', ');
+          document.getElementById('bashStoryImage').value = s.featured_image || '';
           document.getElementById('bashStoryContent').value = s.content || '';
           document.getElementById('bashStoryPinned').checked = s.pinned || false;
           document.getElementById('bashStoryPublished').checked = s.published !== false;
         }
       } else {
         document.getElementById('bashStoryTitle').value = '';
-        document.getElementById('bashStoryType').value = 'recap';
         document.getElementById('bashStoryDay').value = '';
-        document.getElementById('bashStoryAuthor').value = '';
+        document.getElementById('bashStoryDivision').value = '';
+        document.getElementById('bashStoryAuthor').value = 'Ball603 Staff';
+        document.getElementById('bashStoryTeams').value = '';
         document.getElementById('bashStoryImage').value = '';
         document.getElementById('bashStoryContent').value = '';
         document.getElementById('bashStoryPinned').checked = false;
@@ -8728,52 +8740,69 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     
     async function saveBashStory() {
       const id = document.getElementById('bashStoryId').value;
+      const teamsStr = document.getElementById('bashStoryTeams').value;
+      const teamsArray = teamsStr ? teamsStr.split(',').map(t => t.trim()).filter(t => t) : [];
+      
       const data = {
+        content_type: 'story',
         title: document.getElementById('bashStoryTitle').value,
-        type: document.getElementById('bashStoryType').value,
         day: document.getElementById('bashStoryDay').value ? parseInt(document.getElementById('bashStoryDay').value) : null,
-        author: document.getElementById('bashStoryAuthor').value || null,
-        image_url: document.getElementById('bashStoryImage').value || null,
+        division: document.getElementById('bashStoryDivision').value || null,
+        author: document.getElementById('bashStoryAuthor').value || 'Ball603 Staff',
+        teams: teamsArray,
+        featured_image: document.getElementById('bashStoryImage').value || null,
         content: document.getElementById('bashStoryContent').value || null,
         pinned: document.getElementById('bashStoryPinned').checked,
-        published: document.getElementById('bashStoryPublished').checked
+        published: document.getElementById('bashStoryPublished').checked,
+        show_on_main_site: false // Feature stories stay on Bash only
       };
+      
+      // Generate slug if new
+      if (!id) {
+        data.slug = data.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') + '-' + Date.now();
+        data.excerpt = (data.content || '').split('.').slice(0, 2).join('.') + '.';
+      }
       
       try {
         const { error } = id 
-          ? await supabase.from('bash_stories').update(data).eq('id', id)
-          : await supabase.from('bash_stories').insert([data]);
+          ? await supabase.from('bash_content').update(data).eq('id', id)
+          : await supabase.from('bash_content').insert([data]);
         if (error) throw error;
         showToast('Story saved', 'success');
         closeBashStoryModal();
-        await loadBashStories();
+        await loadBashContent();
       } catch (err) {
         showToast('Error: ' + err.message, 'error');
       }
     }
     
-    async function deleteBashStory(id) {
-      if (!confirm('Delete this story?')) return;
+    async function deleteBashContent(id) {
+      if (!confirm('Delete this content?')) return;
       try {
-        const { error } = await supabase.from('bash_stories').delete().eq('id', id);
+        const { error } = await supabase.from('bash_content').delete().eq('id', id);
         if (error) throw error;
-        showToast('Story deleted', 'success');
-        await loadBashStories();
+        showToast('Deleted', 'success');
+        await loadBashContent();
       } catch (err) {
         showToast('Error: ' + err.message, 'error');
       }
     }
     
-    async function toggleBashStoryPin(id) {
-      const story = bashStories.find(s => s.id === id);
-      if (!story) return;
+    // Alias for backward compatibility
+    async function deleteBashStory(id) { await deleteBashContent(id); }
+    
+    async function toggleBashContentPin(id) {
+      const item = bashContent.find(c => c.id === id);
+      if (!item) return;
       try {
-        const { error } = await supabase.from('bash_stories').update({ pinned: !story.pinned }).eq('id', id);
+        const { error } = await supabase.from('bash_content').update({ pinned: !item.pinned }).eq('id', id);
         if (error) throw error;
-        showToast(story.pinned ? 'Unpinned' : 'Pinned', 'success');
-        await loadBashStories();
+        showToast(item.pinned ? 'Unpinned' : 'Pinned', 'success');
+        await loadBashContent();
       } catch (err) {
         showToast('Error: ' + err.message, 'error');
+      }
+    }
       }
     }
     
@@ -9518,37 +9547,57 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       // Convert to HTML
       const articleHtml = articleText.split('\n\n').map(p => '<p>' + p.trim() + '</p>').join('');
       
-      // Create article with bash-game tag
-      const articleData = {
+      // Determine tournament day from game date
+      const dateMap = { 'Dec 26': 1, 'Dec 27': 2, 'Dec 28': 3, 'Dec 29': 4, 'Dec 30': 5 };
+      const gameDay = dateMap[bashSBSelectedGame.date] || null;
+      
+      // Create bash_content entry for scorebook story
+      const contentData = {
+        content_type: 'scorebook',
         title: headline,
         slug: slug,
         content: articleHtml,
         excerpt: articleText.split('.').slice(0, 2).join('.') + '.',
         author: 'Ball603 Staff',
-        status: 'published',
-        tags: ['bash-game', bashSBSelectedGame.division || 'Boys', 'The Bash'],
+        day: gameDay,
+        division: bashSBSelectedGame.division || null,
+        game_id: bashSBSelectedGame.id,
+        teams: [bashSBSelectedGame.away, bashSBSelectedGame.home].filter(t => t),
+        pinned: false,
+        published: true,
+        show_on_main_site: false, // Scorebook stories stay on Bash only
         published_at: new Date().toISOString()
       };
       
       try {
-        const { data, error } = await supabase.from('articles').insert([articleData]).select();
+        const { error } = await supabase.from('bash_content').insert([contentData]);
         if (error) throw error;
         
-        // Update game score in bash_schedule
-        await supabase.from('bash_schedule').update({
+        // Update game score in bash_schedule and trigger bracket advancement
+        const gameUpdate = {
           away_score: awayFinal,
           home_score: homeFinal,
           overtime: bashSBOTCount > 0,
-          recap: '/article/' + slug
-        }).eq('id', bashSBSelectedGame.id);
+          recap: '/the-bash#stories'
+        };
         
-        showToast('Story published!', 'success');
+        await supabase.from('bash_schedule').update(gameUpdate).eq('id', bashSBSelectedGame.id);
+        
+        // Advance bracket winner
+        await advanceBracketWinner({
+          ...bashSBSelectedGame,
+          away_score: awayFinal,
+          home_score: homeFinal
+        });
+        
+        showToast('Story published to The Bash!', 'success');
         
         // Reset and refresh
         closeBashSBEntry();
         document.getElementById('bashSBPreviewPanel').style.display = 'none';
         document.getElementById('bashSBEmptyState').style.display = 'block';
         await loadBashSchedule();
+        await loadBashContent();
         filterBashSBGames();
         
       } catch (err) {
@@ -9645,27 +9694,57 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       
       const slug = headline.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') + '-' + Date.now();
       
-      const articleData = {
+      // Determine day from selected date
+      const dateMap = { 'Dec 26': 1, 'Dec 27': 2, 'Dec 28': 3, 'Dec 29': 4, 'Dec 30': 5 };
+      const recapDay = dateMap[date] || null;
+      
+      // Get all teams that played that day
+      const gamesForDay = bashSchedule.filter(g => g.date === date && g.away_score !== null);
+      const teamsPlayed = [...new Set(gamesForDay.flatMap(g => [g.away, g.home].filter(t => t)))];
+      
+      // Save to bash_content (for The Bash and team pages)
+      const contentData = {
+        content_type: 'recap',
         title: headline,
         slug: slug,
         content: content,
         excerpt: highlights.split('\n')[0],
         author: 'Ball603 Staff',
-        status: 'published',
-        tags: ['bash-recap', 'The Bash', 'featured'],
+        day: recapDay,
+        teams: teamsPlayed,
+        pinned: false,
+        published: true,
+        show_on_main_site: true, // Recaps show on main site!
         published_at: new Date().toISOString()
       };
       
       try {
-        const { error } = await supabase.from('articles').insert([articleData]);
-        if (error) throw error;
+        // Save to bash_content for The Bash and team pages
+        const { error: contentError } = await supabase.from('bash_content').insert([contentData]);
+        if (contentError) throw contentError;
+        
+        // ALSO save to articles for main site display
+        const articleData = {
+          title: headline,
+          slug: slug,
+          content: content,
+          excerpt: highlights.split('\n')[0],
+          author: 'Ball603 Staff',
+          status: 'published',
+          tags: ['bash-recap', 'The Bash', 'featured'],
+          published_at: new Date().toISOString()
+        };
+        
+        const { error: articleError } = await supabase.from('articles').insert([articleData]);
+        if (articleError) console.warn('Article insert warning:', articleError);
         
         showToast('Recap published to both sites!', 'success');
         
-        // Clear form
+        // Clear form and refresh
         document.getElementById('bashRecapHeadline').value = '';
         document.getElementById('bashRecapHighlights').value = '';
         document.getElementById('bashRecapPreview').value = '';
+        await loadBashContent();
         
       } catch (err) {
         console.error('Publish error:', err);
