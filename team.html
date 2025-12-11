@@ -70,22 +70,22 @@
         Farmington, NH • Division IV
       </div>
       
-      <!-- Championship Highlights - Left Aligned Stats -->
+      <!-- Championship Highlights - Championships Big, Others Smaller -->
       <div class="team-hero-stats" id="heroStats">
-        <div class="team-hero-stats-row">
+        <div class="team-hero-stats-primary">
           <div class="team-hero-stat championship">
             <span class="stat-icon">🏆</span>
             <span class="stat-value">3</span>
-            <span class="stat-label">State Titles</span>
+            <span class="stat-label">State Championships</span>
           </div>
-          <div class="team-hero-stat runner-up">
+        </div>
+        <div class="team-hero-stats-secondary">
+          <div class="team-hero-stat-small runner-up">
             <span class="stat-icon">🥈</span>
             <span class="stat-value">1</span>
             <span class="stat-label">Runner-Up</span>
           </div>
-        </div>
-        <div class="team-hero-stats-row">
-          <div class="team-hero-stat finals">
+          <div class="team-hero-stat-small finals">
             <span class="stat-icon">🏀</span>
             <span class="stat-value">4</span>
             <span class="stat-label">Title Games</span>
@@ -95,12 +95,14 @@
     </div>
   </section>
 
-  <!-- Sponsor Banner (if sponsor exists) -->
-  <section class="team-sponsor" id="teamSponsor" style="display: none;">
+  <!-- Sponsor Banner -->
+  <section class="team-sponsor" id="teamSponsor">
     <div class="sponsor-inner">
       <span class="sponsor-text">Farmington coverage presented by</span>
-      <a href="#" class="sponsor-link" id="sponsorLink" target="_blank">
-        <img src="" alt="Sponsor" class="sponsor-logo" id="sponsorLogo">
+      <a href="https://example.com" class="sponsor-link" id="sponsorLink" target="_blank">
+        <div class="sponsor-logo-placeholder" id="sponsorLogo">
+          <span>SPONSOR LOGO</span>
+        </div>
       </a>
     </div>
   </section>
@@ -527,14 +529,12 @@
         girls: 'Division IV'
       },
       splitDivisions: false,
-      // Sponsor info (null if no sponsor)
-      sponsor: null
-      // Example with sponsor:
-      // sponsor: {
-      //   name: 'Local Business',
-      //   logo: '/sponsors/local-business.png',
-      //   url: 'https://localbusiness.com'
-      // }
+      // Sponsor info (set to object to show, null to hide)
+      sponsor: {
+        name: 'Example Sponsor',
+        logo: null, // Will show placeholder if null
+        url: 'https://example.com'
+      }
     };
 
     // Supabase client
@@ -614,20 +614,23 @@
 
     // ===== SPONSOR =====
     function initSponsor() {
+      const sponsorSection = document.getElementById('teamSponsor');
+      
       if (TEAM_CONFIG.sponsor) {
-        const sponsorSection = document.getElementById('teamSponsor');
-        const sponsorLogo = document.getElementById('sponsorLogo');
-        const sponsorLink = document.getElementById('sponsorLink');
-        
-        sponsorLogo.src = TEAM_CONFIG.sponsor.logo;
-        sponsorLogo.alt = TEAM_CONFIG.sponsor.name;
-        sponsorLink.href = TEAM_CONFIG.sponsor.url;
-        
         // Update presented by text
         document.querySelector('.sponsor-text').textContent = 
           `${TEAM_CONFIG.name} coverage presented by`;
         
+        // If there's a logo URL, show it; otherwise keep placeholder
+        if (TEAM_CONFIG.sponsor.logo) {
+          const sponsorLogoEl = document.getElementById('sponsorLogo');
+          sponsorLogoEl.innerHTML = `<img src="${TEAM_CONFIG.sponsor.logo}" alt="${TEAM_CONFIG.sponsor.name}" class="sponsor-logo-img">`;
+        }
+        
+        document.getElementById('sponsorLink').href = TEAM_CONFIG.sponsor.url || '#';
         sponsorSection.style.display = 'block';
+      } else {
+        sponsorSection.style.display = 'none';
       }
     }
 
@@ -832,24 +835,24 @@
       
       statsContainer.style.display = 'flex';
       statsContainer.innerHTML = `
-        <div class="team-hero-stats-row">
-          ${championships > 0 ? `
+        ${championships > 0 ? `
+          <div class="team-hero-stats-primary">
             <div class="team-hero-stat championship">
               <span class="stat-icon">🏆</span>
               <span class="stat-value">${championships}</span>
-              <span class="stat-label">State Title${championships !== 1 ? 's' : ''}</span>
+              <span class="stat-label">State Championship${championships !== 1 ? 's' : ''}</span>
             </div>
-          ` : ''}
+          </div>
+        ` : ''}
+        <div class="team-hero-stats-secondary">
           ${runnerUps > 0 ? `
-            <div class="team-hero-stat runner-up">
+            <div class="team-hero-stat-small runner-up">
               <span class="stat-icon">🥈</span>
               <span class="stat-value">${runnerUps}</span>
               <span class="stat-label">Runner-Up${runnerUps !== 1 ? 's' : ''}</span>
             </div>
           ` : ''}
-        </div>
-        <div class="team-hero-stats-row">
-          <div class="team-hero-stat finals">
+          <div class="team-hero-stat-small finals">
             <span class="stat-icon">🏀</span>
             <span class="stat-value">${total}</span>
             <span class="stat-label">Title Game${total !== 1 ? 's' : ''}</span>
