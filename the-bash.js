@@ -36,31 +36,77 @@ document.addEventListener('DOMContentLoaded', () => {
 // ===== SNOW EFFECT =====
 function initSnowEffect() {
   const container = document.getElementById('snowContainer');
+  const tagline = document.getElementById('bashTagline');
   if (!container) return;
   
   const snowflakes = ['❄', '❅', '❆', '✻', '✼', '❉'];
-  const numberOfSnowflakes = 50;
   
-  for (let i = 0; i < numberOfSnowflakes; i++) {
-    const snowflake = document.createElement('div');
-    snowflake.className = 'snowflake';
-    snowflake.innerHTML = snowflakes[Math.floor(Math.random() * snowflakes.length)];
-    snowflake.style.left = Math.random() * 100 + '%';
-    snowflake.style.fontSize = (Math.random() * 10 + 10) + 'px';
-    snowflake.style.opacity = Math.random() * 0.6 + 0.4;
-    snowflake.style.animationDuration = (Math.random() * 2 + 2) + 's';
-    snowflake.style.animationDelay = (Math.random() * 2) + 's';
-    container.appendChild(snowflake);
-  }
+  // Create snowflakes in waves - heavy at start, tapering off
+  const waves = [
+    { count: 40, delay: 0 },      // Heavy initial burst
+    { count: 30, delay: 500 },    // Still heavy
+    { count: 25, delay: 1000 },   // Medium-heavy
+    { count: 20, delay: 1500 },   // Medium
+    { count: 15, delay: 2000 },   // Medium-light
+    { count: 12, delay: 2500 },   // Light
+    { count: 10, delay: 3000 },   // Light
+    { count: 8, delay: 3500 },    // Very light
+    { count: 6, delay: 4000 },    // Very light
+    { count: 5, delay: 4500 },    // Sparse
+    { count: 4, delay: 5000 },    // Sparse
+    { count: 3, delay: 5500 },    // Sparse
+    { count: 2, delay: 6000 },    // Almost done
+    { count: 2, delay: 6500 },    // Almost done
+    { count: 1, delay: 7000 },    // Final flakes
+    { count: 1, delay: 7500 }     // Last one
+  ];
   
-  // Stop snow after 3 seconds
+  waves.forEach(wave => {
+    setTimeout(() => {
+      for (let i = 0; i < wave.count; i++) {
+        createSnowflake(container, snowflakes);
+      }
+    }, wave.delay);
+  });
+  
+  // Fade out snow container and show tagline after 8 seconds
   setTimeout(() => {
     container.style.opacity = '0';
     container.style.transition = 'opacity 1s ease';
+    
+    // Show the tagline
+    if (tagline) {
+      tagline.classList.add('visible');
+    }
+    
+    // Remove container after fade
     setTimeout(() => {
       container.remove();
     }, 1000);
-  }, 3000);
+  }, 8000);
+}
+
+function createSnowflake(container, snowflakes) {
+  const snowflake = document.createElement('div');
+  snowflake.className = 'snowflake';
+  snowflake.innerHTML = snowflakes[Math.floor(Math.random() * snowflakes.length)];
+  snowflake.style.left = Math.random() * 100 + '%';
+  snowflake.style.fontSize = (Math.random() * 12 + 8) + 'px';
+  snowflake.style.opacity = Math.random() * 0.4 + 0.6; // 0.6 to 1.0 opacity
+  
+  // Varying fall speeds
+  const duration = Math.random() * 2 + 2; // 2-4 seconds
+  snowflake.style.animationDuration = duration + 's';
+  
+  // Slight random delay for natural effect
+  snowflake.style.animationDelay = (Math.random() * 0.5) + 's';
+  
+  container.appendChild(snowflake);
+  
+  // Remove snowflake after animation completes
+  setTimeout(() => {
+    snowflake.remove();
+  }, (duration + 0.5) * 1000);
 }
 
 // ===== TAB NAVIGATION =====
