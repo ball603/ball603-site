@@ -249,6 +249,12 @@
     .bash-scorer-row { display: flex; gap: 6px; margin-bottom: 6px; }
     .bash-scorer-row .bash-scorer-name { flex: 2; padding: 6px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; }
     .bash-scorer-row .bash-scorer-pts { width: 50px; padding: 6px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; text-align: center; }
+    .bash-roster-container { max-height: 200px; overflow-y: auto; border: 1px solid #eee; border-radius: 5px; padding: 6px; background: #fafafa; }
+    .bash-roster-row { display: flex; gap: 6px; margin-bottom: 4px; align-items: center; }
+    .bash-roster-row .player-info { flex: 1; font-size: 12px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .bash-roster-row .player-num { color: #888; font-size: 11px; margin-right: 4px; }
+    .bash-roster-row input[type="number"] { width: 45px; padding: 4px 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; text-align: center; }
+    .bash-roster-row input[type="text"] { flex: 1; padding: 4px 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; }
   </style>
 </head>
 <body>
@@ -2223,23 +2229,27 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
                   <button onclick="addBashSBOT()" style="margin-top: 8px; background: #eee; border: 1px solid #ccc; padding: 4px 10px; border-radius: 4px; font-size: 11px; cursor: pointer;">+ Add OT</button>
                 </div>
                 
-                <!-- Scoring Leaders -->
+                <!-- Rosters / Scorers -->
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
                   <div>
-                    <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 6px;" id="bashSBAwayLabel">Away Scorers</label>
-                    <div id="bashSBAwayScorers" style="font-size: 12px;">
-                      <div class="bash-scorer-row"><input type="text" placeholder="Name" class="bash-scorer-name"><input type="number" placeholder="Pts" class="bash-scorer-pts"></div>
-                      <div class="bash-scorer-row"><input type="text" placeholder="Name" class="bash-scorer-name"><input type="number" placeholder="Pts" class="bash-scorer-pts"></div>
-                      <div class="bash-scorer-row"><input type="text" placeholder="Name" class="bash-scorer-name"><input type="number" placeholder="Pts" class="bash-scorer-pts"></div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                      <label style="font-size: 12px; font-weight: 600;" id="bashSBAwayLabel">Away Scorers</label>
+                      <span style="font-size: 11px; color: #888;">Total: <strong id="bashSBAwayTotal">0</strong></span>
                     </div>
+                    <div id="bashSBAwayScorers" class="bash-roster-container">
+                      <!-- Populated by JS -->
+                    </div>
+                    <button onclick="addBashBlankPlayer('away')" style="margin-top: 6px; background: #f5f5f5; border: 1px solid #ddd; padding: 4px 10px; border-radius: 4px; font-size: 11px; cursor: pointer; width: 100%;">+ Add Player</button>
                   </div>
                   <div>
-                    <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 6px;" id="bashSBHomeLabel">Home Scorers</label>
-                    <div id="bashSBHomeScorers" style="font-size: 12px;">
-                      <div class="bash-scorer-row"><input type="text" placeholder="Name" class="bash-scorer-name"><input type="number" placeholder="Pts" class="bash-scorer-pts"></div>
-                      <div class="bash-scorer-row"><input type="text" placeholder="Name" class="bash-scorer-name"><input type="number" placeholder="Pts" class="bash-scorer-pts"></div>
-                      <div class="bash-scorer-row"><input type="text" placeholder="Name" class="bash-scorer-name"><input type="number" placeholder="Pts" class="bash-scorer-pts"></div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                      <label style="font-size: 12px; font-weight: 600;" id="bashSBHomeLabel">Home Scorers</label>
+                      <span style="font-size: 11px; color: #888;">Total: <strong id="bashSBHomeTotal">0</strong></span>
                     </div>
+                    <div id="bashSBHomeScorers" class="bash-roster-container">
+                      <!-- Populated by JS -->
+                    </div>
+                    <button onclick="addBashBlankPlayer('home')" style="margin-top: 6px; background: #f5f5f5; border: 1px solid #ddd; padding: 4px 10px; border-radius: 4px; font-size: 11px; cursor: pointer; width: 100%;">+ Add Player</button>
                   </div>
                 </div>
                 
@@ -2284,7 +2294,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             
             <!-- Empty State -->
             <div id="bashSBEmptyState" style="background: #f9f9f9; border: 2px dashed #ddd; border-radius: 8px; padding: 60px 20px; text-align: center;">
-              <div style="font-size: 48px; margin-bottom: 10px;">📝</div>
+              <div style="font-size: 48px; margin-bottom: 10px; color: #ccc;">&#9998;</div>
               <h3 style="margin: 0 0 8px; color: #666;">Select a Game</h3>
               <p style="margin: 0; color: #888; font-size: 13px;">Choose a game from the list to create a scorebook story</p>
             </div>
@@ -8775,8 +8785,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('bashSBMatchup').textContent = bashSBSelectedGame.away + ' @ ' + bashSBSelectedGame.home;
       document.getElementById('bashSBAwayName').textContent = bashSBSelectedGame.away;
       document.getElementById('bashSBHomeName').textContent = bashSBSelectedGame.home;
-      document.getElementById('bashSBAwayLabel').textContent = bashSBSelectedGame.away + ' Scorers';
-      document.getElementById('bashSBHomeLabel').textContent = bashSBSelectedGame.home + ' Scorers';
+      document.getElementById('bashSBAwayLabel').textContent = bashSBSelectedGame.away;
+      document.getElementById('bashSBHomeLabel').textContent = bashSBSelectedGame.home;
       
       // Clear quarter scores
       ['bashSBAwayQ1','bashSBAwayQ2','bashSBAwayQ3','bashSBAwayQ4','bashSBAwayFinal',
@@ -8790,15 +8800,80 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('bashSBAwayOTCell').innerHTML = '';
       document.getElementById('bashSBHomeOTCell').innerHTML = '';
       
-      // Clear scorers
-      ['bashSBAwayScorers', 'bashSBHomeScorers'].forEach(id => {
-        document.getElementById(id).innerHTML = 
-          '<div class="bash-scorer-row"><input type="text" placeholder="Name" class="bash-scorer-name"><input type="number" placeholder="Pts" class="bash-scorer-pts"></div>' +
-          '<div class="bash-scorer-row"><input type="text" placeholder="Name" class="bash-scorer-name"><input type="number" placeholder="Pts" class="bash-scorer-pts"></div>' +
-          '<div class="bash-scorer-row"><input type="text" placeholder="Name" class="bash-scorer-name"><input type="number" placeholder="Pts" class="bash-scorer-pts"></div>';
-      });
+      // Populate rosters
+      const rosters = getBashTeamRosters();
+      populateBashRoster('away', rosters.away, bashSBSelectedGame.away);
+      populateBashRoster('home', rosters.home, bashSBSelectedGame.home);
+      
+      // Reset totals
+      document.getElementById('bashSBAwayTotal').textContent = '0';
+      document.getElementById('bashSBHomeTotal').textContent = '0';
       
       document.getElementById('bashSBNotes').value = '';
+    }
+    
+    function getBashTeamRosters() {
+      if (!bashSBSelectedGame || typeof ROSTERS_DATA === 'undefined') return { away: null, home: null };
+      
+      const gender = bashSBSelectedGame.division || 'Boys';
+      const awayName = bashSBSelectedGame.away;
+      const homeName = bashSBSelectedGame.home;
+      
+      let awayRoster = null;
+      let homeRoster = null;
+      
+      if (ROSTERS_DATA.rosters) {
+        awayRoster = ROSTERS_DATA.rosters.find(r => 
+          r.gender === gender && 
+          (r.school === awayName || awayName.includes(r.school) || r.school.includes(awayName))
+        );
+        homeRoster = ROSTERS_DATA.rosters.find(r => 
+          r.gender === gender && 
+          (r.school === homeName || homeName.includes(r.school) || r.school.includes(homeName))
+        );
+      }
+      
+      return { away: awayRoster, home: homeRoster };
+    }
+    
+    function populateBashRoster(team, roster, teamName) {
+      const container = document.getElementById('bashSB' + team.charAt(0).toUpperCase() + team.slice(1) + 'Scorers');
+      container.innerHTML = '';
+      
+      if (roster && roster.players && roster.players.length > 0) {
+        roster.players.forEach(player => {
+          const row = document.createElement('div');
+          row.className = 'bash-roster-row';
+          row.innerHTML = 
+            '<span class="player-info" data-player="' + player.name + '" data-team="' + team + '"><span class="player-num">#' + player.number + '</span>' + player.name + '</span>' +
+            '<input type="number" placeholder="Pts" data-player="' + player.name + '" data-team="' + team + '" onchange="updateBashPointsTotal(\'' + team + '\')">';
+          container.appendChild(row);
+        });
+      } else {
+        // No roster found - add blank rows
+        for (let i = 0; i < 8; i++) {
+          addBashBlankPlayer(team);
+        }
+      }
+    }
+    
+    function addBashBlankPlayer(team) {
+      const container = document.getElementById('bashSB' + team.charAt(0).toUpperCase() + team.slice(1) + 'Scorers');
+      const row = document.createElement('div');
+      row.className = 'bash-roster-row';
+      row.innerHTML = 
+        '<input type="text" placeholder="Player name" data-team="' + team + '">' +
+        '<input type="number" placeholder="Pts" data-team="' + team + '" onchange="updateBashPointsTotal(\'' + team + '\')">';
+      container.appendChild(row);
+    }
+    
+    function updateBashPointsTotal(team) {
+      const container = document.getElementById('bashSB' + team.charAt(0).toUpperCase() + team.slice(1) + 'Scorers');
+      let total = 0;
+      container.querySelectorAll('input[type="number"]').forEach(input => {
+        total += parseInt(input.value) || 0;
+      });
+      document.getElementById('bashSB' + team.charAt(0).toUpperCase() + team.slice(1) + 'Total').textContent = total;
     }
     
     function closeBashSBEntry() {
@@ -8836,9 +8911,20 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     function collectBashSBScorers(team) {
       const container = document.getElementById('bashSB' + team.charAt(0).toUpperCase() + team.slice(1) + 'Scorers');
       const scorers = [];
-      container.querySelectorAll('.bash-scorer-row').forEach(row => {
-        const name = row.querySelector('.bash-scorer-name').value.trim();
-        const pts = parseInt(row.querySelector('.bash-scorer-pts').value) || 0;
+      container.querySelectorAll('.bash-roster-row').forEach(row => {
+        // Get player name - either from span (roster) or input (blank player)
+        const nameSpan = row.querySelector('.player-info');
+        const nameInput = row.querySelector('input[type="text"]');
+        const ptsInput = row.querySelector('input[type="number"]');
+        
+        let name = '';
+        if (nameSpan) {
+          name = nameSpan.dataset.player || nameSpan.textContent.replace(/#\d+\s*/, '').trim();
+        } else if (nameInput) {
+          name = nameInput.value.trim();
+        }
+        
+        const pts = parseInt(ptsInput?.value) || 0;
         if (name && pts > 0) {
           scorers.push({ name, pts });
         }
