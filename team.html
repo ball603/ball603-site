@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Farmington Tigers Basketball - Schedule, Roster, News, and History on Ball603">
+  <meta name="theme-color" content="#f57c00">
+  <title>Farmington Tigers | Ball603</title>
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="/logos/100px/Farmington.png">
+  <link rel="apple-touch-icon" href="/logos/100px/Farmington.png">
+  
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <!-- Shared Styles -->
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/team.css">
+  
+  <!-- Open Graph -->
+  <meta property="og:title" content="Farmington Tigers | Ball603">
+  <meta property="og:description" content="Farmington Tigers Basketball - Schedule, Roster, News, Championship History">
+  <meta property="og:image" content="https://ball603.com/logos/100px/Farmington.png">
+  <meta property="og:url" content="https://ball603.com/team/farmington">
+  
+  <style>
+    /* Team-specific CSS Variables - will be dynamically set per team */
+    :root {
+      --team-primary: #f57c00;
+      --team-secondary: #1a1a1a;
+      --team-accent: #ffb74d;
+      --team-gradient: linear-gradient(135deg, #f57c00 0%, #e65100 100%);
+      --team-hero-bg: linear-gradient(135deg, #1a1a1a 0%, #333 50%, #f57c00 100%);
+    }
+  </style>
+</head>
+<body class="team-page">
+  <!-- Back to Main Site Banner -->
+  <div class="team-top-banner">
+    <a href="/" class="team-back-link">← Back to Ball603.com</a>
+    <span class="team-banner-text">Team Profile</span>
+  </div>
+  
+  <!-- Header -->
+  <header class="team-header">
+    <div class="team-header-inner">
+      <a href="/" class="team-header-logo">
+        <img src="/logos/logo.png" alt="Ball603" style="height: 32px;">
+      </a>
+      <nav class="team-header-nav">
+        <a href="#schedule" class="team-nav-link">Schedule</a>
+        <a href="#roster" class="team-nav-link">Roster</a>
+        <a href="#stories" class="team-nav-link">Stories</a>
+        <a href="#history" class="team-nav-link">History</a>
+      </nav>
+      <div class="team-header-gender">
+        <button class="gender-toggle active" data-gender="boys">Boys</button>
+        <button class="gender-toggle" data-gender="girls">Girls</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="team-hero" id="teamHero">
+    <div class="team-hero-bg"></div>
+    <div class="team-hero-content">
+      <div class="team-hero-logo-wrap">
+        <img src="/logos/100px/Farmington.png" alt="Farmington Tigers" class="team-hero-logo">
+      </div>
+      <div class="team-hero-info">
+        <h1 class="team-hero-name">Farmington Tigers</h1>
+        <div class="team-hero-meta">
+          <span class="team-division" id="teamDivision">Division III</span>
+          <span class="team-location">Farmington, NH</span>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Championship Highlights -->
+    <div class="team-hero-stats" id="heroStats">
+      <div class="team-hero-stat championship">
+        <span class="stat-icon">🏆</span>
+        <span class="stat-value">3</span>
+        <span class="stat-label">State Championships</span>
+      </div>
+      <div class="team-hero-stat runner-up">
+        <span class="stat-icon">🥈</span>
+        <span class="stat-value">1</span>
+        <span class="stat-label">Runner-Up</span>
+      </div>
+      <div class="team-hero-stat finals">
+        <span class="stat-icon">🏀</span>
+        <span class="stat-value">4</span>
+        <span class="stat-label">Championship Games</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Quick Stats Bar -->
+  <section class="team-quick-stats">
+    <div class="quick-stat">
+      <span class="quick-stat-label">Record</span>
+      <span class="quick-stat-value" id="currentRecord">--</span>
+    </div>
+    <div class="quick-stat">
+      <span class="quick-stat-label">Division Rank</span>
+      <span class="quick-stat-value" id="divisionRank">--</span>
+    </div>
+    <div class="quick-stat">
+      <span class="quick-stat-label">Next Game</span>
+      <span class="quick-stat-value" id="nextGame">--</span>
+    </div>
+    <div class="quick-stat">
+      <span class="quick-stat-label">Last Result</span>
+      <span class="quick-stat-value" id="lastResult">--</span>
+    </div>
+  </section>
+
+  <!-- Main Content -->
+  <main class="team-main">
+    <!-- Featured Story (if exists) -->
+    <section class="team-featured" id="featuredStory" style="display: none;">
+      <div class="featured-story-card">
+        <!-- Populated by JS -->
+      </div>
+    </section>
+
+    <!-- Tab Navigation -->
+    <div class="team-tabs" id="teamTabs">
+      <button class="team-tab active" data-tab="schedule">Schedule</button>
+      <button class="team-tab" data-tab="roster">Roster</button>
+      <button class="team-tab" data-tab="stories">Stories</button>
+      <button class="team-tab" data-tab="history">History</button>
+      <button class="team-tab" data-tab="1k-club">1K Club</button>
+      <button class="team-tab" data-tab="college">In College</button>
+    </div>
+
+    <!-- Schedule Panel -->
+    <div class="team-panel active" id="schedulePanel">
+      <div class="panel-header">
+        <h2>2024-25 Schedule</h2>
+        <div class="panel-filters">
+          <select id="scheduleFilter">
+            <option value="all">All Games</option>
+            <option value="upcoming">Upcoming</option>
+            <option value="completed">Completed</option>
+          </select>
+        </div>
+      </div>
+      <div class="schedule-list" id="scheduleList">
+        <div class="loading-state">Loading schedule...</div>
+      </div>
+    </div>
+
+    <!-- Roster Panel -->
+    <div class="team-panel" id="rosterPanel">
+      <div class="panel-header">
+        <h2>2024-25 Roster</h2>
+        <div class="panel-actions">
+          <button class="btn-outline" id="printRoster">Print Roster</button>
+        </div>
+      </div>
+      <div class="roster-grid" id="rosterGrid">
+        <div class="loading-state">Loading roster...</div>
+      </div>
+    </div>
+
+    <!-- Stories Panel -->
+    <div class="team-panel" id="storiesPanel">
+      <div class="panel-header">
+        <h2>Latest Stories</h2>
+      </div>
+      <div class="stories-grid" id="storiesGrid">
+        <div class="loading-state">Loading stories...</div>
+      </div>
+    </div>
+
+    <!-- History Panel -->
+    <div class="team-panel" id="historyPanel">
+      <div class="panel-header">
+        <h2>Championship History</h2>
+      </div>
+      
+      <!-- Sub-tabs for History -->
+      <div class="history-sub-tabs">
+        <button class="history-tab active" data-history="state">State Championships</button>
+        <button class="history-tab" data-history="tournaments">Tournament History</button>
+        <button class="history-tab" data-history="records">Records</button>
+      </div>
+      
+      <div class="history-content" id="historyContent">
+        <!-- State Championships -->
+        <div class="history-section active" id="stateChampionships">
+          <div class="championship-cards" id="championshipCards">
+            <!-- Populated by JS -->
+          </div>
+          <div class="championship-timeline" id="championshipTimeline">
+            <!-- All championship game appearances -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 1K Club Panel -->
+    <div class="team-panel" id="1k-clubPanel">
+      <div class="panel-header">
+        <h2>1K in the 603</h2>
+        <p class="panel-subtitle">Farmington's 1,000-Point Scorers</p>
+      </div>
+      <div class="scorers-list" id="scorersList">
+        <div class="loading-state">Loading scorers...</div>
+      </div>
+    </div>
+
+    <!-- College Panel -->
+    <div class="team-panel" id="collegePanel">
+      <div class="panel-header">
+        <h2>603 in the NCAA</h2>
+        <p class="panel-subtitle">Former Tigers Playing in College</p>
+      </div>
+      <div class="college-players-grid" id="collegePlayersGrid">
+        <div class="loading-state">Loading players...</div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="team-footer">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <img src="/logos/logo.png" alt="Ball603" style="height: 40px;">
+        <p>New Hampshire High School Basketball Coverage</p>
+      </div>
+      <div class="footer-links">
+        <a href="/">Home</a>
+        <a href="/schedule">Schedules</a>
+        <a href="/standings">Standings</a>
+        <a href="/teams">All Teams</a>
+      </div>
+      <div class="footer-social">
+        <a href="https://twitter.com/ball603" target="_blank">Twitter</a>
+        <a href="https://instagram.com/ball603" target="_blank">Instagram</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2025 Ball603. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <script>
+    // ===== CONFIGURATION =====
+    const TEAM_CONFIG = {
+      slug: 'farmington',
+      name: 'Farmington',
+      mascot: 'Tigers',
+      fullName: 'Farmington Tigers',
+      colors: {
+        primary: '#f57c00',
+        secondary: '#1a1a1a',
+        accent: '#ffb74d'
+      },
+      logo: '/logos/100px/Farmington.png',
+      division: {
+        boys: 'Division III',
+        girls: 'Division III'
+      }
+    };
+
+    // Supabase client
+    const SUPABASE_URL = 'https://suncdkxfqkwwnmhosxcf.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN1bmNka3hmcWt3d25taG9zeGNmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzIxMzE0NTQsImV4cCI6MjA0NzcwNzQ1NH0.D4i9jzPxK8ZXaEQH_NxyYfPiCyPsISI5v-7bmSG0z';
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // ===== STATE =====
+    let currentGender = 'boys';
+    let teamData = {
+      schedule: [],
+      roster: [],
+      stories: [],
+      championships: [],
+      scorers1K: [],
+      collegePlayers: []
+    };
+
+    // ===== INITIALIZATION =====
+    document.addEventListener('DOMContentLoaded', async () => {
+      initTabs();
+      initGenderToggle();
+      initHistoryTabs();
+      
+      // Load all data
+      await Promise.all([
+        loadSchedule(),
+        loadRoster(),
+        loadStories(),
+        loadChampionshipHistory(),
+        load1KScorers(),
+        loadCollegePlayers()
+      ]);
+      
+      renderSchedule();
+      renderChampionshipHighlights();
+    });
+
+    // ===== TAB NAVIGATION =====
+    function initTabs() {
+      document.querySelectorAll('.team-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          // Update active tab
+          document.querySelectorAll('.team-tab').forEach(t => t.classList.remove('active'));
+          tab.classList.add('active');
+          
+          // Show corresponding panel
+          const tabId = tab.dataset.tab;
+          document.querySelectorAll('.team-panel').forEach(panel => {
+            panel.classList.remove('active');
+          });
+          document.getElementById(tabId + 'Panel').classList.add('active');
+        });
+      });
+      
+      // Handle anchor links
+      document.querySelectorAll('.team-nav-link').forEach(link => {
+        link.addEventListener('click', (e) => {
+          const tabId = link.getAttribute('href').replace('#', '');
+          const tab = document.querySelector(`.team-tab[data-tab="${tabId}"]`);
+          if (tab) {
+            e.preventDefault();
+            tab.click();
+          }
+        });
+      });
+    }
+
+    // ===== GENDER TOGGLE =====
+    function initGenderToggle() {
+      document.querySelectorAll('.gender-toggle').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.gender-toggle').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          currentGender = btn.dataset.gender;
+          
+          // Update division display
+          document.getElementById('teamDivision').textContent = 
+            TEAM_CONFIG.division[currentGender] || 'Division III';
+          
+          // Re-render all data for new gender
+          renderSchedule();
+          renderRoster();
+          renderStories();
+          renderChampionshipHistory();
+          render1KScorers();
+          renderCollegePlayers();
+        });
+      });
+    }
+
+    // ===== HISTORY SUB-TABS =====
+    function initHistoryTabs() {
+      document.querySelectorAll('.history-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          document.querySelectorAll('.history-tab').forEach(t => t.classList.remove('active'));
+          tab.classList.add('active');
+          // Could switch between different history views here
+        });
+      });
+    }
+
+    // ===== DATA LOADING =====
+    async function loadSchedule() {
+      try {
+        const { data, error } = await supabase
+          .from('games')
+          .select('*')
+          .or(`home.eq.${TEAM_CONFIG.name},away.eq.${TEAM_CONFIG.name}`)
+          .order('date', { ascending: true });
+        
+        if (error) throw error;
+        teamData.schedule = data || [];
+      } catch (err) {
+        console.error('Error loading schedule:', err);
+        teamData.schedule = [];
+      }
+    }
+
+    async function loadRoster() {
+      try {
+        const { data, error } = await supabase
+          .from('rosters')
+          .select('*')
+          .eq('school', TEAM_CONFIG.name)
+          .order('number', { ascending: true });
+        
+        if (error) throw error;
+        teamData.roster = data || [];
+      } catch (err) {
+        console.error('Error loading roster:', err);
+        teamData.roster = [];
+      }
+    }
+
+    async function loadStories() {
+      try {
+        const { data, error } = await supabase
+          .from('articles')
+          .select('*')
+          .contains('teams', [TEAM_CONFIG.name])
+          .eq('published', true)
+          .order('published_at', { ascending: false })
+          .limit(20);
+        
+        if (error) throw error;
+        teamData.stories = data || [];
+      } catch (err) {
+        console.error('Error loading stories:', err);
+        teamData.stories = [];
+      }
+    }
+
+    async function loadChampionshipHistory() {
+      try {
+        const { data, error } = await supabase
+          .from('championship_history')
+          .select('*')
+          .or(`champion.eq.${TEAM_CONFIG.name},runner_up.eq.${TEAM_CONFIG.name}`)
+          .order('year', { ascending: false });
+        
+        if (error) throw error;
+        teamData.championships = data || [];
+      } catch (err) {
+        console.error('Error loading championships:', err);
+        // Fall back to static data for now
+        teamData.championships = FARMINGTON_CHAMPIONSHIPS;
+      }
+    }
+
+    async function load1KScorers() {
+      try {
+        const { data, error } = await supabase
+          .from('thousand_point_scorers')
+          .select('*')
+          .eq('school', TEAM_CONFIG.name)
+          .order('career_points', { ascending: false });
+        
+        if (error) throw error;
+        teamData.scorers1K = data || [];
+      } catch (err) {
+        console.error('Error loading 1K scorers:', err);
+        teamData.scorers1K = [];
+      }
+    }
+
+    async function loadCollegePlayers() {
+      try {
+        const { data, error } = await supabase
+          .from('college_players')
+          .select('*')
+          .eq('high_school', TEAM_CONFIG.name)
+          .eq('status', 'Active')
+          .order('name', { ascending: true });
+        
+        if (error) throw error;
+        teamData.collegePlayers = data || [];
+      } catch (err) {
+        console.error('Error loading college players:', err);
+        teamData.collegePlayers = [];
+      }
+    }
+
+    // ===== STATIC CHAMPIONSHIP DATA (fallback) =====
+    const FARMINGTON_CHAMPIONSHIPS = [
+      { year: 1988, gender: 'Boys', division: 'Class M', champion: 'Farmington', champion_score: 78, runner_up: 'Mascoma', runner_up_score: 70, is_champion: true },
+      { year: 1984, gender: 'Boys', division: 'Class M', champion: 'Farmington', champion_score: 76, runner_up: 'Conant', runner_up_score: 54, is_champion: true },
+      { year: 1970, gender: 'Boys', division: 'Class M', champion: 'Farmington', champion_score: 95, runner_up: 'Merrimack', runner_up_score: 83, is_champion: true, overtime: true },
+      { year: 1989, gender: 'Girls', division: 'Class M', champion: 'Mascoma', champion_score: 61, runner_up: 'Farmington', runner_up_score: 59, is_champion: false, overtime: true }
+    ];
+
+    // ===== RENDERING FUNCTIONS =====
+    function renderChampionshipHighlights() {
+      const champs = teamData.championships.filter(c => 
+        currentGender === 'boys' ? c.gender === 'Boys' : c.gender === 'Girls'
+      );
+      
+      const championships = champs.filter(c => 
+        c.champion === TEAM_CONFIG.name || c.is_champion === true
+      ).length;
+      
+      const runnerUps = champs.filter(c => 
+        (c.runner_up === TEAM_CONFIG.name || c.is_champion === false) && 
+        c.champion !== TEAM_CONFIG.name
+      ).length;
+      
+      const statsContainer = document.getElementById('heroStats');
+      
+      if (championships === 0 && runnerUps === 0) {
+        statsContainer.style.display = 'none';
+        return;
+      }
+      
+      statsContainer.style.display = 'flex';
+      statsContainer.innerHTML = `
+        ${championships > 0 ? `
+          <div class="team-hero-stat championship">
+            <span class="stat-icon">🏆</span>
+            <span class="stat-value">${championships}</span>
+            <span class="stat-label">State Championship${championships !== 1 ? 's' : ''}</span>
+          </div>
+        ` : ''}
+        ${runnerUps > 0 ? `
+          <div class="team-hero-stat runner-up">
+            <span class="stat-icon">🥈</span>
+            <span class="stat-value">${runnerUps}</span>
+            <span class="stat-label">Runner-Up${runnerUps !== 1 ? 's' : ''}</span>
+          </div>
+        ` : ''}
+        <div class="team-hero-stat finals">
+          <span class="stat-icon">🏀</span>
+          <span class="stat-value">${championships + runnerUps}</span>
+          <span class="stat-label">Championship Game${championships + runnerUps !== 1 ? 's' : ''}</span>
+        </div>
+      `;
+    }
+
+    function renderSchedule() {
+      const container = document.getElementById('scheduleList');
+      const games = teamData.schedule.filter(g => 
+        currentGender === 'boys' ? g.gender === 'Boys' : g.gender === 'Girls'
+      );
+      
+      if (games.length === 0) {
+        container.innerHTML = '<div class="empty-state">No games scheduled</div>';
+        return;
+      }
+      
+      container.innerHTML = games.map(game => {
+        const isHome = game.home === TEAM_CONFIG.name;
+        const opponent = isHome ? game.away : game.home;
+        const hasScore = game.home_score !== null && game.away_score !== null;
+        const teamScore = isHome ? game.home_score : game.away_score;
+        const oppScore = isHome ? game.away_score : game.home_score;
+        const won = hasScore && teamScore > oppScore;
+        
+        return `
+          <div class="schedule-game ${hasScore ? (won ? 'won' : 'lost') : 'upcoming'}">
+            <div class="game-date">
+              <span class="game-day">${formatDate(game.date)}</span>
+              <span class="game-time">${game.time || ''}</span>
+            </div>
+            <div class="game-matchup">
+              <span class="game-location">${isHome ? 'vs' : '@'}</span>
+              <img class="opponent-logo" src="/logos/100px/${opponent.replace(/\s+/g, '')}.png" 
+                   onerror="this.src='/logos/100px/Ball603-white.png'" alt="${opponent}">
+              <span class="opponent-name">${opponent}</span>
+            </div>
+            <div class="game-result">
+              ${hasScore ? `
+                <span class="result-badge ${won ? 'win' : 'loss'}">${won ? 'W' : 'L'}</span>
+                <span class="score">${teamScore} - ${oppScore}</span>
+              ` : `
+                <span class="game-venue">${game.venue || ''}</span>
+              `}
+            </div>
+            ${game.recap ? `<a href="${game.recap}" class="game-recap-link">Recap →</a>` : ''}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderRoster() {
+      const container = document.getElementById('rosterGrid');
+      const roster = teamData.roster.filter(p => 
+        currentGender === 'boys' ? p.gender === 'Boys' : p.gender === 'Girls'
+      );
+      
+      if (roster.length === 0) {
+        container.innerHTML = '<div class="empty-state">No roster available</div>';
+        return;
+      }
+      
+      container.innerHTML = `
+        <table class="roster-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Name</th>
+              <th>Pos</th>
+              <th>Ht</th>
+              <th>Yr</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${roster.map(player => `
+              <tr>
+                <td class="player-number">${player.number || '-'}</td>
+                <td class="player-name">${player.name}</td>
+                <td>${player.position || '-'}</td>
+                <td>${player.height || '-'}</td>
+                <td>${player.year || '-'}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    function renderStories() {
+      const container = document.getElementById('storiesGrid');
+      const stories = teamData.stories.filter(s => 
+        !s.gender || (currentGender === 'boys' ? s.gender === 'Boys' : s.gender === 'Girls')
+      );
+      
+      if (stories.length === 0) {
+        container.innerHTML = '<div class="empty-state">No stories yet</div>';
+        return;
+      }
+      
+      container.innerHTML = stories.slice(0, 12).map(story => `
+        <a href="/article/${story.slug}" class="story-card">
+          ${story.featured_image ? `
+            <img src="${story.featured_image}" alt="" class="story-image">
+          ` : ''}
+          <div class="story-content">
+            <h3 class="story-title">${story.title}</h3>
+            <span class="story-date">${formatDate(story.published_at)}</span>
+          </div>
+        </a>
+      `).join('');
+    }
+
+    function renderChampionshipHistory() {
+      const container = document.getElementById('championshipCards');
+      const timeline = document.getElementById('championshipTimeline');
+      
+      const champs = teamData.championships.filter(c => 
+        currentGender === 'boys' ? c.gender === 'Boys' : c.gender === 'Girls'
+      );
+      
+      // Championship cards (wins only)
+      const wins = champs.filter(c => c.champion === TEAM_CONFIG.name || c.is_champion === true);
+      
+      if (wins.length === 0) {
+        container.innerHTML = '<div class="empty-state">No state championships</div>';
+      } else {
+        container.innerHTML = wins.map(c => `
+          <div class="championship-card">
+            <div class="champ-year">${c.year}</div>
+            <div class="champ-trophy">🏆</div>
+            <div class="champ-division">${c.division}</div>
+            <div class="champ-score">${c.champion_score} - ${c.runner_up_score}${c.overtime ? ' OT' : ''}</div>
+            <div class="champ-opponent">vs ${c.runner_up}</div>
+          </div>
+        `).join('');
+      }
+      
+      // Full timeline
+      timeline.innerHTML = `
+        <h3>All Championship Game Appearances</h3>
+        <div class="timeline-list">
+          ${champs.map(c => {
+            const isChamp = c.champion === TEAM_CONFIG.name || c.is_champion === true;
+            return `
+              <div class="timeline-item ${isChamp ? 'champion' : 'runner-up'}">
+                <span class="timeline-year">${c.year}</span>
+                <span class="timeline-result">${isChamp ? '🏆 Champion' : '🥈 Runner-Up'}</span>
+                <span class="timeline-division">${c.division}</span>
+                <span class="timeline-score">${c.champion_score} - ${c.runner_up_score}${c.overtime ? ' OT' : ''}</span>
+                <span class="timeline-opponent">${isChamp ? 'vs ' + c.runner_up : 'vs ' + c.champion}</span>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    function render1KScorers() {
+      const container = document.getElementById('scorersList');
+      const scorers = teamData.scorers1K.filter(s => 
+        !s.gender || (currentGender === 'boys' ? s.gender === 'Boys' : s.gender === 'Girls')
+      );
+      
+      if (scorers.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <p>No 1,000-point scorers on record yet.</p>
+            <p class="empty-help">Know of a Farmington player who scored 1,000+ career points? 
+              <a href="mailto:kj@ball603.com">Let us know!</a>
+            </p>
+          </div>
+        `;
+        return;
+      }
+      
+      container.innerHTML = `
+        <div class="scorers-table-wrap">
+          <table class="scorers-table">
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Name</th>
+                <th>Points</th>
+                <th>Class</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${scorers.map((s, i) => `
+                <tr>
+                  <td class="scorer-rank">${i + 1}</td>
+                  <td class="scorer-name">${s.name}</td>
+                  <td class="scorer-points">${s.career_points?.toLocaleString() || '1,000+'}</td>
+                  <td class="scorer-class">${s.graduation_year || '-'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function renderCollegePlayers() {
+      const container = document.getElementById('collegePlayersGrid');
+      const players = teamData.collegePlayers.filter(p => 
+        !p.gender || (currentGender === 'boys' ? p.gender === 'Men' : p.gender === 'Women')
+      );
+      
+      if (players.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <p>No current college players on record.</p>
+            <p class="empty-help">Know of a former Tiger playing college ball? 
+              <a href="mailto:kj@ball603.com">Let us know!</a>
+            </p>
+          </div>
+        `;
+        return;
+      }
+      
+      container.innerHTML = players.map(player => `
+        <div class="college-player-card">
+          <div class="player-photo-wrap">
+            ${player.photo_url ? `
+              <img src="${player.photo_url}" alt="${player.name}" class="player-photo">
+            ` : `
+              <div class="player-photo-placeholder">
+                <span>${player.name.split(' ').map(n => n[0]).join('')}</span>
+              </div>
+            `}
+          </div>
+          <div class="player-info">
+            <h4 class="player-name">${player.name}</h4>
+            <div class="player-college">${player.college}</div>
+            <div class="player-details">
+              <span class="player-level">${player.college_level}</span>
+              <span class="player-class">${player.college_class || ''}</span>
+            </div>
+            <div class="player-hs-info">
+              Farmington '${player.hs_graduation_year?.toString().slice(-2) || '--'}
+            </div>
+          </div>
+          ${player.stats_url ? `
+            <a href="${player.stats_url}" target="_blank" class="player-stats-link">View Stats →</a>
+          ` : ''}
+        </div>
+      `).join('');
+    }
+
+    // ===== UTILITIES =====
+    function formatDate(dateStr) {
+      if (!dateStr) return '';
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+  </script>
+</body>
+</html>
