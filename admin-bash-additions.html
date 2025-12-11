@@ -1,0 +1,1081 @@
+<!-- =====================================================
+     THE BASH ADMIN SECTION
+     Add these pieces to admin.html as indicated
+     ===================================================== -->
+
+<!-- =====================================================
+     STEP 1: Add this tab button after the "Rosters" tab button (around line 268)
+     ===================================================== -->
+      <button class="tab" onclick="showTab('bash')">The Bash</button>
+
+
+<!-- =====================================================
+     STEP 2: Add this CSS inside the <style> tag (around line 230, before </style>)
+     ===================================================== -->
+    /* The Bash Panel Styles */
+    .bash-admin-tabs { display: flex; gap: 5px; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+    .bash-admin-tab { padding: 8px 16px; background: none; border: 1px solid #ddd; border-radius: 5px 5px 0 0; cursor: pointer; font-size: 13px; color: #666; }
+    .bash-admin-tab:hover { background: #f5f5f5; }
+    .bash-admin-tab.active { background: #f57c00; color: white; border-color: #f57c00; }
+    .bash-sub-panel { display: none; }
+    .bash-sub-panel.active { display: block; }
+    .bash-table { width: 100%; border-collapse: collapse; }
+    .bash-table th, .bash-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #eee; font-size: 13px; }
+    .bash-table th { background: #f5f5f5; font-weight: 600; color: #555; text-transform: uppercase; font-size: 11px; }
+    .bash-table tr:hover { background: #f9f9f9; }
+    .bash-score { font-weight: 600; }
+    .bash-winner { color: #f57c00; }
+    .bash-form-row { display: grid; gap: 15px; margin-bottom: 15px; }
+    .bash-form-row.cols-2 { grid-template-columns: 1fr 1fr; }
+    .bash-form-row.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+    .bash-form-row.cols-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+    .bash-form-row.cols-5 { grid-template-columns: 1fr 1fr 1fr 1fr 1fr; }
+
+
+<!-- =====================================================
+     STEP 3: Add this panel after the rostersPanel div (around line 1860)
+     ===================================================== -->
+    <!-- The Bash Panel -->
+    <div class="panel" id="bashPanel" style="display: none;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2 style="margin: 0; font-size: 18px;">🏀 The Bash Tournament</h2>
+        <div style="display: flex; gap: 10px;">
+          <button class="btn-new" style="background: #e8f5e9; color: #2e7d32;" onclick="exportBashData()">
+            <span>📤</span> Export All Data
+          </button>
+          <button class="btn-new" style="background: #e3f2fd; color: #1565c0;" onclick="importBashData()">
+            <span>📥</span> Import Data
+          </button>
+        </div>
+      </div>
+      
+      <!-- Sub-tabs -->
+      <div class="bash-admin-tabs">
+        <button class="bash-admin-tab active" onclick="showBashTab('schedule')">📅 Schedule</button>
+        <button class="bash-admin-tab" onclick="showBashTab('champions')">🏆 Champions</button>
+        <button class="bash-admin-tab" onclick="showBashTab('awards')">🎖️ Awards</button>
+        <button class="bash-admin-tab" onclick="showBashTab('settings')">⚙️ Settings</button>
+      </div>
+      
+      <!-- Schedule Sub-Panel -->
+      <div class="bash-sub-panel active" id="bashSchedulePanel">
+        <div class="toolbar" style="margin-bottom: 15px;">
+          <button class="btn-new" onclick="openBashGameModal()">
+            <span>+</span> Add Game
+          </button>
+          <select id="bashYearFilter" onchange="filterBashSchedule()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px; margin-left: 10px;">
+            <option value="2025">2025</option>
+            <option value="2024">2024</option>
+          </select>
+          <select id="bashDivisionFilter" onchange="filterBashSchedule()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px; margin-left: 10px;">
+            <option value="">All Divisions</option>
+            <option value="Boys">Boys</option>
+            <option value="Girls">Girls</option>
+          </select>
+          <span id="bashGameCount" style="margin-left: auto; font-size: 13px; color: #666;">0 games</span>
+        </div>
+        
+        <div style="overflow-x: auto;">
+          <table class="bash-table" id="bashScheduleTable">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Time</th>
+                <th>Game#</th>
+                <th>Div</th>
+                <th>Away</th>
+                <th>Score</th>
+                <th>Home</th>
+                <th>Site</th>
+                <th>Coverage</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="bashScheduleBody">
+              <tr><td colspan="10" class="loading">Loading schedule...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      <!-- Champions Sub-Panel -->
+      <div class="bash-sub-panel" id="bashChampionsPanel">
+        <div class="toolbar" style="margin-bottom: 15px;">
+          <button class="btn-new" onclick="openBashChampionModal()">
+            <span>+</span> Add Champion
+          </button>
+          <select id="bashChampionDivisionFilter" onchange="filterBashChampions()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px; margin-left: 10px;">
+            <option value="">All Divisions</option>
+            <option value="Boys">Boys</option>
+            <option value="Girls">Girls</option>
+          </select>
+          <span id="bashChampionCount" style="margin-left: auto; font-size: 13px; color: #666;">0 records</span>
+        </div>
+        
+        <div style="overflow-x: auto;">
+          <table class="bash-table" id="bashChampionsTable">
+            <thead>
+              <tr>
+                <th>Year</th>
+                <th>Division</th>
+                <th>Champion</th>
+                <th>Score</th>
+                <th>Runner-Up</th>
+                <th>OT</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="bashChampionsBody">
+              <tr><td colspan="7" class="loading">Loading champions...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      <!-- Awards Sub-Panel -->
+      <div class="bash-sub-panel" id="bashAwardsPanel">
+        <div class="toolbar" style="margin-bottom: 15px;">
+          <button class="btn-new" onclick="openBashAwardModal()">
+            <span>+</span> Add Award
+          </button>
+          <select id="bashAwardYearFilter" onchange="filterBashAwards()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px; margin-left: 10px;">
+            <option value="">All Years</option>
+          </select>
+          <select id="bashAwardTypeFilter" onchange="filterBashAwards()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px; margin-left: 10px;">
+            <option value="">All Awards</option>
+            <option value="MVP">MVP</option>
+            <option value="All-Tournament">All-Tournament</option>
+            <option value="Sportsmanship">Sportsmanship</option>
+            <option value="Team Sportsmanship">Team Sportsmanship</option>
+            <option value="3-Point Contest Champ">3-Point Contest</option>
+            <option value="Skills Challenge Champ">Skills Challenge</option>
+            <option value="Slam Dunk Contest Champ">Slam Dunk</option>
+          </select>
+          <span id="bashAwardCount" style="margin-left: auto; font-size: 13px; color: #666;">0 records</span>
+        </div>
+        
+        <div style="overflow-x: auto;">
+          <table class="bash-table" id="bashAwardsTable">
+            <thead>
+              <tr>
+                <th>Year</th>
+                <th>Division</th>
+                <th>Award</th>
+                <th>Name</th>
+                <th>School</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="bashAwardsBody">
+              <tr><td colspan="6" class="loading">Loading awards...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      <!-- Settings Sub-Panel -->
+      <div class="bash-sub-panel" id="bashSettingsPanel">
+        <div style="max-width: 600px;">
+          <h3 style="margin-bottom: 20px;">Tournament Settings</h3>
+          
+          <div class="form-group" style="margin-bottom: 20px;">
+            <label>Tournament Year</label>
+            <input type="number" id="bashSettingYear" value="2025" style="width: 100px;">
+          </div>
+          
+          <div class="form-group" style="margin-bottom: 20px;">
+            <label>Start Date</label>
+            <input type="date" id="bashSettingStartDate" value="2025-12-26">
+          </div>
+          
+          <div class="form-group" style="margin-bottom: 20px;">
+            <label>End Date</label>
+            <input type="date" id="bashSettingEndDate" value="2025-12-30">
+          </div>
+          
+          <div class="form-group" style="margin-bottom: 20px;">
+            <label>Primary Venue</label>
+            <input type="text" id="bashSettingVenue" value="Farmington High School" style="width: 100%;">
+          </div>
+          
+          <div class="form-group" style="margin-bottom: 20px;">
+            <label>Number of Teams</label>
+            <input type="number" id="bashSettingTeams" value="28" style="width: 100px;">
+          </div>
+          
+          <div class="form-group" style="margin-bottom: 20px;">
+            <label>Number of Games</label>
+            <input type="number" id="bashSettingGames" value="50" style="width: 100px;">
+          </div>
+          
+          <button onclick="saveBashSettings()" style="background: #f57c00; color: white; border: none; padding: 12px 24px; border-radius: 5px; cursor: pointer; font-weight: 500;">
+            Save Settings
+          </button>
+          
+          <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
+          
+          <h3 style="margin-bottom: 20px;">Data Management</h3>
+          
+          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button onclick="regenerateBashDataFile()" style="background: #1565c0; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">
+              🔄 Regenerate Data File
+            </button>
+            <button onclick="clearBashCache()" style="background: #666; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">
+              🗑️ Clear Cache
+            </button>
+          </div>
+          <small style="display: block; margin-top: 10px; color: #888;">
+            Regenerate will create a new the-bash-data.js file from the database.
+          </small>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Bash Game Modal -->
+    <div id="bashGameModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 2000; overflow-y: auto;">
+      <div style="max-width: 700px; margin: 30px auto; background: #fff; border-radius: 10px; overflow: hidden;">
+        <div style="background: #f57c00; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
+          <h2 style="margin: 0; font-size: 16px;" id="bashGameModalTitle">Add Game</h2>
+          <button onclick="closeBashGameModal()" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer;">&times;</button>
+        </div>
+        
+        <div style="padding: 20px;">
+          <input type="hidden" id="bashGameId">
+          
+          <div class="bash-form-row cols-4">
+            <div class="form-group">
+              <label>Date *</label>
+              <select id="bashGameDate">
+                <option value="Dec 26">Dec 26</option>
+                <option value="Dec 27">Dec 27</option>
+                <option value="Dec 28">Dec 28</option>
+                <option value="Dec 29">Dec 29</option>
+                <option value="Dec 30">Dec 30</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Time *</label>
+              <input type="text" id="bashGameTime" placeholder="9:00 AM">
+            </div>
+            <div class="form-group">
+              <label>Game #</label>
+              <input type="number" id="bashGameNumber" placeholder="1">
+            </div>
+            <div class="form-group">
+              <label>Division *</label>
+              <select id="bashGameDivision">
+                <option value="Boys">Boys</option>
+                <option value="Girls">Girls</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="bash-form-row cols-4">
+            <div class="form-group">
+              <label>Away Team *</label>
+              <input type="text" id="bashGameAway" placeholder="Team name">
+            </div>
+            <div class="form-group">
+              <label>Away Score</label>
+              <input type="number" id="bashGameAwayScore" min="0">
+            </div>
+            <div class="form-group">
+              <label>Home Team *</label>
+              <input type="text" id="bashGameHome" placeholder="Team name">
+            </div>
+            <div class="form-group">
+              <label>Home Score</label>
+              <input type="number" id="bashGameHomeScore" min="0">
+            </div>
+          </div>
+          
+          <div class="bash-form-row cols-3">
+            <div class="form-group">
+              <label>Site</label>
+              <select id="bashGameSite">
+                <option value="FHS">FHS</option>
+                <option value="HWMS">HWMS</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Overtime</label>
+              <select id="bashGameOvertime">
+                <option value="false">No</option>
+                <option value="true">Yes</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Special Event</label>
+              <select id="bashGameSpecial">
+                <option value="false">No</option>
+                <option value="true">Yes (Contests, etc)</option>
+              </select>
+            </div>
+          </div>
+          
+          <h4 style="margin: 20px 0 15px; padding-top: 15px; border-top: 1px solid #eee;">Coverage Links</h4>
+          
+          <div class="bash-form-row cols-2">
+            <div class="form-group">
+              <label>Recap URL</label>
+              <input type="url" id="bashGameRecap" placeholder="https://...">
+            </div>
+            <div class="form-group">
+              <label>Photos URL</label>
+              <input type="url" id="bashGamePhotos" placeholder="https://...">
+            </div>
+          </div>
+          
+          <div class="bash-form-row cols-2">
+            <div class="form-group">
+              <label>Video URL</label>
+              <input type="url" id="bashGameVideo" placeholder="https://...">
+            </div>
+            <div class="form-group">
+              <label>Highlights URL</label>
+              <input type="url" id="bashGameHighlights" placeholder="https://...">
+            </div>
+          </div>
+          
+          <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee;">
+            <button onclick="closeBashGameModal()" style="padding: 10px 20px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 5px; cursor: pointer;">Cancel</button>
+            <button onclick="saveBashGame()" style="padding: 10px 20px; background: #f57c00; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500;">Save Game</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Bash Champion Modal -->
+    <div id="bashChampionModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 2000; overflow-y: auto;">
+      <div style="max-width: 500px; margin: 30px auto; background: #fff; border-radius: 10px; overflow: hidden;">
+        <div style="background: #f57c00; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
+          <h2 style="margin: 0; font-size: 16px;" id="bashChampionModalTitle">Add Champion</h2>
+          <button onclick="closeBashChampionModal()" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer;">&times;</button>
+        </div>
+        
+        <div style="padding: 20px;">
+          <input type="hidden" id="bashChampionId">
+          
+          <div class="bash-form-row cols-2">
+            <div class="form-group">
+              <label>Year *</label>
+              <input type="number" id="bashChampionYear" placeholder="2024" min="1979" max="2030">
+            </div>
+            <div class="form-group">
+              <label>Division *</label>
+              <select id="bashChampionDivision">
+                <option value="Boys">Boys</option>
+                <option value="Girls">Girls</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="bash-form-row cols-2">
+            <div class="form-group">
+              <label>Champion *</label>
+              <input type="text" id="bashChampionWinner" placeholder="Team name">
+            </div>
+            <div class="form-group">
+              <label>Champion Score *</label>
+              <input type="number" id="bashChampionWinnerScore" min="0">
+            </div>
+          </div>
+          
+          <div class="bash-form-row cols-2">
+            <div class="form-group">
+              <label>Runner-Up *</label>
+              <input type="text" id="bashChampionRunnerUp" placeholder="Team name">
+            </div>
+            <div class="form-group">
+              <label>Runner-Up Score *</label>
+              <input type="number" id="bashChampionRunnerUpScore" min="0">
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label>
+              <input type="checkbox" id="bashChampionOvertime"> Overtime
+            </label>
+          </div>
+          
+          <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee;">
+            <button onclick="closeBashChampionModal()" style="padding: 10px 20px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 5px; cursor: pointer;">Cancel</button>
+            <button onclick="saveBashChampion()" style="padding: 10px 20px; background: #f57c00; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500;">Save Champion</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Bash Award Modal -->
+    <div id="bashAwardModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 2000; overflow-y: auto;">
+      <div style="max-width: 500px; margin: 30px auto; background: #fff; border-radius: 10px; overflow: hidden;">
+        <div style="background: #f57c00; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
+          <h2 style="margin: 0; font-size: 16px;" id="bashAwardModalTitle">Add Award</h2>
+          <button onclick="closeBashAwardModal()" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer;">&times;</button>
+        </div>
+        
+        <div style="padding: 20px;">
+          <input type="hidden" id="bashAwardId">
+          
+          <div class="bash-form-row cols-2">
+            <div class="form-group">
+              <label>Year *</label>
+              <input type="number" id="bashAwardYear" placeholder="2024" min="1979" max="2030">
+            </div>
+            <div class="form-group">
+              <label>Division *</label>
+              <select id="bashAwardDivision">
+                <option value="Boys">Boys</option>
+                <option value="Girls">Girls</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="form-group" style="margin-bottom: 15px;">
+            <label>Award Type *</label>
+            <select id="bashAwardType">
+              <option value="MVP">MVP</option>
+              <option value="All-Tournament">All-Tournament</option>
+              <option value="Sportsmanship">Sportsmanship</option>
+              <option value="Team Sportsmanship">Team Sportsmanship</option>
+              <option value="3-Point Contest Champ">3-Point Contest Champ</option>
+              <option value="Skills Challenge Champ">Skills Challenge Champ</option>
+              <option value="Slam Dunk Contest Champ">Slam Dunk Contest Champ</option>
+            </select>
+          </div>
+          
+          <div class="form-group" style="margin-bottom: 15px;">
+            <label>Recipient Name</label>
+            <input type="text" id="bashAwardName" placeholder="Player name (leave blank for team awards)">
+          </div>
+          
+          <div class="form-group" style="margin-bottom: 15px;">
+            <label>School *</label>
+            <input type="text" id="bashAwardSchool" placeholder="School name">
+          </div>
+          
+          <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee;">
+            <button onclick="closeBashAwardModal()" style="padding: 10px 20px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 5px; cursor: pointer;">Cancel</button>
+            <button onclick="saveBashAward()" style="padding: 10px 20px; background: #f57c00; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500;">Save Award</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+<!-- =====================================================
+     STEP 4: Add this line to the showTab function (around line 2706)
+     After: document.getElementById('rostersPanel').style.display = tab === 'rosters' ? 'block' : 'none';
+     ===================================================== -->
+      document.getElementById('bashPanel').style.display = tab === 'bash' ? 'block' : 'none';
+      
+      // Load Bash data when tab is selected
+      if (tab === 'bash' && bashSchedule.length === 0) {
+        loadBashData();
+      }
+
+
+<!-- =====================================================
+     STEP 5: Add this JavaScript at the end of the script section (before </script>)
+     ===================================================== -->
+    // ===== THE BASH MANAGEMENT =====
+    let bashSchedule = [];
+    let bashChampions = [];
+    let bashAwards = [];
+    let bashSettings = {
+      year: 2025,
+      startDate: '2025-12-26',
+      endDate: '2025-12-30',
+      venue: 'Farmington High School',
+      teams: 28,
+      games: 50
+    };
+    
+    // Show Bash sub-tab
+    function showBashTab(tab) {
+      document.querySelectorAll('.bash-admin-tab').forEach(t => t.classList.remove('active'));
+      event.target.classList.add('active');
+      
+      document.querySelectorAll('.bash-sub-panel').forEach(p => p.classList.remove('active'));
+      document.getElementById(`bash${tab.charAt(0).toUpperCase() + tab.slice(1)}Panel`).classList.add('active');
+    }
+    
+    // Load all Bash data
+    async function loadBashData() {
+      await Promise.all([
+        loadBashSchedule(),
+        loadBashChampions(),
+        loadBashAwards()
+      ]);
+      populateBashAwardYearFilter();
+    }
+    
+    // Load schedule
+    async function loadBashSchedule() {
+      const { data, error } = await supabase
+        .from('bash_schedule')
+        .select('*')
+        .order('date', { ascending: true })
+        .order('time', { ascending: true });
+      
+      if (error) {
+        console.error('Error loading bash schedule:', error);
+        // Fallback to local data if table doesn't exist
+        bashSchedule = typeof BASH_DATA !== 'undefined' ? BASH_DATA.schedule : [];
+      } else {
+        bashSchedule = data || [];
+      }
+      
+      renderBashSchedule();
+    }
+    
+    // Load champions
+    async function loadBashChampions() {
+      const { data, error } = await supabase
+        .from('bash_champions')
+        .select('*')
+        .order('year', { ascending: false });
+      
+      if (error) {
+        console.error('Error loading bash champions:', error);
+        bashChampions = typeof BASH_DATA !== 'undefined' ? BASH_DATA.champions : [];
+      } else {
+        bashChampions = data || [];
+      }
+      
+      renderBashChampions();
+    }
+    
+    // Load awards
+    async function loadBashAwards() {
+      const { data, error } = await supabase
+        .from('bash_awards')
+        .select('*')
+        .order('year', { ascending: false })
+        .order('gender', { ascending: true });
+      
+      if (error) {
+        console.error('Error loading bash awards:', error);
+        bashAwards = typeof BASH_DATA !== 'undefined' ? BASH_DATA.awards : [];
+      } else {
+        bashAwards = data || [];
+      }
+      
+      renderBashAwards();
+    }
+    
+    // Render schedule
+    function renderBashSchedule() {
+      const tbody = document.getElementById('bashScheduleBody');
+      const yearFilter = document.getElementById('bashYearFilter').value;
+      const divisionFilter = document.getElementById('bashDivisionFilter').value;
+      
+      let filtered = bashSchedule.filter(g => {
+        if (divisionFilter && g.division !== divisionFilter) return false;
+        return true;
+      });
+      
+      document.getElementById('bashGameCount').textContent = `${filtered.length} games`;
+      
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 40px; color: #888;">No games found</td></tr>';
+        return;
+      }
+      
+      tbody.innerHTML = filtered.map(g => {
+        const hasScore = g.away_score !== null && g.home_score !== null;
+        const awayWon = hasScore && g.away_score > g.home_score;
+        const homeWon = hasScore && g.home_score > g.away_score;
+        
+        const coverageIcons = [];
+        if (g.recap) coverageIcons.push('📝');
+        if (g.photos) coverageIcons.push('📷');
+        if (g.video) coverageIcons.push('🎥');
+        if (g.highlights) coverageIcons.push('▶️');
+        
+        return `
+          <tr>
+            <td>${g.date}</td>
+            <td>${g.time}</td>
+            <td>${g.game_number || '-'}</td>
+            <td><span class="division-badge ${(g.division || '').toLowerCase()}">${g.division || '-'}</span></td>
+            <td class="${awayWon ? 'bash-winner' : ''}">${g.away || '-'}</td>
+            <td class="bash-score">${hasScore ? `${g.away_score}-${g.home_score}${g.overtime ? ' OT' : ''}` : 'vs'}</td>
+            <td class="${homeWon ? 'bash-winner' : ''}">${g.home || '-'}</td>
+            <td>${g.site || '-'}</td>
+            <td>${coverageIcons.join(' ') || '-'}</td>
+            <td>
+              <button onclick="editBashGame('${g.id}')" class="btn-edit">Edit</button>
+              <button onclick="deleteBashGame('${g.id}')" class="btn-delete">Del</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+    
+    // Render champions
+    function renderBashChampions() {
+      const tbody = document.getElementById('bashChampionsBody');
+      const divisionFilter = document.getElementById('bashChampionDivisionFilter').value;
+      
+      let filtered = bashChampions.filter(c => {
+        if (divisionFilter && c.gender !== divisionFilter) return false;
+        return true;
+      });
+      
+      document.getElementById('bashChampionCount').textContent = `${filtered.length} records`;
+      
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: #888;">No champions found</td></tr>';
+        return;
+      }
+      
+      tbody.innerHTML = filtered.map(c => `
+        <tr>
+          <td><strong>${c.year}</strong></td>
+          <td><span class="division-badge ${(c.gender || '').toLowerCase()}">${c.gender}</span></td>
+          <td class="bash-winner">${c.champion}</td>
+          <td class="bash-score">${c.champion_score}-${c.runner_up_score}</td>
+          <td>${c.runner_up}</td>
+          <td>${c.overtime ? '✓' : ''}</td>
+          <td>
+            <button onclick="editBashChampion('${c.id}')" class="btn-edit">Edit</button>
+            <button onclick="deleteBashChampion('${c.id}')" class="btn-delete">Del</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+    
+    // Render awards
+    function renderBashAwards() {
+      const tbody = document.getElementById('bashAwardsBody');
+      const yearFilter = document.getElementById('bashAwardYearFilter').value;
+      const typeFilter = document.getElementById('bashAwardTypeFilter').value;
+      
+      let filtered = bashAwards.filter(a => {
+        if (yearFilter && a.year !== parseInt(yearFilter)) return false;
+        if (typeFilter && a.award !== typeFilter) return false;
+        return true;
+      });
+      
+      document.getElementById('bashAwardCount').textContent = `${filtered.length} records`;
+      
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 40px; color: #888;">No awards found</td></tr>';
+        return;
+      }
+      
+      tbody.innerHTML = filtered.map(a => `
+        <tr>
+          <td><strong>${a.year}</strong></td>
+          <td><span class="division-badge ${(a.gender || '').toLowerCase()}">${a.gender}</span></td>
+          <td>${a.award}</td>
+          <td>${a.name || '(Team Award)'}</td>
+          <td>${a.school}</td>
+          <td>
+            <button onclick="editBashAward('${a.id}')" class="btn-edit">Edit</button>
+            <button onclick="deleteBashAward('${a.id}')" class="btn-delete">Del</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+    
+    // Populate year filter for awards
+    function populateBashAwardYearFilter() {
+      const select = document.getElementById('bashAwardYearFilter');
+      const years = [...new Set(bashAwards.map(a => a.year))].sort((a, b) => b - a);
+      
+      select.innerHTML = '<option value="">All Years</option>' + 
+        years.map(y => `<option value="${y}">${y}</option>`).join('');
+    }
+    
+    // Filter functions
+    function filterBashSchedule() { renderBashSchedule(); }
+    function filterBashChampions() { renderBashChampions(); }
+    function filterBashAwards() { renderBashAwards(); }
+    
+    // === GAME MODAL ===
+    function openBashGameModal(id = null) {
+      document.getElementById('bashGameModalTitle').textContent = id ? 'Edit Game' : 'Add Game';
+      document.getElementById('bashGameId').value = id || '';
+      
+      if (id) {
+        const game = bashSchedule.find(g => g.id === id);
+        if (game) {
+          document.getElementById('bashGameDate').value = game.date;
+          document.getElementById('bashGameTime').value = game.time;
+          document.getElementById('bashGameNumber').value = game.game_number || '';
+          document.getElementById('bashGameDivision').value = game.division;
+          document.getElementById('bashGameAway').value = game.away;
+          document.getElementById('bashGameAwayScore').value = game.away_score ?? '';
+          document.getElementById('bashGameHome').value = game.home;
+          document.getElementById('bashGameHomeScore').value = game.home_score ?? '';
+          document.getElementById('bashGameSite').value = game.site || 'FHS';
+          document.getElementById('bashGameOvertime').value = game.overtime ? 'true' : 'false';
+          document.getElementById('bashGameSpecial').value = game.special ? 'true' : 'false';
+          document.getElementById('bashGameRecap').value = game.recap || '';
+          document.getElementById('bashGamePhotos').value = game.photos || '';
+          document.getElementById('bashGameVideo').value = game.video || '';
+          document.getElementById('bashGameHighlights').value = game.highlights || '';
+        }
+      } else {
+        // Reset form
+        document.getElementById('bashGameDate').value = 'Dec 26';
+        document.getElementById('bashGameTime').value = '';
+        document.getElementById('bashGameNumber').value = '';
+        document.getElementById('bashGameDivision').value = 'Boys';
+        document.getElementById('bashGameAway').value = '';
+        document.getElementById('bashGameAwayScore').value = '';
+        document.getElementById('bashGameHome').value = '';
+        document.getElementById('bashGameHomeScore').value = '';
+        document.getElementById('bashGameSite').value = 'FHS';
+        document.getElementById('bashGameOvertime').value = 'false';
+        document.getElementById('bashGameSpecial').value = 'false';
+        document.getElementById('bashGameRecap').value = '';
+        document.getElementById('bashGamePhotos').value = '';
+        document.getElementById('bashGameVideo').value = '';
+        document.getElementById('bashGameHighlights').value = '';
+      }
+      
+      document.getElementById('bashGameModal').style.display = 'block';
+    }
+    
+    function closeBashGameModal() {
+      document.getElementById('bashGameModal').style.display = 'none';
+    }
+    
+    function editBashGame(id) {
+      openBashGameModal(id);
+    }
+    
+    async function saveBashGame() {
+      const id = document.getElementById('bashGameId').value;
+      const gameData = {
+        date: document.getElementById('bashGameDate').value,
+        time: document.getElementById('bashGameTime').value,
+        game_number: document.getElementById('bashGameNumber').value ? parseInt(document.getElementById('bashGameNumber').value) : null,
+        division: document.getElementById('bashGameDivision').value,
+        away: document.getElementById('bashGameAway').value,
+        away_score: document.getElementById('bashGameAwayScore').value ? parseInt(document.getElementById('bashGameAwayScore').value) : null,
+        home: document.getElementById('bashGameHome').value,
+        home_score: document.getElementById('bashGameHomeScore').value ? parseInt(document.getElementById('bashGameHomeScore').value) : null,
+        site: document.getElementById('bashGameSite').value,
+        overtime: document.getElementById('bashGameOvertime').value === 'true',
+        special: document.getElementById('bashGameSpecial').value === 'true',
+        recap: document.getElementById('bashGameRecap').value || null,
+        photos: document.getElementById('bashGamePhotos').value || null,
+        video: document.getElementById('bashGameVideo').value || null,
+        highlights: document.getElementById('bashGameHighlights').value || null
+      };
+      
+      try {
+        if (id) {
+          const { error } = await supabase.from('bash_schedule').update(gameData).eq('id', id);
+          if (error) throw error;
+        } else {
+          const { error } = await supabase.from('bash_schedule').insert([gameData]);
+          if (error) throw error;
+        }
+        
+        showToast('Game saved successfully', 'success');
+        closeBashGameModal();
+        await loadBashSchedule();
+      } catch (err) {
+        console.error('Error saving game:', err);
+        showToast('Error saving game: ' + err.message, 'error');
+      }
+    }
+    
+    async function deleteBashGame(id) {
+      if (!confirm('Delete this game?')) return;
+      
+      try {
+        const { error } = await supabase.from('bash_schedule').delete().eq('id', id);
+        if (error) throw error;
+        
+        showToast('Game deleted', 'success');
+        await loadBashSchedule();
+      } catch (err) {
+        console.error('Error deleting game:', err);
+        showToast('Error deleting game', 'error');
+      }
+    }
+    
+    // === CHAMPION MODAL ===
+    function openBashChampionModal(id = null) {
+      document.getElementById('bashChampionModalTitle').textContent = id ? 'Edit Champion' : 'Add Champion';
+      document.getElementById('bashChampionId').value = id || '';
+      
+      if (id) {
+        const champ = bashChampions.find(c => c.id === id);
+        if (champ) {
+          document.getElementById('bashChampionYear').value = champ.year;
+          document.getElementById('bashChampionDivision').value = champ.gender;
+          document.getElementById('bashChampionWinner').value = champ.champion;
+          document.getElementById('bashChampionWinnerScore').value = champ.champion_score;
+          document.getElementById('bashChampionRunnerUp').value = champ.runner_up;
+          document.getElementById('bashChampionRunnerUpScore').value = champ.runner_up_score;
+          document.getElementById('bashChampionOvertime').checked = champ.overtime;
+        }
+      } else {
+        document.getElementById('bashChampionYear').value = new Date().getFullYear();
+        document.getElementById('bashChampionDivision').value = 'Boys';
+        document.getElementById('bashChampionWinner').value = '';
+        document.getElementById('bashChampionWinnerScore').value = '';
+        document.getElementById('bashChampionRunnerUp').value = '';
+        document.getElementById('bashChampionRunnerUpScore').value = '';
+        document.getElementById('bashChampionOvertime').checked = false;
+      }
+      
+      document.getElementById('bashChampionModal').style.display = 'block';
+    }
+    
+    function closeBashChampionModal() {
+      document.getElementById('bashChampionModal').style.display = 'none';
+    }
+    
+    function editBashChampion(id) {
+      openBashChampionModal(id);
+    }
+    
+    async function saveBashChampion() {
+      const id = document.getElementById('bashChampionId').value;
+      const data = {
+        year: parseInt(document.getElementById('bashChampionYear').value),
+        gender: document.getElementById('bashChampionDivision').value,
+        champion: document.getElementById('bashChampionWinner').value,
+        champion_score: parseInt(document.getElementById('bashChampionWinnerScore').value),
+        runner_up: document.getElementById('bashChampionRunnerUp').value,
+        runner_up_score: parseInt(document.getElementById('bashChampionRunnerUpScore').value),
+        overtime: document.getElementById('bashChampionOvertime').checked
+      };
+      
+      try {
+        if (id) {
+          const { error } = await supabase.from('bash_champions').update(data).eq('id', id);
+          if (error) throw error;
+        } else {
+          const { error } = await supabase.from('bash_champions').insert([data]);
+          if (error) throw error;
+        }
+        
+        showToast('Champion saved successfully', 'success');
+        closeBashChampionModal();
+        await loadBashChampions();
+      } catch (err) {
+        console.error('Error saving champion:', err);
+        showToast('Error saving champion: ' + err.message, 'error');
+      }
+    }
+    
+    async function deleteBashChampion(id) {
+      if (!confirm('Delete this champion record?')) return;
+      
+      try {
+        const { error } = await supabase.from('bash_champions').delete().eq('id', id);
+        if (error) throw error;
+        
+        showToast('Champion deleted', 'success');
+        await loadBashChampions();
+      } catch (err) {
+        console.error('Error deleting champion:', err);
+        showToast('Error deleting champion', 'error');
+      }
+    }
+    
+    // === AWARD MODAL ===
+    function openBashAwardModal(id = null) {
+      document.getElementById('bashAwardModalTitle').textContent = id ? 'Edit Award' : 'Add Award';
+      document.getElementById('bashAwardId').value = id || '';
+      
+      if (id) {
+        const award = bashAwards.find(a => a.id === id);
+        if (award) {
+          document.getElementById('bashAwardYear').value = award.year;
+          document.getElementById('bashAwardDivision').value = award.gender;
+          document.getElementById('bashAwardType').value = award.award;
+          document.getElementById('bashAwardName').value = award.name || '';
+          document.getElementById('bashAwardSchool').value = award.school;
+        }
+      } else {
+        document.getElementById('bashAwardYear').value = new Date().getFullYear();
+        document.getElementById('bashAwardDivision').value = 'Boys';
+        document.getElementById('bashAwardType').value = 'MVP';
+        document.getElementById('bashAwardName').value = '';
+        document.getElementById('bashAwardSchool').value = '';
+      }
+      
+      document.getElementById('bashAwardModal').style.display = 'block';
+    }
+    
+    function closeBashAwardModal() {
+      document.getElementById('bashAwardModal').style.display = 'none';
+    }
+    
+    function editBashAward(id) {
+      openBashAwardModal(id);
+    }
+    
+    async function saveBashAward() {
+      const id = document.getElementById('bashAwardId').value;
+      const data = {
+        year: parseInt(document.getElementById('bashAwardYear').value),
+        gender: document.getElementById('bashAwardDivision').value,
+        award: document.getElementById('bashAwardType').value,
+        name: document.getElementById('bashAwardName').value || null,
+        school: document.getElementById('bashAwardSchool').value
+      };
+      
+      try {
+        if (id) {
+          const { error } = await supabase.from('bash_awards').update(data).eq('id', id);
+          if (error) throw error;
+        } else {
+          const { error } = await supabase.from('bash_awards').insert([data]);
+          if (error) throw error;
+        }
+        
+        showToast('Award saved successfully', 'success');
+        closeBashAwardModal();
+        await loadBashAwards();
+        populateBashAwardYearFilter();
+      } catch (err) {
+        console.error('Error saving award:', err);
+        showToast('Error saving award: ' + err.message, 'error');
+      }
+    }
+    
+    async function deleteBashAward(id) {
+      if (!confirm('Delete this award?')) return;
+      
+      try {
+        const { error } = await supabase.from('bash_awards').delete().eq('id', id);
+        if (error) throw error;
+        
+        showToast('Award deleted', 'success');
+        await loadBashAwards();
+      } catch (err) {
+        console.error('Error deleting award:', err);
+        showToast('Error deleting award', 'error');
+      }
+    }
+    
+    // === SETTINGS ===
+    async function saveBashSettings() {
+      bashSettings = {
+        year: parseInt(document.getElementById('bashSettingYear').value),
+        startDate: document.getElementById('bashSettingStartDate').value,
+        endDate: document.getElementById('bashSettingEndDate').value,
+        venue: document.getElementById('bashSettingVenue').value,
+        teams: parseInt(document.getElementById('bashSettingTeams').value),
+        games: parseInt(document.getElementById('bashSettingGames').value)
+      };
+      
+      // Save to localStorage or Supabase settings table
+      localStorage.setItem('bashSettings', JSON.stringify(bashSettings));
+      showToast('Settings saved', 'success');
+    }
+    
+    // === EXPORT/IMPORT ===
+    function exportBashData() {
+      const data = {
+        settings: bashSettings,
+        schedule: bashSchedule,
+        champions: bashChampions,
+        awards: bashAwards
+      };
+      
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `the-bash-data-${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      
+      showToast('Data exported', 'success');
+    }
+    
+    function importBashData() {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json';
+      input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        try {
+          const text = await file.text();
+          const data = JSON.parse(text);
+          
+          if (data.schedule) {
+            // Import schedule
+            for (const game of data.schedule) {
+              await supabase.from('bash_schedule').upsert(game);
+            }
+          }
+          
+          if (data.champions) {
+            for (const champ of data.champions) {
+              await supabase.from('bash_champions').upsert(champ);
+            }
+          }
+          
+          if (data.awards) {
+            for (const award of data.awards) {
+              await supabase.from('bash_awards').upsert(award);
+            }
+          }
+          
+          showToast('Data imported successfully', 'success');
+          await loadBashData();
+        } catch (err) {
+          console.error('Import error:', err);
+          showToast('Error importing data', 'error');
+        }
+      };
+      input.click();
+    }
+    
+    async function regenerateBashDataFile() {
+      // Generate the JavaScript data file content
+      const dataFile = `/**
+ * The Bash - Tournament Data
+ * Auto-generated from CMS on ${new Date().toISOString()}
+ */
+
+const BASH_DATA = {
+  info: ${JSON.stringify(bashSettings, null, 2)},
+  schedule: ${JSON.stringify(bashSchedule, null, 2)},
+  champions: ${JSON.stringify(bashChampions, null, 2)},
+  awards: ${JSON.stringify(bashAwards, null, 2)}
+};
+
+if (typeof window !== 'undefined') {
+  window.BASH_DATA = BASH_DATA;
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = BASH_DATA;
+}
+`;
+      
+      const blob = new Blob([dataFile], { type: 'application/javascript' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'the-bash-data.js';
+      a.click();
+      URL.revokeObjectURL(url);
+      
+      showToast('Data file generated - upload to your site', 'success');
+    }
+    
+    function clearBashCache() {
+      bashSchedule = [];
+      bashChampions = [];
+      bashAwards = [];
+      localStorage.removeItem('bashSettings');
+      showToast('Cache cleared', 'success');
+      loadBashData();
+    }
