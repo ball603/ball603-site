@@ -2716,14 +2716,52 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         <!-- Photo Controls -->
         <div class="sidebar-card" id="gcPhotoControls" style="display: none;">
           <h4>🖼️ Photo Adjustments</h4>
-          <div style="display: flex; flex-direction: column; gap: 8px;">
+          <div style="display: flex; flex-direction: column; gap: 10px;">
             <div>
               <label style="font-size: 12px; color: #666;">Scale</label>
               <input type="range" id="gcPhotoScale" min="10" max="300" value="100" oninput="updatePhotoScale()" style="width: 100%;">
               <span id="gcPhotoScaleLabel" style="font-size: 11px; color: #888;">100%</span>
             </div>
-            <button onclick="centerPhoto()" style="padding: 8px; background: #e3f2fd; color: #1565c0; border: none; border-radius: 5px; cursor: pointer; font-size: 12px;">Center Photo</button>
-            <button onclick="fitPhotoToCanvas()" style="padding: 8px; background: #fff3e0; color: #e65100; border: none; border-radius: 5px; cursor: pointer; font-size: 12px;">Fit to Canvas</button>
+            <div>
+              <label style="font-size: 12px; color: #666;">Opacity</label>
+              <input type="range" id="gcPhotoOpacity" min="0" max="100" value="100" oninput="updatePhotoOpacity()" style="width: 100%;">
+              <span id="gcPhotoOpacityLabel" style="font-size: 11px; color: #888;">100%</span>
+            </div>
+            <div style="display: flex; gap: 6px;">
+              <button onclick="centerPhoto()" style="flex: 1; padding: 8px; background: #e3f2fd; color: #1565c0; border: none; border-radius: 5px; cursor: pointer; font-size: 11px;">Center</button>
+              <button onclick="fitPhotoToCanvas()" style="flex: 1; padding: 8px; background: #fff3e0; color: #e65100; border: none; border-radius: 5px; cursor: pointer; font-size: 11px;">Fit</button>
+            </div>
+            <div>
+              <label style="font-size: 12px; color: #666; margin-bottom: 4px; display: block;">Layer Order</label>
+              <div style="display: flex; gap: 6px;">
+                <button onclick="movePhotoLayer('back')" style="flex: 1; padding: 8px; background: #f5f5f5; color: #333; border: 1px solid #ddd; border-radius: 5px; cursor: pointer; font-size: 11px;">⬇️ Behind Overlay</button>
+                <button onclick="movePhotoLayer('front')" style="flex: 1; padding: 8px; background: #f5f5f5; color: #333; border: 1px solid #ddd; border-radius: 5px; cursor: pointer; font-size: 11px;">⬆️ Above Overlay</button>
+              </div>
+              <div id="gcPhotoLayerStatus" style="font-size: 10px; color: #888; margin-top: 4px; text-align: center;">Currently: Behind overlay</div>
+            </div>
+            <div>
+              <label style="font-size: 12px; color: #666; margin-bottom: 4px; display: block;">Crop Photo</label>
+              <button onclick="openPhotoCropper()" style="width: 100%; padding: 8px; background: #fce4ec; color: #c2185b; border: none; border-radius: 5px; cursor: pointer; font-size: 12px;">✂️ Crop Photo</button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Element Lock Controls -->
+        <div class="sidebar-card">
+          <h4>🔒 Lock Elements</h4>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px;">
+              <input type="checkbox" id="gcLockPhoto" onchange="toggleLock('photo')">
+              <span>Lock Photo Position</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px;">
+              <input type="checkbox" id="gcLockHeadline" onchange="toggleLock('headline')">
+              <span>Lock Headline</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px;">
+              <input type="checkbox" id="gcLockPhotog" onchange="toggleLock('photog')">
+              <span>Lock Photo Credit</span>
+            </label>
           </div>
         </div>
         
@@ -2762,6 +2800,32 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       <div class="modal-footer">
         <button class="btn-modal btn-modal-cancel" onclick="closeSmugMugPhotoBrowser()">Cancel</button>
         <button class="btn-modal btn-modal-select" id="btnSelectPhoto" onclick="selectSmugMugPhoto()" disabled>Select Photo</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Graphic Creator Photo Cropper Modal -->
+  <div class="modal-overlay" id="gcCropperModal">
+    <div class="modal cropper-modal-content" style="max-width: 800px;">
+      <div class="modal-header">
+        <h3>✂️ Crop Photo</h3>
+        <button class="modal-close" onclick="closeGcCropper()">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 20px;">
+        <div class="crop-aspect-buttons" style="margin-bottom: 15px;">
+          <button onclick="setGcCropAspect(NaN)" class="active" id="gcAspectFree">Free</button>
+          <button onclick="setGcCropAspect(4/5)" id="gcAspect45">4:5 (Canvas)</button>
+          <button onclick="setGcCropAspect(1)" id="gcAspect11">1:1 Square</button>
+          <button onclick="setGcCropAspect(16/9)" id="gcAspect169">16:9</button>
+          <button onclick="setGcCropAspect(3/4)" id="gcAspect34">3:4</button>
+        </div>
+        <div class="cropper-container-wrapper" style="max-height: 450px; background: #222;">
+          <img id="gcCropperImage" src="" alt="Crop preview" style="max-width: 100%; display: block;">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-modal btn-modal-cancel" onclick="closeGcCropper()">Cancel</button>
+        <button class="btn-modal btn-modal-select" onclick="applyGcCrop()">Apply Crop</button>
       </div>
     </div>
   </div>
@@ -9758,178 +9822,6 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       gcCanvas.renderAll();
     }
     
-    function reorderLayers() {
-      // Ensure correct layer order: background -> photo -> overlay -> headline -> photog
-      if (gcBackgroundRect) gcCanvas.sendToBack(gcBackgroundRect);
-      if (gcPhotoObject) gcPhotoObject.moveTo(1);
-      if (gcOverlayObject) gcOverlayObject.moveTo(2);
-      if (gcHeadlineObject) gcHeadlineObject.moveTo(3);
-      if (gcPhotogObject) gcPhotogObject.moveTo(4);
-      gcCanvas.renderAll();
-    }
-    
-    function resetGraphicCreator() {
-      if (!gcCanvas) return;
-      
-      // Reset photo
-      if (gcPhotoObject) {
-        gcCanvas.remove(gcPhotoObject);
-        gcPhotoObject = null;
-      }
-      
-      // Reset form fields
-      document.getElementById('gcTeamSelect').value = '';
-      document.getElementById('gcHeadline').value = '';
-      document.getElementById('gcPhotogName').value = '';
-      document.getElementById('gcHeadlineSize').value = 120;
-      document.getElementById('gcHeadlineSizeLabel').textContent = '120px';
-      
-      // Reset background
-      createBackgroundShape('#333333');
-      
-      // Reset text objects
-      if (gcHeadlineObject) gcHeadlineObject.set({ text: '' });
-      if (gcPhotogObject) gcPhotogObject.set({ text: '' });
-      
-      // Hide photo controls
-      document.getElementById('gcPhotoControls').style.display = 'none';
-      
-      // Reset dropzone
-      document.getElementById('gcPhotoDropzone').innerHTML = `
-        <div style="font-size: 32px; margin-bottom: 8px;">📸</div>
-        <div style="font-size: 13px; color: #666;">Drop image here or click to upload</div>
-      `;
-      
-      reorderLayers();
-      showToast('Canvas reset', 'success');
-    }
-    
-    function downloadGraphic() {
-      if (!gcCanvas) {
-        showToast('Canvas not initialized', 'error');
-        return;
-      }
-      
-      // Create a full-resolution canvas
-      const exportCanvas = document.createElement('canvas');
-      exportCanvas.width = GC_FULL_WIDTH;
-      exportCanvas.height = GC_FULL_HEIGHT;
-      const ctx = exportCanvas.getContext('2d');
-      
-      // Fill white background
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, GC_FULL_WIDTH, GC_FULL_HEIGHT);
-      
-      // Draw colored background shape
-      const bgColor = document.getElementById('gcCustomColor').value;
-      ctx.fillStyle = bgColor;
-      ctx.beginPath();
-      ctx.moveTo(0, GC_DIVIDER_START_Y);
-      ctx.lineTo(GC_FULL_WIDTH, GC_DIVIDER_END_Y);
-      ctx.lineTo(GC_FULL_WIDTH, GC_FULL_HEIGHT);
-      ctx.lineTo(0, GC_FULL_HEIGHT);
-      ctx.closePath();
-      ctx.fill();
-      
-      // Draw photo if exists
-      if (gcPhotoObject) {
-        const photoScale = 1 / GC_PREVIEW_SCALE;
-        const img = gcPhotoObject.getElement();
-        const left = (gcPhotoObject.left - (gcPhotoObject.width * gcPhotoObject.scaleX / 2)) * photoScale;
-        const top = (gcPhotoObject.top - (gcPhotoObject.height * gcPhotoObject.scaleY / 2)) * photoScale;
-        const width = gcPhotoObject.width * gcPhotoObject.scaleX * photoScale;
-        const height = gcPhotoObject.height * gcPhotoObject.scaleY * photoScale;
-        
-        ctx.drawImage(img, left, top, width, height);
-      }
-      
-      // Draw overlay template
-      if (gcOverlayObject) {
-        const overlayImg = gcOverlayObject.getElement();
-        ctx.drawImage(overlayImg, 0, 0, GC_FULL_WIDTH, GC_FULL_HEIGHT);
-      }
-      
-      // Draw headline text
-      const headline = document.getElementById('gcHeadline').value.toUpperCase();
-      if (headline) {
-        const fontSize = parseInt(document.getElementById('gcHeadlineSize').value);
-        ctx.font = `${fontSize}px "Covered By Your Grace"`;
-        ctx.fillStyle = '#ffffff';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        
-        // Add shadow
-        ctx.shadowColor = 'rgba(0,0,0,0.5)';
-        ctx.shadowBlur = 20;
-        ctx.shadowOffsetX = 10;
-        ctx.shadowOffsetY = 10;
-        
-        // Word wrap if needed
-        const maxWidth = GC_FULL_WIDTH * 0.85;
-        const words = headline.split(' ');
-        const lines = [];
-        let currentLine = '';
-        
-        words.forEach(word => {
-          const testLine = currentLine ? currentLine + ' ' + word : word;
-          const metrics = ctx.measureText(testLine);
-          if (metrics.width > maxWidth && currentLine) {
-            lines.push(currentLine);
-            currentLine = word;
-          } else {
-            currentLine = testLine;
-          }
-        });
-        if (currentLine) lines.push(currentLine);
-        
-        const lineHeight = fontSize * 1.1;
-        const startY = GC_FULL_HEIGHT * 0.68 - ((lines.length - 1) * lineHeight / 2);
-        
-        lines.forEach((line, i) => {
-          ctx.fillText(line, GC_FULL_WIDTH / 2, startY + (i * lineHeight));
-        });
-        
-        // Reset shadow
-        ctx.shadowColor = 'transparent';
-        ctx.shadowBlur = 0;
-        ctx.shadowOffsetX = 0;
-        ctx.shadowOffsetY = 0;
-      }
-      
-      // Draw photographer credit
-      const photogName = document.getElementById('gcPhotogName').value.trim();
-      if (photogName) {
-        ctx.font = '70px "Poppins"';
-        ctx.fillStyle = '#ffffff';
-        ctx.textAlign = 'right';
-        ctx.textBaseline = 'middle';
-        
-        // Add shadow
-        ctx.shadowColor = 'rgba(0,0,0,0.7)';
-        ctx.shadowBlur = 30;
-        ctx.shadowOffsetX = 10;
-        ctx.shadowOffsetY = 10;
-        
-        ctx.fillText('📸 ' + photogName.toUpperCase(), GC_FULL_WIDTH - 100, GC_FULL_HEIGHT * 0.58);
-        
-        // Reset shadow
-        ctx.shadowColor = 'transparent';
-      }
-      
-      // Generate filename
-      const teamSelect = document.getElementById('gcTeamSelect');
-      const teamName = teamSelect.selectedOptions[0]?.dataset?.teamName || 'graphic';
-      const timestamp = new Date().toISOString().slice(0, 10);
-      const filename = `ball603-${teamName}-${timestamp}.png`;
-      
-      // Download
-      const link = document.createElement('a');
-      link.download = filename;
-      link.href = exportCanvas.toDataURL('image/png');
-      link.click();
-      
-      showToast('Graphic downloaded!', 'success');
-    }
     
     // SmugMug Photo Browser
     async function openSmugMugPhotoBrowser() {
@@ -10039,6 +9931,428 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       } else {
         showToast('Could not load image URL', 'error');
       }
+    }
+    
+    // =====================================
+    // GRAPHIC CREATOR - LAYER MANAGEMENT
+    // =====================================
+    
+    let gcPhotoAboveOverlay = false;
+    let gcCropperInstance = null;
+    let gcOriginalPhotoUrl = null;
+    
+    function updatePhotoOpacity() {
+      if (!gcPhotoObject) return;
+      
+      const opacity = parseInt(document.getElementById('gcPhotoOpacity').value);
+      document.getElementById('gcPhotoOpacityLabel').textContent = opacity + '%';
+      
+      gcPhotoObject.set({ opacity: opacity / 100 });
+      gcCanvas.renderAll();
+    }
+    
+    function movePhotoLayer(direction) {
+      if (!gcPhotoObject || !gcOverlayObject) return;
+      
+      if (direction === 'front') {
+        gcPhotoAboveOverlay = true;
+        gcPhotoObject.moveTo(gcCanvas.getObjects().indexOf(gcOverlayObject) + 1);
+        document.getElementById('gcPhotoLayerStatus').textContent = 'Currently: Above overlay';
+        document.getElementById('gcPhotoLayerStatus').style.color = '#f57c00';
+      } else {
+        gcPhotoAboveOverlay = false;
+        gcPhotoObject.moveTo(gcCanvas.getObjects().indexOf(gcOverlayObject) - 1);
+        document.getElementById('gcPhotoLayerStatus').textContent = 'Currently: Behind overlay';
+        document.getElementById('gcPhotoLayerStatus').style.color = '#888';
+      }
+      
+      // Keep headline and photog on top
+      if (gcHeadlineObject) gcHeadlineObject.moveTo(gcCanvas.getObjects().length);
+      if (gcPhotogObject) gcPhotogObject.moveTo(gcCanvas.getObjects().length);
+      
+      gcCanvas.renderAll();
+    }
+    
+    function toggleLock(element) {
+      switch(element) {
+        case 'photo':
+          if (gcPhotoObject) {
+            const locked = document.getElementById('gcLockPhoto').checked;
+            gcPhotoObject.set({
+              selectable: !locked,
+              evented: !locked
+            });
+            gcCanvas.renderAll();
+          }
+          break;
+        case 'headline':
+          if (gcHeadlineObject) {
+            const locked = document.getElementById('gcLockHeadline').checked;
+            gcHeadlineObject.set({
+              selectable: !locked,
+              evented: !locked
+            });
+            gcCanvas.renderAll();
+          }
+          break;
+        case 'photog':
+          if (gcPhotogObject) {
+            const locked = document.getElementById('gcLockPhotog').checked;
+            gcPhotogObject.set({
+              selectable: !locked,
+              evented: !locked
+            });
+            gcCanvas.renderAll();
+          }
+          break;
+      }
+    }
+    
+    // =====================================
+    // GRAPHIC CREATOR - PHOTO CROPPING
+    // =====================================
+    
+    function openPhotoCropper() {
+      if (!gcPhotoObject) {
+        showToast('No photo to crop', 'error');
+        return;
+      }
+      
+      // Store original URL for re-cropping
+      if (!gcOriginalPhotoUrl) {
+        gcOriginalPhotoUrl = gcPhotoObject.getSrc();
+      }
+      
+      document.getElementById('gcCropperModal').classList.add('open');
+      
+      // Set image source
+      const cropImg = document.getElementById('gcCropperImage');
+      cropImg.src = gcOriginalPhotoUrl;
+      
+      // Initialize Cropper after image loads
+      cropImg.onload = function() {
+        if (gcCropperInstance) {
+          gcCropperInstance.destroy();
+        }
+        
+        gcCropperInstance = new Cropper(cropImg, {
+          viewMode: 1,
+          dragMode: 'move',
+          autoCropArea: 0.9,
+          restore: false,
+          guides: true,
+          center: true,
+          highlight: false,
+          cropBoxMovable: true,
+          cropBoxResizable: true,
+          toggleDragModeOnDblclick: false
+        });
+        
+        // Reset aspect buttons
+        document.querySelectorAll('#gcCropperModal .crop-aspect-buttons button').forEach(b => b.classList.remove('active'));
+        document.getElementById('gcAspectFree').classList.add('active');
+      };
+    }
+    
+    function closeGcCropper() {
+      document.getElementById('gcCropperModal').classList.remove('open');
+      if (gcCropperInstance) {
+        gcCropperInstance.destroy();
+        gcCropperInstance = null;
+      }
+    }
+    
+    function setGcCropAspect(ratio) {
+      if (!gcCropperInstance) return;
+      
+      gcCropperInstance.setAspectRatio(ratio);
+      
+      // Update button states
+      document.querySelectorAll('#gcCropperModal .crop-aspect-buttons button').forEach(b => b.classList.remove('active'));
+      
+      if (isNaN(ratio)) {
+        document.getElementById('gcAspectFree').classList.add('active');
+      } else if (ratio === 4/5) {
+        document.getElementById('gcAspect45').classList.add('active');
+      } else if (ratio === 1) {
+        document.getElementById('gcAspect11').classList.add('active');
+      } else if (ratio === 16/9) {
+        document.getElementById('gcAspect169').classList.add('active');
+      } else if (ratio === 3/4) {
+        document.getElementById('gcAspect34').classList.add('active');
+      }
+    }
+    
+    async function applyGcCrop() {
+      if (!gcCropperInstance) return;
+      
+      try {
+        // Get cropped canvas
+        const croppedCanvas = gcCropperInstance.getCroppedCanvas({
+          maxWidth: 4000,
+          maxHeight: 4000
+        });
+        
+        // Convert to data URL
+        const croppedUrl = croppedCanvas.toDataURL('image/jpeg', 0.95);
+        
+        // Close modal
+        closeGcCropper();
+        
+        // Load cropped image to canvas
+        loadPhotoToCanvas(croppedUrl);
+        
+        showToast('Photo cropped!', 'success');
+        
+      } catch (err) {
+        console.error('Crop failed:', err);
+        showToast('Crop failed', 'error');
+      }
+    }
+    
+    // Update reorderLayers to respect gcPhotoAboveOverlay setting
+    function reorderLayers() {
+      // Ensure correct layer order: background -> photo/overlay -> headline -> photog
+      if (gcBackgroundRect) gcCanvas.sendToBack(gcBackgroundRect);
+      
+      if (gcPhotoAboveOverlay) {
+        if (gcOverlayObject) gcOverlayObject.moveTo(1);
+        if (gcPhotoObject) gcPhotoObject.moveTo(2);
+      } else {
+        if (gcPhotoObject) gcPhotoObject.moveTo(1);
+        if (gcOverlayObject) gcOverlayObject.moveTo(2);
+      }
+      
+      if (gcHeadlineObject) gcHeadlineObject.moveTo(3);
+      if (gcPhotogObject) gcPhotogObject.moveTo(4);
+      gcCanvas.renderAll();
+    }
+    
+    // Update resetGraphicCreator to include new controls
+    const originalResetGraphicCreator = resetGraphicCreator;
+    resetGraphicCreator = function() {
+      // Reset new layer management state
+      gcPhotoAboveOverlay = false;
+      gcOriginalPhotoUrl = null;
+      
+      // Reset opacity slider
+      document.getElementById('gcPhotoOpacity').value = 100;
+      document.getElementById('gcPhotoOpacityLabel').textContent = '100%';
+      
+      // Reset layer status
+      document.getElementById('gcPhotoLayerStatus').textContent = 'Currently: Behind overlay';
+      document.getElementById('gcPhotoLayerStatus').style.color = '#888';
+      
+      // Reset lock checkboxes
+      document.getElementById('gcLockPhoto').checked = false;
+      document.getElementById('gcLockHeadline').checked = false;
+      document.getElementById('gcLockPhotog').checked = false;
+      
+      // Call original reset function logic
+      if (!gcCanvas) return;
+      
+      // Reset photo
+      if (gcPhotoObject) {
+        gcCanvas.remove(gcPhotoObject);
+        gcPhotoObject = null;
+      }
+      
+      // Reset form fields
+      document.getElementById('gcTeamSelect').value = '';
+      document.getElementById('gcHeadline').value = '';
+      document.getElementById('gcPhotogName').value = '';
+      document.getElementById('gcHeadlineSize').value = 120;
+      document.getElementById('gcHeadlineSizeLabel').textContent = '120px';
+      
+      // Reset background
+      createBackgroundShape('#333333');
+      
+      // Reset text objects
+      if (gcHeadlineObject) {
+        gcHeadlineObject.set({ text: '', selectable: true, evented: true });
+      }
+      if (gcPhotogObject) {
+        gcPhotogObject.set({ text: '', selectable: true, evented: true });
+      }
+      
+      // Hide photo controls
+      document.getElementById('gcPhotoControls').style.display = 'none';
+      
+      // Reset dropzone
+      document.getElementById('gcPhotoDropzone').innerHTML = `
+        <div style="font-size: 32px; margin-bottom: 8px;">📸</div>
+        <div style="font-size: 13px; color: #666;">Drop image here or click to upload</div>
+      `;
+      
+      reorderLayers();
+      showToast('Canvas reset', 'success');
+    };
+    
+    // Update downloadGraphic to respect layer order and opacity
+    const originalDownloadGraphic = downloadGraphic;
+    downloadGraphic = function() {
+      if (!gcCanvas) {
+        showToast('Canvas not initialized', 'error');
+        return;
+      }
+      
+      // Create a full-resolution canvas
+      const exportCanvas = document.createElement('canvas');
+      exportCanvas.width = GC_FULL_WIDTH;
+      exportCanvas.height = GC_FULL_HEIGHT;
+      const ctx = exportCanvas.getContext('2d');
+      
+      // Fill white background
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, GC_FULL_WIDTH, GC_FULL_HEIGHT);
+      
+      // Get photo opacity
+      const photoOpacity = gcPhotoObject ? gcPhotoObject.opacity : 1;
+      
+      // Draw based on layer order
+      if (gcPhotoAboveOverlay) {
+        // Background -> Overlay -> Photo
+        drawBackgroundToExport(ctx);
+        drawOverlayToExport(ctx);
+        drawPhotoToExport(ctx, photoOpacity);
+      } else {
+        // Background -> Photo -> Overlay
+        drawBackgroundToExport(ctx);
+        drawPhotoToExport(ctx, photoOpacity);
+        drawOverlayToExport(ctx);
+      }
+      
+      // Draw headline text (always on top)
+      drawHeadlineToExport(ctx);
+      
+      // Draw photographer credit (always on top)
+      drawPhotogToExport(ctx);
+      
+      // Generate filename
+      const teamSelect = document.getElementById('gcTeamSelect');
+      const teamName = teamSelect.selectedOptions[0]?.dataset?.teamName || 'graphic';
+      const timestamp = new Date().toISOString().slice(0, 10);
+      const filename = `ball603-${teamName}-${timestamp}.png`;
+      
+      // Download
+      const link = document.createElement('a');
+      link.download = filename;
+      link.href = exportCanvas.toDataURL('image/png');
+      link.click();
+      
+      showToast('Graphic downloaded!', 'success');
+    };
+    
+    function drawBackgroundToExport(ctx) {
+      const bgColor = document.getElementById('gcCustomColor').value;
+      ctx.fillStyle = bgColor;
+      ctx.beginPath();
+      ctx.moveTo(0, GC_DIVIDER_START_Y);
+      ctx.lineTo(GC_FULL_WIDTH, GC_DIVIDER_END_Y);
+      ctx.lineTo(GC_FULL_WIDTH, GC_FULL_HEIGHT);
+      ctx.lineTo(0, GC_FULL_HEIGHT);
+      ctx.closePath();
+      ctx.fill();
+    }
+    
+    function drawPhotoToExport(ctx, opacity) {
+      if (!gcPhotoObject) return;
+      
+      ctx.save();
+      ctx.globalAlpha = opacity;
+      
+      const photoScale = 1 / GC_PREVIEW_SCALE;
+      const img = gcPhotoObject.getElement();
+      const left = (gcPhotoObject.left - (gcPhotoObject.width * gcPhotoObject.scaleX / 2)) * photoScale;
+      const top = (gcPhotoObject.top - (gcPhotoObject.height * gcPhotoObject.scaleY / 2)) * photoScale;
+      const width = gcPhotoObject.width * gcPhotoObject.scaleX * photoScale;
+      const height = gcPhotoObject.height * gcPhotoObject.scaleY * photoScale;
+      
+      ctx.drawImage(img, left, top, width, height);
+      ctx.restore();
+    }
+    
+    function drawOverlayToExport(ctx) {
+      if (!gcOverlayObject) return;
+      const overlayImg = gcOverlayObject.getElement();
+      ctx.drawImage(overlayImg, 0, 0, GC_FULL_WIDTH, GC_FULL_HEIGHT);
+    }
+    
+    function drawHeadlineToExport(ctx) {
+      const headline = document.getElementById('gcHeadline').value.toUpperCase();
+      if (!headline) return;
+      
+      const fontSize = parseInt(document.getElementById('gcHeadlineSize').value);
+      ctx.font = `${fontSize}px "Covered By Your Grace"`;
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      
+      // Add shadow
+      ctx.shadowColor = 'rgba(0,0,0,0.5)';
+      ctx.shadowBlur = 20;
+      ctx.shadowOffsetX = 10;
+      ctx.shadowOffsetY = 10;
+      
+      // Calculate headline position from canvas object
+      const headlineY = gcHeadlineObject ? (gcHeadlineObject.top / GC_PREVIEW_SCALE) : (GC_FULL_HEIGHT * 0.68);
+      const headlineX = gcHeadlineObject ? (gcHeadlineObject.left / GC_PREVIEW_SCALE) : (GC_FULL_WIDTH / 2);
+      
+      // Word wrap if needed
+      const maxWidth = GC_FULL_WIDTH * 0.85;
+      const words = headline.split(' ');
+      const lines = [];
+      let currentLine = '';
+      
+      words.forEach(word => {
+        const testLine = currentLine ? currentLine + ' ' + word : word;
+        const metrics = ctx.measureText(testLine);
+        if (metrics.width > maxWidth && currentLine) {
+          lines.push(currentLine);
+          currentLine = word;
+        } else {
+          currentLine = testLine;
+        }
+      });
+      if (currentLine) lines.push(currentLine);
+      
+      const lineHeight = fontSize * 1.1;
+      const startY = headlineY - ((lines.length - 1) * lineHeight / 2);
+      
+      lines.forEach((line, i) => {
+        ctx.fillText(line, headlineX, startY + (i * lineHeight));
+      });
+      
+      // Reset shadow
+      ctx.shadowColor = 'transparent';
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
+    }
+    
+    function drawPhotogToExport(ctx) {
+      const photogName = document.getElementById('gcPhotogName').value.trim();
+      if (!photogName) return;
+      
+      ctx.font = '70px "Poppins"';
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      
+      // Add shadow
+      ctx.shadowColor = 'rgba(0,0,0,0.7)';
+      ctx.shadowBlur = 30;
+      ctx.shadowOffsetX = 10;
+      ctx.shadowOffsetY = 10;
+      
+      // Calculate position from canvas object
+      const photogX = gcPhotogObject ? (gcPhotogObject.left / GC_PREVIEW_SCALE) : (GC_FULL_WIDTH - 100);
+      const photogY = gcPhotogObject ? (gcPhotogObject.top / GC_PREVIEW_SCALE) : (GC_FULL_HEIGHT * 0.58);
+      
+      ctx.fillText('📸 ' + photogName.toUpperCase(), photogX, photogY);
+      
+      // Reset shadow
+      ctx.shadowColor = 'transparent';
     }
   </script>
   
