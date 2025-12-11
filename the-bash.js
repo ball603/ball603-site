@@ -35,9 +35,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ===== SNOW EFFECT =====
 function initSnowEffect() {
-  const container = document.getElementById('snowContainer');
+  // Run initial snow effect
+  runSnowEffect(true);
+  
+  // Set up recurring snow every 45 seconds
+  setInterval(() => {
+    runSnowEffect(false);
+  }, 45000);
+}
+
+function runSnowEffect(isInitial) {
+  const header = document.getElementById('bashHeader');
   const tagline = document.getElementById('bashTagline');
-  if (!container) return;
+  if (!header) return;
+  
+  // Create new snow container
+  let container = document.getElementById('snowContainer');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'snowContainer';
+    container.className = 'snow-container';
+    header.insertBefore(container, header.firstChild);
+  }
+  container.innerHTML = '';
+  container.style.opacity = '1';
   
   const snowflakes = ['❄', '❅', '❆', '✻', '✼', '❉'];
   
@@ -69,20 +90,15 @@ function initSnowEffect() {
     }, wave.delay);
   });
   
-  // Fade out snow container and show tagline after 8 seconds
+  // Fade out snow container after 8 seconds
   setTimeout(() => {
     container.style.opacity = '0';
     container.style.transition = 'opacity 1s ease';
     
-    // Show the tagline
-    if (tagline) {
+    // Show the tagline only on initial load
+    if (isInitial && tagline) {
       tagline.classList.add('visible');
     }
-    
-    // Remove container after fade
-    setTimeout(() => {
-      container.remove();
-    }, 1000);
   }, 8000);
 }
 
@@ -165,6 +181,16 @@ function setActiveHistoryTab(subtab) {
 
 // ===== FILTERS =====
 function initFilters() {
+  // All Games reset button
+  document.getElementById('resetFiltersBtn')?.addEventListener('click', () => {
+    // Reset all schedule filters
+    document.getElementById('scheduleGenderFilter').value = 'all';
+    document.getElementById('scheduleDayFilter').value = 'all';
+    document.getElementById('scheduleSearch').value = '';
+    bashState.filters.schedule = { gender: 'all', day: 'all', search: '' };
+    renderSchedule();
+  });
+  
   // Schedule filters
   document.getElementById('scheduleGenderFilter')?.addEventListener('change', (e) => {
     bashState.filters.schedule.gender = e.target.value;
@@ -398,89 +424,135 @@ function renderScore(game, hasScore, awayWon, homeWon) {
 function renderBoysBracket() {
   const container = document.getElementById('boysBracketDisplay');
   if (!container) return;
-  renderBracket(container, 'Boys');
+  
+  // Get games for Boys from schedule
+  const bracketGames = BASH_DATA.schedule.filter(g => 
+    g.division === 'Boys' && g.game !== null
+  );
+  
+  // Create a map for quick lookup
+  const gameMap = {};
+  bracketGames.forEach(g => { gameMap[g.game] = g; });
+  
+  let html = '<div class="bash-bracket boys-bracket">';
+  
+  // Round headers
+  html += '<div class="bracket-round-header round-header-1">First Round</div>';
+  html += '<div class="bracket-round-header round-header-2">Quarterfinals</div>';
+  html += '<div class="bracket-round-header round-header-3">Semifinals</div>';
+  html += '<div class="bracket-round-header round-header-4">Championship</div>';
+  
+  // First Round - Games 1-8
+  for (let i = 1; i <= 8; i++) {
+    html += renderBracketGame(gameMap[i], `game-${i}`);
+  }
+  
+  // Quarterfinals - Games 9-12
+  for (let i = 9; i <= 12; i++) {
+    html += renderBracketGame(gameMap[i], `game-${i}`);
+  }
+  
+  // Semifinals - Games 13-14
+  for (let i = 13; i <= 14; i++) {
+    html += renderBracketGame(gameMap[i], `game-${i}`);
+  }
+  
+  // Championship - Game 15
+  html += renderBracketGame(gameMap[15], 'game-15');
+  
+  html += '</div>';
+  container.innerHTML = html;
 }
 
 function renderGirlsBracket() {
   const container = document.getElementById('girlsBracketDisplay');
   if (!container) return;
-  renderBracket(container, 'Girls');
-}
-
-function renderBracket(container, gender) {
-  // Get games for this gender from schedule
-  const bracketGames = BASH_DATA.schedule.filter(g => 
-    g.division === gender && g.game !== null
-  ).sort((a, b) => a.game - b.game);
   
-  // Define rounds based on gender
-  let rounds;
-  if (gender === 'Boys') {
-    rounds = [
-      { title: 'First Round', games: bracketGames.filter(g => g.game >= 1 && g.game <= 8) },
-      { title: 'Quarterfinals', games: bracketGames.filter(g => g.game >= 9 && g.game <= 12) },
-      { title: 'Semifinals', games: bracketGames.filter(g => g.game >= 13 && g.game <= 14) },
-      { title: 'Championship', games: bracketGames.filter(g => g.game === 15) }
-    ];
-  } else {
-    rounds = [
-      { title: 'First Round', games: bracketGames.filter(g => g.game >= 1 && g.game <= 4) },
-      { title: 'Quarterfinals', games: bracketGames.filter(g => g.game >= 5 && g.game <= 8) },
-      { title: 'Semifinals', games: bracketGames.filter(g => g.game >= 9 && g.game <= 10) },
-      { title: 'Championship', games: bracketGames.filter(g => g.game === 11) }
-    ];
+  // Get games for Girls from schedule
+  const bracketGames = BASH_DATA.schedule.filter(g => 
+    g.division === 'Girls' && g.game !== null
+  );
+  
+  // Create a map for quick lookup
+  const gameMap = {};
+  bracketGames.forEach(g => { gameMap[g.game] = g; });
+  
+  let html = '<div class="bash-bracket girls-bracket">';
+  
+  // Round headers
+  html += '<div class="bracket-round-header round-header-1">First Round</div>';
+  html += '<div class="bracket-round-header round-header-2">Quarterfinals</div>';
+  html += '<div class="bracket-round-header round-header-3">Semifinals</div>';
+  html += '<div class="bracket-round-header round-header-4">Championship</div>';
+  
+  // First Round - Games 1-4
+  for (let i = 1; i <= 4; i++) {
+    html += renderBracketGame(gameMap[i], `game-${i}`);
   }
   
-  let html = '';
+  // Quarterfinals - Games 5-8
+  for (let i = 5; i <= 8; i++) {
+    html += renderBracketGame(gameMap[i], `game-${i}`);
+  }
   
-  rounds.forEach((round, roundIndex) => {
-    if (round.games.length === 0) return;
-    
-    html += `<div class="bracket-round">`;
-    html += `<div class="bracket-round-title">${round.title}</div>`;
-    
-    round.games.forEach(game => {
-      const hasScore = game.awayScore !== null && game.homeScore !== null;
-      const awayWon = hasScore && game.awayScore > game.homeScore;
-      const homeWon = hasScore && game.homeScore > game.awayScore;
-      
-      html += `<div class="bracket-game-wrapper">`;
-      
-      // Game header with number and site
-      html += `<div class="bracket-game-header">Game ${game.game} • ${game.site}</div>`;
-      
-      html += `<div class="bracket-game">`;
-      
-      // Away team
-      html += `
-        <div class="bracket-team">
-          <div class="bracket-team-info">
-            <img src="${getTeamLogo(game.away)}" alt="" class="bracket-team-logo" onerror="handleLogoError(this)">
-            <span class="bracket-team-name ${awayWon ? 'winner' : ''} ${isPlaceholder(game.away) ? 'pending' : ''}">${game.away}</span>
-          </div>
-          <span class="bracket-team-score ${awayWon ? 'winner' : ''}">${game.awayScore ?? ''}</span>
-        </div>
-      `;
-      
-      // Home team
-      html += `
-        <div class="bracket-team">
-          <div class="bracket-team-info">
-            <img src="${getTeamLogo(game.home)}" alt="" class="bracket-team-logo" onerror="handleLogoError(this)">
-            <span class="bracket-team-name ${homeWon ? 'winner' : ''} ${isPlaceholder(game.home) ? 'pending' : ''}">${game.home}</span>
-          </div>
-          <span class="bracket-team-score ${homeWon ? 'winner' : ''}">${game.homeScore ?? ''}</span>
-        </div>
-      `;
-      
-      html += `</div>`; // bracket-game
-      html += `</div>`; // bracket-game-wrapper
-    });
-    
-    html += `</div>`; // bracket-round
-  });
+  // Semifinals - Games 9-10
+  for (let i = 9; i <= 10; i++) {
+    html += renderBracketGame(gameMap[i], `game-${i}`);
+  }
   
+  // Championship - Game 11
+  html += renderBracketGame(gameMap[11], 'game-11');
+  
+  html += '</div>';
   container.innerHTML = html;
+}
+
+function renderBracketGame(game, className) {
+  if (!game) {
+    return `<div class="bracket-game-wrapper ${className}">
+      <div class="bracket-game-header">TBD</div>
+      <div class="bracket-game">
+        <div class="bracket-team">
+          <div class="bracket-team-info">
+            <img src="${DEFAULT_LOGO}" alt="" class="bracket-team-logo">
+            <span class="bracket-team-name pending">TBD</span>
+          </div>
+          <span class="bracket-team-score"></span>
+        </div>
+        <div class="bracket-team">
+          <div class="bracket-team-info">
+            <img src="${DEFAULT_LOGO}" alt="" class="bracket-team-logo">
+            <span class="bracket-team-name pending">TBD</span>
+          </div>
+          <span class="bracket-team-score"></span>
+        </div>
+      </div>
+    </div>`;
+  }
+  
+  const hasScore = game.awayScore !== null && game.homeScore !== null;
+  const awayWon = hasScore && game.awayScore > game.homeScore;
+  const homeWon = hasScore && game.homeScore > game.awayScore;
+  
+  return `<div class="bracket-game-wrapper ${className}">
+    <div class="bracket-game-header">Game ${game.game} • ${game.site}</div>
+    <div class="bracket-game">
+      <div class="bracket-team">
+        <div class="bracket-team-info">
+          <img src="${getTeamLogo(game.away)}" alt="" class="bracket-team-logo" onerror="handleLogoError(this)">
+          <span class="bracket-team-name ${awayWon ? 'winner' : ''} ${isPlaceholder(game.away) ? 'pending' : ''}">${game.away}</span>
+        </div>
+        <span class="bracket-team-score ${awayWon ? 'winner' : ''}">${game.awayScore ?? ''}</span>
+      </div>
+      <div class="bracket-team">
+        <div class="bracket-team-info">
+          <img src="${getTeamLogo(game.home)}" alt="" class="bracket-team-logo" onerror="handleLogoError(this)">
+          <span class="bracket-team-name ${homeWon ? 'winner' : ''} ${isPlaceholder(game.home) ? 'pending' : ''}">${game.home}</span>
+        </div>
+        <span class="bracket-team-score ${homeWon ? 'winner' : ''}">${game.homeScore ?? ''}</span>
+      </div>
+    </div>
+  </div>`;
 }
 
 // ===== CHAMPIONS RENDERING =====
