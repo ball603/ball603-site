@@ -2731,8 +2731,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           </div>
           
           <div class="form-group" style="margin-bottom: 15px;">
-            <label>Teams (comma-separated, for team page display)</label>
-            <input type="text" id="bashStoryTeams" placeholder="e.g. Franklin, Kennett, Profile" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+            <label>Teams (comma-separated)</label>
+            <input type="text" id="bashStoryTeams" placeholder="e.g. Franklin, Kennett" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
           </div>
           
           <div class="form-group" style="margin-bottom: 15px;">
@@ -8612,7 +8612,6 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     let bashSchedule = [];
     let bashChampions = [];
     let bashAwards = [];
-    let bashContent = [];
     let bashSettings = {
       year: 2025,
       startDate: '2025-12-26',
@@ -8630,14 +8629,14 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       if (tab === 'scorebook' || tab === 'recap') {
         initBashScorebook();
       }
-      // Load stories when stories tab is shown
+      // Load content when stories tab is shown
       if (tab === 'stories') {
-        loadBashStories();
+        loadBashContent();
       }
     }
     
     async function loadBashData() {
-      await Promise.all([loadBashSchedule(), loadBashChampions(), loadBashAwards(), loadBashStories()]);
+      await Promise.all([loadBashSchedule(), loadBashChampions(), loadBashAwards(), loadBashContent()]);
       populateBashAwardYearFilter();
     }
     
@@ -8659,24 +8658,24 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       renderBashAwards();
     }
     
-    // ===== BASH CONTENT MANAGEMENT (Unified: scorebook, story, recap) =====
+    // ===== BASH CONTENT MANAGEMENT =====
+    let bashContent = [];
+    
     async function loadBashContent() {
       const { data, error } = await supabase.from('bash_content').select('*').order('pinned', { ascending: false }).order('published_at', { ascending: false });
       bashContent = error ? [] : (data || []);
       renderBashContent();
     }
     
-    // Alias for backward compatibility
-    async function loadBashStories() { await loadBashContent(); }
-    
     function renderBashContent() {
       const tbody = document.getElementById('bashContentBody');
+      if (!tbody) return;
       const typeFilter = document.getElementById('bashContentTypeFilter')?.value || '';
       let filtered = bashContent.filter(c => !typeFilter || c.content_type === typeFilter);
       document.getElementById('bashContentCount').textContent = filtered.length + ' items';
       
       if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #888;">No content found. Create stories using "New Story" or via the Scorebook.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #888;">No content found.</td></tr>';
         return;
       }
       
@@ -8754,10 +8753,9 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         content: document.getElementById('bashStoryContent').value || null,
         pinned: document.getElementById('bashStoryPinned').checked,
         published: document.getElementById('bashStoryPublished').checked,
-        show_on_main_site: false // Feature stories stay on Bash only
+        show_on_main_site: false
       };
       
-      // Generate slug if new
       if (!id) {
         data.slug = data.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') + '-' + Date.now();
         data.excerpt = (data.content || '').split('.').slice(0, 2).join('.') + '.';
@@ -8788,9 +8786,6 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       }
     }
     
-    // Alias for backward compatibility
-    async function deleteBashStory(id) { await deleteBashContent(id); }
-    
     async function toggleBashContentPin(id) {
       const item = bashContent.find(c => c.id === id);
       if (!item) return;
@@ -8801,8 +8796,6 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         await loadBashContent();
       } catch (err) {
         showToast('Error: ' + err.message, 'error');
-      }
-    }
       }
     }
     
@@ -8955,76 +8948,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       try {
         const { error } = id ? await supabase.from('bash_schedule').update(data).eq('id', id) : await supabase.from('bash_schedule').insert([data]);
         if (error) throw error;
-        
-        // Check if this is a bracket game with a final score - if so, advance winner
-        if (data.game_number && data.away_score !== null && data.home_score !== null) {
-          await advanceBracketWinner(data);
-        }
-        
         showToast('Game saved', 'success');
         closeBashGameModal();
         await loadBashSchedule();
       } catch (err) { showToast('Error: ' + err.message, 'error'); }
-    }
-    
-    // Bracket advancement logic
-    async function advanceBracketWinner(game) {
-      const gameNum = game.game_number;
-      const division = game.division;
-      const winner = game.away_score > game.home_score ? game.away : game.home;
-      
-      let nextGameNum = null;
-      let position = null; // 'away' or 'home' in next game
-      
-      if (division === 'Boys') {
-        // Boys: 16-team bracket
-        // First Round (1-8) → Quarterfinals (9-12)
-        if (gameNum >= 1 && gameNum <= 8) {
-          nextGameNum = 8 + Math.ceil(gameNum / 2);
-          position = gameNum % 2 === 1 ? 'away' : 'home';
-        }
-        // Quarterfinals (9-12) → Semifinals (13-14)
-        else if (gameNum >= 9 && gameNum <= 12) {
-          nextGameNum = 12 + Math.ceil((gameNum - 8) / 2);
-          position = (gameNum - 8) % 2 === 1 ? 'away' : 'home';
-        }
-        // Semifinals (13-14) → Championship (15)
-        else if (gameNum >= 13 && gameNum <= 14) {
-          nextGameNum = 15;
-          position = gameNum === 13 ? 'away' : 'home';
-        }
-      } else if (division === 'Girls') {
-        // Girls: 12-team bracket with byes
-        // First Round (1-4) → Quarterfinals (5-8)
-        // Games 1-4 winners go to QF games 5-8 in away slot
-        if (gameNum >= 1 && gameNum <= 4) {
-          nextGameNum = 4 + gameNum;
-          position = 'away';
-        }
-        // Quarterfinals (5-8) → Semifinals (9-10)
-        else if (gameNum >= 5 && gameNum <= 8) {
-          nextGameNum = 8 + Math.ceil((gameNum - 4) / 2);
-          position = (gameNum - 4) % 2 === 1 ? 'away' : 'home';
-        }
-        // Semifinals (9-10) → Championship (11)
-        else if (gameNum >= 9 && gameNum <= 10) {
-          nextGameNum = 11;
-          position = gameNum === 9 ? 'away' : 'home';
-        }
-      }
-      
-      // Update next game if we found one
-      if (nextGameNum && position) {
-        const updateField = position === 'away' ? 'away' : 'home';
-        const { error } = await supabase.from('bash_schedule')
-          .update({ [updateField]: winner })
-          .eq('game_number', nextGameNum)
-          .eq('division', division);
-        
-        if (!error) {
-          console.log(`Advanced ${winner} to Game ${nextGameNum} (${position} slot)`);
-        }
-      }
     }
     
     async function deleteBashGame(id) {
@@ -9547,57 +9474,37 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       // Convert to HTML
       const articleHtml = articleText.split('\n\n').map(p => '<p>' + p.trim() + '</p>').join('');
       
-      // Determine tournament day from game date
-      const dateMap = { 'Dec 26': 1, 'Dec 27': 2, 'Dec 28': 3, 'Dec 29': 4, 'Dec 30': 5 };
-      const gameDay = dateMap[bashSBSelectedGame.date] || null;
-      
-      // Create bash_content entry for scorebook story
-      const contentData = {
-        content_type: 'scorebook',
+      // Create article with bash-game tag
+      const articleData = {
         title: headline,
         slug: slug,
         content: articleHtml,
         excerpt: articleText.split('.').slice(0, 2).join('.') + '.',
         author: 'Ball603 Staff',
-        day: gameDay,
-        division: bashSBSelectedGame.division || null,
-        game_id: bashSBSelectedGame.id,
-        teams: [bashSBSelectedGame.away, bashSBSelectedGame.home].filter(t => t),
-        pinned: false,
-        published: true,
-        show_on_main_site: false, // Scorebook stories stay on Bash only
+        status: 'published',
+        tags: ['bash-game', bashSBSelectedGame.division || 'Boys', 'The Bash'],
         published_at: new Date().toISOString()
       };
       
       try {
-        const { error } = await supabase.from('bash_content').insert([contentData]);
+        const { data, error } = await supabase.from('articles').insert([articleData]).select();
         if (error) throw error;
         
-        // Update game score in bash_schedule and trigger bracket advancement
-        const gameUpdate = {
+        // Update game score in bash_schedule
+        await supabase.from('bash_schedule').update({
           away_score: awayFinal,
           home_score: homeFinal,
           overtime: bashSBOTCount > 0,
-          recap: '/the-bash#stories'
-        };
+          recap: '/article/' + slug
+        }).eq('id', bashSBSelectedGame.id);
         
-        await supabase.from('bash_schedule').update(gameUpdate).eq('id', bashSBSelectedGame.id);
-        
-        // Advance bracket winner
-        await advanceBracketWinner({
-          ...bashSBSelectedGame,
-          away_score: awayFinal,
-          home_score: homeFinal
-        });
-        
-        showToast('Story published to The Bash!', 'success');
+        showToast('Story published!', 'success');
         
         // Reset and refresh
         closeBashSBEntry();
         document.getElementById('bashSBPreviewPanel').style.display = 'none';
         document.getElementById('bashSBEmptyState').style.display = 'block';
         await loadBashSchedule();
-        await loadBashContent();
         filterBashSBGames();
         
       } catch (err) {
@@ -9694,57 +9601,27 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       
       const slug = headline.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') + '-' + Date.now();
       
-      // Determine day from selected date
-      const dateMap = { 'Dec 26': 1, 'Dec 27': 2, 'Dec 28': 3, 'Dec 29': 4, 'Dec 30': 5 };
-      const recapDay = dateMap[date] || null;
-      
-      // Get all teams that played that day
-      const gamesForDay = bashSchedule.filter(g => g.date === date && g.away_score !== null);
-      const teamsPlayed = [...new Set(gamesForDay.flatMap(g => [g.away, g.home].filter(t => t)))];
-      
-      // Save to bash_content (for The Bash and team pages)
-      const contentData = {
-        content_type: 'recap',
+      const articleData = {
         title: headline,
         slug: slug,
         content: content,
         excerpt: highlights.split('\n')[0],
         author: 'Ball603 Staff',
-        day: recapDay,
-        teams: teamsPlayed,
-        pinned: false,
-        published: true,
-        show_on_main_site: true, // Recaps show on main site!
+        status: 'published',
+        tags: ['bash-recap', 'The Bash', 'featured'],
         published_at: new Date().toISOString()
       };
       
       try {
-        // Save to bash_content for The Bash and team pages
-        const { error: contentError } = await supabase.from('bash_content').insert([contentData]);
-        if (contentError) throw contentError;
-        
-        // ALSO save to articles for main site display
-        const articleData = {
-          title: headline,
-          slug: slug,
-          content: content,
-          excerpt: highlights.split('\n')[0],
-          author: 'Ball603 Staff',
-          status: 'published',
-          tags: ['bash-recap', 'The Bash', 'featured'],
-          published_at: new Date().toISOString()
-        };
-        
-        const { error: articleError } = await supabase.from('articles').insert([articleData]);
-        if (articleError) console.warn('Article insert warning:', articleError);
+        const { error } = await supabase.from('articles').insert([articleData]);
+        if (error) throw error;
         
         showToast('Recap published to both sites!', 'success');
         
-        // Clear form and refresh
+        // Clear form
         document.getElementById('bashRecapHeadline').value = '';
         document.getElementById('bashRecapHighlights').value = '';
         document.getElementById('bashRecapPreview').value = '';
-        await loadBashContent();
         
       } catch (err) {
         console.error('Publish error:', err);

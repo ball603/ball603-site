@@ -700,10 +700,10 @@
   <script src="/the-bash-data.js"></script>
 
   <script>
-    // Team logos lookup - loaded from API
+    // Teams lookup from API
     let teamsLookup = {};
-
-    // Tournament days configuration
+    
+    // Tournament days
     const TOURNAMENT_DAYS = [
       { day: 1, date: 'December 26', dateKey: 'Dec 26' },
       { day: 2, date: 'December 27', dateKey: 'Dec 27' },
@@ -711,41 +711,34 @@
       { day: 4, date: 'December 29', dateKey: 'Dec 29' },
       { day: 5, date: 'December 30', dateKey: 'Dec 30' }
     ];
-
-    // Load teams from API to get logo URLs
+    
+    // Load teams from API
     async function loadTeamsLookup() {
       try {
         const response = await fetch('/.netlify/functions/teams');
         const data = await response.json();
         if (data.success && data.teams) {
           data.teams.forEach(team => {
-            // Store under multiple key variations for better matching
             const shortname = (team.shortname || '').toLowerCase().trim();
-            const school = (team.school || '').toLowerCase().trim();
-            
             if (shortname) {
               teamsLookup[shortname] = team;
               teamsLookup[shortname.replace(/\s+/g, '-')] = team;
               teamsLookup[shortname.replace(/\s+/g, '')] = team;
               teamsLookup[shortname.replace(/-/g, ' ')] = team;
             }
-            if (school && school !== shortname) {
-              teamsLookup[school] = team;
-            }
           });
         }
       } catch (e) {
-        console.log('Could not load teams lookup:', e);
+        console.log('Teams lookup:', e);
       }
     }
-
-    // Team logo helper - checks API data first, then falls back to path
+    
+    // Team logo helper - checks API then falls back to path
     function getTeamLogo(teamName) {
-      if (!teamName || teamName.includes('Winner') || teamName.includes('Loser') || teamName === 'TBD' || teamName.includes('TBA')) {
+      if (!teamName || teamName.includes('Winner') || teamName.includes('Loser') || teamName === 'TBD') {
         return '/logos/100px/Ball603-white.png';
       }
       
-      // Try multiple key variations
       const variations = [
         teamName.toLowerCase().trim(),
         teamName.toLowerCase().trim().replace(/\s+/g, '-'),
@@ -760,42 +753,19 @@
         }
       }
       
-      // Fallback to path-based logo
       const logoName = teamName.replace(/\s+/g, '-');
       return `/logos/100px/${logoName}.png`;
     }
-
-    // Get round name from game number
-    function getRoundName(gameNum, division) {
-      if (!gameNum) return null;
-      
-      if (division === 'Boys') {
-        if (gameNum >= 1 && gameNum <= 8) return 'First Round';
-        if (gameNum >= 9 && gameNum <= 12) return 'Quarterfinals';
-        if (gameNum >= 13 && gameNum <= 14) return 'Semifinals';
-        if (gameNum === 15) return 'Championship';
-      } else if (division === 'Girls') {
-        if (gameNum >= 1 && gameNum <= 4) return 'First Round';
-        if (gameNum >= 5 && gameNum <= 8) return 'Quarterfinals';
-        if (gameNum >= 9 && gameNum <= 10) return 'Semifinals';
-        if (gameNum === 11) return 'Championship';
-      }
-      return null;
-    }
-
-    // Get current tournament day based on date
+    
+    // Get current tournament day
     function getCurrentTournamentDay() {
       const today = new Date();
-      const month = today.getMonth(); // 0-indexed, December = 11
+      const month = today.getMonth();
       const day = today.getDate();
       
-      // Tournament runs Dec 26-30
-      if (month === 11) { // December
-        if (day >= 26 && day <= 30) {
-          return day - 25; // Day 1 = Dec 26, Day 5 = Dec 30
-        }
+      if (month === 11 && day >= 26 && day <= 30) {
+        return day - 25;
       }
-      // Default to Day 1 if before/after tournament
       return 1;
     }
 
@@ -824,21 +794,19 @@
       document.getElementById('continueBanner').style.display = 'none';
       localStorage.setItem('bashBannerDismissed', 'true');
     }
-
-    // Initialize day games section
+    
+    // Initialize day games
     function initDayGames() {
       const currentDay = getCurrentTournamentDay();
       const dayInfo = TOURNAMENT_DAYS[currentDay - 1];
       
-      // Update title to "Day X: December XX"
       document.getElementById('todayTitle').textContent = `Day ${dayInfo.day}: ${dayInfo.date}`;
       
-      // Get games for this day
       const games = BASH_DATA.schedule.filter(g => g.date && g.date.includes(dayInfo.dateKey));
       renderDayGames(games);
     }
 
-    // Render games for selected day with round info in footer
+    // Render day games
     function renderDayGames(games) {
       const container = document.getElementById('todayGames');
 
@@ -849,22 +817,6 @@
 
       container.innerHTML = games.map(g => {
         const hasScore = g.awayScore !== null && g.homeScore !== null;
-        const roundName = getRoundName(g.game, g.division);
-        
-        // Footer text: "Round: Gender @ Site" or "Gender @ Site"
-        let footerText = '';
-        if (roundName) {
-          footerText = `${roundName}: ${g.division || ''} @ ${g.site || 'FHS'}`;
-        } else {
-          footerText = `${g.division || ''} @ ${g.site || 'FHS'}`;
-        }
-        
-        // Coverage icons
-        let coverageHtml = '';
-        if (g.recap) coverageHtml += `<a href="${g.recap}" class="bash-coverage-icon" title="Recap">📰</a>`;
-        if (g.photos) coverageHtml += `<a href="${g.photos}" class="bash-coverage-icon" title="Photos">📷</a>`;
-        if (g.video || g.highlights) coverageHtml += `<a href="${g.video || g.highlights}" class="bash-coverage-icon" title="Video">🎬</a>`;
-        
         return `
           <div class="bash-today-game">
             <div class="bash-today-time">${g.time}</div>
@@ -884,13 +836,27 @@
                 ${hasScore ? `<span class="team-score">${g.homeScore}</span>` : ''}
               </div>
             </div>
-            <div class="bash-today-footer">
-              <span class="bash-today-info">${footerText}</span>
-              ${coverageHtml ? `<div class="bash-today-coverage">${coverageHtml}</div>` : ''}
+            <div class="bash-today-meta">
+              <span class="bash-today-div">${g.division || ''}</span>
+              <span class="bash-today-site">${g.site || ''}</span>
             </div>
+            ${g.recap ? `<a href="${g.recap}" class="bash-today-recap">Recap</a>` : ''}
           </div>
         `;
       }).join('');
+    }
+    
+    // Update bracket logos after teams load
+    function updateBracketLogos() {
+      document.querySelectorAll('.bracket-team-logo').forEach(img => {
+        const teamName = img.nextElementSibling?.textContent;
+        if (teamName) {
+          const newSrc = getTeamLogo(teamName);
+          if (newSrc !== img.src) {
+            img.src = newSrc;
+          }
+        }
+      });
     }
 
     // Tab functionality
@@ -1094,19 +1060,6 @@
       }
     }
 
-    // Update bracket logos using teams lookup
-    function updateBracketLogos() {
-      document.querySelectorAll('.bracket-team-logo').forEach(img => {
-        const teamName = img.nextElementSibling?.textContent;
-        if (teamName) {
-          const newSrc = getTeamLogo(teamName);
-          if (newSrc !== img.src) {
-            img.src = newSrc;
-          }
-        }
-      });
-    }
-
     // Initialize on load
     document.addEventListener('DOMContentLoaded', async () => {
       createSnow();
@@ -1114,7 +1067,7 @@
       initSchedule();
       initHistory();
       
-      // Load teams lookup for logos, then render day games and update bracket logos
+      // Load teams and render day games
       await loadTeamsLookup();
       initDayGames();
       updateBracketLogos();
