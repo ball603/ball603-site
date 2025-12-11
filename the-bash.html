@@ -703,6 +703,15 @@
     // Team logos lookup - loaded from API
     let teamsLookup = {};
 
+    // Tournament days configuration
+    const TOURNAMENT_DAYS = [
+      { day: 1, date: 'December 26', dateKey: 'Dec 26' },
+      { day: 2, date: 'December 27', dateKey: 'Dec 27' },
+      { day: 3, date: 'December 28', dateKey: 'Dec 28' },
+      { day: 4, date: 'December 29', dateKey: 'Dec 29' },
+      { day: 5, date: 'December 30', dateKey: 'Dec 30' }
+    ];
+
     // Load teams from API to get logo URLs
     async function loadTeamsLookup() {
       try {
@@ -710,8 +719,16 @@
         const data = await response.json();
         if (data.success && data.teams) {
           data.teams.forEach(team => {
-            const key = (team.shortname || team.school || '').toLowerCase().trim();
-            teamsLookup[key] = team;
+            // Store under multiple key variations for better matching
+            const shortname = (team.shortname || '').toLowerCase().trim();
+            const school = (team.school || '').toLowerCase().trim();
+            const hyphenated = shortname.replace(/\s+/g, '-');
+            const noSpaces = shortname.replace(/\s+/g, '');
+            
+            if (shortname) teamsLookup[shortname] = team;
+            if (school) teamsLookup[school] = team;
+            if (hyphenated) teamsLookup[hyphenated] = team;
+            if (noSpaces) teamsLookup[noSpaces] = team;
           });
         }
       } catch (e) {
@@ -725,12 +742,19 @@
         return '/logos/100px/Ball603-white.png';
       }
       
-      // Check lookup table
-      const key = teamName.toLowerCase().trim();
-      const team = teamsLookup[key];
+      // Try multiple key variations
+      const variations = [
+        teamName.toLowerCase().trim(),
+        teamName.toLowerCase().trim().replace(/\s+/g, '-'),
+        teamName.toLowerCase().trim().replace(/\s+/g, ''),
+        teamName.toLowerCase().trim().replace(/-/g, ' ')
+      ];
       
-      if (team && team.logo_url) {
-        return team.logo_url;
+      for (const key of variations) {
+        const team = teamsLookup[key];
+        if (team && team.logo_url) {
+          return team.logo_url;
+        }
       }
       
       // Fallback to path-based logo
@@ -754,6 +778,22 @@
         if (gameNum === 11) return 'Championship';
       }
       return null;
+    }
+
+    // Get current tournament day based on date
+    function getCurrentTournamentDay() {
+      const today = new Date();
+      const month = today.getMonth(); // 0-indexed, December = 11
+      const day = today.getDate();
+      
+      // Tournament runs Dec 26-30
+      if (month === 11) { // December
+        if (day >= 26 && day <= 30) {
+          return day - 25; // Day 1 = Dec 26, Day 5 = Dec 30
+        }
+      }
+      // Default to Day 1 if before tournament or after
+      return 1;
     }
 
     // Snow effect
@@ -782,8 +822,21 @@
       localStorage.setItem('bashBannerDismissed', 'true');
     }
 
-    // Today's games with logos and new footer format
-    function renderTodayGames(games) {
+    // Day games section
+    function initDayGames() {
+      const currentDay = getCurrentTournamentDay();
+      const dayInfo = TOURNAMENT_DAYS[currentDay - 1];
+      
+      // Update title
+      document.getElementById('todayTitle').textContent = `Day ${dayInfo.day}: ${dayInfo.date}`;
+      
+      // Get games for this day
+      const games = BASH_DATA.schedule.filter(g => g.date && g.date.includes(dayInfo.dateKey));
+      renderDayGames(games);
+    }
+
+    // Render games for selected day
+    function renderDayGames(games) {
       const container = document.getElementById('todayGames');
 
       if (games.length === 0) {
@@ -1048,8 +1101,8 @@
       initSchedule();
       initHistory();
       
-      // Show sample today's games
-      renderTodayGames(BASH_DATA.schedule.slice(0, 6));
+      // Initialize day games section
+      initDayGames();
       
       // Check banner dismissal
       if (localStorage.getItem('bashBannerDismissed') === 'true') {
