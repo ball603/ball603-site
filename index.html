@@ -1467,24 +1467,24 @@
   <script>
     const PLACEHOLDER_IMG = 'https://placehold.co/800x450/1a1a1a/f57c00?text=Ball603';
     
-    // Initialize page
-    document.addEventListener('DOMContentLoaded', async () => {
-      await Ball603.init();
+    // Wait for Ball603 to be ready (app.js dispatches this event)
+    document.addEventListener('ball603:ready', async (e) => {
+      const state = e.detail;
       
-      // Load articles
-      const { data: articles } = await Ball603.supabase
-        .from('articles')
-        .select('*')
-        .order('published_at', { ascending: false })
-        .limit(10);
+      // Articles are already fetched by app.js
+      const articles = state.articles || [];
       
-      if (articles) {
+      if (articles.length > 0) {
         renderHero(articles);
         renderStories(articles);
         renderGalleries(articles);
+      } else {
+        // Show empty states
+        document.getElementById('heroMain').innerHTML = '<div class="empty-state"><p>No featured content yet</p></div>';
+        document.getElementById('feedMain').innerHTML = '<div class="section-header"><h2 class="section-title">Latest Stories</h2></div><div class="empty-state"><p>No stories yet. Check back soon!</p></div>';
       }
       
-      // Load games and render
+      // Render games and standings
       renderTodaysGames();
       renderStandings();
     });
