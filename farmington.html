@@ -922,17 +922,27 @@
     // ===== LOAD ARTICLES =====
     async function loadArticles() {
       try {
-        // Tags are stored as jsonb array, use cs (contains) with proper format
+        // First try to get all published articles, then filter client-side
         const { data: articles, error } = await supabase
           .from('articles')
-          .select('id, title, slug, excerpt, featured_image_url, published_at, category')
-          .filter('tags', 'cs', '["' + TEAM_CONFIG.slug + '"]')
+          .select('id, title, slug, excerpt, featured_image_url, published_at, category, tags')
           .eq('status', 'published')
           .order('published_at', { ascending: false })
-          .limit(3);
+          .limit(20);
         
         if (error) throw error;
-        renderArticles(articles || []);
+        
+        // Filter for articles with this team's tag
+        const teamTag = TEAM_CONFIG.slug.toLowerCase();
+        const filtered = (articles || []).filter(a => {
+          if (!a.tags) return false;
+          // Tags could be array or JSON string
+          const tagArray = Array.isArray(a.tags) ? a.tags : JSON.parse(a.tags || '[]');
+          return tagArray.includes(teamTag);
+        }).slice(0, 3);
+        
+        console.log('Found', filtered.length, 'articles for', teamTag);
+        renderArticles(filtered);
       } catch (err) {
         console.error('Error loading articles:', err);
       }
