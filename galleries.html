@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Ball603 Photo Galleries - New Hampshire High School Basketball Photography">
+  <meta name="theme-color" content="#f57c00">
+  <title>Galleries | Ball603</title>
+  
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="apple-touch-icon" href="/logo.png">
+  
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <!-- Shared Styles -->
+  <link rel="stylesheet" href="/styles.css">
+  
+  <!-- Open Graph -->
+  <meta property="og:title" content="Galleries | Ball603">
+  <meta property="og:description" content="New Hampshire High School Basketball Photo Galleries">
+  <meta property="og:image" content="https://ball603.com/logo.png">
+  <meta property="og:url" content="https://ball603.com/galleries">
+  
+  <style>
+    /* Page Hero */
+    .galleries-hero {
+      background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #1a1a1a 100%);
+      padding: 60px 20px 40px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .galleries-hero::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23f57c00' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+      pointer-events: none;
+    }
+    
+    .galleries-hero-content {
+      position: relative;
+      z-index: 1;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    
+    .galleries-hero h1 {
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: #f57c00;
+      margin: 0 0 10px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+    
+    .galleries-hero p {
+      color: rgba(255,255,255,0.8);
+      font-size: 1.2rem;
+      margin: 0;
+      font-style: italic;
+    }
+    
+    .galleries-hero-stats {
+      display: flex;
+      justify-content: center;
+      gap: 40px;
+      margin-top: 30px;
+    }
+    
+    .hero-stat {
+      text-align: center;
+    }
+    
+    .hero-stat-value {
+      display: block;
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: #f57c00;
+    }
+    
+    .hero-stat-label {
+      display: block;
+      font-size: 0.85rem;
+      color: rgba(255,255,255,0.6);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    /* Filter Bar */
+    .galleries-filter-bar {
+      background: #f5f5f5;
+      border-bottom: 1px solid #e0e0e0;
+      padding: 15px 20px;
+      position: sticky;
+      top: 60px;
+      z-index: 100;
+    }
+    
+    .filter-inner {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      align-items: flex-end;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .filter-label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .filter-buttons {
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+    }
+    
+    .filter-btn {
+      padding: 8px 16px;
+      border: 1px solid #ddd;
+      background: #fff;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: #333;
+    }
+    
+    .filter-btn:hover {
+      border-color: #f57c00;
+      color: #f57c00;
+    }
+    
+    .filter-btn.active {
+      background: #f57c00;
+      border-color: #f57c00;
+      color: white;
+    }
+    
+    .search-box {
+      flex: 1;
+      min-width: 200px;
+      max-width: 300px;
+      position: relative;
+    }
+    
+    .search-box input {
+      width: 100%;
+      padding: 10px 15px 10px 40px;
+      border: 1px solid #ddd;
+      border-radius: 25px;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s;
+      background: #fff;
+    }
+    
+    .search-box input:focus {
+      border-color: #f57c00;
+    }
+    
+    .search-box::before {
+      content: '🔍';
+      position: absolute;
+      left: 15px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 0.9rem;
+      opacity: 0.5;
+    }
+    
+    .team-select {
+      padding: 10px 15px;
+      border: 1px solid #ddd;
+      border-radius: 25px;
+      font-size: 0.95rem;
+      outline: none;
+      cursor: pointer;
+      min-width: 180px;
+      background: #fff;
+    }
+    
+    .team-select:focus {
+      border-color: #f57c00;
+    }
+    
+    .gallery-count {
+      font-size: 0.9rem;
+      color: #666;
+      margin-left: auto;
+    }
+    
+    /* Main Content */
+    .galleries-main {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 30px 20px 60px;
+    }
+    
+    /* Pinned Section */
+    .pinned-section {
+      margin-bottom: 40px;
+    }
+    
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #f0f0f0;
+    }
+    
+    .section-header h2 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin: 0;
+    }
+    
+    .section-header .pin-icon {
+      color: #f57c00;
+    }
+    
+    /* Gallery Grid */
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 25px;
+    }
+    
+    .gallery-card {
+      background: #fff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      transition: all 0.3s ease;
+      cursor: pointer;
+      text-decoration: none;
+      color: inherit;
+      display: block;
+    }
+    
+    .gallery-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+    
+    .gallery-card.pinned {
+      border: 2px solid #f57c00;
+    }
+    
+    .gallery-thumbnail {
+      position: relative;
+      width: 100%;
+      padding-top: 66.67%; /* 3:2 aspect ratio */
+      background: #1a1a1a;
+      overflow: hidden;
+    }
+    
+    .gallery-thumbnail img {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.3s;
+    }
+    
+    .gallery-card:hover .gallery-thumbnail img {
+      transform: scale(1.05);
+    }
+    
+    .gallery-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 50%);
+      opacity: 0;
+      transition: opacity 0.3s;
+      display: flex;
+      align-items: flex-end;
+      padding: 15px;
+    }
+    
+    .gallery-card:hover .gallery-overlay {
+      opacity: 1;
+    }
+    
+    .gallery-overlay-text {
+      color: white;
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+    
+    .gallery-photo-count {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: rgba(0,0,0,0.7);
+      color: white;
+      font-size: 0.8rem;
+      padding: 5px 10px;
+      border-radius: 15px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    
+    .gallery-info {
+      padding: 15px;
+    }
+    
+    .gallery-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #1a1a1a;
+      margin: 0 0 8px;
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    
+    .gallery-meta {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      font-size: 0.85rem;
+      color: #666;
+    }
+    
+    .gallery-date {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    
+    .gallery-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 10px;
+    }
+    
+    .gallery-tag {
+      font-size: 0.7rem;
+      padding: 3px 8px;
+      border-radius: 10px;
+      background: #fff3e0;
+      color: #e65100;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    /* SmugMug CTA */
+    .smugmug-cta {
+      background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%);
+      border-radius: 12px;
+      padding: 25px 30px;
+      margin-bottom: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+    
+    .smugmug-cta-text {
+      color: white;
+    }
+    
+    .smugmug-cta-text h3 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin: 0 0 5px;
+    }
+    
+    .smugmug-cta-text p {
+      margin: 0;
+      opacity: 0.9;
+      font-size: 0.95rem;
+    }
+    
+    .smugmug-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: white;
+      color: #2E7D32;
+      padding: 12px 25px;
+      border-radius: 25px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: all 0.3s;
+    }
+    
+    .smugmug-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+    }
+    
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 80px 20px;
+      color: #666;
+    }
+    
+    .empty-state-icon {
+      font-size: 4rem;
+      margin-bottom: 20px;
+      opacity: 0.5;
+    }
+    
+    .empty-state p {
+      font-size: 1.1rem;
+      margin: 0;
+    }
+    
+    /* Loading State */
+    .loading-state {
+      text-align: center;
+      padding: 80px 20px;
+    }
+    
+    .loading-spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid #f0f0f0;
+      border-top-color: #f57c00;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 20px;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    /* Mobile Responsive */
+    @media (max-width: 768px) {
+      .galleries-hero {
+        padding: 40px 15px 30px;
+      }
+      
+      .galleries-hero h1 {
+        font-size: 1.8rem;
+      }
+      
+      .galleries-hero-stats {
+        gap: 25px;
+      }
+      
+      .hero-stat-value {
+        font-size: 2rem;
+      }
+      
+      .galleries-filter-bar {
+        top: 56px;
+      }
+      
+      .filter-inner {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 15px;
+      }
+      
+      .search-box {
+        max-width: none;
+      }
+      
+      .team-select {
+        width: 100%;
+      }
+      
+      .gallery-count {
+        margin-left: 0;
+        text-align: center;
+      }
+      
+      .gallery-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+      }
+      
+      .smugmug-cta {
+        flex-direction: column;
+        text-align: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  
+  <!-- ==================== SITE HEADER ==================== -->
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="/" class="header-logo">
+        <img src="/Ball603wide-white-200px.png" alt="Ball603 - Basketball in the Granite State">
+      </a>
+      
+      <nav class="header-nav">
+        <div class="nav-item">
+          <a href="/teams" class="nav-link">Teams</a>
+        </div>
+        <div class="nav-item">
+          <a href="/schedule" class="nav-link">Schedule</a>
+        </div>
+        <div class="nav-item">
+          <a href="/standings" class="nav-link">Standings</a>
+        </div>
+        <div class="nav-item">
+          <a href="/features" class="nav-link">Features</a>
+          <div class="nav-dropdown">
+            <div class="dropdown-list">
+              <a href="/jamsession">Mike Whaley's Jam Session</a>
+              <a href="/1kinthe603">1K in the 603</a>
+              <a href="/603intheNCAA">603 in the NCAA</a>
+              <a href="/nhiaahistory">NHIAA History</a>
+              <a href="/thebash">The Bash</a>
+            </div>
+          </div>
+        </div>
+        <div class="nav-item">
+          <a href="/news" class="nav-link">News</a>
+        </div>
+        <div class="nav-item">
+          <a href="/galleries" class="nav-link active">Galleries</a>
+        </div>
+        <div class="nav-item">
+          <a href="/video" class="nav-link">Video</a>
+        </div>
+      </nav>
+      
+      <div class="header-right">
+        <div class="header-social">
+          <a href="https://facebook.com/ball603" target="_blank" class="social-link" title="Facebook">
+            <svg viewBox="0 0 24 24"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" fill="currentColor"/></svg>
+          </a>
+          <a href="https://www.instagram.com/ball603nh/" target="_blank" class="social-link" title="Instagram">
+            <svg viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" fill="currentColor"/></svg>
+          </a>
+          <a href="https://x.com/Ball603NH" target="_blank" class="social-link" title="X (Twitter)">
+            <svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" fill="currentColor"/></svg>
+          </a>
+        </div>
+        
+        <button class="mobile-menu-toggle" id="mobileMenuToggle">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Mobile Drawer -->
+  <div class="mobile-overlay" id="mobileOverlay"></div>
+  <div class="mobile-drawer" id="mobileDrawer">
+    <button class="mobile-drawer-close" id="mobileClose">×</button>
+    <nav class="mobile-nav">
+      <div class="mobile-nav-item"><a href="/teams" class="mobile-nav-link">Teams</a></div>
+      <div class="mobile-nav-item"><a href="/schedule" class="mobile-nav-link">Schedule</a></div>
+      <div class="mobile-nav-item"><a href="/standings" class="mobile-nav-link">Standings</a></div>
+      <div class="mobile-nav-item" data-expandable>
+        <a href="#" class="mobile-nav-link">Features <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></a>
+        <div class="mobile-nav-submenu">
+          <a href="/jamsession">Mike Whaley's Jam Session</a>
+          <a href="/1kinthe603">1K in the 603</a>
+          <a href="/603intheNCAA">603 in the NCAA</a>
+          <a href="/nhiaahistory">NHIAA History</a>
+          <a href="/thebash">The Bash</a>
+        </div>
+      </div>
+      <div class="mobile-nav-item"><a href="/news" class="mobile-nav-link">News</a></div>
+      <div class="mobile-nav-item"><a href="/galleries" class="mobile-nav-link">Galleries</a></div>
+      <div class="mobile-nav-item"><a href="/video" class="mobile-nav-link">Video</a></div>
+    </nav>
+    <div class="mobile-drawer-footer">
+      <div class="mobile-social">
+        <a href="https://facebook.com/ball603" target="_blank" class="social-link"><svg viewBox="0 0 24 24"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" fill="currentColor"/></svg></a>
+        <a href="https://www.instagram.com/ball603nh/" target="_blank" class="social-link"><svg viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" fill="currentColor"/></svg></a>
+        <a href="https://x.com/Ball603NH" target="_blank" class="social-link"><svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" fill="currentColor"/></svg></a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hero Section -->
+  <section class="galleries-hero">
+    <div class="galleries-hero-content">
+      <h1>📷 Ball603 Galleries</h1>
+      <p>See the action.</p>
+      <div class="galleries-hero-stats">
+        <div class="hero-stat">
+          <span class="hero-stat-value" id="galleryCount">--</span>
+          <span class="hero-stat-label">Galleries</span>
+        </div>
+        <div class="hero-stat">
+          <span class="hero-stat-value" id="photoCount">--</span>
+          <span class="hero-stat-label">Photos</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Filter Bar -->
+  <div class="galleries-filter-bar">
+    <div class="filter-inner">
+      <div class="filter-group">
+        <span class="filter-label">Filter:</span>
+        <div class="filter-buttons">
+          <button class="filter-btn active" data-filter="all">All Galleries</button>
+          <button class="filter-btn" data-filter="pinned">Featured</button>
+        </div>
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">Team:</span>
+        <select class="team-select" id="teamFilter">
+          <option value="">All Teams</option>
+        </select>
+      </div>
+      <div class="search-box">
+        <input type="text" id="gallerySearch" placeholder="Search galleries...">
+      </div>
+      <div class="gallery-count" id="galleryCountDisplay">Loading...</div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <main class="galleries-main">
+    
+    <!-- SmugMug CTA -->
+    <div class="smugmug-cta">
+      <div class="smugmug-cta-text">
+        <h3>Browse All Photos on SmugMug</h3>
+        <p>View full-resolution photos and order prints!</p>
+      </div>
+      <a href="https://ball603.smugmug.com/" target="_blank" class="smugmug-btn">
+        📸 Visit SmugMug
+      </a>
+    </div>
+    
+    <!-- Pinned Galleries Section -->
+    <div class="pinned-section" id="pinnedSection" style="display: none;">
+      <div class="section-header">
+        <span class="pin-icon">📌</span>
+        <h2>Featured Galleries</h2>
+      </div>
+      <div class="gallery-grid" id="pinnedGalleries"></div>
+    </div>
+    
+    <!-- All Galleries -->
+    <div id="galleriesContainer">
+      <div class="loading-state">
+        <div class="loading-spinner"></div>
+        <p>Loading galleries...</p>
+      </div>
+    </div>
+    
+  </main>
+
+  <!-- Site Footer -->
+  <footer class="site-footer">
+    <div class="footer-logo"><img src="/logo.png" alt="Ball603"></div>
+    <div class="footer-links">
+      <a href="/about">About Us</a>
+      <a href="/contact">Contact</a>
+    </div>
+    <div class="footer-social">
+      <a href="https://facebook.com/ball603" target="_blank" title="Facebook"><svg viewBox="0 0 24 24"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg></a>
+      <a href="https://www.instagram.com/ball603nh/" target="_blank" title="Instagram"><svg viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg></a>
+      <a href="https://x.com/Ball603NH" target="_blank" title="X (Twitter)"><svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></a>
+    </div>
+    <p class="footer-copyright">© 2025 Ball603. All rights reserved.</p>
+  </footer>
+
+  <script>
+    // ===== SUPABASE CLIENT =====
+    const SUPABASE_URL = 'https://suncdkxfqkwwnmhosxcf.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN1bmNka3hmcWt3d25taG9zeGNmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwNTk4MzIsImV4cCI6MjA4MDYzNTgzMn0.aT6V8Zx_YozqOh1ZnC6x-czI9vo-QhHKmP69PgY-8xw';
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // ===== STATE =====
+    let allGalleries = [];
+    let galleryTeamTags = {};
+    let allTeams = [];
+    let currentFilter = 'all';
+    let currentTeam = '';
+    let searchTerm = '';
+
+    // ===== UTILITIES =====
+    function formatDate(dateStr) {
+      if (!dateStr) return '';
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function formatNumber(num) {
+      if (!num) return '0';
+      if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+      return num.toLocaleString();
+    }
+
+    // ===== MOBILE MENU =====
+    function initMobileMenu() {
+      const toggle = document.getElementById('mobileMenuToggle');
+      const drawer = document.getElementById('mobileDrawer');
+      const overlay = document.getElementById('mobileOverlay');
+      const close = document.getElementById('mobileClose');
+      const openDrawer = () => { drawer.classList.add('active'); overlay.classList.add('active'); document.body.style.overflow = 'hidden'; };
+      const closeDrawer = () => { drawer.classList.remove('active'); overlay.classList.remove('active'); document.body.style.overflow = ''; };
+      toggle?.addEventListener('click', openDrawer);
+      close?.addEventListener('click', closeDrawer);
+      overlay?.addEventListener('click', closeDrawer);
+      document.querySelectorAll('.mobile-nav-item[data-expandable]').forEach(item => {
+        item.querySelector('.mobile-nav-link')?.addEventListener('click', (e) => { e.preventDefault(); item.classList.toggle('expanded'); });
+      });
+    }
+
+    // ===== LOAD GALLERIES =====
+    async function loadGalleries() {
+      try {
+        // Load galleries
+        const { data: galleries, error } = await supabase
+          .from('smugmug_albums')
+          .select('*')
+          .eq('hidden', false)
+          .order('pinned', { ascending: false })
+          .order('album_date', { ascending: false });
+
+        if (error) throw error;
+
+        allGalleries = galleries || [];
+        
+        // Update stats
+        document.getElementById('galleryCount').textContent = allGalleries.length;
+        const totalPhotos = allGalleries.reduce((sum, g) => sum + (g.image_count || 0), 0);
+        document.getElementById('photoCount').textContent = formatNumber(totalPhotos);
+
+        // Load team tags
+        await loadTeamTags();
+        
+        renderGalleries();
+        await loadTeamsForFilter();
+      } catch (err) {
+        console.error('Error loading galleries:', err);
+        document.getElementById('galleriesContainer').innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">📷</div>
+            <p>Unable to load galleries. Please try again later.</p>
+          </div>
+        `;
+      }
+    }
+
+    // ===== LOAD TEAM TAGS =====
+    async function loadTeamTags() {
+      try {
+        const { data: tags, error } = await supabase
+          .from('team_galleries')
+          .select('*');
+        
+        if (error) throw error;
+        
+        galleryTeamTags = {};
+        for (const tag of (tags || [])) {
+          if (!galleryTeamTags[tag.album_key]) {
+            galleryTeamTags[tag.album_key] = [];
+          }
+          galleryTeamTags[tag.album_key].push(tag.team_slug);
+        }
+      } catch (err) {
+        console.error('Error loading team tags:', err);
+      }
+    }
+
+    // ===== LOAD TEAMS FOR FILTER =====
+    async function loadTeamsForFilter() {
+      try {
+        const { data: teams, error } = await supabase
+          .from('teams')
+          .select('shortname')
+          .eq('level', 'High School')
+          .eq('active', true)
+          .order('shortname');
+
+        if (error) throw error;
+
+        // Dedupe
+        const seen = new Set();
+        allTeams = (teams || []).filter(t => {
+          if (seen.has(t.shortname)) return false;
+          seen.add(t.shortname);
+          return true;
+        });
+
+        // Populate dropdown
+        const select = document.getElementById('teamFilter');
+        allTeams.forEach(t => {
+          const option = document.createElement('option');
+          option.value = t.shortname.toLowerCase().replace(/[^a-z0-9]/g, '');
+          option.textContent = t.shortname;
+          select.appendChild(option);
+        });
+      } catch (err) {
+        console.error('Error loading teams:', err);
+      }
+    }
+
+    // ===== RENDER GALLERIES =====
+    function renderGalleries() {
+      let filtered = [...allGalleries];
+
+      // Apply filters
+      if (currentFilter === 'pinned') {
+        filtered = filtered.filter(g => g.pinned);
+      }
+
+      if (currentTeam) {
+        filtered = filtered.filter(g => {
+          const tags = galleryTeamTags[g.album_key] || [];
+          return tags.some(tag => tag.toLowerCase().replace(/[^a-z0-9]/g, '') === currentTeam);
+        });
+      }
+
+      if (searchTerm) {
+        const term = searchTerm.toLowerCase();
+        filtered = filtered.filter(g =>
+          g.name?.toLowerCase().includes(term)
+        );
+      }
+
+      // Update count
+      document.getElementById('galleryCountDisplay').textContent = `${filtered.length} galler${filtered.length !== 1 ? 'ies' : 'y'}`;
+
+      // Separate pinned
+      const pinned = filtered.filter(g => g.pinned);
+      const regular = filtered.filter(g => !g.pinned);
+
+      // Render pinned section
+      const pinnedSection = document.getElementById('pinnedSection');
+      const pinnedContainer = document.getElementById('pinnedGalleries');
+      if (pinned.length > 0 && currentFilter !== 'pinned') {
+        pinnedSection.style.display = 'block';
+        pinnedContainer.innerHTML = pinned.map(g => renderGalleryCard(g, true)).join('');
+      } else {
+        pinnedSection.style.display = 'none';
+      }
+
+      // Render main grid
+      const container = document.getElementById('galleriesContainer');
+      const galleriesToShow = currentFilter === 'pinned' ? pinned : regular;
+
+      if (galleriesToShow.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">📷</div>
+            <p>${allGalleries.length === 0 ? 'No galleries yet. Check back soon!' : 'No galleries match your filters.'}</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = `<div class="gallery-grid">${galleriesToShow.map(g => renderGalleryCard(g)).join('')}</div>`;
+    }
+
+    function renderGalleryCard(gallery, isPinned = false) {
+      const thumbnail = gallery.thumbnail_url || '';
+      const tags = galleryTeamTags[gallery.album_key] || [];
+      const albumUrl = gallery.album_url || `https://ball603.smugmug.com/`;
+
+      return `
+        <a href="${albumUrl}" target="_blank" class="gallery-card ${isPinned ? 'pinned' : ''}">
+          <div class="gallery-thumbnail">
+            <img src="${thumbnail}" alt="${escapeHtml(gallery.name)}" onerror="this.src='/logo.png'; this.style.objectFit='contain'; this.style.padding='20px';">
+            <div class="gallery-overlay">
+              <span class="gallery-overlay-text">View Gallery →</span>
+            </div>
+            ${gallery.image_count ? `<span class="gallery-photo-count">📷 ${gallery.image_count}</span>` : ''}
+          </div>
+          <div class="gallery-info">
+            <h3 class="gallery-title">${escapeHtml(gallery.name)}</h3>
+            <div class="gallery-meta">
+              ${gallery.album_date ? `<span class="gallery-date">📅 ${formatDate(gallery.album_date)}</span>` : ''}
+            </div>
+            ${tags.length > 0 ? `
+              <div class="gallery-tags">
+                ${tags.slice(0, 3).map(tag => `<span class="gallery-tag">${tag}</span>`).join('')}
+                ${tags.length > 3 ? `<span class="gallery-tag">+${tags.length - 3}</span>` : ''}
+              </div>
+            ` : ''}
+          </div>
+        </a>
+      `;
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // ===== FILTERS =====
+    function initFilters() {
+      // Filter buttons
+      document.querySelectorAll('.filter-btn[data-filter]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.filter-btn[data-filter]').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          currentFilter = btn.dataset.filter;
+          renderGalleries();
+        });
+      });
+
+      // Team select
+      document.getElementById('teamFilter').addEventListener('change', (e) => {
+        currentTeam = e.target.value;
+        renderGalleries();
+      });
+
+      // Search
+      document.getElementById('gallerySearch').addEventListener('input', (e) => {
+        searchTerm = e.target.value;
+        renderGalleries();
+      });
+    }
+
+    // ===== INIT =====
+    document.addEventListener('DOMContentLoaded', () => {
+      initMobileMenu();
+      initFilters();
+      loadGalleries();
+    });
+  </script>
+</body>
+</html>
