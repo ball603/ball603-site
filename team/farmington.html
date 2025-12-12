@@ -357,7 +357,6 @@
               <p>Loading schedule...</p>
             </div>
           </div>
-          <a href="/schedule?team=Farmington&gender=boys" class="schedule-card-link">Full Schedule →</a>
         </div>
         <!-- Girls Schedule Card -->
         <div class="schedule-card">
@@ -370,7 +369,6 @@
               <p>Loading schedule...</p>
             </div>
           </div>
-          <a href="/schedule?team=Farmington&gender=girls" class="schedule-card-link">Full Schedule →</a>
         </div>
       </div>
     </section>
@@ -836,24 +834,37 @@
         }
       }
       
-      // Render game list (mix of recent completed + upcoming, max 8)
-      const recentCompleted = completedGames.slice(-4).reverse();
-      const nextUp = upcomingGames.slice(0, 4);
-      const displayGames = [...recentCompleted, ...nextUp].slice(0, 8);
+      // Render ALL games in chronological order
+      const allGames = games.map(g => {
+        const isHome = isThisTeam(g.home);
+        const hs = String(g.home_score || '').trim();
+        const as = String(g.away_score || '').trim();
+        const hasScore = hs !== '' && as !== '';
+        
+        let teamScore, oppScore, won;
+        if (hasScore) {
+          const homeScore = parseInt(hs);
+          const awayScore = parseInt(as);
+          teamScore = isHome ? homeScore : awayScore;
+          oppScore = isHome ? awayScore : homeScore;
+          won = teamScore > oppScore;
+        }
+        
+        return { ...g, isHome, teamScore, oppScore, won, hasScore };
+      });
       
-      if (displayGames.length === 0) {
-        container.innerHTML = '<div class="empty-state"><p>No games to display</p></div>';
+      if (allGames.length === 0) {
+        container.innerHTML = '<div class="empty-state"><p>No games scheduled yet</p></div>';
         return;
       }
       
-      container.innerHTML = displayGames.map(g => {
+      container.innerHTML = allGames.map(g => {
         const opp = g.isHome ? g.away : g.home;
-        const hasResult = g.teamScore !== undefined;
         
         let resultClass = 'upcoming';
         let resultText = g.time || 'TBD';
         
-        if (hasResult) {
+        if (g.hasScore) {
           resultClass = g.won ? 'win' : 'loss';
           resultText = `${g.won ? 'W' : 'L'} ${g.teamScore}-${g.oppScore}`;
         }
