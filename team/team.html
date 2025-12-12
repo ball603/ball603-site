@@ -707,16 +707,28 @@
         const teamNames = TEAM_CONFIG.nameVariations;
         const teamGames = allGames.filter(g => teamNames.some(n => n && (g.home?.includes(n) || g.away?.includes(n))));
         
-        // Deduplicate games by date + opponent + time
+        // Normalize opponent name for deduplication - strip common suffixes and punctuation
+        function normalizeForDedupe(name) {
+          if (!name) return '';
+          return name
+            .toLowerCase()
+            .replace(/\s*(high school|regional|academy|school|hs)\s*/gi, '')
+            .replace(/[^a-z]/g, '');
+        }
+        
+        // Deduplicate games by date + normalized opponent (ignore time - can vary between sources)
         function dedupeGames(games) {
           const seen = new Set();
           return games.filter(g => {
-            const teamNames = TEAM_CONFIG.nameVariations;
             const isHome = teamNames.some(n => n && g.home?.includes(n));
             const opponent = isHome ? g.away : g.home;
-            // Create unique key: date + opponent (normalized) + time
-            const key = `${g.date}|${opponent?.toLowerCase().replace(/[^a-z]/g, '')}|${g.time || ''}`;
-            if (seen.has(key)) return false;
+            const normalizedOpp = normalizeForDedupe(opponent);
+            // Create unique key: date + normalized opponent only
+            const key = `${g.date}|${normalizedOpp}`;
+            if (seen.has(key)) {
+              console.log('Deduped game:', g.date, opponent, '(key:', key, ')');
+              return false;
+            }
             seen.add(key);
             return true;
           });
@@ -724,6 +736,7 @@
         
         teamData.schedules.boys = dedupeGames(teamGames.filter(g => g.gender === 'Boys'));
         teamData.schedules.girls = dedupeGames(teamGames.filter(g => g.gender === 'Girls'));
+        console.log(`Schedules loaded: ${teamData.schedules.boys.length} boys, ${teamData.schedules.girls.length} girls games`);
         renderSchedules();
       } catch (err) { console.error('Error loading schedules:', err); renderScheduleError(); }
     }
