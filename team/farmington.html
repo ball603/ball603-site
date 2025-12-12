@@ -415,10 +415,14 @@
       <div class="section-header">
         <h2 class="section-title">📷 Photo Galleries</h2>
       </div>
-      <div class="galleries-scroll" id="galleriesGrid">
-        <div class="empty-state">
-          <p>Loading galleries...</p>
+      <div class="galleries-container">
+        <button class="gallery-arrow gallery-arrow-left" id="galleryArrowLeft" aria-label="Scroll left">‹</button>
+        <div class="galleries-scroll" id="galleriesGrid">
+          <div class="empty-state">
+            <p>Loading galleries...</p>
+          </div>
         </div>
+        <button class="gallery-arrow gallery-arrow-right" id="galleryArrowRight" aria-label="Scroll right">›</button>
       </div>
     </section>
 
@@ -1195,6 +1199,37 @@
           </a>
         `;
       }).join('');
+      
+      // Setup arrow navigation
+      setupGalleryArrows();
+    }
+    
+    function setupGalleryArrows() {
+      const container = document.getElementById('galleriesGrid');
+      const leftArrow = document.getElementById('galleryArrowLeft');
+      const rightArrow = document.getElementById('galleryArrowRight');
+      
+      if (!container || !leftArrow || !rightArrow) return;
+      
+      const scrollAmount = 480; // ~2 cards
+      
+      const updateArrowState = () => {
+        leftArrow.disabled = container.scrollLeft <= 0;
+        rightArrow.disabled = container.scrollLeft >= container.scrollWidth - container.clientWidth - 10;
+      };
+      
+      leftArrow.addEventListener('click', () => {
+        container.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
+      });
+      
+      rightArrow.addEventListener('click', () => {
+        container.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+      });
+      
+      container.addEventListener('scroll', updateArrowState);
+      
+      // Initial state
+      updateArrowState();
     }
 
     // ===== LOAD FEATURES DATA =====
