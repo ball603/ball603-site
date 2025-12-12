@@ -538,16 +538,22 @@
     // Schedule
     const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
     const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-    let allGames = [], currentDate = new Date(), calendarDate = new Date();
+    
+    // Helper to get current date in EST
+    function getESTDate() {
+      return new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+    }
+    
+    let allGames = [], currentDate = getESTDate(), calendarDate = getESTDate();
     currentDate.setHours(0,0,0,0);
 
     function getDateString(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
     function formatDateDisplay(d) { return '<span class="day-name">' + DAY_NAMES[d.getDay()] + '</span>, ' + MONTH_NAMES[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear(); }
-    function isToday(d) { const t = new Date(); return d.getDate() === t.getDate() && d.getMonth() === t.getMonth() && d.getFullYear() === t.getFullYear(); }
+    function isToday(d) { const t = getESTDate(); return d.getDate() === t.getDate() && d.getMonth() === t.getMonth() && d.getFullYear() === t.getFullYear(); }
     function updateDateDisplay() { document.getElementById('currentDate').innerHTML = formatDateDisplay(currentDate); document.getElementById('sectionTitle').textContent = isToday(currentDate) ? "Today's Games" : 'Games for ' + MONTH_NAMES[currentDate.getMonth()] + ' ' + currentDate.getDate(); }
     function prevDay() { currentDate.setDate(currentDate.getDate()-1); updateDateDisplay(); renderSchedule(); }
     function nextDay() { currentDate.setDate(currentDate.getDate()+1); updateDateDisplay(); renderSchedule(); }
-    function goToToday() { currentDate = new Date(); currentDate.setHours(0,0,0,0); updateDateDisplay(); renderSchedule(); }
+    function goToToday() { currentDate = getESTDate(); currentDate.setHours(0,0,0,0); updateDateDisplay(); renderSchedule(); }
 
     function getLogoFilename(teamName) {
       if (!teamName) return 'Ball603-white.png';
@@ -619,7 +625,7 @@
     function renderCalendar() {
       const y = calendarDate.getFullYear(), m = calendarDate.getMonth();
       document.getElementById('calendarMonth').textContent = MONTH_NAMES[m] + ' ' + y;
-      const fd = new Date(y,m,1).getDay(), dim = new Date(y,m+1,0).getDate(), today = new Date();
+      const fd = new Date(y,m,1).getDay(), dim = new Date(y,m+1,0).getDate(), today = getESTDate();
       const gd = {}; allGames.forEach(g => { gd[g.date] = true; });
       let html = '';
       const pmd = new Date(y,m,0).getDate();
