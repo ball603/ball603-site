@@ -7298,233 +7298,4417 @@ const CREDITS_1K = 'Huge thanks to Mike Whaley for all his efforts in compiling 
 // NHIAA CHAMPIONSHIP HISTORY
 // ============================================================
 
+
+// ============================================================
+// NHIAA CHAMPIONSHIP HISTORY - COMPLETE DATA
+// ============================================================
+// Boys: 345 championships (1922-2025)
+// Girls: 206 championships (1970-2025)
+// Total: 551 state title games
+
+// CHAMPIONSHIP_HISTORY - Complete NHIAA Basketball Championships
+// Boys: 345 championships (1922-2025)
+// Girls: 206 championships (1970-2025)
+// Total: 551 championships
+
 const CHAMPIONSHIP_HISTORY = {
-  // ===== BOYS BASKETBALL =====
   boys: [
-    // Division I / Class L (Large Schools)
-    { year: 2025, division: 'Division I', champion: 'Bedford', champion_score: 51, runner_up: 'Keene', runner_up_score: 50 },
-    { year: 2024, division: 'Division I', champion: 'Pinkerton', champion_score: 90, runner_up: 'Nashua North', runner_up_score: 76 },
-    { year: 2023, division: 'Division I', champion: 'Bedford', champion_score: 66, runner_up: 'Pinkerton', runner_up_score: 56 },
-    { year: 2022, division: 'Division I', champion: 'Trinity', champion_score: 64, runner_up: 'Goffstown', runner_up_score: 62 },
-    { year: 2021, division: 'Division I', champion: 'Bishop Guertin', champion_score: 42, runner_up: 'Winnacunnet', runner_up_score: 35 },
-    { year: 2020, division: 'Division I', champion: 'Exeter', runner_up: 'Portsmouth', notes: 'Co-Champions (COVID-19)' },
-    { year: 2019, division: 'Division I', champion: 'Exeter', champion_score: 53, runner_up: 'Salem', runner_up_score: 30 },
-    { year: 2018, division: 'Division I', champion: 'Portsmouth', champion_score: 46, runner_up: 'Dover', runner_up_score: 38 },
-    { year: 2017, division: 'Division I', champion: 'Portsmouth', champion_score: 63, runner_up: 'Bedford', runner_up_score: 40 },
-    { year: 2016, division: 'Division I', champion: 'Manchester Central', champion_score: 60, runner_up: 'Merrimack', runner_up_score: 58 },
-    { year: 2015, division: 'Division I', champion: 'Londonderry', champion_score: 47, runner_up: 'Pinkerton', runner_up_score: 46 },
-    { year: 2014, division: 'Division I', champion: 'Manchester Central', champion_score: 70, runner_up: 'Merrimack', runner_up_score: 61 },
-    { year: 2013, division: 'Division I', champion: 'Trinity', champion_score: 50, runner_up: 'Bishop Guertin', runner_up_score: 46 },
-    { year: 2012, division: 'Division I', champion: 'Merrimack', champion_score: 65, runner_up: 'Manchester Central', runner_up_score: 56 },
-    { year: 2011, division: 'Division I', champion: 'Bishop Guertin', champion_score: 54, runner_up: 'Trinity', runner_up_score: 46 },
-    { year: 2010, division: 'Class L', champion: 'Pinkerton', champion_score: 61, runner_up: 'Winnacunnet', runner_up_score: 59, overtime: true },
-    { year: 2009, division: 'Class L', champion: 'Trinity', champion_score: 50, runner_up: 'Memorial', runner_up_score: 25 },
-    { year: 2008, division: 'Class L', champion: 'Salem', champion_score: 66, runner_up: 'Trinity', runner_up_score: 45 },
-    { year: 2007, division: 'Class L', champion: 'Salem', champion_score: 54, runner_up: 'Trinity', runner_up_score: 51 },
-    { year: 2006, division: 'Class L', champion: 'Manchester Central', champion_score: 54, runner_up: 'Merrimack', runner_up_score: 39 },
-    { year: 2005, division: 'Class L', champion: 'Manchester Central', champion_score: 48, runner_up: 'Dover', runner_up_score: 43 },
-    { year: 2004, division: 'Class L', champion: 'Merrimack', champion_score: 78, runner_up: 'Salem', runner_up_score: 70 },
-    { year: 2003, division: 'Class L', champion: 'Merrimack', champion_score: 78, runner_up: 'Dover', runner_up_score: 53 },
-    { year: 2002, division: 'Class L', champion: 'Nashua', champion_score: 75, runner_up: 'Bishop Guertin', runner_up_score: 55 },
-    { year: 2001, division: 'Class L', champion: 'Manchester Central', champion_score: 51, runner_up: 'Alvirne', runner_up_score: 48 },
-    { year: 2000, division: 'Class L', champion: 'Manchester Central', champion_score: 81, runner_up: 'Winnacunnet', runner_up_score: 65 },
-    { year: 1999, division: 'Class L', champion: 'Concord', champion_score: 67, runner_up: 'Manchester West', runner_up_score: 56 },
-    { year: 1998, division: 'Class L', champion: 'Concord', champion_score: 73, runner_up: 'Exeter', runner_up_score: 44 },
-    { year: 1997, division: 'Class L', champion: 'Concord', champion_score: 62, runner_up: 'Winnacunnet', runner_up_score: 56 },
-    { year: 1996, division: 'Class L', champion: 'Manchester Central', champion_score: 66, runner_up: 'Winnacunnet', runner_up_score: 55 },
-    { year: 1995, division: 'Class L', champion: 'Salem', champion_score: 62, runner_up: 'Winnacunnet', runner_up_score: 57 },
-    { year: 1994, division: 'Class L', champion: 'Portsmouth', champion_score: 55, runner_up: 'Concord', runner_up_score: 49 },
-    { year: 1993, division: 'Class L', champion: 'Manchester West', champion_score: 61, runner_up: 'Pinkerton', runner_up_score: 41 },
-    { year: 1992, division: 'Class L', champion: 'Winnacunnet', champion_score: 48, runner_up: 'Keene', runner_up_score: 43 },
-    { year: 1991, division: 'Class L', champion: 'Nashua', champion_score: 58, runner_up: 'Merrimack', runner_up_score: 48 },
-    { year: 1990, division: 'Class L', champion: 'Pinkerton', champion_score: 62, runner_up: 'Manchester Central', runner_up_score: 54 },
-    { year: 1989, division: 'Class L', champion: 'Manchester Central', champion_score: 59, runner_up: 'Pinkerton', runner_up_score: 52 },
-    { year: 1988, division: 'Class L', champion: 'Pinkerton', champion_score: 59, runner_up: 'Manchester Central', runner_up_score: 56 },
-    { year: 1987, division: 'Class L', champion: 'Concord', champion_score: 52, runner_up: 'Nashua', runner_up_score: 48 },
-    { year: 1986, division: 'Class L', champion: 'Nashua', champion_score: 66, runner_up: 'Bishop Guertin', runner_up_score: 65 },
-    { year: 1985, division: 'Class L', champion: 'Trinity', champion_score: 61, runner_up: 'Dover', runner_up_score: 58 },
-    { year: 1984, division: 'Class L', champion: 'Portsmouth', champion_score: 59, runner_up: 'Bishop Guertin', runner_up_score: 46 },
-    { year: 1983, division: 'Class L', champion: 'Bishop Guertin', champion_score: 56, runner_up: 'Nashua', runner_up_score: 50 },
-    
-    // Division II / Class I (Medium-Large Schools)
-    { year: 2025, division: 'Division II', champion: 'Pembroke', champion_score: 63, runner_up: 'Sanborn', runner_up_score: 54 },
-    { year: 2024, division: 'Division II', champion: 'Pelham', champion_score: 51, runner_up: 'Hanover', runner_up_score: 41 },
-    { year: 2023, division: 'Division II', champion: 'Pelham', champion_score: 57, runner_up: 'Pembroke', runner_up_score: 54 },
-    { year: 2022, division: 'Division II', champion: 'Souhegan', champion_score: 53, runner_up: 'ConVal', runner_up_score: 51 },
-    { year: 2021, division: 'Division II', champion: 'Lebanon', champion_score: 40, runner_up: 'Pelham', runner_up_score: 33 },
-    { year: 2020, division: 'Division II', champion: 'ConVal', runner_up: 'Bow', notes: 'Co-Champions (COVID-19)' },
-    { year: 2019, division: 'Division II', champion: 'Pembroke', champion_score: 47, runner_up: 'Kearsarge', runner_up_score: 35 },
-    { year: 2018, division: 'Division II', champion: 'Hollis-Brookline', champion_score: 56, runner_up: 'Oyster River', runner_up_score: 40 },
-    { year: 2017, division: 'Division II', champion: 'Lebanon', champion_score: 59, runner_up: 'Coe-Brown', runner_up_score: 42 },
-    { year: 2016, division: 'Division II', champion: 'Portsmouth', champion_score: 43, runner_up: 'Lebanon', runner_up_score: 29 },
-    { year: 2015, division: 'Division II', champion: 'Bishop Brady', champion_score: 58, runner_up: 'Portsmouth', runner_up_score: 56 },
-    { year: 2014, division: 'Division II', champion: 'Pembroke', champion_score: 49, runner_up: 'Portsmouth', runner_up_score: 40 },
-    { year: 2013, division: 'Division II', champion: 'Pembroke', champion_score: 49, runner_up: 'Souhegan', runner_up_score: 41 },
-    { year: 2012, division: 'Division II', champion: 'Portsmouth', champion_score: 58, runner_up: 'Bedford', runner_up_score: 33 },
-    { year: 2011, division: 'Division II', champion: 'Milford', champion_score: 48, runner_up: 'Portsmouth', runner_up_score: 42 },
-    { year: 2010, division: 'Class I', champion: 'Milford', champion_score: 52, runner_up: 'Pembroke', runner_up_score: 46 },
-    { year: 2009, division: 'Class I', champion: 'Portsmouth', champion_score: 61, runner_up: 'Pelham', runner_up_score: 48 },
-    { year: 2008, division: 'Class I', champion: 'Monadnock', champion_score: 42, runner_up: 'Hanover', runner_up_score: 35 },
-    { year: 2007, division: 'Class I', champion: 'Hanover', champion_score: 40, runner_up: 'Portsmouth', runner_up_score: 38 },
-    
-    // Division III / Class M (Medium Schools)
-    { year: 2025, division: 'Division III', champion: 'Belmont', champion_score: 49, runner_up: 'Kearsarge', runner_up_score: 43 },
-    { year: 2024, division: 'Division III', champion: 'St. Thomas', champion_score: 38, runner_up: 'Conant', runner_up_score: 34 },
-    { year: 2023, division: 'Division III', champion: 'Gilford', champion_score: 69, runner_up: 'Mascoma', runner_up_score: 43 },
-    { year: 2022, division: 'Division III', champion: 'Gilford', champion_score: 46, runner_up: 'Kearsarge', runner_up_score: 38 },
-    { year: 2021, division: 'Division III', champion: 'Gilford', champion_score: 41, runner_up: 'Hopkinton', runner_up_score: 40 },
-    { year: 2020, division: 'Division III', champion: 'Gilford', runner_up: 'Mascenic', notes: 'Declared at Semifinal Round' },
-    { year: 2019, division: 'Division III', champion: 'Conant', champion_score: 61, runner_up: 'Somersworth', runner_up_score: 38 },
-    { year: 2018, division: 'Division III', champion: 'Somersworth', champion_score: 53, runner_up: 'Campbell', runner_up_score: 38 },
-    { year: 2017, division: 'Division III', champion: 'Kearsarge', champion_score: 51, runner_up: 'Stevens', runner_up_score: 46 },
-    { year: 2016, division: 'Division III', champion: 'Pelham', champion_score: 43, runner_up: 'Kearsarge', runner_up_score: 39 },
-    { year: 2015, division: 'Division III', champion: 'Pelham', champion_score: 51, runner_up: 'Conant', runner_up_score: 42 },
-    { year: 2014, division: 'Division III', champion: 'Conant', champion_score: 40, runner_up: 'Campbell', runner_up_score: 36 },
-    { year: 2013, division: 'Division III', champion: 'Conant', champion_score: 66, runner_up: 'Campbell', runner_up_score: 46 },
-    { year: 2012, division: 'Division III', champion: 'Berlin', champion_score: 53, runner_up: 'Prospect Mountain', runner_up_score: 51 },
-    { year: 2011, division: 'Division III', champion: 'Somersworth', champion_score: 45, runner_up: 'Bow', runner_up_score: 39 },
-    { year: 2010, division: 'Class M', champion: 'Conant', champion_score: 41, runner_up: 'Berlin', runner_up_score: 35 },
-    { year: 2009, division: 'Class M', champion: 'Conant', champion_score: 43, runner_up: 'Prospect Mountain', runner_up_score: 33 },
-    { year: 2008, division: 'Class M', champion: 'Conant', champion_score: 55, runner_up: 'Newmarket', runner_up_score: 48, overtime: true },
-    { year: 2007, division: 'Class M', champion: 'Conant', champion_score: 53, runner_up: 'Gilford', runner_up_score: 49 },
-    { year: 2006, division: 'Class M', champion: 'Conant', champion_score: 59, runner_up: 'Littleton', runner_up_score: 56 },
-    { year: 2005, division: 'Class M', champion: 'Somersworth', champion_score: 55, runner_up: 'Conant', runner_up_score: 48 },
-    { year: 1988, division: 'Class M', champion: 'Farmington', champion_score: 78, runner_up: 'Mascoma', runner_up_score: 70 },
-    { year: 1984, division: 'Class M', champion: 'Farmington', champion_score: 76, runner_up: 'Conant', runner_up_score: 54 },
-    { year: 1970, division: 'Class M', champion: 'Farmington', champion_score: 95, runner_up: 'Merrimack', runner_up_score: 83, overtime: true },
-    
-    // Division IV / Class S (Small Schools)
-    { year: 2025, division: 'Division IV', champion: 'Woodsville', champion_score: 51, runner_up: 'Littleton', runner_up_score: 48 },
-    { year: 2024, division: 'Division IV', champion: 'Profile', champion_score: 53, runner_up: 'Littleton', runner_up_score: 48 },
-    { year: 2023, division: 'Division IV', champion: 'Woodsville', champion_score: 57, runner_up: 'Holy Family', runner_up_score: 49 },
-    { year: 2022, division: 'Division IV', champion: 'Woodsville', champion_score: 58, runner_up: 'Concord Christian', runner_up_score: 49 },
-    { year: 2021, division: 'Division IV', champion: 'Woodsville', champion_score: 52, runner_up: 'Portsmouth Christian', runner_up_score: 30 },
-    { year: 2020, division: 'Division IV', champion: 'Littleton', runner_up: 'Newmarket', notes: 'Declared at Semifinal Round' },
-    { year: 2019, division: 'Division IV', champion: 'Epping', champion_score: 72, runner_up: 'Littleton', runner_up_score: 61 },
-    { year: 2018, division: 'Division IV', champion: 'Pittsfield', champion_score: 43, runner_up: 'Newmarket', runner_up_score: 40 },
-    { year: 2017, division: 'Division IV', champion: 'Groveton', champion_score: 45, runner_up: 'Littleton', runner_up_score: 43 },
-    { year: 2016, division: 'Division IV', champion: 'Littleton', champion_score: 38, runner_up: 'Portsmouth Christian', runner_up_score: 36 },
-    { year: 2015, division: 'Division IV', champion: 'Wilton', champion_score: 50, runner_up: 'Epping', runner_up_score: 46 },
-    { year: 2014, division: 'Division IV', champion: 'Epping', champion_score: 74, runner_up: 'Sunapee', runner_up_score: 70 },
-    { year: 2013, division: 'Division IV', champion: 'Lisbon', champion_score: 38, runner_up: 'Derryfield', runner_up_score: 36 },
-    { year: 2012, division: 'Division IV', champion: 'Moultonborough', champion_score: 54, runner_up: 'Littleton', runner_up_score: 50 },
-    { year: 2011, division: 'Division IV', champion: 'Lisbon', champion_score: 40, runner_up: 'Derryfield', runner_up_score: 33 },
-    { year: 2010, division: 'Class S', champion: 'Groveton', champion_score: 52, runner_up: 'Littleton', runner_up_score: 49 },
-  ],
-
-  // ===== GIRLS BASKETBALL =====
+  {
+    "year": 1922,
+    "division": "Class L",
+    "champion": "Tilton",
+    "runner_up": "Dover",
+    "champion_score": 29,
+    "runner_up_score": 24
+  },
+  {
+    "year": 1923,
+    "division": "Class L",
+    "champion": "Portsmouth",
+    "runner_up": "Manchester Central",
+    "champion_score": 29,
+    "runner_up_score": 23
+  },
+  {
+    "year": 1924,
+    "division": "Class L",
+    "champion": "Manchester Central",
+    "runner_up": "Hanover",
+    "champion_score": 15,
+    "runner_up_score": 6
+  },
+  {
+    "year": 1925,
+    "division": "Class L",
+    "champion": "Portsmouth",
+    "runner_up": "Lebanon",
+    "champion_score": 12,
+    "runner_up_score": 10
+  },
+  {
+    "year": 1926,
+    "division": "Class L",
+    "champion": "Manchester Central",
+    "runner_up": "Nashua",
+    "champion_score": 31,
+    "runner_up_score": 17
+  },
+  {
+    "year": 1927,
+    "division": "Class L",
+    "champion": "Manchester Central",
+    "runner_up": "Franklin",
+    "champion_score": 19,
+    "runner_up_score": 18
+  },
+  {
+    "year": 1928,
+    "division": "Class L",
+    "champion": "Franklin",
+    "runner_up": "Berlin",
+    "champion_score": 19,
+    "runner_up_score": 18
+  },
+  {
+    "year": 1929,
+    "division": "Class L",
+    "champion": "Portsmouth",
+    "runner_up": "Manchester Central",
+    "champion_score": 21,
+    "runner_up_score": 17
+  },
+  {
+    "year": 1930,
+    "division": "Class L",
+    "champion": "Manchester West",
+    "runner_up": "Nashua",
+    "champion_score": 14,
+    "runner_up_score": 12
+  },
+  {
+    "year": 1931,
+    "division": "Class L",
+    "champion": "Dover",
+    "runner_up": "St. Joseph",
+    "champion_score": 22,
+    "runner_up_score": 12
+  },
+  {
+    "year": 1932,
+    "division": "Class L",
+    "champion": "St. Joseph",
+    "runner_up": "Berlin",
+    "champion_score": 17,
+    "runner_up_score": 10
+  },
+  {
+    "year": 1933,
+    "division": "Class L",
+    "champion": "Berlin",
+    "runner_up": "Portsmouth",
+    "champion_score": 42,
+    "runner_up_score": 17
+  },
+  {
+    "year": 1934,
+    "division": "Class L",
+    "champion": "Manchester West",
+    "runner_up": "Portsmouth",
+    "champion_score": 31,
+    "runner_up_score": 28
+  },
+  {
+    "year": 1935,
+    "division": "Class L",
+    "champion": "Portsmouth",
+    "runner_up": "Stevens",
+    "champion_score": 38,
+    "runner_up_score": 31
+  },
+  {
+    "year": 1936,
+    "division": "Class L",
+    "champion": "Berlin",
+    "runner_up": "Stevens",
+    "champion_score": 36,
+    "runner_up_score": 27
+  },
+  {
+    "year": 1937,
+    "division": "Class L",
+    "champion": "Berlin",
+    "runner_up": "Nashua",
+    "champion_score": 41,
+    "runner_up_score": 33
+  },
+  {
+    "year": 1938,
+    "division": "Class L",
+    "champion": "Portsmouth",
+    "runner_up": "Keene",
+    "champion_score": 42,
+    "runner_up_score": 38
+  },
+  {
+    "year": 1939,
+    "division": "Class L",
+    "champion": "Portsmouth",
+    "runner_up": "Stevens",
+    "champion_score": 41,
+    "runner_up_score": 30
+  },
+  {
+    "year": 1940,
+    "division": "Class L",
+    "champion": "Berlin",
+    "runner_up": "Manchester Central",
+    "champion_score": 23,
+    "runner_up_score": 22
+  },
+  {
+    "year": 1941,
+    "division": "Class L",
+    "champion": "Manchester Central",
+    "runner_up": "Nashua",
+    "champion_score": 25,
+    "runner_up_score": 17
+  },
+  {
+    "year": 1942,
+    "division": "Class L",
+    "champion": "Dover",
+    "runner_up": "Manchester Central",
+    "champion_score": 21,
+    "runner_up_score": 19
+  },
+  {
+    "year": 1944,
+    "division": "Class L",
+    "champion": "Portsmouth",
+    "runner_up": "Manchester Central",
+    "champion_score": 24,
+    "runner_up_score": 22
+  },
+  {
+    "year": 1945,
+    "division": "Class L",
+    "champion": "Manchester Central",
+    "runner_up": "Concord",
+    "champion_score": 24,
+    "runner_up_score": 21
+  },
+  {
+    "year": 1946,
+    "division": "Class L",
+    "champion": "Nashua",
+    "runner_up": "St. Joseph",
+    "champion_score": 34,
+    "runner_up_score": 25
+  },
+  {
+    "year": 1947,
+    "division": "Class L",
+    "champion": "Portsmouth",
+    "runner_up": "Concord",
+    "champion_score": 38,
+    "runner_up_score": 23
+  },
+  {
+    "year": 1948,
+    "division": "Class L",
+    "champion": "Concord",
+    "runner_up": "Berlin",
+    "champion_score": 31,
+    "runner_up_score": 24
+  },
+  {
+    "year": 1949,
+    "division": "Class L",
+    "champion": "Nashua",
+    "runner_up": "Manchester Central",
+    "champion_score": 50,
+    "runner_up_score": 33
+  },
+  {
+    "year": 1950,
+    "division": "Class L",
+    "champion": "Portsmouth",
+    "runner_up": "Manchester Central",
+    "champion_score": 40,
+    "runner_up_score": 37
+  },
+  {
+    "year": 1951,
+    "division": "Class L",
+    "champion": "Portsmouth",
+    "runner_up": "Concord",
+    "champion_score": 41,
+    "runner_up_score": 31
+  },
+  {
+    "year": 1952,
+    "division": "Class L",
+    "champion": "Portsmouth",
+    "runner_up": "Keene",
+    "champion_score": 34,
+    "runner_up_score": 26
+  },
+  {
+    "year": 1953,
+    "division": "Class L",
+    "champion": "Portsmouth",
+    "runner_up": "Berlin",
+    "champion_score": 72,
+    "runner_up_score": 41
+  },
+  {
+    "year": 1954,
+    "division": "Class L",
+    "champion": "Nashua",
+    "runner_up": "Portsmouth",
+    "champion_score": 51,
+    "runner_up_score": 46
+  },
+  {
+    "year": 1955,
+    "division": "Class L",
+    "champion": "Manchester Central",
+    "runner_up": "Laconia",
+    "champion_score": 69,
+    "runner_up_score": 59
+  },
+  {
+    "year": 1956,
+    "division": "Class L",
+    "champion": "Concord",
+    "runner_up": "Keene",
+    "champion_score": 59,
+    "runner_up_score": 38
+  },
+  {
+    "year": 1957,
+    "division": "Class L",
+    "champion": "Manchester Central",
+    "runner_up": "Portsmouth",
+    "champion_score": 47,
+    "runner_up_score": 40
+  },
+  {
+    "year": 1958,
+    "division": "Class L",
+    "champion": "Bishop Bradley",
+    "runner_up": "Berlin",
+    "champion_score": 63,
+    "runner_up_score": 44
+  },
+  {
+    "year": 1959,
+    "division": "Class L",
+    "champion": "Nashua",
+    "runner_up": "Concord",
+    "champion_score": 56,
+    "runner_up_score": 39
+  },
+  {
+    "year": 1960,
+    "division": "Class L",
+    "champion": "Nashua",
+    "runner_up": "Portsmouth",
+    "champion_score": 36,
+    "runner_up_score": 31
+  },
+  {
+    "year": 1961,
+    "division": "Class L",
+    "champion": "Portsmouth",
+    "runner_up": "Nashua",
+    "champion_score": 64,
+    "runner_up_score": 54
+  },
+  {
+    "year": 1962,
+    "division": "Class L",
+    "champion": "Concord",
+    "runner_up": "Manchester Central",
+    "champion_score": 46,
+    "runner_up_score": 44
+  },
+  {
+    "year": 1963,
+    "division": "Class L",
+    "champion": "Bishop Bradley",
+    "runner_up": "Keene",
+    "champion_score": 79,
+    "runner_up_score": 60
+  },
+  {
+    "year": 1964,
+    "division": "Class L",
+    "champion": "Bishop Bradley",
+    "runner_up": "Spaulding",
+    "champion_score": 48,
+    "runner_up_score": 46
+  },
+  {
+    "year": 1965,
+    "division": "Class L",
+    "champion": "Portsmouth",
+    "runner_up": "Nashua",
+    "champion_score": 83,
+    "runner_up_score": 50
+  },
+  {
+    "year": 1966,
+    "division": "Class L",
+    "champion": "Winnacunnet",
+    "runner_up": "Bishop Bradley",
+    "champion_score": 64,
+    "runner_up_score": 52
+  },
+  {
+    "year": 1967,
+    "division": "Class L",
+    "champion": "Manchester Central",
+    "runner_up": "Nashua",
+    "champion_score": 66,
+    "runner_up_score": 58
+  },
+  {
+    "year": 1968,
+    "division": "Class L",
+    "champion": "Dover",
+    "runner_up": "Portsmouth",
+    "champion_score": 72,
+    "runner_up_score": 57
+  },
+  {
+    "year": 1969,
+    "division": "Class L",
+    "champion": "Nashua",
+    "runner_up": "Manchester Memorial",
+    "champion_score": 56,
+    "runner_up_score": 48
+  },
+  {
+    "year": 1970,
+    "division": "Class L",
+    "champion": "Manchester Memorial",
+    "runner_up": "Nashua",
+    "champion_score": 68,
+    "runner_up_score": 65
+  },
+  {
+    "year": 1971,
+    "division": "Class L",
+    "champion": "Manchester Memorial",
+    "runner_up": "Manchester Central",
+    "champion_score": 64,
+    "runner_up_score": 58,
+    "overtime": true
+  },
+  {
+    "year": 1972,
+    "division": "Class L",
+    "champion": "Milford",
+    "runner_up": "Manchester Central",
+    "champion_score": 79,
+    "runner_up_score": 71
+  },
+  {
+    "year": 1973,
+    "division": "Class L",
+    "champion": "Manchester West",
+    "runner_up": "Manchester Central",
+    "champion_score": 82,
+    "runner_up_score": 72
+  },
+  {
+    "year": 1974,
+    "division": "Class L",
+    "champion": "Manchester Central",
+    "runner_up": "Portsmouth",
+    "champion_score": 71,
+    "runner_up_score": 68
+  },
+  {
+    "year": 1975,
+    "division": "Class L",
+    "champion": "Trinity",
+    "runner_up": "Nashua",
+    "champion_score": 53,
+    "runner_up_score": 50
+  },
+  {
+    "year": 1976,
+    "division": "Class L",
+    "champion": "Trinity",
+    "runner_up": "Portsmouth",
+    "champion_score": 59,
+    "runner_up_score": 58
+  },
+  {
+    "year": 1977,
+    "division": "Class L",
+    "champion": "Dover",
+    "runner_up": "Portsmouth",
+    "champion_score": 64,
+    "runner_up_score": 60
+  },
+  {
+    "year": 1978,
+    "division": "Class L",
+    "champion": "Nashua",
+    "runner_up": "Alvirne",
+    "champion_score": 58,
+    "runner_up_score": 55,
+    "overtime": true
+  },
+  {
+    "year": 1979,
+    "division": "Class L",
+    "champion": "Manchester Central",
+    "runner_up": "Portsmouth",
+    "champion_score": 59,
+    "runner_up_score": 55
+  },
+  {
+    "year": 1980,
+    "division": "Class L",
+    "champion": "Nashua",
+    "runner_up": "Manchester Central",
+    "champion_score": 57,
+    "runner_up_score": 43
+  },
+  {
+    "year": 1981,
+    "division": "Class L",
+    "champion": "Manchester Central",
+    "runner_up": "Winnacunnet",
+    "champion_score": 70,
+    "runner_up_score": 64
+  },
+  {
+    "year": 1982,
+    "division": "Class L",
+    "champion": "Manchester Memorial",
+    "runner_up": "Nashua",
+    "champion_score": 69,
+    "runner_up_score": 62
+  },
+  {
+    "year": 1983,
+    "division": "Class L",
+    "champion": "Bishop Guertin",
+    "runner_up": "Nashua",
+    "champion_score": 56,
+    "runner_up_score": 50
+  },
+  {
+    "year": 1984,
+    "division": "Class L",
+    "champion": "Portsmouth",
+    "runner_up": "Bishop Guertin",
+    "champion_score": 59,
+    "runner_up_score": 46
+  },
+  {
+    "year": 1985,
+    "division": "Class L",
+    "champion": "Trinity",
+    "runner_up": "Dover",
+    "champion_score": 61,
+    "runner_up_score": 58
+  },
+  {
+    "year": 1986,
+    "division": "Class L",
+    "champion": "Nashua",
+    "runner_up": "Bishop Guertin",
+    "champion_score": 66,
+    "runner_up_score": 65
+  },
+  {
+    "year": 1987,
+    "division": "Class L",
+    "champion": "Concord",
+    "runner_up": "Nashua",
+    "champion_score": 52,
+    "runner_up_score": 48
+  },
+  {
+    "year": 1988,
+    "division": "Class L",
+    "champion": "Pinkerton",
+    "runner_up": "Manchester Central",
+    "champion_score": 59,
+    "runner_up_score": 56
+  },
+  {
+    "year": 1989,
+    "division": "Class L",
+    "champion": "Manchester Central",
+    "runner_up": "Pinkerton",
+    "champion_score": 59,
+    "runner_up_score": 52
+  },
+  {
+    "year": 1990,
+    "division": "Class L",
+    "champion": "Pinkerton",
+    "runner_up": "Manchester Central",
+    "champion_score": 62,
+    "runner_up_score": 54
+  },
+  {
+    "year": 1991,
+    "division": "Class L",
+    "champion": "Nashua",
+    "runner_up": "Merrimack",
+    "champion_score": 58,
+    "runner_up_score": 48
+  },
+  {
+    "year": 1992,
+    "division": "Class L",
+    "champion": "Winnacunnet",
+    "runner_up": "Keene",
+    "champion_score": 48,
+    "runner_up_score": 43
+  },
+  {
+    "year": 1993,
+    "division": "Class L",
+    "champion": "Manchester West",
+    "runner_up": "Pinkerton",
+    "champion_score": 61,
+    "runner_up_score": 41
+  },
+  {
+    "year": 1994,
+    "division": "Class L",
+    "champion": "Portsmouth",
+    "runner_up": "Concord",
+    "champion_score": 55,
+    "runner_up_score": 49
+  },
+  {
+    "year": 1995,
+    "division": "Class L",
+    "champion": "Salem",
+    "runner_up": "Winnacunnet",
+    "champion_score": 62,
+    "runner_up_score": 57
+  },
+  {
+    "year": 1996,
+    "division": "Class L",
+    "champion": "Manchester Central",
+    "runner_up": "Winnacunnet",
+    "champion_score": 66,
+    "runner_up_score": 55
+  },
+  {
+    "year": 1997,
+    "division": "Class L",
+    "champion": "Concord",
+    "runner_up": "Winnacunnet",
+    "champion_score": 62,
+    "runner_up_score": 56
+  },
+  {
+    "year": 1998,
+    "division": "Class L",
+    "champion": "Concord",
+    "runner_up": "Exeter",
+    "champion_score": 73,
+    "runner_up_score": 44
+  },
+  {
+    "year": 1999,
+    "division": "Class L",
+    "champion": "Concord",
+    "runner_up": "Manchester West",
+    "champion_score": 67,
+    "runner_up_score": 56
+  },
+  {
+    "year": 2000,
+    "division": "Class L",
+    "champion": "Manchester Central",
+    "runner_up": "Winnacunnet",
+    "champion_score": 81,
+    "runner_up_score": 65
+  },
+  {
+    "year": 2001,
+    "division": "Class L",
+    "champion": "Manchester Central",
+    "runner_up": "Alvirne",
+    "champion_score": 51,
+    "runner_up_score": 48
+  },
+  {
+    "year": 2002,
+    "division": "Class L",
+    "champion": "Nashua",
+    "runner_up": "Bishop Guertin",
+    "champion_score": 75,
+    "runner_up_score": 55
+  },
+  {
+    "year": 2003,
+    "division": "Class L",
+    "champion": "Merrimack",
+    "runner_up": "Dover",
+    "champion_score": 78,
+    "runner_up_score": 53
+  },
+  {
+    "year": 2004,
+    "division": "Class L",
+    "champion": "Merrimack",
+    "runner_up": "Salem",
+    "champion_score": 78,
+    "runner_up_score": 70
+  },
+  {
+    "year": 2005,
+    "division": "Class L",
+    "champion": "Manchester Central",
+    "runner_up": "Dover",
+    "champion_score": 48,
+    "runner_up_score": 43
+  },
+  {
+    "year": 2006,
+    "division": "Class L",
+    "champion": "Manchester Central",
+    "runner_up": "Merrimack",
+    "champion_score": 54,
+    "runner_up_score": 39
+  },
+  {
+    "year": 2007,
+    "division": "Class L",
+    "champion": "Salem",
+    "runner_up": "Trinity",
+    "champion_score": 54,
+    "runner_up_score": 51
+  },
+  {
+    "year": 2008,
+    "division": "Class L",
+    "champion": "Salem",
+    "runner_up": "Trinity",
+    "champion_score": 66,
+    "runner_up_score": 45
+  },
+  {
+    "year": 2009,
+    "division": "Class L",
+    "champion": "Trinity",
+    "runner_up": "Memorial",
+    "champion_score": 50,
+    "runner_up_score": 25
+  },
+  {
+    "year": 2010,
+    "division": "Class L",
+    "champion": "Pinkerton",
+    "runner_up": "Winnacunnet",
+    "champion_score": 61,
+    "runner_up_score": 59,
+    "overtime": true
+  },
+  {
+    "year": 2011,
+    "division": "Division I",
+    "champion": "Bishop Guertin",
+    "runner_up": "Trinity",
+    "champion_score": 54,
+    "runner_up_score": 46
+  },
+  {
+    "year": 2012,
+    "division": "Division I",
+    "champion": "Merrimack",
+    "runner_up": "Manchester Central",
+    "champion_score": 65,
+    "runner_up_score": 56
+  },
+  {
+    "year": 2013,
+    "division": "Division I",
+    "champion": "Trinity",
+    "runner_up": "Bishop Guertin",
+    "champion_score": 50,
+    "runner_up_score": 46
+  },
+  {
+    "year": 2014,
+    "division": "Division I",
+    "champion": "Manchester Central",
+    "runner_up": "Merrimack",
+    "champion_score": 70,
+    "runner_up_score": 61
+  },
+  {
+    "year": 2015,
+    "division": "Division I",
+    "champion": "Londonderry",
+    "runner_up": "Pinkerton",
+    "champion_score": 47,
+    "runner_up_score": 46
+  },
+  {
+    "year": 2016,
+    "division": "Division I",
+    "champion": "Manchester Central",
+    "runner_up": "Merrimack",
+    "champion_score": 60,
+    "runner_up_score": 58
+  },
+  {
+    "year": 2017,
+    "division": "Division I",
+    "champion": "Portsmouth",
+    "runner_up": "Bedford",
+    "champion_score": 63,
+    "runner_up_score": 40
+  },
+  {
+    "year": 2018,
+    "division": "Division I",
+    "champion": "Portsmouth",
+    "runner_up": "Dover",
+    "champion_score": 46,
+    "runner_up_score": 38
+  },
+  {
+    "year": 2019,
+    "division": "Division I",
+    "champion": "Exeter",
+    "runner_up": "Salem",
+    "champion_score": 53,
+    "runner_up_score": 30
+  },
+  {
+    "year": 2020,
+    "division": "Division I",
+    "champion": "Exeter",
+    "runner_up": "Portsmouth",
+    "notes": "Co-Champions (COVID-19)"
+  },
+  {
+    "year": 2021,
+    "division": "Division I",
+    "champion": "Bishop Guertin",
+    "runner_up": "Winnacunnet",
+    "champion_score": 42,
+    "runner_up_score": 35
+  },
+  {
+    "year": 2022,
+    "division": "Division I",
+    "champion": "Trinity",
+    "runner_up": "Goffstown",
+    "champion_score": 64,
+    "runner_up_score": 62
+  },
+  {
+    "year": 2023,
+    "division": "Division I",
+    "champion": "Bedford",
+    "runner_up": "Pinkerton",
+    "champion_score": 66,
+    "runner_up_score": 56
+  },
+  {
+    "year": 2024,
+    "division": "Division I",
+    "champion": "Pinkerton",
+    "runner_up": "Nashua North",
+    "champion_score": 90,
+    "runner_up_score": 76
+  },
+  {
+    "year": 2025,
+    "division": "Division I",
+    "champion": "Bedford",
+    "runner_up": "Keene",
+    "champion_score": 51,
+    "runner_up_score": 50
+  },
+  {
+    "year": 1964,
+    "division": "Class I",
+    "champion": "Bishop Brady",
+    "runner_up": "Woodbury",
+    "champion_score": 64,
+    "runner_up_score": 47
+  },
+  {
+    "year": 1965,
+    "division": "Class I",
+    "champion": "Bishop Brady",
+    "runner_up": "Kingswood",
+    "champion_score": 76,
+    "runner_up_score": 57
+  },
+  {
+    "year": 1966,
+    "division": "Class I",
+    "champion": "Bishop Brady",
+    "runner_up": "Lebanon",
+    "champion_score": 86,
+    "runner_up_score": 76
+  },
+  {
+    "year": 1967,
+    "division": "Class I",
+    "champion": "Lebanon",
+    "runner_up": "Franklin",
+    "champion_score": 68,
+    "runner_up_score": 54
+  },
+  {
+    "year": 1968,
+    "division": "Class I",
+    "champion": "Pembroke",
+    "runner_up": "Littleton",
+    "champion_score": 56,
+    "runner_up_score": 52
+  },
+  {
+    "year": 1969,
+    "division": "Class I",
+    "champion": "Somersworth",
+    "runner_up": "Milford",
+    "champion_score": 66,
+    "runner_up_score": 56
+  },
+  {
+    "year": 1970,
+    "division": "Class I",
+    "champion": "Littleton",
+    "runner_up": "Lebanon",
+    "champion_score": 83,
+    "runner_up_score": 59
+  },
+  {
+    "year": 1971,
+    "division": "Class I",
+    "champion": "Littleton",
+    "runner_up": "Goffstown",
+    "champion_score": 76,
+    "runner_up_score": 58
+  },
+  {
+    "year": 1972,
+    "division": "Class I",
+    "champion": "Pembroke",
+    "runner_up": "Fall Mountain",
+    "champion_score": 87,
+    "runner_up_score": 71
+  },
+  {
+    "year": 1973,
+    "division": "Class I",
+    "champion": "Fall Mountain",
+    "runner_up": "Somersworth",
+    "champion_score": 68,
+    "runner_up_score": 64
+  },
+  {
+    "year": 1974,
+    "division": "Class I",
+    "champion": "Goffstown",
+    "runner_up": "Hanover",
+    "champion_score": 50,
+    "runner_up_score": 42
+  },
+  {
+    "year": 1975,
+    "division": "Class I",
+    "champion": "Milford",
+    "runner_up": "Merrimack",
+    "champion_score": 66,
+    "runner_up_score": 58
+  },
+  {
+    "year": 1976,
+    "division": "Class I",
+    "champion": "Bishop Brady",
+    "runner_up": "Timberlane",
+    "champion_score": 59,
+    "runner_up_score": 48
+  },
+  {
+    "year": 1977,
+    "division": "Class I",
+    "champion": "Exeter",
+    "runner_up": "Pembroke",
+    "champion_score": 63,
+    "runner_up_score": 55
+  },
+  {
+    "year": 1978,
+    "division": "Class I",
+    "champion": "Pembroke",
+    "runner_up": "Laconia",
+    "champion_score": 57,
+    "runner_up_score": 46
+  },
+  {
+    "year": 1979,
+    "division": "Class I",
+    "champion": "Somersworth",
+    "runner_up": "Pembroke",
+    "champion_score": 77,
+    "runner_up_score": 51
+  },
+  {
+    "year": 1980,
+    "division": "Class I",
+    "champion": "Lebanon",
+    "runner_up": "Timberlane",
+    "champion_score": 60,
+    "runner_up_score": 53
+  },
+  {
+    "year": 1981,
+    "division": "Class I",
+    "champion": "Timberlane",
+    "runner_up": "Oyster River",
+    "champion_score": 56,
+    "runner_up_score": 52,
+    "overtime": true
+  },
+  {
+    "year": 1982,
+    "division": "Class I",
+    "champion": "Timberlane",
+    "runner_up": "Somersworth",
+    "champion_score": 58,
+    "runner_up_score": 41
+  },
+  {
+    "year": 1983,
+    "division": "Class I",
+    "champion": "White Mountains",
+    "runner_up": "Somersworth",
+    "champion_score": 54,
+    "runner_up_score": 50
+  },
+  {
+    "year": 1984,
+    "division": "Class I",
+    "champion": "Somersworth",
+    "runner_up": "Pembroke",
+    "champion_score": 55,
+    "runner_up_score": 51
+  },
+  {
+    "year": 1985,
+    "division": "Class I",
+    "champion": "Pembroke",
+    "runner_up": "Fall Mountain",
+    "champion_score": 55,
+    "runner_up_score": 52
+  },
+  {
+    "year": 1986,
+    "division": "Class I",
+    "champion": "ConVal",
+    "runner_up": "Fall Mountain",
+    "champion_score": 52,
+    "runner_up_score": 48
+  },
+  {
+    "year": 1987,
+    "division": "Class I",
+    "champion": "Goffstown",
+    "runner_up": "Lebanon",
+    "champion_score": 64,
+    "runner_up_score": 44
+  },
+  {
+    "year": 1988,
+    "division": "Class I",
+    "champion": "Oyster River",
+    "runner_up": "Lebanon",
+    "champion_score": 65,
+    "runner_up_score": 51
+  },
+  {
+    "year": 1989,
+    "division": "Class I",
+    "champion": "Merrimack Valley",
+    "runner_up": "ConVal",
+    "champion_score": 57,
+    "runner_up_score": 54
+  },
+  {
+    "year": 1990,
+    "division": "Class I",
+    "champion": "Merrimack Valley",
+    "runner_up": "Kennett",
+    "champion_score": 65,
+    "runner_up_score": 55
+  },
+  {
+    "year": 1991,
+    "division": "Class I",
+    "champion": "Pembroke",
+    "runner_up": "Merrimack Valley",
+    "champion_score": 79,
+    "runner_up_score": 61
+  },
+  {
+    "year": 1992,
+    "division": "Class I",
+    "champion": "Oyster River",
+    "runner_up": "ConVal",
+    "champion_score": 58,
+    "runner_up_score": 51,
+    "overtime": true
+  },
+  {
+    "year": 1993,
+    "division": "Class I",
+    "champion": "Merrimack Valley",
+    "runner_up": "ConVal",
+    "champion_score": 74,
+    "runner_up_score": 72,
+    "overtime": true
+  },
+  {
+    "year": 1994,
+    "division": "Class I",
+    "champion": "ConVal",
+    "runner_up": "Lebanon",
+    "champion_score": 52,
+    "runner_up_score": 49
+  },
+  {
+    "year": 1995,
+    "division": "Class I",
+    "champion": "Oyster River",
+    "runner_up": "Lebanon",
+    "champion_score": 55,
+    "runner_up_score": 52
+  },
+  {
+    "year": 1996,
+    "division": "Class I",
+    "champion": "Oyster River",
+    "runner_up": "Bishop Brady",
+    "champion_score": 58,
+    "runner_up_score": 49
+  },
+  {
+    "year": 1997,
+    "division": "Class I",
+    "champion": "Bishop Brady",
+    "runner_up": "Goffstown",
+    "champion_score": 77,
+    "runner_up_score": 51
+  },
+  {
+    "year": 1998,
+    "division": "Class I",
+    "champion": "Lebanon",
+    "runner_up": "Bishop Brady",
+    "champion_score": 60,
+    "runner_up_score": 48
+  },
+  {
+    "year": 1999,
+    "division": "Class I",
+    "champion": "Goffstown",
+    "runner_up": "Kearsarge",
+    "champion_score": 76,
+    "runner_up_score": 50
+  },
+  {
+    "year": 2000,
+    "division": "Class I",
+    "champion": "Goffstown",
+    "runner_up": "ConVal",
+    "champion_score": 47,
+    "runner_up_score": 44
+  },
+  {
+    "year": 2001,
+    "division": "Class I",
+    "champion": "Plymouth",
+    "runner_up": "Bishop Brady",
+    "champion_score": 52,
+    "runner_up_score": 50
+  },
+  {
+    "year": 2002,
+    "division": "Class I",
+    "champion": "Hanover",
+    "runner_up": "Berlin",
+    "champion_score": 35,
+    "runner_up_score": 32
+  },
+  {
+    "year": 2003,
+    "division": "Class I",
+    "champion": "Souhegan",
+    "runner_up": "Coe-Brown",
+    "champion_score": 53,
+    "runner_up_score": 42
+  },
+  {
+    "year": 2004,
+    "division": "Class I",
+    "champion": "Souhegan",
+    "runner_up": "John Stark",
+    "champion_score": 55,
+    "runner_up_score": 33
+  },
+  {
+    "year": 2005,
+    "division": "Class I",
+    "champion": "Hollis-Brookline",
+    "runner_up": "Pelham",
+    "champion_score": 61,
+    "runner_up_score": 53
+  },
+  {
+    "year": 2006,
+    "division": "Class I",
+    "champion": "Pelham",
+    "runner_up": "Bow",
+    "champion_score": 66,
+    "runner_up_score": 53
+  },
+  {
+    "year": 2007,
+    "division": "Class I",
+    "champion": "Hanover",
+    "runner_up": "Portsmouth",
+    "champion_score": 40,
+    "runner_up_score": 38
+  },
+  {
+    "year": 2008,
+    "division": "Class I",
+    "champion": "Monadnock",
+    "runner_up": "Hanover",
+    "champion_score": 42,
+    "runner_up_score": 35
+  },
+  {
+    "year": 2009,
+    "division": "Class I",
+    "champion": "Portsmouth",
+    "runner_up": "Pelham",
+    "champion_score": 61,
+    "runner_up_score": 48
+  },
+  {
+    "year": 2010,
+    "division": "Class I",
+    "champion": "Milford",
+    "runner_up": "Pembroke",
+    "champion_score": 52,
+    "runner_up_score": 46
+  },
+  {
+    "year": 2011,
+    "division": "Division II",
+    "champion": "Milford",
+    "runner_up": "Portsmouth",
+    "champion_score": 48,
+    "runner_up_score": 42
+  },
+  {
+    "year": 2012,
+    "division": "Division II",
+    "champion": "Portsmouth",
+    "runner_up": "Bedford",
+    "champion_score": 58,
+    "runner_up_score": 33
+  },
+  {
+    "year": 2013,
+    "division": "Division II",
+    "champion": "Pembroke",
+    "runner_up": "Souhegan",
+    "champion_score": 49,
+    "runner_up_score": 41
+  },
+  {
+    "year": 2014,
+    "division": "Division II",
+    "champion": "Pembroke",
+    "runner_up": "Portsmouth",
+    "champion_score": 49,
+    "runner_up_score": 40
+  },
+  {
+    "year": 2015,
+    "division": "Division II",
+    "champion": "Bishop Brady",
+    "runner_up": "Portsmouth",
+    "champion_score": 58,
+    "runner_up_score": 56
+  },
+  {
+    "year": 2016,
+    "division": "Division II",
+    "champion": "Portsmouth",
+    "runner_up": "Lebanon",
+    "champion_score": 43,
+    "runner_up_score": 29
+  },
+  {
+    "year": 2017,
+    "division": "Division II",
+    "champion": "Lebanon",
+    "runner_up": "Coe-Brown",
+    "champion_score": 59,
+    "runner_up_score": 42
+  },
+  {
+    "year": 2018,
+    "division": "Division II",
+    "champion": "Hollis-Brookline",
+    "runner_up": "Oyster River",
+    "champion_score": 56,
+    "runner_up_score": 40
+  },
+  {
+    "year": 2019,
+    "division": "Division II",
+    "champion": "Pembroke",
+    "runner_up": "Kearsarge",
+    "champion_score": 47,
+    "runner_up_score": 35
+  },
+  {
+    "year": 2020,
+    "division": "Division II",
+    "champion": "ConVal",
+    "runner_up": "Bow",
+    "notes": "Co-Champions (COVID-19)"
+  },
+  {
+    "year": 2021,
+    "division": "Division II",
+    "champion": "Lebanon",
+    "runner_up": "Pelham",
+    "champion_score": 40,
+    "runner_up_score": 33
+  },
+  {
+    "year": 2022,
+    "division": "Division II",
+    "champion": "Souhegan",
+    "runner_up": "ConVal",
+    "champion_score": 53,
+    "runner_up_score": 51
+  },
+  {
+    "year": 2023,
+    "division": "Division II",
+    "champion": "Pelham",
+    "runner_up": "Pembroke",
+    "champion_score": 57,
+    "runner_up_score": 54
+  },
+  {
+    "year": 2024,
+    "division": "Division II",
+    "champion": "Pelham",
+    "runner_up": "Hanover",
+    "champion_score": 51,
+    "runner_up_score": 41
+  },
+  {
+    "year": 2025,
+    "division": "Division II",
+    "champion": "Pembroke",
+    "runner_up": "Sanborn",
+    "champion_score": 63,
+    "runner_up_score": 54
+  },
+  {
+    "year": 1930,
+    "division": "Class M",
+    "champion": "Peterborough",
+    "runner_up": "Marlboro",
+    "champion_score": 25,
+    "runner_up_score": 17
+  },
+  {
+    "year": 1931,
+    "division": "Class M",
+    "champion": "Peterborough",
+    "runner_up": "Lincoln",
+    "champion_score": 28,
+    "runner_up_score": 14
+  },
+  {
+    "year": 1932,
+    "division": "Class M",
+    "champion": "Peterborough",
+    "runner_up": "Franklin",
+    "champion_score": 32,
+    "runner_up_score": 10
+  },
+  {
+    "year": 1933,
+    "division": "Class M",
+    "champion": "Groveton",
+    "runner_up": "Peterborough",
+    "champion_score": 35,
+    "runner_up_score": 25
+  },
+  {
+    "year": 1934,
+    "division": "Class M",
+    "champion": "Lincoln",
+    "runner_up": "Franklin",
+    "champion_score": 23,
+    "runner_up_score": 17
+  },
+  {
+    "year": 1935,
+    "division": "Class M",
+    "champion": "Appleton",
+    "runner_up": "Peterborough",
+    "champion_score": 41,
+    "runner_up_score": 29
+  },
+  {
+    "year": 1936,
+    "division": "Class M",
+    "champion": "Peterborough",
+    "runner_up": "Appleton",
+    "champion_score": 26,
+    "runner_up_score": 12
+  },
+  {
+    "year": 1937,
+    "division": "Class M",
+    "champion": "Groveton",
+    "runner_up": "Appleton",
+    "champion_score": 26,
+    "runner_up_score": 24
+  },
+  {
+    "year": 1938,
+    "division": "Class M",
+    "champion": "Appleton",
+    "runner_up": "Peterborough",
+    "champion_score": 23,
+    "runner_up_score": 15
+  },
+  {
+    "year": 1939,
+    "division": "Class M",
+    "champion": "St. Mary",
+    "runner_up": "Lincoln",
+    "champion_score": 38,
+    "runner_up_score": 18
+  },
+  {
+    "year": 1940,
+    "division": "Class M",
+    "champion": "Lincoln",
+    "runner_up": "Somersworth",
+    "champion_score": 25,
+    "runner_up_score": 21
+  },
+  {
+    "year": 1941,
+    "division": "Class M",
+    "champion": "Peterborough",
+    "runner_up": "Lebanon",
+    "champion_score": 39,
+    "runner_up_score": 37
+  },
+  {
+    "year": 1942,
+    "division": "Class M",
+    "champion": "Kennett",
+    "runner_up": "Hillsboro",
+    "champion_score": 27,
+    "runner_up_score": 22
+  },
+  {
+    "year": 1944,
+    "division": "Class M",
+    "champion": "Lebanon",
+    "runner_up": "Pinkerton",
+    "champion_score": 37,
+    "runner_up_score": 27
+  },
+  {
+    "year": 1945,
+    "division": "Class M",
+    "champion": "Franklin",
+    "runner_up": "St. John",
+    "champion_score": 48,
+    "runner_up_score": 23
+  },
+  {
+    "year": 1946,
+    "division": "Class M",
+    "champion": "St. John",
+    "runner_up": "Littleton",
+    "champion_score": 44,
+    "runner_up_score": 20
+  },
+  {
+    "year": 1947,
+    "division": "Class M",
+    "champion": "Pinkerton",
+    "runner_up": "Groveton",
+    "champion_score": 39,
+    "runner_up_score": 34
+  },
+  {
+    "year": 1948,
+    "division": "Class M",
+    "champion": "Pinkerton",
+    "runner_up": "Exeter",
+    "champion_score": 37,
+    "runner_up_score": 28
+  },
+  {
+    "year": 1949,
+    "division": "Class M",
+    "champion": "Pinkerton",
+    "runner_up": "Hillsboro",
+    "champion_score": 35,
+    "runner_up_score": 31
+  },
+  {
+    "year": 1950,
+    "division": "Class M",
+    "champion": "Kennett",
+    "runner_up": "Somersworth",
+    "champion_score": 37,
+    "runner_up_score": 35
+  },
+  {
+    "year": 1951,
+    "division": "Class M",
+    "champion": "Lancaster",
+    "runner_up": "Groveton",
+    "champion_score": 42,
+    "runner_up_score": 41
+  },
+  {
+    "year": 1952,
+    "division": "Class M",
+    "champion": "Gorham",
+    "runner_up": "St. Mary",
+    "champion_score": 47,
+    "runner_up_score": 44
+  },
+  {
+    "year": 1953,
+    "division": "Class M",
+    "champion": "Gorham",
+    "runner_up": "St. John",
+    "champion_score": 53,
+    "runner_up_score": 50
+  },
+  {
+    "year": 1954,
+    "division": "Class M",
+    "champion": "St. John",
+    "runner_up": "Gorham",
+    "champion_score": 46,
+    "runner_up_score": 44
+  },
+  {
+    "year": 1955,
+    "division": "Class M",
+    "champion": "Raymond",
+    "runner_up": "Tilton-Northfield",
+    "champion_score": 76,
+    "runner_up_score": 50
+  },
+  {
+    "year": 1956,
+    "division": "Class M",
+    "champion": "Gorham",
+    "runner_up": "Newmarket",
+    "champion_score": 47,
+    "runner_up_score": 40
+  },
+  {
+    "year": 1957,
+    "division": "Class M",
+    "champion": "Pinkerton",
+    "runner_up": "Groveton",
+    "champion_score": 41,
+    "runner_up_score": 33
+  },
+  {
+    "year": 1958,
+    "division": "Class M",
+    "champion": "Pinkerton",
+    "runner_up": "Hampton",
+    "champion_score": 60,
+    "runner_up_score": 34
+  },
+  {
+    "year": 1959,
+    "division": "Class M",
+    "champion": "Kennett",
+    "runner_up": "Charlestown",
+    "champion_score": 49,
+    "runner_up_score": 43
+  },
+  {
+    "year": 1960,
+    "division": "Class M",
+    "champion": "Kennett",
+    "runner_up": "Woodsville",
+    "champion_score": 46,
+    "runner_up_score": 36
+  },
+  {
+    "year": 1961,
+    "division": "Class M",
+    "champion": "Kennett",
+    "runner_up": "St. John",
+    "champion_score": 74,
+    "runner_up_score": 62
+  },
+  {
+    "year": 1962,
+    "division": "Class M",
+    "champion": "St. John",
+    "runner_up": "Kennett",
+    "champion_score": 40,
+    "runner_up_score": 27
+  },
+  {
+    "year": 1963,
+    "division": "Class M",
+    "champion": "Charlestown",
+    "runner_up": "Gorham",
+    "champion_score": 56,
+    "runner_up_score": 45
+  },
+  {
+    "year": 1964,
+    "division": "Class M",
+    "champion": "Newmarket",
+    "runner_up": "Oyster River",
+    "champion_score": 51,
+    "runner_up_score": 45
+  },
+  {
+    "year": 1965,
+    "division": "Class M",
+    "champion": "Hopkinton",
+    "runner_up": "Goffstown",
+    "champion_score": 61,
+    "runner_up_score": 49
+  },
+  {
+    "year": 1966,
+    "division": "Class M",
+    "champion": "Hopkinton",
+    "runner_up": "Gorham",
+    "champion_score": 55,
+    "runner_up_score": 45
+  },
+  {
+    "year": 1967,
+    "division": "Class M",
+    "champion": "Tilton-Northfield",
+    "runner_up": "Oyster River",
+    "champion_score": 64,
+    "runner_up_score": 59,
+    "overtime": true
+  },
+  {
+    "year": 1968,
+    "division": "Class M",
+    "champion": "Merrimack",
+    "runner_up": "Woodsville",
+    "champion_score": 67,
+    "runner_up_score": 64
+  },
+  {
+    "year": 1969,
+    "division": "Class M",
+    "champion": "Woodsville",
+    "runner_up": "Pittsfield",
+    "champion_score": 97,
+    "runner_up_score": 41
+  },
+  {
+    "year": 1970,
+    "division": "Class M",
+    "champion": "Farmington",
+    "runner_up": "Merrimack",
+    "champion_score": 95,
+    "runner_up_score": 83,
+    "overtime": true
+  },
+  {
+    "year": 1971,
+    "division": "Class M",
+    "champion": "Woodsville",
+    "runner_up": "Hollis",
+    "champion_score": 71,
+    "runner_up_score": 41
+  },
+  {
+    "year": 1972,
+    "division": "Class M",
+    "champion": "Hinsdale",
+    "runner_up": "Newmarket",
+    "champion_score": 52,
+    "runner_up_score": 45
+  },
+  {
+    "year": 1973,
+    "division": "Class M",
+    "champion": "Woodsville",
+    "runner_up": "Hollis",
+    "champion_score": 61,
+    "runner_up_score": 53
+  },
+  {
+    "year": 1974,
+    "division": "Class M",
+    "champion": "Hinsdale",
+    "runner_up": "Inter-Lakes",
+    "champion_score": 46,
+    "runner_up_score": 44
+  },
+  {
+    "year": 1975,
+    "division": "Class M",
+    "champion": "Oyster River",
+    "runner_up": "Woodsville",
+    "champion_score": 76,
+    "runner_up_score": 56
+  },
+  {
+    "year": 1976,
+    "division": "Class M",
+    "champion": "Woodsville",
+    "runner_up": "Newmarket",
+    "champion_score": 55,
+    "runner_up_score": 50
+  },
+  {
+    "year": 1977,
+    "division": "Class M",
+    "champion": "Woodsville",
+    "runner_up": "Hinsdale",
+    "champion_score": 61,
+    "runner_up_score": 47
+  },
+  {
+    "year": 1978,
+    "division": "Class M",
+    "champion": "Hinsdale",
+    "runner_up": "Plymouth",
+    "champion_score": 76,
+    "runner_up_score": 75,
+    "overtime": true
+  },
+  {
+    "year": 1979,
+    "division": "Class M",
+    "champion": "Newmarket",
+    "runner_up": "Oyster River",
+    "champion_score": 62,
+    "runner_up_score": 57
+  },
+  {
+    "year": 1980,
+    "division": "Class M",
+    "champion": "Newmarket",
+    "runner_up": "Groveton",
+    "champion_score": 78,
+    "runner_up_score": 66
+  },
+  {
+    "year": 1981,
+    "division": "Class M",
+    "champion": "Newmarket",
+    "runner_up": "Pittsfield",
+    "champion_score": 49,
+    "runner_up_score": 47,
+    "overtime": true
+  },
+  {
+    "year": 1982,
+    "division": "Class M",
+    "champion": "Hillsboro",
+    "runner_up": "Thayer",
+    "champion_score": 62,
+    "runner_up_score": 61
+  },
+  {
+    "year": 1983,
+    "division": "Class M",
+    "champion": "Hillsboro",
+    "runner_up": "Hinsdale",
+    "champion_score": 57,
+    "runner_up_score": 51
+  },
+  {
+    "year": 1984,
+    "division": "Class M",
+    "champion": "Farmington",
+    "runner_up": "Conant",
+    "champion_score": 76,
+    "runner_up_score": 54
+  },
+  {
+    "year": 1985,
+    "division": "Class M",
+    "champion": "Conant",
+    "runner_up": "Hillsboro",
+    "champion_score": 58,
+    "runner_up_score": 44
+  },
+  {
+    "year": 1986,
+    "division": "Class M",
+    "champion": "Newmarket",
+    "runner_up": "Conant",
+    "champion_score": 59,
+    "runner_up_score": 51
+  },
+  {
+    "year": 1987,
+    "division": "Class M",
+    "champion": "Mascoma",
+    "runner_up": "Franklin",
+    "champion_score": 54,
+    "runner_up_score": 37
+  },
+  {
+    "year": 1988,
+    "division": "Class M",
+    "champion": "Farmington",
+    "runner_up": "Mascoma",
+    "champion_score": 78,
+    "runner_up_score": 70
+  },
+  {
+    "year": 1989,
+    "division": "Class M",
+    "champion": "Mascoma",
+    "runner_up": "Gilford",
+    "champion_score": 48,
+    "runner_up_score": 44
+  },
+  {
+    "year": 1990,
+    "division": "Class M",
+    "champion": "Littleton",
+    "runner_up": "Pittsfield",
+    "champion_score": 72,
+    "runner_up_score": 60
+  },
+  {
+    "year": 1991,
+    "division": "Class M",
+    "champion": "St. Thomas",
+    "runner_up": "Mascenic",
+    "champion_score": 75,
+    "runner_up_score": 60
+  },
+  {
+    "year": 1992,
+    "division": "Class M",
+    "champion": "St. Thomas",
+    "runner_up": "Inter-Lakes",
+    "champion_score": 52,
+    "runner_up_score": 41
+  },
+  {
+    "year": 1993,
+    "division": "Class M",
+    "champion": "John Stark",
+    "runner_up": "Fall Mountain",
+    "champion_score": 58,
+    "runner_up_score": 55,
+    "overtime": true
+  },
+  {
+    "year": 1994,
+    "division": "Class M",
+    "champion": "Fall Mountain",
+    "runner_up": "Inter-Lakes",
+    "champion_score": 67,
+    "runner_up_score": 55
+  },
+  {
+    "year": 1995,
+    "division": "Class M",
+    "champion": "Newfound",
+    "runner_up": "Conant",
+    "champion_score": 67,
+    "runner_up_score": 59
+  },
+  {
+    "year": 1996,
+    "division": "Class M",
+    "champion": "Inter-Lakes",
+    "runner_up": "Gilford",
+    "champion_score": 74,
+    "runner_up_score": 55
+  },
+  {
+    "year": 1997,
+    "division": "Class M",
+    "champion": "Coe-Brown",
+    "runner_up": "Littleton",
+    "champion_score": 58,
+    "runner_up_score": 43
+  },
+  {
+    "year": 1998,
+    "division": "Class M",
+    "champion": "Conant",
+    "runner_up": "Coe-Brown",
+    "champion_score": 72,
+    "runner_up_score": 51
+  },
+  {
+    "year": 1999,
+    "division": "Class M",
+    "champion": "Mascenic",
+    "runner_up": "Gilford",
+    "champion_score": 62,
+    "runner_up_score": 53
+  },
+  {
+    "year": 2000,
+    "division": "Class M",
+    "champion": "Inter-Lakes",
+    "runner_up": "Mascenic",
+    "champion_score": 86,
+    "runner_up_score": 53
+  },
+  {
+    "year": 2001,
+    "division": "Class M",
+    "champion": "Conant",
+    "runner_up": "Hollis-Brookline",
+    "champion_score": 57,
+    "runner_up_score": 41
+  },
+  {
+    "year": 2002,
+    "division": "Class M",
+    "champion": "Conant",
+    "runner_up": "Hillsboro",
+    "champion_score": 55,
+    "runner_up_score": 38
+  },
+  {
+    "year": 2003,
+    "division": "Class M",
+    "champion": "Inter-Lakes",
+    "runner_up": "Campbell",
+    "champion_score": 40,
+    "runner_up_score": 39
+  },
+  {
+    "year": 2004,
+    "division": "Class M",
+    "champion": "Gilford",
+    "runner_up": "Pelham",
+    "champion_score": 65,
+    "runner_up_score": 62
+  },
+  {
+    "year": 2005,
+    "division": "Class M",
+    "champion": "Somersworth",
+    "runner_up": "Conant",
+    "champion_score": 55,
+    "runner_up_score": 48
+  },
+  {
+    "year": 2006,
+    "division": "Class M",
+    "champion": "Conant",
+    "runner_up": "Littleton",
+    "champion_score": 59,
+    "runner_up_score": 56
+  },
+  {
+    "year": 2007,
+    "division": "Class M",
+    "champion": "Conant",
+    "runner_up": "Gilford",
+    "champion_score": 53,
+    "runner_up_score": 49
+  },
+  {
+    "year": 2008,
+    "division": "Class M",
+    "champion": "Conant",
+    "runner_up": "Newmarket",
+    "champion_score": 55,
+    "runner_up_score": 48,
+    "overtime": true
+  },
+  {
+    "year": 2009,
+    "division": "Class M",
+    "champion": "Conant",
+    "runner_up": "Prospect Mountain",
+    "champion_score": 43,
+    "runner_up_score": 33
+  },
+  {
+    "year": 2010,
+    "division": "Class M",
+    "champion": "Conant",
+    "runner_up": "Berlin",
+    "champion_score": 41,
+    "runner_up_score": 35
+  },
+  {
+    "year": 2011,
+    "division": "Division III",
+    "champion": "Somersworth",
+    "runner_up": "Bow",
+    "champion_score": 45,
+    "runner_up_score": 39
+  },
+  {
+    "year": 2012,
+    "division": "Division III",
+    "champion": "Berlin",
+    "runner_up": "Prospect Mountain",
+    "champion_score": 53,
+    "runner_up_score": 51
+  },
+  {
+    "year": 2013,
+    "division": "Division III",
+    "champion": "Conant",
+    "runner_up": "Campbell",
+    "champion_score": 66,
+    "runner_up_score": 46
+  },
+  {
+    "year": 2014,
+    "division": "Division III",
+    "champion": "Conant",
+    "runner_up": "Campbell",
+    "champion_score": 40,
+    "runner_up_score": 36
+  },
+  {
+    "year": 2015,
+    "division": "Division III",
+    "champion": "Pelham",
+    "runner_up": "Conant",
+    "champion_score": 51,
+    "runner_up_score": 42
+  },
+  {
+    "year": 2016,
+    "division": "Division III",
+    "champion": "Pelham",
+    "runner_up": "Kearsarge",
+    "champion_score": 43,
+    "runner_up_score": 39
+  },
+  {
+    "year": 2017,
+    "division": "Division III",
+    "champion": "Kearsarge",
+    "runner_up": "Stevens",
+    "champion_score": 51,
+    "runner_up_score": 46
+  },
+  {
+    "year": 2018,
+    "division": "Division III",
+    "champion": "Somersworth",
+    "runner_up": "Campbell",
+    "champion_score": 53,
+    "runner_up_score": 38
+  },
+  {
+    "year": 2019,
+    "division": "Division III",
+    "champion": "Conant",
+    "runner_up": "Somersworth",
+    "champion_score": 61,
+    "runner_up_score": 38
+  },
+  {
+    "year": 2020,
+    "division": "Division III",
+    "champion": "Gilford",
+    "runner_up": "Mascenic",
+    "notes": "Declared at Semifinal Round"
+  },
+  {
+    "year": 2021,
+    "division": "Division III",
+    "champion": "Gilford",
+    "runner_up": "Hopkinton",
+    "champion_score": 41,
+    "runner_up_score": 40
+  },
+  {
+    "year": 2022,
+    "division": "Division III",
+    "champion": "Gilford",
+    "runner_up": "Kearsarge",
+    "champion_score": 46,
+    "runner_up_score": 38
+  },
+  {
+    "year": 2023,
+    "division": "Division III",
+    "champion": "Gilford",
+    "runner_up": "Mascoma",
+    "champion_score": 69,
+    "runner_up_score": 43
+  },
+  {
+    "year": 2024,
+    "division": "Division III",
+    "champion": "St. Thomas",
+    "runner_up": "Conant",
+    "champion_score": 38,
+    "runner_up_score": 34
+  },
+  {
+    "year": 2025,
+    "division": "Division III",
+    "champion": "Belmont",
+    "runner_up": "Kearsarge",
+    "champion_score": 49,
+    "runner_up_score": 43
+  },
+  {
+    "year": 1940,
+    "division": "Class S",
+    "champion": "Charlestown",
+    "runner_up": "Haverhill",
+    "champion_score": 27,
+    "runner_up_score": 25
+  },
+  {
+    "year": 1941,
+    "division": "Class S",
+    "champion": "Stratford",
+    "runner_up": "Sunapee",
+    "champion_score": 30,
+    "runner_up_score": 25
+  },
+  {
+    "year": 1942,
+    "division": "Class S",
+    "champion": "Stratford",
+    "runner_up": "Charlestown",
+    "champion_score": 42,
+    "runner_up_score": 28
+  },
+  {
+    "year": 1944,
+    "division": "Class S",
+    "champion": "Vilas",
+    "runner_up": "Marlboro",
+    "champion_score": 29,
+    "runner_up_score": 27
+  },
+  {
+    "year": 1945,
+    "division": "Class S",
+    "champion": "Vilas",
+    "runner_up": "Marlboro",
+    "champion_score": 34,
+    "runner_up_score": 33
+  },
+  {
+    "year": 1946,
+    "division": "Class S",
+    "champion": "Lincoln",
+    "runner_up": "Henniker",
+    "champion_score": 36,
+    "runner_up_score": 31
+  },
+  {
+    "year": 1947,
+    "division": "Class S",
+    "champion": "Lincoln",
+    "runner_up": "Simonds",
+    "champion_score": 39,
+    "runner_up_score": 17
+  },
+  {
+    "year": 1948,
+    "division": "Class S",
+    "champion": "West Lebanon",
+    "runner_up": "Lincoln",
+    "champion_score": 39,
+    "runner_up_score": 32
+  },
+  {
+    "year": 1949,
+    "division": "Class S",
+    "champion": "Ashland",
+    "runner_up": "Belmont",
+    "champion_score": 34,
+    "runner_up_score": 28
+  },
+  {
+    "year": 1950,
+    "division": "Class S",
+    "champion": "Ashland",
+    "runner_up": "Belmont",
+    "champion_score": 37,
+    "runner_up_score": 21
+  },
+  {
+    "year": 1951,
+    "division": "Class S",
+    "champion": "Vilas",
+    "runner_up": "Walpole",
+    "champion_score": 47,
+    "runner_up_score": 42
+  },
+  {
+    "year": 1952,
+    "division": "Class S",
+    "champion": "Whitefield",
+    "runner_up": "Walpole",
+    "champion_score": 60,
+    "runner_up_score": 59
+  },
+  {
+    "year": 1953,
+    "division": "Class S",
+    "champion": "Woodsville",
+    "runner_up": "Whitefield",
+    "champion_score": 68,
+    "runner_up_score": 50
+  },
+  {
+    "year": 1954,
+    "division": "Class S",
+    "champion": "Henniker",
+    "runner_up": "Lincoln",
+    "champion_score": 66,
+    "runner_up_score": 39
+  },
+  {
+    "year": 1955,
+    "division": "Class S",
+    "champion": "Holy Rosary",
+    "runner_up": "Thayer",
+    "champion_score": 49,
+    "runner_up_score": 40
+  },
+  {
+    "year": 1956,
+    "division": "Class S",
+    "champion": "Henniker",
+    "runner_up": "Troy",
+    "champion_score": 51,
+    "runner_up_score": 49
+  },
+  {
+    "year": 1957,
+    "division": "Class S",
+    "champion": "Henniker",
+    "runner_up": "Walpole",
+    "champion_score": 64,
+    "runner_up_score": 59
+  },
+  {
+    "year": 1958,
+    "division": "Class S",
+    "champion": "Charlestown",
+    "runner_up": "Holy Rosary",
+    "champion_score": 39,
+    "runner_up_score": 36
+  },
+  {
+    "year": 1959,
+    "division": "Class S",
+    "champion": "Newmarket",
+    "runner_up": "Holy Rosary",
+    "champion_score": 59,
+    "runner_up_score": 57
+  },
+  {
+    "year": 1960,
+    "division": "Class S",
+    "champion": "West Lebanon",
+    "runner_up": "Walpole",
+    "champion_score": 37,
+    "runner_up_score": 36
+  },
+  {
+    "year": 1961,
+    "division": "Class S",
+    "champion": "Walpole",
+    "runner_up": "Hopkinton",
+    "champion_score": 45,
+    "runner_up_score": 38
+  },
+  {
+    "year": 1962,
+    "division": "Class S",
+    "champion": "New London",
+    "runner_up": "Marlboro",
+    "champion_score": 47,
+    "runner_up_score": 42
+  },
+  {
+    "year": 1963,
+    "division": "Class S",
+    "champion": "Coe-Brown",
+    "runner_up": "Sunapee",
+    "champion_score": 50,
+    "runner_up_score": 37
+  },
+  {
+    "year": 1964,
+    "division": "Class S",
+    "champion": "Hopkinton",
+    "runner_up": "Walpole",
+    "champion_score": 65,
+    "runner_up_score": 40
+  },
+  {
+    "year": 1965,
+    "division": "Class S",
+    "champion": "Hollis",
+    "runner_up": "Walpole",
+    "champion_score": 52,
+    "runner_up_score": 47
+  },
+  {
+    "year": 1966,
+    "division": "Class S",
+    "champion": "Walpole",
+    "runner_up": "Epping",
+    "champion_score": 63,
+    "runner_up_score": 32
+  },
+  {
+    "year": 1967,
+    "division": "Class S",
+    "champion": "Pittsburg",
+    "runner_up": "Thayer",
+    "champion_score": 51,
+    "runner_up_score": 45
+  },
+  {
+    "year": 1968,
+    "division": "Class S",
+    "champion": "Hollis",
+    "runner_up": "Lin-Wood",
+    "champion_score": 44,
+    "runner_up_score": 35
+  },
+  {
+    "year": 1969,
+    "division": "Class S",
+    "champion": "Epping",
+    "runner_up": "Lin-Wood",
+    "champion_score": 29,
+    "runner_up_score": 27
+  },
+  {
+    "year": 1970,
+    "division": "Class S",
+    "champion": "Ashland",
+    "runner_up": "Belmont",
+    "champion_score": 51,
+    "runner_up_score": 48
+  },
+  {
+    "year": 1971,
+    "division": "Class S",
+    "champion": "Austin Cate",
+    "runner_up": "Epping",
+    "champion_score": 66,
+    "runner_up_score": 55
+  },
+  {
+    "year": 1972,
+    "division": "Class S",
+    "champion": "Lisbon",
+    "runner_up": "Alton",
+    "champion_score": 53,
+    "runner_up_score": 46
+  },
+  {
+    "year": 1973,
+    "division": "Class S",
+    "champion": "Lisbon",
+    "runner_up": "Austin Cate",
+    "champion_score": 61,
+    "runner_up_score": 52
+  },
+  {
+    "year": 1974,
+    "division": "Class S",
+    "champion": "Austin Cate",
+    "runner_up": "Nute",
+    "champion_score": 50,
+    "runner_up_score": 44
+  },
+  {
+    "year": 1975,
+    "division": "Class S",
+    "champion": "Pittsburg",
+    "runner_up": "Austin Cate",
+    "champion_score": 65,
+    "runner_up_score": 56
+  },
+  {
+    "year": 1976,
+    "division": "Class S",
+    "champion": "Marlboro",
+    "runner_up": "Colebrook",
+    "champion_score": 59,
+    "runner_up_score": 51
+  },
+  {
+    "year": 1977,
+    "division": "Class S",
+    "champion": "Groveton",
+    "runner_up": "Marlboro",
+    "champion_score": 59,
+    "runner_up_score": 52
+  },
+  {
+    "year": 1978,
+    "division": "Class S",
+    "champion": "Groveton",
+    "runner_up": "Coe-Brown",
+    "champion_score": 57,
+    "runner_up_score": 43
+  },
+  {
+    "year": 1979,
+    "division": "Class S",
+    "champion": "Groveton",
+    "runner_up": "Alton",
+    "champion_score": 68,
+    "runner_up_score": 65
+  },
+  {
+    "year": 1980,
+    "division": "Class S",
+    "champion": "Nute",
+    "runner_up": "Derryfield",
+    "champion_score": 49,
+    "runner_up_score": 38
+  },
+  {
+    "year": 1981,
+    "division": "Class S",
+    "champion": "Lisbon",
+    "runner_up": "Henniker",
+    "champion_score": 50,
+    "runner_up_score": 36
+  },
+  {
+    "year": 1982,
+    "division": "Class S",
+    "champion": "Coe-Brown",
+    "runner_up": "Lisbon",
+    "champion_score": 60,
+    "runner_up_score": 43
+  },
+  {
+    "year": 1983,
+    "division": "Class S",
+    "champion": "Derryfield",
+    "runner_up": "Orford",
+    "champion_score": 78,
+    "runner_up_score": 52
+  },
+  {
+    "year": 1984,
+    "division": "Class S",
+    "champion": "Coe-Brown",
+    "runner_up": "Derryfield",
+    "champion_score": 46,
+    "runner_up_score": 40
+  },
+  {
+    "year": 1985,
+    "division": "Class S",
+    "champion": "Pittsburg",
+    "runner_up": "Groveton",
+    "champion_score": 51,
+    "runner_up_score": 44
+  },
+  {
+    "year": 1986,
+    "division": "Class S",
+    "champion": "Pittsburg",
+    "runner_up": "Moultonborough",
+    "champion_score": 71,
+    "runner_up_score": 53
+  },
+  {
+    "year": 1987,
+    "division": "Class S",
+    "champion": "Moultonborough",
+    "runner_up": "Calvary Christian",
+    "champion_score": 50,
+    "runner_up_score": 38
+  },
+  {
+    "year": 1988,
+    "division": "Class S",
+    "champion": "Lin-Wood",
+    "runner_up": "Moultonborough",
+    "champion_score": 41,
+    "runner_up_score": 40,
+    "overtime": true
+  },
+  {
+    "year": 1989,
+    "division": "Class S",
+    "champion": "Epping",
+    "runner_up": "Nute",
+    "champion_score": 58,
+    "runner_up_score": 39
+  },
+  {
+    "year": 1990,
+    "division": "Class S",
+    "champion": "Nute",
+    "runner_up": "Wilton",
+    "champion_score": 56,
+    "runner_up_score": 45
+  },
+  {
+    "year": 1991,
+    "division": "Class S",
+    "champion": "Epping",
+    "runner_up": "Colebrook",
+    "champion_score": 62,
+    "runner_up_score": 54
+  },
+  {
+    "year": 1992,
+    "division": "Class S",
+    "champion": "Epping",
+    "runner_up": "Derryfield",
+    "champion_score": 51,
+    "runner_up_score": 50
+  },
+  {
+    "year": 1993,
+    "division": "Class S",
+    "champion": "Stratford",
+    "runner_up": "Orford",
+    "champion_score": 40,
+    "runner_up_score": 39
+  },
+  {
+    "year": 1994,
+    "division": "Class S",
+    "champion": "Laconia Christian",
+    "runner_up": "Calvary Christian",
+    "champion_score": 69,
+    "runner_up_score": 54
+  },
+  {
+    "year": 1995,
+    "division": "Class S",
+    "champion": "Calvary Christian",
+    "runner_up": "Profile",
+    "champion_score": 56,
+    "runner_up_score": 52
+  },
+  {
+    "year": 1996,
+    "division": "Class S",
+    "champion": "Moultonborough",
+    "runner_up": "Calvary Christian",
+    "champion_score": 65,
+    "runner_up_score": 55
+  },
+  {
+    "year": 1997,
+    "division": "Class S",
+    "champion": "Colebrook",
+    "runner_up": "Alton",
+    "champion_score": 52,
+    "runner_up_score": 50
+  },
+  {
+    "year": 1998,
+    "division": "Class S",
+    "champion": "Groveton",
+    "runner_up": "Concord Christian",
+    "champion_score": 65,
+    "runner_up_score": 34
+  },
+  {
+    "year": 1999,
+    "division": "Class S",
+    "champion": "Groveton",
+    "runner_up": "Concord Christian",
+    "champion_score": 75,
+    "runner_up_score": 43
+  },
+  {
+    "year": 2000,
+    "division": "Class S",
+    "champion": "Groveton",
+    "runner_up": "Profile",
+    "champion_score": 69,
+    "runner_up_score": 38
+  },
+  {
+    "year": 2001,
+    "division": "Class S",
+    "champion": "Groveton",
+    "runner_up": "Colebrook",
+    "champion_score": 74,
+    "runner_up_score": 73
+  },
+  {
+    "year": 2002,
+    "division": "Class S",
+    "champion": "Colebrook",
+    "runner_up": "Groveton",
+    "champion_score": 71,
+    "runner_up_score": 44
+  },
+  {
+    "year": 2003,
+    "division": "Class S",
+    "champion": "Groveton",
+    "runner_up": "Moultonborough",
+    "champion_score": 33,
+    "runner_up_score": 31
+  },
+  {
+    "year": 2004,
+    "division": "Class S",
+    "champion": "Profile",
+    "runner_up": "Wilton-Lyndeborough",
+    "champion_score": 50,
+    "runner_up_score": 40
+  },
+  {
+    "year": 2005,
+    "division": "Class S",
+    "champion": "Lisbon",
+    "runner_up": "Portsmouth Christian",
+    "champion_score": 55,
+    "runner_up_score": 42
+  },
+  {
+    "year": 2006,
+    "division": "Class S",
+    "champion": "Lisbon",
+    "runner_up": "Colebrook",
+    "champion_score": 73,
+    "runner_up_score": 56
+  },
+  {
+    "year": 2007,
+    "division": "Class S",
+    "champion": "Lisbon",
+    "runner_up": "Woodsville",
+    "champion_score": 50,
+    "runner_up_score": 31
+  },
+  {
+    "year": 2008,
+    "division": "Class S",
+    "champion": "Colebrook",
+    "runner_up": "Wilton",
+    "champion_score": 68,
+    "runner_up_score": 52
+  },
+  {
+    "year": 2009,
+    "division": "Class S",
+    "champion": "Moultonborough",
+    "runner_up": "Newmarket",
+    "champion_score": 57,
+    "runner_up_score": 45
+  },
+  {
+    "year": 2010,
+    "division": "Class S",
+    "champion": "Groveton",
+    "runner_up": "Littleton",
+    "champion_score": 52,
+    "runner_up_score": 49
+  },
+  {
+    "year": 2011,
+    "division": "Division IV",
+    "champion": "Lisbon",
+    "runner_up": "Derryfield",
+    "champion_score": 40,
+    "runner_up_score": 33
+  },
+  {
+    "year": 2012,
+    "division": "Division IV",
+    "champion": "Moultonborough",
+    "runner_up": "Littleton",
+    "champion_score": 54,
+    "runner_up_score": 50
+  },
+  {
+    "year": 2013,
+    "division": "Division IV",
+    "champion": "Lisbon",
+    "runner_up": "Derryfield",
+    "champion_score": 38,
+    "runner_up_score": 36
+  },
+  {
+    "year": 2014,
+    "division": "Division IV",
+    "champion": "Epping",
+    "runner_up": "Sunapee",
+    "champion_score": 74,
+    "runner_up_score": 70
+  },
+  {
+    "year": 2015,
+    "division": "Division IV",
+    "champion": "Wilton",
+    "runner_up": "Epping",
+    "champion_score": 50,
+    "runner_up_score": 46
+  },
+  {
+    "year": 2016,
+    "division": "Division IV",
+    "champion": "Littleton",
+    "runner_up": "Portsmouth Christian",
+    "champion_score": 38,
+    "runner_up_score": 36
+  },
+  {
+    "year": 2017,
+    "division": "Division IV",
+    "champion": "Groveton",
+    "runner_up": "Littleton",
+    "champion_score": 45,
+    "runner_up_score": 43
+  },
+  {
+    "year": 2018,
+    "division": "Division IV",
+    "champion": "Pittsfield",
+    "runner_up": "Newmarket",
+    "champion_score": 43,
+    "runner_up_score": 40
+  },
+  {
+    "year": 2019,
+    "division": "Division IV",
+    "champion": "Epping",
+    "runner_up": "Littleton",
+    "champion_score": 72,
+    "runner_up_score": 61
+  },
+  {
+    "year": 2020,
+    "division": "Division IV",
+    "champion": "Littleton",
+    "runner_up": "Newmarket",
+    "notes": "Declared at Semifinal Round"
+  },
+  {
+    "year": 2021,
+    "division": "Division IV",
+    "champion": "Woodsville",
+    "runner_up": "Portsmouth Christian",
+    "champion_score": 52,
+    "runner_up_score": 30
+  },
+  {
+    "year": 2022,
+    "division": "Division IV",
+    "champion": "Woodsville",
+    "runner_up": "Concord Christian",
+    "champion_score": 58,
+    "runner_up_score": 49
+  },
+  {
+    "year": 2023,
+    "division": "Division IV",
+    "champion": "Woodsville",
+    "runner_up": "Holy Family",
+    "champion_score": 57,
+    "runner_up_score": 49
+  },
+  {
+    "year": 2024,
+    "division": "Division IV",
+    "champion": "Profile",
+    "runner_up": "Littleton",
+    "champion_score": 53,
+    "runner_up_score": 48
+  },
+  {
+    "year": 2025,
+    "division": "Division IV",
+    "champion": "Woodsville",
+    "runner_up": "Littleton",
+    "champion_score": 51,
+    "runner_up_score": 48
+  }
+],
   girls: [
-    // Division I / Class L
-    { year: 2025, division: 'Division I', champion: 'Bedford', champion_score: 50, runner_up: 'Londonderry', runner_up_score: 44 },
-    { year: 2024, division: 'Division I', champion: 'Bedford', champion_score: 60, runner_up: 'Pinkerton', runner_up_score: 41 },
-    { year: 2023, division: 'Division I', champion: 'Bishop Guertin', champion_score: 51, runner_up: 'Bedford', runner_up_score: 45 },
-    { year: 2022, division: 'Division I', champion: 'Bishop Guertin', champion_score: 48, runner_up: 'Bedford', runner_up_score: 46 },
-    { year: 2021, division: 'Division I', champion: 'Bedford', champion_score: 64, runner_up: 'Bishop Guertin', runner_up_score: 46 },
-    { year: 2020, division: 'Division I', champion: 'Bishop Guertin', runner_up: 'Goffstown', notes: 'Co-Champions (COVID-19)' },
-    { year: 2019, division: 'Division I', champion: 'Bishop Guertin', champion_score: 46, runner_up: 'Portsmouth', runner_up_score: 33 },
-    { year: 2018, division: 'Division I', champion: 'Bishop Guertin', champion_score: 54, runner_up: 'Pinkerton', runner_up_score: 34 },
-    { year: 2017, division: 'Division I', champion: 'Bishop Guertin', champion_score: 52, runner_up: 'Bedford', runner_up_score: 49 },
-    { year: 2016, division: 'Division I', champion: 'Bishop Guertin', champion_score: 35, runner_up: 'Bedford', runner_up_score: 31 },
-    { year: 2015, division: 'Division I', champion: 'Londonderry', champion_score: 48, runner_up: 'Winnacunnet', runner_up_score: 33 },
-    { year: 2014, division: 'Division I', champion: 'Londonderry', champion_score: 57, runner_up: 'Bedford', runner_up_score: 56 },
-    { year: 2013, division: 'Division I', champion: 'Bedford', champion_score: 39, runner_up: 'Bishop Guertin', runner_up_score: 38 },
-    { year: 2012, division: 'Division I', champion: 'Bishop Guertin', champion_score: 46, runner_up: 'Londonderry', runner_up_score: 43 },
-    { year: 2011, division: 'Division I', champion: 'Winnacunnet', champion_score: 55, runner_up: 'Londonderry', runner_up_score: 46 },
-    { year: 2010, division: 'Class L', champion: 'Winnacunnet', champion_score: 46, runner_up: 'Pinkerton', runner_up_score: 41 },
-    { year: 2009, division: 'Class L', champion: 'Winnacunnet', champion_score: 53, runner_up: 'Trinity', runner_up_score: 41 },
-    { year: 2008, division: 'Class L', champion: 'Winnacunnet', champion_score: 60, runner_up: 'Manchester Central', runner_up_score: 47 },
-    { year: 2007, division: 'Class L', champion: 'Winnacunnet', champion_score: 48, runner_up: 'Bishop Guertin', runner_up_score: 39 },
-    { year: 2006, division: 'Class L', champion: 'Pinkerton', champion_score: 42, runner_up: 'Bishop Guertin', runner_up_score: 24 },
-    { year: 2005, division: 'Class L', champion: 'Trinity', champion_score: 56, runner_up: 'Dover', runner_up_score: 48 },
-    
-    // Division II / Class I
-    { year: 2025, division: 'Division II', champion: 'Milford', champion_score: 43, runner_up: 'Oyster River', runner_up_score: 36 },
-    { year: 2024, division: 'Division II', champion: 'Concord Christian', champion_score: 65, runner_up: 'Pembroke', runner_up_score: 53 },
-    { year: 2023, division: 'Division II', champion: 'Kennett', champion_score: 38, runner_up: 'Bow', runner_up_score: 37 },
-    { year: 2022, division: 'Division II', champion: 'Hanover', champion_score: 55, runner_up: 'Bow', runner_up_score: 24 },
-    { year: 2021, division: 'Division II', champion: 'Bishop Brady', champion_score: 52, runner_up: 'Kennett', runner_up_score: 50 },
-    { year: 2020, division: 'Division II', champion: 'Lebanon', runner_up: 'Spaulding', notes: 'Declared at Semifinal Round' },
-    { year: 2019, division: 'Division II', champion: 'Hanover', champion_score: 52, runner_up: 'Kennett', runner_up_score: 41 },
-    { year: 2018, division: 'Division II', champion: 'Hollis-Brookline', champion_score: 54, runner_up: 'John Stark', runner_up_score: 43 },
-    { year: 2017, division: 'Division II', champion: 'Lebanon', champion_score: 44, runner_up: 'Hollis-Brookline', runner_up_score: 35 },
-    { year: 2016, division: 'Division II', champion: 'Goffstown', champion_score: 37, runner_up: 'Hanover', runner_up_score: 31 },
-    { year: 2015, division: 'Division II', champion: 'Coe-Brown', champion_score: 50, runner_up: 'Goffstown', runner_up_score: 46 },
-    { year: 2014, division: 'Division II', champion: 'Merrimack Valley', champion_score: 55, runner_up: 'Coe-Brown', runner_up_score: 49 },
-    { year: 2013, division: 'Division II', champion: 'Lebanon', champion_score: 48, runner_up: 'Portsmouth', runner_up_score: 41 },
-    { year: 2012, division: 'Division II', champion: 'Souhegan', champion_score: 53, runner_up: 'Kearsarge', runner_up_score: 27 },
-    { year: 2011, division: 'Division II', champion: 'Souhegan', champion_score: 47, runner_up: 'Lebanon', runner_up_score: 44 },
-    { year: 2010, division: 'Class I', champion: 'Kennett', champion_score: 52, runner_up: 'Lebanon', runner_up_score: 45 },
-    
-    // Division III / Class M
-    { year: 2025, division: 'Division III', champion: 'St. Thomas', champion_score: 72, runner_up: 'Fall Mountain', runner_up_score: 35 },
-    { year: 2024, division: 'Division III', champion: 'Kearsarge', champion_score: 38, runner_up: 'Hopkinton', runner_up_score: 27 },
-    { year: 2023, division: 'Division III', champion: 'Concord Christian', champion_score: 49, runner_up: 'Conant', runner_up_score: 35 },
-    { year: 2022, division: 'Division III', champion: 'Monadnock', champion_score: 50, runner_up: 'Conant', runner_up_score: 31 },
-    { year: 2021, division: 'Division III', champion: 'Conant', champion_score: 59, runner_up: 'Fall Mountain', runner_up_score: 43 },
-    { year: 2020, division: 'Division III', champion: 'Conant', champion_score: 51, runner_up: 'Fall Mountain', runner_up_score: 42 },
-    { year: 2019, division: 'Division III', champion: 'Monadnock', champion_score: 51, runner_up: 'Fall Mountain', runner_up_score: 44 },
-    { year: 2018, division: 'Division III', champion: 'Conant', champion_score: 36, runner_up: 'Hopkinton', runner_up_score: 30 },
-    { year: 2017, division: 'Division III', champion: 'Monadnock', champion_score: 44, runner_up: 'Conant', runner_up_score: 36 },
-    { year: 2016, division: 'Division III', champion: 'Gilford', champion_score: 42, runner_up: 'Laconia', runner_up_score: 38 },
-    { year: 2015, division: 'Division III', champion: 'Conant', champion_score: 55, runner_up: 'Gilford', runner_up_score: 33 },
-    { year: 2014, division: 'Division III', champion: 'Campbell', champion_score: 57, runner_up: 'Fall Mountain', runner_up_score: 41 },
-    { year: 2013, division: 'Division III', champion: 'Bow', champion_score: 29, runner_up: 'White Mountains', runner_up_score: 17 },
-    { year: 2012, division: 'Division III', champion: 'White Mountains', champion_score: 56, runner_up: 'Campbell', runner_up_score: 51 },
-    { year: 2011, division: 'Division III', champion: 'Campbell', champion_score: 42, runner_up: 'Conant', runner_up_score: 33 },
-    { year: 1989, division: 'Class M', champion: 'Mascoma', champion_score: 61, runner_up: 'Farmington', runner_up_score: 59, overtime: true },
-    
-    // Division IV / Class S
-    { year: 2025, division: 'Division IV', champion: 'Groveton', champion_score: 36, runner_up: 'Littleton', runner_up_score: 33 },
-    { year: 2024, division: 'Division IV', champion: 'Littleton', champion_score: 41, runner_up: 'Newmarket', runner_up_score: 23 },
-    { year: 2023, division: 'Division IV', champion: 'Colebrook', champion_score: 47, runner_up: 'Groveton', runner_up_score: 34 },
-    { year: 2022, division: 'Division IV', champion: 'Concord Christian', champion_score: 46, runner_up: 'Derryfield', runner_up_score: 28 },
-    { year: 2021, division: 'Division IV', champion: 'Hinsdale', champion_score: 63, runner_up: 'Colebrook', runner_up_score: 51 },
-    { year: 2020, division: 'Division IV', champion: 'Colebrook', champion_score: 47, runner_up: 'Woodsville', runner_up_score: 36 },
-    { year: 2019, division: 'Division IV', champion: 'Littleton', champion_score: 42, runner_up: 'Hinsdale', runner_up_score: 31 },
-    { year: 2018, division: 'Division IV', champion: 'Hinsdale', champion_score: 32, runner_up: 'Littleton', runner_up_score: 30 },
-    { year: 2017, division: 'Division IV', champion: 'Sunapee', champion_score: 79, runner_up: 'Colebrook', runner_up_score: 52 },
-    { year: 2016, division: 'Division IV', champion: 'Sunapee', champion_score: 66, runner_up: 'Littleton', runner_up_score: 62 },
-    { year: 2015, division: 'Division IV', champion: 'Sunapee', champion_score: 80, runner_up: 'Colebrook', runner_up_score: 72 },
-    { year: 2014, division: 'Division IV', champion: 'Hinsdale', champion_score: 48, runner_up: 'Sunapee', runner_up_score: 35 },
-    { year: 2013, division: 'Division IV', champion: 'Groveton', champion_score: 60, runner_up: 'Colebrook', runner_up_score: 40 },
-    { year: 2012, division: 'Division IV', champion: 'Littleton', champion_score: 46, runner_up: 'Pittsfield', runner_up_score: 29 },
-    { year: 2011, division: 'Division IV', champion: 'Groveton', champion_score: 51, runner_up: 'Moultonborough', runner_up_score: 38 },
-    { year: 2010, division: 'Class S', champion: 'Groveton', champion_score: 56, runner_up: 'Derryfield', runner_up_score: 25 },
-  ]
+  {
+    "year": 1970,
+    "division": "Class L",
+    "champion": "Fall Mountain",
+    "runner_up": "Littleton"
+  },
+  {
+    "year": 1971,
+    "division": "Class L",
+    "champion": "Fall Mountain",
+    "runner_up": "Stevens"
+  },
+  {
+    "year": 1972,
+    "division": "Class L",
+    "champion": "Fall Mountain",
+    "runner_up": "Milford"
+  },
+  {
+    "year": 1973,
+    "division": "Class L",
+    "champion": "Fall Mountain",
+    "runner_up": "Dover"
+  },
+  {
+    "year": 1974,
+    "division": "Class L",
+    "champion": "Keene",
+    "runner_up": "Fall Mountain"
+  },
+  {
+    "year": 1975,
+    "division": "Class L",
+    "champion": "Concord",
+    "runner_up": "Berlin"
+  },
+  {
+    "year": 1976,
+    "division": "Class L",
+    "champion": "Milford",
+    "runner_up": "Trinity"
+  },
+  {
+    "year": 1977,
+    "division": "Class L",
+    "champion": "Dover",
+    "runner_up": "Manchester Central"
+  },
+  {
+    "year": 1978,
+    "division": "Class L",
+    "champion": "Manchester Central",
+    "runner_up": "Dover",
+    "champion_score": 56,
+    "runner_up_score": 46
+  },
+  {
+    "year": 1979,
+    "division": "Class L",
+    "champion": "Manchester Central",
+    "runner_up": "Pinkerton",
+    "champion_score": 54,
+    "runner_up_score": 32
+  },
+  {
+    "year": 1980,
+    "division": "Class L",
+    "champion": "Manchester Central",
+    "runner_up": "Merrimack",
+    "champion_score": 69,
+    "runner_up_score": 41
+  },
+  {
+    "year": 1981,
+    "division": "Class L",
+    "champion": "Manchester Central",
+    "runner_up": "Milford",
+    "champion_score": 53,
+    "runner_up_score": 40
+  },
+  {
+    "year": 1982,
+    "division": "Class L",
+    "champion": "Nashua",
+    "runner_up": "Concord",
+    "champion_score": 44,
+    "runner_up_score": 34
+  },
+  {
+    "year": 1983,
+    "division": "Class L",
+    "champion": "Concord",
+    "runner_up": "Dover",
+    "champion_score": 53,
+    "runner_up_score": 38
+  },
+  {
+    "year": 1984,
+    "division": "Class L",
+    "champion": "Winnacunnet",
+    "runner_up": "Nashua",
+    "champion_score": 75,
+    "runner_up_score": 73
+  },
+  {
+    "year": 1985,
+    "division": "Class L",
+    "champion": "Nashua",
+    "runner_up": "Londonderry",
+    "champion_score": 52,
+    "runner_up_score": 51
+  },
+  {
+    "year": 1986,
+    "division": "Class L",
+    "champion": "Nashua",
+    "runner_up": "Concord",
+    "champion_score": 67,
+    "runner_up_score": 34
+  },
+  {
+    "year": 1987,
+    "division": "Class L",
+    "champion": "Nashua",
+    "runner_up": "Londonderry",
+    "champion_score": 60,
+    "runner_up_score": 38
+  },
+  {
+    "year": 1988,
+    "division": "Class L",
+    "champion": "Nashua",
+    "runner_up": "Londonderry",
+    "champion_score": 69,
+    "runner_up_score": 46
+  },
+  {
+    "year": 1989,
+    "division": "Class L",
+    "champion": "Nashua",
+    "runner_up": "Londonderry",
+    "champion_score": 56,
+    "runner_up_score": 55
+  },
+  {
+    "year": 1990,
+    "division": "Class L",
+    "champion": "Londonderry",
+    "runner_up": "Nashua",
+    "champion_score": 58,
+    "runner_up_score": 39
+  },
+  {
+    "year": 1991,
+    "division": "Class L",
+    "champion": "Manchester Central",
+    "runner_up": "Winnacunnet",
+    "champion_score": 69,
+    "runner_up_score": 48
+  },
+  {
+    "year": 1992,
+    "division": "Class L",
+    "champion": "Nashua",
+    "runner_up": "Manchester West",
+    "champion_score": 57,
+    "runner_up_score": 54
+  },
+  {
+    "year": 1993,
+    "division": "Class L",
+    "champion": "Nashua",
+    "runner_up": "Londonderry",
+    "champion_score": 57,
+    "runner_up_score": 54
+  },
+  {
+    "year": 1994,
+    "division": "Class L",
+    "champion": "Alvirne",
+    "runner_up": "Concord",
+    "champion_score": 37,
+    "runner_up_score": 35
+  },
+  {
+    "year": 1995,
+    "division": "Class L",
+    "champion": "Nashua",
+    "runner_up": "Alvirne",
+    "champion_score": 68,
+    "runner_up_score": 42
+  },
+  {
+    "year": 1996,
+    "division": "Class L",
+    "champion": "Nashua",
+    "runner_up": "Londonderry",
+    "champion_score": 64,
+    "runner_up_score": 50
+  },
+  {
+    "year": 1997,
+    "division": "Class L",
+    "champion": "Manchester Central",
+    "runner_up": "Londonderry",
+    "champion_score": 35,
+    "runner_up_score": 16
+  },
+  {
+    "year": 1998,
+    "division": "Class L",
+    "champion": "Winnacunnet",
+    "runner_up": "Nashua",
+    "champion_score": 73,
+    "runner_up_score": 57
+  },
+  {
+    "year": 1999,
+    "division": "Class L",
+    "champion": "Nashua",
+    "runner_up": "Manchester West",
+    "champion_score": 81,
+    "runner_up_score": 38
+  },
+  {
+    "year": 2000,
+    "division": "Class L",
+    "champion": "Nashua",
+    "runner_up": "Portsmouth",
+    "champion_score": 70,
+    "runner_up_score": 33
+  },
+  {
+    "year": 2001,
+    "division": "Class L",
+    "champion": "Nashua",
+    "runner_up": "Dover",
+    "champion_score": 70,
+    "runner_up_score": 46
+  },
+  {
+    "year": 2002,
+    "division": "Class L",
+    "champion": "Dover",
+    "runner_up": "Alvirne",
+    "champion_score": 45,
+    "runner_up_score": 28
+  },
+  {
+    "year": 2003,
+    "division": "Class L",
+    "champion": "Nashua",
+    "runner_up": "Alvirne",
+    "champion_score": 51,
+    "runner_up_score": 48
+  },
+  {
+    "year": 2004,
+    "division": "Class L",
+    "champion": "Nashua",
+    "runner_up": "Exeter",
+    "champion_score": 54,
+    "runner_up_score": 41
+  },
+  {
+    "year": 2005,
+    "division": "Class L",
+    "champion": "Trinity",
+    "runner_up": "Dover",
+    "champion_score": 56,
+    "runner_up_score": 48
+  },
+  {
+    "year": 2006,
+    "division": "Class L",
+    "champion": "Pinkerton",
+    "runner_up": "Bishop Guertin",
+    "champion_score": 42,
+    "runner_up_score": 24
+  },
+  {
+    "year": 2007,
+    "division": "Class L",
+    "champion": "Winnacunnet",
+    "runner_up": "Bishop Guertin",
+    "champion_score": 48,
+    "runner_up_score": 39
+  },
+  {
+    "year": 2008,
+    "division": "Class L",
+    "champion": "Winnacunnet",
+    "runner_up": "Manchester Central",
+    "champion_score": 60,
+    "runner_up_score": 47
+  },
+  {
+    "year": 2009,
+    "division": "Class L",
+    "champion": "Winnacunnet",
+    "runner_up": "Trinity",
+    "champion_score": 53,
+    "runner_up_score": 41
+  },
+  {
+    "year": 2010,
+    "division": "Class L",
+    "champion": "Winnacunnet",
+    "runner_up": "Pinkerton",
+    "champion_score": 46,
+    "runner_up_score": 41
+  },
+  {
+    "year": 2011,
+    "division": "Division I",
+    "champion": "Winnacunnet",
+    "runner_up": "Londonderry",
+    "champion_score": 55,
+    "runner_up_score": 46
+  },
+  {
+    "year": 2012,
+    "division": "Division I",
+    "champion": "Bishop Guertin",
+    "runner_up": "Londonderry",
+    "champion_score": 46,
+    "runner_up_score": 43
+  },
+  {
+    "year": 2013,
+    "division": "Division I",
+    "champion": "Bedford",
+    "runner_up": "Bishop Guertin",
+    "champion_score": 39,
+    "runner_up_score": 38
+  },
+  {
+    "year": 2014,
+    "division": "Division I",
+    "champion": "Londonderry",
+    "runner_up": "Bedford",
+    "champion_score": 57,
+    "runner_up_score": 56
+  },
+  {
+    "year": 2015,
+    "division": "Division I",
+    "champion": "Londonderry",
+    "runner_up": "Winnacunnet",
+    "champion_score": 48,
+    "runner_up_score": 33
+  },
+  {
+    "year": 2016,
+    "division": "Division I",
+    "champion": "Bishop Guertin",
+    "runner_up": "Bedford",
+    "champion_score": 35,
+    "runner_up_score": 31
+  },
+  {
+    "year": 2017,
+    "division": "Division I",
+    "champion": "Bishop Guertin",
+    "runner_up": "Bedford",
+    "champion_score": 52,
+    "runner_up_score": 49
+  },
+  {
+    "year": 2018,
+    "division": "Division I",
+    "champion": "Bishop Guertin",
+    "runner_up": "Pinkerton",
+    "champion_score": 54,
+    "runner_up_score": 34
+  },
+  {
+    "year": 2019,
+    "division": "Division I",
+    "champion": "Bishop Guertin",
+    "runner_up": "Portsmouth",
+    "champion_score": 46,
+    "runner_up_score": 33
+  },
+  {
+    "year": 2020,
+    "division": "Division I",
+    "champion": "Bishop Guertin",
+    "runner_up": "Goffstown",
+    "notes": "Co-Champions (COVID-19)"
+  },
+  {
+    "year": 2021,
+    "division": "Division I",
+    "champion": "Bedford",
+    "runner_up": "Bishop Guertin",
+    "champion_score": 64,
+    "runner_up_score": 46
+  },
+  {
+    "year": 2022,
+    "division": "Division I",
+    "champion": "Bishop Guertin",
+    "runner_up": "Bedford",
+    "champion_score": 48,
+    "runner_up_score": 46
+  },
+  {
+    "year": 2023,
+    "division": "Division I",
+    "champion": "Bishop Guertin",
+    "runner_up": "Bedford",
+    "champion_score": 51,
+    "runner_up_score": 45
+  },
+  {
+    "year": 2024,
+    "division": "Division I",
+    "champion": "Bedford",
+    "runner_up": "Pinkerton",
+    "champion_score": 60,
+    "runner_up_score": 41
+  },
+  {
+    "year": 2025,
+    "division": "Division I",
+    "champion": "Bedford",
+    "runner_up": "Londonderry",
+    "champion_score": 50,
+    "runner_up_score": 44
+  },
+  {
+    "year": 1972,
+    "division": "Class I",
+    "champion": "Newfound",
+    "runner_up": "Orford"
+  },
+  {
+    "year": 1973,
+    "division": "Class I",
+    "champion": "Inter-Lakes",
+    "runner_up": "Newfound"
+  },
+  {
+    "year": 1974,
+    "division": "Class I",
+    "champion": "Pittsfield",
+    "runner_up": "Hollis"
+  },
+  {
+    "year": 1975,
+    "division": "Class I",
+    "champion": "Alton",
+    "runner_up": "Hillsboro"
+  },
+  {
+    "year": 1976,
+    "division": "Class I",
+    "champion": "Alton",
+    "runner_up": "Groveton"
+  },
+  {
+    "year": 1977,
+    "division": "Class I",
+    "champion": "Oyster River",
+    "runner_up": "Alton"
+  },
+  {
+    "year": 1978,
+    "division": "Class I",
+    "champion": "Milford",
+    "runner_up": "Pembroke",
+    "champion_score": 41,
+    "runner_up_score": 38
+  },
+  {
+    "year": 1979,
+    "division": "Class I",
+    "champion": "Milford",
+    "runner_up": "Fall Mountain",
+    "champion_score": 63,
+    "runner_up_score": 45
+  },
+  {
+    "year": 1980,
+    "division": "Class I",
+    "champion": "Pembroke",
+    "runner_up": "Lebanon",
+    "champion_score": 48,
+    "runner_up_score": 41
+  },
+  {
+    "year": 1981,
+    "division": "Class I",
+    "champion": "Fall Mountain",
+    "runner_up": "Laconia",
+    "champion_score": 51,
+    "runner_up_score": 46
+  },
+  {
+    "year": 1982,
+    "division": "Class I",
+    "champion": "Lebanon",
+    "runner_up": "Fall Mountain",
+    "champion_score": 54,
+    "runner_up_score": 31
+  },
+  {
+    "year": 1983,
+    "division": "Class I",
+    "champion": "Fall Mountain",
+    "runner_up": "Goffstown",
+    "champion_score": 42,
+    "runner_up_score": 36
+  },
+  {
+    "year": 1984,
+    "division": "Class I",
+    "champion": "Goffstown",
+    "runner_up": "Mt. St. Mary",
+    "champion_score": 34,
+    "runner_up_score": 33
+  },
+  {
+    "year": 1985,
+    "division": "Class I",
+    "champion": "Stevens",
+    "runner_up": "Berlin",
+    "champion_score": 38,
+    "runner_up_score": 30
+  },
+  {
+    "year": 1986,
+    "division": "Class I",
+    "champion": "Somersworth",
+    "runner_up": "Lebanon",
+    "champion_score": 69,
+    "runner_up_score": 53
+  },
+  {
+    "year": 1987,
+    "division": "Class I",
+    "champion": "Goffstown",
+    "runner_up": "Lebanon",
+    "champion_score": 47,
+    "runner_up_score": 45
+  },
+  {
+    "year": 1988,
+    "division": "Class I",
+    "champion": "Goffstown",
+    "runner_up": "Kennett",
+    "champion_score": 48,
+    "runner_up_score": 40
+  },
+  {
+    "year": 1989,
+    "division": "Class I",
+    "champion": "Kennett",
+    "runner_up": "Monadnock",
+    "champion_score": 53,
+    "runner_up_score": 52
+  },
+  {
+    "year": 1990,
+    "division": "Class I",
+    "champion": "Monadnock",
+    "runner_up": "Somersworth",
+    "champion_score": 70,
+    "runner_up_score": 49
+  },
+  {
+    "year": 1991,
+    "division": "Class I",
+    "champion": "Somersworth",
+    "runner_up": "Lebanon",
+    "champion_score": 45,
+    "runner_up_score": 42,
+    "overtime": true
+  },
+  {
+    "year": 1992,
+    "division": "Class I",
+    "champion": "Kingswood",
+    "runner_up": "Kennett",
+    "champion_score": 40,
+    "runner_up_score": 34,
+    "overtime": true
+  },
+  {
+    "year": 1993,
+    "division": "Class I",
+    "champion": "Lebanon",
+    "runner_up": "Kennett",
+    "champion_score": 59,
+    "runner_up_score": 44
+  },
+  {
+    "year": 1994,
+    "division": "Class I",
+    "champion": "ConVal",
+    "runner_up": "Souhegan",
+    "champion_score": 62,
+    "runner_up_score": 50
+  },
+  {
+    "year": 1995,
+    "division": "Class I",
+    "champion": "Souhegan",
+    "runner_up": "Pembroke",
+    "champion_score": 50,
+    "runner_up_score": 34
+  },
+  {
+    "year": 1996,
+    "division": "Class I",
+    "champion": "Souhegan",
+    "runner_up": "Hanover",
+    "champion_score": 60,
+    "runner_up_score": 57
+  },
+  {
+    "year": 1997,
+    "division": "Class I",
+    "champion": "Hanover",
+    "runner_up": "Laconia",
+    "champion_score": 73,
+    "runner_up_score": 36
+  },
+  {
+    "year": 1998,
+    "division": "Class I",
+    "champion": "Kearsarge",
+    "runner_up": "Timberlane",
+    "champion_score": 64,
+    "runner_up_score": 34
+  },
+  {
+    "year": 1999,
+    "division": "Class I",
+    "champion": "Hanover",
+    "runner_up": "Lebanon",
+    "champion_score": 57,
+    "runner_up_score": 52
+  },
+  {
+    "year": 2000,
+    "division": "Class I",
+    "champion": "Coe-Brown",
+    "runner_up": "Kearsarge",
+    "champion_score": 63,
+    "runner_up_score": 39
+  },
+  {
+    "year": 2001,
+    "division": "Class I",
+    "champion": "Lebanon",
+    "runner_up": "Kearsarge",
+    "champion_score": 48,
+    "runner_up_score": 44
+  },
+  {
+    "year": 2002,
+    "division": "Class I",
+    "champion": "Kearsarge",
+    "runner_up": "Lebanon",
+    "champion_score": 46,
+    "runner_up_score": 34
+  },
+  {
+    "year": 2003,
+    "division": "Class I",
+    "champion": "Oyster River",
+    "runner_up": "John Stark",
+    "champion_score": 50,
+    "runner_up_score": 41
+  },
+  {
+    "year": 2004,
+    "division": "Class I",
+    "champion": "Hanover",
+    "runner_up": "Merrimack Valley",
+    "champion_score": 43,
+    "runner_up_score": 38
+  },
+  {
+    "year": 2005,
+    "division": "Class I",
+    "champion": "Hanover",
+    "runner_up": "Oyster River",
+    "champion_score": 49,
+    "runner_up_score": 38
+  },
+  {
+    "year": 2006,
+    "division": "Class I",
+    "champion": "Oyster River",
+    "runner_up": "Kearsarge",
+    "champion_score": 45,
+    "runner_up_score": 33
+  },
+  {
+    "year": 2007,
+    "division": "Class I",
+    "champion": "Lebanon",
+    "runner_up": "St. Thomas",
+    "champion_score": 34,
+    "runner_up_score": 23
+  },
+  {
+    "year": 2008,
+    "division": "Class I",
+    "champion": "Hanover",
+    "runner_up": "Lebanon",
+    "champion_score": 47,
+    "runner_up_score": 39
+  },
+  {
+    "year": 2009,
+    "division": "Class I",
+    "champion": "Oyster River",
+    "runner_up": "Hanover",
+    "champion_score": 39,
+    "runner_up_score": 33
+  },
+  {
+    "year": 2010,
+    "division": "Class I",
+    "champion": "Kennett",
+    "runner_up": "Lebanon",
+    "champion_score": 52,
+    "runner_up_score": 45
+  },
+  {
+    "year": 2011,
+    "division": "Division II",
+    "champion": "Souhegan",
+    "runner_up": "Lebanon",
+    "champion_score": 47,
+    "runner_up_score": 44
+  },
+  {
+    "year": 2012,
+    "division": "Division II",
+    "champion": "Souhegan",
+    "runner_up": "Kearsarge",
+    "champion_score": 53,
+    "runner_up_score": 27
+  },
+  {
+    "year": 2013,
+    "division": "Division II",
+    "champion": "Lebanon",
+    "runner_up": "Portsmouth",
+    "champion_score": 48,
+    "runner_up_score": 41
+  },
+  {
+    "year": 2014,
+    "division": "Division II",
+    "champion": "Merrimack Valley",
+    "runner_up": "Coe-Brown",
+    "champion_score": 55,
+    "runner_up_score": 49
+  },
+  {
+    "year": 2015,
+    "division": "Division II",
+    "champion": "Coe-Brown",
+    "runner_up": "Goffstown",
+    "champion_score": 50,
+    "runner_up_score": 46
+  },
+  {
+    "year": 2016,
+    "division": "Division II",
+    "champion": "Goffstown",
+    "runner_up": "Hanover",
+    "champion_score": 37,
+    "runner_up_score": 31
+  },
+  {
+    "year": 2017,
+    "division": "Division II",
+    "champion": "Lebanon",
+    "runner_up": "Hollis-Brookline",
+    "champion_score": 44,
+    "runner_up_score": 35
+  },
+  {
+    "year": 2018,
+    "division": "Division II",
+    "champion": "Hollis-Brookline",
+    "runner_up": "John Stark",
+    "champion_score": 54,
+    "runner_up_score": 43
+  },
+  {
+    "year": 2019,
+    "division": "Division II",
+    "champion": "Hanover",
+    "runner_up": "Kennett",
+    "champion_score": 52,
+    "runner_up_score": 41
+  },
+  {
+    "year": 2020,
+    "division": "Division II",
+    "champion": "Lebanon",
+    "runner_up": "Spaulding",
+    "notes": "Declared at Semifinal Round"
+  },
+  {
+    "year": 2021,
+    "division": "Division II",
+    "champion": "Bishop Brady",
+    "runner_up": "Kennett",
+    "champion_score": 52,
+    "runner_up_score": 50
+  },
+  {
+    "year": 2022,
+    "division": "Division II",
+    "champion": "Hanover",
+    "runner_up": "Bow",
+    "champion_score": 55,
+    "runner_up_score": 24
+  },
+  {
+    "year": 2023,
+    "division": "Division II",
+    "champion": "Kennett",
+    "runner_up": "Bow",
+    "champion_score": 38,
+    "runner_up_score": 37
+  },
+  {
+    "year": 2024,
+    "division": "Division II",
+    "champion": "Concord Christian",
+    "runner_up": "Pembroke",
+    "champion_score": 65,
+    "runner_up_score": 53
+  },
+  {
+    "year": 2025,
+    "division": "Division II",
+    "champion": "Milford",
+    "runner_up": "Oyster River",
+    "champion_score": 43,
+    "runner_up_score": 36
+  },
+  {
+    "year": 1978,
+    "division": "Class M",
+    "champion": "Oyster River",
+    "runner_up": "Thayer",
+    "champion_score": 55,
+    "runner_up_score": 54
+  },
+  {
+    "year": 1979,
+    "division": "Class M",
+    "champion": "Wilton",
+    "runner_up": "Newport",
+    "champion_score": 46,
+    "runner_up_score": 45,
+    "overtime": true
+  },
+  {
+    "year": 1980,
+    "division": "Class M",
+    "champion": "Newport",
+    "runner_up": "Inter-Lakes",
+    "champion_score": 54,
+    "runner_up_score": 51
+  },
+  {
+    "year": 1981,
+    "division": "Class M",
+    "champion": "St. Thomas",
+    "runner_up": "Plymouth",
+    "champion_score": 38,
+    "runner_up_score": 37,
+    "overtime": true
+  },
+  {
+    "year": 1982,
+    "division": "Class M",
+    "champion": "Littleton",
+    "runner_up": "Newport",
+    "champion_score": 57,
+    "runner_up_score": 40
+  },
+  {
+    "year": 1983,
+    "division": "Class M",
+    "champion": "Littleton",
+    "runner_up": "Pittsfield",
+    "champion_score": 52,
+    "runner_up_score": 38
+  },
+  {
+    "year": 1984,
+    "division": "Class M",
+    "champion": "Littleton",
+    "runner_up": "Pittsfield",
+    "champion_score": 33,
+    "runner_up_score": 27
+  },
+  {
+    "year": 1985,
+    "division": "Class M",
+    "champion": "Conant",
+    "runner_up": "Franklin",
+    "champion_score": 53,
+    "runner_up_score": 49
+  },
+  {
+    "year": 1986,
+    "division": "Class M",
+    "champion": "Conant",
+    "runner_up": "Epping",
+    "champion_score": 50,
+    "runner_up_score": 39
+  },
+  {
+    "year": 1987,
+    "division": "Class M",
+    "champion": "Franklin",
+    "runner_up": "Epping",
+    "champion_score": 49,
+    "runner_up_score": 39
+  },
+  {
+    "year": 1988,
+    "division": "Class M",
+    "champion": "Mascoma",
+    "runner_up": "Newfound",
+    "champion_score": 58,
+    "runner_up_score": 53
+  },
+  {
+    "year": 1989,
+    "division": "Class M",
+    "champion": "Mascoma",
+    "runner_up": "Farmington",
+    "champion_score": 61,
+    "runner_up_score": 59,
+    "overtime": true
+  },
+  {
+    "year": 1990,
+    "division": "Class M",
+    "champion": "Mascoma",
+    "runner_up": "John Stark",
+    "champion_score": 62,
+    "runner_up_score": 56
+  },
+  {
+    "year": 1991,
+    "division": "Class M",
+    "champion": "John Stark",
+    "runner_up": "Franklin",
+    "champion_score": 77,
+    "runner_up_score": 60
+  },
+  {
+    "year": 1992,
+    "division": "Class M",
+    "champion": "Littleton",
+    "runner_up": "Franklin",
+    "champion_score": 57,
+    "runner_up_score": 43
+  },
+  {
+    "year": 1993,
+    "division": "Class M",
+    "champion": "Coe-Brown",
+    "runner_up": "Franklin",
+    "champion_score": 54,
+    "runner_up_score": 52
+  },
+  {
+    "year": 1994,
+    "division": "Class M",
+    "champion": "Coe-Brown",
+    "runner_up": "Bishop Guertin",
+    "champion_score": 33,
+    "runner_up_score": 24
+  },
+  {
+    "year": 1995,
+    "division": "Class M",
+    "champion": "Littleton",
+    "runner_up": "Coe-Brown",
+    "champion_score": 51,
+    "runner_up_score": 45
+  },
+  {
+    "year": 1996,
+    "division": "Class M",
+    "champion": "Littleton",
+    "runner_up": "Belmont",
+    "champion_score": 57,
+    "runner_up_score": 37
+  },
+  {
+    "year": 1997,
+    "division": "Class M",
+    "champion": "Mascoma",
+    "runner_up": "Coe-Brown",
+    "champion_score": 57,
+    "runner_up_score": 41
+  },
+  {
+    "year": 1998,
+    "division": "Class M",
+    "champion": "Coe-Brown",
+    "runner_up": "White Mountains",
+    "champion_score": 43,
+    "runner_up_score": 29
+  },
+  {
+    "year": 1999,
+    "division": "Class M",
+    "champion": "White Mountains",
+    "runner_up": "Conant",
+    "champion_score": 58,
+    "runner_up_score": 44
+  },
+  {
+    "year": 2000,
+    "division": "Class M",
+    "champion": "Bow",
+    "runner_up": "Mascoma",
+    "champion_score": 57,
+    "runner_up_score": 33
+  },
+  {
+    "year": 2001,
+    "division": "Class M",
+    "champion": "Hopkinton",
+    "runner_up": "Mascoma",
+    "champion_score": 51,
+    "runner_up_score": 33
+  },
+  {
+    "year": 2002,
+    "division": "Class M",
+    "champion": "Mascoma",
+    "runner_up": "Epping",
+    "champion_score": 50,
+    "runner_up_score": 49
+  },
+  {
+    "year": 2003,
+    "division": "Class M",
+    "champion": "Hopkinton",
+    "runner_up": "Mascoma",
+    "champion_score": 51,
+    "runner_up_score": 46
+  },
+  {
+    "year": 2004,
+    "division": "Class M",
+    "champion": "Mascoma",
+    "runner_up": "Conant",
+    "champion_score": 47,
+    "runner_up_score": 37
+  },
+  {
+    "year": 2005,
+    "division": "Class M",
+    "champion": "Conant",
+    "runner_up": "Mascoma",
+    "champion_score": 47,
+    "runner_up_score": 45
+  },
+  {
+    "year": 2006,
+    "division": "Class M",
+    "champion": "Belmont",
+    "runner_up": "Newport",
+    "champion_score": 42,
+    "runner_up_score": 19
+  },
+  {
+    "year": 2007,
+    "division": "Class M",
+    "champion": "Newport",
+    "runner_up": "Newfound",
+    "champion_score": 59,
+    "runner_up_score": 53
+  },
+  {
+    "year": 2008,
+    "division": "Class M",
+    "champion": "Conant",
+    "runner_up": "Campbell",
+    "champion_score": 46,
+    "runner_up_score": 40
+  },
+  {
+    "year": 2009,
+    "division": "Class M",
+    "champion": "Gilford",
+    "runner_up": "Campbell",
+    "champion_score": 52,
+    "runner_up_score": 45
+  },
+  {
+    "year": 2010,
+    "division": "Class M",
+    "champion": "Conant",
+    "runner_up": "Campbell",
+    "champion_score": 53,
+    "runner_up_score": 48
+  },
+  {
+    "year": 2011,
+    "division": "Division III",
+    "champion": "Campbell",
+    "runner_up": "Conant",
+    "champion_score": 42,
+    "runner_up_score": 33
+  },
+  {
+    "year": 2012,
+    "division": "Division III",
+    "champion": "White Mountains",
+    "runner_up": "Campbell",
+    "champion_score": 56,
+    "runner_up_score": 51
+  },
+  {
+    "year": 2013,
+    "division": "Division III",
+    "champion": "Bow",
+    "runner_up": "White Mountains",
+    "champion_score": 29,
+    "runner_up_score": 17
+  },
+  {
+    "year": 2014,
+    "division": "Division III",
+    "champion": "Campbell",
+    "runner_up": "Fall Mountain",
+    "champion_score": 57,
+    "runner_up_score": 41
+  },
+  {
+    "year": 2015,
+    "division": "Division III",
+    "champion": "Conant",
+    "runner_up": "Gilford",
+    "champion_score": 55,
+    "runner_up_score": 33
+  },
+  {
+    "year": 2016,
+    "division": "Division III",
+    "champion": "Gilford",
+    "runner_up": "Laconia",
+    "champion_score": 42,
+    "runner_up_score": 38
+  },
+  {
+    "year": 2017,
+    "division": "Division III",
+    "champion": "Monadnock",
+    "runner_up": "Conant",
+    "champion_score": 44,
+    "runner_up_score": 36
+  },
+  {
+    "year": 2018,
+    "division": "Division III",
+    "champion": "Conant",
+    "runner_up": "Hopkinton",
+    "champion_score": 36,
+    "runner_up_score": 30
+  },
+  {
+    "year": 2019,
+    "division": "Division III",
+    "champion": "Monadnock",
+    "runner_up": "Fall Mountain",
+    "champion_score": 51,
+    "runner_up_score": 44
+  },
+  {
+    "year": 2020,
+    "division": "Division III",
+    "champion": "Conant",
+    "runner_up": "Fall Mountain",
+    "champion_score": 51,
+    "runner_up_score": 42
+  },
+  {
+    "year": 2021,
+    "division": "Division III",
+    "champion": "Conant",
+    "runner_up": "Fall Mountain",
+    "champion_score": 59,
+    "runner_up_score": 43
+  },
+  {
+    "year": 2022,
+    "division": "Division III",
+    "champion": "Monadnock",
+    "runner_up": "Conant",
+    "champion_score": 50,
+    "runner_up_score": 31
+  },
+  {
+    "year": 2023,
+    "division": "Division III",
+    "champion": "Concord Christian",
+    "runner_up": "Conant",
+    "champion_score": 49,
+    "runner_up_score": 35
+  },
+  {
+    "year": 2024,
+    "division": "Division III",
+    "champion": "Kearsarge",
+    "runner_up": "Hopkinton",
+    "champion_score": 38,
+    "runner_up_score": 27
+  },
+  {
+    "year": 2025,
+    "division": "Division III",
+    "champion": "St. Thomas",
+    "runner_up": "Fall Mountain",
+    "champion_score": 72,
+    "runner_up_score": 35
+  },
+  {
+    "year": 1978,
+    "division": "Class S",
+    "champion": "Alton",
+    "runner_up": "Sunapee",
+    "champion_score": 53,
+    "runner_up_score": 44
+  },
+  {
+    "year": 1979,
+    "division": "Class S",
+    "champion": "Hopkinton",
+    "runner_up": "Sunapee",
+    "champion_score": 31,
+    "runner_up_score": 23
+  },
+  {
+    "year": 1980,
+    "division": "Class S",
+    "champion": "Wilton",
+    "runner_up": "Alton",
+    "champion_score": 51,
+    "runner_up_score": 44
+  },
+  {
+    "year": 1981,
+    "division": "Class S",
+    "champion": "Henniker",
+    "runner_up": "Alton",
+    "champion_score": 53,
+    "runner_up_score": 52
+  },
+  {
+    "year": 1982,
+    "division": "Class S",
+    "champion": "Henniker",
+    "runner_up": "Wilton",
+    "champion_score": 60,
+    "runner_up_score": 56
+  },
+  {
+    "year": 1983,
+    "division": "Class S",
+    "champion": "Henniker",
+    "runner_up": "Alton",
+    "champion_score": 61,
+    "runner_up_score": 54
+  },
+  {
+    "year": 1984,
+    "division": "Class S",
+    "champion": "Henniker",
+    "runner_up": "Nute",
+    "champion_score": 74,
+    "runner_up_score": 38
+  },
+  {
+    "year": 1985,
+    "division": "Class S",
+    "champion": "Epping",
+    "runner_up": "Profile",
+    "champion_score": 62,
+    "runner_up_score": 39
+  },
+  {
+    "year": 1986,
+    "division": "Class S",
+    "champion": "Profile",
+    "runner_up": "Wilton",
+    "champion_score": 40,
+    "runner_up_score": 39
+  },
+  {
+    "year": 1987,
+    "division": "Class S",
+    "champion": "Wilton",
+    "runner_up": "Groveton",
+    "champion_score": 33,
+    "runner_up_score": 29
+  },
+  {
+    "year": 1988,
+    "division": "Class S",
+    "champion": "Groveton",
+    "runner_up": "Epping",
+    "champion_score": 42,
+    "runner_up_score": 36
+  },
+  {
+    "year": 1989,
+    "division": "Class S",
+    "champion": "Epping",
+    "runner_up": "Derryfield",
+    "champion_score": 44,
+    "runner_up_score": 37
+  },
+  {
+    "year": 1990,
+    "division": "Class S",
+    "champion": "Groveton",
+    "runner_up": "Derryfield",
+    "champion_score": 52,
+    "runner_up_score": 40
+  },
+  {
+    "year": 1991,
+    "division": "Class S",
+    "champion": "Groveton",
+    "runner_up": "Derryfield",
+    "champion_score": 49,
+    "runner_up_score": 13
+  },
+  {
+    "year": 1992,
+    "division": "Class S",
+    "champion": "Groveton",
+    "runner_up": "Alton",
+    "champion_score": 56,
+    "runner_up_score": 43
+  },
+  {
+    "year": 1993,
+    "division": "Class S",
+    "champion": "Groveton",
+    "runner_up": "Sunapee",
+    "champion_score": 38,
+    "runner_up_score": 23
+  },
+  {
+    "year": 1994,
+    "division": "Class S",
+    "champion": "Sunapee",
+    "runner_up": "Groveton",
+    "champion_score": 57,
+    "runner_up_score": 24
+  },
+  {
+    "year": 1995,
+    "division": "Class S",
+    "champion": "Groveton",
+    "runner_up": "Lisbon",
+    "champion_score": 56,
+    "runner_up_score": 41
+  },
+  {
+    "year": 1996,
+    "division": "Class S",
+    "champion": "Wilton",
+    "runner_up": "Moultonborough",
+    "champion_score": 50,
+    "runner_up_score": 46
+  },
+  {
+    "year": 1997,
+    "division": "Class S",
+    "champion": "Wilton",
+    "runner_up": "Sunapee",
+    "champion_score": 37,
+    "runner_up_score": 32
+  },
+  {
+    "year": 1998,
+    "division": "Class S",
+    "champion": "Derryfield",
+    "runner_up": "Wilton",
+    "champion_score": 49,
+    "runner_up_score": 22
+  },
+  {
+    "year": 1999,
+    "division": "Class S",
+    "champion": "Groveton",
+    "runner_up": "Derryfield",
+    "champion_score": 42,
+    "runner_up_score": 37
+  },
+  {
+    "year": 2000,
+    "division": "Class S",
+    "champion": "Groveton",
+    "runner_up": "Derryfield",
+    "champion_score": 50,
+    "runner_up_score": 36
+  },
+  {
+    "year": 2001,
+    "division": "Class S",
+    "champion": "Groveton",
+    "runner_up": "Colebrook",
+    "champion_score": 36,
+    "runner_up_score": 20
+  },
+  {
+    "year": 2002,
+    "division": "Class S",
+    "champion": "Groveton",
+    "runner_up": "Thayer",
+    "champion_score": 48,
+    "runner_up_score": 37
+  },
+  {
+    "year": 2003,
+    "division": "Class S",
+    "champion": "Groveton",
+    "runner_up": "Profile",
+    "champion_score": 46,
+    "runner_up_score": 25
+  },
+  {
+    "year": 2004,
+    "division": "Class S",
+    "champion": "Portsmouth Christian",
+    "runner_up": "Colebrook",
+    "champion_score": 48,
+    "runner_up_score": 41
+  },
+  {
+    "year": 2005,
+    "division": "Class S",
+    "champion": "Sunapee",
+    "runner_up": "Derryfield",
+    "champion_score": 57,
+    "runner_up_score": 37
+  },
+  {
+    "year": 2006,
+    "division": "Class S",
+    "champion": "Sunapee",
+    "runner_up": "Groveton",
+    "champion_score": 41,
+    "runner_up_score": 32
+  },
+  {
+    "year": 2007,
+    "division": "Class S",
+    "champion": "Sunapee",
+    "runner_up": "Groveton",
+    "champion_score": 43,
+    "runner_up_score": 33
+  },
+  {
+    "year": 2008,
+    "division": "Class S",
+    "champion": "Groveton",
+    "runner_up": "Portsmouth Christian",
+    "champion_score": 40,
+    "runner_up_score": 22
+  },
+  {
+    "year": 2009,
+    "division": "Class S",
+    "champion": "Groveton",
+    "runner_up": "Colebrook",
+    "champion_score": 48,
+    "runner_up_score": 46
+  },
+  {
+    "year": 2010,
+    "division": "Class S",
+    "champion": "Groveton",
+    "runner_up": "Littleton",
+    "champion_score": 52,
+    "runner_up_score": 49
+  },
+  {
+    "year": 2011,
+    "division": "Division IV",
+    "champion": "Groveton",
+    "runner_up": "Moultonborough",
+    "champion_score": 51,
+    "runner_up_score": 38
+  },
+  {
+    "year": 2012,
+    "division": "Division IV",
+    "champion": "Moultonborough",
+    "runner_up": "Littleton",
+    "champion_score": 54,
+    "runner_up_score": 50
+  },
+  {
+    "year": 2013,
+    "division": "Division IV",
+    "champion": "Groveton",
+    "runner_up": "Colebrook",
+    "champion_score": 60,
+    "runner_up_score": 40
+  },
+  {
+    "year": 2014,
+    "division": "Division IV",
+    "champion": "Hinsdale",
+    "runner_up": "Sunapee",
+    "champion_score": 48,
+    "runner_up_score": 35
+  },
+  {
+    "year": 2015,
+    "division": "Division IV",
+    "champion": "Sunapee",
+    "runner_up": "Colebrook",
+    "champion_score": 80,
+    "runner_up_score": 72
+  },
+  {
+    "year": 2016,
+    "division": "Division IV",
+    "champion": "Sunapee",
+    "runner_up": "Littleton",
+    "champion_score": 66,
+    "runner_up_score": 62
+  },
+  {
+    "year": 2017,
+    "division": "Division IV",
+    "champion": "Sunapee",
+    "runner_up": "Colebrook",
+    "champion_score": 79,
+    "runner_up_score": 52
+  },
+  {
+    "year": 2018,
+    "division": "Division IV",
+    "champion": "Hinsdale",
+    "runner_up": "Littleton",
+    "champion_score": 32,
+    "runner_up_score": 30
+  },
+  {
+    "year": 2019,
+    "division": "Division IV",
+    "champion": "Littleton",
+    "runner_up": "Hinsdale",
+    "champion_score": 42,
+    "runner_up_score": 31
+  },
+  {
+    "year": 2020,
+    "division": "Division IV",
+    "champion": "Colebrook",
+    "runner_up": "Woodsville",
+    "champion_score": 47,
+    "runner_up_score": 36
+  },
+  {
+    "year": 2021,
+    "division": "Division IV",
+    "champion": "Hinsdale",
+    "runner_up": "Colebrook",
+    "champion_score": 63,
+    "runner_up_score": 51
+  },
+  {
+    "year": 2022,
+    "division": "Division IV",
+    "champion": "Concord Christian",
+    "runner_up": "Derryfield",
+    "champion_score": 46,
+    "runner_up_score": 28
+  },
+  {
+    "year": 2023,
+    "division": "Division IV",
+    "champion": "Colebrook",
+    "runner_up": "Groveton",
+    "champion_score": 47,
+    "runner_up_score": 34
+  },
+  {
+    "year": 2024,
+    "division": "Division IV",
+    "champion": "Littleton",
+    "runner_up": "Newmarket",
+    "champion_score": 41,
+    "runner_up_score": 23
+  },
+  {
+    "year": 2025,
+    "division": "Division IV",
+    "champion": "Groveton",
+    "runner_up": "Littleton",
+    "champion_score": 36,
+    "runner_up_score": 33
+  }
+]
 };
-
-
-// ============================================================
-// TOURNAMENT BRACKETS (2017-2024)
-// ============================================================
-
-/**
- * NHIAA Basketball Tournament Brackets - Historical Data
- * Complete bracket data for AI article generation context
- * 
- * Data source: nhiaa.org tournament bracket pages, nh-highschoolsports.com archives
- * Last updated: December 2024
- * 
- * COVERAGE: 64 brackets (2017-2024)
- *   - 2024: 8 complete brackets
- *   - 2023: 8 complete brackets  
- *   - 2022: 8 complete brackets
- *   - 2021: 1 partial (COVID recovery year)
- *   - 2020: 8 co-champion records (COVID)
- *   - 2019: 8 complete brackets (all divisions, full game data)
- *   - 2018: 8 complete brackets
- *   - 2017: 8 complete brackets
- * 
- * KEY STORYLINES:
- *   - 2019 D-II Boys: #9 Kearsarge beat #1 Oyster River - legendary Cinderella run
- *   - 2017 D-IV Boys: #3 Groveton upset #1 Littleton 45-43 in OT
- *   - Gilford Boys D-III 4-peat: 2020-2023
- *   - Woodsville Boys D-IV 3-peat: 2021-2023
- *   - Concord Christian Girls: 3 titles in 3 different divisions
- *   - Lebanon Girls D-II: Perfect 18-0 season in 2017
- *   - Portsmouth Boys D-I: Perfect 18-0 championship run in 2017
- */
-
 const TOURNAMENT_BRACKETS = {
   // ============================================================
   // 2024 TOURNAMENT BRACKETS
