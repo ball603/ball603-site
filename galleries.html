@@ -722,6 +722,20 @@
       return num.toLocaleString();
     }
 
+    // Upgrade SmugMug thumbnail to higher quality
+    function getHighQualityThumb(url) {
+      if (!url) return '';
+      // SmugMug URLs have size codes like Th, S, M, L, XL, X2, X3
+      // Replace smaller sizes with L (Large) or XL for better quality
+      return url
+        .replace(/\/Th\//g, '/L/')
+        .replace(/-Th\./g, '-L.')
+        .replace(/\/S\//g, '/L/')
+        .replace(/-S\./g, '-L.')
+        .replace(/\/M\//g, '/L/')
+        .replace(/-M\./g, '-L.');
+    }
+
     // ===== MOBILE MENU =====
     function initMobileMenu() {
       const toggle = document.getElementById('mobileMenuToggle');
@@ -886,14 +900,14 @@
     }
 
     function renderGalleryCard(gallery, isPinned = false) {
-      const thumbnail = gallery.thumbnail_url || '';
+      const thumbnail = getHighQualityThumb(gallery.thumbnail_url) || '';
       const tags = galleryTeamTags[gallery.album_key] || [];
       const albumUrl = gallery.album_url || `https://ball603.smugmug.com/`;
 
       return `
         <a href="${albumUrl}" target="_blank" class="gallery-card ${isPinned ? 'pinned' : ''}">
           <div class="gallery-thumbnail">
-            <img src="${thumbnail}" alt="${escapeHtml(gallery.name)}" onerror="this.src='/logo.png'; this.style.objectFit='contain'; this.style.padding='20px';">
+            <img src="${thumbnail}" alt="${escapeHtml(gallery.name)}" onerror="if(!this.dataset.tried){this.dataset.tried='1';this.src='${gallery.thumbnail_url||''}'}else{this.src='/logo.png';this.style.objectFit='contain';this.style.padding='20px';}">
             <div class="gallery-overlay">
               <span class="gallery-overlay-text">View Gallery →</span>
             </div>
