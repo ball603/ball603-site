@@ -1,7 +1,6 @@
 // Sync SmugMug albums to Supabase
 // Run manually or schedule via Netlify scheduled functions
 import crypto from 'crypto';
-import { createClient } from '@supabase/supabase-js';
 
 const SMUGMUG_API_KEY = process.env.SMUGMUG_API_KEY;
 const SMUGMUG_API_SECRET = process.env.SMUGMUG_API_SECRET;
@@ -9,7 +8,7 @@ const SMUGMUG_ACCESS_TOKEN = process.env.SMUGMUG_ACCESS_TOKEN;
 const SMUGMUG_ACCESS_SECRET = process.env.SMUGMUG_ACCESS_SECRET;
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://suncdkxfqkwwnmhosxcf.supabase.co';
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
 
 function generateNonce() {
   return crypto.randomBytes(16).toString('hex');
@@ -192,7 +191,26 @@ export const handler = async (event) => {
     };
   }
   
-  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+  // Helper function to upsert to Supabase via REST API
+  async function upsertToSupabase(records) {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/smugmug_albums`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_SERVICE_KEY,
+        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+        'Prefer': 'resolution=merge-duplicates'
+      },
+      body: JSON.stringify(records)
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Supabase upsert failed: ${response.status} ${errorText}`);
+    }
+    
+    return response;
+  }
   
   try {
     // Fetch all albums from SmugMug
@@ -237,14 +255,7 @@ export const handler = async (event) => {
     for (let i = 0; i < processedAlbums.length; i += upsertBatchSize) {
       const batch = processedAlbums.slice(i, i + upsertBatchSize);
       
-      const { error } = await supabase
-        .from('smugmug_albums')
-        .upsert(batch, { onConflict: 'album_key' });
-      
-      if (error) {
-        console.error('Upsert error:', error);
-        throw error;
-      }
+      await upsertToSupabase(batch);
       
       upsertedCount += batch.length;
       console.log(`Upserted ${upsertedCount}/${processedAlbums.length} to Supabase...`);
