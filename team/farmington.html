@@ -783,11 +783,14 @@
       let wins = 0, losses = 0;
       const completedGames = [];
       const upcomingGames = [];
-      const today = new Date();
+      // Get today in EST
+      const today = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
       today.setHours(0, 0, 0, 0);
       
       games.forEach(g => {
-        const gameDate = new Date(g.date + 'T00:00:00');
+        // Parse game date as EST noon to avoid timezone issues
+        const gameDate = new Date(g.date + 'T12:00:00-05:00');
+        gameDate.setHours(0, 0, 0, 0);
         const isHome = isThisTeam(g.home);
         
         // Check for scores the same way schedule.html does
@@ -1461,16 +1464,18 @@
     // ===== UTILITIES =====
     function formatDate(dateStr) {
       if (!dateStr) return '';
-      const date = new Date(dateStr);
+      // Parse as EST to avoid timezone shifts
+      const date = new Date(dateStr + 'T12:00:00-05:00');
       if (isNaN(date)) return dateStr;
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/New_York' });
     }
 
     function formatShortDate(dateStr) {
       if (!dateStr) return '';
-      const date = new Date(dateStr);
+      // Parse as EST to avoid timezone shifts
+      const date = new Date(dateStr + 'T12:00:00-05:00');
       if (isNaN(date)) return dateStr;
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' });
     }
   </script>
 </body>
