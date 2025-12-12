@@ -3,13 +3,812 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Ball603 - Your home for New Hampshire high school and college basketball coverage">
+  <meta name="description" content="Ball603 - New Hampshire High School and College Basketball Coverage. Schedules, scores, standings, photos, and stories.">
   <meta name="theme-color" content="#f57c00">
-  <title>Ball603 - NH Basketball</title>
+  <title>Ball603 | NH Basketball Coverage</title>
+  
+  <!-- Favicon -->
   <link rel="icon" type="image/png" href="/logo.png">
   <link rel="apple-touch-icon" href="/logo.png">
+  
+  <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <!-- Main Styles -->
   <link rel="stylesheet" href="/styles.css">
+  
+  <!-- PWA Meta -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Ball603">
+  
+  <!-- Redirect for OAuth callback -->
+  <script>
+    if (window.location.hash && window.location.hash.includes('access_token')) {
+      window.location.replace('/contributor-portal.html' + window.location.hash);
+    }
+  </script>
+  
+  <style>
+    /* ===== CSS RESET & VARIABLES ===== */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    :root {
+      --brand-orange: #f57c00;
+      --brand-orange-hover: #ff9800;
+      --dark: #1a1a1a;
+      --darker: #111111;
+      --light: #f5f5f5;
+      --light-gray: #e8e8e8;
+      --dropdown-bg: #f7f7f7;
+      --dropdown-hover: #ebebeb;
+      --text-dark: #1a1a1a;
+      --text-secondary: rgba(255,255,255,0.7);
+      --text-muted: rgba(255,255,255,0.5);
+      --border-dark: #333;
+      --header-height: 56px;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--light);
+      color: #1a1a1a;
+      line-height: 1.5;
+    }
+    
+    a {
+      text-decoration: none;
+      color: inherit;
+    }
+    
+    /* ===== SITE HEADER ===== */
+    .site-header {
+      background: var(--dark);
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      border-bottom: 1px solid var(--brand-orange);
+    }
+    
+    .header-inner {
+      display: flex;
+      align-items: center;
+      height: var(--header-height);
+      padding: 0 20px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    
+    /* Logo */
+    .header-logo {
+      flex-shrink: 0;
+      margin-right: 32px;
+      display: flex;
+      align-items: center;
+    }
+    
+    .header-logo img {
+      height: 32px;
+      width: auto;
+      display: block;
+    }
+    
+    /* Main Navigation - LEFT ALIGNED */
+    .header-nav {
+      display: flex;
+      align-items: center;
+      height: 100%;
+    }
+    
+    .nav-item {
+      position: relative;
+      height: 100%;
+      display: flex;
+      align-items: center;
+    }
+    
+    .nav-link {
+      color: var(--text-secondary);
+      font-size: 14px;
+      font-weight: 400;
+      padding: 0 14px;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      transition: color 0.2s, background 0.2s;
+    }
+    
+    .nav-item:first-child .nav-link {
+      padding-left: 0;
+    }
+    
+    .nav-link:hover,
+    .nav-item:hover .nav-link {
+      color: var(--brand-orange);
+    }
+    
+    .nav-item.active .nav-link {
+      color: var(--brand-orange);
+    }
+    
+    /* Dropdown - Light Gray Background */
+    .nav-dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      background: var(--dropdown-bg);
+      border: 1px solid #ccc;
+      border-radius: 0 0 8px 8px;
+      padding: 8px 0;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-10px);
+      transition: all 0.2s ease;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+      white-space: nowrap;
+    }
+    
+    .nav-item:hover .nav-dropdown {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+    
+    /* Simple dropdown list */
+    .dropdown-list a {
+      display: block;
+      color: var(--text-dark);
+      font-size: 13px;
+      font-weight: 400;
+      padding: 8px 16px;
+      transition: all 0.15s;
+    }
+    
+    .dropdown-list a:hover {
+      background: var(--dropdown-hover);
+      color: var(--brand-orange);
+    }
+    
+    .dropdown-all-link {
+      color: var(--brand-orange) !important;
+      font-weight: 500 !important;
+      border-top: 1px solid #ddd;
+      margin-top: 6px;
+      padding-top: 10px !important;
+    }
+    
+    /* Nested dropdown (Teams) */
+    .nav-dropdown.dropdown-nested {
+      padding: 8px 0;
+    }
+    
+    .dropdown-item-parent {
+      position: relative;
+    }
+    
+    .dropdown-item-parent > a {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--text-dark);
+      font-size: 13px;
+      font-weight: 400;
+      padding: 8px 16px;
+      transition: all 0.15s;
+    }
+    
+    .dropdown-item-parent > a svg {
+      opacity: 0.4;
+      transition: opacity 0.15s;
+    }
+    
+    .dropdown-item-parent:hover > a {
+      background: var(--dropdown-hover);
+      color: var(--brand-orange);
+    }
+    
+    .dropdown-item-parent:hover > a svg {
+      opacity: 1;
+    }
+    
+    .dropdown-submenu {
+      position: absolute;
+      left: 100%;
+      top: 0;
+      background: var(--dropdown-bg);
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 12px 16px;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateX(-10px);
+      transition: all 0.2s ease;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+      white-space: nowrap;
+    }
+    
+    /* Multi-column team grid */
+    .dropdown-submenu.teams-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 0 20px;
+      min-width: 320px;
+      max-width: 500px;
+    }
+    
+    .dropdown-submenu.teams-grid a {
+      padding: 6px 8px;
+    }
+    
+    .dropdown-submenu .submenu-footer {
+      grid-column: 1 / -1;
+      border-top: 1px solid #ddd;
+      margin-top: 8px;
+      padding-top: 8px;
+    }
+    
+    .dropdown-submenu .submenu-footer a {
+      color: var(--brand-orange);
+      font-weight: 500;
+    }
+    
+    .dropdown-item-parent:hover .dropdown-submenu {
+      opacity: 1;
+      visibility: visible;
+      transform: translateX(0);
+    }
+    
+    .dropdown-submenu a {
+      display: block;
+      color: var(--text-dark);
+      font-size: 13px;
+      font-weight: 400;
+      padding: 8px 16px;
+      transition: all 0.15s;
+    }
+    
+    .dropdown-submenu a:hover {
+      background: var(--dropdown-hover);
+      color: var(--brand-orange);
+    }
+    
+    .dropdown-submenu a:last-child {
+      color: var(--brand-orange);
+      font-weight: 500;
+      border-top: 1px solid #ddd;
+      margin-top: 4px;
+      padding-top: 10px;
+    }
+    
+    /* Override for teams-grid - submenu-footer handles the border */
+    .dropdown-submenu.teams-grid a:last-child {
+      border-top: none;
+      margin-top: 0;
+      padding-top: 8px;
+    }
+    
+    .dropdown-submenu.teams-grid .submenu-footer a {
+      padding: 0;
+    }
+    
+    /* Two-section dropdown (Schedule) - TIGHT */
+    .nav-dropdown.dropdown-split {
+      padding: 12px 16px;
+    }
+    
+    .dropdown-sections {
+      display: flex;
+      gap: 20px;
+    }
+    
+    .dropdown-section h4 {
+      color: #888;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #ddd;
+    }
+    
+    .dropdown-section a {
+      display: block;
+      color: var(--text-dark);
+      font-size: 13px;
+      font-weight: 400;
+      padding: 5px 0;
+      transition: color 0.15s;
+    }
+    
+    .dropdown-section a:hover {
+      color: var(--brand-orange);
+    }
+    
+    /* Right side: Social + Search */
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-left: auto;
+    }
+    
+    /* Social Icons */
+    .header-social {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    
+    .social-link {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-secondary);
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+    
+    .social-link:hover {
+      color: var(--brand-orange);
+    }
+    
+    .social-link svg {
+      width: 18px;
+      height: 18px;
+      fill: currentColor;
+    }
+    
+    /* Search */
+    .header-search {
+      position: relative;
+    }
+    
+    .search-toggle {
+      height: 32px;
+      padding: 0 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: rgba(255,255,255,0.7);
+      background: #333;
+      border: none;
+      border-radius: 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 13px;
+    }
+    
+    .search-toggle:hover {
+      background: #444;
+      color: #fff;
+    }
+    
+    .search-toggle svg {
+      width: 16px;
+      height: 16px;
+      stroke: currentColor;
+      fill: none;
+    }
+    
+    .search-dropdown {
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      width: 320px;
+      padding: 16px;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-10px);
+      transition: all 0.2s;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+    }
+    
+    .search-dropdown.active {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+    
+    .search-input-wrap {
+      position: relative;
+    }
+    
+    .search-input {
+      width: 100%;
+      padding: 12px 16px 12px 44px;
+      background: var(--light);
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      color: var(--text-dark);
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    
+    .search-input:focus {
+      border-color: var(--brand-orange);
+    }
+    
+    .search-input::placeholder {
+      color: #999;
+    }
+    
+    .search-input-icon {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #999;
+    }
+    
+    .search-input-icon svg {
+      width: 18px;
+      height: 18px;
+      stroke: currentColor;
+      fill: none;
+    }
+    
+    .search-results {
+      margin-top: 12px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    
+    .search-result-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    
+    .search-result-item:hover {
+      background: var(--light);
+    }
+    
+    .search-result-logo {
+      width: 32px;
+      height: 32px;
+      object-fit: contain;
+    }
+    
+    .search-result-info h4 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-dark);
+    }
+    
+    .search-result-info span {
+      font-size: 12px;
+      color: #888;
+    }
+    
+    .search-hint {
+      font-size: 11px;
+      color: #888;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #eee;
+    }
+    
+    /* Mobile Menu Toggle */
+    .mobile-menu-toggle {
+      display: none;
+      width: 40px;
+      height: 40px;
+      align-items: center;
+      justify-content: center;
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      margin-left: auto;
+    }
+    
+    .mobile-menu-toggle svg {
+      width: 24px;
+      height: 24px;
+      stroke: currentColor;
+      fill: none;
+    }
+    
+    /* Mobile Drawer */
+    .mobile-drawer {
+      display: none;
+      position: fixed;
+      top: 0;
+      right: -100%;
+      width: 300px;
+      height: 100vh;
+      background: var(--dark);
+      z-index: 1001;
+      transition: right 0.3s ease;
+      overflow-y: auto;
+    }
+    
+    .mobile-drawer.active {
+      right: 0;
+    }
+    
+    .mobile-drawer-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 1000;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    
+    .mobile-drawer-overlay.active {
+      display: block;
+      opacity: 1;
+    }
+    
+    .mobile-drawer-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-dark);
+    }
+    
+    .mobile-drawer-close {
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+    
+    .mobile-nav-item {
+      border-bottom: 1px solid var(--border-dark);
+    }
+    
+    .mobile-nav-link {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      color: white;
+      font-size: 15px;
+      font-weight: 500;
+    }
+    
+    .mobile-nav-link svg {
+      width: 20px;
+      height: 20px;
+      stroke: currentColor;
+      fill: none;
+      transition: transform 0.2s;
+    }
+    
+    .mobile-nav-item.expanded .mobile-nav-link svg {
+      transform: rotate(180deg);
+    }
+    
+    .mobile-subnav {
+      display: none;
+      background: rgba(255,255,255,0.05);
+      padding: 10px 0;
+    }
+    
+    .mobile-nav-item.expanded .mobile-subnav {
+      display: block;
+    }
+    
+    .mobile-subnav-header {
+      color: rgba(255,255,255,0.5);
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      padding: 10px 24px 6px;
+    }
+    
+    .mobile-subnav a {
+      display: block;
+      padding: 10px 24px;
+      color: rgba(255,255,255,0.8);
+      font-size: 14px;
+    }
+    
+    .mobile-drawer-footer {
+      padding: 20px;
+      border-top: 1px solid var(--border-dark);
+    }
+    
+    .mobile-social {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    
+    .mobile-search {
+      position: relative;
+    }
+    
+    .mobile-search input {
+      width: 100%;
+      padding: 12px 16px 12px 44px;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid var(--border-dark);
+      border-radius: 6px;
+      color: white;
+      font-size: 14px;
+    }
+    
+    /* ===== SITE FOOTER ===== */
+    .site-footer {
+      background: var(--dark);
+      padding: 40px 20px;
+      text-align: center;
+      box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
+      margin-top: 60px;
+    }
+    
+    .footer-logo {
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: center;
+    }
+    
+    .footer-logo img {
+      height: 60px;
+      width: auto;
+      display: block;
+    }
+    
+    .footer-links {
+      margin-bottom: 16px;
+    }
+    
+    .footer-links a {
+      color: #ffffff;
+      font-size: 14px;
+      margin: 0 12px;
+      transition: color 0.2s;
+    }
+    
+    .footer-links a:hover {
+      color: var(--brand-orange);
+    }
+    
+    .footer-social {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    
+    .footer-social a {
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(255,255,255,0.7);
+      transition: color 0.2s;
+    }
+    
+    .footer-social a:hover {
+      color: var(--brand-orange);
+    }
+    
+    .footer-social svg {
+      width: 22px;
+      height: 22px;
+      fill: currentColor;
+    }
+    
+    .footer-copyright {
+      color: rgba(255,255,255,0.4);
+      font-size: 12px;
+    }
+    
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 900px) {
+      .header-nav {
+        display: none;
+      }
+      
+      .header-social {
+        display: none;
+      }
+      
+      .mobile-menu-toggle {
+        display: flex;
+      }
+      
+      .mobile-drawer {
+        display: block;
+      }
+    }
+    
+    /* ===== MAIN CONTENT ===== */
+    .main-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px 20px;
+    }
+    
+    .page-title {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    
+    .page-subtitle {
+      color: #666;
+      font-size: 16px;
+      margin-bottom: 32px;
+    }
+    
+    /* Demo content sections */
+    .demo-section {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    
+    .demo-section h2 {
+      font-size: 18px;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #eee;
+    }
+    
+    .demo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 16px;
+    }
+    
+    .demo-card {
+      background: var(--light);
+      border-radius: 8px;
+      padding: 16px;
+      text-align: center;
+    }
+    
+    .demo-card-icon {
+      font-size: 32px;
+      margin-bottom: 8px;
+    }
+    
+    .demo-card h3 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    
+    .demo-card p {
+      font-size: 12px;
+      color: #666;
+    }
+  </style>
 </head>
 <body>
   
@@ -35,16 +834,23 @@
                   Seacoast
                   <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
                 </a>
-                <div class="dropdown-submenu">
-                  <a href="/team/portsmouth">Portsmouth</a>
-                  <a href="/team/exeter">Exeter</a>
-                  <a href="/team/winnacunnet">Winnacunnet</a>
-                  <a href="/team/dover">Dover</a>
-                  <a href="/team/spaulding">Spaulding</a>
-                  <a href="/team/oyster-river">Oyster River</a>
-                  <a href="/team/st-thomas">St. Thomas Aquinas</a>
-                  <a href="/team/newmarket">Newmarket</a>
-                  <a href="/region/seacoast">All Seacoast Teams &#8594;</a>
+                <div class="dropdown-submenu teams-grid">
+                  <a href="/dover">Dover</a>
+                  <a href="/epping">Epping</a>
+                  <a href="/exeter">Exeter</a>
+                  <a href="/farmington">Farmington</a>
+                  <a href="/newmarket">Newmarket</a>
+                  <a href="/nute">Nute</a>
+                  <a href="/oysterriver">Oyster River</a>
+                  <a href="/portsmouth">Portsmouth</a>
+                  <a href="/portsmouthchristian">Portsmouth Christian</a>
+                  <a href="/raymond">Raymond</a>
+                  <a href="/sanborn">Sanborn</a>
+                  <a href="/somersworth">Somersworth</a>
+                  <a href="/spaulding">Spaulding</a>
+                  <a href="/stthomasaquinas">St. Thomas Aquinas</a>
+                  <a href="/winnacunnet">Winnacunnet</a>
+                  <div class="submenu-footer"><a href="/region/seacoast">All Seacoast →</a></div>
                 </div>
               </div>
               <div class="dropdown-item-parent">
@@ -52,16 +858,20 @@
                   Lakes Region
                   <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
                 </a>
-                <div class="dropdown-submenu">
-                  <a href="/team/laconia">Laconia</a>
-                  <a href="/team/gilford">Gilford</a>
-                  <a href="/team/belmont">Belmont</a>
-                  <a href="/team/plymouth">Plymouth</a>
-                  <a href="/team/inter-lakes">Inter-Lakes</a>
-                  <a href="/team/newfound">Newfound</a>
-                  <a href="/team/prospect-mountain">Prospect Mountain</a>
-                  <a href="/team/moultonborough">Moultonborough</a>
-                  <a href="/region/lakes-region">All Lakes Region Teams &#8594;</a>
+                <div class="dropdown-submenu teams-grid">
+                  <a href="/belmont">Belmont</a>
+                  <a href="/franklin">Franklin</a>
+                  <a href="/gilford">Gilford</a>
+                  <a href="/interlakes">Inter-Lakes</a>
+                  <a href="/kennett">Kennett</a>
+                  <a href="/kingswood">Kingswood</a>
+                  <a href="/laconia">Laconia</a>
+                  <a href="/moultonborough">Moultonborough</a>
+                  <a href="/newfound">Newfound</a>
+                  <a href="/plymouth">Plymouth</a>
+                  <a href="/prospectmountain">Prospect Mountain</a>
+                  <a href="/winnisquam">Winnisquam</a>
+                  <div class="submenu-footer"><a href="/region/lakes-region">All Lakes Region →</a></div>
                 </div>
               </div>
               <div class="dropdown-item-parent">
@@ -69,14 +879,17 @@
                   Capital Area
                   <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
                 </a>
-                <div class="dropdown-submenu">
-                  <a href="/team/concord">Concord</a>
-                  <a href="/team/bow">Bow</a>
-                  <a href="/team/pembroke">Pembroke</a>
-                  <a href="/team/bishop-brady">Bishop Brady</a>
-                  <a href="/team/hopkinton">Hopkinton</a>
-                  <a href="/team/john-stark">John Stark</a>
-                  <a href="/region/capital">All Capital Area Teams &#8594;</a>
+                <div class="dropdown-submenu teams-grid">
+                  <a href="/bishopbrady">Bishop Brady</a>
+                  <a href="/bow">Bow</a>
+                  <a href="/concord">Concord</a>
+                  <a href="/concordchristian">Concord Christian</a>
+                  <a href="/hopkinton">Hopkinton</a>
+                  <a href="/johnstark">John Stark</a>
+                  <a href="/kearsarge">Kearsarge</a>
+                  <a href="/merrimackvalley">Merrimack Valley</a>
+                  <a href="/pembroke">Pembroke</a>
+                  <div class="submenu-footer"><a href="/region/capital">All Capital Area →</a></div>
                 </div>
               </div>
               <div class="dropdown-item-parent">
@@ -84,15 +897,17 @@
                   Manchester Area
                   <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
                 </a>
-                <div class="dropdown-submenu">
-                  <a href="/team/manchester-central">Central</a>
-                  <a href="/team/manchester-memorial">Memorial</a>
-                  <a href="/team/manchester-west">West</a>
-                  <a href="/team/trinity">Trinity</a>
-                  <a href="/team/derryfield">Derryfield</a>
-                  <a href="/team/bedford">Bedford</a>
-                  <a href="/team/goffstown">Goffstown</a>
-                  <a href="/region/manchester">All Manchester Teams &#8594;</a>
+                <div class="dropdown-submenu teams-grid">
+                  <a href="/bedford">Bedford</a>
+                  <a href="/derryfield">Derryfield</a>
+                  <a href="/goffstown">Goffstown</a>
+                  <a href="/holyfamily">Holy Family</a>
+                  <a href="/manchestercentral">Manchester Central</a>
+                  <a href="/manchestermemorial">Manchester Memorial</a>
+                  <a href="/manchesterwest">Manchester West</a>
+                  <a href="/mountroyal">Mount Royal</a>
+                  <a href="/trinity">Trinity</a>
+                  <div class="submenu-footer"><a href="/region/manchester">All Manchester Area →</a></div>
                 </div>
               </div>
               <div class="dropdown-item-parent">
@@ -100,14 +915,16 @@
                   Greater Nashua
                   <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
                 </a>
-                <div class="dropdown-submenu">
-                  <a href="/team/nashua-north">Nashua North</a>
-                  <a href="/team/nashua-south">Nashua South</a>
-                  <a href="/team/bishop-guertin">Bishop Guertin</a>
-                  <a href="/team/milford">Milford</a>
-                  <a href="/team/hollis-brookline">Hollis-Brookline</a>
-                  <a href="/team/souhegan">Souhegan</a>
-                  <a href="/region/nashua">All Nashua Area Teams &#8594;</a>
+                <div class="dropdown-submenu teams-grid">
+                  <a href="/bishopguertin">Bishop Guertin</a>
+                  <a href="/hollisbrookline">Hollis-Brookline</a>
+                  <a href="/milford">Milford</a>
+                  <a href="/nashuanorth">Nashua North</a>
+                  <a href="/nashuasouth">Nashua South</a>
+                  <a href="/pelham">Pelham</a>
+                  <a href="/souhegan">Souhegan</a>
+                  <a href="/wiltonlyndeborough">Wilton-Lyndeborough</a>
+                  <div class="submenu-footer"><a href="/region/nashua">All Nashua Area →</a></div>
                 </div>
               </div>
               <div class="dropdown-item-parent">
@@ -115,14 +932,20 @@
                   North Country
                   <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
                 </a>
-                <div class="dropdown-submenu">
-                  <a href="/team/berlin">Berlin</a>
-                  <a href="/team/littleton">Littleton</a>
-                  <a href="/team/profile">Profile</a>
-                  <a href="/team/white-mountains">White Mountains</a>
-                  <a href="/team/gorham">Gorham</a>
-                  <a href="/team/pittsburg">Pittsburg</a>
-                  <a href="/region/north-country">All North Country Teams &#8594;</a>
+                <div class="dropdown-submenu teams-grid">
+                  <a href="/berlin">Berlin</a>
+                  <a href="/canaan">Canaan</a>
+                  <a href="/colebrook">Colebrook</a>
+                  <a href="/gorham">Gorham</a>
+                  <a href="/groveton">Groveton</a>
+                  <a href="/linwood">Lin-Wood</a>
+                  <a href="/lisbon">Lisbon</a>
+                  <a href="/littleton">Littleton</a>
+                  <a href="/pittsburg">Pittsburg</a>
+                  <a href="/profile">Profile</a>
+                  <a href="/whitemountains">White Mountains</a>
+                  <a href="/woodsville">Woodsville</a>
+                  <div class="submenu-footer"><a href="/region/north-country">All North Country →</a></div>
                 </div>
               </div>
               <div class="dropdown-item-parent">
@@ -130,13 +953,15 @@
                   Monadnock Region
                   <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
                 </a>
-                <div class="dropdown-submenu">
-                  <a href="/team/keene">Keene</a>
-                  <a href="/team/monadnock">Monadnock</a>
-                  <a href="/team/conant">Conant</a>
-                  <a href="/team/fall-mountain">Fall Mountain</a>
-                  <a href="/team/hinsdale">Hinsdale</a>
-                  <a href="/region/monadnock">All Monadnock Teams &#8594;</a>
+                <div class="dropdown-submenu teams-grid">
+                  <a href="/conant">Conant</a>
+                  <a href="/conval">ConVal</a>
+                  <a href="/fallmountain">Fall Mountain</a>
+                  <a href="/hinsdale">Hinsdale</a>
+                  <a href="/keene">Keene</a>
+                  <a href="/mascenic">Mascenic</a>
+                  <a href="/monadnock">Monadnock</a>
+                  <div class="submenu-footer"><a href="/region/monadnock">All Monadnock →</a></div>
                 </div>
               </div>
               <div class="dropdown-item-parent">
@@ -144,13 +969,15 @@
                   Upper Valley
                   <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
                 </a>
-                <div class="dropdown-submenu">
-                  <a href="/team/hanover">Hanover</a>
-                  <a href="/team/lebanon">Lebanon</a>
-                  <a href="/team/stevens">Stevens</a>
-                  <a href="/team/mascoma">Mascoma</a>
-                  <a href="/team/newport">Newport</a>
-                  <a href="/region/upper-valley">All Upper Valley Teams &#8594;</a>
+                <div class="dropdown-submenu teams-grid">
+                  <a href="/hanover">Hanover</a>
+                  <a href="/hillsborodeering">Hillsboro-Deering</a>
+                  <a href="/lebanon">Lebanon</a>
+                  <a href="/mascoma">Mascoma</a>
+                  <a href="/newport">Newport</a>
+                  <a href="/stevens">Stevens</a>
+                  <a href="/sunapee">Sunapee</a>
+                  <div class="submenu-footer"><a href="/region/upper-valley">All Upper Valley →</a></div>
                 </div>
               </div>
               <div class="dropdown-item-parent">
@@ -158,17 +985,19 @@
                   Merrimack Valley
                   <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
                 </a>
-                <div class="dropdown-submenu">
-                  <a href="/team/merrimack">Merrimack</a>
-                  <a href="/team/londonderry">Londonderry</a>
-                  <a href="/team/windham">Windham</a>
-                  <a href="/team/salem">Salem</a>
-                  <a href="/team/pelham">Pelham</a>
-                  <a href="/team/timberlane">Timberlane</a>
-                  <a href="/region/merrimack-valley">All Merrimack Valley Teams &#8594;</a>
+                <div class="dropdown-submenu teams-grid">
+                  <a href="/alvirne">Alvirne</a>
+                  <a href="/campbell">Campbell</a>
+                  <a href="/londonderry">Londonderry</a>
+                  <a href="/merrimack">Merrimack</a>
+                  <a href="/pinkerton">Pinkerton</a>
+                  <a href="/salem">Salem</a>
+                  <a href="/timberlane">Timberlane</a>
+                  <a href="/windham">Windham</a>
+                  <div class="submenu-footer"><a href="/region/merrimack-valley">All Merrimack Valley →</a></div>
                 </div>
               </div>
-              <a href="/teams" class="dropdown-all-link">View All Teams &#8594;</a>
+              <a href="/teams" class="dropdown-all-link">View All Teams →</a>
             </div>
           </div>
         </div>
@@ -220,11 +1049,11 @@
           <a href="/features" class="nav-link">Features</a>
           <div class="nav-dropdown">
             <div class="dropdown-list">
-              <a href="/jam-session">Mike Whaley's Jam Session</a>
-              <a href="/1k-in-the-603">1K in the 603</a>
-              <a href="/603-in-the-ncaa">603 in the NCAA</a>
-              <a href="/nhiaa-history">NHIAA History</a>
-              <a href="/the-bash">The Bash</a>
+              <a href="/jamsession">Mike Whaley's Jam Session</a>
+              <a href="/1Kinthe603">1K in the 603</a>
+              <a href="/603intheNCAA">603 in the NCAA</a>
+              <a href="/NHIAAhistory">NHIAA History</a>
+              <a href="/thebash">The Bash</a>
             </div>
           </div>
         </div>
@@ -254,10 +1083,10 @@
           <a href="https://facebook.com/ball603" target="_blank" class="social-link" title="Facebook">
             <svg viewBox="0 0 24 24"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
           </a>
-          <a href="https://instagram.com/ball603" target="_blank" class="social-link" title="Instagram">
+          <a href="https://www.instagram.com/ball603nh/" target="_blank" class="social-link" title="Instagram">
             <svg viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
           </a>
-          <a href="https://twitter.com/ball603" target="_blank" class="social-link" title="Twitter/X">
+          <a href="https://x.com/Ball603NH" target="_blank" class="social-link" title="X (Twitter)">
             <svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
           </a>
         </div>
@@ -269,6 +1098,7 @@
               <circle cx="11" cy="11" r="8"/>
               <path d="m21 21-4.35-4.35"/>
             </svg>
+            <span>Search</span>
           </button>
           <div class="search-dropdown" id="searchDropdown">
             <div class="search-input-wrap">
@@ -397,11 +1227,11 @@
           </svg>
         </a>
         <div class="mobile-subnav">
-          <a href="/jam-session">Mike Whaley's Jam Session</a>
-          <a href="/1k-in-the-603">1K in the 603</a>
-          <a href="/603-in-the-ncaa">603 in the NCAA</a>
-          <a href="/nhiaa-history">NHIAA History</a>
-          <a href="/the-bash">The Bash</a>
+          <a href="/jamsession">Mike Whaley's Jam Session</a>
+          <a href="/1Kinthe603">1K in the 603</a>
+          <a href="/603intheNCAA">603 in the NCAA</a>
+          <a href="/NHIAAhistory">NHIAA History</a>
+          <a href="/thebash">The Bash</a>
         </div>
       </div>
       
@@ -422,10 +1252,10 @@
         <a href="https://facebook.com/ball603" target="_blank" class="social-link">
           <svg viewBox="0 0 24 24"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" fill="currentColor"/></svg>
         </a>
-        <a href="https://instagram.com/ball603" target="_blank" class="social-link">
+        <a href="https://www.instagram.com/ball603nh/" target="_blank" class="social-link">
           <svg viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" fill="currentColor"/></svg>
         </a>
-        <a href="https://twitter.com/ball603" target="_blank" class="social-link">
+        <a href="https://x.com/Ball603NH" target="_blank" class="social-link">
           <svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" fill="currentColor"/></svg>
         </a>
       </div>
@@ -443,44 +1273,90 @@
   
   <!-- ==================== MAIN CONTENT ==================== -->
   <main class="main-content">
-    <h1 class="page-title">Welcome to Ball603</h1>
-    <p class="page-subtitle">This is a demo page to test the new header and footer. Hover over the navigation items to see the dropdowns.</p>
-    
-    <div class="demo-section">
-      <h2> Quick Links</h2>
-      <div class="demo-grid">
-        <div class="demo-card">
-          <div class="demo-card-icon"></div>
-          <h3>Today's Games</h3>
-          <p>See who's playing tonight</p>
-        </div>
-        <div class="demo-card">
-          <div class="demo-card-icon"></div>
-          <h3>Standings</h3>
-          <p>Division rankings</p>
-        </div>
-        <div class="demo-card">
-          <div class="demo-card-icon"></div>
-          <h3>Galleries</h3>
-          <p>Game photos</p>
-        </div>
-        <div class="demo-card">
-          <div class="demo-card-icon"></div>
-          <h3>1K Club</h3>
-          <p>1,000-point scorers</p>
-        </div>
+    <!-- Hero Section -->
+    <section class="hero" id="heroSection">
+      <!-- Featured Article -->
+      <article class="hero-main" id="heroMain">
+        <div class="skeleton" style="width: 100%; height: 100%;"></div>
+      </article>
+      
+      <!-- Secondary Articles -->
+      <div class="hero-sidebar" id="heroSidebar">
+        <article class="hero-secondary">
+          <div class="skeleton" style="width: 100%; height: 100%;"></div>
+        </article>
+        <article class="hero-secondary">
+          <div class="skeleton" style="width: 100%; height: 100%;"></div>
+        </article>
       </div>
-    </div>
+    </section>
     
-    <div class="demo-section">
-      <h2> Latest News</h2>
-      <p style="color: #666;">News articles would appear here...</p>
-    </div>
+    <!-- Happening Today -->
+    <section class="today-section" id="todaySection">
+      <div class="section-header">
+        <h2 class="section-title">🏀 Happening Today</h2>
+        <a href="/schedule" class="section-link">Full Schedule →</a>
+      </div>
+      <div class="today-scroll hide-scrollbar" id="todayGames">
+        <!-- Populated by JS -->
+        <div class="skeleton" style="width: 280px; height: 160px; flex-shrink: 0;"></div>
+        <div class="skeleton" style="width: 280px; height: 160px; flex-shrink: 0;"></div>
+        <div class="skeleton" style="width: 280px; height: 160px; flex-shrink: 0;"></div>
+      </div>
+    </section>
     
-    <div class="demo-section">
-      <h2> Contributors</h2>
-      <p style="color: #666;">Volunteer contributors spotlight would appear here...</p>
-    </div>
+    <!-- Stories Feed -->
+    <section class="feed">
+      <div class="feed-main" id="feedMain">
+        <div class="section-header">
+          <h2 class="section-title">Latest Stories</h2>
+          <a href="/articles" class="section-link">All Stories →</a>
+        </div>
+        
+        <!-- Story cards populated by JS -->
+        <div class="skeleton" style="height: 120px;"></div>
+        <div class="skeleton" style="height: 120px;"></div>
+        <div class="skeleton" style="height: 120px;"></div>
+      </div>
+      
+      <!-- Sidebar -->
+      <aside class="feed-sidebar">
+        <!-- Standings -->
+        <div class="sidebar-card" id="standingsCard">
+          <div class="sidebar-card-header">
+            <h3 class="sidebar-card-title">Boys D-I Standings</h3>
+            <a href="/standings" class="sidebar-card-link">Full Standings →</a>
+          </div>
+          <div class="sidebar-card-content">
+            <div class="standings-mini" id="standingsMini">
+              <!-- Populated by JS -->
+              <div class="skeleton" style="height: 40px; margin-bottom: 8px;"></div>
+              <div class="skeleton" style="height: 40px; margin-bottom: 8px;"></div>
+              <div class="skeleton" style="height: 40px; margin-bottom: 8px;"></div>
+              <div class="skeleton" style="height: 40px; margin-bottom: 8px;"></div>
+              <div class="skeleton" style="height: 40px;"></div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Recent Galleries -->
+        <div class="sidebar-card">
+          <div class="sidebar-card-header">
+            <h3 class="sidebar-card-title">📸 Recent Galleries</h3>
+            <a href="/galleries" class="sidebar-card-link">All Galleries →</a>
+          </div>
+          <div class="sidebar-card-content">
+            <div class="photos-grid" id="recentGalleries">
+              <!-- Populated by JS -->
+              <div class="skeleton" style="aspect-ratio: 16/9;"></div>
+              <div class="skeleton" style="aspect-ratio: 16/9;"></div>
+              <div class="skeleton" style="aspect-ratio: 16/9;"></div>
+              <div class="skeleton" style="aspect-ratio: 16/9;"></div>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </section>
   </main>
   
   <!-- ==================== SITE FOOTER ==================== -->
@@ -492,7 +1368,18 @@
       <a href="/about">About Us</a>
       <a href="mailto:kj@ball603.com">Contact</a>
     </div>
-    <p class="footer-copyright"> 2025 Ball603. All rights reserved.</p>
+    <div class="footer-social">
+      <a href="https://facebook.com/ball603" target="_blank" title="Facebook">
+        <svg viewBox="0 0 24 24"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+      </a>
+      <a href="https://www.instagram.com/ball603nh/" target="_blank" title="Instagram">
+        <svg viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+      </a>
+      <a href="https://x.com/Ball603NH" target="_blank" title="X (Twitter)">
+        <svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+      </a>
+    </div>
+    <p class="footer-copyright">© 2025 Ball603. All rights reserved.</p>
   </footer>
   
   <script>
@@ -551,7 +1438,7 @@
         <a href="${item.url}" class="search-result-item">
           ${item.type === 'team' 
             ? `<img src="${item.logo}" alt="${item.name}" class="search-result-logo" onerror="this.style.display='none'">`
-            : '<div style="width: 32px; height: 32px; background: #f57c00; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white;"></div>'
+            : '<div style="width: 32px; height: 32px; background: #f57c00; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white;">â­</div>'
           }
           <div class="search-result-info">
             <h4>${item.name}</h4>
@@ -591,6 +1478,215 @@
         item.classList.toggle('expanded');
       });
     });
+  </script>
+  
+  <!-- App.js for Ball603 utilities -->
+  <script src="/app.js"></script>
+  
+  <!-- Home Page Content Script -->
+  <script>
+    const PLACEHOLDER_IMG = 'https://placehold.co/800x450/1a1a1a/f57c00?text=Ball603';
+    
+    // Wait for Ball603 to be ready (app.js dispatches this event)
+    document.addEventListener('ball603:ready', async (e) => {
+      const state = e.detail;
+      
+      // Articles are already fetched by app.js
+      const articles = state.articles || [];
+      
+      if (articles.length > 0) {
+        renderHero(articles);
+        renderStories(articles);
+        renderGalleries(articles);
+      } else {
+        // Show empty states
+        document.getElementById('heroMain').innerHTML = '<div class="empty-state"><p>No featured content yet</p></div>';
+        document.getElementById('feedMain').innerHTML = '<div class="section-header"><h2 class="section-title">Latest Stories</h2></div><div class="empty-state"><p>No stories yet. Check back soon!</p></div>';
+      }
+      
+      // Render games and standings
+      renderTodaysGames();
+      renderStandings();
+    });
+    
+    /**
+     * Render hero section with featured articles
+     */
+    function renderHero(articles) {
+      const publishedArticles = articles.filter(a => a.status === 'published');
+      
+      // Main hero
+      const heroMain = document.getElementById('heroMain');
+      if (publishedArticles.length > 0) {
+        const featured = publishedArticles[0];
+        heroMain.innerHTML = `
+          <img src="${featured.featured_image_url || PLACEHOLDER_IMG}" alt="${featured.title}">
+          ${featured.youtube_url ? '<button class="hero-play">▶</button>' : ''}
+          <div class="hero-overlay">
+            <span class="hero-tag ${featured.youtube_url ? 'video' : ''}">${featured.youtube_url ? '🎬 Video' : '📸 Coverage'}</span>
+            <h2 class="hero-title">${featured.title}</h2>
+            <p class="hero-meta">${Ball603.formatDate(featured.published_at?.split('T')[0], 'short')} • ${featured.author || 'Ball603'}</p>
+          </div>
+        `;
+        heroMain.onclick = () => Ball603.goToArticle(featured.slug);
+      }
+      
+      // Secondary heroes
+      const heroSidebar = document.getElementById('heroSidebar');
+      if (publishedArticles.length > 1) {
+        heroSidebar.innerHTML = publishedArticles.slice(1, 3).map(article => `
+          <article class="hero-secondary" onclick="Ball603.goToArticle('${article.slug}')">
+            <img src="${article.featured_image_url || PLACEHOLDER_IMG}" alt="${article.title}">
+            <div class="hero-overlay">
+              <span class="hero-tag">${getArticleTag(article)}</span>
+              <h2 class="hero-title">${article.title}</h2>
+            </div>
+          </article>
+        `).join('');
+      }
+    }
+    
+    /**
+     * Render today's games
+     */
+    function renderTodaysGames() {
+      const todayGames = Ball603.getTodaysGames();
+      const upcomingGames = Ball603.getUpcomingGames(3);
+      const gamesToShow = todayGames.length > 0 ? todayGames : upcomingGames.slice(0, 8);
+      
+      const container = document.getElementById('todayGames');
+      const section = document.getElementById('todaySection');
+      
+      // Update section title if showing upcoming instead of today
+      if (todayGames.length === 0 && upcomingGames.length > 0) {
+        section.querySelector('.section-title').textContent = '🏀 Upcoming Games';
+      }
+      
+      if (gamesToShow.length === 0) {
+        container.innerHTML = '<div class="empty-state"><p>No games scheduled</p></div>';
+        return;
+      }
+      
+      container.innerHTML = gamesToShow.map(game => {
+        let coverageHtml = '';
+        if (game.photog1 || game.photog2) coverageHtml += '<span class="coverage-badge">📸 Photos</span>';
+        if (game.writer) coverageHtml += '<span class="coverage-badge">✍️ Story</span>';
+        
+        return `
+          <article class="game-card" onclick="Ball603.goToGame('${game.game_id}')">
+            <div class="game-card-header">
+              <span class="game-card-time">${Ball603.formatTime(game.time)}</span>
+              <span class="game-card-division">${Ball603.formatDivision(game)}</span>
+            </div>
+            <div class="game-card-teams">
+              <div class="game-card-team">
+                <img class="game-card-logo" src="${Ball603.getLogoUrl(game.away)}" alt="" onerror="this.src='/logos/100px/Ball603-white.png'">
+                <span class="game-card-name">${Ball603.getShortName(game.away)}</span>
+              </div>
+              <div class="game-card-team">
+                <img class="game-card-logo" src="${Ball603.getLogoUrl(game.home)}" alt="" onerror="this.src='/logos/100px/Ball603-white.png'">
+                <span class="game-card-name">${Ball603.getShortName(game.home)}</span>
+              </div>
+            </div>
+            ${coverageHtml ? `<div class="game-card-coverage">${coverageHtml}</div>` : ''}
+          </article>
+        `;
+      }).join('');
+    }
+    
+    /**
+     * Render story cards
+     */
+    function renderStories(articles) {
+      const container = document.getElementById('feedMain');
+      const publishedArticles = articles.filter(a => a.status === 'published').slice(3); // Skip first 3 (used in hero)
+      
+      if (publishedArticles.length === 0) {
+        container.innerHTML = `
+          <div class="section-header">
+            <h2 class="section-title">Latest Stories</h2>
+            <a href="/articles" class="section-link">All Stories →</a>
+          </div>
+          <div class="empty-state">
+            <p>No stories yet. Check back soon!</p>
+          </div>
+        `;
+        return;
+      }
+      
+      container.innerHTML = `
+        <div class="section-header">
+          <h2 class="section-title">Latest Stories</h2>
+          <a href="/articles" class="section-link">All Stories →</a>
+        </div>
+        ${publishedArticles.slice(0, 6).map(article => `
+          <article class="story-card" onclick="Ball603.goToArticle('${article.slug}')">
+            <img src="${article.featured_image_url || PLACEHOLDER_IMG}" alt="" class="story-image">
+            <div class="story-content">
+              <span class="story-tag">${getArticleTag(article)}</span>
+              <h3 class="story-title">${article.title}</h3>
+              <p class="story-excerpt">${article.excerpt || ''}</p>
+              <p class="story-meta">${Ball603.formatDate(article.published_at?.split('T')[0], 'short')} • ${article.author || 'Ball603'}</p>
+            </div>
+          </article>
+        `).join('')}
+      `;
+    }
+    
+    /**
+     * Render recent galleries in sidebar
+     */
+    function renderGalleries(articles) {
+      const container = document.getElementById('recentGalleries');
+      const articlesWithPhotos = articles.filter(a => a.smugmug_gallery_url && a.featured_image_url).slice(0, 4);
+      
+      if (articlesWithPhotos.length === 0) {
+        container.innerHTML = '<p class="text-muted text-center">No galleries yet</p>';
+        return;
+      }
+      
+      container.innerHTML = articlesWithPhotos.map(article => `
+        <div class="photo-thumb" onclick="Ball603.goToArticle('${article.slug}')">
+          <img src="${article.featured_image_url}" alt="${article.title}">
+          <div class="photo-thumb-overlay">${article.title.substring(0, 30)}${article.title.length > 30 ? '...' : ''}</div>
+        </div>
+      `).join('');
+    }
+    
+    /**
+     * Render standings mini in sidebar
+     */
+    function renderStandings() {
+      const container = document.getElementById('standingsMini');
+      
+      // Placeholder standings - will be replaced with real data
+      const sampleStandings = [
+        { rank: 1, team: 'Bedford', record: '5-0' },
+        { rank: 2, team: 'Pinkerton', record: '4-1' },
+        { rank: 3, team: 'Winnacunnet', record: '4-1' },
+        { rank: 4, team: 'Londonderry', record: '3-2' },
+        { rank: 5, team: 'Manchester Central', record: '3-2' }
+      ];
+      
+      container.innerHTML = sampleStandings.map(s => `
+        <div class="standings-row">
+          <span class="standings-rank">${s.rank}</span>
+          <img class="standings-logo" src="${Ball603.getLogoUrl(s.team)}" alt="" onerror="this.src='/logos/100px/Ball603-white.png'">
+          <span class="standings-team">${Ball603.getShortName(s.team)}</span>
+          <span class="standings-record">${s.record}</span>
+        </div>
+      `).join('');
+    }
+    
+    /**
+     * Get display tag for an article
+     */
+    function getArticleTag(article) {
+      if (article.tags && article.tags.length > 0) {
+        return article.tags[0];
+      }
+      return 'Coverage';
+    }
   </script>
   
 </body>
