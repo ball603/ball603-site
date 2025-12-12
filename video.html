@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Ball603 Video - New Hampshire High School Basketball Highlights, Games, and Features">
+  <meta name="theme-color" content="#f57c00">
+  <title>Video | Ball603</title>
+  
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="apple-touch-icon" href="/logo.png">
+  
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <!-- Shared Styles -->
+  <link rel="stylesheet" href="/styles.css">
+  
+  <!-- Open Graph -->
+  <meta property="og:title" content="Video | Ball603">
+  <meta property="og:description" content="New Hampshire High School Basketball Videos">
+  <meta property="og:image" content="https://ball603.com/logo.png">
+  <meta property="og:url" content="https://ball603.com/video">
+  
+  <style>
+    /* Page Hero */
+    .video-hero {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      padding: 60px 20px 40px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .video-hero::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+      pointer-events: none;
+    }
+    
+    .video-hero-content {
+      position: relative;
+      z-index: 1;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    
+    .video-hero h1 {
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: white;
+      margin: 0 0 10px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+    
+    .video-hero p {
+      color: rgba(255,255,255,0.7);
+      font-size: 1.1rem;
+      margin: 0;
+    }
+    
+    .video-hero-stats {
+      display: flex;
+      justify-content: center;
+      gap: 40px;
+      margin-top: 30px;
+    }
+    
+    .hero-stat {
+      text-align: center;
+    }
+    
+    .hero-stat-value {
+      display: block;
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: #f57c00;
+    }
+    
+    .hero-stat-label {
+      display: block;
+      font-size: 0.85rem;
+      color: rgba(255,255,255,0.6);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    /* Filter Bar */
+    .video-filter-bar {
+      background: #fff;
+      border-bottom: 1px solid #e0e0e0;
+      padding: 15px 20px;
+      position: sticky;
+      top: 60px;
+      z-index: 100;
+    }
+    
+    .filter-inner {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      align-items: flex-end;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .filter-label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .filter-buttons {
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+    }
+    
+    .filter-btn {
+      padding: 8px 16px;
+      border: 1px solid #ddd;
+      background: #fff;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: #333;
+    }
+    
+    .filter-btn:hover {
+      border-color: #f57c00;
+      color: #f57c00;
+    }
+    
+    .filter-btn.active {
+      background: #f57c00;
+      border-color: #f57c00;
+      color: white;
+    }
+    
+    .search-box {
+      flex: 1;
+      min-width: 200px;
+      max-width: 300px;
+      position: relative;
+    }
+    
+    .search-box input {
+      width: 100%;
+      padding: 10px 15px 10px 40px;
+      border: 1px solid #ddd;
+      border-radius: 25px;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    
+    .search-box input:focus {
+      border-color: #f57c00;
+    }
+    
+    .search-box::before {
+      content: '🔍';
+      position: absolute;
+      left: 15px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 0.9rem;
+      opacity: 0.5;
+    }
+    
+    .team-select {
+      padding: 10px 15px;
+      border: 1px solid #ddd;
+      border-radius: 25px;
+      font-size: 0.95rem;
+      outline: none;
+      cursor: pointer;
+      min-width: 180px;
+    }
+    
+    .team-select:focus {
+      border-color: #f57c00;
+    }
+    
+    .video-count {
+      font-size: 0.9rem;
+      color: #666;
+      margin-left: auto;
+    }
+    
+    /* Video Grid */
+    .video-main {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 30px 20px 60px;
+    }
+    
+    /* Pinned Section */
+    .pinned-section {
+      margin-bottom: 40px;
+    }
+    
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #f0f0f0;
+    }
+    
+    .section-header h2 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #1a1a2e;
+      margin: 0;
+    }
+    
+    .section-header .pin-icon {
+      color: #f57c00;
+    }
+    
+    /* Video Grid */
+    .video-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 25px;
+    }
+    
+    .video-card {
+      background: #fff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+    
+    .video-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+    
+    .video-card.pinned {
+      border: 2px solid #f57c00;
+    }
+    
+    .video-thumbnail {
+      position: relative;
+      width: 100%;
+      padding-top: 56.25%; /* 16:9 aspect ratio */
+      background: #1a1a2e;
+      overflow: hidden;
+    }
+    
+    .video-thumbnail img {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.3s;
+    }
+    
+    .video-card:hover .video-thumbnail img {
+      transform: scale(1.05);
+    }
+    
+    .video-play-btn {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 70px;
+      height: 70px;
+      background: rgba(245, 124, 0, 0.9);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s;
+    }
+    
+    .video-play-btn::after {
+      content: '';
+      width: 0;
+      height: 0;
+      border-style: solid;
+      border-width: 12px 0 12px 20px;
+      border-color: transparent transparent transparent white;
+      margin-left: 5px;
+    }
+    
+    .video-card:hover .video-play-btn {
+      background: rgba(245, 124, 0, 1);
+      transform: translate(-50%, -50%) scale(1.1);
+    }
+    
+    .video-duration {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(0,0,0,0.8);
+      color: white;
+      font-size: 0.8rem;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+    
+    .video-info {
+      padding: 15px;
+    }
+    
+    .video-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #1a1a2e;
+      margin: 0 0 8px;
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    
+    .video-meta {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      font-size: 0.85rem;
+      color: #666;
+    }
+    
+    .video-date {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    
+    .video-views {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    
+    .video-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 10px;
+    }
+    
+    .video-tag {
+      font-size: 0.7rem;
+      padding: 3px 8px;
+      border-radius: 10px;
+      background: #e3f2fd;
+      color: #1976d2;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    /* Video Modal */
+    .video-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.95);
+      z-index: 10000;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    .video-modal.active {
+      display: flex;
+    }
+    
+    .video-modal-content {
+      width: 100%;
+      max-width: 1200px;
+      position: relative;
+    }
+    
+    .video-modal-close {
+      position: absolute;
+      top: -50px;
+      right: 0;
+      background: none;
+      border: none;
+      color: white;
+      font-size: 2rem;
+      cursor: pointer;
+      padding: 10px;
+      line-height: 1;
+    }
+    
+    .video-modal-close:hover {
+      color: #f57c00;
+    }
+    
+    .video-iframe-container {
+      position: relative;
+      width: 100%;
+      padding-top: 56.25%;
+      background: #000;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    
+    .video-iframe-container iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+    
+    .video-modal-info {
+      margin-top: 20px;
+      color: white;
+    }
+    
+    .video-modal-title {
+      font-size: 1.3rem;
+      font-weight: 600;
+      margin: 0 0 10px;
+    }
+    
+    .video-modal-description {
+      font-size: 0.95rem;
+      color: rgba(255,255,255,0.7);
+      line-height: 1.6;
+      max-height: 100px;
+      overflow-y: auto;
+    }
+    
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 80px 20px;
+      color: #666;
+    }
+    
+    .empty-state-icon {
+      font-size: 4rem;
+      margin-bottom: 20px;
+      opacity: 0.5;
+    }
+    
+    .empty-state p {
+      font-size: 1.1rem;
+      margin: 0;
+    }
+    
+    /* Loading State */
+    .loading-state {
+      text-align: center;
+      padding: 80px 20px;
+    }
+    
+    .loading-spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid #f0f0f0;
+      border-top-color: #f57c00;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 20px;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    /* YouTube Subscribe Button Area */
+    .youtube-cta {
+      background: linear-gradient(135deg, #ff0000 0%, #cc0000 100%);
+      border-radius: 12px;
+      padding: 25px 30px;
+      margin-bottom: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+    
+    .youtube-cta-text {
+      color: white;
+    }
+    
+    .youtube-cta-text h3 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin: 0 0 5px;
+    }
+    
+    .youtube-cta-text p {
+      margin: 0;
+      opacity: 0.9;
+      font-size: 0.95rem;
+    }
+    
+    .youtube-subscribe-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: white;
+      color: #cc0000;
+      padding: 12px 25px;
+      border-radius: 25px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: all 0.3s;
+    }
+    
+    .youtube-subscribe-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+    }
+    
+    .youtube-subscribe-btn svg {
+      width: 24px;
+      height: 24px;
+    }
+    
+    /* Mobile Responsive */
+    @media (max-width: 768px) {
+      .video-hero {
+        padding: 40px 15px 30px;
+      }
+      
+      .video-hero h1 {
+        font-size: 1.8rem;
+      }
+      
+      .video-hero-stats {
+        gap: 25px;
+      }
+      
+      .hero-stat-value {
+        font-size: 2rem;
+      }
+      
+      .video-filter-bar {
+        top: 56px;
+      }
+      
+      .filter-inner {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 15px;
+      }
+      
+      .search-box {
+        max-width: none;
+      }
+      
+      .team-select {
+        width: 100%;
+      }
+      
+      .video-count {
+        margin-left: 0;
+        text-align: center;
+      }
+      
+      .video-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+      }
+      
+      .youtube-cta {
+        flex-direction: column;
+        text-align: center;
+      }
+      
+      .video-modal-content {
+        margin-top: 60px;
+      }
+    }
+  </style>
+</head>
+<body>
+  
+  <!-- ==================== SITE HEADER ==================== -->
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="/" class="header-logo">
+        <img src="/Ball603wide-white-200px.png" alt="Ball603 - Basketball in the Granite State">
+      </a>
+      
+      <nav class="header-nav">
+        <div class="nav-item">
+          <a href="/teams" class="nav-link">Teams</a>
+        </div>
+        <div class="nav-item">
+          <a href="/schedule" class="nav-link">Schedule</a>
+        </div>
+        <div class="nav-item">
+          <a href="/standings" class="nav-link">Standings</a>
+        </div>
+        <div class="nav-item">
+          <a href="/features" class="nav-link">Features</a>
+          <div class="nav-dropdown">
+            <div class="dropdown-list">
+              <a href="/jamsession">Mike Whaley's Jam Session</a>
+              <a href="/1kinthe603">1K in the 603</a>
+              <a href="/603intheNCAA">603 in the NCAA</a>
+              <a href="/nhiaahistory">NHIAA History</a>
+              <a href="/thebash">The Bash</a>
+            </div>
+          </div>
+        </div>
+        <div class="nav-item">
+          <a href="/news" class="nav-link">News</a>
+        </div>
+        <div class="nav-item">
+          <a href="/galleries" class="nav-link">Galleries</a>
+        </div>
+        <div class="nav-item">
+          <a href="/video" class="nav-link active">Video</a>
+        </div>
+      </nav>
+      
+      <div class="header-right">
+        <div class="header-social">
+          <a href="https://facebook.com/ball603" target="_blank" class="social-link" title="Facebook">
+            <svg viewBox="0 0 24 24"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" fill="currentColor"/></svg>
+          </a>
+          <a href="https://www.instagram.com/ball603nh/" target="_blank" class="social-link" title="Instagram">
+            <svg viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" fill="currentColor"/></svg>
+          </a>
+          <a href="https://x.com/Ball603NH" target="_blank" class="social-link" title="X (Twitter)">
+            <svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" fill="currentColor"/></svg>
+          </a>
+        </div>
+        
+        <button class="mobile-menu-toggle" id="mobileMenuToggle">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Mobile Drawer -->
+  <div class="mobile-overlay" id="mobileOverlay"></div>
+  <div class="mobile-drawer" id="mobileDrawer">
+    <button class="mobile-drawer-close" id="mobileClose">×</button>
+    <nav class="mobile-nav">
+      <div class="mobile-nav-item"><a href="/teams" class="mobile-nav-link">Teams</a></div>
+      <div class="mobile-nav-item"><a href="/schedule" class="mobile-nav-link">Schedule</a></div>
+      <div class="mobile-nav-item"><a href="/standings" class="mobile-nav-link">Standings</a></div>
+      <div class="mobile-nav-item" data-expandable>
+        <a href="#" class="mobile-nav-link">Features <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></a>
+        <div class="mobile-nav-submenu">
+          <a href="/jamsession">Mike Whaley's Jam Session</a>
+          <a href="/1kinthe603">1K in the 603</a>
+          <a href="/603intheNCAA">603 in the NCAA</a>
+          <a href="/nhiaahistory">NHIAA History</a>
+          <a href="/thebash">The Bash</a>
+        </div>
+      </div>
+      <div class="mobile-nav-item"><a href="/news" class="mobile-nav-link">News</a></div>
+      <div class="mobile-nav-item"><a href="/galleries" class="mobile-nav-link">Galleries</a></div>
+      <div class="mobile-nav-item"><a href="/video" class="mobile-nav-link">Video</a></div>
+    </nav>
+    <div class="mobile-drawer-footer">
+      <div class="mobile-social">
+        <a href="https://facebook.com/ball603" target="_blank" class="social-link"><svg viewBox="0 0 24 24"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" fill="currentColor"/></svg></a>
+        <a href="https://www.instagram.com/ball603nh/" target="_blank" class="social-link"><svg viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" fill="currentColor"/></svg></a>
+        <a href="https://x.com/Ball603NH" target="_blank" class="social-link"><svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" fill="currentColor"/></svg></a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hero Section -->
+  <section class="video-hero">
+    <div class="video-hero-content">
+      <h1>🎬 Ball603 Video</h1>
+      <p>Highlights, Features & Game Coverage</p>
+      <div class="video-hero-stats">
+        <div class="hero-stat">
+          <span class="hero-stat-value" id="videoCount">--</span>
+          <span class="hero-stat-label">Videos</span>
+        </div>
+        <div class="hero-stat">
+          <span class="hero-stat-value" id="totalViews">--</span>
+          <span class="hero-stat-label">Views</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Filter Bar -->
+  <div class="video-filter-bar">
+    <div class="filter-inner">
+      <div class="filter-group">
+        <span class="filter-label">Filter:</span>
+        <div class="filter-buttons">
+          <button class="filter-btn active" data-filter="all">All Videos</button>
+          <button class="filter-btn" data-filter="pinned">Featured</button>
+        </div>
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">Team:</span>
+        <select class="team-select" id="teamFilter">
+          <option value="">All Teams</option>
+        </select>
+      </div>
+      <div class="search-box">
+        <input type="text" id="videoSearch" placeholder="Search videos...">
+      </div>
+      <div class="video-count" id="videoCountDisplay">Loading...</div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <main class="video-main">
+    
+    <!-- YouTube CTA -->
+    <div class="youtube-cta">
+      <div class="youtube-cta-text">
+        <h3>Subscribe to Ball603 on YouTube</h3>
+        <p>Never miss a highlight, feature, or game recap!</p>
+      </div>
+      <a href="https://www.youtube.com/@ball603nh?sub_confirmation=1" target="_blank" class="youtube-subscribe-btn">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+        </svg>
+        Subscribe
+      </a>
+    </div>
+    
+    <!-- Pinned Videos Section -->
+    <div class="pinned-section" id="pinnedSection" style="display: none;">
+      <div class="section-header">
+        <span class="pin-icon">📌</span>
+        <h2>Featured Videos</h2>
+      </div>
+      <div class="video-grid" id="pinnedVideos"></div>
+    </div>
+    
+    <!-- All Videos -->
+    <div id="videosContainer">
+      <div class="loading-state">
+        <div class="loading-spinner"></div>
+        <p>Loading videos...</p>
+      </div>
+    </div>
+    
+  </main>
+
+  <!-- Video Modal -->
+  <div class="video-modal" id="videoModal">
+    <div class="video-modal-content">
+      <button class="video-modal-close" id="modalClose">×</button>
+      <div class="video-iframe-container">
+        <iframe id="videoIframe" src="" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+      </div>
+      <div class="video-modal-info">
+        <h3 class="video-modal-title" id="modalTitle"></h3>
+        <p class="video-modal-description" id="modalDescription"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Site Footer -->
+  <footer class="site-footer">
+    <div class="footer-logo"><img src="/logo.png" alt="Ball603"></div>
+    <div class="footer-links">
+      <a href="/about">About Us</a>
+      <a href="/contact">Contact</a>
+    </div>
+    <div class="footer-social">
+      <a href="https://facebook.com/ball603" target="_blank" title="Facebook"><svg viewBox="0 0 24 24"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg></a>
+      <a href="https://www.instagram.com/ball603nh/" target="_blank" title="Instagram"><svg viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg></a>
+      <a href="https://x.com/Ball603NH" target="_blank" title="X (Twitter)"><svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></a>
+    </div>
+    <p class="footer-copyright">© 2025 Ball603. All rights reserved.</p>
+  </footer>
+
+  <script>
+    // ===== SUPABASE CLIENT =====
+    const SUPABASE_URL = 'https://suncdkxfqkwwnmhosxcf.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN1bmNka3hmcWt3d25taG9zeGNmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwNTk4MzIsImV4cCI6MjA4MDYzNTgzMn0.aT6V8Zx_YozqOh1ZnC6x-czI9vo-QhHKmP69PgY-8xw';
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // ===== STATE =====
+    let allVideos = [];
+    let allTeams = [];
+    let currentFilter = 'all';
+    let currentTeam = '';
+    let searchTerm = '';
+
+    // ===== UTILITIES =====
+    function formatDate(dateStr) {
+      if (!dateStr) return '';
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function formatDuration(iso8601) {
+      if (!iso8601) return '';
+      // Parse ISO 8601 duration (PT5M30S -> 5:30)
+      const match = iso8601.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+      if (!match) return iso8601;
+      const hours = parseInt(match[1] || 0);
+      const minutes = parseInt(match[2] || 0);
+      const seconds = parseInt(match[3] || 0);
+      if (hours > 0) {
+        return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+      }
+      return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }
+
+    function formatViews(count) {
+      if (!count) return '0';
+      if (count >= 1000000) return (count / 1000000).toFixed(1) + 'M';
+      if (count >= 1000) return (count / 1000).toFixed(1) + 'K';
+      return count.toLocaleString();
+    }
+
+    // ===== MOBILE MENU =====
+    function initMobileMenu() {
+      const toggle = document.getElementById('mobileMenuToggle');
+      const drawer = document.getElementById('mobileDrawer');
+      const overlay = document.getElementById('mobileOverlay');
+      const close = document.getElementById('mobileClose');
+      const openDrawer = () => { drawer.classList.add('active'); overlay.classList.add('active'); document.body.style.overflow = 'hidden'; };
+      const closeDrawer = () => { drawer.classList.remove('active'); overlay.classList.remove('active'); document.body.style.overflow = ''; };
+      toggle?.addEventListener('click', openDrawer);
+      close?.addEventListener('click', closeDrawer);
+      overlay?.addEventListener('click', closeDrawer);
+      document.querySelectorAll('.mobile-nav-item[data-expandable]').forEach(item => {
+        item.querySelector('.mobile-nav-link')?.addEventListener('click', (e) => { e.preventDefault(); item.classList.toggle('expanded'); });
+      });
+    }
+
+    // ===== LOAD VIDEOS =====
+    async function loadVideos() {
+      try {
+        const { data: videos, error } = await supabase
+          .from('youtube_videos')
+          .select('*')
+          .eq('hidden', false)
+          .order('pinned', { ascending: false })
+          .order('sort_order', { ascending: true })
+          .order('published_at', { ascending: false });
+
+        if (error) throw error;
+
+        allVideos = videos || [];
+        
+        // Update stats
+        document.getElementById('videoCount').textContent = allVideos.length;
+        const totalViews = allVideos.reduce((sum, v) => sum + (v.view_count || 0), 0);
+        document.getElementById('totalViews').textContent = formatViews(totalViews);
+
+        // Extract unique tags for team filter
+        const tagSet = new Set();
+        allVideos.forEach(v => {
+          if (v.tags && Array.isArray(v.tags)) {
+            v.tags.forEach(tag => tagSet.add(tag));
+          }
+        });
+        
+        renderVideos();
+        await loadTeamsForFilter();
+      } catch (err) {
+        console.error('Error loading videos:', err);
+        document.getElementById('videosContainer').innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">🎬</div>
+            <p>Unable to load videos. Please try again later.</p>
+          </div>
+        `;
+      }
+    }
+
+    // ===== LOAD TEAMS FOR FILTER =====
+    async function loadTeamsForFilter() {
+      try {
+        const { data: teams, error } = await supabase
+          .from('teams')
+          .select('shortname')
+          .eq('level', 'High School')
+          .eq('active', true)
+          .order('shortname');
+
+        if (error) throw error;
+
+        // Dedupe
+        const seen = new Set();
+        allTeams = (teams || []).filter(t => {
+          if (seen.has(t.shortname)) return false;
+          seen.add(t.shortname);
+          return true;
+        });
+
+        // Populate dropdown
+        const select = document.getElementById('teamFilter');
+        allTeams.forEach(t => {
+          const option = document.createElement('option');
+          option.value = t.shortname.toLowerCase().replace(/[^a-z0-9]/g, '');
+          option.textContent = t.shortname;
+          select.appendChild(option);
+        });
+      } catch (err) {
+        console.error('Error loading teams:', err);
+      }
+    }
+
+    // ===== RENDER VIDEOS =====
+    function renderVideos() {
+      let filtered = [...allVideos];
+
+      // Apply filters
+      if (currentFilter === 'pinned') {
+        filtered = filtered.filter(v => v.pinned);
+      }
+
+      if (currentTeam) {
+        filtered = filtered.filter(v => {
+          if (!v.tags || !Array.isArray(v.tags)) return false;
+          return v.tags.some(tag => tag.toLowerCase().replace(/[^a-z0-9]/g, '') === currentTeam);
+        });
+      }
+
+      if (searchTerm) {
+        const term = searchTerm.toLowerCase();
+        filtered = filtered.filter(v =>
+          v.title?.toLowerCase().includes(term) ||
+          v.description?.toLowerCase().includes(term)
+        );
+      }
+
+      // Update count
+      document.getElementById('videoCountDisplay').textContent = `${filtered.length} video${filtered.length !== 1 ? 's' : ''}`;
+
+      // Separate pinned
+      const pinned = filtered.filter(v => v.pinned);
+      const regular = filtered.filter(v => !v.pinned);
+
+      // Render pinned section
+      const pinnedSection = document.getElementById('pinnedSection');
+      const pinnedContainer = document.getElementById('pinnedVideos');
+      if (pinned.length > 0 && currentFilter !== 'pinned') {
+        pinnedSection.style.display = 'block';
+        pinnedContainer.innerHTML = pinned.map(v => renderVideoCard(v, true)).join('');
+      } else {
+        pinnedSection.style.display = 'none';
+      }
+
+      // Render main grid
+      const container = document.getElementById('videosContainer');
+      const videosToShow = currentFilter === 'pinned' ? pinned : regular;
+
+      if (videosToShow.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">🎬</div>
+            <p>${allVideos.length === 0 ? 'No videos yet. Check back soon!' : 'No videos match your filters.'}</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = `<div class="video-grid">${videosToShow.map(v => renderVideoCard(v)).join('')}</div>`;
+    }
+
+    function renderVideoCard(video, isPinned = false) {
+      const thumbnail = video.thumbnail_url || `https://img.youtube.com/vi/${video.youtube_id}/maxresdefault.jpg`;
+      const tags = video.tags || [];
+
+      return `
+        <div class="video-card ${isPinned ? 'pinned' : ''}" data-youtube-id="${video.youtube_id}" data-title="${escapeHtml(video.title)}" data-description="${escapeHtml(video.description || '')}">
+          <div class="video-thumbnail">
+            <img src="${thumbnail}" alt="${escapeHtml(video.title)}" onerror="this.src='https://img.youtube.com/vi/${video.youtube_id}/hqdefault.jpg'">
+            <div class="video-play-btn"></div>
+            ${video.duration ? `<span class="video-duration">${formatDuration(video.duration)}</span>` : ''}
+          </div>
+          <div class="video-info">
+            <h3 class="video-title">${escapeHtml(video.title)}</h3>
+            <div class="video-meta">
+              ${video.published_at ? `<span class="video-date">📅 ${formatDate(video.published_at)}</span>` : ''}
+              ${video.view_count ? `<span class="video-views">👁 ${formatViews(video.view_count)}</span>` : ''}
+            </div>
+            ${tags.length > 0 ? `
+              <div class="video-tags">
+                ${tags.slice(0, 3).map(tag => `<span class="video-tag">${tag}</span>`).join('')}
+                ${tags.length > 3 ? `<span class="video-tag">+${tags.length - 3}</span>` : ''}
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      `;
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // ===== VIDEO MODAL =====
+    function initModal() {
+      const modal = document.getElementById('videoModal');
+      const iframe = document.getElementById('videoIframe');
+      const closeBtn = document.getElementById('modalClose');
+      const titleEl = document.getElementById('modalTitle');
+      const descEl = document.getElementById('modalDescription');
+
+      // Open modal on card click
+      document.addEventListener('click', (e) => {
+        const card = e.target.closest('.video-card');
+        if (card) {
+          const youtubeId = card.dataset.youtubeId;
+          const title = card.dataset.title;
+          const description = card.dataset.description;
+
+          iframe.src = `https://www.youtube.com/embed/${youtubeId}?autoplay=1`;
+          titleEl.textContent = title;
+          descEl.textContent = description;
+          modal.classList.add('active');
+          document.body.style.overflow = 'hidden';
+        }
+      });
+
+      // Close modal
+      function closeModal() {
+        modal.classList.remove('active');
+        iframe.src = '';
+        document.body.style.overflow = '';
+      }
+
+      closeBtn.addEventListener('click', closeModal);
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+      });
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal.classList.contains('active')) closeModal();
+      });
+    }
+
+    // ===== FILTERS =====
+    function initFilters() {
+      // Filter buttons
+      document.querySelectorAll('.filter-btn[data-filter]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.filter-btn[data-filter]').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          currentFilter = btn.dataset.filter;
+          renderVideos();
+        });
+      });
+
+      // Team select
+      document.getElementById('teamFilter').addEventListener('change', (e) => {
+        currentTeam = e.target.value;
+        renderVideos();
+      });
+
+      // Search
+      document.getElementById('videoSearch').addEventListener('input', (e) => {
+        searchTerm = e.target.value;
+        renderVideos();
+      });
+    }
+
+    // ===== INIT =====
+    document.addEventListener('DOMContentLoaded', () => {
+      initMobileMenu();
+      initModal();
+      initFilters();
+      loadVideos();
+    });
+  </script>
+</body>
+</html>
