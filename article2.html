@@ -1,0 +1,1545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="">
+  <meta name="theme-color" content="#f57c00">
+  <title>Article | Ball603</title>
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="apple-touch-icon" href="/logo.png">
+  
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <!-- Styles -->
+  <link rel="stylesheet" href="/styles.css">
+  
+  <!-- Article-specific styles -->
+  <style>
+    /* Article Layout */
+    .article-container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: var(--space-lg);
+    }
+    
+    @media (max-width: 768px) {
+      .article-container {
+        padding: var(--space-md);
+        padding-bottom: 100px;
+      }
+    }
+    
+    /* Article Header */
+    .article-header {
+      margin-bottom: var(--space-xl);
+    }
+    
+    .article-tag {
+      display: inline-block;
+      background: var(--accent);
+      color: white;
+      padding: var(--space-xs) var(--space-sm);
+      border-radius: var(--radius-sm);
+      font-size: var(--font-size-xs);
+      font-weight: var(--font-weight-bold);
+      text-transform: uppercase;
+      margin-bottom: var(--space-md);
+    }
+    
+    .article-title {
+      font-size: var(--font-size-3xl);
+      font-weight: var(--font-weight-bold);
+      line-height: 1.2;
+      margin-bottom: var(--space-md);
+      color: var(--text-primary);
+    }
+    
+    @media (max-width: 768px) {
+      .article-title {
+        font-size: var(--font-size-2xl);
+      }
+    }
+    
+    .article-meta {
+      display: flex;
+      align-items: center;
+      gap: var(--space-md);
+      color: var(--text-secondary);
+      font-size: var(--font-size-sm);
+      flex-wrap: wrap;
+    }
+    
+    .article-author {
+      font-weight: var(--font-weight-semibold);
+      color: var(--text-primary);
+    }
+    
+    .article-date {
+      color: var(--text-muted);
+    }
+    
+    .article-share {
+      margin-left: auto;
+      display: flex;
+      gap: var(--space-sm);
+    }
+    
+    .share-btn {
+      background: var(--bg-tertiary);
+      border: none;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 16px;
+      transition: background var(--transition-fast);
+    }
+    
+    .share-btn:hover {
+      background: var(--accent);
+      color: white;
+    }
+    
+    /* Featured Media */
+    .article-featured {
+      margin-bottom: var(--space-xl);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      background: var(--bg-tertiary);
+    }
+    
+    .article-featured img,
+    .article-featured video {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      object-fit: cover;
+    }
+    
+    .article-featured iframe {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      border: none;
+    }
+    
+    .featured-caption {
+      padding: var(--space-sm) var(--space-md);
+      font-size: var(--font-size-sm);
+      color: var(--text-muted);
+      background: var(--bg-tertiary);
+    }
+    
+    /* Game Info Box */
+    .game-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: var(--space-lg);
+      margin-bottom: var(--space-xl);
+    }
+    
+    .game-box-header {
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-semibold);
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: var(--space-md);
+      text-align: center;
+    }
+    
+    .game-matchup {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-lg);
+      margin-bottom: var(--space-md);
+    }
+    
+    .game-team {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--space-sm);
+      flex: 1;
+    }
+    
+    .game-team-logo {
+      width: 64px;
+      height: 64px;
+      border-radius: var(--radius-md);
+      object-fit: contain;
+      background: var(--bg-tertiary);
+    }
+    
+    @media (max-width: 500px) {
+      .game-team-logo {
+        width: 48px;
+        height: 48px;
+      }
+    }
+    
+    .game-team-name {
+      font-size: var(--font-size-md);
+      font-weight: var(--font-weight-semibold);
+      color: var(--text-primary);
+      text-align: center;
+    }
+    
+    .game-score-center {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0 var(--space-md);
+    }
+    
+    .game-scores {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      font-size: var(--font-size-3xl);
+      font-weight: var(--font-weight-bold);
+    }
+    
+    .game-score {
+      min-width: 50px;
+      text-align: center;
+      color: var(--text-secondary);
+    }
+    
+    .game-score.winner {
+      color: var(--accent);
+    }
+    
+    .game-score-dash {
+      color: var(--text-muted);
+      font-weight: var(--font-weight-normal);
+    }
+    
+    .game-status {
+      font-size: var(--font-size-xs);
+      font-weight: var(--font-weight-bold);
+      text-transform: uppercase;
+      color: var(--score-win);
+      margin-top: var(--space-xs);
+    }
+    
+    .game-details {
+      display: flex;
+      justify-content: center;
+      gap: var(--space-xl);
+      padding-top: var(--space-md);
+      border-top: 1px solid var(--border-color);
+      margin-top: var(--space-md);
+      font-size: var(--font-size-sm);
+      color: var(--text-secondary);
+    }
+    
+    .game-detail {
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+    }
+    
+    /* Quarter Scores Section (inside game box) */
+    .quarter-scores-section {
+      border-top: 1px solid var(--border-color);
+      margin-top: var(--space-md);
+      padding-top: var(--space-md);
+      overflow-x: auto;
+    }
+    
+    /* Quarter Scores Box (standalone, when no linked game) */
+    .quarter-scores-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: var(--space-md) var(--space-lg);
+      margin-bottom: var(--space-xl);
+      overflow-x: auto;
+    }
+    
+    .quarter-scores-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: var(--font-size-sm);
+      text-align: center;
+      min-width: 380px;
+    }
+    
+    .quarter-scores-table th {
+      padding: var(--space-sm) var(--space-xs);
+      font-weight: var(--font-weight-semibold);
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .quarter-scores-table th:first-child {
+      text-align: left;
+      padding-left: var(--space-sm);
+    }
+    
+    .quarter-scores-table td {
+      padding: var(--space-sm) var(--space-xs);
+      color: var(--text-secondary);
+    }
+    
+    .quarter-scores-table td:first-child {
+      text-align: left;
+      padding-left: var(--space-sm);
+      font-weight: var(--font-weight-semibold);
+      color: var(--text-primary);
+    }
+    
+    .quarter-scores-table td:last-child {
+      font-weight: var(--font-weight-bold);
+      font-size: var(--font-size-md);
+    }
+    
+    .quarter-scores-table .winner-final {
+      color: var(--accent);
+    }
+    
+    .quarter-scores-table tbody tr {
+      border-top: 1px solid var(--border-color);
+    }
+    
+    .quarter-scores-table tbody tr:first-child {
+      border-top: none;
+    }
+    
+    /* Article Content */
+    .article-content {
+      font-size: var(--font-size-md);
+      line-height: 1.8;
+      color: var(--text-primary);
+    }
+    
+    .article-content p {
+      margin-bottom: var(--space-lg);
+    }
+    
+    .article-content p:last-child {
+      margin-bottom: 0;
+    }
+    
+    .article-content p {
+      margin-bottom: var(--space-lg);
+    }
+    
+    .article-content h2 {
+      font-size: var(--font-size-xl);
+      font-weight: var(--font-weight-bold);
+      margin-top: var(--space-xl);
+      margin-bottom: var(--space-md);
+    }
+    
+    .article-content h3 {
+      font-size: var(--font-size-lg);
+      font-weight: var(--font-weight-semibold);
+      margin-top: var(--space-lg);
+      margin-bottom: var(--space-md);
+    }
+    
+    .article-content ul,
+    .article-content ol {
+      margin-bottom: var(--space-lg);
+      padding-left: var(--space-xl);
+    }
+    
+    .article-content li {
+      margin-bottom: var(--space-sm);
+    }
+    
+    .article-content blockquote {
+      border-left: 4px solid var(--accent);
+      padding-left: var(--space-lg);
+      margin: var(--space-lg) 0;
+      font-style: italic;
+      color: var(--text-secondary);
+    }
+    
+    .article-content img {
+      max-width: 100%;
+      border-radius: var(--radius-md);
+      margin: var(--space-lg) 0;
+    }
+    
+    .article-content a {
+      color: var(--accent);
+      text-decoration: underline;
+    }
+    
+    .article-content a:hover {
+      opacity: 0.8;
+    }
+    
+    /* Tags */
+    .article-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-sm);
+      margin-top: var(--space-xl);
+      padding-top: var(--space-lg);
+      border-top: 1px solid var(--border-color);
+    }
+    
+    .tag {
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
+      padding: var(--space-xs) var(--space-md);
+      border-radius: var(--radius-full);
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-medium);
+      text-decoration: none;
+    }
+    
+    .tag:hover {
+      background: var(--accent-light);
+      color: var(--accent);
+    }
+    
+    /* Gallery Section */
+    .gallery-section {
+      margin-top: var(--space-2xl);
+      padding-top: var(--space-xl);
+      border-top: 1px solid var(--border-color);
+    }
+    
+    .gallery-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: var(--space-lg);
+    }
+    
+    .gallery-title {
+      font-size: var(--font-size-xl);
+      font-weight: var(--font-weight-bold);
+      color: var(--text-primary);
+    }
+    
+    .gallery-count {
+      font-size: var(--font-size-sm);
+      color: var(--text-muted);
+      display: block;
+      margin-top: var(--space-xs);
+    }
+    
+    .gallery-link {
+      color: var(--accent);
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-semibold);
+      text-decoration: none;
+    }
+    
+    /* Gallery Preview Card */
+    .gallery-preview-card {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 200px;
+      background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--bg-secondary) 100%);
+      border-radius: var(--radius-lg);
+      text-decoration: none;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      border: 1px solid var(--border-color);
+    }
+    
+    .gallery-preview-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+    }
+    
+    .gallery-preview-overlay {
+      text-align: center;
+      padding: var(--space-xl);
+    }
+    
+    .gallery-preview-icon {
+      font-size: 48px;
+      margin-bottom: var(--space-md);
+    }
+    
+    .gallery-preview-text {
+      font-size: var(--font-size-lg);
+      font-weight: var(--font-weight-semibold);
+      color: var(--text-primary);
+      margin-bottom: var(--space-xs);
+    }
+    
+    .gallery-preview-subtext {
+      font-size: var(--font-size-sm);
+      color: var(--text-muted);
+      text-transform: capitalize;
+    }
+    
+    /* Gallery Grid */
+    .gallery-loading {
+      text-align: center;
+      padding: var(--space-xl);
+      color: var(--text-muted);
+    }
+    
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: var(--space-sm);
+    }
+    
+    @media (max-width: 768px) {
+      .gallery-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+    
+    @media (max-width: 480px) {
+      .gallery-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    
+    .gallery-thumb {
+      aspect-ratio: 1;
+      overflow: hidden;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    
+    .gallery-thumb:hover {
+      transform: scale(1.02);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    .gallery-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    
+    .gallery-more {
+      text-align: center;
+      margin-top: var(--space-lg);
+    }
+    
+    .gallery-more-link {
+      color: var(--accent);
+      font-weight: var(--font-weight-semibold);
+      text-decoration: none;
+      font-size: var(--font-size-md);
+    }
+    
+    .gallery-more-link:hover {
+      text-decoration: underline;
+    }
+    
+    .gallery-count-info {
+      text-align: center;
+      margin-top: var(--space-md);
+      color: var(--text-muted);
+      font-size: var(--font-size-sm);
+    }
+    
+    .gallery-link:hover {
+      text-decoration: underline;
+    }
+    
+    /* SmugMug Embed */
+    .smugmug-embed {
+      margin-top: var(--space-md);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      background: var(--bg-tertiary);
+    }
+    
+    .smugmug-embed iframe {
+      display: block;
+      width: 100%;
+      min-height: 500px;
+    }
+    
+    @media (max-width: 768px) {
+      .smugmug-embed iframe {
+        min-height: 400px;
+      }
+    }
+    
+    /* Photo Grid (legacy - keeping for potential future use) */
+    .photo-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--space-sm);
+    }
+    
+    @media (max-width: 600px) {
+      .photo-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    
+    .photo-grid-item {
+      aspect-ratio: 1;
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      cursor: pointer;
+      position: relative;
+    }
+    
+    .photo-grid-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform var(--transition-normal);
+    }
+    
+    .photo-grid-item:hover img {
+      transform: scale(1.05);
+    }
+    
+    .photo-grid-item.featured {
+      grid-column: span 2;
+      grid-row: span 2;
+    }
+    
+    @media (max-width: 600px) {
+      .photo-grid-item.featured {
+        grid-column: span 2;
+        grid-row: span 1;
+        aspect-ratio: 16/9;
+      }
+    }
+    
+    /* View All Photos Button */
+    .view-all-photos {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-sm);
+      width: 100%;
+      padding: var(--space-md);
+      margin-top: var(--space-md);
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      color: var(--accent);
+      font-size: var(--font-size-md);
+      font-weight: var(--font-weight-semibold);
+      cursor: pointer;
+      transition: background var(--transition-fast);
+    }
+    
+    .view-all-photos:hover {
+      background: var(--accent-light);
+    }
+    
+    /* Related Stories */
+    .related-section {
+      margin-top: var(--space-2xl);
+      padding-top: var(--space-xl);
+      border-top: 1px solid var(--border-color);
+    }
+    
+    .related-title {
+      font-size: var(--font-size-lg);
+      font-weight: var(--font-weight-bold);
+      margin-bottom: var(--space-lg);
+      color: var(--text-primary);
+    }
+    
+    .related-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: var(--space-md);
+    }
+    
+    @media (max-width: 600px) {
+      .related-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    .related-card {
+      display: flex;
+      gap: var(--space-md);
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: var(--space-md);
+      text-decoration: none;
+      transition: box-shadow var(--transition-fast);
+    }
+    
+    .related-card:hover {
+      box-shadow: var(--shadow-md);
+    }
+    
+    .related-card-image {
+      width: 100px;
+      height: 75px;
+      border-radius: var(--radius-md);
+      object-fit: cover;
+      flex-shrink: 0;
+    }
+    
+    .related-card-content {
+      flex: 1;
+      min-width: 0;
+    }
+    
+    .related-card-title {
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-semibold);
+      color: var(--text-primary);
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    
+    .related-card-meta {
+      font-size: var(--font-size-xs);
+      color: var(--text-muted);
+      margin-top: var(--space-xs);
+    }
+    
+    /* Loading State */
+    .article-loading {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-lg);
+      padding: var(--space-xl);
+    }
+    
+    /* Error State */
+    .article-error {
+      text-align: center;
+      padding: var(--space-2xl);
+    }
+    
+    .article-error h2 {
+      font-size: var(--font-size-xl);
+      margin-bottom: var(--space-md);
+      color: var(--text-primary);
+    }
+    
+    .article-error p {
+      color: var(--text-secondary);
+      margin-bottom: var(--space-lg);
+    }
+    
+    /* Mobile Lightbox Fullscreen Styles */
+    @media (max-width: 768px) {
+      .gallery-overlay {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        background: #000 !important;
+        overflow: hidden;
+        touch-action: none;
+        z-index: 9999;
+      }
+      
+      .gallery-overlay .gallery-header-lightbox {
+        display: none !important;
+      }
+      
+      .gallery-overlay .gallery-nav-arrows {
+        display: none !important;
+      }
+      
+      .gallery-overlay .gallery-dots {
+        display: none !important;
+      }
+      
+      .gallery-overlay .gallery-main {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 60px;
+        overflow: hidden;
+      }
+      
+      /* Carousel container for IG-style swipe */
+      .gallery-overlay .gallery-carousel {
+        display: flex;
+        height: 100%;
+        transition: transform 0.3s ease-out;
+      }
+      
+      .gallery-overlay .gallery-carousel.dragging {
+        transition: none;
+      }
+      
+      .gallery-overlay .gallery-slide {
+        flex: 0 0 100%;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+      }
+      
+      .gallery-overlay .gallery-slide img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+        user-select: none;
+        -webkit-user-drag: none;
+        -webkit-touch-callout: none;
+        pointer-events: none;
+        transform-origin: center center;
+        will-change: transform;
+      }
+      
+      .gallery-overlay .gallery-info {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: #000;
+        padding: 10px 12px;
+        padding-bottom: max(10px, env(safe-area-inset-bottom));
+        z-index: 10;
+      }
+      
+      .gallery-overlay .gallery-caption,
+      .gallery-overlay .gallery-credit {
+        display: none !important;
+      }
+      
+      .gallery-overlay .gallery-actions {
+        display: flex;
+        justify-content: center;
+        gap: 6px;
+      }
+      
+      .gallery-overlay .gallery-action-btn {
+        flex: 1;
+        max-width: 100px;
+        padding: 10px 6px;
+        font-size: 12px;
+        background: #1a1a1a;
+        border: 1px solid #333;
+        border-radius: 8px;
+        color: #fff;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+        line-height: 1.2;
+      }
+      
+      .gallery-overlay .gallery-action-btn:active {
+        background: #333;
+      }
+    }
+    
+    /* Desktop styles */
+    @media (min-width: 769px) {
+      .gallery-overlay .gallery-slide {
+        position: relative;
+      }
+      
+      .gallery-overlay .gallery-slide img {
+        -webkit-touch-callout: none;
+        user-select: none;
+      }
+    }
+  </style>
+  
+  <!-- Open Graph (updated by JS) -->
+  <meta property="og:title" content="Ball603">
+  <meta property="og:description" content="New Hampshire Basketball Coverage">
+  <meta property="og:image" content="https://ball603.com/logo.png">
+  <meta property="og:url" content="https://ball603.com">
+  <meta property="og:type" content="article">
+</head>
+<body>
+  <!-- Navigation (loaded dynamically) -->
+  <div id="site-header"></div>
+  <div id="mobile-menu"></div>
+  <script src="/includes/nav-loader.js"></script>
+
+  <!-- Article Container -->
+  <article class="article-container" id="articleContainer">
+    <!-- Loading State -->
+    <div class="article-loading" id="articleLoading">
+      <div class="skeleton" style="height: 30px; width: 100px;"></div>
+      <div class="skeleton" style="height: 48px; width: 80%;"></div>
+      <div class="skeleton" style="height: 20px; width: 200px;"></div>
+      <div class="skeleton" style="height: 400px; width: 100%; border-radius: 12px;"></div>
+      <div class="skeleton" style="height: 100px;"></div>
+      <div class="skeleton" style="height: 200px;"></div>
+    </div>
+    
+    <!-- Article Content (populated by JS) -->
+    <div id="articleContent" style="display: none;"></div>
+  </article>
+  
+  <!-- Bottom Navigation (Mobile) -->
+  <nav class="bottom-nav">
+    <div class="bottom-nav-items">
+      <a href="/" class="bottom-nav-item">
+        <span class="bottom-nav-icon">🏠</span>
+        <span>Home</span>
+      </a>
+      <a href="/schedule" class="bottom-nav-item">
+        <span class="bottom-nav-icon">📅</span>
+        <span>Schedule</span>
+      </a>
+      <a href="/galleries" class="bottom-nav-item">
+        <span class="bottom-nav-icon">📸</span>
+        <span>Galleries</span>
+      </a>
+      <a href="/my-teams" class="bottom-nav-item">
+        <span class="bottom-nav-icon">⭐</span>
+        <span>My Teams</span>
+      </a>
+      <button class="bottom-nav-item" onclick="openMoreMenu()">
+        <span class="bottom-nav-icon">☰</span>
+        <span>More</span>
+      </button>
+    </div>
+  </nav>
+  
+  <!-- Photo Gallery Overlay -->
+  <div class="gallery-overlay" id="galleryOverlay">
+    <div class="gallery-header gallery-header-lightbox">
+      <button class="gallery-close" onclick="Ball603.closeGallery()">✕</button>
+      <span class="gallery-title" id="galleryTitle"></span>
+      <span class="gallery-count" id="galleryCount"></span>
+    </div>
+    <div class="gallery-main">
+      <img src="" alt="" id="galleryImage">
+      <div class="gallery-nav-arrows">
+        <button class="gallery-arrow" onclick="Ball603.prevPhoto()">‹</button>
+        <button class="gallery-arrow" onclick="Ball603.nextPhoto()">›</button>
+      </div>
+    </div>
+    <div class="gallery-dots" id="galleryDots"></div>
+    <div class="gallery-info">
+      <p class="gallery-caption" id="galleryCaption"></p>
+      <p class="gallery-credit" id="galleryCredit"></p>
+      <div class="gallery-actions">
+        <button class="gallery-action-btn" onclick="sharePhoto()">↗️ Share</button>
+        <button class="gallery-action-btn" onclick="purchasePhoto()">🛒 Purchase</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- App Script -->
+  <script src="/app.js"></script>
+  
+  <!-- Article Page Script -->
+  <script>
+    // State
+    let currentArticle = null;
+    let linkedGame = null;
+    let galleryPhotos = [];
+    
+    // Use Supabase client from app.js (will be initialized on ball603:ready)
+    let supabaseClient = null;
+    
+    // Initialize on app ready
+    document.addEventListener('ball603:ready', async () => {
+      // Initialize Supabase client
+      supabaseClient = window.supabase.createClient(
+        'https://suncdkxfqkwwnmhosxcf.supabase.co',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN1bmNka3hmcWt3d25taG9zeGNmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwNTk4MzIsImV4cCI6MjA4MDYzNTgzMn0.aT6V8Zx_YozqOh1ZnC6x-czI9vo-QhHKmP69PgY-8xw'
+      );
+      await loadArticle();
+    });
+    
+    /**
+     * Load article based on URL slug
+     */
+    async function loadArticle() {
+      // Get slug from URL - supports /articles/slug and /articles/slug.html
+      const pathParts = window.location.pathname.split('/');
+      let slug = pathParts[pathParts.length - 1].replace('.html', '');
+      
+      // If path is /articles/, get next segment
+      if (slug === 'articles' || slug === '') {
+        slug = pathParts[pathParts.length - 2] || '';
+      }
+      
+      if (!slug || slug === 'article') {
+        showError('Article not found');
+        return;
+      }
+      
+      try {
+        // Fetch article from Supabase
+        const { data: article, error } = await supabaseClient
+          .from('articles')
+          .select('*')
+          .eq('slug', slug)
+          .single();
+        
+        if (error || !article) {
+          showError('Article not found');
+          return;
+        }
+        
+        currentArticle = article;
+        
+        // Fetch linked game if exists
+        if (article.game_id && Ball603.state.games) {
+          linkedGame = Ball603.state.games.find(g => g.game_id === article.game_id);
+        }
+        
+        // Update page metadata
+        updateMetadata(article);
+        
+        // Render article
+        renderArticle(article);
+        
+        // Load gallery photos
+        await loadGalleryPhotos(article);
+        
+        // Load related articles
+        await loadRelatedArticles(article);
+        
+      } catch (err) {
+        console.error('Error loading article:', err);
+        showError('Error loading article');
+      }
+    }
+    
+    /**
+     * Update page metadata
+     */
+    function updateMetadata(article) {
+      document.title = `${article.title} | Ball603`;
+      
+      const descMeta = document.querySelector('meta[name="description"]');
+      if (descMeta) descMeta.content = article.excerpt || article.title;
+      
+      const ogTitle = document.querySelector('meta[property="og:title"]');
+      if (ogTitle) ogTitle.content = article.title;
+      
+      const ogDesc = document.querySelector('meta[property="og:description"]');
+      if (ogDesc) ogDesc.content = article.excerpt || article.title;
+      
+      if (article.featured_image_url) {
+        const ogImage = document.querySelector('meta[property="og:image"]');
+        if (ogImage) ogImage.content = article.featured_image_url;
+      }
+      
+      const ogUrl = document.querySelector('meta[property="og:url"]');
+      if (ogUrl) ogUrl.content = window.location.href;
+    }
+    
+    /**
+     * Render the article
+     */
+    function renderArticle(article) {
+      const container = document.getElementById('articleContent');
+      const loading = document.getElementById('articleLoading');
+      
+      // Build game box HTML if linked game exists
+      let gameBoxHtml = '';
+      if (linkedGame) {
+        const awayScore = linkedGame.awayScore || linkedGame.away_score;
+        const homeScore = linkedGame.homeScore || linkedGame.home_score;
+        const hasScore = awayScore !== null && awayScore !== '' && homeScore !== null && homeScore !== '';
+        const awayWins = hasScore && parseInt(awayScore) > parseInt(homeScore);
+        const homeWins = hasScore && parseInt(homeScore) > parseInt(awayScore);
+        
+        // Build quarter scores section if game_data exists
+        let quarterScoresSection = '';
+        if (article.game_data && article.game_data.awayQuarters && article.game_data.homeQuarters) {
+          const gd = article.game_data;
+          const gdAwayWins = gd.awayFinal > gd.homeFinal;
+          const gdHomeWins = gd.homeFinal > gd.awayFinal;
+          
+          // Build header row with quarters
+          let headerCells = '<th>Team</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th>';
+          let awayCells = `<td>${gd.awayTeam}</td><td>${gd.awayQuarters[0] || '-'}</td><td>${gd.awayQuarters[1] || '-'}</td><td>${gd.awayQuarters[2] || '-'}</td><td>${gd.awayQuarters[3] || '-'}</td>`;
+          let homeCells = `<td>${gd.homeTeam}</td><td>${gd.homeQuarters[0] || '-'}</td><td>${gd.homeQuarters[1] || '-'}</td><td>${gd.homeQuarters[2] || '-'}</td><td>${gd.homeQuarters[3] || '-'}</td>`;
+          
+          // Add OT columns if present
+          for (let i = 4; i < gd.awayQuarters.length; i++) {
+            const otNum = i - 3;
+            const otLabel = gd.awayQuarters.length === 5 ? 'OT' : `OT${otNum}`;
+            headerCells += `<th>${otLabel}</th>`;
+            awayCells += `<td>${gd.awayQuarters[i] || '-'}</td>`;
+            homeCells += `<td>${gd.homeQuarters[i] || '-'}</td>`;
+          }
+          
+          // Add final column
+          headerCells += '<th>Final</th>';
+          awayCells += `<td class="${gdAwayWins ? 'winner-final' : ''}">${gd.awayFinal}</td>`;
+          homeCells += `<td class="${gdHomeWins ? 'winner-final' : ''}">${gd.homeFinal}</td>`;
+          
+          quarterScoresSection = `
+            <div class="quarter-scores-section">
+              <table class="quarter-scores-table">
+                <thead>
+                  <tr>${headerCells}</tr>
+                </thead>
+                <tbody>
+                  <tr>${awayCells}</tr>
+                  <tr>${homeCells}</tr>
+                </tbody>
+              </table>
+            </div>
+          `;
+        }
+        
+        gameBoxHtml = `
+          <div class="game-box">
+            <div class="game-box-header">${Ball603.formatDivision(linkedGame)}</div>
+            <div class="game-matchup">
+              <div class="game-team">
+                <img class="game-team-logo" src="${Ball603.getLogoUrl(linkedGame.away)}" alt="${linkedGame.away}" onerror="this.src='/logos/100px/Ball603-white.png'">
+                <div class="game-team-name">${linkedGame.away}</div>
+              </div>
+              <div class="game-score-center">
+                <div class="game-scores">
+                  <span class="game-score ${awayWins ? 'winner' : ''}">${awayScore || '-'}</span>
+                  <span class="game-score-dash">-</span>
+                  <span class="game-score ${homeWins ? 'winner' : ''}">${homeScore || '-'}</span>
+                </div>
+                ${hasScore ? '<div class="game-status">Final</div>' : ''}
+              </div>
+              <div class="game-team">
+                <img class="game-team-logo" src="${Ball603.getLogoUrl(linkedGame.home)}" alt="${linkedGame.home}" onerror="this.src='/logos/100px/Ball603-white.png'">
+                <div class="game-team-name">${linkedGame.home}</div>
+              </div>
+            </div>
+            ${quarterScoresSection}
+            <div class="game-details">
+              <div class="game-detail">📅 ${Ball603.formatDate(linkedGame.date, 'medium')}</div>
+              ${linkedGame.location ? `<div class="game-detail">📍 ${linkedGame.location}</div>` : ''}
+            </div>
+          </div>
+        `;
+      }
+      
+      // Build quarter scores box HTML if game_data exists but no linked game
+      let quarterScoresHtml = '';
+      if (!linkedGame && article.game_data && article.game_data.awayQuarters && article.game_data.homeQuarters) {
+        const gd = article.game_data;
+        const awayWins = gd.awayFinal > gd.homeFinal;
+        const homeWins = gd.homeFinal > gd.awayFinal;
+        
+        // Build header row with quarters
+        let headerCells = '<th>Team</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th>';
+        let awayCells = `<td>${gd.awayTeam}</td><td>${gd.awayQuarters[0] || '-'}</td><td>${gd.awayQuarters[1] || '-'}</td><td>${gd.awayQuarters[2] || '-'}</td><td>${gd.awayQuarters[3] || '-'}</td>`;
+        let homeCells = `<td>${gd.homeTeam}</td><td>${gd.homeQuarters[0] || '-'}</td><td>${gd.homeQuarters[1] || '-'}</td><td>${gd.homeQuarters[2] || '-'}</td><td>${gd.homeQuarters[3] || '-'}</td>`;
+        
+        // Add OT columns if present
+        for (let i = 4; i < gd.awayQuarters.length; i++) {
+          const otNum = i - 3;
+          const otLabel = gd.awayQuarters.length === 5 ? 'OT' : `OT${otNum}`;
+          headerCells += `<th>${otLabel}</th>`;
+          awayCells += `<td>${gd.awayQuarters[i] || '-'}</td>`;
+          homeCells += `<td>${gd.homeQuarters[i] || '-'}</td>`;
+        }
+        
+        // Add final column
+        headerCells += '<th>Final</th>';
+        awayCells += `<td class="${awayWins ? 'winner-final' : ''}">${gd.awayFinal}</td>`;
+        homeCells += `<td class="${homeWins ? 'winner-final' : ''}">${gd.homeFinal}</td>`;
+        
+        quarterScoresHtml = `
+          <div class="quarter-scores-box">
+            <table class="quarter-scores-table">
+              <thead>
+                <tr>${headerCells}</tr>
+              </thead>
+              <tbody>
+                <tr>${awayCells}</tr>
+                <tr>${homeCells}</tr>
+              </tbody>
+            </table>
+          </div>
+        `;
+      }
+      
+      // Build tags HTML
+      let tagsHtml = '';
+      if (article.tags && article.tags.length > 0) {
+        tagsHtml = `
+          <div class="article-tags">
+            ${article.tags.map(tag => `<a href="/tag/${encodeURIComponent(tag.toLowerCase())}" class="tag">${tag}</a>`).join('')}
+          </div>
+        `;
+      }
+      
+      // Get primary tag
+      const primaryTag = article.tags && article.tags.length > 0 ? article.tags[0] : 'Coverage';
+      
+      // Featured media (video or image)
+      let featuredHtml = '';
+      if (article.youtube_url) {
+        const videoId = extractYouTubeId(article.youtube_url);
+        if (videoId) {
+          featuredHtml = `
+            <div class="article-featured">
+              <iframe 
+                src="https://www.youtube.com/embed/${videoId}" 
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                allowfullscreen>
+              </iframe>
+            </div>
+          `;
+        }
+      } else if (article.featured_image_url) {
+        featuredHtml = `
+          <div class="article-featured">
+            <img src="${article.featured_image_url}" alt="${article.title}">
+            ${article.featured_image_caption ? `<div class="featured-caption">${article.featured_image_caption}</div>` : ''}
+          </div>
+        `;
+      }
+      
+      // Render article
+      container.innerHTML = `
+        <header class="article-header">
+          <span class="article-tag">${primaryTag}</span>
+          <h1 class="article-title">${article.title}</h1>
+          <div class="article-meta">
+            <span class="article-author">${article.author || 'Ball603'}</span>
+            <span class="article-date">${Ball603.formatDate(article.article_date || article.published_at?.split('T')[0], 'long')}</span>
+            <div class="article-share">
+              <button class="share-btn" onclick="shareTwitter()" title="Share on Twitter">𝕏</button>
+              <button class="share-btn" onclick="shareFacebook()" title="Share on Facebook">f</button>
+              <button class="share-btn" onclick="copyLink()" title="Copy link">🔗</button>
+            </div>
+          </div>
+        </header>
+        
+        ${featuredHtml}
+        ${gameBoxHtml}
+        ${quarterScoresHtml}
+        
+        <div class="article-content">
+          ${article.content || '<p>No content available.</p>'}
+        </div>
+        
+        <section class="gallery-section" id="gallerySection" style="display: none;">
+          <div class="gallery-header">
+            <div>
+              <h2 class="gallery-title">📸 Photo Gallery</h2>
+            </div>
+            <a href="#" target="_blank" class="gallery-link" id="smugmugLink">View on SmugMug →</a>
+          </div>
+          <div class="smugmug-embed" id="smugmugEmbed"></div>
+        </section>
+        
+        ${tagsHtml}
+        
+        <section class="related-section" id="relatedSection" style="display: none;">
+          <h2 class="related-title">More Stories</h2>
+          <div class="related-grid" id="relatedGrid"></div>
+        </section>
+      `;
+      
+      loading.style.display = 'none';
+      container.style.display = 'block';
+    }
+    
+    /**
+     * Load gallery from SmugMug API and display embedded
+     */
+    async function loadGalleryPhotos(article) {
+      if (!article.smugmug_gallery_url) return;
+      
+      document.getElementById('gallerySection').style.display = 'block';
+      document.getElementById('smugmugLink').href = article.smugmug_gallery_url;
+      
+      const embedContainer = document.getElementById('smugmugEmbed');
+      embedContainer.innerHTML = '<div class="gallery-loading">Loading photos...</div>';
+      
+      try {
+        // Extract gallery path from URL
+        // URL format: https://ball603.smugmug.com/Gallery-Name
+        const urlParts = article.smugmug_gallery_url.replace(/\/$/, '').split('/');
+        const galleryPath = urlParts[urlParts.length - 1];
+        
+        console.log('Fetching gallery:', galleryPath);
+        
+        const response = await fetch(`/.netlify/functions/smugmug?action=galleryImages&path=${encodeURIComponent(galleryPath)}`);
+        const data = await response.json();
+        
+        if (data.success && data.images && data.images.length > 0) {
+          // Store images for lightbox
+          window.galleryImages = data.images;
+          
+          // Preload first few images in background for faster lightbox
+          data.images.slice(0, 4).forEach(img => {
+            const src = img.x2large || img.xlarge || img.large || img.archivedUri;
+            if (src) {
+              const preload = new Image();
+              preload.src = src;
+            }
+          });
+          
+          // Render gallery grid with ALL photos
+          const gridHtml = data.images.map((img, index) => `
+            <div class="gallery-thumb" onclick="openGalleryLightbox(${index})">
+              <img src="${img.medium || img.thumbnail}" alt="${img.caption || img.title || ''}" loading="lazy">
+            </div>
+          `).join('');
+          
+          embedContainer.innerHTML = `
+            <div class="gallery-grid">
+              ${gridHtml}
+            </div>
+            <div class="gallery-count-info">${data.images.length} photos</div>
+          `;
+        } else {
+          // Fallback to link if API fails
+          embedContainer.innerHTML = `
+            <a href="${article.smugmug_gallery_url}" target="_blank" class="gallery-preview-card">
+              <div class="gallery-preview-overlay">
+                <div class="gallery-preview-icon">📸</div>
+                <div class="gallery-preview-text">View photo gallery on SmugMug</div>
+              </div>
+            </a>
+          `;
+        }
+      } catch (err) {
+        console.error('Gallery load error:', err);
+        embedContainer.innerHTML = `
+          <a href="${article.smugmug_gallery_url}" target="_blank" class="gallery-preview-card">
+            <div class="gallery-preview-overlay">
+              <div class="gallery-preview-icon">📸</div>
+              <div class="gallery-preview-text">View photo gallery on SmugMug</div>
+            </div>
+          </a>
+        `;
+      }
+    }
+    
+    /**
+     * Open lightbox for gallery images
+     */
+    function openGalleryLightbox(index) {
+      if (!window.galleryImages || !window.galleryImages.length) return;
+      
+      const images = window.galleryImages.map(img => ({
+        // Use x2large for display (good quality, faster than original)
+        // Fallback chain: x2large -> xlarge -> large -> original
+        src: img.x2large || img.xlarge || img.large || img.archivedUri || img.original || img.medium || img.thumbnail,
+        original: img.archivedUri || img.original || img.x2large || img.xlarge,
+        thumb: img.thumbnail,
+        caption: img.caption || img.title || '',
+        webUrl: img.webUrl || null
+      }));
+      
+      // Use Ball603 lightbox if available, otherwise open image in new tab
+      if (typeof Ball603 !== 'undefined' && Ball603.openGallery) {
+        Ball603.openGallery(images, index, currentArticle?.title || 'Gallery');
+      } else {
+        const img = window.galleryImages[index];
+        window.open(img.archivedUri || img.original || img.webUrl, '_blank');
+      }
+    }
+    
+    /**
+     * Load related articles
+     */
+    async function loadRelatedArticles(article) {
+      const related = (Ball603.state.articles || [])
+        .filter(a => a.id !== article.id && a.status === 'published')
+        .slice(0, 4);
+      
+      if (related.length === 0) return;
+      
+      document.getElementById('relatedSection').style.display = 'block';
+      
+      document.getElementById('relatedGrid').innerHTML = related.map(a => `
+        <a href="/articles/${a.slug}" class="related-card">
+          <img src="${a.featured_image_url || '/logo.png'}" alt="" class="related-card-image" loading="lazy">
+          <div class="related-card-content">
+            <h3 class="related-card-title">${a.title}</h3>
+            <p class="related-card-meta">${Ball603.formatDate(a.published_at?.split('T')[0], 'short')}</p>
+          </div>
+        </a>
+      `).join('');
+    }
+    
+    /**
+     * Show error state
+     */
+    function showError(message) {
+      document.getElementById('articleContainer').innerHTML = `
+        <div class="article-error">
+          <h2>😕 ${message}</h2>
+          <p>The article you're looking for might have been moved or doesn't exist.</p>
+          <a href="/" class="btn btn-primary">← Back to Home</a>
+        </div>
+      `;
+    }
+    
+    /**
+     * Extract YouTube video ID
+     */
+    function extractYouTubeId(url) {
+      if (!url) return null;
+      const match = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+      return match ? match[1] : null;
+    }
+    
+    /**
+     * Gallery functions
+     */
+    function openGalleryAt(index) {
+      if (galleryPhotos.length === 0) return;
+      Ball603.openGallery(galleryPhotos, index, currentArticle?.title || 'Gallery');
+    }
+    
+    function openFullGallery() {
+      // Close lightbox and scroll to gallery section
+      Ball603.closeGallery();
+      const gallerySection = document.getElementById('gallerySection');
+      if (gallerySection) {
+        gallerySection.scrollIntoView({ behavior: 'smooth' });
+      } else if (currentArticle?.smugmug_gallery_url) {
+        window.open(currentArticle.smugmug_gallery_url, '_blank');
+      }
+    }
+    
+    function purchasePhoto() {
+      // Get current photo from Ball603 state
+      const gallery = Ball603.state.currentGallery;
+      const index = Ball603.state.currentPhotoIndex;
+      
+      if (!gallery || !gallery[index]) {
+        // Fallback to full gallery
+        if (currentArticle?.smugmug_gallery_url) {
+          window.open(currentArticle.smugmug_gallery_url, '_blank');
+        }
+        return;
+      }
+      
+      const photo = gallery[index];
+      
+      // Open the specific photo on SmugMug
+      if (photo.webUrl) {
+        window.open(photo.webUrl, '_blank');
+      } else if (currentArticle?.smugmug_gallery_url) {
+        window.open(currentArticle.smugmug_gallery_url, '_blank');
+      }
+    }
+    
+    /**
+     * Share functions
+     */
+    function shareTwitter() {
+      const url = encodeURIComponent(window.location.href);
+      const text = encodeURIComponent(currentArticle?.title || 'Ball603');
+      window.open(`https://twitter.com/intent/tweet?url=${url}&text=${text}`, '_blank', 'width=550,height=420');
+    }
+    
+    function shareFacebook() {
+      const url = encodeURIComponent(window.location.href);
+      window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}`, '_blank', 'width=550,height=420');
+    }
+    
+    function copyLink() {
+      navigator.clipboard.writeText(window.location.href).then(() => {
+        Ball603.showToast('Link copied!', 'success');
+      }).catch(() => {
+        Ball603.showToast('Failed to copy link', 'error');
+      });
+    }
+    
+    async function downloadPhoto() {
+      // Get current photo from Ball603 state
+      const gallery = Ball603.state.currentGallery;
+      const index = Ball603.state.currentPhotoIndex;
+      
+      if (!gallery || !gallery[index]) {
+        Ball603.showToast('No photo to download', 'error');
+        return;
+      }
+      
+      const photo = gallery[index];
+      // Use original/large for saving, not the medium display version
+      const imageUrl = photo.original || photo.src || photo.url;
+      
+      if (!imageUrl) {
+        Ball603.showToast('Photo not available', 'error');
+        return;
+      }
+      
+      // On mobile, try to share which allows saving to camera roll on iOS
+      if (navigator.share && navigator.canShare) {
+        try {
+          // Fetch image and convert to file
+          const response = await fetch(imageUrl);
+          const blob = await response.blob();
+          const file = new File([blob], 'ball603-photo.jpg', { type: blob.type });
+          
+          if (navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              files: [file],
+              title: 'Ball603 Photo'
+            });
+            return;
+          }
+        } catch (err) {
+          console.log('Share failed, falling back:', err);
+        }
+      }
+      
+      // Fallback: open in new tab
+      window.open(imageUrl, '_blank');
+      Ball603.showToast('Long-press image to save', 'success');
+    }
+    
+    function sharePhoto() {
+      if (navigator.share) {
+        navigator.share({ title: currentArticle?.title || 'Ball603', url: window.location.href });
+      } else {
+        copyLink();
+      }
+    }
+    
+    function openSearch() { Ball603.showToast('Search coming soon!'); }
+    function openMyTeams() { Ball603.showToast('My Teams coming soon!'); }
+    function openMoreMenu() { Ball603.showToast('More menu coming soon!'); }
+  </script>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="footer-logo">
+      <img src="/logo.png" alt="Ball603">
+    </div>
+    <div class="footer-links">
+      <a href="/about">About Us</a>
+      <a href="/contact">Contact</a>
+    </div>
+    <div class="footer-social">
+      <a href="https://facebook.com/ball603" target="_blank" title="Facebook">
+        <svg viewBox="0 0 24 24"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+      </a>
+      <a href="https://www.instagram.com/ball603nh/" target="_blank" title="Instagram">
+        <svg viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+      </a>
+      <a href="https://x.com/Ball603NH" target="_blank" title="X (Twitter)">
+        <svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+      </a>
+    </div>
+    <p class="footer-copyright">© 2025 Ball603. All rights reserved.</p>
+  </footer>
+</body>
+</html>
