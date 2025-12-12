@@ -17,8 +17,704 @@
   <!-- Shared Styles -->
   <link rel="stylesheet" href="/styles.css">
   
-  <!-- Schedule-specific styles -->
   <style>
+
+    /* ===== CSS RESET & VARIABLES ===== */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    :root {
+      --brand-orange: #f57c00;
+      --brand-orange-hover: #ff9800;
+      --dark: #1a1a1a;
+      --darker: #111111;
+      --light: #f5f5f5;
+      --light-gray: #e8e8e8;
+      --dropdown-bg: #f7f7f7;
+      --dropdown-hover: #ebebeb;
+      --text-dark: #1a1a1a;
+      --text-secondary: rgba(255,255,255,0.7);
+      --text-muted: rgba(255,255,255,0.5);
+      --border-dark: #333;
+      --header-height: 56px;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--light);
+      color: #1a1a1a;
+      line-height: 1.5;
+    }
+    
+    a {
+      text-decoration: none;
+      color: inherit;
+    }
+    
+    /* ===== SITE HEADER ===== */
+    .site-header {
+      background: var(--dark);
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      border-bottom: 1px solid var(--brand-orange);
+    }
+    
+    .header-inner {
+      display: flex;
+      align-items: center;
+      height: var(--header-height);
+      padding: 0 20px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    
+    /* Logo */
+    .header-logo {
+      flex-shrink: 0;
+      margin-right: 32px;
+      display: flex;
+      align-items: center;
+    }
+    
+    .header-logo img {
+      height: 32px;
+      width: auto;
+      display: block;
+    }
+    
+    /* Main Navigation - LEFT ALIGNED */
+    .header-nav {
+      display: flex;
+      align-items: center;
+      height: 100%;
+    }
+    
+    .nav-item {
+      position: relative;
+      height: 100%;
+      display: flex;
+      align-items: center;
+    }
+    
+    .nav-link {
+      color: var(--text-secondary);
+      font-size: 14px;
+      font-weight: 400;
+      padding: 0 14px;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      transition: color 0.2s, background 0.2s;
+    }
+    
+    .nav-item:first-child .nav-link {
+      padding-left: 0;
+    }
+    
+    .nav-link:hover,
+    .nav-item:hover .nav-link {
+      color: var(--brand-orange);
+    }
+    
+    .nav-link.active {
+      color: var(--brand-orange);
+    }
+    
+    .nav-arrow {
+      font-size: 10px;
+      margin-left: 4px;
+      opacity: 0.6;
+    }
+    
+    /* Standard dropdown menu - LIGHT theme, tight layout */
+    .nav-dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      background: var(--dropdown-bg);
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      min-width: 180px;
+      padding: 8px 0;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-10px);
+      transition: all 0.2s;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+    }
+    
+    .nav-item:hover .nav-dropdown {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+    
+    .dropdown-item {
+      display: block;
+      color: var(--text-dark);
+      font-size: 14px;
+      font-weight: 400;
+      padding: 8px 16px;
+      transition: all 0.15s;
+    }
+    
+    .dropdown-item:hover {
+      background: var(--dropdown-hover);
+      color: var(--brand-orange);
+    }
+    
+    /* Teams mega-dropdown with parent items */
+    .nav-dropdown.dropdown-mega {
+      min-width: 240px;
+      padding: 8px 0;
+    }
+    
+    .dropdown-item-parent {
+      position: relative;
+    }
+    
+    .dropdown-item-parent > a {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .dropdown-item-parent > a::after {
+      content: '›';
+      font-size: 14px;
+      opacity: 0.5;
+    }
+    
+    .dropdown-submenu {
+      position: absolute;
+      left: 100%;
+      top: -8px;
+      background: var(--dropdown-bg);
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      min-width: 160px;
+      padding: 8px 0;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateX(-10px);
+      transition: all 0.15s;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+    }
+    
+    /* Teams grid submenu */
+    .dropdown-submenu.teams-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 0 20px;
+      min-width: 320px;
+      max-width: 500px;
+      padding: 12px 16px;
+    }
+    
+    .dropdown-submenu.teams-grid a {
+      padding: 6px 8px;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+    
+    .dropdown-submenu .submenu-footer {
+      grid-column: 1 / -1;
+      border-top: 1px solid #ddd;
+      margin-top: 8px;
+      padding-top: 8px;
+    }
+    
+    .dropdown-submenu .submenu-footer a {
+      color: var(--brand-orange);
+      font-weight: 500;
+    }
+    
+    .dropdown-item-parent:hover .dropdown-submenu {
+      opacity: 1;
+      visibility: visible;
+      transform: translateX(0);
+    }
+    
+    .dropdown-submenu a {
+      display: block;
+      color: var(--text-dark);
+      font-size: 13px;
+      font-weight: 400;
+      padding: 8px 16px;
+      transition: all 0.15s;
+    }
+    
+    .dropdown-submenu a:hover {
+      background: var(--dropdown-hover);
+      color: var(--brand-orange);
+    }
+    
+    .dropdown-submenu a:last-child {
+      color: var(--brand-orange);
+      font-weight: 500;
+      border-top: 1px solid #ddd;
+      margin-top: 4px;
+      padding-top: 10px;
+    }
+    
+    /* Override for teams-grid - submenu-footer handles the border */
+    .dropdown-submenu.teams-grid a:last-child {
+      border-top: none;
+      margin-top: 0;
+      padding-top: 8px;
+    }
+    
+    .dropdown-submenu.teams-grid .submenu-footer a {
+      padding: 0;
+    }
+    
+    /* Two-section dropdown (Schedule) - TIGHT */
+    .nav-dropdown.dropdown-split {
+      padding: 12px 16px;
+    }
+    
+    .dropdown-sections {
+      display: flex;
+      gap: 20px;
+    }
+    
+    .dropdown-section h4 {
+      color: #888;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #ddd;
+    }
+    
+    .dropdown-section a {
+      display: block;
+      color: var(--text-dark);
+      font-size: 13px;
+      font-weight: 400;
+      padding: 5px 0;
+      transition: color 0.15s;
+    }
+    
+    .dropdown-section a:hover {
+      color: var(--brand-orange);
+    }
+    
+    /* Right side: Social + Search */
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-left: auto;
+    }
+    
+    /* Social Icons */
+    .header-social {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .header-social a {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-secondary);
+      transition: color 0.2s;
+    }
+    
+    .header-social a:hover {
+      color: var(--brand-orange);
+    }
+    
+    .header-social svg {
+      width: 18px;
+      height: 18px;
+      fill: currentColor;
+    }
+    
+    /* Search */
+    .header-search {
+      position: relative;
+    }
+    
+    .search-toggle {
+      height: 32px;
+      padding: 0 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: rgba(255,255,255,0.7);
+      background: #333;
+      border: none;
+      border-radius: 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 13px;
+    }
+    
+    .search-toggle:hover {
+      background: #444;
+      color: #fff;
+    }
+    
+    .search-toggle svg {
+      width: 16px;
+      height: 16px;
+      stroke: currentColor;
+      fill: none;
+    }
+    
+    .search-dropdown {
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      width: 320px;
+      padding: 16px;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-10px);
+      transition: all 0.2s;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+    }
+    
+    .search-dropdown.active {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+    
+    .search-input-wrap {
+      position: relative;
+    }
+    
+    .search-input {
+      width: 100%;
+      padding: 12px 16px 12px 44px;
+      background: var(--light);
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      color: var(--text-dark);
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    
+    .search-input:focus {
+      border-color: var(--brand-orange);
+    }
+    
+    .search-input-icon {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #888;
+    }
+    
+    .search-input-icon svg {
+      width: 18px;
+      height: 18px;
+      stroke: currentColor;
+      fill: none;
+    }
+    
+    .search-hint {
+      font-size: 12px;
+      color: #888;
+      margin-top: 10px;
+    }
+    
+    .search-results {
+      margin-top: 12px;
+    }
+    
+    .search-result-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    
+    .search-result-item:hover {
+      background: var(--light);
+    }
+    
+    .search-result-logo {
+      width: 32px;
+      height: 32px;
+      border-radius: 4px;
+      object-fit: contain;
+      background: white;
+    }
+    
+    .search-result-info {
+      flex: 1;
+    }
+    
+    .search-result-name {
+      font-weight: 500;
+      color: var(--text-dark);
+      font-size: 14px;
+    }
+    
+    .search-result-meta {
+      font-size: 12px;
+      color: #888;
+    }
+    
+    /* Mobile Menu Toggle */
+    .mobile-menu-toggle {
+      display: none;
+      width: 40px;
+      height: 40px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: white;
+      font-size: 24px;
+    }
+    
+    /* Mobile Drawer */
+    .mobile-drawer {
+      position: fixed;
+      top: 0;
+      right: -320px;
+      width: 320px;
+      max-width: 85vw;
+      height: 100%;
+      background: var(--dark);
+      z-index: 2000;
+      transition: right 0.3s ease;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+    
+    .mobile-drawer.active {
+      right: 0;
+    }
+    
+    .mobile-drawer-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 1999;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s;
+    }
+    
+    .mobile-drawer-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+    
+    .mobile-drawer-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-dark);
+    }
+    
+    .mobile-drawer-close {
+      width: 40px;
+      height: 40px;
+      background: none;
+      border: none;
+      color: white;
+      font-size: 28px;
+      cursor: pointer;
+    }
+    
+    .mobile-nav {
+      flex: 1;
+      padding: 16px 0;
+    }
+    
+    .mobile-nav-item {
+      border-bottom: 1px solid var(--border-dark);
+    }
+    
+    .mobile-nav-link {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 20px;
+      color: white;
+      font-size: 16px;
+      font-weight: 400;
+    }
+    
+    .mobile-nav-link:hover {
+      color: var(--brand-orange);
+    }
+    
+    .mobile-nav-arrow {
+      font-size: 12px;
+      transition: transform 0.2s;
+    }
+    
+    .mobile-nav-item.expanded .mobile-nav-arrow {
+      transform: rotate(180deg);
+    }
+    
+    .mobile-nav-submenu {
+      display: none;
+      background: rgba(0,0,0,0.2);
+      padding: 8px 0;
+    }
+    
+    .mobile-nav-item.expanded .mobile-nav-submenu {
+      display: block;
+    }
+    
+    .mobile-nav-submenu a {
+      display: block;
+      padding: 10px 20px 10px 36px;
+      color: rgba(255,255,255,0.7);
+      font-size: 14px;
+    }
+    
+    .mobile-nav-submenu a:hover {
+      color: var(--brand-orange);
+    }
+    
+    .mobile-drawer-footer {
+      padding: 20px;
+      border-top: 1px solid var(--border-dark);
+    }
+    
+    .mobile-social {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+    }
+    
+    .mobile-social a {
+      color: rgba(255,255,255,0.7);
+      font-size: 14px;
+    }
+    
+    .mobile-social a:hover {
+      color: var(--brand-orange);
+    }
+    
+    /* ===== SITE FOOTER ===== */
+    .site-footer {
+      background: var(--dark);
+      padding: 40px 20px;
+      text-align: center;
+      border-top: 1px solid var(--brand-orange);
+    }
+    
+    .footer-logo {
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: center;
+    }
+    
+    .footer-logo img {
+      height: 60px;
+      width: auto;
+      display: block;
+    }
+    
+    .footer-links {
+      margin-bottom: 16px;
+    }
+    
+    .footer-links a {
+      color: #ffffff;
+      font-size: 14px;
+      margin: 0 12px;
+      transition: color 0.2s;
+    }
+    
+    .footer-links a:hover {
+      color: var(--brand-orange);
+    }
+    
+    .footer-social {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    
+    .footer-social a {
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(255,255,255,0.7);
+      transition: color 0.2s;
+    }
+    
+    .footer-social a:hover {
+      color: var(--brand-orange);
+    }
+    
+    .footer-social svg {
+      width: 22px;
+      height: 22px;
+      fill: currentColor;
+    }
+    
+    .footer-copyright {
+      color: rgba(255,255,255,0.4);
+      font-size: 12px;
+    }
+    
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 900px) {
+      .header-nav {
+        display: none;
+      }
+      
+      .header-social {
+        display: none;
+      }
+      
+      .mobile-menu-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-left: auto;
+      }
+      
+      .header-search {
+        display: none;
+      }
+      
+      .mobile-drawer {
+        width: 300px;
+      }
+    }
+
+
+    /* ===== SCHEDULE PAGE STYLES ===== */
+
     /* ===== SCHEDULE PAGE STYLES ===== */
     
     /* Page header */
@@ -606,71 +1302,378 @@
       .team-logo { display: none; }
       .gender-col { display: none; }
     }
+  
   </style>
 </head>
 <body>
-  <!-- Scores Ticker -->
-  <div class="ticker" id="ticker">
-    <div class="ticker-header">
-      <span class="ticker-title">Scores</span>
-      <button class="ticker-toggle" onclick="Ball603.toggleTicker()" title="Hide scores">✕</button>
-    </div>
-    <div class="ticker-scroll hide-scrollbar" id="tickerScroll">
-      <div class="skeleton" style="width: 180px; height: 100px;"></div>
-      <div class="skeleton" style="width: 180px; height: 100px;"></div>
-      <div class="skeleton" style="width: 180px; height: 100px;"></div>
-    </div>
-  </div>
-  <div class="ticker-expand" onclick="Ball603.toggleTicker()">
-    <span>📊 Show Scores</span>
-  </div>
-  
-  <!-- Desktop Header -->
-  <header class="header-desktop">
-    <a href="/">
-      <img src="/logo.png" alt="Ball603" class="header-logo" onerror="this.outerHTML='<span class=\'header-logo-text\'><span class=\'ball\'>BALL</span>603</span>'">
-    </a>
-    <nav class="header-nav">
-      <a href="/">Home</a>
-      <a href="/schedule" class="active">Schedule</a>
-      <a href="/standings">Standings</a>
-      <a href="/galleries">Galleries</a>
-      <a href="/teams.html">Teams</a>
-      <a href="/boys">Boys ▾</a>
-      <a href="/girls">Girls ▾</a>
-      <a href="/college">College ▾</a>
-    </nav>
-    <div class="header-actions">
-      <div class="header-search">
-        <span>🔍</span>
-        <input type="text" placeholder="Search..." id="headerSearchInput">
+
+  <!-- ==================== SITE HEADER ==================== -->
+  <header class="site-header">
+    <div class="header-inner">
+      <!-- Logo -->
+      <a href="/" class="header-logo">
+        <img src="/Ball603widewhite200px.png" alt="Ball603">
+      </a>
+      
+      <!-- Main Navigation -->
+      <nav class="header-nav">
+        <!-- Teams -->
+        <div class="nav-item">
+          <a href="/teams.html" class="nav-link">Teams <span class="nav-arrow">▼</span></a>
+          <div class="nav-dropdown dropdown-mega">
+            <!-- Seacoast -->
+            <div class="dropdown-item-parent">
+              <a href="#" class="dropdown-item">Seacoast</a>
+              <div class="dropdown-submenu teams-grid">
+                <a href="/dover">Dover</a>
+                <a href="/epping">Epping</a>
+                <a href="/exeter">Exeter</a>
+                <a href="/farmington">Farmington</a>
+                <a href="/newmarket">Newmarket</a>
+                <a href="/nute">Nute</a>
+                <a href="/oysterriver">Oyster River</a>
+                <a href="/portsmouth">Portsmouth</a>
+                <a href="/portsmouthchristian">Portsmouth Christian</a>
+                <a href="/raymond">Raymond</a>
+                <a href="/sanborn">Sanborn</a>
+                <a href="/somersworth">Somersworth</a>
+                <a href="/spaulding">Spaulding</a>
+                <a href="/stthomasaquinas">St. Thomas Aquinas</a>
+                <a href="/winnacunnet">Winnacunnet</a>
+                <div class="submenu-footer"><a href="/teams.html?region=seacoast">All Seacoast →</a></div>
+              </div>
+            </div>
+            <!-- Lakes Region -->
+            <div class="dropdown-item-parent">
+              <a href="#" class="dropdown-item">Lakes Region</a>
+              <div class="dropdown-submenu teams-grid">
+                <a href="/belmont">Belmont</a>
+                <a href="/franklin">Franklin</a>
+                <a href="/gilford">Gilford</a>
+                <a href="/interlakes">Inter-Lakes</a>
+                <a href="/kennett">Kennett</a>
+                <a href="/kingswood">Kingswood</a>
+                <a href="/laconia">Laconia</a>
+                <a href="/moultonborough">Moultonborough</a>
+                <a href="/newfound">Newfound</a>
+                <a href="/plymouth">Plymouth</a>
+                <a href="/prospectmountain">Prospect Mountain</a>
+                <a href="/winnisquam">Winnisquam</a>
+                <div class="submenu-footer"><a href="/teams.html?region=lakes">All Lakes Region →</a></div>
+              </div>
+            </div>
+            <!-- Capital Area -->
+            <div class="dropdown-item-parent">
+              <a href="#" class="dropdown-item">Capital Area</a>
+              <div class="dropdown-submenu teams-grid">
+                <a href="/bishopbrady">Bishop Brady</a>
+                <a href="/bow">Bow</a>
+                <a href="/concord">Concord</a>
+                <a href="/concordchristian">Concord Christian</a>
+                <a href="/hopkinton">Hopkinton</a>
+                <a href="/johnstark">John Stark</a>
+                <a href="/kearsarge">Kearsarge</a>
+                <a href="/merrimackvalley">Merrimack Valley</a>
+                <a href="/pembroke">Pembroke</a>
+                <div class="submenu-footer"><a href="/teams.html?region=capital">All Capital Area →</a></div>
+              </div>
+            </div>
+            <!-- Manchester Area -->
+            <div class="dropdown-item-parent">
+              <a href="#" class="dropdown-item">Manchester Area</a>
+              <div class="dropdown-submenu teams-grid">
+                <a href="/bedford">Bedford</a>
+                <a href="/derryfield">Derryfield</a>
+                <a href="/goffstown">Goffstown</a>
+                <a href="/holyfamily">Holy Family</a>
+                <a href="/manchestercentral">Manchester Central</a>
+                <a href="/manchestermemorial">Manchester Memorial</a>
+                <a href="/manchesterwest">Manchester West</a>
+                <a href="/mountroyal">Mount Royal</a>
+                <a href="/trinity">Trinity</a>
+                <div class="submenu-footer"><a href="/teams.html?region=manchester">All Manchester Area →</a></div>
+              </div>
+            </div>
+            <!-- Greater Nashua -->
+            <div class="dropdown-item-parent">
+              <a href="#" class="dropdown-item">Greater Nashua</a>
+              <div class="dropdown-submenu teams-grid">
+                <a href="/bishopguertin">Bishop Guertin</a>
+                <a href="/hollisbrookline">Hollis-Brookline</a>
+                <a href="/milford">Milford</a>
+                <a href="/nashuanorth">Nashua North</a>
+                <a href="/nashuasouth">Nashua South</a>
+                <a href="/pelham">Pelham</a>
+                <a href="/souhegan">Souhegan</a>
+                <a href="/wiltonlyndeborough">Wilton-Lyndeborough</a>
+                <div class="submenu-footer"><a href="/teams.html?region=nashua">All Greater Nashua →</a></div>
+              </div>
+            </div>
+            <!-- North Country -->
+            <div class="dropdown-item-parent">
+              <a href="#" class="dropdown-item">North Country</a>
+              <div class="dropdown-submenu teams-grid">
+                <a href="/berlin">Berlin</a>
+                <a href="/canaan">Canaan</a>
+                <a href="/colebrook">Colebrook</a>
+                <a href="/gorham">Gorham</a>
+                <a href="/groveton">Groveton</a>
+                <a href="/linwood">Lin-Wood</a>
+                <a href="/lisbon">Lisbon</a>
+                <a href="/littleton">Littleton</a>
+                <a href="/pittsburg">Pittsburg</a>
+                <a href="/profile">Profile</a>
+                <a href="/whitemountains">White Mountains</a>
+                <a href="/woodsville">Woodsville</a>
+                <div class="submenu-footer"><a href="/teams.html?region=north">All North Country →</a></div>
+              </div>
+            </div>
+            <!-- Monadnock Region -->
+            <div class="dropdown-item-parent">
+              <a href="#" class="dropdown-item">Monadnock Region</a>
+              <div class="dropdown-submenu teams-grid">
+                <a href="/conant">Conant</a>
+                <a href="/conval">ConVal</a>
+                <a href="/fallmountain">Fall Mountain</a>
+                <a href="/hinsdale">Hinsdale</a>
+                <a href="/keene">Keene</a>
+                <a href="/mascenic">Mascenic</a>
+                <a href="/monadnock">Monadnock</a>
+                <div class="submenu-footer"><a href="/teams.html?region=monadnock">All Monadnock Region →</a></div>
+              </div>
+            </div>
+            <!-- Upper Valley -->
+            <div class="dropdown-item-parent">
+              <a href="#" class="dropdown-item">Upper Valley</a>
+              <div class="dropdown-submenu teams-grid">
+                <a href="/hanover">Hanover</a>
+                <a href="/hillsborodeering">Hillsboro-Deering</a>
+                <a href="/lebanon">Lebanon</a>
+                <a href="/mascoma">Mascoma</a>
+                <a href="/newport">Newport</a>
+                <a href="/stevens">Stevens</a>
+                <a href="/sunapee">Sunapee</a>
+                <div class="submenu-footer"><a href="/teams.html?region=uppervalley">All Upper Valley →</a></div>
+              </div>
+            </div>
+            <!-- Merrimack Valley -->
+            <div class="dropdown-item-parent">
+              <a href="#" class="dropdown-item">Merrimack Valley</a>
+              <div class="dropdown-submenu teams-grid">
+                <a href="/alvirne">Alvirne</a>
+                <a href="/campbell">Campbell</a>
+                <a href="/londonderry">Londonderry</a>
+                <a href="/merrimack">Merrimack</a>
+                <a href="/pinkerton">Pinkerton</a>
+                <a href="/salem">Salem</a>
+                <a href="/timberlane">Timberlane</a>
+                <a href="/windham">Windham</a>
+                <div class="submenu-footer"><a href="/teams.html?region=merrimackvalley">All Merrimack Valley →</a></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Schedule -->
+        <div class="nav-item">
+          <a href="/schedule" class="nav-link">Schedule <span class="nav-arrow">▼</span></a>
+          <div class="nav-dropdown dropdown-split">
+            <div class="dropdown-sections">
+              <div class="dropdown-section">
+                <h4>NHIAA</h4>
+                <a href="/schedule?level=nhiaa&gender=boys">Boys</a>
+                <a href="/schedule?level=nhiaa&gender=girls">Girls</a>
+                <a href="/schedule?level=nhiaa">All NHIAA</a>
+              </div>
+              <div class="dropdown-section">
+                <h4>College</h4>
+                <a href="/schedule?level=college&gender=men">Men</a>
+                <a href="/schedule?level=college&gender=women">Women</a>
+                <a href="/schedule?level=college">All College</a>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Standings -->
+        <div class="nav-item">
+          <a href="/standings" class="nav-link">Standings</a>
+        </div>
+        
+        <!-- Features -->
+        <div class="nav-item">
+          <a href="#" class="nav-link">Features <span class="nav-arrow">▼</span></a>
+          <div class="nav-dropdown">
+            <a href="/jamsession" class="dropdown-item">Jam Session</a>
+            <a href="/1Kinthe603" class="dropdown-item">1K in the 603</a>
+            <a href="/603intheNCAA" class="dropdown-item">603 in the NCAA</a>
+            <a href="/NHIAAhistory" class="dropdown-item">NHIAA History</a>
+            <a href="/thebash" class="dropdown-item">The Bash</a>
+          </div>
+        </div>
+        
+        <!-- News -->
+        <div class="nav-item">
+          <a href="/news" class="nav-link">News</a>
+        </div>
+        
+        <!-- Galleries -->
+        <div class="nav-item">
+          <a href="/galleries" class="nav-link">Galleries</a>
+        </div>
+        
+        <!-- Video -->
+        <div class="nav-item">
+          <a href="/video" class="nav-link">Video</a>
+        </div>
+      </nav>
+      
+      <!-- Right Side -->
+      <div class="header-right">
+        <!-- Social Icons -->
+        <div class="header-social">
+          <a href="https://facebook.com/ball603" target="_blank" title="Facebook">
+            <svg viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+          </a>
+          <a href="https://www.instagram.com/ball603nh/" target="_blank" title="Instagram">
+            <svg viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+          </a>
+          <a href="https://x.com/Ball603NH" target="_blank" title="X (Twitter)">
+            <svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+          </a>
+        </div>
+        
+        <!-- Search -->
+        <div class="header-search">
+          <button class="search-toggle" id="searchToggle" aria-label="Search">
+            <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"/>
+              <path d="m21 21-4.35-4.35"/>
+            </svg>
+            <span>Search</span>
+          </button>
+          <div class="search-dropdown" id="searchDropdown">
+            <div class="search-input-wrap">
+              <span class="search-input-icon">
+                <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="11" cy="11" r="8"/>
+                  <path d="m21 21-4.35-4.35"/>
+                </svg>
+              </span>
+              <input type="text" class="search-input" id="searchInput" placeholder="Search teams, players, news..." autocomplete="off">
+            </div>
+            <div class="search-results" id="searchResults"></div>
+            <div class="search-hint">Try: "Exeter", "Bishop Brady", "1K Club"</div>
+          </div>
+        </div>
+        
+        <!-- Mobile Menu Toggle -->
+        <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Menu">☰</button>
       </div>
-      <button class="btn btn-primary btn-pill" onclick="openMyTeams()">⭐ My Teams</button>
     </div>
   </header>
+
+
+
+  <!-- Mobile Drawer Overlay -->
+  <div class="mobile-drawer-overlay" id="mobileOverlay"></div>
   
-  <!-- Mobile Header -->
-  <header class="header-mobile">
-    <a href="/">
-      <img src="/logo.png" alt="Ball603" class="header-logo" onerror="this.outerHTML='<span class=\'header-logo-text\'><span class=\'ball\'>BALL</span>603</span>'">
-    </a>
-    <div class="header-mobile-actions">
-      <button onclick="openSearch()" title="Search">🔍</button>
-      <button onclick="openMyTeams()" title="My Teams">⭐</button>
+  <!-- Mobile Drawer -->
+  <div class="mobile-drawer" id="mobileDrawer">
+    <div class="mobile-drawer-header">
+      <a href="/">
+        <img src="/Ball603widewhite200px.png" alt="Ball603" style="height: 28px;">
+      </a>
+      <button class="mobile-drawer-close" id="mobileClose" aria-label="Close menu">×</button>
     </div>
-  </header>
-  
+    
+    <nav class="mobile-nav">
+      <div class="mobile-nav-item" data-expandable>
+        <a href="/teams.html" class="mobile-nav-link">
+          Teams
+          <span class="mobile-nav-arrow">▼</span>
+        </a>
+        <div class="mobile-nav-submenu">
+          <a href="/teams.html?region=seacoast">Seacoast</a>
+          <a href="/teams.html?region=lakes">Lakes Region</a>
+          <a href="/teams.html?region=capital">Capital Area</a>
+          <a href="/teams.html?region=manchester">Manchester Area</a>
+          <a href="/teams.html?region=nashua">Greater Nashua</a>
+          <a href="/teams.html?region=north">North Country</a>
+          <a href="/teams.html?region=monadnock">Monadnock Region</a>
+          <a href="/teams.html?region=uppervalley">Upper Valley</a>
+          <a href="/teams.html?region=merrimackvalley">Merrimack Valley</a>
+          <a href="/teams.html">All Teams</a>
+        </div>
+      </div>
+      
+      <div class="mobile-nav-item" data-expandable>
+        <a href="/schedule" class="mobile-nav-link">
+          Schedule
+          <span class="mobile-nav-arrow">▼</span>
+        </a>
+        <div class="mobile-nav-submenu">
+          <a href="/schedule?level=nhiaa&gender=boys">NHIAA Boys</a>
+          <a href="/schedule?level=nhiaa&gender=girls">NHIAA Girls</a>
+          <a href="/schedule?level=college&gender=men">College Men</a>
+          <a href="/schedule?level=college&gender=women">College Women</a>
+          <a href="/schedule">Full Schedule</a>
+        </div>
+      </div>
+      
+      <div class="mobile-nav-item">
+        <a href="/standings" class="mobile-nav-link">Standings</a>
+      </div>
+      
+      <div class="mobile-nav-item" data-expandable>
+        <a href="#" class="mobile-nav-link">
+          Features
+          <span class="mobile-nav-arrow">▼</span>
+        </a>
+        <div class="mobile-nav-submenu">
+          <a href="/jamsession">Jam Session</a>
+          <a href="/1Kinthe603">1K in the 603</a>
+          <a href="/603intheNCAA">603 in the NCAA</a>
+          <a href="/NHIAAhistory">NHIAA History</a>
+          <a href="/thebash">The Bash</a>
+        </div>
+      </div>
+      
+      <div class="mobile-nav-item">
+        <a href="/news" class="mobile-nav-link">News</a>
+      </div>
+      
+      <div class="mobile-nav-item">
+        <a href="/galleries" class="mobile-nav-link">Galleries</a>
+      </div>
+      
+      <div class="mobile-nav-item">
+        <a href="/video" class="mobile-nav-link">Video</a>
+      </div>
+    </nav>
+    
+    <div class="mobile-drawer-footer">
+      <div class="mobile-social">
+        <a href="https://facebook.com/ball603" target="_blank">Facebook</a>
+        <a href="https://www.instagram.com/ball603nh/" target="_blank">Instagram</a>
+        <a href="https://x.com/Ball603NH" target="_blank">X</a>
+      </div>
+    </div>
+  </div>
+
+
   <!-- Main Content -->
   <main class="main-content">
+
     <!-- Controls -->
     <div class="controls">
       <div class="date-nav">
-        <button onclick="prevDay()">◀</button>
+        <button onclick="prevDay()">â—€</button>
         <div class="current-date" id="currentDate">Loading...</div>
-        <button onclick="nextDay()">▶</button>
+        <button onclick="nextDay()">â–¶</button>
       </div>
       <div class="filters">
-        <button class="calendar-btn" onclick="openCalendar()" title="Pick a date">📅</button>
+        <button class="calendar-btn" onclick="openCalendar()" title="Pick a date">ðŸ“…</button>
         <select id="levelFilter" onchange="renderSchedule()">
           <option value="">Level</option>
           <option value="NHIAA">NHIAA</option>
@@ -694,49 +1697,24 @@
         <div class="loading">Loading schedule...</div>
       </div>
     </div>
+  
   </main>
-  
-  <!-- Bottom Navigation (Mobile) -->
-  <nav class="bottom-nav">
-    <div class="bottom-nav-items">
-      <a href="/" class="bottom-nav-item">
-        <span class="bottom-nav-icon">🏠</span>
-        <span>Home</span>
-      </a>
-      <a href="/schedule" class="bottom-nav-item active">
-        <span class="bottom-nav-icon">📅</span>
-        <span>Schedule</span>
-      </a>
-      <a href="/galleries" class="bottom-nav-item">
-        <span class="bottom-nav-icon">📸</span>
-        <span>Galleries</span>
-      </a>
-      <a href="/my-teams" class="bottom-nav-item">
-        <span class="bottom-nav-icon">⭐</span>
-        <span>My Teams</span>
-      </a>
-      <button class="bottom-nav-item" onclick="openMoreMenu()">
-        <span class="bottom-nav-icon">☰</span>
-        <span>More</span>
-      </button>
-    </div>
-  </nav>
-  
-  <!-- Calendar Modal -->
+
+<!-- Calendar Modal -->
   <div class="calendar-overlay" id="calendarOverlay" onclick="closeCalendar(event)">
     <div class="calendar-modal" onclick="event.stopPropagation()">
       <div class="calendar-header">
-        <button onclick="prevMonth()">◀</button>
+        <button onclick="prevMonth()">â—€</button>
         <span class="calendar-month" id="calendarMonth">December 2025</span>
-        <button onclick="nextMonth()">▶</button>
+        <button onclick="nextMonth()">â–¶</button>
       </div>
       <div class="calendar-grid" id="calendarGrid">
         <!-- Days populated by JS -->
       </div>
       <div class="date-range-section">
         <div class="date-range-toggle" onclick="toggleDateRange()">
-          <span>📅 Choose Date Range</span>
-          <span id="dateRangeArrow">▼</span>
+          <span>ðŸ“… Choose Date Range</span>
+          <span id="dateRangeArrow">â–¼</span>
         </div>
         <div class="date-range-inputs" id="dateRangeInputs" style="display: none;">
           <div class="date-range-row">
@@ -753,12 +1731,96 @@
     </div>
   </div>
   
-  <!-- Toast container is created by app.js -->
   
+
+
+  <!-- ==================== SITE FOOTER ==================== -->
+  <footer class="site-footer">
+    <div class="footer-logo">
+      <a href="/"><img src="/logo.png" alt="Ball603"></a>
+    </div>
+    <div class="footer-links">
+      <a href="/about">About Us</a>
+      <a href="/contact">Contact</a>
+    </div>
+    <div class="footer-social">
+      <a href="https://facebook.com/ball603" target="_blank" title="Facebook">
+        <svg viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+      </a>
+      <a href="https://www.instagram.com/ball603nh/" target="_blank" title="Instagram">
+        <svg viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+      </a>
+      <a href="https://x.com/Ball603NH" target="_blank" title="X (Twitter)">
+        <svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+      </a>
+    </div>
+    <div class="footer-copyright">
+      © 2025 Ball603. All rights reserved.
+    </div>
+  </footer>
+
+
+
+  <!-- Header/Footer Scripts -->
+  <script>
+    // ===== Search Toggle =====
+    const searchToggle = document.getElementById('searchToggle');
+    const searchDropdown = document.getElementById('searchDropdown');
+    const searchInputEl = document.getElementById('searchInput');
+    
+    if (searchToggle) {
+      searchToggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        searchDropdown.classList.toggle('active');
+        if (searchDropdown.classList.contains('active')) {
+          searchInputEl.focus();
+        }
+      });
+    }
+    
+    document.addEventListener('click', (e) => {
+      if (searchDropdown && !searchDropdown.contains(e.target) && e.target !== searchToggle) {
+        searchDropdown.classList.remove('active');
+      }
+    });
+    
+    // ===== Mobile Menu =====
+    const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+    const mobileDrawer = document.getElementById('mobileDrawer');
+    const mobileOverlay = document.getElementById('mobileOverlay');
+    const mobileClose = document.getElementById('mobileClose');
+    
+    function openMobileMenu() {
+      mobileDrawer.classList.add('active');
+      mobileOverlay.classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+    
+    function closeMobileMenu() {
+      mobileDrawer.classList.remove('active');
+      mobileOverlay.classList.remove('active');
+      document.body.style.overflow = '';
+    }
+    
+    if (mobileMenuToggle) mobileMenuToggle.addEventListener('click', openMobileMenu);
+    if (mobileClose) mobileClose.addEventListener('click', closeMobileMenu);
+    if (mobileOverlay) mobileOverlay.addEventListener('click', closeMobileMenu);
+    
+    // Expandable mobile nav items
+    document.querySelectorAll('.mobile-nav-item[data-expandable]').forEach(item => {
+      const link = item.querySelector('.mobile-nav-link');
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        item.classList.toggle('expanded');
+      });
+    });
+  </script>
+
+
   <!-- Shared JS -->
   <script src="/app.js"></script>
   
-  <!-- Schedule-specific JS -->
+<!-- Schedule-specific JS -->
   <script>
     // ===== CONSTANTS =====
     const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -1188,10 +2250,10 @@
         
         // Coverage icons
         let coverageHtml = '';
-        if (game.photos_url) coverageHtml += `<a class="coverage-icon" href="${game.photos_url}" target="_blank" title="Photos">📸</a>`;
-        if (game.recap_url) coverageHtml += `<a class="coverage-icon" href="${game.recap_url}" target="_blank" title="Recap">📝</a>`;
-        if (game.highlights_url) coverageHtml += `<a class="coverage-icon" href="${game.highlights_url}" target="_blank" title="Highlights">🎥</a>`;
-        if (game.live_stream_url) coverageHtml += `<a class="coverage-icon" href="${game.live_stream_url}" target="_blank" title="Live Stream">📺</a>`;
+        if (game.photos_url) coverageHtml += `<a class="coverage-icon" href="${game.photos_url}" target="_blank" title="Photos">ðŸ“¸</a>`;
+        if (game.recap_url) coverageHtml += `<a class="coverage-icon" href="${game.recap_url}" target="_blank" title="Recap">ðŸ“</a>`;
+        if (game.highlights_url) coverageHtml += `<a class="coverage-icon" href="${game.highlights_url}" target="_blank" title="Highlights">ðŸŽ¥</a>`;
+        if (game.live_stream_url) coverageHtml += `<a class="coverage-icon" href="${game.live_stream_url}" target="_blank" title="Live Stream">ðŸ“º</a>`;
         
         // Special event (no teams)
         if (game.specialevent && !game.away && !game.home) {
@@ -1387,7 +2449,7 @@
       const arrow = document.getElementById('dateRangeArrow');
       if (inputs.style.display === 'none') {
         inputs.style.display = 'block';
-        arrow.textContent = '▲';
+        arrow.textContent = 'â–²';
         const today = new Date();
         document.getElementById('dateRangeStart').value = getDateString(today);
         const nextWeek = new Date(today);
@@ -1395,7 +2457,7 @@
         document.getElementById('dateRangeEnd').value = getDateString(nextWeek);
       } else {
         inputs.style.display = 'none';
-        arrow.textContent = '▼';
+        arrow.textContent = 'â–¼';
       }
     }
     
