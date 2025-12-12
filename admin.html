@@ -309,6 +309,7 @@
       <button class="tab" onclick="showTab('rosters')">Rosters</button>
       <button class="tab" onclick="showTab('bash')">The Bash</button>
       <button class="tab" onclick="showTab('graphics')">🎨 Graphics</button>
+      <button class="tab" onclick="showTab('galleries')">📷 Galleries</button>
     </div>
     
     <!-- Articles List Panel -->
@@ -2854,6 +2855,38 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     </div>
   </div>
   
+  <!-- Galleries Manager Panel -->
+  <div class="panel" id="galleriesPanel" style="display: none;">
+    <div class="toolbar" style="flex-wrap: wrap; gap: 10px; margin-bottom: 20px;">
+      <h2 style="margin: 0; font-size: 18px; color: #333;">📷 Gallery Manager</h2>
+      <p style="margin: 0; color: #666; font-size: 13px; margin-left: 15px;">Tag SmugMug galleries to teams for display on team pages</p>
+      <button class="btn-new" onclick="loadGalleryAlbums()" style="margin-left: auto;">
+        <span>🔄</span> Refresh
+      </button>
+    </div>
+    
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+      <!-- Left Panel: Album Browser -->
+      <div style="background: #f9f9f9; border-radius: 8px; padding: 15px;">
+        <h3 style="margin: 0 0 12px 0; font-size: 14px; color: #555;">SmugMug Albums</h3>
+        <input type="text" id="galleryAlbumSearch" placeholder="Search albums..." oninput="filterGalleryAlbums(this.value)" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; margin-bottom: 12px;">
+        <div id="galleryAlbumList" style="max-height: 550px; overflow-y: auto; border: 1px solid #eee; border-radius: 6px; background: #fff;">
+          <div class="loading">Loading albums...</div>
+        </div>
+      </div>
+      
+      <!-- Right Panel: Team Tagging -->
+      <div style="background: #f9f9f9; border-radius: 8px; padding: 15px;">
+        <h3 style="margin: 0 0 12px 0; font-size: 14px; color: #555;">Tag to Teams</h3>
+        <div id="galleryTagPanel">
+          <div style="text-align: center; padding: 60px 20px; color: #999;">
+            Select an album from the left to tag it to teams
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
   <!-- SmugMug Photo Browser Modal (for individual photos) -->
   <div class="modal-overlay" id="smugmugPhotoModal">
     <div class="modal" style="max-width: 900px;">
@@ -3604,6 +3637,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('rostersPanel').style.display = tab === 'rosters' ? 'block' : 'none';
       document.getElementById('bashPanel').style.display = tab === 'bash' ? 'block' : 'none';
       document.getElementById('graphicsPanel').style.display = tab === 'graphics' ? 'block' : 'none';
+      document.getElementById('galleriesPanel').style.display = tab === 'galleries' ? 'block' : 'none';
       document.getElementById('editorPanel').style.display = 'none';
       
       // Load teams when tab is selected
@@ -3634,6 +3668,11 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       // Initialize Graphics Creator when tab is selected
       if (tab === 'graphics') {
         initGraphicCreator();
+      }
+      
+      // Load Gallery Manager when tab is selected
+      if (tab === 'galleries' && galleryAlbums.length === 0) {
+        loadGalleryAlbums();
       }
     }
     
@@ -10296,6 +10335,282 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         closeSmugMugPhotoBrowser();
       } else {
         showToast('Could not load image URL', 'error');
+      }
+    }
+    
+    // ===== GALLERY MANAGER =====
+    
+    // All NHIAA teams organized by division
+    const GALLERY_TEAMS_BY_DIVISION = {
+      'D-I': ['Bedford', 'Bishop Guertin', 'Concord', 'Dover', 'Exeter', 'Goffstown', 'Londonderry', 'Manchester Central', 'Manchester Memorial', 'Merrimack', 'Nashua North', 'Nashua South', 'Pinkerton', 'Salem', 'Timberlane', 'Winnacunnet'],
+      'D-II': ['Bow', 'Coe-Brown', 'Hanover', 'Hollis-Brookline', 'John Stark', 'Keene', 'Kennett', 'Kingswood', 'Laconia', 'Lebanon', 'Merrimack Valley', 'Milford', 'Oyster River', 'Pelham', 'Pembroke', 'Plymouth', 'Portsmouth', 'Souhegan', 'Spaulding', 'Windham'],
+      'D-III': ['Belmont', 'Berlin', 'Bishop Brady', 'Campbell', 'ConVal', 'Derryfield', 'Fall Mountain', 'Franklin', 'Gilford', 'Hillsboro-Deering', 'Hopkinton', 'Inter-Lakes', 'Kearsarge', 'Mascenic', 'Mascoma Valley', 'Monadnock', 'Newfound', 'Newport', 'Prospect Mountain', 'Raymond', 'Sanborn', 'Somersworth', 'St. Thomas Aquinas', 'Stevens', 'Trinity', 'White Mountains', 'Winnisquam'],
+      'D-IV': ['Colebrook', 'Concord Christian', 'Epping', 'Farmington', 'Gorham', 'Groveton', 'Hinsdale', 'Lin-Wood', 'Lisbon', 'Littleton', 'Moultonborough', 'Mount Royal', 'Newmarket', 'Nute', 'Pittsburg-Canaan', 'Portsmouth Christian', 'Profile', 'Sunapee', 'Wilton-Lyndeborough', 'Woodsville']
+    };
+    
+    const ALL_GALLERY_TEAMS = [...new Set(Object.values(GALLERY_TEAMS_BY_DIVISION).flat())].sort();
+    
+    function teamToSlug(team) {
+      return team.toLowerCase().replace(/[^a-z0-9]/g, '');
+    }
+    
+    let galleryAlbums = [];
+    let selectedGalleryAlbum = null;
+    let galleryExistingTags = {};
+    
+    async function loadGalleryAlbums() {
+      const container = document.getElementById('galleryAlbumList');
+      container.innerHTML = '<div class="loading">Loading albums...</div>';
+      
+      try {
+        const { data: albums, error } = await supabase
+          .from('smugmug_albums')
+          .select('*')
+          .order('album_date', { ascending: false });
+        
+        if (error) throw error;
+        
+        galleryAlbums = albums || [];
+        
+        // Also load existing tags
+        await loadGalleryExistingTags();
+        
+        renderGalleryAlbumList();
+      } catch (err) {
+        console.error('Error loading albums:', err);
+        container.innerHTML = '<div class="loading">Error loading albums</div>';
+      }
+    }
+    
+    async function loadGalleryExistingTags() {
+      try {
+        const { data: tags, error } = await supabase
+          .from('team_galleries')
+          .select('*');
+        
+        if (error) throw error;
+        
+        galleryExistingTags = {};
+        for (const tag of (tags || [])) {
+          if (!galleryExistingTags[tag.album_key]) {
+            galleryExistingTags[tag.album_key] = [];
+          }
+          galleryExistingTags[tag.album_key].push(tag.team_slug);
+        }
+      } catch (err) {
+        console.error('Error loading tags:', err);
+      }
+    }
+    
+    function renderGalleryAlbumList(filter = '') {
+      const container = document.getElementById('galleryAlbumList');
+      const filterLower = filter.toLowerCase();
+      
+      const filtered = galleryAlbums.filter(a => 
+        !filter || a.name.toLowerCase().includes(filterLower)
+      );
+      
+      if (filtered.length === 0) {
+        container.innerHTML = '<div style="padding: 20px; text-align: center; color: #888;">No albums found</div>';
+        return;
+      }
+      
+      container.innerHTML = filtered.map(album => {
+        const tags = galleryExistingTags[album.album_key] || [];
+        const isSelected = selectedGalleryAlbum?.album_key === album.album_key;
+        const date = album.album_date ? new Date(album.album_date).toLocaleDateString() : '';
+        
+        return `
+          <div class="gallery-album-item" onclick="selectGalleryAlbum('${album.album_key}')" style="display: flex; align-items: center; gap: 10px; padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; ${isSelected ? 'background: #fff3e0; border-left: 3px solid #f57c00;' : ''}" onmouseover="this.style.background='${isSelected ? '#fff3e0' : '#f5f5f5'}'" onmouseout="this.style.background='${isSelected ? '#fff3e0' : ''}'">
+            <img src="${album.thumbnail_url || ''}" alt="" style="width: 50px; height: 35px; object-fit: cover; border-radius: 4px; background: #eee;" onerror="this.style.display='none'">
+            <div style="flex: 1; min-width: 0;">
+              <div style="font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${album.name}</div>
+              <div style="font-size: 11px; color: #888;">${date} • ${album.image_count || 0} photos</div>
+              ${tags.length > 0 ? `
+                <div style="display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px;">
+                  ${tags.slice(0, 3).map(t => `<span style="font-size: 9px; background: #e0e0e0; padding: 2px 5px; border-radius: 8px;">${t}</span>`).join('')}
+                  ${tags.length > 3 ? `<span style="font-size: 9px; background: #e0e0e0; padding: 2px 5px; border-radius: 8px;">+${tags.length - 3}</span>` : ''}
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+    
+    function filterGalleryAlbums(value) {
+      renderGalleryAlbumList(value);
+    }
+    
+    function selectGalleryAlbum(albumKey) {
+      selectedGalleryAlbum = galleryAlbums.find(a => a.album_key === albumKey);
+      renderGalleryAlbumList(document.getElementById('galleryAlbumSearch').value);
+      renderGalleryTagPanel();
+    }
+    
+    function renderGalleryTagPanel() {
+      const panel = document.getElementById('galleryTagPanel');
+      
+      if (!selectedGalleryAlbum) {
+        panel.innerHTML = '<div style="text-align: center; padding: 60px 20px; color: #999;">Select an album from the left to tag it to teams</div>';
+        return;
+      }
+      
+      const currentTags = galleryExistingTags[selectedGalleryAlbum.album_key] || [];
+      
+      panel.innerHTML = `
+        <div style="background: #fff; border-radius: 6px; padding: 12px; margin-bottom: 15px; border: 1px solid #eee;">
+          <div style="font-weight: 500; font-size: 14px;">${selectedGalleryAlbum.name}</div>
+          <div style="font-size: 12px; color: #666; margin-top: 4px;">
+            ${selectedGalleryAlbum.image_count || 0} photos • 
+            <a href="${selectedGalleryAlbum.url}" target="_blank" style="color: #1565c0;">View on SmugMug</a>
+          </div>
+        </div>
+        
+        <div style="margin-bottom: 15px;">
+          <div style="font-size: 12px; font-weight: 600; color: #555; margin-bottom: 8px;">Quick Select</div>
+          <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+            <button onclick="gallerySelectAll()" style="padding: 5px 10px; font-size: 11px; border: 1px solid #ddd; background: #fff; border-radius: 4px; cursor: pointer;">All Teams</button>
+            <button onclick="gallerySelectNone()" style="padding: 5px 10px; font-size: 11px; border: 1px solid #ddd; background: #fff; border-radius: 4px; cursor: pointer;">Clear All</button>
+            <button onclick="gallerySelectDivision('D-I')" style="padding: 5px 10px; font-size: 11px; border: 1px solid #ddd; background: #fff; border-radius: 4px; cursor: pointer;">All D-I</button>
+            <button onclick="gallerySelectDivision('D-II')" style="padding: 5px 10px; font-size: 11px; border: 1px solid #ddd; background: #fff; border-radius: 4px; cursor: pointer;">All D-II</button>
+            <button onclick="gallerySelectDivision('D-III')" style="padding: 5px 10px; font-size: 11px; border: 1px solid #ddd; background: #fff; border-radius: 4px; cursor: pointer;">All D-III</button>
+            <button onclick="gallerySelectDivision('D-IV')" style="padding: 5px 10px; font-size: 11px; border: 1px solid #ddd; background: #fff; border-radius: 4px; cursor: pointer;">All D-IV</button>
+          </div>
+        </div>
+        
+        <div style="margin-bottom: 15px;">
+          <div style="font-size: 12px; font-weight: 600; color: #555; margin-bottom: 8px;">Select Teams</div>
+          <div style="max-height: 280px; overflow-y: auto; border: 1px solid #eee; border-radius: 6px; padding: 10px; background: #fff;">
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px;">
+              ${ALL_GALLERY_TEAMS.map(team => {
+                const slug = teamToSlug(team);
+                const checked = currentTags.includes(slug) ? 'checked' : '';
+                return `
+                  <label style="display: flex; align-items: center; gap: 5px; font-size: 12px; cursor: pointer; padding: 3px;">
+                    <input type="checkbox" name="galleryTeam" value="${slug}" ${checked} style="accent-color: #f57c00;">
+                    ${team}
+                  </label>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        </div>
+        
+        <div style="display: flex; gap: 10px;">
+          <button onclick="saveGalleryTags()" style="flex: 1; padding: 10px; background: #f57c00; color: #fff; border: none; border-radius: 5px; cursor: pointer; font-weight: 500;">Save Tags</button>
+          <button onclick="selectedGalleryAlbum=null; renderGalleryTagPanel();" style="padding: 10px 15px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 5px; cursor: pointer;">Cancel</button>
+        </div>
+        
+        <div id="galleryStatusMessage" style="margin-top: 10px;"></div>
+        
+        ${currentTags.length > 0 ? `
+          <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #eee;">
+            <div style="font-size: 12px; font-weight: 600; color: #555; margin-bottom: 8px;">Current Tags (${currentTags.length})</div>
+            <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+              ${currentTags.map(slug => `
+                <span style="display: flex; align-items: center; gap: 4px; background: #e8f5e9; padding: 4px 8px; border-radius: 12px; font-size: 11px;">
+                  ${slug}
+                  <button onclick="removeGalleryTag('${slug}')" style="background: none; border: none; color: #c62828; cursor: pointer; font-size: 14px; line-height: 1; padding: 0;">×</button>
+                </span>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+      `;
+    }
+    
+    function gallerySelectAll() {
+      document.querySelectorAll('input[name="galleryTeam"]').forEach(cb => cb.checked = true);
+    }
+    
+    function gallerySelectNone() {
+      document.querySelectorAll('input[name="galleryTeam"]').forEach(cb => cb.checked = false);
+    }
+    
+    function gallerySelectDivision(div) {
+      const divisionTeams = new Set(GALLERY_TEAMS_BY_DIVISION[div].map(t => teamToSlug(t)));
+      document.querySelectorAll('input[name="galleryTeam"]').forEach(cb => {
+        if (divisionTeams.has(cb.value)) {
+          cb.checked = true;
+        }
+      });
+    }
+    
+    async function saveGalleryTags() {
+      if (!selectedGalleryAlbum) return;
+      
+      const selectedTeams = Array.from(document.querySelectorAll('input[name="galleryTeam"]:checked'))
+        .map(cb => cb.value);
+      
+      const currentTags = galleryExistingTags[selectedGalleryAlbum.album_key] || [];
+      
+      const toAdd = selectedTeams.filter(t => !currentTags.includes(t));
+      const toRemove = currentTags.filter(t => !selectedTeams.includes(t));
+      
+      const statusEl = document.getElementById('galleryStatusMessage');
+      
+      try {
+        // Remove unselected tags
+        if (toRemove.length > 0) {
+          for (const slug of toRemove) {
+            await supabase
+              .from('team_galleries')
+              .delete()
+              .eq('album_key', selectedGalleryAlbum.album_key)
+              .eq('team_slug', slug);
+          }
+        }
+        
+        // Add new tags
+        if (toAdd.length > 0) {
+          const newTags = toAdd.map(slug => ({
+            album_key: selectedGalleryAlbum.album_key,
+            team_slug: slug,
+            added_by: 'cms'
+          }));
+          
+          await supabase
+            .from('team_galleries')
+            .upsert(newTags, { onConflict: 'album_key,team_slug' });
+        }
+        
+        // Update local state
+        galleryExistingTags[selectedGalleryAlbum.album_key] = selectedTeams;
+        
+        statusEl.innerHTML = '<div style="padding: 8px; background: #e8f5e9; color: #2e7d32; border-radius: 4px; font-size: 12px;">✓ Saved! Added ' + toAdd.length + ', removed ' + toRemove.length + ' tags.</div>';
+        
+        renderGalleryAlbumList(document.getElementById('galleryAlbumSearch').value);
+        
+        setTimeout(() => {
+          renderGalleryTagPanel();
+        }, 1500);
+        
+      } catch (err) {
+        console.error('Error saving tags:', err);
+        statusEl.innerHTML = '<div style="padding: 8px; background: #ffebee; color: #c62828; border-radius: 4px; font-size: 12px;">Error saving tags. Please try again.</div>';
+      }
+    }
+    
+    async function removeGalleryTag(slug) {
+      if (!selectedGalleryAlbum) return;
+      
+      try {
+        await supabase
+          .from('team_galleries')
+          .delete()
+          .eq('album_key', selectedGalleryAlbum.album_key)
+          .eq('team_slug', slug);
+        
+        const tags = galleryExistingTags[selectedGalleryAlbum.album_key] || [];
+        galleryExistingTags[selectedGalleryAlbum.album_key] = tags.filter(t => t !== slug);
+        
+        renderGalleryAlbumList(document.getElementById('galleryAlbumSearch').value);
+        renderGalleryTagPanel();
+        
+      } catch (err) {
+        console.error('Error removing tag:', err);
+        showToast('Error removing tag', 'error');
       }
     }
   </script>
