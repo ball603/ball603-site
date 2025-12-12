@@ -1126,12 +1126,33 @@
           teamData.galleries = matchingAlbums.map(album => ({
             id: album.key,
             title: album.name,
-            thumbnail: album.highlightImage || null,
+            thumbnail: null, // Will be fetched separately
             url: album.url,
             date: album.date,
             photoCount: album.imageCount,
             source: 'smugmug'
           }));
+          
+          // Render immediately with placeholders, then fetch thumbnails
+          renderGalleries();
+          
+          // Fetch thumbnails in parallel (limit to first 20 to avoid too many requests)
+          const galleriesWithThumbs = teamData.galleries.slice(0, 20);
+          const thumbPromises = galleriesWithThumbs.map(async (gallery) => {
+            try {
+              const thumbResponse = await fetch(`/.netlify/functions/smugmug?action=albumThumb&albumKey=${gallery.id}`);
+              const thumbData = await thumbResponse.json();
+              if (thumbData.success && thumbData.thumbnailUrl) {
+                gallery.thumbnail = thumbData.thumbnailUrl;
+              }
+            } catch (err) {
+              console.warn('Failed to fetch thumbnail for', gallery.id);
+            }
+          });
+          
+          // Re-render as thumbnails come in
+          await Promise.all(thumbPromises);
+          renderGalleries();
         }
       } catch (err) {
         console.error('Error loading galleries:', err);
