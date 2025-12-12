@@ -1122,52 +1122,57 @@
         
         if (error) throw error;
         
-        if (albums && albums.length > 0) {
-          // Filter albums that contain team name in title
-          const matchingAlbums = albums.filter(album => {
-            const title = (album.name || '').toLowerCase();
-            return TEAM_CONFIG.nameVariations.some(variation => 
-              title.includes(variation.toLowerCase())
-            );
-          });
-          
-          // Also get manually tagged galleries for this team
-          const { data: manualGalleries } = await supabase
-            .from('team_galleries')
-            .select('album_key')
-            .eq('team_slug', TEAM_CONFIG.slug);
-          
-          const manualAlbumKeys = new Set((manualGalleries || []).map(g => g.album_key));
-          
-          // Add any manually tagged albums not already in the list
-          const manualAlbums = albums.filter(a => 
-            manualAlbumKeys.has(a.album_key) && 
-            !matchingAlbums.find(m => m.album_key === a.album_key)
-          );
-          
-          const allMatching = [...matchingAlbums, ...manualAlbums];
-          
-          // Sort by date descending
-          allMatching.sort((a, b) => new Date(b.album_date) - new Date(a.album_date));
-          
-          // Map to gallery format
-          teamData.galleries = allMatching.map(album => ({
-            id: album.album_key,
-            title: album.name,
-            thumbnail: album.thumbnail_url,
-            url: album.url,
-            date: album.album_date,
-            photoCount: album.image_count,
-            source: 'supabase'
-          }));
+        // If table is empty, fallback to direct SmugMug
+        if (!albums || albums.length === 0) {
+          console.log('Supabase albums cache empty, falling back to SmugMug API');
+          await loadGalleriesFromSmugMug();
+          return;
         }
+        
+        // Filter albums that contain team name in title
+        const matchingAlbums = albums.filter(album => {
+          const title = (album.name || '').toLowerCase();
+          return TEAM_CONFIG.nameVariations.some(variation => 
+            title.includes(variation.toLowerCase())
+          );
+        });
+        
+        // Also get manually tagged galleries for this team
+        const { data: manualGalleries } = await supabase
+          .from('team_galleries')
+          .select('album_key')
+          .eq('team_slug', TEAM_CONFIG.slug);
+        
+        const manualAlbumKeys = new Set((manualGalleries || []).map(g => g.album_key));
+        
+        // Add any manually tagged albums not already in the list
+        const manualAlbums = albums.filter(a => 
+          manualAlbumKeys.has(a.album_key) && 
+          !matchingAlbums.find(m => m.album_key === a.album_key)
+        );
+        
+        const allMatching = [...matchingAlbums, ...manualAlbums];
+        
+        // Sort by date descending
+        allMatching.sort((a, b) => new Date(b.album_date) - new Date(a.album_date));
+        
+        // Map to gallery format
+        teamData.galleries = allMatching.map(album => ({
+          id: album.album_key,
+          title: album.name,
+          thumbnail: album.thumbnail_url,
+          url: album.url,
+          date: album.album_date,
+          photoCount: album.image_count,
+          source: 'supabase'
+        }));
+        
+        renderGalleries();
       } catch (err) {
         console.error('Error loading galleries from Supabase:', err);
         // Fallback to direct SmugMug if Supabase fails
         await loadGalleriesFromSmugMug();
       }
-      
-      renderGalleries();
     }
     
     // Fallback: Load directly from SmugMug API
@@ -1187,12 +1192,32 @@
           teamData.galleries = matchingAlbums.map(album => ({
             id: album.key,
             title: album.name,
-            thumbnail: album.highlightImage || null,
+            thumbnail: null,
             url: album.url,
             date: album.date,
             photoCount: album.imageCount,
             source: 'smugmug'
           }));
+          
+          // Render immediately, then fetch thumbnails
+          renderGalleries();
+          
+          // Fetch thumbnails in parallel (limit to first 20)
+          const galleriesWithThumbs = teamData.galleries.slice(0, 20);
+          await Promise.all(galleriesWithThumbs.map(async (gallery) => {
+            try {
+              const thumbResponse = await fetch(`/.netlify/functions/smugmug?action=albumThumb&albumKey=${gallery.id}`);
+              const thumbData = await thumbResponse.json();
+              if (thumbData.success && thumbData.thumbnailUrl) {
+                gallery.thumbnail = thumbData.thumbnailUrl;
+              }
+            } catch (err) {
+              console.warn('Failed to fetch thumbnail for', gallery.id);
+            }
+          }));
+          
+          // Re-render with thumbnails
+          renderGalleries();
         }
       } catch (err) {
         console.error('Error loading galleries from SmugMug:', err);
