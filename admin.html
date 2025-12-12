@@ -1545,14 +1545,109 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     
     <!-- Sponsors Panel -->
     <div class="panel" id="sponsorsPanel" style="display: none;">
-      <div class="toolbar">
-        <button class="btn-new" onclick="newSponsor()">
+      <div class="toolbar" style="flex-wrap: wrap; gap: 10px;">
+        <button class="btn-new" onclick="openSponsorModal()">
           <span>+</span> Add Sponsor
         </button>
+        <div style="margin-left: auto; display: flex; gap: 10px; align-items: center;">
+          <select id="sponsorTeamFilter" onchange="filterSponsors()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px;">
+            <option value="">All Teams</option>
+          </select>
+          <select id="sponsorStatusFilter" onchange="filterSponsors()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px;">
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+            <option value="all">All</option>
+          </select>
+          <input type="text" id="sponsorSearchBox" placeholder="Search sponsors..." oninput="filterSponsors()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px; width: 150px;">
+        </div>
       </div>
-      <div id="sponsorList">
-        <div class="empty-state">
-          <p>No sponsors yet</p>
+      
+      <div class="article-list" id="sponsorList" style="margin-top: 15px;">
+        <div class="article-row header" style="grid-template-columns: 80px 1fr 150px 100px 100px 120px;">
+          <div>Logo</div>
+          <div>Sponsor</div>
+          <div>Team</div>
+          <div>Tier</div>
+          <div>Status</div>
+          <div>Actions</div>
+        </div>
+        <div class="loading">Loading sponsors...</div>
+      </div>
+    </div>
+    
+    <!-- Sponsor Modal -->
+    <div id="sponsorModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+      <div style="background: white; padding: 30px; border-radius: 12px; max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto;">
+        <h2 style="margin-top: 0; margin-bottom: 20px;" id="sponsorModalTitle">Add Sponsor</h2>
+        <input type="hidden" id="sponsorId">
+        
+        <div class="form-group" style="margin-bottom: 15px;">
+          <label>Sponsor Name *</label>
+          <input type="text" id="sponsorName" placeholder="Company name..." style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 15px;">
+          <label>Logo URL *</label>
+          <div style="display: flex; gap: 10px;">
+            <input type="text" id="sponsorLogoUrl" placeholder="https://..." style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+            <button onclick="browseSponsorLogo()" style="padding: 10px 15px; background: #e3f2fd; color: #1565c0; border: none; border-radius: 5px; cursor: pointer;">Browse</button>
+          </div>
+          <div id="sponsorLogoPreview" style="margin-top: 10px; display: none;">
+            <img id="sponsorLogoImg" src="" alt="Preview" style="max-width: 200px; max-height: 80px; border: 1px solid #ddd; border-radius: 4px;">
+          </div>
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 15px;">
+          <label>Website URL</label>
+          <input type="text" id="sponsorWebsite" placeholder="https://..." style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+          <div class="form-group">
+            <label>Team *</label>
+            <select id="sponsorTeam" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+              <option value="">Select team...</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Tier</label>
+            <select id="sponsorTier" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+              <option value="standard">Standard</option>
+              <option value="premium">Premium</option>
+              <option value="presenting">Presenting</option>
+            </select>
+          </div>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+          <div class="form-group">
+            <label>Start Date</label>
+            <input type="date" id="sponsorStartDate" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+          </div>
+          <div class="form-group">
+            <label>End Date</label>
+            <input type="date" id="sponsorEndDate" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+          </div>
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 15px;">
+          <label>Notes</label>
+          <textarea id="sponsorNotes" rows="2" placeholder="Internal notes..." style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-family: inherit;"></textarea>
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="sponsorActive" checked style="width: 18px; height: 18px;">
+            <span>Active</span>
+          </label>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; padding-top: 15px; border-top: 1px solid #eee;">
+          <button id="sponsorDeleteBtn" onclick="deleteSponsor()" style="padding: 10px 20px; background: #ffebee; color: #c62828; border: none; border-radius: 5px; cursor: pointer; display: none;">Delete</button>
+          <div style="display: flex; gap: 10px; margin-left: auto;">
+            <button onclick="closeSponsorModal()" style="padding: 10px 20px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 5px; cursor: pointer;">Cancel</button>
+            <button onclick="saveSponsor()" style="padding: 10px 20px; background: #f57c00; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500;">Save Sponsor</button>
+          </div>
         </div>
       </div>
     </div>
@@ -3673,6 +3768,11 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       // Load Gallery Manager when tab is selected
       if (tab === 'galleries' && galleryAlbums.length === 0) {
         loadGalleryAlbums();
+      }
+      
+      // Load Sponsors when tab is selected
+      if (tab === 'sponsors' && allSponsors.length === 0) {
+        loadSponsors();
       }
     }
     
@@ -10613,6 +10713,312 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         showToast('Error removing tag', 'error');
       }
     }
+    
+    // ===== SPONSORS MANAGER =====
+    
+    const SPONSOR_TEAMS = [
+      'Alvirne', 'Bedford', 'Belmont', 'Berlin', 'Bishop Brady', 'Bishop Guertin', 'Bow', 'Campbell',
+      'Coe-Brown', 'Colebrook', 'Conant', 'Concord', 'Concord Christian', 'ConVal', 'Derryfield', 'Dover',
+      'Epping', 'Exeter', 'Fall Mountain', 'Farmington', 'Franklin', 'Gilford', 'Goffstown', 'Gorham',
+      'Groveton', 'Hanover', 'Hillsboro-Deering', 'Hinsdale', 'Hollis-Brookline', 'Holy Family', 'Hopkinton',
+      'Inter-Lakes', 'John Stark', 'Kearsarge', 'Keene', 'Kennett', 'Kingswood', 'Laconia', 'Lebanon',
+      'Lin-Wood', 'Lisbon', 'Littleton', 'Londonderry', 'Manchester Central', 'Manchester Memorial',
+      'Manchester West', 'Mascenic', 'Mascoma Valley', 'Merrimack', 'Merrimack Valley', 'Milford',
+      'Monadnock', 'Moultonborough', 'Mount Royal', 'Nashua North', 'Nashua South', 'Newfound', 'Newmarket',
+      'Newport', 'Nute', 'Oyster River', 'Pelham', 'Pembroke', 'Pinkerton', 'Pittsburg-Canaan', 'Plymouth',
+      'Portsmouth', 'Portsmouth Christian', 'Profile', 'Prospect Mountain', 'Raymond', 'Salem', 'Sanborn',
+      'Somersworth', 'Souhegan', 'Spaulding', 'Stevens', 'St. Thomas Aquinas', 'Sunapee', 'Timberlane',
+      'Trinity', 'White Mountains', 'Wilton-Lyndeborough', 'Windham', 'Winnacunnet', 'Winnisquam', 'Woodsville'
+    ];
+    
+    let allSponsors = [];
+    
+    async function loadSponsors() {
+      const container = document.getElementById('sponsorList');
+      
+      try {
+        const { data, error } = await supabase
+          .from('sponsors')
+          .select('*')
+          .order('team_shortname', { ascending: true });
+        
+        if (error) throw error;
+        
+        allSponsors = data || [];
+        
+        // Populate team filter
+        populateSponsorTeamFilter();
+        
+        renderSponsorList();
+      } catch (err) {
+        console.error('Error loading sponsors:', err);
+        container.innerHTML = '<div class="loading">Error loading sponsors</div>';
+      }
+    }
+    
+    function populateSponsorTeamFilter() {
+      const teamFilter = document.getElementById('sponsorTeamFilter');
+      const teamSelect = document.getElementById('sponsorTeam');
+      
+      // Get unique teams from sponsors
+      const teamsWithSponsors = [...new Set(allSponsors.map(s => s.team_shortname))].sort();
+      
+      // Team filter dropdown
+      teamFilter.innerHTML = '<option value="">All Teams</option>' + 
+        teamsWithSponsors.map(t => `<option value="${t}">${t}</option>`).join('');
+      
+      // Team select in modal
+      teamSelect.innerHTML = '<option value="">Select team...</option>' + 
+        SPONSOR_TEAMS.map(t => `<option value="${t}">${t}</option>`).join('');
+    }
+    
+    function filterSponsors() {
+      renderSponsorList();
+    }
+    
+    function renderSponsorList() {
+      const container = document.getElementById('sponsorList');
+      const teamFilter = document.getElementById('sponsorTeamFilter').value;
+      const statusFilter = document.getElementById('sponsorStatusFilter').value;
+      const searchFilter = document.getElementById('sponsorSearchBox').value.toLowerCase();
+      
+      let filtered = allSponsors;
+      
+      if (teamFilter) {
+        filtered = filtered.filter(s => s.team_shortname === teamFilter);
+      }
+      
+      if (statusFilter === 'active') {
+        filtered = filtered.filter(s => s.active);
+      } else if (statusFilter === 'inactive') {
+        filtered = filtered.filter(s => !s.active);
+      }
+      
+      if (searchFilter) {
+        filtered = filtered.filter(s => 
+          s.name.toLowerCase().includes(searchFilter) ||
+          s.team_shortname.toLowerCase().includes(searchFilter)
+        );
+      }
+      
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="article-row header" style="grid-template-columns: 80px 1fr 150px 100px 100px 120px;">
+            <div>Logo</div>
+            <div>Sponsor</div>
+            <div>Team</div>
+            <div>Tier</div>
+            <div>Status</div>
+            <div>Actions</div>
+          </div>
+          <div class="empty-state">
+            <p>No sponsors found</p>
+          </div>
+        `;
+        return;
+      }
+      
+      container.innerHTML = `
+        <div class="article-row header" style="grid-template-columns: 80px 1fr 150px 100px 100px 120px;">
+          <div>Logo</div>
+          <div>Sponsor</div>
+          <div>Team</div>
+          <div>Tier</div>
+          <div>Status</div>
+          <div>Actions</div>
+        </div>
+        ${filtered.map(sponsor => `
+          <div class="article-row" style="grid-template-columns: 80px 1fr 150px 100px 100px 120px;">
+            <div>
+              <img src="${sponsor.logo_url}" alt="${sponsor.name}" style="max-width: 70px; max-height: 35px; object-fit: contain; border-radius: 4px;" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 50%22><rect fill=%22%23f5f5f5%22 width=%22100%22 height=%2250%22/><text x=%2250%22 y=%2230%22 text-anchor=%22middle%22 fill=%22%23999%22 font-size=%2212%22>No Logo</text></svg>'">
+            </div>
+            <div>
+              <div class="article-title" onclick="editSponsor('${sponsor.id}')">${sponsor.name}</div>
+              ${sponsor.url ? `<div style="font-size: 11px; color: #888;"><a href="${sponsor.url}" target="_blank">${sponsor.url.replace('https://', '').substring(0, 30)}...</a></div>` : ''}
+            </div>
+            <div style="font-size: 13px;">${sponsor.team_shortname}</div>
+            <div><span style="font-size: 11px; padding: 3px 8px; border-radius: 10px; background: ${sponsor.tier === 'premium' ? '#fff3e0' : sponsor.tier === 'presenting' ? '#e8f5e9' : '#f5f5f5'}; color: ${sponsor.tier === 'premium' ? '#e65100' : sponsor.tier === 'presenting' ? '#2e7d32' : '#666'};">${sponsor.tier || 'standard'}</span></div>
+            <div><span class="article-status ${sponsor.active ? 'published' : 'draft'}">${sponsor.active ? 'Active' : 'Inactive'}</span></div>
+            <div class="article-actions">
+              <button class="btn-edit" onclick="editSponsor('${sponsor.id}')">Edit</button>
+              <button class="btn-delete" onclick="confirmDeleteSponsor('${sponsor.id}', '${sponsor.name.replace(/'/g, "\\'")}')">Delete</button>
+            </div>
+          </div>
+        `).join('')}
+      `;
+    }
+    
+    function openSponsorModal(sponsor = null) {
+      document.getElementById('sponsorModal').style.display = 'flex';
+      document.getElementById('sponsorModalTitle').textContent = sponsor ? 'Edit Sponsor' : 'Add Sponsor';
+      document.getElementById('sponsorDeleteBtn').style.display = sponsor ? 'block' : 'none';
+      
+      // Populate team dropdown
+      const teamSelect = document.getElementById('sponsorTeam');
+      if (teamSelect.options.length <= 1) {
+        teamSelect.innerHTML = '<option value="">Select team...</option>' + 
+          SPONSOR_TEAMS.map(t => `<option value="${t}">${t}</option>`).join('');
+      }
+      
+      if (sponsor) {
+        document.getElementById('sponsorId').value = sponsor.id;
+        document.getElementById('sponsorName').value = sponsor.name || '';
+        document.getElementById('sponsorLogoUrl').value = sponsor.logo_url || '';
+        document.getElementById('sponsorWebsite').value = sponsor.url || '';
+        document.getElementById('sponsorTeam').value = sponsor.team_shortname || '';
+        document.getElementById('sponsorTier').value = sponsor.tier || 'standard';
+        document.getElementById('sponsorStartDate').value = sponsor.start_date || '';
+        document.getElementById('sponsorEndDate').value = sponsor.end_date || '';
+        document.getElementById('sponsorNotes').value = sponsor.notes || '';
+        document.getElementById('sponsorActive').checked = sponsor.active !== false;
+        
+        // Show logo preview
+        if (sponsor.logo_url) {
+          document.getElementById('sponsorLogoPreview').style.display = 'block';
+          document.getElementById('sponsorLogoImg').src = sponsor.logo_url;
+        }
+      } else {
+        document.getElementById('sponsorId').value = '';
+        document.getElementById('sponsorName').value = '';
+        document.getElementById('sponsorLogoUrl').value = '';
+        document.getElementById('sponsorWebsite').value = '';
+        document.getElementById('sponsorTeam').value = '';
+        document.getElementById('sponsorTier').value = 'standard';
+        document.getElementById('sponsorStartDate').value = '';
+        document.getElementById('sponsorEndDate').value = '';
+        document.getElementById('sponsorNotes').value = '';
+        document.getElementById('sponsorActive').checked = true;
+        document.getElementById('sponsorLogoPreview').style.display = 'none';
+      }
+    }
+    
+    function closeSponsorModal() {
+      document.getElementById('sponsorModal').style.display = 'none';
+    }
+    
+    function editSponsor(id) {
+      const sponsor = allSponsors.find(s => s.id === id);
+      if (sponsor) {
+        openSponsorModal(sponsor);
+      }
+    }
+    
+    async function saveSponsor() {
+      const id = document.getElementById('sponsorId').value;
+      const name = document.getElementById('sponsorName').value.trim();
+      const logoUrl = document.getElementById('sponsorLogoUrl').value.trim();
+      const website = document.getElementById('sponsorWebsite').value.trim();
+      const team = document.getElementById('sponsorTeam').value;
+      const tier = document.getElementById('sponsorTier').value;
+      const startDate = document.getElementById('sponsorStartDate').value || null;
+      const endDate = document.getElementById('sponsorEndDate').value || null;
+      const notes = document.getElementById('sponsorNotes').value.trim();
+      const active = document.getElementById('sponsorActive').checked;
+      
+      if (!name || !logoUrl || !team) {
+        showToast('Please fill in Name, Logo URL, and Team', 'error');
+        return;
+      }
+      
+      const sponsorData = {
+        name,
+        logo_url: logoUrl,
+        url: website || null,
+        team_shortname: team,
+        tier,
+        start_date: startDate,
+        end_date: endDate,
+        notes: notes || null,
+        active,
+        updated_at: new Date().toISOString()
+      };
+      
+      try {
+        if (id) {
+          // Update existing
+          const { error } = await supabase
+            .from('sponsors')
+            .update(sponsorData)
+            .eq('id', id);
+          
+          if (error) throw error;
+          showToast('Sponsor updated successfully', 'success');
+        } else {
+          // Create new
+          const { error } = await supabase
+            .from('sponsors')
+            .insert([sponsorData]);
+          
+          if (error) throw error;
+          showToast('Sponsor created successfully', 'success');
+        }
+        
+        closeSponsorModal();
+        loadSponsors();
+        
+      } catch (err) {
+        console.error('Error saving sponsor:', err);
+        showToast('Error saving sponsor: ' + err.message, 'error');
+      }
+    }
+    
+    function confirmDeleteSponsor(id, name) {
+      if (confirm(`Are you sure you want to delete the sponsor "${name}"?`)) {
+        deleteSponsorById(id);
+      }
+    }
+    
+    async function deleteSponsor() {
+      const id = document.getElementById('sponsorId').value;
+      if (!id) return;
+      
+      const sponsor = allSponsors.find(s => s.id === id);
+      if (confirm(`Are you sure you want to delete the sponsor "${sponsor?.name}"?`)) {
+        await deleteSponsorById(id);
+        closeSponsorModal();
+      }
+    }
+    
+    async function deleteSponsorById(id) {
+      try {
+        const { error } = await supabase
+          .from('sponsors')
+          .delete()
+          .eq('id', id);
+        
+        if (error) throw error;
+        
+        showToast('Sponsor deleted', 'success');
+        loadSponsors();
+        
+      } catch (err) {
+        console.error('Error deleting sponsor:', err);
+        showToast('Error deleting sponsor', 'error');
+      }
+    }
+    
+    function browseSponsorLogo() {
+      // For now, just prompt for URL. Could integrate SmugMug browser later.
+      const url = prompt('Enter logo URL:', document.getElementById('sponsorLogoUrl').value);
+      if (url) {
+        document.getElementById('sponsorLogoUrl').value = url;
+        document.getElementById('sponsorLogoPreview').style.display = 'block';
+        document.getElementById('sponsorLogoImg').src = url;
+      }
+    }
+    
+    // Preview logo when URL changes
+    document.addEventListener('DOMContentLoaded', function() {
+      const logoInput = document.getElementById('sponsorLogoUrl');
+      if (logoInput) {
+        logoInput.addEventListener('change', function() {
+          if (this.value) {
+            document.getElementById('sponsorLogoPreview').style.display = 'block';
+            document.getElementById('sponsorLogoImg').src = this.value;
+          }
+        });
+      }
+    });
   </script>
   
   <!-- Delete by Slug Modal -->
