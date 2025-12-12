@@ -596,134 +596,135 @@
 
   <script src="/app.js"></script>
   <script>
-    // Mobile menu handlers
-    var mobileToggle = document.getElementById('mobileMenuToggle');
-    var mobileDrawer = document.getElementById('mobileDrawer');
-    var mobileOverlay = document.getElementById('mobileOverlay');
-    var mobileClose = document.getElementById('mobileClose');
-    
-    function openMobileMenu() {
-      if (mobileDrawer) mobileDrawer.classList.add('active');
-      if (mobileOverlay) mobileOverlay.classList.add('active');
-    }
-    function closeMobileMenu() {
-      if (mobileDrawer) mobileDrawer.classList.remove('active');
-      if (mobileOverlay) mobileOverlay.classList.remove('active');
-    }
-    if (mobileToggle) mobileToggle.addEventListener('click', openMobileMenu);
-    if (mobileClose) mobileClose.addEventListener('click', closeMobileMenu);
-    if (mobileOverlay) mobileOverlay.addEventListener('click', closeMobileMenu);
-    
-    document.querySelectorAll('.mobile-nav-item[data-expandable]').forEach(function(item) {
-      var link = item.querySelector('.mobile-nav-link');
-      if (link) link.addEventListener('click', function(e) { e.preventDefault(); item.classList.toggle('expanded'); });
-    });
-
-    // Search toggle
-    var searchToggle = document.getElementById('searchToggle');
-    var searchDropdown = document.getElementById('searchDropdown');
-    if (searchToggle && searchDropdown) {
-      searchToggle.addEventListener('click', function(e) { e.stopPropagation(); searchDropdown.classList.toggle('active'); });
-      document.addEventListener('click', function(e) {
-        if (!searchDropdown.contains(e.target) && e.target !== searchToggle) searchDropdown.classList.remove('active');
+    // All standings code in IIFE to avoid conflicts with app.js globals
+    (function() {
+      // Mobile menu handlers
+      var mobileToggle = document.getElementById('mobileMenuToggle');
+      var mobileDrawer = document.getElementById('mobileDrawer');
+      var mobileOverlay = document.getElementById('mobileOverlay');
+      var mobileClose = document.getElementById('mobileClose');
+      
+      function openMobileMenu() {
+        if (mobileDrawer) mobileDrawer.classList.add('active');
+        if (mobileOverlay) mobileOverlay.classList.add('active');
+      }
+      function closeMobileMenu() {
+        if (mobileDrawer) mobileDrawer.classList.remove('active');
+        if (mobileOverlay) mobileOverlay.classList.remove('active');
+      }
+      if (mobileToggle) mobileToggle.addEventListener('click', openMobileMenu);
+      if (mobileClose) mobileClose.addEventListener('click', closeMobileMenu);
+      if (mobileOverlay) mobileOverlay.addEventListener('click', closeMobileMenu);
+      
+      document.querySelectorAll('.mobile-nav-item[data-expandable]').forEach(function(item) {
+        var link = item.querySelector('.mobile-nav-link');
+        if (link) link.addEventListener('click', function(e) { e.preventDefault(); item.classList.toggle('expanded'); });
       });
-    }
 
-    // Standings functionality
-    var allStandings = [];
-    var currentDivision = 'D-I';
-    
-    var PLAYOFF_TEAMS = {
-      Boys: { 'D-I': 15, 'D-II': 14, 'D-III': 15, 'D-IV': 16 },
-      Girls: { 'D-I': 16, 'D-II': 14, 'D-III': 14, 'D-IV': 16 }
-    };
-    
-    document.querySelectorAll('.division-tab').forEach(function(tab) {
-      tab.addEventListener('click', function() {
-        document.querySelectorAll('.division-tab').forEach(function(t) { t.classList.remove('active'); });
-        tab.classList.add('active');
-        currentDivision = tab.dataset.div;
-        renderStandings();
-      });
-    });
-    
-    function getLogoUrl(team) {
-      if (!team) return '/logos/100px/Ball603-white.png';
-      var slug = team.toLowerCase().replace(/[^a-z0-9]/g,'');
-      return '/logos/100px/' + slug + '.png';
-    }
-    
-    function getTeamSlug(team) {
-      if (!team) return '';
-      return team.toLowerCase().replace(/[^a-z0-9]/g,'');
-    }
-    
-    function renderStandings() {
-      var container = document.getElementById('standingsContainer');
-      
-      var boysTeams = allStandings.filter(function(t) { return t.gender === 'Boys' && t.division === currentDivision; });
-      boysTeams.sort(function(a,b) { return (b.rating||0) - (a.rating||0); });
-      
-      var girlsTeams = allStandings.filter(function(t) { return t.gender === 'Girls' && t.division === currentDivision; });
-      girlsTeams.sort(function(a,b) { return (b.rating||0) - (a.rating||0); });
-      
-      var boysPlayoff = PLAYOFF_TEAMS.Boys[currentDivision] || 16;
-      var girlsPlayoff = PLAYOFF_TEAMS.Girls[currentDivision] || 16;
-      
-      var html = '';
-      html += renderGenderCard('Boys', boysTeams, boysPlayoff);
-      html += renderGenderCard('Girls', girlsTeams, girlsPlayoff);
-      container.innerHTML = html;
-    }
-    
-    function renderGenderCard(gender, teams, playoffSpots) {
-      var html = '<div class="standings-card">';
-      html += '<div class="standings-card-header">';
-      html += '<div class="standings-card-title"><span>🏀</span> ' + gender + ' ' + currentDivision.replace('D-','Division ') + '</div>';
-      html += '<div class="playoff-info">' + playoffSpots + ' teams qualify</div>';
-      html += '</div>';
-      
-      html += '<table class="standings-table">';
-      html += '<thead><tr><th>#</th><th>Team</th><th class="center">W-L</th><th class="center">PCT</th><th class="center">Rating</th></tr></thead>';
-      html += '<tbody>';
-      
-      if (!teams.length) {
-        html += '<tr><td colspan="5" style="text-align:center;padding:40px;color:#999;">No standings data</td></tr>';
-      } else {
-        teams.forEach(function(team, index) {
-          var rank = index + 1;
-          var isPlayoff = rank <= playoffSpots;
-          var isPlayoffLine = rank === playoffSpots;
-          
-          var wins = team.wins || 0;
-          var losses = team.losses || 0;
-          var pct = wins + losses > 0 ? (wins / (wins + losses)).toFixed(3) : '.000';
-          var teamName = team.school || team.team || 'Unknown';
-          
-          html += '<tr' + (isPlayoffLine ? ' class="playoff-line"' : '') + '>';
-          html += '<td class="team-rank' + (isPlayoff ? ' playoff' : '') + '">' + rank + '</td>';
-          html += '<td><div class="team-cell">';
-          html += '<div class="team-logo"><img src="' + getLogoUrl(teamName) + '" onerror="this.src=\'/logos/100px/Ball603-white.png\'"></div>';
-          html += '<div class="team-name"><a href="/' + getTeamSlug(teamName) + '">' + teamName + '</a></div>';
-          html += '</div></td>';
-          html += '<td class="center team-record">' + wins + '-' + losses + '</td>';
-          html += '<td class="center team-pct">' + pct + '</td>';
-          html += '<td class="center team-rating">' + (team.rating ? team.rating.toFixed(2) : '--') + '</td>';
-          html += '</tr>';
+      // Search toggle
+      var searchToggle = document.getElementById('searchToggle');
+      var searchDropdown = document.getElementById('searchDropdown');
+      if (searchToggle && searchDropdown) {
+        searchToggle.addEventListener('click', function(e) { e.stopPropagation(); searchDropdown.classList.toggle('active'); });
+        document.addEventListener('click', function(e) {
+          if (!searchDropdown.contains(e.target) && e.target !== searchToggle) searchDropdown.classList.remove('active');
         });
       }
+
+      // Standings functionality
+      var allStandings = [];
+      var currentDivision = 'D-I';
       
-      html += '</tbody></table>';
-      html += '<div class="standings-legend">';
-      html += '<div class="legend-item"><div class="legend-dot playoff"></div>Playoff position</div>';
-      html += '<div class="legend-item"><div class="legend-dot bubble"></div>Below cutline</div>';
-      html += '</div>';
-      html += '</div>';
-      return html;
-    }
-    
-    // Load standings
-    (function loadStandings() {
+      var PLAYOFF_TEAMS = {
+        Boys: { 'D-I': 15, 'D-II': 14, 'D-III': 15, 'D-IV': 16 },
+        Girls: { 'D-I': 16, 'D-II': 14, 'D-III': 14, 'D-IV': 16 }
+      };
+      
+      document.querySelectorAll('.division-tab').forEach(function(tab) {
+        tab.addEventListener('click', function() {
+          document.querySelectorAll('.division-tab').forEach(function(t) { t.classList.remove('active'); });
+          tab.classList.add('active');
+          currentDivision = tab.dataset.div;
+          renderStandings();
+        });
+      });
+      
+      function getLogoUrl(team) {
+        if (!team) return '/logos/100px/Ball603-white.png';
+        var slug = team.toLowerCase().replace(/[^a-z0-9]/g,'');
+        return '/logos/100px/' + slug + '.png';
+      }
+      
+      function getTeamSlug(team) {
+        if (!team) return '';
+        return team.toLowerCase().replace(/[^a-z0-9]/g,'');
+      }
+      
+      function renderStandings() {
+        var container = document.getElementById('standingsContainer');
+        
+        var boysTeams = allStandings.filter(function(t) { return t.gender === 'Boys' && t.division === currentDivision; });
+        boysTeams.sort(function(a,b) { return (b.rating||0) - (a.rating||0); });
+        
+        var girlsTeams = allStandings.filter(function(t) { return t.gender === 'Girls' && t.division === currentDivision; });
+        girlsTeams.sort(function(a,b) { return (b.rating||0) - (a.rating||0); });
+        
+        var boysPlayoff = PLAYOFF_TEAMS.Boys[currentDivision] || 16;
+        var girlsPlayoff = PLAYOFF_TEAMS.Girls[currentDivision] || 16;
+        
+        var html = '';
+        html += renderGenderCard('Boys', boysTeams, boysPlayoff);
+        html += renderGenderCard('Girls', girlsTeams, girlsPlayoff);
+        container.innerHTML = html;
+      }
+      
+      function renderGenderCard(gender, teams, playoffSpots) {
+        var html = '<div class="standings-card">';
+        html += '<div class="standings-card-header">';
+        html += '<div class="standings-card-title"><span>🏀</span> ' + gender + ' ' + currentDivision.replace('D-','Division ') + '</div>';
+        html += '<div class="playoff-info">' + playoffSpots + ' teams qualify</div>';
+        html += '</div>';
+        
+        html += '<table class="standings-table">';
+        html += '<thead><tr><th>#</th><th>Team</th><th class="center">W-L</th><th class="center">PCT</th><th class="center">Rating</th></tr></thead>';
+        html += '<tbody>';
+        
+        if (!teams.length) {
+          html += '<tr><td colspan="5" style="text-align:center;padding:40px;color:#999;">No standings data</td></tr>';
+        } else {
+          teams.forEach(function(team, index) {
+            var rank = index + 1;
+            var isPlayoff = rank <= playoffSpots;
+            var isPlayoffLine = rank === playoffSpots;
+            
+            var wins = team.wins || 0;
+            var losses = team.losses || 0;
+            var pct = wins + losses > 0 ? (wins / (wins + losses)).toFixed(3) : '.000';
+            var teamName = team.school || team.team || 'Unknown';
+            
+            html += '<tr' + (isPlayoffLine ? ' class="playoff-line"' : '') + '>';
+            html += '<td class="team-rank' + (isPlayoff ? ' playoff' : '') + '">' + rank + '</td>';
+            html += '<td><div class="team-cell">';
+            html += '<div class="team-logo"><img src="' + getLogoUrl(teamName) + '" onerror="this.src=\'/logos/100px/Ball603-white.png\'"></div>';
+            html += '<div class="team-name"><a href="/' + getTeamSlug(teamName) + '">' + teamName + '</a></div>';
+            html += '</div></td>';
+            html += '<td class="center team-record">' + wins + '-' + losses + '</td>';
+            html += '<td class="center team-pct">' + pct + '</td>';
+            html += '<td class="center team-rating">' + (team.rating ? team.rating.toFixed(2) : '--') + '</td>';
+            html += '</tr>';
+          });
+        }
+        
+        html += '</tbody></table>';
+        html += '<div class="standings-legend">';
+        html += '<div class="legend-item"><div class="legend-dot playoff"></div>Playoff position</div>';
+        html += '<div class="legend-item"><div class="legend-dot bubble"></div>Below cutline</div>';
+        html += '</div>';
+        html += '</div>';
+        return html;
+      }
+      
+      // Load standings on page load
       console.log('Loading standings from API...');
       fetch('/.netlify/functions/get-standings')
         .then(function(res) { return res.json(); })

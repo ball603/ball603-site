@@ -690,188 +690,189 @@
 
   <script src="/app.js"></script>
   <script>
-    // Mobile menu handlers
-    const mobileToggle = document.getElementById('mobileMenuToggle');
-    const mobileDrawer = document.getElementById('mobileDrawer');
-    const mobileOverlay = document.getElementById('mobileOverlay');
-    const mobileClose = document.getElementById('mobileClose');
-    
-    function openMobileMenu() {
-      if (mobileDrawer) mobileDrawer.classList.add('active');
-      if (mobileOverlay) mobileOverlay.classList.add('active');
-    }
-    function closeMobileMenu() {
-      if (mobileDrawer) mobileDrawer.classList.remove('active');
-      if (mobileOverlay) mobileOverlay.classList.remove('active');
-    }
-    if (mobileToggle) mobileToggle.addEventListener('click', openMobileMenu);
-    if (mobileClose) mobileClose.addEventListener('click', closeMobileMenu);
-    if (mobileOverlay) mobileOverlay.addEventListener('click', closeMobileMenu);
-    
-    document.querySelectorAll('.mobile-nav-item[data-expandable]').forEach(item => {
-      const link = item.querySelector('.mobile-nav-link');
-      if (link) link.addEventListener('click', (e) => { e.preventDefault(); item.classList.toggle('expanded'); });
-    });
-
-    // Search toggle
-    const searchToggle = document.getElementById('searchToggle');
-    const searchDropdown = document.getElementById('searchDropdown');
-    if (searchToggle && searchDropdown) {
-      searchToggle.addEventListener('click', (e) => { e.stopPropagation(); searchDropdown.classList.toggle('active'); });
-      document.addEventListener('click', (e) => {
-        if (!searchDropdown.contains(e.target) && e.target !== searchToggle) searchDropdown.classList.remove('active');
+    // All schedule code in IIFE to avoid conflicts with app.js globals
+    (function() {
+      // Mobile menu handlers
+      var mobileToggle = document.getElementById('mobileMenuToggle');
+      var mobileDrawer = document.getElementById('mobileDrawer');
+      var mobileOverlay = document.getElementById('mobileOverlay');
+      var mobileClose = document.getElementById('mobileClose');
+      
+      function openMobileMenu() {
+        if (mobileDrawer) mobileDrawer.classList.add('active');
+        if (mobileOverlay) mobileOverlay.classList.add('active');
+      }
+      function closeMobileMenu() {
+        if (mobileDrawer) mobileDrawer.classList.remove('active');
+        if (mobileOverlay) mobileOverlay.classList.remove('active');
+      }
+      if (mobileToggle) mobileToggle.addEventListener('click', openMobileMenu);
+      if (mobileClose) mobileClose.addEventListener('click', closeMobileMenu);
+      if (mobileOverlay) mobileOverlay.addEventListener('click', closeMobileMenu);
+      
+      document.querySelectorAll('.mobile-nav-item[data-expandable]').forEach(function(item) {
+        var link = item.querySelector('.mobile-nav-link');
+        if (link) link.addEventListener('click', function(e) { e.preventDefault(); item.classList.toggle('expanded'); });
       });
-    }
 
-    // Schedule functionality
-    const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-    const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-    
-    let allGames = [];
-    let currentDate = new Date();
-    currentDate.setHours(0,0,0,0);
-    let calendarDate = new Date();
-    let filters = { level: '', gender: '', search: '' };
-    
-    function getDateString(d) {
-      return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
-    }
-    
-    function formatDate(d) {
-      return '<span class="day-name">' + DAYS[d.getDay()] + '</span>, ' + MONTHS[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
-    }
-    
-    function isToday(d) {
-      const t = new Date();
-      return d.getDate()===t.getDate() && d.getMonth()===t.getMonth() && d.getFullYear()===t.getFullYear();
-    }
-    
-    function updateDateDisplay() {
-      document.getElementById('currentDate').innerHTML = formatDate(currentDate);
-      document.getElementById('sectionTitle').textContent = isToday(currentDate) ? "Today's Games" : "Games for " + MONTHS[currentDate.getMonth()] + ' ' + currentDate.getDate();
-    }
-    
-    function prevDay() { currentDate.setDate(currentDate.getDate()-1); updateDateDisplay(); renderGames(); }
-    function nextDay() { currentDate.setDate(currentDate.getDate()+1); updateDateDisplay(); renderGames(); }
-    function goToToday() { currentDate = new Date(); currentDate.setHours(0,0,0,0); updateDateDisplay(); renderGames(); }
-    
-    document.querySelectorAll('.filter-group').forEach(function(group) {
-      group.querySelectorAll('.filter-btn').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-          group.querySelectorAll('.filter-btn').forEach(function(b) { b.classList.remove('active'); });
-          btn.classList.add('active');
-          if (group.id === 'levelFilter') filters.level = btn.dataset.value;
-          if (group.id === 'genderFilter') filters.gender = btn.dataset.value;
-          renderGames();
+      // Search toggle
+      var searchToggle = document.getElementById('searchToggle');
+      var searchDropdown = document.getElementById('searchDropdown');
+      if (searchToggle && searchDropdown) {
+        searchToggle.addEventListener('click', function(e) { e.stopPropagation(); searchDropdown.classList.toggle('active'); });
+        document.addEventListener('click', function(e) {
+          if (!searchDropdown.contains(e.target) && e.target !== searchToggle) searchDropdown.classList.remove('active');
+        });
+      }
+
+      // Schedule constants (using var to allow redeclaration)
+      var DAYS_FULL = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+      var MONTHS_FULL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+      
+      var allGames = [];
+      var currentDate = new Date();
+      currentDate.setHours(0,0,0,0);
+      var calendarDate = new Date();
+      var filters = { level: '', gender: '', search: '' };
+      
+      function getDateString(d) {
+        return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+      }
+      
+      function formatDateDisplay(d) {
+        return '<span class="day-name">' + DAYS_FULL[d.getDay()] + '</span>, ' + MONTHS_FULL[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
+      }
+      
+      function isTodayDate(d) {
+        var t = new Date();
+        return d.getDate()===t.getDate() && d.getMonth()===t.getMonth() && d.getFullYear()===t.getFullYear();
+      }
+      
+      function updateDateDisplay() {
+        document.getElementById('currentDate').innerHTML = formatDateDisplay(currentDate);
+        document.getElementById('sectionTitle').textContent = isTodayDate(currentDate) ? "Today's Games" : "Games for " + MONTHS_FULL[currentDate.getMonth()] + ' ' + currentDate.getDate();
+      }
+      
+      window.prevDay = function() { currentDate.setDate(currentDate.getDate()-1); updateDateDisplay(); renderGames(); };
+      window.nextDay = function() { currentDate.setDate(currentDate.getDate()+1); updateDateDisplay(); renderGames(); };
+      window.goToToday = function() { currentDate = new Date(); currentDate.setHours(0,0,0,0); updateDateDisplay(); renderGames(); };
+      
+      document.querySelectorAll('.filter-group').forEach(function(group) {
+        group.querySelectorAll('.filter-btn').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            group.querySelectorAll('.filter-btn').forEach(function(b) { b.classList.remove('active'); });
+            btn.classList.add('active');
+            if (group.id === 'levelFilter') filters.level = btn.dataset.value;
+            if (group.id === 'genderFilter') filters.gender = btn.dataset.value;
+            renderGames();
+          });
         });
       });
-    });
-    
-    document.getElementById('teamSearch').addEventListener('input', function(e) {
-      filters.search = e.target.value.toLowerCase();
-      renderGames();
-    });
-    
-    function getLogoUrl(team) {
-      if (!team) return '/logos/100px/Ball603-white.png';
-      var slug = team.toLowerCase().replace(/[^a-z0-9]/g,'');
-      return '/logos/100px/' + slug + '.png';
-    }
-    
-    function renderGames() {
-      var container = document.getElementById('gamesContainer');
-      var dateStr = getDateString(currentDate);
-      var games = allGames.filter(function(g) { return g.date === dateStr; });
-      if (filters.level) games = games.filter(function(g) { return g.level === filters.level; });
-      if (filters.gender) games = games.filter(function(g) { return g.gender === filters.gender; });
-      if (filters.search) games = games.filter(function(g) {
-        return (g.home||'').toLowerCase().indexOf(filters.search) >= 0 || (g.away||'').toLowerCase().indexOf(filters.search) >= 0;
+      
+      document.getElementById('teamSearch').addEventListener('input', function(e) {
+        filters.search = e.target.value.toLowerCase();
+        renderGames();
       });
-      games.sort(function(a,b) { return (a.time||'').localeCompare(b.time||''); });
       
-      document.getElementById('gameCount').textContent = games.length + ' game' + (games.length!==1?'s':'');
-      
-      if (!games.length) {
-        container.innerHTML = '<div class="empty-state"><div class="empty-icon">🏀</div><div class="empty-title">No games scheduled</div><div class="empty-text">Try a different date or adjust filters</div></div>';
-        return;
+      function getLogoUrl(team) {
+        if (!team) return '/logos/100px/Ball603-white.png';
+        var slug = team.toLowerCase().replace(/[^a-z0-9]/g,'');
+        return '/logos/100px/' + slug + '.png';
       }
       
-      var html = '<div class="games-grid">';
-      games.forEach(function(g) {
-        var awayScore = String(g.away_score || '').trim();
-        var homeScore = String(g.home_score || '').trim();
-        var isFinal = awayScore !== '' && homeScore !== '';
-        var homeWon = isFinal && parseInt(homeScore) > parseInt(awayScore);
-        var awayWon = isFinal && parseInt(awayScore) > parseInt(homeScore);
-        var time = isFinal ? '<span class="game-status">FINAL</span>' : (g.time || 'TBD');
+      function renderGames() {
+        var container = document.getElementById('gamesContainer');
+        var dateStr = getDateString(currentDate);
+        var games = allGames.filter(function(g) { return g.date === dateStr; });
+        if (filters.level) games = games.filter(function(g) { return g.level === filters.level; });
+        if (filters.gender) games = games.filter(function(g) { return g.gender === filters.gender; });
+        if (filters.search) games = games.filter(function(g) {
+          return (g.home||'').toLowerCase().indexOf(filters.search) >= 0 || (g.away||'').toLowerCase().indexOf(filters.search) >= 0;
+        });
+        games.sort(function(a,b) { return (a.time||'').localeCompare(b.time||''); });
         
-        var cov = '';
-        if (g.photos_url) cov += '<a href="' + g.photos_url + '" class="coverage-badge" title="Photos">📸</a>';
-        if (g.recap_url) cov += '<a href="' + g.recap_url + '" class="coverage-badge" title="Recap">📝</a>';
-        if (g.highlights_url) cov += '<a href="' + g.highlights_url + '" class="coverage-badge" title="Highlights">🎥</a>';
+        document.getElementById('gameCount').textContent = games.length + ' game' + (games.length!==1?'s':'');
         
-        html += '<div class="game-card">';
-        html += '<div class="game-card-header"><span class="game-level">' + (g.gender||'') + ' ' + (g.level||'') + '</span><span class="game-time">' + time + '</span></div>';
-        html += '<div class="game-card-body"><div class="game-matchup">';
-        html += '<div class="game-team"><div class="team-logo"><img src="' + getLogoUrl(g.away) + '" onerror="this.src=\'/logos/100px/Ball603-white.png\'"></div>';
-        html += '<div class="team-info"><div class="team-name">' + (g.away||'TBD') + '</div><div class="team-record">' + (g.away_record||'') + '</div></div>';
-        if (isFinal) html += '<div class="team-score' + (awayWon?' winner':'') + '">' + awayScore + '</div>';
+        if (!games.length) {
+          container.innerHTML = '<div class="empty-state"><div class="empty-icon">🏀</div><div class="empty-title">No games scheduled</div><div class="empty-text">Try a different date or adjust filters</div></div>';
+          return;
+        }
+        
+        var html = '<div class="games-grid">';
+        games.forEach(function(g) {
+          var awayScore = String(g.away_score || '').trim();
+          var homeScore = String(g.home_score || '').trim();
+          var isFinal = awayScore !== '' && homeScore !== '';
+          var homeWon = isFinal && parseInt(homeScore) > parseInt(awayScore);
+          var awayWon = isFinal && parseInt(awayScore) > parseInt(homeScore);
+          var time = isFinal ? '<span class="game-status">FINAL</span>' : (g.time || 'TBD');
+          
+          var cov = '';
+          if (g.photos_url) cov += '<a href="' + g.photos_url + '" class="coverage-badge" title="Photos">📸</a>';
+          if (g.recap_url) cov += '<a href="' + g.recap_url + '" class="coverage-badge" title="Recap">📝</a>';
+          if (g.highlights_url) cov += '<a href="' + g.highlights_url + '" class="coverage-badge" title="Highlights">🎥</a>';
+          
+          html += '<div class="game-card">';
+          html += '<div class="game-card-header"><span class="game-level">' + (g.gender||'') + ' ' + (g.level||'') + '</span><span class="game-time">' + time + '</span></div>';
+          html += '<div class="game-card-body"><div class="game-matchup">';
+          html += '<div class="game-team"><div class="team-logo"><img src="' + getLogoUrl(g.away) + '" onerror="this.src=\'/logos/100px/Ball603-white.png\'"></div>';
+          html += '<div class="team-info"><div class="team-name">' + (g.away||'TBD') + '</div><div class="team-record">' + (g.away_record||'') + '</div></div>';
+          if (isFinal) html += '<div class="team-score' + (awayWon?' winner':'') + '">' + awayScore + '</div>';
+          html += '</div>';
+          html += '<div class="game-vs">@</div>';
+          html += '<div class="game-team"><div class="team-logo"><img src="' + getLogoUrl(g.home) + '" onerror="this.src=\'/logos/100px/Ball603-white.png\'"></div>';
+          html += '<div class="team-info"><div class="team-name">' + (g.home||'TBD') + '</div><div class="team-record">' + (g.home_record||'') + '</div></div>';
+          if (isFinal) html += '<div class="team-score' + (homeWon?' winner':'') + '">' + homeScore + '</div>';
+          html += '</div>';
+          html += '</div></div>';
+          if (cov) html += '<div class="game-card-footer"><div class="game-venue"></div><div class="game-coverage">' + cov + '</div></div>';
+          html += '</div>';
+        });
         html += '</div>';
-        html += '<div class="game-vs">@</div>';
-        html += '<div class="game-team"><div class="team-logo"><img src="' + getLogoUrl(g.home) + '" onerror="this.src=\'/logos/100px/Ball603-white.png\'"></div>';
-        html += '<div class="team-info"><div class="team-name">' + (g.home||'TBD') + '</div><div class="team-record">' + (g.home_record||'') + '</div></div>';
-        if (isFinal) html += '<div class="team-score' + (homeWon?' winner':'') + '">' + homeScore + '</div>';
-        html += '</div>';
-        html += '</div></div>';
-        if (cov) html += '<div class="game-card-footer"><div class="game-venue"></div><div class="game-coverage">' + cov + '</div></div>';
-        html += '</div>';
-      });
-      html += '</div>';
-      container.innerHTML = html;
-    }
-    
-    function openCalendar() { calendarDate = new Date(currentDate); renderCalendar(); document.getElementById('calendarModal').classList.add('active'); }
-    function closeCalendar(e) { if(e.target.id==='calendarModal') document.getElementById('calendarModal').classList.remove('active'); }
-    function prevMonth() { calendarDate.setMonth(calendarDate.getMonth()-1); renderCalendar(); }
-    function nextMonth() { calendarDate.setMonth(calendarDate.getMonth()+1); renderCalendar(); }
-    
-    function renderCalendar() {
-      var y = calendarDate.getFullYear(), m = calendarDate.getMonth();
-      document.getElementById('calendarMonth').textContent = MONTHS[m] + ' ' + y;
-      var first = new Date(y,m,1).getDay(), days = new Date(y,m+1,0).getDate(), today = new Date();
-      var gameDates = {};
-      allGames.forEach(function(g) { gameDates[g.date] = true; });
-      var html = '';
-      var prev = new Date(y,m,0).getDate();
-      for(var i=first-1;i>=0;i--) {
-        var d=prev-i, ds=getDateString(new Date(y,m-1,d));
-        html += '<div class="calendar-day other-month' + (gameDates[ds]?' has-games':'') + '" onclick="selectDate('+y+','+(m-1)+','+d+')">' + d + '</div>';
+        container.innerHTML = html;
       }
-      for(var d=1;d<=days;d++) {
-        var dt=new Date(y,m,d), ds=getDateString(dt);
-        var isCur = dt.toDateString()===today.toDateString();
-        var isSel = dt.toDateString()===currentDate.toDateString();
-        var has = gameDates[ds];
-        html += '<div class="calendar-day' + (isCur?' today':'') + (isSel?' selected':'') + (has?' has-games':'') + '" onclick="selectDate('+y+','+m+','+d+')">' + d + '</div>';
+      
+      window.openCalendar = function() { calendarDate = new Date(currentDate); renderCalendar(); document.getElementById('calendarModal').classList.add('active'); };
+      window.closeCalendar = function(e) { if(e.target.id==='calendarModal') document.getElementById('calendarModal').classList.remove('active'); };
+      window.prevMonth = function() { calendarDate.setMonth(calendarDate.getMonth()-1); renderCalendar(); };
+      window.nextMonth = function() { calendarDate.setMonth(calendarDate.getMonth()+1); renderCalendar(); };
+      
+      function renderCalendar() {
+        var y = calendarDate.getFullYear(), m = calendarDate.getMonth();
+        document.getElementById('calendarMonth').textContent = MONTHS_FULL[m] + ' ' + y;
+        var first = new Date(y,m,1).getDay(), days = new Date(y,m+1,0).getDate(), today = new Date();
+        var gameDates = {};
+        allGames.forEach(function(g) { gameDates[g.date] = true; });
+        var html = '';
+        var prev = new Date(y,m,0).getDate();
+        for(var i=first-1;i>=0;i--) {
+          var d=prev-i, ds=getDateString(new Date(y,m-1,d));
+          html += '<div class="calendar-day other-month' + (gameDates[ds]?' has-games':'') + '" onclick="selectDate('+y+','+(m-1)+','+d+')">' + d + '</div>';
+        }
+        for(var d=1;d<=days;d++) {
+          var dt=new Date(y,m,d), ds=getDateString(dt);
+          var isCur = dt.toDateString()===today.toDateString();
+          var isSel = dt.toDateString()===currentDate.toDateString();
+          var has = gameDates[ds];
+          html += '<div class="calendar-day' + (isCur?' today':'') + (isSel?' selected':'') + (has?' has-games':'') + '" onclick="selectDate('+y+','+m+','+d+')">' + d + '</div>';
+        }
+        var tot=first+days, rem=tot%7===0?0:7-tot%7;
+        for(var d=1;d<=rem;d++) {
+          var ds=getDateString(new Date(y,m+1,d));
+          html += '<div class="calendar-day other-month' + (gameDates[ds]?' has-games':'') + '" onclick="selectDate('+y+','+(m+1)+','+d+')">' + d + '</div>';
+        }
+        document.getElementById('calendarDays').innerHTML = html;
       }
-      var tot=first+days, rem=tot%7===0?0:7-tot%7;
-      for(var d=1;d<=rem;d++) {
-        var ds=getDateString(new Date(y,m+1,d));
-        html += '<div class="calendar-day other-month' + (gameDates[ds]?' has-games':'') + '" onclick="selectDate('+y+','+(m+1)+','+d+')">' + d + '</div>';
-      }
-      document.getElementById('calendarDays').innerHTML = html;
-    }
-    
-    function selectDate(y,m,d) {
-      currentDate = new Date(y,m,d);
-      currentDate.setHours(0,0,0,0);
-      updateDateDisplay();
-      renderGames();
-      document.getElementById('calendarModal').classList.remove('active');
-    }
-    
-    // Load games
-    (function loadGames() {
+      
+      window.selectDate = function(y,m,d) {
+        currentDate = new Date(y,m,d);
+        currentDate.setHours(0,0,0,0);
+        updateDateDisplay();
+        renderGames();
+        document.getElementById('calendarModal').classList.remove('active');
+      };
+      
+      // Load games on page load
       console.log('Loading games from API...');
       updateDateDisplay();
       fetch('/.netlify/functions/get-games')
