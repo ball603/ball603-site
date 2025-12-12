@@ -172,10 +172,13 @@ export const handler = async (event) => {
   }
   
   // Check for secret key to prevent unauthorized syncs
+  // Scheduled functions don't have query params - check if this is a scheduled run
+  const isScheduled = !event.queryStringParameters || Object.keys(event.queryStringParameters).length === 0;
   const syncKey = event.queryStringParameters?.key;
   const expectedKey = process.env.SYNC_SECRET_KEY || 'ball603-sync';
   
-  if (syncKey !== expectedKey) {
+  // Allow scheduled runs OR manual runs with correct key
+  if (!isScheduled && syncKey !== expectedKey) {
     return {
       statusCode: 401,
       headers,
