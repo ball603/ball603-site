@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="All New Hampshire High School Basketball Teams - Ball603">
+  <meta name="theme-color" content="#f57c00">
+  <title>Teams | Ball603</title>
+  
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="apple-touch-icon" href="/logo.png">
+  
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <!-- Shared Styles -->
+  <link rel="stylesheet" href="/styles.css">
+  
+  <!-- Open Graph -->
+  <meta property="og:title" content="Teams | Ball603">
+  <meta property="og:description" content="All New Hampshire High School Basketball Teams">
+  <meta property="og:image" content="https://ball603.com/logo.png">
+  <meta property="og:url" content="https://ball603.com/teams">
+  
+  <style>
+    /* Page Hero */
+    .teams-hero {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      padding: 60px 20px 40px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .teams-hero::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+      pointer-events: none;
+    }
+    
+    .teams-hero-content {
+      position: relative;
+      z-index: 1;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    
+    .teams-hero h1 {
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: white;
+      margin: 0 0 10px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+    
+    .teams-hero p {
+      color: rgba(255,255,255,0.7);
+      font-size: 1.1rem;
+      margin: 0;
+    }
+    
+    .teams-hero-stats {
+      display: flex;
+      justify-content: center;
+      gap: 40px;
+      margin-top: 30px;
+    }
+    
+    .hero-stat {
+      text-align: center;
+    }
+    
+    .hero-stat-value {
+      display: block;
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: #f57c00;
+    }
+    
+    .hero-stat-label {
+      display: block;
+      font-size: 0.85rem;
+      color: rgba(255,255,255,0.6);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    /* Filter Bar */
+    .teams-filter-bar {
+      background: #fff;
+      border-bottom: 1px solid #e0e0e0;
+      padding: 15px 20px;
+      position: sticky;
+      top: 60px;
+      z-index: 100;
+    }
+    
+    .filter-inner {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    
+    .filter-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .filter-label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .filter-buttons {
+      display: flex;
+      gap: 5px;
+    }
+    
+    .filter-btn {
+      padding: 8px 16px;
+      border: 1px solid #ddd;
+      background: #fff;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: #333;
+    }
+    
+    .filter-btn:hover {
+      border-color: #f57c00;
+      color: #f57c00;
+    }
+    
+    .filter-btn.active {
+      background: #f57c00;
+      border-color: #f57c00;
+      color: white;
+    }
+    
+    .search-box {
+      flex: 1;
+      min-width: 200px;
+      max-width: 300px;
+      position: relative;
+    }
+    
+    .search-box input {
+      width: 100%;
+      padding: 10px 15px 10px 40px;
+      border: 1px solid #ddd;
+      border-radius: 25px;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    
+    .search-box input:focus {
+      border-color: #f57c00;
+    }
+    
+    .search-box::before {
+      content: '🔍';
+      position: absolute;
+      left: 15px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 0.9rem;
+      opacity: 0.5;
+    }
+    
+    .teams-count {
+      font-size: 0.9rem;
+      color: #666;
+      margin-left: auto;
+    }
+    
+    /* Teams Grid */
+    .teams-main {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 30px 20px 60px;
+    }
+    
+    .teams-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 20px;
+    }
+    
+    .team-card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+      text-decoration: none;
+      color: inherit;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      transition: all 0.3s ease;
+      border: 2px solid transparent;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .team-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+    
+    .team-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: var(--team-color, #f57c00);
+    }
+    
+    .team-card-logo {
+      width: 80px;
+      height: 80px;
+      object-fit: contain;
+      margin: 0 auto 15px;
+      display: block;
+    }
+    
+    .team-card-logo.fallback {
+      background: #f5f5f5;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+    }
+    
+    .team-card-name {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #1a1a2e;
+      margin: 0 0 5px;
+    }
+    
+    .team-card-mascot {
+      font-size: 0.9rem;
+      color: #666;
+      margin: 0 0 10px;
+    }
+    
+    .team-card-meta {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    
+    .team-card-badge {
+      font-size: 0.7rem;
+      padding: 3px 8px;
+      border-radius: 10px;
+      background: #f0f0f0;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .team-card-badge.division {
+      background: #e3f2fd;
+      color: #1976d2;
+    }
+    
+    /* Division Headers */
+    .division-section {
+      margin-bottom: 40px;
+    }
+    
+    .division-header {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #f0f0f0;
+    }
+    
+    .division-header h2 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #1a1a2e;
+      margin: 0;
+    }
+    
+    .division-count {
+      font-size: 0.85rem;
+      color: #666;
+      background: #f0f0f0;
+      padding: 4px 12px;
+      border-radius: 15px;
+    }
+    
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #666;
+    }
+    
+    .empty-state p {
+      font-size: 1.1rem;
+      margin: 0;
+    }
+    
+    /* Loading State */
+    .loading-state {
+      text-align: center;
+      padding: 80px 20px;
+    }
+    
+    .loading-spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid #f0f0f0;
+      border-top-color: #f57c00;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 20px;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    /* Mobile Responsive */
+    @media (max-width: 768px) {
+      .teams-hero {
+        padding: 40px 15px 30px;
+      }
+      
+      .teams-hero h1 {
+        font-size: 1.8rem;
+      }
+      
+      .teams-hero-stats {
+        gap: 25px;
+      }
+      
+      .hero-stat-value {
+        font-size: 2rem;
+      }
+      
+      .teams-filter-bar {
+        top: 56px;
+      }
+      
+      .filter-inner {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 15px;
+      }
+      
+      .filter-group {
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+      
+      .search-box {
+        max-width: none;
+      }
+      
+      .teams-count {
+        margin-left: 0;
+        text-align: center;
+      }
+      
+      .teams-grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 15px;
+      }
+      
+      .team-card {
+        padding: 15px;
+      }
+      
+      .team-card-logo {
+        width: 60px;
+        height: 60px;
+      }
+      
+      .team-card-name {
+        font-size: 1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  
+  <!-- ==================== SITE HEADER ==================== -->
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="/" class="header-logo">
+        <img src="/Ball603wide-white-200px.png" alt="Ball603 - Basketball in the Granite State">
+      </a>
+      
+      <nav class="header-nav">
+        <div class="nav-item">
+          <a href="/teams" class="nav-link active">Teams</a>
+        </div>
+        <div class="nav-item">
+          <a href="/schedule" class="nav-link">Schedule</a>
+        </div>
+        <div class="nav-item">
+          <a href="/standings" class="nav-link">Standings</a>
+        </div>
+        <div class="nav-item">
+          <a href="/features" class="nav-link">Features</a>
+          <div class="nav-dropdown">
+            <div class="dropdown-list">
+              <a href="/jamsession">Mike Whaley's Jam Session</a>
+              <a href="/1kinthe603">1K in the 603</a>
+              <a href="/603intheNCAA">603 in the NCAA</a>
+              <a href="/nhiaahistory">NHIAA History</a>
+              <a href="/thebash">The Bash</a>
+            </div>
+          </div>
+        </div>
+        <div class="nav-item">
+          <a href="/news" class="nav-link">News</a>
+        </div>
+        <div class="nav-item">
+          <a href="/galleries" class="nav-link">Galleries</a>
+        </div>
+        <div class="nav-item">
+          <a href="/video" class="nav-link">Video</a>
+        </div>
+      </nav>
+      
+      <div class="header-right">
+        <div class="header-social">
+          <a href="https://facebook.com/ball603" target="_blank" class="social-link" title="Facebook">
+            <svg viewBox="0 0 24 24"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" fill="currentColor"/></svg>
+          </a>
+          <a href="https://www.instagram.com/ball603nh/" target="_blank" class="social-link" title="Instagram">
+            <svg viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" fill="currentColor"/></svg>
+          </a>
+          <a href="https://x.com/Ball603NH" target="_blank" class="social-link" title="X (Twitter)">
+            <svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" fill="currentColor"/></svg>
+          </a>
+        </div>
+        
+        <button class="mobile-menu-toggle" id="mobileMenuToggle">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Mobile Drawer Overlay -->
+  <div class="mobile-overlay" id="mobileOverlay"></div>
+  
+  <!-- Mobile Drawer -->
+  <div class="mobile-drawer" id="mobileDrawer">
+    <button class="mobile-drawer-close" id="mobileClose">×</button>
+    <nav class="mobile-nav">
+      <div class="mobile-nav-item"><a href="/teams" class="mobile-nav-link">Teams</a></div>
+      <div class="mobile-nav-item"><a href="/schedule" class="mobile-nav-link">Schedule</a></div>
+      <div class="mobile-nav-item"><a href="/standings" class="mobile-nav-link">Standings</a></div>
+      <div class="mobile-nav-item" data-expandable>
+        <a href="#" class="mobile-nav-link">Features <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></a>
+        <div class="mobile-nav-submenu">
+          <a href="/jamsession">Mike Whaley's Jam Session</a>
+          <a href="/1kinthe603">1K in the 603</a>
+          <a href="/603intheNCAA">603 in the NCAA</a>
+          <a href="/nhiaahistory">NHIAA History</a>
+          <a href="/thebash">The Bash</a>
+        </div>
+      </div>
+      <div class="mobile-nav-item"><a href="/news" class="mobile-nav-link">News</a></div>
+      <div class="mobile-nav-item"><a href="/galleries" class="mobile-nav-link">Galleries</a></div>
+      <div class="mobile-nav-item"><a href="/video" class="mobile-nav-link">Video</a></div>
+    </nav>
+    <div class="mobile-drawer-footer">
+      <div class="mobile-social">
+        <a href="https://facebook.com/ball603" target="_blank" class="social-link"><svg viewBox="0 0 24 24"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" fill="currentColor"/></svg></a>
+        <a href="https://www.instagram.com/ball603nh/" target="_blank" class="social-link"><svg viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" fill="currentColor"/></svg></a>
+        <a href="https://x.com/Ball603NH" target="_blank" class="social-link"><svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" fill="currentColor"/></svg></a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hero Section -->
+  <section class="teams-hero">
+    <div class="teams-hero-content">
+      <h1>🏀 NHIAA Teams</h1>
+      <p>New Hampshire High School Basketball</p>
+      <div class="teams-hero-stats">
+        <div class="hero-stat">
+          <span class="hero-stat-value" id="teamCount">--</span>
+          <span class="hero-stat-label">Teams</span>
+        </div>
+        <div class="hero-stat">
+          <span class="hero-stat-value">4</span>
+          <span class="hero-stat-label">Divisions</span>
+        </div>
+        <div class="hero-stat">
+          <span class="hero-stat-value">2</span>
+          <span class="hero-stat-label">Genders</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Filter Bar -->
+  <div class="teams-filter-bar">
+    <div class="filter-inner">
+      <div class="filter-group">
+        <span class="filter-label">View:</span>
+        <div class="filter-buttons">
+          <button class="filter-btn active" data-view="all">All Teams</button>
+          <button class="filter-btn" data-view="division">By Division</button>
+        </div>
+      </div>
+      <div class="search-box">
+        <input type="text" id="teamSearch" placeholder="Search teams...">
+      </div>
+      <div class="teams-count" id="teamsCount">Loading...</div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <main class="teams-main">
+    <div id="teamsContainer">
+      <div class="loading-state">
+        <div class="loading-spinner"></div>
+        <p>Loading teams...</p>
+      </div>
+    </div>
+  </main>
+
+  <!-- Site Footer -->
+  <footer class="site-footer">
+    <div class="footer-logo"><img src="/logo.png" alt="Ball603"></div>
+    <div class="footer-links">
+      <a href="/about">About Us</a>
+      <a href="/contact">Contact</a>
+    </div>
+    <div class="footer-social">
+      <a href="https://facebook.com/ball603" target="_blank" title="Facebook"><svg viewBox="0 0 24 24"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg></a>
+      <a href="https://www.instagram.com/ball603nh/" target="_blank" title="Instagram"><svg viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg></a>
+      <a href="https://x.com/Ball603NH" target="_blank" title="X (Twitter)"><svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></a>
+    </div>
+    <p class="footer-copyright">© 2025 Ball603. All rights reserved.</p>
+  </footer>
+
+  <script>
+    // ===== SUPABASE CLIENT =====
+    const SUPABASE_URL = 'https://suncdkxfqkwwnmhosxcf.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN1bmNka3hmcWt3d25taG9zeGNmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwNTk4MzIsImV4cCI6MjA4MDYzNTgzMn0.aT6V8Zx_YozqOh1ZnC6x-czI9vo-QhHKmP69PgY-8xw';
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // ===== STATE =====
+    let allTeams = [];
+    let currentView = 'all';
+    let searchTerm = '';
+
+    // ===== UTILITIES =====
+    function toSlug(name) {
+      return name.toLowerCase().replace(/[^a-z0-9]/g, '');
+    }
+
+    function toLogoFilename(shortname) {
+      const specialCases = {
+        'coe-brown': 'CoeBrown', 'st. thomas aquinas': 'StThomasAquinas', 'lin-wood': 'LinWood'
+      };
+      const lower = shortname.toLowerCase();
+      if (specialCases[lower]) return specialCases[lower];
+      return shortname.split(/[\s-]+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join('');
+    }
+
+    function formatDivision(div) {
+      if (!div) return '';
+      // Convert "D1" to "Division I", "D2" to "Division II", etc.
+      const map = { 'D1': 'I', 'D2': 'II', 'D3': 'III', 'D4': 'IV' };
+      return map[div] || div;
+    }
+
+    // ===== MOBILE MENU =====
+    function initMobileMenu() {
+      const toggle = document.getElementById('mobileMenuToggle');
+      const drawer = document.getElementById('mobileDrawer');
+      const overlay = document.getElementById('mobileOverlay');
+      const close = document.getElementById('mobileClose');
+      const openDrawer = () => { drawer.classList.add('active'); overlay.classList.add('active'); document.body.style.overflow = 'hidden'; };
+      const closeDrawer = () => { drawer.classList.remove('active'); overlay.classList.remove('active'); document.body.style.overflow = ''; };
+      toggle?.addEventListener('click', openDrawer);
+      close?.addEventListener('click', closeDrawer);
+      overlay?.addEventListener('click', closeDrawer);
+      document.querySelectorAll('.mobile-nav-item[data-expandable]').forEach(item => {
+        item.querySelector('.mobile-nav-link')?.addEventListener('click', (e) => { e.preventDefault(); item.classList.toggle('expanded'); });
+      });
+    }
+
+    // ===== LOAD TEAMS =====
+    async function loadTeams() {
+      try {
+        const { data: teams, error } = await supabase
+          .from('teams')
+          .select('*')
+          .eq('level', 'High School')
+          .eq('active', true)
+          .order('shortname', { ascending: true });
+
+        if (error) throw error;
+
+        // Deduplicate by shortname (Boys and Girls have same shortname)
+        const seen = new Set();
+        allTeams = teams.filter(t => {
+          if (seen.has(t.shortname)) return false;
+          seen.add(t.shortname);
+          return true;
+        });
+
+        // Update hero stat
+        document.getElementById('teamCount').textContent = allTeams.length;
+
+        renderTeams();
+      } catch (err) {
+        console.error('Error loading teams:', err);
+        document.getElementById('teamsContainer').innerHTML = '<div class="empty-state"><p>Unable to load teams. Please try again later.</p></div>';
+      }
+    }
+
+    // ===== RENDER TEAMS =====
+    function renderTeams() {
+      const container = document.getElementById('teamsContainer');
+      let filtered = allTeams;
+
+      // Apply search filter
+      if (searchTerm) {
+        const term = searchTerm.toLowerCase();
+        filtered = allTeams.filter(t => 
+          t.shortname.toLowerCase().includes(term) ||
+          (t.mascot && t.mascot.toLowerCase().includes(term)) ||
+          (t.location && t.location.toLowerCase().includes(term))
+        );
+      }
+
+      // Update count
+      document.getElementById('teamsCount').textContent = `${filtered.length} team${filtered.length !== 1 ? 's' : ''}`;
+
+      if (filtered.length === 0) {
+        container.innerHTML = '<div class="empty-state"><p>No teams found matching your search.</p></div>';
+        return;
+      }
+
+      if (currentView === 'division') {
+        renderByDivision(container, filtered);
+      } else {
+        renderAllTeams(container, filtered);
+      }
+    }
+
+    function renderAllTeams(container, teams) {
+      container.innerHTML = `
+        <div class="teams-grid">
+          ${teams.map(t => renderTeamCard(t)).join('')}
+        </div>
+      `;
+    }
+
+    function renderByDivision(container, teams) {
+      // Group by division (use Boys division as primary)
+      const divisions = { 'D1': [], 'D2': [], 'D3': [], 'D4': [], 'Other': [] };
+      
+      teams.forEach(t => {
+        const div = t.division || 'Other';
+        if (divisions[div]) {
+          divisions[div].push(t);
+        } else {
+          divisions['Other'].push(t);
+        }
+      });
+
+      const divisionNames = {
+        'D1': 'Division I',
+        'D2': 'Division II',
+        'D3': 'Division III',
+        'D4': 'Division IV',
+        'Other': 'Other'
+      };
+
+      let html = '';
+      ['D1', 'D2', 'D3', 'D4', 'Other'].forEach(div => {
+        if (divisions[div].length > 0) {
+          html += `
+            <div class="division-section">
+              <div class="division-header">
+                <h2>${divisionNames[div]}</h2>
+                <span class="division-count">${divisions[div].length} teams</span>
+              </div>
+              <div class="teams-grid">
+                ${divisions[div].map(t => renderTeamCard(t)).join('')}
+              </div>
+            </div>
+          `;
+        }
+      });
+
+      container.innerHTML = html;
+    }
+
+    function renderTeamCard(team) {
+      const slug = toSlug(team.shortname);
+      const logoFile = toLogoFilename(team.shortname);
+      const primaryColor = team.primary_hex && team.primary_hex !== 'TBD' ? team.primary_hex : '#f57c00';
+      const division = formatDivision(team.division);
+
+      return `
+        <a href="/${slug}" class="team-card" style="--team-color: ${primaryColor}">
+          <img src="/logos/200px/${logoFile}.png" 
+               alt="${team.shortname}" 
+               class="team-card-logo"
+               onerror="this.outerHTML='<div class=\\'team-card-logo fallback\\'>${team.emoji || '🏀'}</div>'">
+          <h3 class="team-card-name">${team.shortname}</h3>
+          ${team.mascot ? `<p class="team-card-mascot">${team.mascot}</p>` : ''}
+          <div class="team-card-meta">
+            ${division ? `<span class="team-card-badge division">Div ${division}</span>` : ''}
+            ${team.location ? `<span class="team-card-badge">${team.location}</span>` : ''}
+          </div>
+        </a>
+      `;
+    }
+
+    // ===== EVENT HANDLERS =====
+    function initFilters() {
+      // View toggle buttons
+      document.querySelectorAll('.filter-btn[data-view]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.filter-btn[data-view]').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          currentView = btn.dataset.view;
+          renderTeams();
+        });
+      });
+
+      // Search input
+      const searchInput = document.getElementById('teamSearch');
+      searchInput.addEventListener('input', (e) => {
+        searchTerm = e.target.value;
+        renderTeams();
+      });
+    }
+
+    // ===== INIT =====
+    document.addEventListener('DOMContentLoaded', () => {
+      initMobileMenu();
+      initFilters();
+      loadTeams();
+    });
+  </script>
+</body>
+</html>
