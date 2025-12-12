@@ -6,793 +6,11 @@
   <meta name="description" content="Ball603 - New Hampshire High School Basketball Standings">
   <meta name="theme-color" content="#f57c00">
   <title>Standings | Ball603</title>
-  
   <link rel="icon" type="image/png" href="/logo.png">
   <link rel="apple-touch-icon" href="/logo.png">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="stylesheet" href="/styles.css">
-  
   <style>
-/* ===== CSS RESET & VARIABLES ===== */
-    *, *::before, *::after {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-    
-    :root {
-      --brand-orange: #f57c00;
-      --brand-orange-hover: #ff9800;
-      --dark: #1a1a1a;
-      --darker: #111111;
-      --light: #f5f5f5;
-      --light-gray: #e8e8e8;
-      --dropdown-bg: #f7f7f7;
-      --dropdown-hover: #ebebeb;
-      --text-dark: #1a1a1a;
-      --text-secondary: rgba(255,255,255,0.7);
-      --text-muted: rgba(255,255,255,0.5);
-      --border-dark: #333;
-      --header-height: 56px;
-    }
-    
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: var(--light);
-      color: #1a1a1a;
-      line-height: 1.5;
-    }
-    
-    a {
-      text-decoration: none;
-      color: inherit;
-    }
-    
-    /* ===== SITE HEADER ===== */
-    .site-header {
-      background: var(--dark);
-      position: sticky;
-      top: 0;
-      z-index: 1000;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-      border-bottom: 1px solid var(--brand-orange);
-    }
-    
-    .header-inner {
-      display: flex;
-      align-items: center;
-      height: var(--header-height);
-      padding: 0 20px;
-      max-width: 1400px;
-      margin: 0 auto;
-    }
-    
-    /* Logo */
-    .header-logo {
-      flex-shrink: 0;
-      margin-right: 32px;
-      display: flex;
-      align-items: center;
-    }
-    
-    .header-logo img {
-      height: 32px;
-      width: auto;
-      display: block;
-    }
-    
-    /* Main Navigation - LEFT ALIGNED */
-    .header-nav {
-      display: flex;
-      align-items: center;
-      height: 100%;
-    }
-    
-    .nav-item {
-      position: relative;
-      height: 100%;
-      display: flex;
-      align-items: center;
-    }
-    
-    .nav-link {
-      color: var(--text-secondary);
-      font-size: 14px;
-      font-weight: 400;
-      padding: 0 14px;
-      height: 100%;
-      display: flex;
-      align-items: center;
-      transition: color 0.2s, background 0.2s;
-    }
-    
-    .nav-item:first-child .nav-link {
-      padding-left: 0;
-    }
-    
-    .nav-link:hover,
-    .nav-item:hover .nav-link {
-      color: var(--brand-orange);
-    }
-    
-    .nav-item.active .nav-link {
-      color: var(--brand-orange);
-    }
-    
-    /* Dropdown - Light Gray Background */
-    .nav-dropdown {
-      position: absolute;
-      top: 100%;
-      left: 0;
-      background: var(--dropdown-bg);
-      border: 1px solid #ccc;
-      border-radius: 0 0 8px 8px;
-      padding: 8px 0;
-      opacity: 0;
-      visibility: hidden;
-      transform: translateY(-10px);
-      transition: all 0.2s ease;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.15);
-      white-space: nowrap;
-    }
-    
-    .nav-item:hover .nav-dropdown {
-      opacity: 1;
-      visibility: visible;
-      transform: translateY(0);
-    }
-    
-    /* Simple dropdown list */
-    .dropdown-list a {
-      display: block;
-      color: var(--text-dark);
-      font-size: 13px;
-      font-weight: 400;
-      padding: 8px 16px;
-      transition: all 0.15s;
-    }
-    
-    .dropdown-list a:hover {
-      background: var(--dropdown-hover);
-      color: var(--brand-orange);
-    }
-    
-    .dropdown-all-link {
-      color: var(--brand-orange) !important;
-      font-weight: 500 !important;
-      border-top: 1px solid #ddd;
-      margin-top: 6px;
-      padding-top: 10px !important;
-    }
-    
-    /* Nested dropdown (Teams) */
-    .nav-dropdown.dropdown-nested {
-      padding: 8px 0;
-    }
-    
-    .dropdown-item-parent {
-      position: relative;
-    }
-    
-    .dropdown-item-parent > a {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      color: var(--text-dark);
-      font-size: 13px;
-      font-weight: 400;
-      padding: 8px 16px;
-      transition: all 0.15s;
-    }
-    
-    .dropdown-item-parent > a svg {
-      opacity: 0.4;
-      transition: opacity 0.15s;
-    }
-    
-    .dropdown-item-parent:hover > a {
-      background: var(--dropdown-hover);
-      color: var(--brand-orange);
-    }
-    
-    .dropdown-item-parent:hover > a svg {
-      opacity: 1;
-    }
-    
-    .dropdown-submenu {
-      position: absolute;
-      left: 100%;
-      top: 0;
-      background: var(--dropdown-bg);
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      padding: 12px 16px;
-      opacity: 0;
-      visibility: hidden;
-      transform: translateX(-10px);
-      transition: all 0.2s ease;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.15);
-      white-space: nowrap;
-    }
-    
-    /* Multi-column team grid */
-    .dropdown-submenu.teams-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-      gap: 0 20px;
-      min-width: 320px;
-      max-width: 500px;
-    }
-    
-    .dropdown-submenu.teams-grid a {
-      padding: 6px 8px;
-    }
-    
-    .dropdown-submenu .submenu-footer {
-      grid-column: 1 / -1;
-      border-top: 1px solid #ddd;
-      margin-top: 8px;
-      padding-top: 8px;
-    }
-    
-    .dropdown-submenu .submenu-footer a {
-      color: var(--brand-orange);
-      font-weight: 500;
-    }
-    
-    .dropdown-item-parent:hover .dropdown-submenu {
-      opacity: 1;
-      visibility: visible;
-      transform: translateX(0);
-    }
-    
-    .dropdown-submenu a {
-      display: block;
-      color: var(--text-dark);
-      font-size: 13px;
-      font-weight: 400;
-      padding: 8px 16px;
-      transition: all 0.15s;
-    }
-    
-    .dropdown-submenu a:hover {
-      background: var(--dropdown-hover);
-      color: var(--brand-orange);
-    }
-    
-    .dropdown-submenu a:last-child {
-      color: var(--brand-orange);
-      font-weight: 500;
-      border-top: 1px solid #ddd;
-      margin-top: 4px;
-      padding-top: 10px;
-    }
-    
-    /* Override for teams-grid - submenu-footer handles the border */
-    .dropdown-submenu.teams-grid a:last-child {
-      border-top: none;
-      margin-top: 0;
-      padding-top: 8px;
-    }
-    
-    .dropdown-submenu.teams-grid .submenu-footer a {
-      padding: 0;
-    }
-    
-    /* Two-section dropdown (Schedule) - TIGHT */
-    .nav-dropdown.dropdown-split {
-      padding: 12px 16px;
-    }
-    
-    .dropdown-sections {
-      display: flex;
-      gap: 20px;
-    }
-    
-    .dropdown-section h4 {
-      color: #888;
-      font-size: 10px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      margin-bottom: 8px;
-      padding-bottom: 6px;
-      border-bottom: 1px solid #ddd;
-    }
-    
-    .dropdown-section a {
-      display: block;
-      color: var(--text-dark);
-      font-size: 13px;
-      font-weight: 400;
-      padding: 5px 0;
-      transition: color 0.15s;
-    }
-    
-    .dropdown-section a:hover {
-      color: var(--brand-orange);
-    }
-    
-    /* Right side: Social + Search */
-    .header-right {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-left: auto;
-    }
-    
-    /* Social Icons */
-    .header-social {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-    
-    .social-link {
-      width: 32px;
-      height: 32px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--text-secondary);
-      border-radius: 4px;
-      transition: all 0.2s;
-    }
-    
-    .social-link:hover {
-      color: var(--brand-orange);
-    }
-    
-    .social-link svg {
-      width: 18px;
-      height: 18px;
-      fill: currentColor;
-    }
-    
-    /* Search */
-    .header-search {
-      position: relative;
-    }
-    
-    .search-toggle {
-      height: 32px;
-      padding: 0 14px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      color: rgba(255,255,255,0.7);
-      background: #333;
-      border: none;
-      border-radius: 16px;
-      cursor: pointer;
-      transition: all 0.2s;
-      font-size: 13px;
-    }
-    
-    .search-toggle:hover {
-      background: #444;
-      color: #fff;
-    }
-    
-    .search-toggle svg {
-      width: 16px;
-      height: 16px;
-      stroke: currentColor;
-      fill: none;
-    }
-    
-    .search-dropdown {
-      position: absolute;
-      top: calc(100% + 8px);
-      right: 0;
-      background: white;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      width: 320px;
-      padding: 16px;
-      opacity: 0;
-      visibility: hidden;
-      transform: translateY(-10px);
-      transition: all 0.2s;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.15);
-    }
-    
-    .search-dropdown.active {
-      opacity: 1;
-      visibility: visible;
-      transform: translateY(0);
-    }
-    
-    .search-input-wrap {
-      position: relative;
-    }
-    
-    .search-input {
-      width: 100%;
-      padding: 12px 16px 12px 44px;
-      background: var(--light);
-      border: 1px solid #ddd;
-      border-radius: 6px;
-      color: var(--text-dark);
-      font-size: 14px;
-      outline: none;
-      transition: border-color 0.2s;
-    }
-    
-    .search-input:focus {
-      border-color: var(--brand-orange);
-    }
-    
-    .search-input::placeholder {
-      color: #999;
-    }
-    
-    .search-input-icon {
-      position: absolute;
-      left: 14px;
-      top: 50%;
-      transform: translateY(-50%);
-      color: #999;
-    }
-    
-    .search-input-icon svg {
-      width: 18px;
-      height: 18px;
-      stroke: currentColor;
-      fill: none;
-    }
-    
-    .search-results {
-      margin-top: 12px;
-      max-height: 300px;
-      overflow-y: auto;
-    }
-    
-    .search-result-item {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 10px;
-      border-radius: 6px;
-      cursor: pointer;
-      transition: background 0.15s;
-    }
-    
-    .search-result-item:hover {
-      background: var(--light);
-    }
-    
-    .search-result-logo {
-      width: 32px;
-      height: 32px;
-      object-fit: contain;
-    }
-    
-    .search-result-info h4 {
-      font-size: 14px;
-      font-weight: 600;
-      color: var(--text-dark);
-    }
-    
-    .search-result-info span {
-      font-size: 12px;
-      color: #888;
-    }
-    
-    .search-hint {
-      font-size: 11px;
-      color: #888;
-      margin-top: 12px;
-      padding-top: 12px;
-      border-top: 1px solid #eee;
-    }
-    
-    /* Mobile Menu Toggle */
-    .mobile-menu-toggle {
-      display: none;
-      width: 40px;
-      height: 40px;
-      align-items: center;
-      justify-content: center;
-      background: none;
-      border: none;
-      color: var(--text-secondary);
-      cursor: pointer;
-      margin-left: auto;
-    }
-    
-    .mobile-menu-toggle svg {
-      width: 24px;
-      height: 24px;
-      stroke: currentColor;
-      fill: none;
-    }
-    
-    /* Mobile Drawer */
-    .mobile-drawer {
-      display: none;
-      position: fixed;
-      top: 0;
-      right: -100%;
-      width: 300px;
-      height: 100vh;
-      background: var(--dark);
-      z-index: 1001;
-      transition: right 0.3s ease;
-      overflow-y: auto;
-    }
-    
-    .mobile-drawer.active {
-      right: 0;
-    }
-    
-    .mobile-drawer-overlay {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0,0,0,0.6);
-      z-index: 1000;
-      opacity: 0;
-      transition: opacity 0.3s;
-    }
-    
-    .mobile-drawer-overlay.active {
-      display: block;
-      opacity: 1;
-    }
-    
-    .mobile-drawer-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 16px 20px;
-      border-bottom: 1px solid var(--border-dark);
-    }
-    
-    .mobile-drawer-close {
-      width: 36px;
-      height: 36px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: none;
-      border: none;
-      color: var(--text-secondary);
-      cursor: pointer;
-    }
-    
-    .mobile-nav-item {
-      border-bottom: 1px solid var(--border-dark);
-    }
-    
-    .mobile-nav-link {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 16px 20px;
-      color: white;
-      font-size: 15px;
-      font-weight: 500;
-    }
-    
-    .mobile-nav-link svg {
-      width: 20px;
-      height: 20px;
-      stroke: currentColor;
-      fill: none;
-      transition: transform 0.2s;
-    }
-    
-    .mobile-nav-item.expanded .mobile-nav-link svg {
-      transform: rotate(180deg);
-    }
-    
-    .mobile-subnav {
-      display: none;
-      background: rgba(255,255,255,0.05);
-      padding: 10px 0;
-    }
-    
-    .mobile-nav-item.expanded .mobile-subnav {
-      display: block;
-    }
-    
-    .mobile-subnav-header {
-      color: rgba(255,255,255,0.5);
-      font-size: 10px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      padding: 10px 24px 6px;
-    }
-    
-    .mobile-subnav a {
-      display: block;
-      padding: 10px 24px;
-      color: rgba(255,255,255,0.8);
-      font-size: 14px;
-    }
-    
-    .mobile-drawer-footer {
-      padding: 20px;
-      border-top: 1px solid var(--border-dark);
-    }
-    
-    .mobile-social {
-      display: flex;
-      gap: 12px;
-      margin-bottom: 16px;
-    }
-    
-    .mobile-search {
-      position: relative;
-    }
-    
-    .mobile-search input {
-      width: 100%;
-      padding: 12px 16px 12px 44px;
-      background: rgba(255,255,255,0.1);
-      border: 1px solid var(--border-dark);
-      border-radius: 6px;
-      color: white;
-      font-size: 14px;
-    }
-    
-    /* ===== SITE FOOTER ===== */
-    .site-footer {
-      background: var(--dark);
-      padding: 40px 20px;
-      text-align: center;
-      box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
-      margin-top: 60px;
-    }
-    
-    .footer-logo {
-      margin-bottom: 16px;
-      display: flex;
-      justify-content: center;
-    }
-    
-    .footer-logo img {
-      height: 60px;
-      width: auto;
-      display: block;
-    }
-    
-    .footer-links {
-      margin-bottom: 16px;
-    }
-    
-    .footer-links a {
-      color: #ffffff;
-      font-size: 14px;
-      margin: 0 12px;
-      transition: color 0.2s;
-    }
-    
-    .footer-links a:hover {
-      color: var(--brand-orange);
-    }
-    
-    .footer-social {
-      display: flex;
-      justify-content: center;
-      gap: 16px;
-      margin-bottom: 20px;
-    }
-    
-    .footer-social a {
-      width: 36px;
-      height: 36px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: rgba(255,255,255,0.7);
-      transition: color 0.2s;
-    }
-    
-    .footer-social a:hover {
-      color: var(--brand-orange);
-    }
-    
-    .footer-social svg {
-      width: 22px;
-      height: 22px;
-      fill: currentColor;
-    }
-    
-    .footer-copyright {
-      color: rgba(255,255,255,0.4);
-      font-size: 12px;
-    }
-    
-    /* ===== RESPONSIVE ===== */
-    @media (max-width: 900px) {
-      .header-nav {
-        display: none;
-      }
-      
-      .header-social {
-        display: none;
-      }
-      
-      .mobile-menu-toggle {
-        display: flex;
-      }
-      
-      .mobile-drawer {
-        display: block;
-      }
-    }
-    
-    /* ===== MAIN CONTENT ===== */
-    .main-content {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 24px 20px;
-    }
-    
-    .page-title {
-      font-size: 28px;
-      font-weight: 700;
-      margin-bottom: 8px;
-    }
-    
-    .page-subtitle {
-      color: #666;
-      font-size: 16px;
-      margin-bottom: 32px;
-    }
-    
-    /* Demo content sections */
-    .demo-section {
-      background: white;
-      border-radius: 12px;
-      padding: 24px;
-      margin-bottom: 24px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-    }
-    
-    .demo-section h2 {
-      font-size: 18px;
-      margin-bottom: 16px;
-      padding-bottom: 12px;
-      border-bottom: 1px solid #eee;
-    }
-    
-    .demo-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-      gap: 16px;
-    }
-    
-    .demo-card {
-      background: var(--light);
-      border-radius: 8px;
-      padding: 16px;
-      text-align: center;
-    }
-    
-    .demo-card-icon {
-      font-size: 32px;
-      margin-bottom: 8px;
-    }
-    
-    .demo-card h3 {
-      font-size: 14px;
-      font-weight: 600;
-      margin-bottom: 4px;
-    }
-    
-    .demo-card p {
-      font-size: 12px;
-      color: #666;
-    }
-
-    /* ===== STANDINGS PAGE STYLES ===== */
+    /* Standings Page Styles */
     .page-container { max-width: 1200px; margin: 0 auto; padding: 24px 20px 100px; }
     
     .page-header { text-align: center; margin-bottom: 32px; }
@@ -802,19 +20,18 @@
     .division-tabs { display: flex; justify-content: center; gap: 8px; margin-bottom: 32px; flex-wrap: wrap; }
     .division-tab {
       padding: 10px 24px; background: white; border: 2px solid #ddd;
-      border-radius: 50px; font-size: 14px; font-weight: 600;
-      cursor: pointer; transition: all 0.2s;
+      border-radius: 50px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s;
     }
-    .division-tab:hover { border-color: var(--brand-orange); color: var(--brand-orange); }
-    .division-tab.active { background: var(--brand-orange); border-color: var(--brand-orange); color: white; }
+    .division-tab:hover { border-color: #f57c00; color: #f57c00; }
+    .division-tab.active { background: #f57c00; border-color: #f57c00; color: white; }
     
     .standings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
     @media (max-width: 900px) { .standings-grid { grid-template-columns: 1fr; } }
     
     .standings-card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
     .standings-card-header {
-      padding: 16px 20px; display: flex; align-items: center;
-      justify-content: space-between; color: white; background: #333;
+      padding: 16px 20px; display: flex; align-items: center; justify-content: space-between;
+      color: white; background: #333;
     }
     .standings-card-title { font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
     .standings-card-title span { font-size: 20px; }
@@ -824,7 +41,7 @@
     .standings-table th {
       text-align: left; padding: 12px 16px; font-size: 11px; font-weight: 600;
       text-transform: uppercase; letter-spacing: 0.5px; color: #999;
-      border-bottom: 1px solid #ddd; background: var(--light);
+      border-bottom: 1px solid #ddd; background: #f5f5f5;
     }
     .standings-table th.center { text-align: center; }
     .standings-table td { padding: 12px 16px; border-bottom: 1px solid #eee; font-size: 14px; }
@@ -833,43 +50,50 @@
     .standings-table tr:hover { background: rgba(245,124,0,0.04); }
     
     .team-rank { font-weight: 700; color: #999; width: 40px; }
-    .team-rank.playoff { color: var(--brand-orange); }
+    .team-rank.playoff { color: #f57c00; }
     .team-rank.bye { color: #2e7d32; }
     
     .team-cell { display: flex; align-items: center; gap: 12px; }
     .team-logo {
-      width: 32px; height: 32px; border-radius: 6px; background: var(--light);
-      display: flex; align-items: center; justify-content: center;
-      overflow: hidden; flex-shrink: 0;
+      width: 32px; height: 32px; border-radius: 6px; background: #f5f5f5;
+      display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0;
     }
     .team-logo img { width: 26px; height: 26px; object-fit: contain; }
     .team-name { font-weight: 600; }
-    .team-name a:hover { color: var(--brand-orange); }
+    .team-name a { color: inherit; text-decoration: none; }
+    .team-name a:hover { color: #f57c00; }
     .team-record { font-weight: 600; }
     .team-pct { color: #666; }
-    .team-rating { font-weight: 600; color: var(--brand-orange); }
+    .team-rating { font-weight: 600; color: #f57c00; }
     
-    .standings-table tr.playoff-line td { border-bottom: 2px dashed var(--brand-orange); }
-    .standings-table tr.bye-line td { border-bottom: 2px dashed #2e7d32; }
+    .standings-table tr.playoff-line td { border-bottom: 2px dashed #f57c00; }
     
     .standings-legend {
-      padding: 16px 20px; background: var(--light); border-top: 1px solid #ddd;
+      padding: 16px 20px; background: #f5f5f5; border-top: 1px solid #ddd;
       display: flex; gap: 24px; flex-wrap: wrap;
     }
     .legend-item { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #666; }
     .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
     .legend-dot.bye { background: #2e7d32; }
-    .legend-dot.playoff { background: var(--brand-orange); }
+    .legend-dot.playoff { background: #f57c00; }
     .legend-dot.bubble { background: #999; }
     
-    .loading-container { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; }
-    .loading-spinner { width: 40px; height: 40px; border: 3px solid #ddd; border-top-color: var(--brand-orange); border-radius: 50%; animation: spin 1s linear infinite; }
+    .loading-container { display: flex; flex-direction: column; align-items: center; padding: 60px 20px; }
+    .loading-spinner { width: 40px; height: 40px; border: 3px solid #ddd; border-top-color: #f57c00; border-radius: 50%; animation: spin 1s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .loading-text { margin-top: 16px; color: #666; }
+    
+    .empty-state {
+      text-align: center; padding: 60px 20px; background: white;
+      border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    .empty-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
+    .empty-title { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+    .empty-text { color: #666; }
   </style>
 </head>
 <body>
-<!-- ==================== SITE HEADER ==================== -->
+  <!-- ==================== SITE HEADER ==================== -->
   <header class="site-header">
     <div class="header-inner">
       
@@ -1327,6 +551,7 @@
       </div>
     </div>
   </div>
+  
 
   <main class="page-container">
     <div class="page-header">
@@ -1349,10 +574,8 @@
     </div>
   </main>
 
-<footer class="site-footer">
-    <div class="footer-logo">
-      <img src="/logo.png" alt="Ball603">
-    </div>
+  <footer class="site-footer">
+    <div class="footer-logo"><img src="/logo.png" alt="Ball603"></div>
     <div class="footer-links">
       <a href="/about">About Us</a>
       <a href="mailto:kj@ball603.com">Contact</a>
@@ -1373,25 +596,11 @@
 
   <script src="/app.js"></script>
   <script>
-    // Header/footer scripts
-    const searchToggle = document.getElementById('searchToggle');
-    const searchDropdown = document.getElementById('searchDropdown');
-    if (searchToggle && searchDropdown) {
-      searchToggle.addEventListener('click', (e) => {
-        e.stopPropagation();
-        searchDropdown.classList.toggle('active');
-      });
-      document.addEventListener('click', (e) => {
-        if (!searchDropdown.contains(e.target) && e.target !== searchToggle) {
-          searchDropdown.classList.remove('active');
-        }
-      });
-    }
-    
-    const mobileToggle = document.getElementById('mobileMenuToggle');
-    const mobileDrawer = document.getElementById('mobileDrawer');
-    const mobileOverlay = document.getElementById('mobileOverlay');
-    const mobileClose = document.getElementById('mobileClose');
+    // Mobile menu handlers
+    var mobileToggle = document.getElementById('mobileMenuToggle');
+    var mobileDrawer = document.getElementById('mobileDrawer');
+    var mobileOverlay = document.getElementById('mobileOverlay');
+    var mobileClose = document.getElementById('mobileClose');
     
     function openMobileMenu() {
       if (mobileDrawer) mobileDrawer.classList.add('active');
@@ -1401,75 +610,37 @@
       if (mobileDrawer) mobileDrawer.classList.remove('active');
       if (mobileOverlay) mobileOverlay.classList.remove('active');
     }
-    
     if (mobileToggle) mobileToggle.addEventListener('click', openMobileMenu);
     if (mobileClose) mobileClose.addEventListener('click', closeMobileMenu);
     if (mobileOverlay) mobileOverlay.addEventListener('click', closeMobileMenu);
     
-    document.querySelectorAll('.mobile-nav-item[data-expandable]').forEach(item => {
-      const link = item.querySelector('.mobile-nav-link');
-      if (link) {
-        link.addEventListener('click', (e) => {
-          e.preventDefault();
-          item.classList.toggle('expanded');
-        });
-      }
+    document.querySelectorAll('.mobile-nav-item[data-expandable]').forEach(function(item) {
+      var link = item.querySelector('.mobile-nav-link');
+      if (link) link.addEventListener('click', function(e) { e.preventDefault(); item.classList.toggle('expanded'); });
     });
 
-    // Standings scripts
-    let allStandings = [];
-    let currentDivision = 'D-I';
+    // Search toggle
+    var searchToggle = document.getElementById('searchToggle');
+    var searchDropdown = document.getElementById('searchDropdown');
+    if (searchToggle && searchDropdown) {
+      searchToggle.addEventListener('click', function(e) { e.stopPropagation(); searchDropdown.classList.toggle('active'); });
+      document.addEventListener('click', function(e) {
+        if (!searchDropdown.contains(e.target) && e.target !== searchToggle) searchDropdown.classList.remove('active');
+      });
+    }
+
+    // Standings functionality
+    var allStandings = [];
+    var currentDivision = 'D-I';
     
-    const PLAYOFF_TEAMS = {
+    var PLAYOFF_TEAMS = {
       Boys: { 'D-I': 15, 'D-II': 14, 'D-III': 15, 'D-IV': 16 },
       Girls: { 'D-I': 16, 'D-II': 14, 'D-III': 14, 'D-IV': 16 }
     };
     
-    function normalizeTeamName(name) {
-      if (!name) return name;
-      const normalizations = {
-        'Alvirne High School': 'Alvirne', 'Bedford High School': 'Bedford', 'Belmont High School': 'Belmont',
-        'Berlin Middle High School': 'Berlin', 'Bishop Brady High School': 'Bishop Brady', 'Bishop Guertin High School': 'Bishop Guertin',
-        'Bow High School': 'Bow', 'Campbell High School': 'Campbell', 'Coe-Brown Northwood Academy': 'Coe-Brown',
-        'Colebrook Academy': 'Colebrook', 'ConVal Regional High School': 'ConVal', 'Conant Middle High School': 'Conant',
-        'Concord Christian Academy': 'Concord Christian', 'Concord High School': 'Concord', 'Derryfield School': 'Derryfield',
-        'Dover High School': 'Dover', 'Epping Middle High School': 'Epping', 'Exeter High School': 'Exeter',
-        'Fall Mountain Regional High School': 'Fall Mountain', 'Farmington High School': 'Farmington',
-        'Franklin High School': 'Franklin', 'Gilford High School': 'Gilford', 'Goffstown High School': 'Goffstown',
-        'Gorham High School': 'Gorham', 'Groveton High School': 'Groveton', 'Hanover High School': 'Hanover',
-        'Hillsboro-Deering High School': 'Hillsboro-Deering', 'Hinsdale High School': 'Hinsdale',
-        'Hollis-Brookline High School': 'Hollis-Brookline', 'Holy Family Academy': 'Holy Family',
-        'Hopkinton High School': 'Hopkinton', 'Inter-Lakes High School': 'Inter-Lakes',
-        'John Stark Regional High School': 'John Stark', 'Kearsarge Regional High School': 'Kearsarge',
-        'Keene High School': 'Keene', 'Kennett High School': 'Kennett', 'Kingswood Regional High School': 'Kingswood',
-        'Laconia High School': 'Laconia', 'Lebanon High School': 'Lebanon', 'Lin-Wood Public School': 'Lin-Wood',
-        'Lisbon Regional School': 'Lisbon', 'Littleton High School': 'Littleton', 'Londonderry High School': 'Londonderry',
-        'Manchester Central High School': 'Manchester Central', 'Manchester Memorial High School': 'Manchester Memorial',
-        'Manchester West High School': 'Manchester West', 'Mascenic Regional High School': 'Mascenic',
-        'Mascoma Valley Regional High School': 'Mascoma', 'Merrimack High School': 'Merrimack',
-        'Merrimack Valley High School': 'Merrimack Valley', 'Milford High School': 'Milford',
-        'Monadnock Regional High School': 'Monadnock', 'Mount Royal Academy': 'Mount Royal',
-        'Nashua North High School': 'Nashua North', 'Nashua South High School': 'Nashua South',
-        'Newmarket Jr-Sr High School': 'Newmarket', 'Newport High School': 'Newport', 'Nute High School': 'Nute',
-        'Oyster River High School': 'Oyster River', 'Pelham High School': 'Pelham', 'Pembroke Academy': 'Pembroke',
-        'Pinkerton Academy': 'Pinkerton', 'Plymouth Regional High School': 'Plymouth',
-        'Portsmouth Christian Academy': 'Portsmouth Christian', 'Portsmouth High School': 'Portsmouth',
-        'Profile School': 'Profile', 'Prospect Mountain High School': 'Prospect Mountain',
-        'Raymond High School': 'Raymond', 'Salem High School': 'Salem', 'Sanborn Regional High School': 'Sanborn',
-        'Souhegan High School': 'Souhegan', 'Spaulding High School': 'Spaulding',
-        'St. Thomas Aquinas High School': 'St. Thomas Aquinas', 'Stevens High School': 'Stevens',
-        'Sunapee Middle High School': 'Sunapee', 'Somersworth High School': 'Somersworth',
-        'Timberlane Regional High School': 'Timberlane', 'Trinity High School': 'Trinity',
-        'White Mountains Regional High School': 'White Mountains', 'Wilton-Lyndeborough High School': 'Wilton-Lyndeborough',
-        'Winnacunnet High School': 'Winnacunnet', 'Winnisquam Regional High School': 'Winnisquam',
-        'Woodsville High School': 'Woodsville'
-      };
-      return normalizations[name] || name;
-    }
-    
-    document.querySelectorAll('.division-tab').forEach(tab => {
-      tab.addEventListener('click', () => {
-        document.querySelectorAll('.division-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.division-tab').forEach(function(tab) {
+      tab.addEventListener('click', function() {
+        document.querySelectorAll('.division-tab').forEach(function(t) { t.classList.remove('active'); });
         tab.classList.add('active');
         currentDivision = tab.dataset.div;
         renderStandings();
@@ -1478,7 +649,8 @@
     
     function getLogoUrl(team) {
       if (!team) return '/logos/100px/Ball603-white.png';
-      return `/logos/100px/${team.toLowerCase().replace(/[^a-z0-9]/g,'')}.png`;
+      var slug = team.toLowerCase().replace(/[^a-z0-9]/g,'');
+      return '/logos/100px/' + slug + '.png';
     }
     
     function getTeamSlug(team) {
@@ -1487,111 +659,84 @@
     }
     
     function renderStandings() {
-      const container = document.getElementById('standingsContainer');
+      var container = document.getElementById('standingsContainer');
       
-      const boysTeams = allStandings.filter(t => t.gender === 'Boys' && t.division === currentDivision)
-        .sort((a,b) => (b.rating||0) - (a.rating||0));
-      const girlsTeams = allStandings.filter(t => t.gender === 'Girls' && t.division === currentDivision)
-        .sort((a,b) => (b.rating||0) - (a.rating||0));
+      var boysTeams = allStandings.filter(function(t) { return t.gender === 'Boys' && t.division === currentDivision; });
+      boysTeams.sort(function(a,b) { return (b.rating||0) - (a.rating||0); });
       
-      const boysPlayoff = PLAYOFF_TEAMS.Boys[currentDivision] || 16;
-      const girlsPlayoff = PLAYOFF_TEAMS.Girls[currentDivision] || 16;
-      const boysByes = Math.max(0, 16 - boysPlayoff);
-      const girlsByes = Math.max(0, 16 - girlsPlayoff);
+      var girlsTeams = allStandings.filter(function(t) { return t.gender === 'Girls' && t.division === currentDivision; });
+      girlsTeams.sort(function(a,b) { return (b.rating||0) - (a.rating||0); });
       
-      container.innerHTML = `
-        <div class="standings-card">
-          <div class="standings-card-header">
-            <div class="standings-card-title"><span>🏀</span> Boys ${currentDivision.replace('D-','Division ')}</div>
-            <div class="playoff-info">${boysPlayoff} teams qualify</div>
-          </div>
-          <table class="standings-table">
-            <thead><tr><th>#</th><th>Team</th><th class="center">W-L</th><th class="center">PCT</th><th class="center">Rating</th></tr></thead>
-            <tbody>${boysTeams.length ? boysTeams.map((t,i) => renderTeamRow(t, i+1, boysByes, boysPlayoff)).join('') : '<tr><td colspan="5" style="text-align:center;padding:40px;color:#999;">No standings data</td></tr>'}</tbody>
-          </table>
-          <div class="standings-legend">
-            ${boysByes > 0 ? '<div class="legend-item"><div class="legend-dot bye"></div>First-round bye</div>' : ''}
-            <div class="legend-item"><div class="legend-dot playoff"></div>Playoff position</div>
-            <div class="legend-item"><div class="legend-dot bubble"></div>Below cutline</div>
-          </div>
-        </div>
-        
-        <div class="standings-card">
-          <div class="standings-card-header">
-            <div class="standings-card-title"><span>🏀</span> Girls ${currentDivision.replace('D-','Division ')}</div>
-            <div class="playoff-info">${girlsPlayoff} teams qualify</div>
-          </div>
-          <table class="standings-table">
-            <thead><tr><th>#</th><th>Team</th><th class="center">W-L</th><th class="center">PCT</th><th class="center">Rating</th></tr></thead>
-            <tbody>${girlsTeams.length ? girlsTeams.map((t,i) => renderTeamRow(t, i+1, girlsByes, girlsPlayoff)).join('') : '<tr><td colspan="5" style="text-align:center;padding:40px;color:#999;">No standings data</td></tr>'}</tbody>
-          </table>
-          <div class="standings-legend">
-            ${girlsByes > 0 ? '<div class="legend-item"><div class="legend-dot bye"></div>First-round bye</div>' : ''}
-            <div class="legend-item"><div class="legend-dot playoff"></div>Playoff position</div>
-            <div class="legend-item"><div class="legend-dot bubble"></div>Below cutline</div>
-          </div>
-        </div>
-      `;
+      var boysPlayoff = PLAYOFF_TEAMS.Boys[currentDivision] || 16;
+      var girlsPlayoff = PLAYOFF_TEAMS.Girls[currentDivision] || 16;
+      
+      var html = '';
+      html += renderGenderCard('Boys', boysTeams, boysPlayoff);
+      html += renderGenderCard('Girls', girlsTeams, girlsPlayoff);
+      container.innerHTML = html;
     }
     
-    function renderTeamRow(team, rank, byes, playoffSpots) {
-      const isBye = rank <= byes;
-      const isPlayoff = rank <= playoffSpots;
-      const isPlayoffLine = rank === playoffSpots;
-      const isByeLine = rank === byes && byes > 0;
+    function renderGenderCard(gender, teams, playoffSpots) {
+      var html = '<div class="standings-card">';
+      html += '<div class="standings-card-header">';
+      html += '<div class="standings-card-title"><span>🏀</span> ' + gender + ' ' + currentDivision.replace('D-','Division ') + '</div>';
+      html += '<div class="playoff-info">' + playoffSpots + ' teams qualify</div>';
+      html += '</div>';
       
-      let rankClass = 'team-rank';
-      if (isBye) rankClass += ' bye';
-      else if (isPlayoff) rankClass += ' playoff';
+      html += '<table class="standings-table">';
+      html += '<thead><tr><th>#</th><th>Team</th><th class="center">W-L</th><th class="center">PCT</th><th class="center">Rating</th></tr></thead>';
+      html += '<tbody>';
       
-      let rowClass = '';
-      if (isPlayoffLine) rowClass = 'playoff-line';
-      else if (isByeLine) rowClass = 'bye-line';
-      
-      const wins = team.wins || 0;
-      const losses = team.losses || 0;
-      const pct = wins + losses > 0 ? (wins / (wins + losses)).toFixed(3) : '.000';
-      const teamName = team.school || team.team || 'Unknown';
-      
-      return `
-        <tr class="${rowClass}">
-          <td class="${rankClass}">${rank}</td>
-          <td>
-            <div class="team-cell">
-              <div class="team-logo">
-                <img src="${getLogoUrl(teamName)}" alt="${teamName}" onerror="this.src='/logos/100px/Ball603-white.png'">
-              </div>
-              <div class="team-name"><a href="/${getTeamSlug(teamName)}">${teamName}</a></div>
-            </div>
-          </td>
-          <td class="center team-record">${wins}-${losses}</td>
-          <td class="center team-pct">${pct}</td>
-          <td class="center team-rating">${team.rating ? team.rating.toFixed(2) : '--'}</td>
-        </tr>
-      `;
-    }
-    
-    async function init() {
-      try {
-        const res = await fetch('/.netlify/functions/get-standings');
-        const data = await res.json();
-        allStandings = (data.standings || []).map(s => ({
-          ...s,
-          school: normalizeTeamName(s.school)
-        }));
-        renderStandings();
-      } catch(e) {
-        console.error(e);
-        document.getElementById('standingsContainer').innerHTML = `
-          <div style="grid-column:1/-1;text-align:center;padding:60px 20px;background:white;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
-            <div style="font-size:48px;margin-bottom:16px;opacity:0.5;">⚠️</div>
-            <div style="font-size:18px;font-weight:600;margin-bottom:8px;">Unable to load standings</div>
-            <div style="color:#666;">Please refresh the page</div>
-          </div>
-        `;
+      if (!teams.length) {
+        html += '<tr><td colspan="5" style="text-align:center;padding:40px;color:#999;">No standings data</td></tr>';
+      } else {
+        teams.forEach(function(team, index) {
+          var rank = index + 1;
+          var isPlayoff = rank <= playoffSpots;
+          var isPlayoffLine = rank === playoffSpots;
+          
+          var wins = team.wins || 0;
+          var losses = team.losses || 0;
+          var pct = wins + losses > 0 ? (wins / (wins + losses)).toFixed(3) : '.000';
+          var teamName = team.school || team.team || 'Unknown';
+          
+          html += '<tr' + (isPlayoffLine ? ' class="playoff-line"' : '') + '>';
+          html += '<td class="team-rank' + (isPlayoff ? ' playoff' : '') + '">' + rank + '</td>';
+          html += '<td><div class="team-cell">';
+          html += '<div class="team-logo"><img src="' + getLogoUrl(teamName) + '" onerror="this.src=\'/logos/100px/Ball603-white.png\'"></div>';
+          html += '<div class="team-name"><a href="/' + getTeamSlug(teamName) + '">' + teamName + '</a></div>';
+          html += '</div></td>';
+          html += '<td class="center team-record">' + wins + '-' + losses + '</td>';
+          html += '<td class="center team-pct">' + pct + '</td>';
+          html += '<td class="center team-rating">' + (team.rating ? team.rating.toFixed(2) : '--') + '</td>';
+          html += '</tr>';
+        });
       }
+      
+      html += '</tbody></table>';
+      html += '<div class="standings-legend">';
+      html += '<div class="legend-item"><div class="legend-dot playoff"></div>Playoff position</div>';
+      html += '<div class="legend-item"><div class="legend-dot bubble"></div>Below cutline</div>';
+      html += '</div>';
+      html += '</div>';
+      return html;
     }
-    init();
+    
+    // Load standings
+    (function loadStandings() {
+      console.log('Loading standings from API...');
+      fetch('/.netlify/functions/get-standings')
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+          console.log('Standings loaded:', data.standings ? data.standings.length : 0);
+          allStandings = data.standings || [];
+          renderStandings();
+        })
+        .catch(function(err) {
+          console.error('Error loading standings:', err);
+          document.getElementById('standingsContainer').innerHTML = '<div class="empty-state" style="grid-column:1/-1;"><div class="empty-icon">⚠️</div><div class="empty-title">Unable to load standings</div><div class="empty-text">Please refresh the page</div></div>';
+        });
+    })();
   </script>
 </body>
 </html>

@@ -3,860 +3,54 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Ball603 - New Hampshire High School and College Basketball Schedule">
+  <meta name="description" content="Ball603 - New Hampshire Basketball Schedule">
   <meta name="theme-color" content="#f57c00">
   <title>Schedule | Ball603</title>
-  
   <link rel="icon" type="image/png" href="/logo.png">
   <link rel="apple-touch-icon" href="/logo.png">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="stylesheet" href="/styles.css">
-  
   <style>
-/* ===== CSS RESET & VARIABLES ===== */
-    *, *::before, *::after {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-    
-    :root {
-      --brand-orange: #f57c00;
-      --brand-orange-hover: #ff9800;
-      --dark: #1a1a1a;
-      --darker: #111111;
-      --light: #f5f5f5;
-      --light-gray: #e8e8e8;
-      --dropdown-bg: #f7f7f7;
-      --dropdown-hover: #ebebeb;
-      --text-dark: #1a1a1a;
-      --text-secondary: rgba(255,255,255,0.7);
-      --text-muted: rgba(255,255,255,0.5);
-      --border-dark: #333;
-      --header-height: 56px;
-    }
-    
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: var(--light);
-      color: #1a1a1a;
-      line-height: 1.5;
-    }
-    
-    a {
-      text-decoration: none;
-      color: inherit;
-    }
-    
-    /* ===== SITE HEADER ===== */
-    .site-header {
-      background: var(--dark);
-      position: sticky;
-      top: 0;
-      z-index: 1000;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-      border-bottom: 1px solid var(--brand-orange);
-    }
-    
-    .header-inner {
-      display: flex;
-      align-items: center;
-      height: var(--header-height);
-      padding: 0 20px;
-      max-width: 1400px;
-      margin: 0 auto;
-    }
-    
-    /* Logo */
-    .header-logo {
-      flex-shrink: 0;
-      margin-right: 32px;
-      display: flex;
-      align-items: center;
-    }
-    
-    .header-logo img {
-      height: 32px;
-      width: auto;
-      display: block;
-    }
-    
-    /* Main Navigation - LEFT ALIGNED */
-    .header-nav {
-      display: flex;
-      align-items: center;
-      height: 100%;
-    }
-    
-    .nav-item {
-      position: relative;
-      height: 100%;
-      display: flex;
-      align-items: center;
-    }
-    
-    .nav-link {
-      color: var(--text-secondary);
-      font-size: 14px;
-      font-weight: 400;
-      padding: 0 14px;
-      height: 100%;
-      display: flex;
-      align-items: center;
-      transition: color 0.2s, background 0.2s;
-    }
-    
-    .nav-item:first-child .nav-link {
-      padding-left: 0;
-    }
-    
-    .nav-link:hover,
-    .nav-item:hover .nav-link {
-      color: var(--brand-orange);
-    }
-    
-    .nav-item.active .nav-link {
-      color: var(--brand-orange);
-    }
-    
-    /* Dropdown - Light Gray Background */
-    .nav-dropdown {
-      position: absolute;
-      top: 100%;
-      left: 0;
-      background: var(--dropdown-bg);
-      border: 1px solid #ccc;
-      border-radius: 0 0 8px 8px;
-      padding: 8px 0;
-      opacity: 0;
-      visibility: hidden;
-      transform: translateY(-10px);
-      transition: all 0.2s ease;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.15);
-      white-space: nowrap;
-    }
-    
-    .nav-item:hover .nav-dropdown {
-      opacity: 1;
-      visibility: visible;
-      transform: translateY(0);
-    }
-    
-    /* Simple dropdown list */
-    .dropdown-list a {
-      display: block;
-      color: var(--text-dark);
-      font-size: 13px;
-      font-weight: 400;
-      padding: 8px 16px;
-      transition: all 0.15s;
-    }
-    
-    .dropdown-list a:hover {
-      background: var(--dropdown-hover);
-      color: var(--brand-orange);
-    }
-    
-    .dropdown-all-link {
-      color: var(--brand-orange) !important;
-      font-weight: 500 !important;
-      border-top: 1px solid #ddd;
-      margin-top: 6px;
-      padding-top: 10px !important;
-    }
-    
-    /* Nested dropdown (Teams) */
-    .nav-dropdown.dropdown-nested {
-      padding: 8px 0;
-    }
-    
-    .dropdown-item-parent {
-      position: relative;
-    }
-    
-    .dropdown-item-parent > a {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      color: var(--text-dark);
-      font-size: 13px;
-      font-weight: 400;
-      padding: 8px 16px;
-      transition: all 0.15s;
-    }
-    
-    .dropdown-item-parent > a svg {
-      opacity: 0.4;
-      transition: opacity 0.15s;
-    }
-    
-    .dropdown-item-parent:hover > a {
-      background: var(--dropdown-hover);
-      color: var(--brand-orange);
-    }
-    
-    .dropdown-item-parent:hover > a svg {
-      opacity: 1;
-    }
-    
-    .dropdown-submenu {
-      position: absolute;
-      left: 100%;
-      top: 0;
-      background: var(--dropdown-bg);
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      padding: 12px 16px;
-      opacity: 0;
-      visibility: hidden;
-      transform: translateX(-10px);
-      transition: all 0.2s ease;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.15);
-      white-space: nowrap;
-    }
-    
-    /* Multi-column team grid */
-    .dropdown-submenu.teams-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-      gap: 0 20px;
-      min-width: 320px;
-      max-width: 500px;
-    }
-    
-    .dropdown-submenu.teams-grid a {
-      padding: 6px 8px;
-    }
-    
-    .dropdown-submenu .submenu-footer {
-      grid-column: 1 / -1;
-      border-top: 1px solid #ddd;
-      margin-top: 8px;
-      padding-top: 8px;
-    }
-    
-    .dropdown-submenu .submenu-footer a {
-      color: var(--brand-orange);
-      font-weight: 500;
-    }
-    
-    .dropdown-item-parent:hover .dropdown-submenu {
-      opacity: 1;
-      visibility: visible;
-      transform: translateX(0);
-    }
-    
-    .dropdown-submenu a {
-      display: block;
-      color: var(--text-dark);
-      font-size: 13px;
-      font-weight: 400;
-      padding: 8px 16px;
-      transition: all 0.15s;
-    }
-    
-    .dropdown-submenu a:hover {
-      background: var(--dropdown-hover);
-      color: var(--brand-orange);
-    }
-    
-    .dropdown-submenu a:last-child {
-      color: var(--brand-orange);
-      font-weight: 500;
-      border-top: 1px solid #ddd;
-      margin-top: 4px;
-      padding-top: 10px;
-    }
-    
-    /* Override for teams-grid - submenu-footer handles the border */
-    .dropdown-submenu.teams-grid a:last-child {
-      border-top: none;
-      margin-top: 0;
-      padding-top: 8px;
-    }
-    
-    .dropdown-submenu.teams-grid .submenu-footer a {
-      padding: 0;
-    }
-    
-    /* Two-section dropdown (Schedule) - TIGHT */
-    .nav-dropdown.dropdown-split {
-      padding: 12px 16px;
-    }
-    
-    .dropdown-sections {
-      display: flex;
-      gap: 20px;
-    }
-    
-    .dropdown-section h4 {
-      color: #888;
-      font-size: 10px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      margin-bottom: 8px;
-      padding-bottom: 6px;
-      border-bottom: 1px solid #ddd;
-    }
-    
-    .dropdown-section a {
-      display: block;
-      color: var(--text-dark);
-      font-size: 13px;
-      font-weight: 400;
-      padding: 5px 0;
-      transition: color 0.15s;
-    }
-    
-    .dropdown-section a:hover {
-      color: var(--brand-orange);
-    }
-    
-    /* Right side: Social + Search */
-    .header-right {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-left: auto;
-    }
-    
-    /* Social Icons */
-    .header-social {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-    
-    .social-link {
-      width: 32px;
-      height: 32px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--text-secondary);
-      border-radius: 4px;
-      transition: all 0.2s;
-    }
-    
-    .social-link:hover {
-      color: var(--brand-orange);
-    }
-    
-    .social-link svg {
-      width: 18px;
-      height: 18px;
-      fill: currentColor;
-    }
-    
-    /* Search */
-    .header-search {
-      position: relative;
-    }
-    
-    .search-toggle {
-      height: 32px;
-      padding: 0 14px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      color: rgba(255,255,255,0.7);
-      background: #333;
-      border: none;
-      border-radius: 16px;
-      cursor: pointer;
-      transition: all 0.2s;
-      font-size: 13px;
-    }
-    
-    .search-toggle:hover {
-      background: #444;
-      color: #fff;
-    }
-    
-    .search-toggle svg {
-      width: 16px;
-      height: 16px;
-      stroke: currentColor;
-      fill: none;
-    }
-    
-    .search-dropdown {
-      position: absolute;
-      top: calc(100% + 8px);
-      right: 0;
-      background: white;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      width: 320px;
-      padding: 16px;
-      opacity: 0;
-      visibility: hidden;
-      transform: translateY(-10px);
-      transition: all 0.2s;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.15);
-    }
-    
-    .search-dropdown.active {
-      opacity: 1;
-      visibility: visible;
-      transform: translateY(0);
-    }
-    
-    .search-input-wrap {
-      position: relative;
-    }
-    
-    .search-input {
-      width: 100%;
-      padding: 12px 16px 12px 44px;
-      background: var(--light);
-      border: 1px solid #ddd;
-      border-radius: 6px;
-      color: var(--text-dark);
-      font-size: 14px;
-      outline: none;
-      transition: border-color 0.2s;
-    }
-    
-    .search-input:focus {
-      border-color: var(--brand-orange);
-    }
-    
-    .search-input::placeholder {
-      color: #999;
-    }
-    
-    .search-input-icon {
-      position: absolute;
-      left: 14px;
-      top: 50%;
-      transform: translateY(-50%);
-      color: #999;
-    }
-    
-    .search-input-icon svg {
-      width: 18px;
-      height: 18px;
-      stroke: currentColor;
-      fill: none;
-    }
-    
-    .search-results {
-      margin-top: 12px;
-      max-height: 300px;
-      overflow-y: auto;
-    }
-    
-    .search-result-item {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 10px;
-      border-radius: 6px;
-      cursor: pointer;
-      transition: background 0.15s;
-    }
-    
-    .search-result-item:hover {
-      background: var(--light);
-    }
-    
-    .search-result-logo {
-      width: 32px;
-      height: 32px;
-      object-fit: contain;
-    }
-    
-    .search-result-info h4 {
-      font-size: 14px;
-      font-weight: 600;
-      color: var(--text-dark);
-    }
-    
-    .search-result-info span {
-      font-size: 12px;
-      color: #888;
-    }
-    
-    .search-hint {
-      font-size: 11px;
-      color: #888;
-      margin-top: 12px;
-      padding-top: 12px;
-      border-top: 1px solid #eee;
-    }
-    
-    /* Mobile Menu Toggle */
-    .mobile-menu-toggle {
-      display: none;
-      width: 40px;
-      height: 40px;
-      align-items: center;
-      justify-content: center;
-      background: none;
-      border: none;
-      color: var(--text-secondary);
-      cursor: pointer;
-      margin-left: auto;
-    }
-    
-    .mobile-menu-toggle svg {
-      width: 24px;
-      height: 24px;
-      stroke: currentColor;
-      fill: none;
-    }
-    
-    /* Mobile Drawer */
-    .mobile-drawer {
-      display: none;
-      position: fixed;
-      top: 0;
-      right: -100%;
-      width: 300px;
-      height: 100vh;
-      background: var(--dark);
-      z-index: 1001;
-      transition: right 0.3s ease;
-      overflow-y: auto;
-    }
-    
-    .mobile-drawer.active {
-      right: 0;
-    }
-    
-    .mobile-drawer-overlay {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0,0,0,0.6);
-      z-index: 1000;
-      opacity: 0;
-      transition: opacity 0.3s;
-    }
-    
-    .mobile-drawer-overlay.active {
-      display: block;
-      opacity: 1;
-    }
-    
-    .mobile-drawer-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 16px 20px;
-      border-bottom: 1px solid var(--border-dark);
-    }
-    
-    .mobile-drawer-close {
-      width: 36px;
-      height: 36px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: none;
-      border: none;
-      color: var(--text-secondary);
-      cursor: pointer;
-    }
-    
-    .mobile-nav-item {
-      border-bottom: 1px solid var(--border-dark);
-    }
-    
-    .mobile-nav-link {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 16px 20px;
-      color: white;
-      font-size: 15px;
-      font-weight: 500;
-    }
-    
-    .mobile-nav-link svg {
-      width: 20px;
-      height: 20px;
-      stroke: currentColor;
-      fill: none;
-      transition: transform 0.2s;
-    }
-    
-    .mobile-nav-item.expanded .mobile-nav-link svg {
-      transform: rotate(180deg);
-    }
-    
-    .mobile-subnav {
-      display: none;
-      background: rgba(255,255,255,0.05);
-      padding: 10px 0;
-    }
-    
-    .mobile-nav-item.expanded .mobile-subnav {
-      display: block;
-    }
-    
-    .mobile-subnav-header {
-      color: rgba(255,255,255,0.5);
-      font-size: 10px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      padding: 10px 24px 6px;
-    }
-    
-    .mobile-subnav a {
-      display: block;
-      padding: 10px 24px;
-      color: rgba(255,255,255,0.8);
-      font-size: 14px;
-    }
-    
-    .mobile-drawer-footer {
-      padding: 20px;
-      border-top: 1px solid var(--border-dark);
-    }
-    
-    .mobile-social {
-      display: flex;
-      gap: 12px;
-      margin-bottom: 16px;
-    }
-    
-    .mobile-search {
-      position: relative;
-    }
-    
-    .mobile-search input {
-      width: 100%;
-      padding: 12px 16px 12px 44px;
-      background: rgba(255,255,255,0.1);
-      border: 1px solid var(--border-dark);
-      border-radius: 6px;
-      color: white;
-      font-size: 14px;
-    }
-    
-    /* ===== SITE FOOTER ===== */
-    .site-footer {
-      background: var(--dark);
-      padding: 40px 20px;
-      text-align: center;
-      box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
-      margin-top: 60px;
-    }
-    
-    .footer-logo {
-      margin-bottom: 16px;
-      display: flex;
-      justify-content: center;
-    }
-    
-    .footer-logo img {
-      height: 60px;
-      width: auto;
-      display: block;
-    }
-    
-    .footer-links {
-      margin-bottom: 16px;
-    }
-    
-    .footer-links a {
-      color: #ffffff;
-      font-size: 14px;
-      margin: 0 12px;
-      transition: color 0.2s;
-    }
-    
-    .footer-links a:hover {
-      color: var(--brand-orange);
-    }
-    
-    .footer-social {
-      display: flex;
-      justify-content: center;
-      gap: 16px;
-      margin-bottom: 20px;
-    }
-    
-    .footer-social a {
-      width: 36px;
-      height: 36px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: rgba(255,255,255,0.7);
-      transition: color 0.2s;
-    }
-    
-    .footer-social a:hover {
-      color: var(--brand-orange);
-    }
-    
-    .footer-social svg {
-      width: 22px;
-      height: 22px;
-      fill: currentColor;
-    }
-    
-    .footer-copyright {
-      color: rgba(255,255,255,0.4);
-      font-size: 12px;
-    }
-    
-    /* ===== RESPONSIVE ===== */
-    @media (max-width: 900px) {
-      .header-nav {
-        display: none;
-      }
-      
-      .header-social {
-        display: none;
-      }
-      
-      .mobile-menu-toggle {
-        display: flex;
-      }
-      
-      .mobile-drawer {
-        display: block;
-      }
-    }
-    
-    /* ===== MAIN CONTENT ===== */
-    .main-content {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 24px 20px;
-    }
-    
-    .page-title {
-      font-size: 28px;
-      font-weight: 700;
-      margin-bottom: 8px;
-    }
-    
-    .page-subtitle {
-      color: #666;
-      font-size: 16px;
-      margin-bottom: 32px;
-    }
-    
-    /* Demo content sections */
-    .demo-section {
-      background: white;
-      border-radius: 12px;
-      padding: 24px;
-      margin-bottom: 24px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-    }
-    
-    .demo-section h2 {
-      font-size: 18px;
-      margin-bottom: 16px;
-      padding-bottom: 12px;
-      border-bottom: 1px solid #eee;
-    }
-    
-    .demo-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-      gap: 16px;
-    }
-    
-    .demo-card {
-      background: var(--light);
-      border-radius: 8px;
-      padding: 16px;
-      text-align: center;
-    }
-    
-    .demo-card-icon {
-      font-size: 32px;
-      margin-bottom: 8px;
-    }
-    
-    .demo-card h3 {
-      font-size: 14px;
-      font-weight: 600;
-      margin-bottom: 4px;
-    }
-    
-    .demo-card p {
-      font-size: 12px;
-      color: #666;
-    }
-
-    /* ===== SCHEDULE PAGE STYLES ===== */
+    /* Schedule Page Styles */
     .page-container { max-width: 1200px; margin: 0 auto; padding: 24px 20px 100px; }
     
     .date-header {
-      background: white;
-      border-radius: 12px;
-      padding: 20px 24px;
-      margin-bottom: 20px;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 16px;
+      background: white; border-radius: 12px; padding: 20px 24px; margin-bottom: 20px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08); display: flex; align-items: center;
+      justify-content: space-between; flex-wrap: wrap; gap: 16px;
     }
-    
     .date-nav { display: flex; align-items: center; gap: 12px; }
     .date-nav-btn {
-      width: 40px; height: 40px;
-      display: flex; align-items: center; justify-content: center;
-      background: var(--light);
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: all 0.2s;
-      font-size: 16px;
+      width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
+      background: var(--light, #f5f5f5); border: 1px solid #ddd; border-radius: 8px;
+      cursor: pointer; transition: all 0.2s; font-size: 16px;
     }
-    .date-nav-btn:hover { background: var(--brand-orange); border-color: var(--brand-orange); color: white; }
-    
+    .date-nav-btn:hover { background: #f57c00; border-color: #f57c00; color: white; }
     .current-date { font-size: 20px; font-weight: 600; min-width: 280px; text-align: center; }
-    .current-date .day-name { color: var(--brand-orange); }
-    
+    .current-date .day-name { color: #f57c00; }
     .today-btn {
-      background: var(--brand-orange); color: white; border: none;
-      border-radius: 8px; padding: 8px 16px; font-size: 13px; font-weight: 600;
-      cursor: pointer; transition: background 0.2s;
+      background: #f57c00; color: white; border: none; border-radius: 8px;
+      padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer;
     }
-    .today-btn:hover { background: var(--brand-orange-hover); }
+    .today-btn:hover { background: #ff9800; }
     
     .filters-bar { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
-    .filter-group {
-      display: flex; background: var(--light);
-      border-radius: 8px; overflow: hidden; border: 1px solid #ddd;
-    }
+    .filter-group { display: flex; background: #f5f5f5; border-radius: 8px; overflow: hidden; border: 1px solid #ddd; }
     .filter-btn {
-      padding: 8px 14px; background: transparent; border: none;
-      font-size: 13px; font-weight: 500; color: #666;
-      cursor: pointer; transition: all 0.2s;
+      padding: 8px 14px; background: transparent; border: none; font-size: 13px;
+      font-weight: 500; color: #666; cursor: pointer; transition: all 0.2s;
     }
     .filter-btn:hover { color: #1a1a1a; }
-    .filter-btn.active { background: var(--brand-orange); color: white; }
-    
+    .filter-btn.active { background: #f57c00; color: white; }
     .search-input {
       padding: 8px 14px; border: 1px solid #ddd; border-radius: 8px;
-      font-size: 13px; width: 160px; transition: border-color 0.2s;
+      font-size: 13px; width: 160px;
     }
-    .search-input:focus { outline: none; border-color: var(--brand-orange); }
-    
+    .search-input:focus { outline: none; border-color: #f57c00; }
     .calendar-btn {
-      width: 40px; height: 40px;
-      display: flex; align-items: center; justify-content: center;
-      background: var(--light); border: 1px solid #ddd; border-radius: 8px;
-      cursor: pointer; font-size: 18px; transition: all 0.2s;
+      width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
+      background: #f5f5f5; border: 1px solid #ddd; border-radius: 8px; cursor: pointer; font-size: 18px;
     }
-    .calendar-btn:hover { border-color: var(--brand-orange); color: var(--brand-orange); }
+    .calendar-btn:hover { border-color: #f57c00; color: #f57c00; }
     
     .games-section { margin-top: 24px; }
     .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
@@ -871,42 +65,35 @@
       box-shadow: 0 2px 12px rgba(0,0,0,0.08); transition: all 0.2s;
     }
     .game-card:hover { transform: translateY(-2px); box-shadow: 0 4px 24px rgba(0,0,0,0.12); }
-    
     .game-card-header {
-      background: #333; color: white;
-      padding: 10px 16px; display: flex;
-      justify-content: space-between; align-items: center; font-size: 12px;
+      background: #333; color: white; padding: 10px 16px;
+      display: flex; justify-content: space-between; align-items: center; font-size: 12px;
     }
     .game-level { font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
     .game-time { font-weight: 500; }
-    
     .game-card-body { padding: 16px; }
     .game-matchup { display: flex; flex-direction: column; gap: 12px; }
     .game-team { display: flex; align-items: center; gap: 12px; }
     .team-logo {
-      width: 44px; height: 44px; border-radius: 8px;
-      background: var(--light); display: flex; align-items: center;
-      justify-content: center; overflow: hidden; flex-shrink: 0;
+      width: 44px; height: 44px; border-radius: 8px; background: #f5f5f5;
+      display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0;
     }
     .team-logo img { width: 36px; height: 36px; object-fit: contain; }
     .team-info { flex: 1; min-width: 0; }
     .team-name { font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .team-record { font-size: 12px; color: #999; }
     .team-score { font-size: 24px; font-weight: 700; min-width: 36px; text-align: right; }
-    .team-score.winner { color: var(--brand-orange); }
+    .team-score.winner { color: #f57c00; }
     .game-vs { text-align: center; font-size: 11px; font-weight: 600; color: #999; text-transform: uppercase; letter-spacing: 1px; padding: 4px 0; }
-    
     .game-card-footer {
-      padding: 12px 16px; background: var(--light);
-      border-top: 1px solid #ddd; display: flex;
-      justify-content: space-between; align-items: center;
+      padding: 12px 16px; background: #f5f5f5; border-top: 1px solid #ddd;
+      display: flex; justify-content: space-between; align-items: center;
     }
     .game-venue { font-size: 12px; color: #666; }
     .game-coverage { display: flex; gap: 8px; }
-    .coverage-badge { font-size: 16px; opacity: 0.7; transition: opacity 0.2s; }
+    .coverage-badge { font-size: 16px; opacity: 0.7; text-decoration: none; }
     .coverage-badge:hover { opacity: 1; }
-    
-    .game-status { background: var(--brand-orange); padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; }
+    .game-status { background: #f57c00; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; }
     
     .empty-state {
       text-align: center; padding: 60px 20px; background: white;
@@ -916,58 +103,50 @@
     .empty-title { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
     .empty-text { color: #666; }
     
-    .loading-container { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; }
-    .loading-spinner { width: 40px; height: 40px; border: 3px solid #ddd; border-top-color: var(--brand-orange); border-radius: 50%; animation: spin 1s linear infinite; }
+    .loading-container { display: flex; flex-direction: column; align-items: center; padding: 60px 20px; }
+    .loading-spinner { width: 40px; height: 40px; border: 3px solid #ddd; border-top-color: #f57c00; border-radius: 50%; animation: spin 1s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .loading-text { margin-top: 16px; color: #666; }
     
     .modal-overlay {
-      position: fixed; inset: 0; background: rgba(0,0,0,0.5);
-      z-index: 2000; display: flex; align-items: center; justify-content: center;
+      position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 2000;
+      display: flex; align-items: center; justify-content: center;
       opacity: 0; visibility: hidden; transition: all 0.2s;
     }
     .modal-overlay.active { opacity: 1; visibility: visible; }
-    
     .calendar-modal {
-      background: white; border-radius: 12px; padding: 24px;
-      width: 340px; max-width: 90vw;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-      transform: translateY(20px); transition: transform 0.2s;
+      background: white; border-radius: 12px; padding: 24px; width: 340px; max-width: 90vw;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3); transform: translateY(20px); transition: transform 0.2s;
     }
     .modal-overlay.active .calendar-modal { transform: translateY(0); }
-    
     .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
     .calendar-month { font-size: 18px; font-weight: 600; }
     .calendar-nav { display: flex; gap: 8px; }
     .calendar-nav button {
-      width: 32px; height: 32px; border: 1px solid #ddd; background: var(--light);
-      border-radius: 6px; cursor: pointer; display: flex; align-items: center;
-      justify-content: center; transition: all 0.2s;
+      width: 32px; height: 32px; border: 1px solid #ddd; background: #f5f5f5;
+      border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center;
     }
-    .calendar-nav button:hover { border-color: var(--brand-orange); color: var(--brand-orange); }
-    
+    .calendar-nav button:hover { border-color: #f57c00; color: #f57c00; }
     .calendar-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 8px; }
     .calendar-weekday { text-align: center; font-size: 11px; font-weight: 600; color: #999; text-transform: uppercase; padding: 8px 0; }
-    
     .calendar-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
     .calendar-day {
       aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
-      font-size: 14px; border-radius: 8px; cursor: pointer;
-      transition: all 0.15s; position: relative;
+      font-size: 14px; border-radius: 8px; cursor: pointer; position: relative;
     }
-    .calendar-day:hover { background: var(--light); }
+    .calendar-day:hover { background: #f5f5f5; }
     .calendar-day.other-month { color: #999; }
-    .calendar-day.today { font-weight: 700; color: var(--brand-orange); }
-    .calendar-day.selected { background: var(--brand-orange); color: white; }
+    .calendar-day.today { font-weight: 700; color: #f57c00; }
+    .calendar-day.selected { background: #f57c00; color: white; }
     .calendar-day.has-games::after {
-      content: ""; position: absolute; bottom: 4px;
-      width: 4px; height: 4px; background: var(--brand-orange); border-radius: 50%;
+      content: ""; position: absolute; bottom: 4px; width: 4px; height: 4px;
+      background: #f57c00; border-radius: 50%;
     }
     .calendar-day.selected.has-games::after { background: white; }
   </style>
 </head>
 <body>
-<!-- ==================== SITE HEADER ==================== -->
+  <!-- ==================== SITE HEADER ==================== -->
   <header class="site-header">
     <div class="header-inner">
       
@@ -1425,6 +604,7 @@
       </div>
     </div>
   </div>
+  
 
   <main class="page-container">
     <div class="date-header">
@@ -1488,10 +668,8 @@
     </div>
   </div>
 
-<footer class="site-footer">
-    <div class="footer-logo">
-      <img src="/logo.png" alt="Ball603">
-    </div>
+  <footer class="site-footer">
+    <div class="footer-logo"><img src="/logo.png" alt="Ball603"></div>
     <div class="footer-links">
       <a href="/about">About Us</a>
       <a href="mailto:kj@ball603.com">Contact</a>
@@ -1512,21 +690,7 @@
 
   <script src="/app.js"></script>
   <script>
-    // Header/footer scripts
-    const searchToggle = document.getElementById('searchToggle');
-    const searchDropdown = document.getElementById('searchDropdown');
-    if (searchToggle && searchDropdown) {
-      searchToggle.addEventListener('click', (e) => {
-        e.stopPropagation();
-        searchDropdown.classList.toggle('active');
-      });
-      document.addEventListener('click', (e) => {
-        if (!searchDropdown.contains(e.target) && e.target !== searchToggle) {
-          searchDropdown.classList.remove('active');
-        }
-      });
-    }
-    
+    // Mobile menu handlers
     const mobileToggle = document.getElementById('mobileMenuToggle');
     const mobileDrawer = document.getElementById('mobileDrawer');
     const mobileOverlay = document.getElementById('mobileOverlay');
@@ -1540,22 +704,26 @@
       if (mobileDrawer) mobileDrawer.classList.remove('active');
       if (mobileOverlay) mobileOverlay.classList.remove('active');
     }
-    
     if (mobileToggle) mobileToggle.addEventListener('click', openMobileMenu);
     if (mobileClose) mobileClose.addEventListener('click', closeMobileMenu);
     if (mobileOverlay) mobileOverlay.addEventListener('click', closeMobileMenu);
     
     document.querySelectorAll('.mobile-nav-item[data-expandable]').forEach(item => {
       const link = item.querySelector('.mobile-nav-link');
-      if (link) {
-        link.addEventListener('click', (e) => {
-          e.preventDefault();
-          item.classList.toggle('expanded');
-        });
-      }
+      if (link) link.addEventListener('click', (e) => { e.preventDefault(); item.classList.toggle('expanded'); });
     });
 
-    // Schedule scripts
+    // Search toggle
+    const searchToggle = document.getElementById('searchToggle');
+    const searchDropdown = document.getElementById('searchDropdown');
+    if (searchToggle && searchDropdown) {
+      searchToggle.addEventListener('click', (e) => { e.stopPropagation(); searchDropdown.classList.toggle('active'); });
+      document.addEventListener('click', (e) => {
+        if (!searchDropdown.contains(e.target) && e.target !== searchToggle) searchDropdown.classList.remove('active');
+      });
+    }
+
+    // Schedule functionality
     const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
     const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
     
@@ -1565,63 +733,32 @@
     let calendarDate = new Date();
     let filters = { level: '', gender: '', search: '' };
     
-    function normalizeTeamName(name) {
-      if (!name) return name;
-      const normalizations = {
-        'Alvirne High School': 'Alvirne', 'Bedford High School': 'Bedford', 'Belmont High School': 'Belmont',
-        'Berlin Middle High School': 'Berlin', 'Bishop Brady High School': 'Bishop Brady', 'Bishop Guertin High School': 'Bishop Guertin',
-        'Bow High School': 'Bow', 'Campbell High School': 'Campbell', 'Coe-Brown Northwood Academy': 'Coe-Brown',
-        'Colebrook Academy': 'Colebrook', 'ConVal Regional High School': 'ConVal', 'Conant Middle High School': 'Conant',
-        'Concord Christian Academy': 'Concord Christian', 'Concord High School': 'Concord', 'Derryfield School': 'Derryfield',
-        'Dover High School': 'Dover', 'Epping Middle High School': 'Epping', 'Exeter High School': 'Exeter',
-        'Fall Mountain Regional High School': 'Fall Mountain', 'Farmington High School': 'Farmington',
-        'Franklin High School': 'Franklin', 'Gilford High School': 'Gilford', 'Goffstown High School': 'Goffstown',
-        'Gorham High School': 'Gorham', 'Groveton High School': 'Groveton', 'Hanover High School': 'Hanover',
-        'Hillsboro-Deering High School': 'Hillsboro-Deering', 'Hinsdale High School': 'Hinsdale',
-        'Hollis-Brookline High School': 'Hollis-Brookline', 'Holy Family Academy': 'Holy Family',
-        'Hopkinton Middle High School': 'Hopkinton', 'Inter-Lakes Middle High School': 'Inter-Lakes',
-        'John Stark Regional High School': 'John Stark', 'Kearsarge Regional High School': 'Kearsarge',
-        'Keene High School': 'Keene', 'Kennett High School': 'Kennett', 'Kingswood Regional High School': 'Kingswood',
-        'Laconia High School': 'Laconia', 'Lebanon High School': 'Lebanon', 'Lin-Wood Public School': 'Lin-Wood',
-        'Lisbon Regional School': 'Lisbon', 'Littleton High School': 'Littleton', 'Londonderry High School': 'Londonderry',
-        'Manchester Central High School': 'Manchester Central', 'Manchester Memorial High School': 'Manchester Memorial',
-        'Manchester West High School': 'Manchester West', 'Mascenic Regional High School': 'Mascenic',
-        'Mascoma Valley Regional High School': 'Mascoma', 'Merrimack High School': 'Merrimack',
-        'Merrimack Valley High School': 'Merrimack Valley', 'Milford High School': 'Milford',
-        'Monadnock Regional High School': 'Monadnock', 'Moultonborough Academy': 'Moultonborough',
-        'Mount Royal Academy': 'Mount Royal', 'Nashua High School North': 'Nashua North',
-        'Nashua High School South': 'Nashua South', 'Newmarket Jr-Sr High School': 'Newmarket',
-        'Newport High School': 'Newport', 'Nute High School': 'Nute', 'Oyster River High School': 'Oyster River',
-        'Pelham High School': 'Pelham', 'Pembroke Academy': 'Pembroke', 'Pinkerton Academy': 'Pinkerton',
-        'Plymouth Regional High School': 'Plymouth', 'Portsmouth Christian Academy': 'Portsmouth Christian',
-        'Portsmouth High School': 'Portsmouth', 'Profile School': 'Profile', 'Prospect Mountain High School': 'Prospect Mountain',
-        'Raymond High School': 'Raymond', 'Salem High School': 'Salem', 'Sanborn Regional High School': 'Sanborn',
-        'Souhegan High School': 'Souhegan', 'Spaulding High School': 'Spaulding', 'St. Thomas Aquinas High School': 'St. Thomas Aquinas',
-        'Stevens High School': 'Stevens', 'Sunapee Middle High School': 'Sunapee', 'Somersworth High School': 'Somersworth',
-        'Timberlane Regional High School': 'Timberlane', 'Trinity High School': 'Trinity',
-        'White Mountains Regional High School': 'White Mountains', 'Wilton-Lyndeborough High School': 'Wilton-Lyndeborough',
-        'Winnacunnet High School': 'Winnacunnet', 'Winnisquam Regional High School': 'Winnisquam', 'Woodsville High School': 'Woodsville'
-      };
-      return normalizations[name] || name;
+    function getDateString(d) {
+      return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
     }
     
-    function getDateString(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
-    function formatDate(d) { return `<span class="day-name">${DAYS[d.getDay()]}</span>, ${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`; }
-    function isToday(d) { const t = new Date(); return d.getDate()===t.getDate() && d.getMonth()===t.getMonth() && d.getFullYear()===t.getFullYear(); }
+    function formatDate(d) {
+      return '<span class="day-name">' + DAYS[d.getDay()] + '</span>, ' + MONTHS[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
+    }
+    
+    function isToday(d) {
+      const t = new Date();
+      return d.getDate()===t.getDate() && d.getMonth()===t.getMonth() && d.getFullYear()===t.getFullYear();
+    }
     
     function updateDateDisplay() {
       document.getElementById('currentDate').innerHTML = formatDate(currentDate);
-      document.getElementById('sectionTitle').textContent = isToday(currentDate) ? "Today's Games" : `Games for ${MONTHS[currentDate.getMonth()]} ${currentDate.getDate()}`;
+      document.getElementById('sectionTitle').textContent = isToday(currentDate) ? "Today's Games" : "Games for " + MONTHS[currentDate.getMonth()] + ' ' + currentDate.getDate();
     }
     
     function prevDay() { currentDate.setDate(currentDate.getDate()-1); updateDateDisplay(); renderGames(); }
     function nextDay() { currentDate.setDate(currentDate.getDate()+1); updateDateDisplay(); renderGames(); }
     function goToToday() { currentDate = new Date(); currentDate.setHours(0,0,0,0); updateDateDisplay(); renderGames(); }
     
-    document.querySelectorAll('.filter-group').forEach(group => {
-      group.querySelectorAll('.filter-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          group.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.filter-group').forEach(function(group) {
+      group.querySelectorAll('.filter-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          group.querySelectorAll('.filter-btn').forEach(function(b) { b.classList.remove('active'); });
           btn.classList.add('active');
           if (group.id === 'levelFilter') filters.level = btn.dataset.value;
           if (group.id === 'genderFilter') filters.gender = btn.dataset.value;
@@ -1630,49 +767,67 @@
       });
     });
     
-    document.getElementById('teamSearch').addEventListener('input', e => { filters.search = e.target.value.toLowerCase(); renderGames(); });
+    document.getElementById('teamSearch').addEventListener('input', function(e) {
+      filters.search = e.target.value.toLowerCase();
+      renderGames();
+    });
     
     function getLogoUrl(team) {
       if (!team) return '/logos/100px/Ball603-white.png';
-      return `/logos/100px/${team.toLowerCase().replace(/[^a-z0-9]/g,'')}.png`;
+      var slug = team.toLowerCase().replace(/[^a-z0-9]/g,'');
+      return '/logos/100px/' + slug + '.png';
     }
     
     function renderGames() {
-      const container = document.getElementById('gamesContainer');
-      const dateStr = getDateString(currentDate);
-      let games = allGames.filter(g => g.date === dateStr);
-      if (filters.level) games = games.filter(g => g.level === filters.level);
-      if (filters.gender) games = games.filter(g => g.gender === filters.gender);
-      if (filters.search) games = games.filter(g => (g.home||'').toLowerCase().includes(filters.search) || (g.away||'').toLowerCase().includes(filters.search));
-      games.sort((a,b) => (a.time||'').localeCompare(b.time||''));
+      var container = document.getElementById('gamesContainer');
+      var dateStr = getDateString(currentDate);
+      var games = allGames.filter(function(g) { return g.date === dateStr; });
+      if (filters.level) games = games.filter(function(g) { return g.level === filters.level; });
+      if (filters.gender) games = games.filter(function(g) { return g.gender === filters.gender; });
+      if (filters.search) games = games.filter(function(g) {
+        return (g.home||'').toLowerCase().indexOf(filters.search) >= 0 || (g.away||'').toLowerCase().indexOf(filters.search) >= 0;
+      });
+      games.sort(function(a,b) { return (a.time||'').localeCompare(b.time||''); });
       
-      document.getElementById('gameCount').textContent = `${games.length} game${games.length!==1?'s':''}`;
+      document.getElementById('gameCount').textContent = games.length + ' game' + (games.length!==1?'s':'');
       
       if (!games.length) {
-        container.innerHTML = `<div class="empty-state"><div class="empty-icon">🏀</div><div class="empty-title">No games scheduled</div><div class="empty-text">Try a different date or adjust filters</div></div>`;
+        container.innerHTML = '<div class="empty-state"><div class="empty-icon">🏀</div><div class="empty-title">No games scheduled</div><div class="empty-text">Try a different date or adjust filters</div></div>';
         return;
       }
       
-      container.innerHTML = `<div class="games-grid">${games.map(g => {
-        const isFinal = g.home_score != null && g.away_score != null;
-        const homeWon = isFinal && +g.home_score > +g.away_score;
-        const awayWon = isFinal && +g.away_score > +g.home_score;
-        const time = isFinal ? '<span class="game-status">FINAL</span>' : (g.time || 'TBD');
-        let cov = '';
-        if (g.photos_url) cov += `<a href="${g.photos_url}" class="coverage-badge" title="Photos">📸</a>`;
-        if (g.recap_url) cov += `<a href="${g.recap_url}" class="coverage-badge" title="Recap">📝</a>`;
-        if (g.highlights_url) cov += `<a href="${g.highlights_url}" class="coverage-badge" title="Highlights">🎥</a>`;
+      var html = '<div class="games-grid">';
+      games.forEach(function(g) {
+        var awayScore = String(g.away_score || '').trim();
+        var homeScore = String(g.home_score || '').trim();
+        var isFinal = awayScore !== '' && homeScore !== '';
+        var homeWon = isFinal && parseInt(homeScore) > parseInt(awayScore);
+        var awayWon = isFinal && parseInt(awayScore) > parseInt(homeScore);
+        var time = isFinal ? '<span class="game-status">FINAL</span>' : (g.time || 'TBD');
         
-        return `<div class="game-card">
-          <div class="game-card-header"><span class="game-level">${g.gender||''} ${g.level||''}</span><span class="game-time">${time}</span></div>
-          <div class="game-card-body"><div class="game-matchup">
-            <div class="game-team"><div class="team-logo"><img src="${getLogoUrl(g.away)}" onerror="this.src='/logos/100px/Ball603-white.png'"></div><div class="team-info"><div class="team-name">${g.away||'TBD'}</div><div class="team-record">${g.away_record||''}</div></div>${isFinal?`<div class="team-score ${awayWon?'winner':''}">${g.away_score}</div>`:''}</div>
-            <div class="game-vs">@</div>
-            <div class="game-team"><div class="team-logo"><img src="${getLogoUrl(g.home)}" onerror="this.src='/logos/100px/Ball603-white.png'"></div><div class="team-info"><div class="team-name">${g.home||'TBD'}</div><div class="team-record">${g.home_record||''}</div></div>${isFinal?`<div class="team-score ${homeWon?'winner':''}">${g.home_score}</div>`:''}</div>
-          </div></div>
-          ${g.venue||cov?`<div class="game-card-footer"><div class="game-venue">📍 ${g.venue||'TBD'}</div><div class="game-coverage">${cov}</div></div>`:''}
-        </div>`;
-      }).join('')}</div>`;
+        var cov = '';
+        if (g.photos_url) cov += '<a href="' + g.photos_url + '" class="coverage-badge" title="Photos">📸</a>';
+        if (g.recap_url) cov += '<a href="' + g.recap_url + '" class="coverage-badge" title="Recap">📝</a>';
+        if (g.highlights_url) cov += '<a href="' + g.highlights_url + '" class="coverage-badge" title="Highlights">🎥</a>';
+        
+        html += '<div class="game-card">';
+        html += '<div class="game-card-header"><span class="game-level">' + (g.gender||'') + ' ' + (g.level||'') + '</span><span class="game-time">' + time + '</span></div>';
+        html += '<div class="game-card-body"><div class="game-matchup">';
+        html += '<div class="game-team"><div class="team-logo"><img src="' + getLogoUrl(g.away) + '" onerror="this.src=\'/logos/100px/Ball603-white.png\'"></div>';
+        html += '<div class="team-info"><div class="team-name">' + (g.away||'TBD') + '</div><div class="team-record">' + (g.away_record||'') + '</div></div>';
+        if (isFinal) html += '<div class="team-score' + (awayWon?' winner':'') + '">' + awayScore + '</div>';
+        html += '</div>';
+        html += '<div class="game-vs">@</div>';
+        html += '<div class="game-team"><div class="team-logo"><img src="' + getLogoUrl(g.home) + '" onerror="this.src=\'/logos/100px/Ball603-white.png\'"></div>';
+        html += '<div class="team-info"><div class="team-name">' + (g.home||'TBD') + '</div><div class="team-record">' + (g.home_record||'') + '</div></div>';
+        if (isFinal) html += '<div class="team-score' + (homeWon?' winner':'') + '">' + homeScore + '</div>';
+        html += '</div>';
+        html += '</div></div>';
+        if (cov) html += '<div class="game-card-footer"><div class="game-venue"></div><div class="game-coverage">' + cov + '</div></div>';
+        html += '</div>';
+      });
+      html += '</div>';
+      container.innerHTML = html;
     }
     
     function openCalendar() { calendarDate = new Date(currentDate); renderCalendar(); document.getElementById('calendarModal').classList.add('active'); }
@@ -1681,38 +836,56 @@
     function nextMonth() { calendarDate.setMonth(calendarDate.getMonth()+1); renderCalendar(); }
     
     function renderCalendar() {
-      const y = calendarDate.getFullYear(), m = calendarDate.getMonth();
-      document.getElementById('calendarMonth').textContent = `${MONTHS[m]} ${y}`;
-      const first = new Date(y,m,1).getDay(), days = new Date(y,m+1,0).getDate(), today = new Date();
-      const gameDates = new Set(allGames.map(g=>g.date));
-      let html = '';
-      const prev = new Date(y,m,0).getDate();
-      for(let i=first-1;i>=0;i--) { const d=prev-i, ds=getDateString(new Date(y,m-1,d)); html+=`<div class="calendar-day other-month ${gameDates.has(ds)?'has-games':''}" onclick="selectDate(${y},${m-1},${d})">${d}</div>`; }
-      for(let d=1;d<=days;d++) { const dt=new Date(y,m,d), ds=getDateString(dt), isCur=dt.toDateString()===today.toDateString(), isSel=dt.toDateString()===currentDate.toDateString(), has=gameDates.has(ds); html+=`<div class="calendar-day${isCur?' today':''}${isSel?' selected':''}${has?' has-games':''}" onclick="selectDate(${y},${m},${d})">${d}</div>`; }
-      const tot=first+days, rem=tot%7===0?0:7-tot%7;
-      for(let d=1;d<=rem;d++) { const ds=getDateString(new Date(y,m+1,d)); html+=`<div class="calendar-day other-month ${gameDates.has(ds)?'has-games':''}" onclick="selectDate(${y},${m+1},${d})">${d}</div>`; }
+      var y = calendarDate.getFullYear(), m = calendarDate.getMonth();
+      document.getElementById('calendarMonth').textContent = MONTHS[m] + ' ' + y;
+      var first = new Date(y,m,1).getDay(), days = new Date(y,m+1,0).getDate(), today = new Date();
+      var gameDates = {};
+      allGames.forEach(function(g) { gameDates[g.date] = true; });
+      var html = '';
+      var prev = new Date(y,m,0).getDate();
+      for(var i=first-1;i>=0;i--) {
+        var d=prev-i, ds=getDateString(new Date(y,m-1,d));
+        html += '<div class="calendar-day other-month' + (gameDates[ds]?' has-games':'') + '" onclick="selectDate('+y+','+(m-1)+','+d+')">' + d + '</div>';
+      }
+      for(var d=1;d<=days;d++) {
+        var dt=new Date(y,m,d), ds=getDateString(dt);
+        var isCur = dt.toDateString()===today.toDateString();
+        var isSel = dt.toDateString()===currentDate.toDateString();
+        var has = gameDates[ds];
+        html += '<div class="calendar-day' + (isCur?' today':'') + (isSel?' selected':'') + (has?' has-games':'') + '" onclick="selectDate('+y+','+m+','+d+')">' + d + '</div>';
+      }
+      var tot=first+days, rem=tot%7===0?0:7-tot%7;
+      for(var d=1;d<=rem;d++) {
+        var ds=getDateString(new Date(y,m+1,d));
+        html += '<div class="calendar-day other-month' + (gameDates[ds]?' has-games':'') + '" onclick="selectDate('+y+','+(m+1)+','+d+')">' + d + '</div>';
+      }
       document.getElementById('calendarDays').innerHTML = html;
     }
     
-    function selectDate(y,m,d) { currentDate=new Date(y,m,d); currentDate.setHours(0,0,0,0); updateDateDisplay(); renderGames(); document.getElementById('calendarModal').classList.remove('active'); }
-    
-    async function init() {
+    function selectDate(y,m,d) {
+      currentDate = new Date(y,m,d);
+      currentDate.setHours(0,0,0,0);
       updateDateDisplay();
-      try {
-        const res = await fetch('/.netlify/functions/get-games');
-        const data = await res.json();
-        allGames = (data.games || []).map(g => ({
-          ...g,
-          home: normalizeTeamName(g.home),
-          away: normalizeTeamName(g.away)
-        }));
-        renderGames();
-      } catch(e) {
-        console.error(e);
-        document.getElementById('gamesContainer').innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title">Unable to load games</div><div class="empty-text">Please refresh the page</div></div>`;
-      }
+      renderGames();
+      document.getElementById('calendarModal').classList.remove('active');
     }
-    init();
+    
+    // Load games
+    (function loadGames() {
+      console.log('Loading games from API...');
+      updateDateDisplay();
+      fetch('/.netlify/functions/get-games')
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+          console.log('Games loaded:', data.games ? data.games.length : 0);
+          allGames = data.games || [];
+          renderGames();
+        })
+        .catch(function(err) {
+          console.error('Error loading games:', err);
+          document.getElementById('gamesContainer').innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title">Unable to load games</div><div class="empty-text">Please refresh the page</div></div>';
+        });
+    })();
   </script>
 </body>
 </html>
