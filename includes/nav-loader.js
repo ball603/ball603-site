@@ -6,6 +6,17 @@
 (function() {
   'use strict';
 
+  let headerLoaded = false;
+  let mobileMenuLoaded = false;
+
+  // Check if both are loaded, then initialize
+  function checkAndInit() {
+    if (headerLoaded && mobileMenuLoaded) {
+      initMobileMenu();
+      initHeaderSearch();
+    }
+  }
+
   // Load header
   fetch('/includes/header.html')
     .then(response => response.text())
@@ -17,7 +28,8 @@
         // Insert at beginning of body if no placeholder
         document.body.insertAdjacentHTML('afterbegin', html);
       }
-      initHeaderSearch();
+      headerLoaded = true;
+      checkAndInit();
     })
     .catch(err => console.error('Failed to load header:', err));
 
@@ -35,7 +47,8 @@
           header.insertAdjacentHTML('afterend', html);
         }
       }
-      initMobileMenu();
+      mobileMenuLoaded = true;
+      checkAndInit();
     })
     .catch(err => console.error('Failed to load mobile menu:', err));
 
@@ -48,7 +61,10 @@
     const mobileOverlay = document.getElementById('mobileOverlay');
     const mobileClose = document.getElementById('mobileClose');
 
-    if (!mobileToggle || !mobileDrawer) return;
+    if (!mobileToggle || !mobileDrawer) {
+      console.error('Mobile menu elements not found');
+      return;
+    }
 
     // Open drawer
     mobileToggle.addEventListener('click', () => {
