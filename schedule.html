@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Ball603 - New Hampshire High School and College Basketball Schedule">
+  <meta name="theme-color" content="#f57c00">
+  <title>Schedule | Ball603</title>
+  
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="apple-touch-icon" href="/logo.png">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="/styles.css">
+  
+  <style>
+    :root {
+      --brand-orange: #f57c00;
+      --brand-hover: #ff9800;
+      --dark: #1a1a1a;
+      --light: #f5f5f5;
+      --card: #ffffff;
+      --border: #e0e0e0;
+      --text: #1a1a1a;
+      --text-secondary: #666;
+      --text-muted: #999;
+      --header-height: 56px;
+      --radius: 12px;
+      --radius-sm: 8px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+      --shadow-lg: 0 4px 24px rgba(0,0,0,0.12);
+    }
+    
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--light); color: var(--text); line-height: 1.5; }
+    a { text-decoration: none; color: inherit; }
+    
+    /* Header */
+    .site-header { background: var(--dark); position: sticky; top: 0; z-index: 1000; border-bottom: 2px solid var(--brand-orange); }
+    .header-inner { max-width: 1400px; margin: 0 auto; height: var(--header-height); display: flex; align-items: center; padding: 0 20px; gap: 32px; }
+    .header-logo img { height: 28px; }
+    .header-nav { display: flex; gap: 4px; }
+    .header-nav a { color: rgba(255,255,255,0.7); padding: 8px 14px; border-radius: 6px; font-size: 14px; font-weight: 500; transition: all 0.2s; }
+    .header-nav a:hover { color: #fff; background: rgba(255,255,255,0.1); }
+    .header-nav a.active { color: var(--brand-orange); }
+    .header-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+    .header-social { display: flex; gap: 8px; }
+    .header-social a { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.6); transition: color 0.2s; }
+    .header-social a:hover { color: var(--brand-orange); }
+    .header-social svg { width: 18px; height: 18px; fill: currentColor; }
+    .search-btn { display: flex; align-items: center; gap: 6px; background: #333; border: none; border-radius: 20px; padding: 6px 14px; color: rgba(255,255,255,0.7); font-size: 13px; cursor: pointer; transition: all 0.2s; }
+    .search-btn:hover { background: #444; color: #fff; }
+    .search-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; }
+    .mobile-menu-btn { display: none; background: none; border: none; color: #fff; font-size: 24px; cursor: pointer; }
+    @media (max-width: 900px) { .header-nav, .header-social { display: none; } .mobile-menu-btn { display: block; } }
+    
+    /* Page */
+    .page-container { max-width: 1200px; margin: 0 auto; padding: 24px 20px 100px; }
+    
+    /* Date Header */
+    .date-header { background: var(--card); border-radius: var(--radius); padding: 20px 24px; margin-bottom: 20px; box-shadow: var(--shadow); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+    .date-nav { display: flex; align-items: center; gap: 12px; }
+    .date-nav-btn { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: var(--light); border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; transition: all 0.2s; font-size: 16px; }
+    .date-nav-btn:hover { background: var(--brand-orange); border-color: var(--brand-orange); color: #fff; }
+    .current-date { font-size: 20px; font-weight: 600; min-width: 280px; text-align: center; }
+    .current-date .day-name { color: var(--brand-orange); }
+    .today-btn { background: var(--brand-orange); color: #fff; border: none; border-radius: var(--radius-sm); padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+    .today-btn:hover { background: var(--brand-hover); }
+    
+    /* Filters */
+    .filters-bar { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+    .filter-group { display: flex; background: var(--light); border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--border); }
+    .filter-btn { padding: 8px 14px; background: transparent; border: none; font-size: 13px; font-weight: 500; color: var(--text-secondary); cursor: pointer; transition: all 0.2s; }
+    .filter-btn:hover { color: var(--text); }
+    .filter-btn.active { background: var(--brand-orange); color: #fff; }
+    .search-input { padding: 8px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; width: 160px; transition: border-color 0.2s; }
+    .search-input:focus { outline: none; border-color: var(--brand-orange); }
+    .calendar-btn { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: var(--light); border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; font-size: 18px; transition: all 0.2s; }
+    .calendar-btn:hover { border-color: var(--brand-orange); color: var(--brand-orange); }
+    
+    /* Games */
+    .games-section { margin-top: 24px; }
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .section-title { font-size: 14px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+    .game-count { font-size: 13px; color: var(--text-muted); }
+    .games-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; }
+    @media (max-width: 600px) { .games-grid { grid-template-columns: 1fr; } }
+    
+    /* Game Card */
+    .game-card { background: var(--card); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); transition: all 0.2s; }
+    .game-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+    .game-card-header { background: var(--dark); color: #fff; padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
+    .game-card-header.boys { background: #1565c0; }
+    .game-card-header.girls { background: #c2185b; }
+    .game-card-header.men { background: #2e7d32; }
+    .game-card-header.women { background: #7b1fa2; }
+    .game-level { font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .game-time { font-weight: 500; }
+    .game-card-body { padding: 16px; }
+    .game-matchup { display: flex; flex-direction: column; gap: 12px; }
+    .game-team { display: flex; align-items: center; gap: 12px; }
+    .team-logo { width: 44px; height: 44px; border-radius: 8px; background: var(--light); display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; }
+    .team-logo img { width: 36px; height: 36px; object-fit: contain; }
+    .team-info { flex: 1; min-width: 0; }
+    .team-name { font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .team-record { font-size: 12px; color: var(--text-muted); }
+    .team-score { font-size: 24px; font-weight: 700; min-width: 36px; text-align: right; }
+    .team-score.winner { color: var(--brand-orange); }
+    .game-vs { text-align: center; font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; padding: 4px 0; }
+    .game-card-footer { padding: 12px 16px; background: var(--light); border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .game-venue { font-size: 12px; color: var(--text-secondary); }
+    .game-coverage { display: flex; gap: 8px; }
+    .coverage-badge { font-size: 16px; opacity: 0.7; transition: opacity 0.2s; }
+    .coverage-badge:hover { opacity: 1; }
+    .game-card.final .game-card-header { background: #333; }
+    .game-status { background: var(--brand-orange); padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; }
+    
+    /* Empty/Loading */
+    .empty-state { text-align: center; padding: 60px 20px; background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); }
+    .empty-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
+    .empty-title { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+    .empty-text { color: var(--text-secondary); }
+    .loading-container { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; }
+    .loading-spinner { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--brand-orange); border-radius: 50%; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text { margin-top: 16px; color: var(--text-secondary); }
+    
+    /* Calendar Modal */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 2000; display: flex; align-items: center; justify-content: center; opacity: 0; visibility: hidden; transition: all 0.2s; }
+    .modal-overlay.active { opacity: 1; visibility: visible; }
+    .calendar-modal { background: var(--card); border-radius: var(--radius); padding: 24px; width: 340px; max-width: 90vw; box-shadow: 0 20px 60px rgba(0,0,0,0.3); transform: translateY(20px); transition: transform 0.2s; }
+    .modal-overlay.active .calendar-modal { transform: translateY(0); }
+    .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .calendar-month { font-size: 18px; font-weight: 600; }
+    .calendar-nav { display: flex; gap: 8px; }
+    .calendar-nav button { width: 32px; height: 32px; border: 1px solid var(--border); background: var(--light); border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+    .calendar-nav button:hover { border-color: var(--brand-orange); color: var(--brand-orange); }
+    .calendar-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 8px; }
+    .calendar-weekday { text-align: center; font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; padding: 8px 0; }
+    .calendar-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+    .calendar-day { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font-size: 14px; border-radius: 8px; cursor: pointer; transition: all 0.15s; position: relative; }
+    .calendar-day:hover { background: var(--light); }
+    .calendar-day.other-month { color: var(--text-muted); }
+    .calendar-day.today { font-weight: 700; color: var(--brand-orange); }
+    .calendar-day.selected { background: var(--brand-orange); color: #fff; }
+    .calendar-day.has-games::after { content: ''; position: absolute; bottom: 4px; width: 4px; height: 4px; background: var(--brand-orange); border-radius: 50%; }
+    .calendar-day.selected.has-games::after { background: #fff; }
+    
+    /* Footer */
+    .site-footer { background: var(--dark); padding: 40px 20px; text-align: center; border-top: 2px solid var(--brand-orange); }
+    .footer-logo img { height: 50px; margin-bottom: 16px; }
+    .footer-links { margin-bottom: 16px; }
+    .footer-links a { color: rgba(255,255,255,0.7); margin: 0 12px; font-size: 14px; transition: color 0.2s; }
+    .footer-links a:hover { color: var(--brand-orange); }
+    .footer-social { display: flex; justify-content: center; gap: 16px; margin-bottom: 20px; }
+    .footer-social a { color: rgba(255,255,255,0.5); transition: color 0.2s; }
+    .footer-social a:hover { color: var(--brand-orange); }
+    .footer-social svg { width: 20px; height: 20px; fill: currentColor; }
+    .footer-copyright { color: rgba(255,255,255,0.3); font-size: 12px; }
+    
+    /* Mobile Drawer */
+    .mobile-drawer { position: fixed; top: 0; right: -300px; width: 300px; height: 100%; background: var(--dark); z-index: 2001; transition: right 0.3s; overflow-y: auto; }
+    .mobile-drawer.active { right: 0; }
+    .mobile-drawer-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid #333; }
+    .mobile-drawer-close { background: none; border: none; color: #fff; font-size: 28px; cursor: pointer; }
+    .mobile-nav a { display: block; padding: 14px 20px; color: rgba(255,255,255,0.8); border-bottom: 1px solid #333; font-size: 15px; }
+    .mobile-nav a:hover { color: var(--brand-orange); }
+    .drawer-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 2000; opacity: 0; visibility: hidden; transition: all 0.3s; }
+    .drawer-overlay.active { opacity: 1; visibility: visible; }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="/" class="header-logo"><img src="/Ball603widewhite200px.png" alt="Ball603"></a>
+      <nav class="header-nav">
+        <a href="/">Home</a>
+        <a href="/teams.html">Teams</a>
+        <a href="/schedule" class="active">Schedule</a>
+        <a href="/standings">Standings</a>
+        <a href="/galleries">Galleries</a>
+        <a href="/1Kinthe603">Features</a>
+      </nav>
+      <div class="header-right">
+        <div class="header-social">
+          <a href="https://facebook.com/ball603" target="_blank"><svg viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg></a>
+          <a href="https://www.instagram.com/ball603nh/" target="_blank"><svg viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg></a>
+          <a href="https://x.com/Ball603NH" target="_blank"><svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></a>
+        </div>
+        <button class="search-btn"><svg viewBox="0 0 24 24" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>Search</button>
+        <button class="mobile-menu-btn" onclick="openMobileMenu()">☰</button>
+      </div>
+    </div>
+  </header>
+  
+  <div class="drawer-overlay" id="drawerOverlay" onclick="closeMobileMenu()"></div>
+  <div class="mobile-drawer" id="mobileDrawer">
+    <div class="mobile-drawer-header">
+      <img src="/Ball603widewhite200px.png" alt="Ball603" style="height: 24px;">
+      <button class="mobile-drawer-close" onclick="closeMobileMenu()">×</button>
+    </div>
+    <nav class="mobile-nav">
+      <a href="/">Home</a>
+      <a href="/teams.html">Teams</a>
+      <a href="/schedule">Schedule</a>
+      <a href="/standings">Standings</a>
+      <a href="/galleries">Galleries</a>
+      <a href="/1Kinthe603">1K in the 603</a>
+      <a href="/603intheNCAA">603 in the NCAA</a>
+      <a href="/NHIAAhistory">NHIAA History</a>
+      <a href="/thebash">The Bash</a>
+    </nav>
+  </div>
+
+  <main class="page-container">
+    <div class="date-header">
+      <div class="date-nav">
+        <button class="date-nav-btn" onclick="prevDay()">◀</button>
+        <div class="current-date" id="currentDate"><span class="day-name">Loading</span>...</div>
+        <button class="date-nav-btn" onclick="nextDay()">▶</button>
+        <button class="today-btn" onclick="goToToday()">Today</button>
+      </div>
+      <div class="filters-bar">
+        <div class="filter-group" id="levelFilter">
+          <button class="filter-btn active" data-value="">All</button>
+          <button class="filter-btn" data-value="NHIAA">NHIAA</button>
+          <button class="filter-btn" data-value="College">College</button>
+        </div>
+        <div class="filter-group" id="genderFilter">
+          <button class="filter-btn active" data-value="">All</button>
+          <button class="filter-btn" data-value="Boys">Boys</button>
+          <button class="filter-btn" data-value="Girls">Girls</button>
+          <button class="filter-btn" data-value="Men">Men</button>
+          <button class="filter-btn" data-value="Women">Women</button>
+        </div>
+        <input type="text" class="search-input" id="teamSearch" placeholder="Search teams...">
+        <button class="calendar-btn" onclick="openCalendar()">📅</button>
+      </div>
+    </div>
+    
+    <div class="games-section">
+      <div class="section-header">
+        <div class="section-title" id="sectionTitle">Today's Games</div>
+        <div class="game-count" id="gameCount"></div>
+      </div>
+      <div id="gamesContainer">
+        <div class="loading-container">
+          <div class="loading-spinner"></div>
+          <div class="loading-text">Loading games...</div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div class="modal-overlay" id="calendarModal" onclick="closeCalendar(event)">
+    <div class="calendar-modal" onclick="event.stopPropagation()">
+      <div class="calendar-header">
+        <span class="calendar-month" id="calendarMonth">December 2025</span>
+        <div class="calendar-nav">
+          <button onclick="prevMonth()">◀</button>
+          <button onclick="nextMonth()">▶</button>
+        </div>
+      </div>
+      <div class="calendar-weekdays">
+        <div class="calendar-weekday">Sun</div>
+        <div class="calendar-weekday">Mon</div>
+        <div class="calendar-weekday">Tue</div>
+        <div class="calendar-weekday">Wed</div>
+        <div class="calendar-weekday">Thu</div>
+        <div class="calendar-weekday">Fri</div>
+        <div class="calendar-weekday">Sat</div>
+      </div>
+      <div class="calendar-days" id="calendarDays"></div>
+    </div>
+  </div>
+
+  <footer class="site-footer">
+    <div class="footer-logo"><a href="/"><img src="/logo.png" alt="Ball603"></a></div>
+    <div class="footer-links"><a href="/about">About</a><a href="/contact">Contact</a></div>
+    <div class="footer-social">
+      <a href="https://facebook.com/ball603" target="_blank"><svg viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg></a>
+      <a href="https://www.instagram.com/ball603nh/" target="_blank"><svg viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg></a>
+      <a href="https://x.com/Ball603NH" target="_blank"><svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></a>
+    </div>
+    <div class="footer-copyright">© 2025 Ball603. All rights reserved.</div>
+  </footer>
+
+  <script src="/app.js"></script>
+  <script>
+    const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    
+    let allGames = [];
+    let currentDate = new Date();
+    currentDate.setHours(0,0,0,0);
+    let calendarDate = new Date();
+    let filters = { level: '', gender: '', search: '' };
+    
+    function getDateString(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+    function formatDate(d) { return `<span class="day-name">${DAYS[d.getDay()]}</span>, ${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`; }
+    function isToday(d) { const t = new Date(); return d.getDate()===t.getDate() && d.getMonth()===t.getMonth() && d.getFullYear()===t.getFullYear(); }
+    
+    function updateDateDisplay() {
+      document.getElementById('currentDate').innerHTML = formatDate(currentDate);
+      document.getElementById('sectionTitle').textContent = isToday(currentDate) ? "Today's Games" : `Games for ${MONTHS[currentDate.getMonth()]} ${currentDate.getDate()}`;
+    }
+    
+    function prevDay() { currentDate.setDate(currentDate.getDate()-1); updateDateDisplay(); renderGames(); }
+    function nextDay() { currentDate.setDate(currentDate.getDate()+1); updateDateDisplay(); renderGames(); }
+    function goToToday() { currentDate = new Date(); currentDate.setHours(0,0,0,0); updateDateDisplay(); renderGames(); }
+    
+    document.querySelectorAll('.filter-group').forEach(group => {
+      group.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          group.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          if (group.id === 'levelFilter') filters.level = btn.dataset.value;
+          if (group.id === 'genderFilter') filters.gender = btn.dataset.value;
+          renderGames();
+        });
+      });
+    });
+    
+    document.getElementById('teamSearch').addEventListener('input', e => { filters.search = e.target.value.toLowerCase(); renderGames(); });
+    
+    function getLogoUrl(team) {
+      if (!team) return '/logos/100px/Ball603-white.png';
+      return `/logos/100px/${team.toLowerCase().replace(/[^a-z0-9]/g,'')}.png`;
+    }
+    
+    function renderGames() {
+      const container = document.getElementById('gamesContainer');
+      const dateStr = getDateString(currentDate);
+      let games = allGames.filter(g => g.date === dateStr);
+      if (filters.level) games = games.filter(g => g.level === filters.level || (g.description||'').includes(filters.level));
+      if (filters.gender) games = games.filter(g => g.gender === filters.gender);
+      if (filters.search) games = games.filter(g => (g.home||'').toLowerCase().includes(filters.search) || (g.away||'').toLowerCase().includes(filters.search));
+      games.sort((a,b) => (a.time||'').localeCompare(b.time||''));
+      
+      document.getElementById('gameCount').textContent = `${games.length} game${games.length!==1?'s':''}`;
+      
+      if (!games.length) {
+        container.innerHTML = `<div class="empty-state"><div class="empty-icon">🏀</div><div class="empty-title">No games scheduled</div><div class="empty-text">Try a different date or adjust filters</div></div>`;
+        return;
+      }
+      
+      container.innerHTML = `<div class="games-grid">${games.map(g => {
+        const isFinal = g.home_score != null && g.away_score != null;
+        const homeWon = isFinal && +g.home_score > +g.away_score;
+        const awayWon = isFinal && +g.away_score > +g.home_score;
+        const cls = (g.gender||'').toLowerCase();
+        const time = isFinal ? '<span class="game-status">FINAL</span>' : (g.time || 'TBD');
+        let cov = '';
+        if (g.photos_url) cov += `<a href="${g.photos_url}" class="coverage-badge" title="Photos">📸</a>`;
+        if (g.recap_url) cov += `<a href="${g.recap_url}" class="coverage-badge" title="Recap">📝</a>`;
+        if (g.highlights_url) cov += `<a href="${g.highlights_url}" class="coverage-badge" title="Highlights">🎥</a>`;
+        
+        return `<div class="game-card ${isFinal?'final':''}">
+          <div class="game-card-header ${cls}"><span class="game-level">${g.gender||''} ${g.level||''}</span><span class="game-time">${time}</span></div>
+          <div class="game-card-body"><div class="game-matchup">
+            <div class="game-team"><div class="team-logo"><img src="${getLogoUrl(g.away)}" onerror="this.src='/logos/100px/Ball603-white.png'"></div><div class="team-info"><div class="team-name">${g.away||'TBD'}</div><div class="team-record">${g.away_record||''}</div></div>${isFinal?`<div class="team-score ${awayWon?'winner':''}">${g.away_score}</div>`:''}</div>
+            <div class="game-vs">@</div>
+            <div class="game-team"><div class="team-logo"><img src="${getLogoUrl(g.home)}" onerror="this.src='/logos/100px/Ball603-white.png'"></div><div class="team-info"><div class="team-name">${g.home||'TBD'}</div><div class="team-record">${g.home_record||''}</div></div>${isFinal?`<div class="team-score ${homeWon?'winner':''}">${g.home_score}</div>`:''}</div>
+          </div></div>
+          ${g.venue||cov?`<div class="game-card-footer"><div class="game-venue">📍 ${g.venue||'TBD'}</div><div class="game-coverage">${cov}</div></div>`:''}
+        </div>`;
+      }).join('')}</div>`;
+    }
+    
+    function openCalendar() { calendarDate = new Date(currentDate); renderCalendar(); document.getElementById('calendarModal').classList.add('active'); }
+    function closeCalendar(e) { if(e.target.id==='calendarModal') document.getElementById('calendarModal').classList.remove('active'); }
+    function prevMonth() { calendarDate.setMonth(calendarDate.getMonth()-1); renderCalendar(); }
+    function nextMonth() { calendarDate.setMonth(calendarDate.getMonth()+1); renderCalendar(); }
+    
+    function renderCalendar() {
+      const y = calendarDate.getFullYear(), m = calendarDate.getMonth();
+      document.getElementById('calendarMonth').textContent = `${MONTHS[m]} ${y}`;
+      const first = new Date(y,m,1).getDay(), days = new Date(y,m+1,0).getDate(), today = new Date();
+      const gameDates = new Set(allGames.map(g=>g.date));
+      let html = '';
+      const prev = new Date(y,m,0).getDate();
+      for(let i=first-1;i>=0;i--) { const d=prev-i, ds=getDateString(new Date(y,m-1,d)); html+=`<div class="calendar-day other-month ${gameDates.has(ds)?'has-games':''}" onclick="selectDate(${y},${m-1},${d})">${d}</div>`; }
+      for(let d=1;d<=days;d++) { const dt=new Date(y,m,d), ds=getDateString(dt), isCur=dt.toDateString()===today.toDateString(), isSel=dt.toDateString()===currentDate.toDateString(), has=gameDates.has(ds); html+=`<div class="calendar-day${isCur?' today':''}${isSel?' selected':''}${has?' has-games':''}" onclick="selectDate(${y},${m},${d})">${d}</div>`; }
+      const tot=first+days, rem=tot%7===0?0:7-tot%7;
+      for(let d=1;d<=rem;d++) { const ds=getDateString(new Date(y,m+1,d)); html+=`<div class="calendar-day other-month ${gameDates.has(ds)?'has-games':''}" onclick="selectDate(${y},${m+1},${d})">${d}</div>`; }
+      document.getElementById('calendarDays').innerHTML = html;
+    }
+    
+    function selectDate(y,m,d) { currentDate=new Date(y,m,d); currentDate.setHours(0,0,0,0); updateDateDisplay(); renderGames(); document.getElementById('calendarModal').classList.remove('active'); }
+    function openMobileMenu() { document.getElementById('mobileDrawer').classList.add('active'); document.getElementById('drawerOverlay').classList.add('active'); }
+    function closeMobileMenu() { document.getElementById('mobileDrawer').classList.remove('active'); document.getElementById('drawerOverlay').classList.remove('active'); }
+    
+    async function init() {
+      updateDateDisplay();
+      try {
+        const res = await fetch('/.netlify/functions/get-games');
+        const data = await res.json();
+        allGames = data.games || [];
+        renderGames();
+      } catch(e) {
+        console.error(e);
+        document.getElementById('gamesContainer').innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title">Unable to load games</div><div class="empty-text">Please refresh the page</div></div>`;
+      }
+    }
+    init();
+  </script>
+</body>
+</html>

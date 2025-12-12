@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Ball603 - New Hampshire High School Basketball Standings">
+  <meta name="theme-color" content="#f57c00">
+  <title>Standings | Ball603</title>
+  
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="apple-touch-icon" href="/logo.png">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="/styles.css">
+  
+  <style>
+    :root {
+      --brand-orange: #f57c00;
+      --brand-hover: #ff9800;
+      --dark: #1a1a1a;
+      --light: #f5f5f5;
+      --card: #ffffff;
+      --border: #e0e0e0;
+      --text: #1a1a1a;
+      --text-secondary: #666;
+      --text-muted: #999;
+      --boys-color: #1565c0;
+      --girls-color: #c2185b;
+      --header-height: 56px;
+      --radius: 12px;
+      --radius-sm: 8px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+      --shadow-lg: 0 4px 24px rgba(0,0,0,0.12);
+    }
+    
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--light); color: var(--text); line-height: 1.5; }
+    a { text-decoration: none; color: inherit; }
+    
+    /* Header */
+    .site-header { background: var(--dark); position: sticky; top: 0; z-index: 1000; border-bottom: 2px solid var(--brand-orange); }
+    .header-inner { max-width: 1400px; margin: 0 auto; height: var(--header-height); display: flex; align-items: center; padding: 0 20px; gap: 32px; }
+    .header-logo img { height: 28px; }
+    .header-nav { display: flex; gap: 4px; }
+    .header-nav a { color: rgba(255,255,255,0.7); padding: 8px 14px; border-radius: 6px; font-size: 14px; font-weight: 500; transition: all 0.2s; }
+    .header-nav a:hover { color: #fff; background: rgba(255,255,255,0.1); }
+    .header-nav a.active { color: var(--brand-orange); }
+    .header-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+    .header-social { display: flex; gap: 8px; }
+    .header-social a { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.6); transition: color 0.2s; }
+    .header-social a:hover { color: var(--brand-orange); }
+    .header-social svg { width: 18px; height: 18px; fill: currentColor; }
+    .search-btn { display: flex; align-items: center; gap: 6px; background: #333; border: none; border-radius: 20px; padding: 6px 14px; color: rgba(255,255,255,0.7); font-size: 13px; cursor: pointer; transition: all 0.2s; }
+    .search-btn:hover { background: #444; color: #fff; }
+    .search-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; }
+    .mobile-menu-btn { display: none; background: none; border: none; color: #fff; font-size: 24px; cursor: pointer; }
+    @media (max-width: 900px) { .header-nav, .header-social { display: none; } .mobile-menu-btn { display: block; } }
+    
+    /* Page */
+    .page-container { max-width: 1200px; margin: 0 auto; padding: 24px 20px 100px; }
+    
+    /* Page Header */
+    .page-header { text-align: center; margin-bottom: 32px; }
+    .page-title { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+    .page-subtitle { color: var(--text-secondary); font-size: 15px; }
+    
+    /* Division Tabs */
+    .division-tabs { display: flex; justify-content: center; gap: 8px; margin-bottom: 32px; flex-wrap: wrap; }
+    .division-tab { padding: 10px 24px; background: var(--card); border: 2px solid var(--border); border-radius: 50px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+    .division-tab:hover { border-color: var(--brand-orange); color: var(--brand-orange); }
+    .division-tab.active { background: var(--brand-orange); border-color: var(--brand-orange); color: #fff; }
+    
+    /* Standings Grid */
+    .standings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    @media (max-width: 900px) { .standings-grid { grid-template-columns: 1fr; } }
+    
+    /* Standings Card */
+    .standings-card { background: var(--card); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
+    .standings-card-header { padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; color: #fff; }
+    .standings-card-header.boys { background: var(--boys-color); }
+    .standings-card-header.girls { background: var(--girls-color); }
+    .standings-card-title { font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .standings-card-title span { font-size: 20px; }
+    .playoff-info { font-size: 12px; opacity: 0.9; }
+    
+    /* Standings Table */
+    .standings-table { width: 100%; border-collapse: collapse; }
+    .standings-table th { text-align: left; padding: 12px 16px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); border-bottom: 1px solid var(--border); background: var(--light); }
+    .standings-table th.center { text-align: center; }
+    .standings-table td { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 14px; }
+    .standings-table td.center { text-align: center; }
+    .standings-table tr:last-child td { border-bottom: none; }
+    .standings-table tr:hover { background: rgba(245,124,0,0.04); }
+    
+    /* Team Row */
+    .team-rank { font-weight: 700; color: var(--text-muted); width: 40px; }
+    .team-rank.playoff { color: var(--brand-orange); }
+    .team-rank.bye { color: #2e7d32; }
+    .team-cell { display: flex; align-items: center; gap: 12px; }
+    .team-logo { width: 32px; height: 32px; border-radius: 6px; background: var(--light); display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; }
+    .team-logo img { width: 26px; height: 26px; object-fit: contain; }
+    .team-name { font-weight: 600; }
+    .team-name a:hover { color: var(--brand-orange); }
+    .team-record { font-weight: 600; }
+    .team-pct { color: var(--text-secondary); }
+    .team-rating { font-weight: 600; color: var(--brand-orange); }
+    
+    /* Playoff Line */
+    .standings-table tr.playoff-line td { border-bottom: 2px dashed var(--brand-orange); }
+    .standings-table tr.bye-line td { border-bottom: 2px dashed #2e7d32; }
+    
+    /* Legend */
+    .standings-legend { padding: 16px 20px; background: var(--light); border-top: 1px solid var(--border); display: flex; gap: 24px; flex-wrap: wrap; }
+    .legend-item { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-secondary); }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .legend-dot.bye { background: #2e7d32; }
+    .legend-dot.playoff { background: var(--brand-orange); }
+    .legend-dot.bubble { background: #666; }
+    
+    /* Loading */
+    .loading-container { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; }
+    .loading-spinner { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--brand-orange); border-radius: 50%; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text { margin-top: 16px; color: var(--text-secondary); }
+    
+    /* Footer */
+    .site-footer { background: var(--dark); padding: 40px 20px; text-align: center; border-top: 2px solid var(--brand-orange); }
+    .footer-logo img { height: 50px; margin-bottom: 16px; }
+    .footer-links { margin-bottom: 16px; }
+    .footer-links a { color: rgba(255,255,255,0.7); margin: 0 12px; font-size: 14px; transition: color 0.2s; }
+    .footer-links a:hover { color: var(--brand-orange); }
+    .footer-social { display: flex; justify-content: center; gap: 16px; margin-bottom: 20px; }
+    .footer-social a { color: rgba(255,255,255,0.5); transition: color 0.2s; }
+    .footer-social a:hover { color: var(--brand-orange); }
+    .footer-social svg { width: 20px; height: 20px; fill: currentColor; }
+    .footer-copyright { color: rgba(255,255,255,0.3); font-size: 12px; }
+    
+    /* Mobile Drawer */
+    .mobile-drawer { position: fixed; top: 0; right: -300px; width: 300px; height: 100%; background: var(--dark); z-index: 2001; transition: right 0.3s; overflow-y: auto; }
+    .mobile-drawer.active { right: 0; }
+    .mobile-drawer-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid #333; }
+    .mobile-drawer-close { background: none; border: none; color: #fff; font-size: 28px; cursor: pointer; }
+    .mobile-nav a { display: block; padding: 14px 20px; color: rgba(255,255,255,0.8); border-bottom: 1px solid #333; font-size: 15px; }
+    .mobile-nav a:hover { color: var(--brand-orange); }
+    .drawer-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 2000; opacity: 0; visibility: hidden; transition: all 0.3s; }
+    .drawer-overlay.active { opacity: 1; visibility: visible; }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="/" class="header-logo"><img src="/Ball603widewhite200px.png" alt="Ball603"></a>
+      <nav class="header-nav">
+        <a href="/">Home</a>
+        <a href="/teams.html">Teams</a>
+        <a href="/schedule">Schedule</a>
+        <a href="/standings" class="active">Standings</a>
+        <a href="/galleries">Galleries</a>
+        <a href="/1Kinthe603">Features</a>
+      </nav>
+      <div class="header-right">
+        <div class="header-social">
+          <a href="https://facebook.com/ball603" target="_blank"><svg viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg></a>
+          <a href="https://www.instagram.com/ball603nh/" target="_blank"><svg viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg></a>
+          <a href="https://x.com/Ball603NH" target="_blank"><svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></a>
+        </div>
+        <button class="search-btn"><svg viewBox="0 0 24 24" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>Search</button>
+        <button class="mobile-menu-btn" onclick="openMobileMenu()">☰</button>
+      </div>
+    </div>
+  </header>
+  
+  <div class="drawer-overlay" id="drawerOverlay" onclick="closeMobileMenu()"></div>
+  <div class="mobile-drawer" id="mobileDrawer">
+    <div class="mobile-drawer-header">
+      <img src="/Ball603widewhite200px.png" alt="Ball603" style="height: 24px;">
+      <button class="mobile-drawer-close" onclick="closeMobileMenu()">×</button>
+    </div>
+    <nav class="mobile-nav">
+      <a href="/">Home</a>
+      <a href="/teams.html">Teams</a>
+      <a href="/schedule">Schedule</a>
+      <a href="/standings">Standings</a>
+      <a href="/galleries">Galleries</a>
+      <a href="/1Kinthe603">1K in the 603</a>
+      <a href="/603intheNCAA">603 in the NCAA</a>
+      <a href="/NHIAAhistory">NHIAA History</a>
+      <a href="/thebash">The Bash</a>
+    </nav>
+  </div>
+
+  <main class="page-container">
+    <div class="page-header">
+      <h1 class="page-title">2024-25 NHIAA Basketball Standings</h1>
+      <p class="page-subtitle">Rankings based on NHIAA power ratings</p>
+    </div>
+    
+    <div class="division-tabs" id="divisionTabs">
+      <button class="division-tab active" data-div="D-I">Division I</button>
+      <button class="division-tab" data-div="D-II">Division II</button>
+      <button class="division-tab" data-div="D-III">Division III</button>
+      <button class="division-tab" data-div="D-IV">Division IV</button>
+    </div>
+    
+    <div class="standings-grid" id="standingsContainer">
+      <div class="loading-container">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Loading standings...</div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-logo"><a href="/"><img src="/logo.png" alt="Ball603"></a></div>
+    <div class="footer-links"><a href="/about">About</a><a href="/contact">Contact</a></div>
+    <div class="footer-social">
+      <a href="https://facebook.com/ball603" target="_blank"><svg viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg></a>
+      <a href="https://www.instagram.com/ball603nh/" target="_blank"><svg viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg></a>
+      <a href="https://x.com/Ball603NH" target="_blank"><svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></a>
+    </div>
+    <div class="footer-copyright">© 2025 Ball603. All rights reserved.</div>
+  </footer>
+
+  <script src="/app.js"></script>
+  <script>
+    let allStandings = [];
+    let currentDivision = 'D-I';
+    
+    // Playoff teams per division (70% rule)
+    const PLAYOFF_TEAMS = {
+      Boys: { 'D-I': 15, 'D-II': 14, 'D-III': 15, 'D-IV': 16 },
+      Girls: { 'D-I': 16, 'D-II': 14, 'D-III': 14, 'D-IV': 16 }
+    };
+    
+    // Division tab handlers
+    document.querySelectorAll('.division-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.division-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        currentDivision = tab.dataset.div;
+        renderStandings();
+      });
+    });
+    
+    function getLogoUrl(team) {
+      if (!team) return '/logos/100px/Ball603-white.png';
+      return `/logos/100px/${team.toLowerCase().replace(/[^a-z0-9]/g,'')}.png`;
+    }
+    
+    function getTeamSlug(team) {
+      if (!team) return '';
+      return team.toLowerCase().replace(/[^a-z0-9]/g,'');
+    }
+    
+    function renderStandings() {
+      const container = document.getElementById('standingsContainer');
+      
+      const boysTeams = allStandings.filter(t => t.gender === 'Boys' && t.division === currentDivision)
+        .sort((a,b) => (a.rank || 999) - (b.rank || 999));
+      const girlsTeams = allStandings.filter(t => t.gender === 'Girls' && t.division === currentDivision)
+        .sort((a,b) => (a.rank || 999) - (b.rank || 999));
+      
+      const boysPlayoff = PLAYOFF_TEAMS.Boys[currentDivision] || 16;
+      const girlsPlayoff = PLAYOFF_TEAMS.Girls[currentDivision] || 16;
+      const boysByes = Math.max(0, 16 - boysPlayoff);
+      const girlsByes = Math.max(0, 16 - girlsPlayoff);
+      
+      container.innerHTML = `
+        <div class="standings-card">
+          <div class="standings-card-header boys">
+            <div class="standings-card-title"><span>🏀</span> Boys ${currentDivision.replace('D-','Division ')}</div>
+            <div class="playoff-info">${boysPlayoff} teams qualify</div>
+          </div>
+          <table class="standings-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Team</th>
+                <th class="center">W-L</th>
+                <th class="center">PCT</th>
+                <th class="center">Rating</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${boysTeams.length ? boysTeams.map((t,i) => renderTeamRow(t, i+1, boysByes, boysPlayoff)).join('') : '<tr><td colspan="5" style="text-align:center;padding:40px;color:#999;">No standings data</td></tr>'}
+            </tbody>
+          </table>
+          <div class="standings-legend">
+            ${boysByes > 0 ? '<div class="legend-item"><div class="legend-dot bye"></div>First-round bye</div>' : ''}
+            <div class="legend-item"><div class="legend-dot playoff"></div>Playoff position</div>
+            <div class="legend-item"><div class="legend-dot bubble" style="background:#999;"></div>Below cutline</div>
+          </div>
+        </div>
+        
+        <div class="standings-card">
+          <div class="standings-card-header girls">
+            <div class="standings-card-title"><span>🏀</span> Girls ${currentDivision.replace('D-','Division ')}</div>
+            <div class="playoff-info">${girlsPlayoff} teams qualify</div>
+          </div>
+          <table class="standings-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Team</th>
+                <th class="center">W-L</th>
+                <th class="center">PCT</th>
+                <th class="center">Rating</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${girlsTeams.length ? girlsTeams.map((t,i) => renderTeamRow(t, i+1, girlsByes, girlsPlayoff)).join('') : '<tr><td colspan="5" style="text-align:center;padding:40px;color:#999;">No standings data</td></tr>'}
+            </tbody>
+          </table>
+          <div class="standings-legend">
+            ${girlsByes > 0 ? '<div class="legend-item"><div class="legend-dot bye"></div>First-round bye</div>' : ''}
+            <div class="legend-item"><div class="legend-dot playoff"></div>Playoff position</div>
+            <div class="legend-item"><div class="legend-dot bubble" style="background:#999;"></div>Below cutline</div>
+          </div>
+        </div>
+      `;
+    }
+    
+    function renderTeamRow(team, rank, byes, playoffSpots) {
+      const isBye = rank <= byes;
+      const isPlayoff = rank <= playoffSpots;
+      const isPlayoffLine = rank === playoffSpots;
+      const isByeLine = rank === byes && byes > 0;
+      
+      let rankClass = 'team-rank';
+      if (isBye) rankClass += ' bye';
+      else if (isPlayoff) rankClass += ' playoff';
+      
+      let rowClass = '';
+      if (isPlayoffLine) rowClass = 'playoff-line';
+      else if (isByeLine) rowClass = 'bye-line';
+      
+      const wins = team.wins || 0;
+      const losses = team.losses || 0;
+      const pct = wins + losses > 0 ? (wins / (wins + losses)).toFixed(3) : '.000';
+      
+      return `
+        <tr class="${rowClass}">
+          <td class="${rankClass}">${rank}</td>
+          <td>
+            <div class="team-cell">
+              <div class="team-logo">
+                <img src="${getLogoUrl(team.team)}" alt="${team.team}" onerror="this.src='/logos/100px/Ball603-white.png'">
+              </div>
+              <div class="team-name"><a href="/${getTeamSlug(team.team)}">${team.team}</a></div>
+            </div>
+          </td>
+          <td class="center team-record">${wins}-${losses}</td>
+          <td class="center team-pct">${pct}</td>
+          <td class="center team-rating">${team.rating ? team.rating.toFixed(2) : '--'}</td>
+        </tr>
+      `;
+    }
+    
+    function openMobileMenu() { document.getElementById('mobileDrawer').classList.add('active'); document.getElementById('drawerOverlay').classList.add('active'); }
+    function closeMobileMenu() { document.getElementById('mobileDrawer').classList.remove('active'); document.getElementById('drawerOverlay').classList.remove('active'); }
+    
+    async function init() {
+      try {
+        const res = await fetch('/.netlify/functions/get-standings');
+        const data = await res.json();
+        allStandings = data.standings || [];
+        renderStandings();
+      } catch(e) {
+        console.error(e);
+        document.getElementById('standingsContainer').innerHTML = `
+          <div style="grid-column:1/-1;text-align:center;padding:60px 20px;background:white;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+            <div style="font-size:48px;margin-bottom:16px;opacity:0.5;">⚠️</div>
+            <div style="font-size:18px;font-weight:600;margin-bottom:8px;">Unable to load standings</div>
+            <div style="color:#666;">Please refresh the page</div>
+          </div>
+        `;
+      }
+    }
+    init();
+  </script>
+</body>
+</html>
