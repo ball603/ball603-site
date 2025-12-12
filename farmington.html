@@ -217,25 +217,8 @@
   <section class="team-hero" id="teamHero">
     <div class="team-hero-bg"></div>
     
-    <!-- Net Swish Animation -->
-    <div class="net-animation-container">
-      <svg class="basketball-net" viewBox="0 0 200 200">
-        <!-- Rim -->
-        <ellipse class="net-rim" cx="100" cy="40" rx="50" ry="12"/>
-        <!-- Net strings -->
-        <path class="net-string" d="M55 52 Q60 100, 70 140 Q80 160, 100 170"/>
-        <path class="net-string" d="M70 52 Q72 95, 78 135 Q85 155, 100 170"/>
-        <path class="net-string" d="M85 52 Q85 90, 88 130 Q92 150, 100 170"/>
-        <path class="net-string" d="M100 52 Q100 100, 100 170"/>
-        <path class="net-string" d="M115 52 Q115 90, 112 130 Q108 150, 100 170"/>
-        <path class="net-string" d="M130 52 Q128 95, 122 135 Q115 155, 100 170"/>
-        <path class="net-string" d="M145 52 Q140 100, 130 140 Q120 160, 100 170"/>
-        <!-- Cross strings -->
-        <path class="net-string" d="M60 80 Q100 90, 140 80" style="animation-delay: 0.3s"/>
-        <path class="net-string" d="M70 110 Q100 120, 130 110" style="animation-delay: 0.4s"/>
-        <path class="net-string" d="M80 140 Q100 148, 120 140" style="animation-delay: 0.5s"/>
-      </svg>
-    </div>
+    <!-- Team Color Particles -->
+    <div class="particles-container" id="particlesContainer"></div>
     
     <div class="team-hero-content">
       <div class="team-hero-tagline" id="teamTagline">FARMINGTON TIGERS BASKETBALL</div>
@@ -565,6 +548,7 @@
       initMenuNavigation();
       initMobileMenu();
       initSearch();
+      createParticles();
       
       await Promise.all([
         loadRosters(),
@@ -577,6 +561,34 @@
       
       renderAll();
     });
+
+    // ===== TEAM COLOR PARTICLES =====
+    function createParticles() {
+      const container = document.getElementById('particlesContainer');
+      if (!container) return;
+      
+      const particleCount = 20;
+      const types = ['primary', 'accent', 'white'];
+      
+      for (let i = 0; i < particleCount; i++) {
+        const particle = document.createElement('div');
+        particle.className = `particle ${types[i % types.length]}`;
+        
+        // Random size between 4px and 12px
+        const size = Math.random() * 8 + 4;
+        particle.style.width = size + 'px';
+        particle.style.height = size + 'px';
+        
+        // Random horizontal position
+        particle.style.left = Math.random() * 100 + '%';
+        
+        // Random animation duration and delay for varied movement
+        particle.style.animationDuration = (Math.random() * 8 + 8) + 's';
+        particle.style.animationDelay = (Math.random() * 10) + 's';
+        
+        container.appendChild(particle);
+      }
+    }
 
     // ===== MOBILE MENU =====
     function initMobileMenu() {
@@ -1112,9 +1124,11 @@
           <div class="team-hero-stats-primary">
             <div class="team-hero-stat championship">
               <span class="stat-icon">🏆</span>
-              <span class="stat-value">${championships}</span>
-              <span class="stat-label">State Championship${championships !== 1 ? 's' : ''}</span>
-              <span class="stat-sublabel">Boys & Girls Combined</span>
+              <div class="stat-text">
+                <span class="stat-value">${championships}</span>
+                <span class="stat-label">State Championship${championships !== 1 ? 's' : ''}</span>
+                <span class="stat-sublabel">Boys & Girls Combined</span>
+              </div>
             </div>
           </div>
         ` : ''}
