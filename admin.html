@@ -310,6 +310,7 @@
       <button class="tab" onclick="showTab('bash')">The Bash</button>
       <button class="tab" onclick="showTab('graphics')">🎨 Graphics</button>
       <button class="tab" onclick="showTab('galleries')">📷 Galleries</button>
+      <button class="tab" onclick="showTab('video')">🎬 Video</button>
     </div>
     
     <!-- Articles List Panel -->
@@ -2986,6 +2987,135 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
   
   <!-- SmugMug Photo Browser Modal (for individual photos) -->
   <div class="modal-overlay" id="smugmugPhotoModal">
+
+  <!-- ==================== VIDEO PANEL ==================== -->
+  <div class="panel" id="videoPanel" style="display: none;">
+    <div class="toolbar" style="flex-wrap: wrap; gap: 10px; margin-bottom: 20px;">
+      <h2 style="margin: 0; font-size: 18px; color: #333;">🎬 Video Manager</h2>
+      <p style="margin: 0; color: #666; font-size: 13px; margin-left: 15px;">Manage YouTube videos and tag them to teams</p>
+      <button class="btn-new" onclick="openAddVideoModal()" style="margin-left: auto;">
+        <span>+</span> Add Video
+      </button>
+      <button class="btn-new" onclick="loadVideos()" style="background: #e3f2fd; color: #1565c0;">
+        <span>🔄</span> Refresh
+      </button>
+    </div>
+    
+    <!-- Filters -->
+    <div style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; align-items: center;">
+      <div style="display: flex; gap: 5px;">
+        <button class="filter-btn active" onclick="filterVideos('all', this)" data-filter="all" style="padding: 8px 16px; border: 1px solid #ddd; background: #f57c00; color: white; border-radius: 20px; font-size: 13px; cursor: pointer;">All</button>
+        <button class="filter-btn" onclick="filterVideos('pinned', this)" data-filter="pinned" style="padding: 8px 16px; border: 1px solid #ddd; background: #fff; border-radius: 20px; font-size: 13px; cursor: pointer;">📌 Pinned</button>
+        <button class="filter-btn" onclick="filterVideos('hidden', this)" data-filter="hidden" style="padding: 8px 16px; border: 1px solid #ddd; background: #fff; border-radius: 20px; font-size: 13px; cursor: pointer;">👁‍🗨 Hidden</button>
+      </div>
+      <input type="text" id="videoSearchInput" placeholder="Search videos..." oninput="searchVideos(this.value)" style="padding: 8px 15px; border: 1px solid #ddd; border-radius: 20px; font-size: 13px; width: 250px;">
+      <span id="videoCountDisplay" style="margin-left: auto; font-size: 13px; color: #666;">0 videos</span>
+    </div>
+    
+    <!-- Video List -->
+    <div id="videoList" style="border: 1px solid #eee; border-radius: 8px; overflow: hidden;">
+      <div style="display: grid; grid-template-columns: 120px 1fr 100px 80px 80px 120px; padding: 12px 15px; background: #f5f5f5; font-weight: 600; font-size: 12px; text-transform: uppercase; color: #666; gap: 10px;">
+        <div>Thumbnail</div>
+        <div>Title</div>
+        <div>Published</div>
+        <div>Pinned</div>
+        <div>Hidden</div>
+        <div>Actions</div>
+      </div>
+      <div id="videoListBody">
+        <div class="loading">Loading videos...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add/Edit Video Modal -->
+  <div class="modal-overlay" id="videoModal">
+    <div class="modal" style="max-width: 700px;">
+      <div class="modal-header">
+        <h3 id="videoModalTitle">Add YouTube Video</h3>
+        <button class="modal-close" onclick="closeVideoModal()">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 20px;">
+        <input type="hidden" id="videoId">
+        
+        <!-- YouTube URL/ID Input -->
+        <div class="form-group" style="margin-bottom: 20px;">
+          <label style="font-size: 13px; font-weight: 600; color: #555; display: block; margin-bottom: 6px;">YouTube Video URL or ID</label>
+          <div style="display: flex; gap: 10px;">
+            <input type="text" id="videoYoutubeInput" placeholder="https://youtube.com/watch?v=... or video ID" style="flex: 1; padding: 10px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px;">
+            <button onclick="fetchVideoDetails()" style="background: #ff0000; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: 500;">Fetch Info</button>
+          </div>
+          <small style="font-size: 11px; color: #999;">Paste a YouTube URL or just the video ID (e.g., dQw4w9WgXcQ)</small>
+        </div>
+        
+        <!-- Video Preview -->
+        <div id="videoPreviewSection" style="display: none; margin-bottom: 20px; background: #f9f9f9; border-radius: 8px; padding: 15px;">
+          <div style="display: flex; gap: 15px;">
+            <img id="videoPreviewThumb" src="" style="width: 180px; height: 100px; object-fit: cover; border-radius: 6px; background: #333;">
+            <div style="flex: 1;">
+              <div id="videoPreviewTitle" style="font-weight: 600; margin-bottom: 5px;"></div>
+              <div id="videoPreviewMeta" style="font-size: 12px; color: #666;"></div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Manual Fields -->
+        <div class="form-group" style="margin-bottom: 15px;">
+          <label style="font-size: 13px; font-weight: 600; color: #555; display: block; margin-bottom: 6px;">Title</label>
+          <input type="text" id="videoTitle" placeholder="Video title" style="width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px;">
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 15px;">
+          <label style="font-size: 13px; font-weight: 600; color: #555; display: block; margin-bottom: 6px;">Description</label>
+          <textarea id="videoDescription" placeholder="Video description (optional)" rows="3" style="width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; font-family: inherit; resize: vertical;"></textarea>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+          <div class="form-group">
+            <label style="font-size: 13px; font-weight: 600; color: #555; display: block; margin-bottom: 6px;">Published Date</label>
+            <input type="date" id="videoPublishedAt" style="width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px;">
+          </div>
+          <div class="form-group">
+            <label style="font-size: 13px; font-weight: 600; color: #555; display: block; margin-bottom: 6px;">Duration</label>
+            <input type="text" id="videoDuration" placeholder="e.g., PT5M30S" style="width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px;">
+            <small style="font-size: 11px; color: #999;">ISO 8601 format (auto-filled from YouTube)</small>
+          </div>
+        </div>
+        
+        <!-- Team Tags -->
+        <div class="form-group" style="margin-bottom: 15px;">
+          <label style="font-size: 13px; font-weight: 600; color: #555; display: block; margin-bottom: 6px;">Team Tags</label>
+          <div id="videoTeamTags" style="display: flex; flex-wrap: wrap; gap: 6px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; min-height: 50px; background: #fafafa;">
+            <!-- Tags will be added here -->
+          </div>
+          <div style="margin-top: 8px;">
+            <select id="videoTeamSelect" onchange="addVideoTeamTag(this.value); this.value='';" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px;">
+              <option value="">+ Add team tag...</option>
+            </select>
+          </div>
+        </div>
+        
+        <!-- Options -->
+        <div style="display: flex; gap: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px;">
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="videoPinned" style="width: 18px; height: 18px;">
+            <span style="font-size: 13px;">📌 Pin to top</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="videoHidden" style="width: 18px; height: 18px;">
+            <span style="font-size: 13px;">👁‍🗨 Hidden</span>
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer" style="display: flex; justify-content: space-between;">
+        <button onclick="deleteVideo()" id="videoDeleteBtn" style="background: #ffebee; color: #c62828; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; display: none;">Delete</button>
+        <div style="display: flex; gap: 10px; margin-left: auto;">
+          <button class="btn-modal btn-modal-cancel" onclick="closeVideoModal()">Cancel</button>
+          <button class="btn-modal btn-modal-select" onclick="saveVideo()">Save Video</button>
+        </div>
+      </div>
+    </div>
+  </div>
     <div class="modal" style="max-width: 900px;">
       <div class="modal-header">
         <h3>📸 Select Photo from SmugMug</h3>
@@ -3735,6 +3865,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('bashPanel').style.display = tab === 'bash' ? 'block' : 'none';
       document.getElementById('graphicsPanel').style.display = tab === 'graphics' ? 'block' : 'none';
       document.getElementById('galleriesPanel').style.display = tab === 'galleries' ? 'block' : 'none';
+      document.getElementById('videoPanel').style.display = tab === 'video' ? 'block' : 'none';
       document.getElementById('editorPanel').style.display = 'none';
       
       // Load teams when tab is selected
@@ -3775,6 +3906,11 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       // Load Sponsors when tab is selected
       if (tab === 'sponsors' && allSponsors.length === 0) {
         loadSponsors();
+      }
+      
+      // Load Videos when tab is selected
+      if (tab === 'video' && allVideos.length === 0) {
+        loadVideos();
       }
     }
     
@@ -11072,6 +11208,427 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         logoInput.addEventListener('input', previewSponsorLogo);
       }
     });
+    
+    // ==================== VIDEO MANAGEMENT ====================
+    let allVideos = [];
+    let currentVideoFilter = 'all';
+    let videoSearchTerm = '';
+    let currentVideoTags = [];
+    
+    async function loadVideos() {
+      try {
+        const { data: videos, error } = await supabase
+          .from('youtube_videos')
+          .select('*')
+          .order('pinned', { ascending: false })
+          .order('sort_order', { ascending: true })
+          .order('published_at', { ascending: false });
+        
+        if (error) throw error;
+        
+        allVideos = videos || [];
+        renderVideoList();
+        populateVideoTeamSelect();
+        
+      } catch (err) {
+        console.error('Error loading videos:', err);
+        document.getElementById('videoListBody').innerHTML = '<div style="padding: 40px; text-align: center; color: #888;">Error loading videos</div>';
+      }
+    }
+    
+    function renderVideoList() {
+      let filtered = [...allVideos];
+      
+      // Apply filter
+      if (currentVideoFilter === 'pinned') {
+        filtered = filtered.filter(v => v.pinned);
+      } else if (currentVideoFilter === 'hidden') {
+        filtered = filtered.filter(v => v.hidden);
+      } else {
+        // 'all' shows non-hidden by default
+        filtered = filtered.filter(v => !v.hidden);
+      }
+      
+      // Apply search
+      if (videoSearchTerm) {
+        const term = videoSearchTerm.toLowerCase();
+        filtered = filtered.filter(v => 
+          v.title?.toLowerCase().includes(term) ||
+          v.description?.toLowerCase().includes(term)
+        );
+      }
+      
+      document.getElementById('videoCountDisplay').textContent = `${filtered.length} video${filtered.length !== 1 ? 's' : ''}`;
+      
+      if (filtered.length === 0) {
+        document.getElementById('videoListBody').innerHTML = `
+          <div style="padding: 60px 20px; text-align: center; color: #888;">
+            <div style="font-size: 40px; margin-bottom: 15px;">🎬</div>
+            <p>${allVideos.length === 0 ? 'No videos yet. Click "Add Video" to get started.' : 'No videos match your filters.'}</p>
+          </div>
+        `;
+        return;
+      }
+      
+      document.getElementById('videoListBody').innerHTML = filtered.map(video => {
+        const thumbnail = video.thumbnail_url || `https://img.youtube.com/vi/${video.youtube_id}/mqdefault.jpg`;
+        const publishedDate = video.published_at ? new Date(video.published_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '--';
+        const tags = video.tags || [];
+        
+        return `
+          <div style="display: grid; grid-template-columns: 120px 1fr 100px 80px 80px 120px; padding: 12px 15px; border-bottom: 1px solid #eee; align-items: center; gap: 10px; ${video.pinned ? 'background: #fff8e1;' : ''} ${video.hidden ? 'opacity: 0.6;' : ''}">
+            <div>
+              <img src="${thumbnail}" style="width: 100px; height: 56px; object-fit: cover; border-radius: 4px; cursor: pointer;" onclick="window.open('https://youtube.com/watch?v=${video.youtube_id}', '_blank')" onerror="this.src='https://img.youtube.com/vi/${video.youtube_id}/default.jpg'">
+            </div>
+            <div>
+              <div style="font-weight: 500; color: #333; cursor: pointer; margin-bottom: 4px;" onclick="editVideo('${video.id}')">${video.title || 'Untitled'}</div>
+              ${tags.length > 0 ? `<div style="display: flex; gap: 4px; flex-wrap: wrap;">${tags.slice(0, 3).map(t => `<span style="font-size: 10px; background: #e3f2fd; color: #1565c0; padding: 2px 6px; border-radius: 8px;">${t}</span>`).join('')}${tags.length > 3 ? `<span style="font-size: 10px; color: #888;">+${tags.length - 3}</span>` : ''}</div>` : ''}
+            </div>
+            <div style="font-size: 12px; color: #666;">${publishedDate}</div>
+            <div>
+              <button onclick="toggleVideoPin('${video.id}', ${!video.pinned})" style="background: ${video.pinned ? '#fff3e0' : '#f5f5f5'}; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;" title="${video.pinned ? 'Unpin' : 'Pin'}">
+                ${video.pinned ? '📌' : '○'}
+              </button>
+            </div>
+            <div>
+              <button onclick="toggleVideoHidden('${video.id}', ${!video.hidden})" style="background: ${video.hidden ? '#ffebee' : '#f5f5f5'}; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;" title="${video.hidden ? 'Show' : 'Hide'}">
+                ${video.hidden ? '👁‍🗨' : '👁'}
+              </button>
+            </div>
+            <div style="display: flex; gap: 6px;">
+              <button onclick="editVideo('${video.id}')" style="background: #e3f2fd; color: #1565c0; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer;">Edit</button>
+              <button onclick="confirmDeleteVideo('${video.id}', '${(video.title || '').replace(/'/g, "\\'")}')" style="background: #ffebee; color: #c62828; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer;">Delete</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+    
+    function filterVideos(filter, btn) {
+      currentVideoFilter = filter;
+      document.querySelectorAll('#videoPanel .filter-btn').forEach(b => {
+        b.style.background = '#fff';
+        b.style.color = '#333';
+      });
+      btn.style.background = '#f57c00';
+      btn.style.color = 'white';
+      renderVideoList();
+    }
+    
+    function searchVideos(term) {
+      videoSearchTerm = term;
+      renderVideoList();
+    }
+    
+    async function toggleVideoPin(id, pinned) {
+      try {
+        const { error } = await supabase
+          .from('youtube_videos')
+          .update({ pinned, updated_at: new Date().toISOString() })
+          .eq('id', id);
+        
+        if (error) throw error;
+        
+        const video = allVideos.find(v => v.id == id);
+        if (video) video.pinned = pinned;
+        renderVideoList();
+        showToast(pinned ? 'Video pinned' : 'Video unpinned', 'success');
+        
+      } catch (err) {
+        console.error('Error toggling pin:', err);
+        showToast('Error updating video', 'error');
+      }
+    }
+    
+    async function toggleVideoHidden(id, hidden) {
+      try {
+        const { error } = await supabase
+          .from('youtube_videos')
+          .update({ hidden, updated_at: new Date().toISOString() })
+          .eq('id', id);
+        
+        if (error) throw error;
+        
+        const video = allVideos.find(v => v.id == id);
+        if (video) video.hidden = hidden;
+        renderVideoList();
+        showToast(hidden ? 'Video hidden' : 'Video visible', 'success');
+        
+      } catch (err) {
+        console.error('Error toggling hidden:', err);
+        showToast('Error updating video', 'error');
+      }
+    }
+    
+    async function populateVideoTeamSelect() {
+      const select = document.getElementById('videoTeamSelect');
+      if (!select) return;
+      
+      // Clear existing options except first
+      select.innerHTML = '<option value="">+ Add team tag...</option>';
+      
+      // Use teams from the existing allTeams array if loaded, or fetch
+      let teams = allTeams;
+      if (!teams || teams.length === 0) {
+        try {
+          const { data, error } = await supabase
+            .from('teams')
+            .select('shortname')
+            .eq('level', 'High School')
+            .eq('active', true)
+            .order('shortname');
+          
+          if (!error && data) {
+            const seen = new Set();
+            teams = data.filter(t => {
+              if (seen.has(t.shortname)) return false;
+              seen.add(t.shortname);
+              return true;
+            });
+          }
+        } catch (err) {
+          console.error('Error loading teams for video select:', err);
+        }
+      }
+      
+      teams.forEach(t => {
+        const name = t.shortname || t.name;
+        const slug = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const option = document.createElement('option');
+        option.value = slug;
+        option.textContent = name;
+        select.appendChild(option);
+      });
+    }
+    
+    function openAddVideoModal() {
+      document.getElementById('videoModalTitle').textContent = 'Add YouTube Video';
+      document.getElementById('videoId').value = '';
+      document.getElementById('videoYoutubeInput').value = '';
+      document.getElementById('videoTitle').value = '';
+      document.getElementById('videoDescription').value = '';
+      document.getElementById('videoPublishedAt').value = '';
+      document.getElementById('videoDuration').value = '';
+      document.getElementById('videoPinned').checked = false;
+      document.getElementById('videoHidden').checked = false;
+      document.getElementById('videoPreviewSection').style.display = 'none';
+      document.getElementById('videoDeleteBtn').style.display = 'none';
+      currentVideoTags = [];
+      renderVideoTags();
+      document.getElementById('videoModal').classList.add('open');
+    }
+    
+    function editVideo(id) {
+      const video = allVideos.find(v => v.id == id);
+      if (!video) return;
+      
+      document.getElementById('videoModalTitle').textContent = 'Edit Video';
+      document.getElementById('videoId').value = video.id;
+      document.getElementById('videoYoutubeInput').value = video.youtube_id;
+      document.getElementById('videoTitle').value = video.title || '';
+      document.getElementById('videoDescription').value = video.description || '';
+      document.getElementById('videoPublishedAt').value = video.published_at ? video.published_at.split('T')[0] : '';
+      document.getElementById('videoDuration').value = video.duration || '';
+      document.getElementById('videoPinned').checked = video.pinned || false;
+      document.getElementById('videoHidden').checked = video.hidden || false;
+      document.getElementById('videoDeleteBtn').style.display = 'block';
+      
+      // Show preview
+      document.getElementById('videoPreviewSection').style.display = 'block';
+      document.getElementById('videoPreviewThumb').src = video.thumbnail_url || `https://img.youtube.com/vi/${video.youtube_id}/maxresdefault.jpg`;
+      document.getElementById('videoPreviewTitle').textContent = video.title || '';
+      document.getElementById('videoPreviewMeta').textContent = `ID: ${video.youtube_id}`;
+      
+      currentVideoTags = Array.isArray(video.tags) ? [...video.tags] : [];
+      renderVideoTags();
+      
+      document.getElementById('videoModal').classList.add('open');
+    }
+    
+    function closeVideoModal() {
+      document.getElementById('videoModal').classList.remove('open');
+    }
+    
+    function extractYouTubeId(input) {
+      if (!input) return null;
+      input = input.trim();
+      
+      // Already just an ID (11 characters, alphanumeric with - and _)
+      if (/^[a-zA-Z0-9_-]{11}$/.test(input)) {
+        return input;
+      }
+      
+      // Various YouTube URL formats
+      const patterns = [
+        /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/)([a-zA-Z0-9_-]{11})/,
+        /youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/
+      ];
+      
+      for (const pattern of patterns) {
+        const match = input.match(pattern);
+        if (match) return match[1];
+      }
+      
+      return null;
+    }
+    
+    async function fetchVideoDetails() {
+      const input = document.getElementById('videoYoutubeInput').value;
+      const youtubeId = extractYouTubeId(input);
+      
+      if (!youtubeId) {
+        showToast('Invalid YouTube URL or ID', 'error');
+        return;
+      }
+      
+      // Set the extracted ID
+      document.getElementById('videoYoutubeInput').value = youtubeId;
+      
+      // Show preview with thumbnail
+      const thumbnail = `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg`;
+      document.getElementById('videoPreviewSection').style.display = 'block';
+      document.getElementById('videoPreviewThumb').src = thumbnail;
+      document.getElementById('videoPreviewThumb').onerror = function() {
+        this.src = `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`;
+      };
+      document.getElementById('videoPreviewTitle').textContent = 'Video ID: ' + youtubeId;
+      document.getElementById('videoPreviewMeta').textContent = 'Enter title manually or it will use YouTube title when available';
+      
+      // Set today's date as default if empty
+      if (!document.getElementById('videoPublishedAt').value) {
+        document.getElementById('videoPublishedAt').value = new Date().toISOString().split('T')[0];
+      }
+      
+      showToast('Video ID extracted. Please enter title manually.', 'success');
+    }
+    
+    function addVideoTeamTag(slug) {
+      if (!slug || currentVideoTags.includes(slug)) return;
+      currentVideoTags.push(slug);
+      renderVideoTags();
+    }
+    
+    function removeVideoTeamTag(slug) {
+      currentVideoTags = currentVideoTags.filter(t => t !== slug);
+      renderVideoTags();
+    }
+    
+    function renderVideoTags() {
+      const container = document.getElementById('videoTeamTags');
+      if (currentVideoTags.length === 0) {
+        container.innerHTML = '<span style="color: #999; font-size: 12px;">No teams tagged</span>';
+        return;
+      }
+      container.innerHTML = currentVideoTags.map(tag => `
+        <span style="display: inline-flex; align-items: center; gap: 4px; background: #e3f2fd; color: #1565c0; padding: 4px 10px; border-radius: 15px; font-size: 12px;">
+          ${tag}
+          <button onclick="removeVideoTeamTag('${tag}')" style="background: none; border: none; color: #1565c0; cursor: pointer; padding: 0; font-size: 14px; line-height: 1;">&times;</button>
+        </span>
+      `).join('');
+    }
+    
+    async function saveVideo() {
+      const id = document.getElementById('videoId').value;
+      const youtubeInput = document.getElementById('videoYoutubeInput').value;
+      const youtubeId = extractYouTubeId(youtubeInput);
+      const title = document.getElementById('videoTitle').value.trim();
+      const description = document.getElementById('videoDescription').value.trim();
+      const publishedAt = document.getElementById('videoPublishedAt').value;
+      const duration = document.getElementById('videoDuration').value.trim();
+      const pinned = document.getElementById('videoPinned').checked;
+      const hidden = document.getElementById('videoHidden').checked;
+      
+      if (!youtubeId) {
+        showToast('Please enter a valid YouTube URL or ID', 'error');
+        return;
+      }
+      
+      if (!title) {
+        showToast('Please enter a title', 'error');
+        return;
+      }
+      
+      const videoData = {
+        youtube_id: youtubeId,
+        title,
+        description: description || null,
+        thumbnail_url: `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg`,
+        published_at: publishedAt ? new Date(publishedAt).toISOString() : null,
+        duration: duration || null,
+        pinned,
+        hidden,
+        tags: currentVideoTags,
+        updated_at: new Date().toISOString()
+      };
+      
+      try {
+        if (id) {
+          // Update existing
+          const { error } = await supabase
+            .from('youtube_videos')
+            .update(videoData)
+            .eq('id', id);
+          
+          if (error) throw error;
+          showToast('Video updated successfully', 'success');
+        } else {
+          // Insert new
+          videoData.created_at = new Date().toISOString();
+          const { error } = await supabase
+            .from('youtube_videos')
+            .insert([videoData]);
+          
+          if (error) throw error;
+          showToast('Video added successfully', 'success');
+        }
+        
+        closeVideoModal();
+        loadVideos();
+        
+      } catch (err) {
+        console.error('Error saving video:', err);
+        if (err.message?.includes('duplicate')) {
+          showToast('This video already exists', 'error');
+        } else {
+          showToast('Error saving video: ' + err.message, 'error');
+        }
+      }
+    }
+    
+    function confirmDeleteVideo(id, title) {
+      if (confirm(`Are you sure you want to delete "${title}"?`)) {
+        deleteVideoById(id);
+      }
+    }
+    
+    async function deleteVideo() {
+      const id = document.getElementById('videoId').value;
+      if (!id) return;
+      
+      const video = allVideos.find(v => v.id == id);
+      if (confirm(`Are you sure you want to delete "${video?.title}"?`)) {
+        await deleteVideoById(id);
+        closeVideoModal();
+      }
+    }
+    
+    async function deleteVideoById(id) {
+      try {
+        const { error } = await supabase
+          .from('youtube_videos')
+          .delete()
+          .eq('id', id);
+        
+        if (error) throw error;
+        
+        showToast('Video deleted', 'success');
+        loadVideos();
+        
+      } catch (err) {
+        console.error('Error deleting video:', err);
+        showToast('Error deleting video', 'error');
+      }
+    }
   </script>
   
   <!-- Delete by Slug Modal -->
