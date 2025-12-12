@@ -5,7 +5,7 @@
  * Depends on: styles.css (for shared variables, header, footer)
  */
 
-/* ===== CSS VARIABLES ===== */
+/* ===== CSS VARIABLES (defaults, overridden per-team) ===== */
 :root {
   --team-primary: #f57c00;
   --team-secondary: #1a1a1a;
@@ -35,6 +35,70 @@
   bottom: 0;
   background: url('/images/court-pattern.png') center/cover;
   opacity: 0.05;
+}
+
+/* Net Swish Animation Container */
+.net-animation-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 300px;
+  height: 300px;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.15;
+}
+
+/* Basketball Net SVG Animation */
+.basketball-net {
+  width: 100%;
+  height: 100%;
+}
+
+.net-string {
+  stroke: rgba(255, 255, 255, 0.8);
+  stroke-width: 2;
+  fill: none;
+  transform-origin: top center;
+  animation: netSwish 4s ease-in-out infinite;
+}
+
+.net-string:nth-child(1) { animation-delay: 0s; }
+.net-string:nth-child(2) { animation-delay: 0.1s; }
+.net-string:nth-child(3) { animation-delay: 0.2s; }
+.net-string:nth-child(4) { animation-delay: 0.15s; }
+.net-string:nth-child(5) { animation-delay: 0.25s; }
+.net-string:nth-child(6) { animation-delay: 0.05s; }
+.net-string:nth-child(7) { animation-delay: 0.18s; }
+.net-string:nth-child(8) { animation-delay: 0.08s; }
+
+@keyframes netSwish {
+  0%, 100% {
+    transform: rotate(0deg) scaleY(1);
+  }
+  15% {
+    transform: rotate(3deg) scaleY(1.02);
+  }
+  30% {
+    transform: rotate(-2deg) scaleY(0.98);
+  }
+  45% {
+    transform: rotate(1.5deg) scaleY(1.01);
+  }
+  60% {
+    transform: rotate(-1deg) scaleY(0.99);
+  }
+  75% {
+    transform: rotate(0.5deg) scaleY(1);
+  }
+}
+
+/* Net rim */
+.net-rim {
+  stroke: rgba(255, 255, 255, 0.9);
+  stroke-width: 4;
+  fill: none;
 }
 
 .team-hero-content {
@@ -69,7 +133,7 @@
   margin-bottom: 30px;
 }
 
-/* Hero Stats */
+/* ===== HERO STATS - Centered Layout ===== */
 .team-hero-stats {
   display: flex;
   flex-direction: column;
@@ -82,28 +146,26 @@
   justify-content: center;
 }
 
+/* Championship Stat Box - All Centered */
 .team-hero-stat.championship {
   background: linear-gradient(135deg, #ffd700 0%, #ffb300 100%);
-  padding: 20px 40px;
+  padding: 24px 40px;
   border-radius: 12px;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 15px;
+  text-align: center;
+  gap: 8px;
   box-shadow: 0 4px 20px rgba(255,215,0,0.3);
 }
 
 .team-hero-stat.championship .stat-icon {
-  font-size: 36px;
-}
-
-.team-hero-stat.championship .stat-content {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  font-size: 48px;
+  line-height: 1;
 }
 
 .team-hero-stat.championship .stat-value {
-  font-size: 48px;
+  font-size: 56px;
   font-weight: 700;
   color: #333;
   line-height: 1;
@@ -117,14 +179,14 @@
   letter-spacing: 1px;
 }
 
-/* New: Sublabel for "Boys & Girls Combined" */
 .team-hero-stat.championship .stat-sublabel {
   font-size: 11px;
   font-weight: 500;
   color: #777;
-  margin-top: 4px;
+  margin-top: 2px;
 }
 
+/* Secondary Stats Row */
 .team-hero-stats-secondary {
   display: flex;
   gap: 20px;
@@ -433,6 +495,7 @@
   box-shadow: 0 2px 10px rgba(0,0,0,0.05);
 }
 
+/* Sponsor with actual sponsor */
 .sponsor-header {
   font-size: 11px;
   font-weight: 600;
@@ -455,27 +518,45 @@
   max-width: 200px;
 }
 
-.sponsor-logo-fallback {
-  max-height: 40px;
-  margin-top: 5px;
-}
-
-/* Sponsor Fallback Styles */
+/* Sponsor Fallback - Logo at top, no header */
 .sponsor-fallback {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 15px;
+  padding: 10px;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+
+.sponsor-fallback:hover {
+  background: #f9f9f9;
+}
+
+.sponsor-fallback .sponsor-logo-img {
+  max-height: 45px;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.sponsor-fallback:hover .sponsor-logo-img {
+  opacity: 1;
+}
+
+.sponsor-fallback-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .sponsor-fallback-line1 {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   color: #333;
 }
 
 .sponsor-fallback-line2 {
-  font-size: 14px;
+  font-size: 13px;
   color: #666;
 }
 
@@ -526,51 +607,58 @@
 }
 
 .schedule-card-games {
-  padding: 15px 20px;
+  padding: 0;
+  max-height: 320px;
+  overflow-y: auto;
 }
 
-.schedule-mini-game {
+.schedule-game-item {
   display: grid;
-  grid-template-columns: 60px 1fr 70px;
-  gap: 10px;
-  padding: 10px 0;
+  grid-template-columns: 70px 1fr auto;
+  gap: 12px;
+  padding: 12px 20px;
   border-bottom: 1px solid #f0f0f0;
   align-items: center;
+  font-size: 13px;
 }
 
-.schedule-mini-game:last-child {
+.schedule-game-item:last-child {
   border-bottom: none;
 }
 
-.mini-game-date {
-  font-size: 12px;
+.schedule-game-date {
   font-weight: 600;
   color: #555;
+  font-size: 12px;
 }
 
-.mini-game-opp {
-  font-size: 13px;
+.schedule-game-opponent {
   color: #333;
 }
 
-.mini-game-time {
-  font-size: 12px;
+.schedule-game-opponent .home-away {
+  font-size: 11px;
   color: #888;
-  text-align: right;
+  margin-left: 4px;
 }
 
-.mini-game-result {
-  font-size: 12px;
+.schedule-game-result {
   font-weight: 600;
   text-align: right;
+  font-size: 12px;
 }
 
-.mini-game-result.win {
+.schedule-game-result.win {
   color: #2e7d32;
 }
 
-.mini-game-result.loss {
+.schedule-game-result.loss {
   color: #c62828;
+}
+
+.schedule-game-result.upcoming {
+  color: #888;
+  font-weight: 500;
 }
 
 .schedule-card-link {
@@ -601,6 +689,8 @@
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+  display: flex;
+  flex-direction: column;
 }
 
 .roster-card-header {
@@ -630,17 +720,24 @@
   opacity: 0.9;
 }
 
+.roster-card-body {
+  padding: 15px 20px;
+  flex: 1;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+/* Coach at bottom of card */
 .roster-card-coach {
   padding: 12px 20px;
   background: #f9f9f9;
   font-size: 13px;
   color: #555;
+  border-top: 1px solid #eee;
 }
 
-.roster-card-body {
-  padding: 15px 20px;
-  max-height: 400px;
-  overflow-y: auto;
+.roster-card-coach strong {
+  color: #333;
 }
 
 .roster-empty {
@@ -730,8 +827,22 @@
   height: 180px;
   background-size: cover;
   background-position: center;
-  background-color: #f5f5f5;
+  background-color: #e0e0e0;
   position: relative;
+}
+
+/* Placeholder pattern for galleries without thumbnails */
+.gallery-card-image.no-thumb {
+  background: linear-gradient(135deg, var(--team-primary) 0%, var(--team-secondary) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gallery-card-image.no-thumb::after {
+  content: '📷';
+  font-size: 48px;
+  opacity: 0.3;
 }
 
 .gallery-card-overlay {
@@ -755,6 +866,7 @@
   font-weight: 600;
   color: #333;
   margin-bottom: 5px;
+  line-height: 1.3;
 }
 
 .gallery-card-date {
@@ -824,16 +936,6 @@
 .champ-opponent {
   font-size: 12px;
   color: #555;
-}
-
-/* Runner-up card variation */
-.championship-card.runner-up {
-  background: linear-gradient(135deg, #e0e0e0 0%, #bdbdbd 100%);
-  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-}
-
-.championship-card.runner-up .champ-trophy {
-  filter: grayscale(0);
 }
 
 /* History Timeline */
@@ -1025,7 +1127,7 @@
   border: 1px solid #ffd700;
 }
 
-/* NCAA Players Grid */
+/* NCAA Players List */
 .college-players-list {
   display: flex;
   flex-direction: column;
@@ -1054,7 +1156,7 @@
   font-weight: 500;
 }
 
-/* Empty State */
+/* ===== EMPTY STATE ===== */
 .empty-state {
   text-align: center;
   padding: 30px 20px;
@@ -1136,17 +1238,15 @@
   }
   
   .team-hero-stat.championship {
-    padding: 15px 25px;
-    flex-direction: column;
-    text-align: center;
+    padding: 20px 30px;
   }
   
-  .team-hero-stat.championship .stat-content {
-    align-items: center;
+  .team-hero-stat.championship .stat-icon {
+    font-size: 40px;
   }
   
   .team-hero-stat.championship .stat-value {
-    font-size: 36px;
+    font-size: 44px;
   }
   
   .team-hero-stats-secondary {
@@ -1211,5 +1311,10 @@
   
   .sponsor-fallback-line2 {
     font-size: 12px;
+  }
+  
+  .net-animation-container {
+    width: 200px;
+    height: 200px;
   }
 }
