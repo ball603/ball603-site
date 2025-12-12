@@ -335,25 +335,31 @@
       </div>
     </section>
 
-    <!-- Top Sending Schools -->
-    <section class="top-schools-section">
-      <div class="top-schools-header">
-        <h2 class="section-title">🏫 Top Sending Schools</h2>
-        <p class="section-subtitle">High schools with the most players in college basketball</p>
-      </div>
-      <div class="top-schools-grid" id="topSchoolsGrid">
-        <!-- Populated by JS -->
-      </div>
-    </section>
-
-    <!-- Top Colleges -->
-    <section class="top-colleges-section">
-      <div class="top-colleges-header">
-        <h2 class="section-title">🎓 Popular Destinations</h2>
-        <p class="section-subtitle">Colleges with the most NH players</p>
-      </div>
-      <div class="top-colleges-grid" id="topCollegesGrid">
-        <!-- Populated by JS -->
+    <!-- Top Sections - Side by Side Tables -->
+    <section class="top-tables-section">
+      <div class="top-tables-container">
+        <div class="top-table-box">
+          <h3 class="top-table-title">🏫 Top Sending Schools</h3>
+          <table class="top-table" id="topSchoolsTable">
+            <thead>
+              <tr><th>#</th><th>High School</th><th>Players</th></tr>
+            </thead>
+            <tbody id="topSchoolsBody">
+              <!-- Populated by JS -->
+            </tbody>
+          </table>
+        </div>
+        <div class="top-table-box">
+          <h3 class="top-table-title">🎓 Popular Destinations</h3>
+          <table class="top-table" id="topCollegesTable">
+            <thead>
+              <tr><th>#</th><th>College</th><th>Players</th></tr>
+            </thead>
+            <tbody id="topCollegesBody">
+              <!-- Populated by JS -->
+            </tbody>
+          </table>
+        </div>
       </div>
     </section>
 
@@ -361,14 +367,15 @@
     <section class="filters-bar">
       <div class="filters-inner">
         <div class="filter-group">
-          <label for="filterCollege">College</label>
-          <select id="filterCollege">
-            <option value="">All Colleges</option>
-          </select>
+          <label>Sort By</label>
+          <div class="sort-toggle">
+            <button class="sort-btn active" id="sortBySchool" data-sort="school">High School</button>
+            <button class="sort-btn" id="sortByCollege" data-sort="college">College</button>
+          </div>
         </div>
         <div class="filter-group filter-search">
-          <label for="searchInput">Search</label>
-          <input type="text" id="searchInput" placeholder="Search by name or school...">
+          <label for="playerSearch">Search</label>
+          <input type="text" id="playerSearch" placeholder="Search by name or school...">
         </div>
         <div class="filter-results">
           <span id="resultsCount">0 players</span>
@@ -424,11 +431,11 @@
   <script>
     // State
     let filteredPlayers = [...NCAA_PLAYERS];
+    let sortBy = 'school'; // Default to high school
     
     // Initialize
     document.addEventListener('DOMContentLoaded', () => {
       updateStats();
-      populateFilters();
       renderTopSchools();
       renderTopColleges();
       renderPlayersList();
@@ -444,23 +451,11 @@
       document.getElementById('totalHighSchools').textContent = highSchools.size;
     }
     
-    function populateFilters() {
-      const collegeSelect = document.getElementById('filterCollege');
-      COLLEGES.forEach(college => {
-        const opt = document.createElement('option');
-        opt.value = college;
-        opt.textContent = college;
-        collegeSelect.appendChild(opt);
-      });
-    }
-    
     function renderTopSchools() {
       // Count players per high school
       const counts = {};
       NCAA_PLAYERS.forEach(p => {
-        // Extract school name (remove city prefixes)
         let school = p.high_school;
-        // Try to get just the school name
         if (school.includes('/')) {
           school = school.split('/')[0].trim();
         }
@@ -471,13 +466,13 @@
         .sort((a, b) => b[1] - a[1])
         .slice(0, 10);
       
-      const grid = document.getElementById('topSchoolsGrid');
-      grid.innerHTML = sorted.map(([school, count], index) => `
-        <div class="top-school-card">
-          <div class="top-school-rank">${index + 1}</div>
-          <div class="top-school-name">${school}</div>
-          <div class="top-school-count">${count} player${count !== 1 ? 's' : ''}</div>
-        </div>
+      const tbody = document.getElementById('topSchoolsBody');
+      tbody.innerHTML = sorted.map(([school, count], index) => `
+        <tr>
+          <td>${index + 1}</td>
+          <td>${school}</td>
+          <td>${count}</td>
+        </tr>
       `).join('');
     }
     
@@ -492,27 +487,39 @@
         .sort((a, b) => b[1] - a[1])
         .slice(0, 10);
       
-      const grid = document.getElementById('topCollegesGrid');
-      grid.innerHTML = sorted.map(([college, count], index) => `
-        <div class="top-college-card">
-          <div class="top-college-rank">${index + 1}</div>
-          <div class="top-college-name">${college}</div>
-          <div class="top-college-count">${count} player${count !== 1 ? 's' : ''}</div>
-        </div>
+      const tbody = document.getElementById('topCollegesBody');
+      tbody.innerHTML = sorted.map(([college, count], index) => `
+        <tr>
+          <td>${index + 1}</td>
+          <td>${college}</td>
+          <td>${count}</td>
+        </tr>
       `).join('');
     }
     
     function setupEventListeners() {
-      document.getElementById('filterCollege').addEventListener('change', applyFilters);
-      document.getElementById('searchInput').addEventListener('input', applyFilters);
+      document.getElementById('playerSearch').addEventListener('input', applyFilters);
+      
+      // Sort toggle buttons
+      document.getElementById('sortBySchool').addEventListener('click', () => {
+        sortBy = 'school';
+        document.getElementById('sortBySchool').classList.add('active');
+        document.getElementById('sortByCollege').classList.remove('active');
+        renderPlayersList();
+      });
+      
+      document.getElementById('sortByCollege').addEventListener('click', () => {
+        sortBy = 'college';
+        document.getElementById('sortByCollege').classList.add('active');
+        document.getElementById('sortBySchool').classList.remove('active');
+        renderPlayersList();
+      });
     }
     
     function applyFilters() {
-      const college = document.getElementById('filterCollege').value;
-      const search = document.getElementById('searchInput').value.toLowerCase();
+      const search = document.getElementById('playerSearch').value.toLowerCase();
       
       filteredPlayers = NCAA_PLAYERS.filter(player => {
-        if (college && player.college !== college) return false;
         if (search && !player.name.toLowerCase().includes(search) && 
             !player.high_school.toLowerCase().includes(search) &&
             !player.college.toLowerCase().includes(search)) return false;
@@ -533,42 +540,77 @@
           <div class="empty-state">
             <div class="empty-icon">🎓</div>
             <div class="empty-title">No players found</div>
-            <div class="empty-text">Try adjusting your filters</div>
+            <div class="empty-text">Try adjusting your search</div>
           </div>
         `;
         return;
       }
       
-      // Group by college
-      const byCollege = {};
-      filteredPlayers.forEach(player => {
-        if (!byCollege[player.college]) byCollege[player.college] = [];
-        byCollege[player.college].push(player);
-      });
-      
-      // Sort colleges alphabetically
-      const colleges = Object.keys(byCollege).sort();
-      
-      container.innerHTML = colleges.map(college => {
-        const players = byCollege[college].sort((a, b) => a.name.localeCompare(b.name));
+      if (sortBy === 'school') {
+        // Group by high school
+        const bySchool = {};
+        filteredPlayers.forEach(player => {
+          let school = player.high_school;
+          if (school.includes('/')) {
+            school = school.split('/')[0].trim();
+          }
+          if (!bySchool[school]) bySchool[school] = [];
+          bySchool[school].push(player);
+        });
         
-        return `
-          <div class="college-group">
-            <div class="college-header">
-              <h3 class="college-name">${college}</h3>
-              <span class="college-count">${players.length} player${players.length !== 1 ? 's' : ''}</span>
+        const schools = Object.keys(bySchool).sort();
+        
+        container.innerHTML = schools.map(school => {
+          const players = bySchool[school].sort((a, b) => a.name.localeCompare(b.name));
+          
+          return `
+            <div class="group-card">
+              <div class="group-header group-header-school">
+                <h3 class="group-name">${school}</h3>
+                <span class="group-count">${players.length} player${players.length !== 1 ? 's' : ''}</span>
+              </div>
+              <div class="group-players">
+                ${players.map(p => `
+                  <div class="player-row">
+                    <span class="player-name">${p.name}</span>
+                    <span class="player-detail">${p.college}</span>
+                  </div>
+                `).join('')}
+              </div>
             </div>
-            <div class="college-players">
-              ${players.map(p => `
-                <div class="player-row">
-                  <span class="player-name">${p.name}</span>
-                  <span class="player-hs">${p.high_school}</span>
-                </div>
-              `).join('')}
+          `;
+        }).join('');
+      } else {
+        // Group by college
+        const byCollege = {};
+        filteredPlayers.forEach(player => {
+          if (!byCollege[player.college]) byCollege[player.college] = [];
+          byCollege[player.college].push(player);
+        });
+        
+        const colleges = Object.keys(byCollege).sort();
+        
+        container.innerHTML = colleges.map(college => {
+          const players = byCollege[college].sort((a, b) => a.name.localeCompare(b.name));
+          
+          return `
+            <div class="group-card">
+              <div class="group-header group-header-college">
+                <h3 class="group-name">${college}</h3>
+                <span class="group-count">${players.length} player${players.length !== 1 ? 's' : ''}</span>
+              </div>
+              <div class="group-players">
+                ${players.map(p => `
+                  <div class="player-row">
+                    <span class="player-name">${p.name}</span>
+                    <span class="player-detail">${p.high_school}</span>
+                  </div>
+                `).join('')}
+              </div>
             </div>
-          </div>
-        `;
-      }).join('');
+          `;
+        }).join('');
+      }
     }
     
     // Mobile menu functionality
