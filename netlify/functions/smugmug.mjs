@@ -185,14 +185,15 @@ export const handler = async (event) => {
     
     if (action === 'albums') {
       // Try searching for recent albums via the user's album list
-      let endpoint = '/api/v2/user/ball603!albums?count=100&_expand=HighlightImage&SortDirection=Descending&SortMethod=LastUpdated&Scope=ball603';
+      // Request HighlightImage with ImageSizes expansion for thumbnails
+      let endpoint = '/api/v2/user/ball603!albums?count=100&_expand=HighlightImage.ImageSizes&SortDirection=Descending&SortMethod=LastUpdated&Scope=ball603';
       let result = await smugmugRequest(endpoint);
       
       let albums = result?.Response?.Album || [];
       
       // If that didn't work, try the search endpoint
       if (albums.length === 0) {
-        endpoint = '/api/v2/album!search?count=100&Scope=ball603&SortDirection=Descending&SortMethod=LastUpdated&_expand=HighlightImage';
+        endpoint = '/api/v2/album!search?count=100&Scope=ball603&SortDirection=Descending&SortMethod=LastUpdated&_expand=HighlightImage.ImageSizes';
         result = await smugmugRequest(endpoint);
         albums = result?.Response?.Album || [];
       }
@@ -202,18 +203,42 @@ export const handler = async (event) => {
         headers,
         body: JSON.stringify({
           success: true,
-          albums: albums.map(album => ({
-            key: album.AlbumKey,
-            name: album.Name,
-            url: album.WebUri,
-            imageCount: album.ImageCount || 0,
-            date: album.DateModified || album.DateAdded || album.Date,
-            highlightImage: album.Uris?.HighlightImage?.Image?.ThumbnailUrl || null
-          })),
+          albums: albums.map(album => {
+            // Try multiple paths to get the highlight image thumbnail
+            const highlightImage = album.Uris?.HighlightImage;
+            const image = highlightImage?.Image;
+            const imageSizes = image?.Uris?.ImageSizes?.ImageSizes || highlightImage?.ImageSizes?.ImageSizes || {};
+            
+            // Try various thumbnail URL sources
+            const thumbUrl = 
+              imageSizes.SmallImageUrl ||
+              imageSizes.ThumbImageUrl ||
+              imageSizes.TinyImageUrl ||
+              imageSizes.MediumImageUrl ||
+              image?.ThumbnailUrl ||
+              highlightImage?.ThumbnailUrl ||
+              album.ThumbnailUrl ||
+              null;
+            
+            return {
+              key: album.AlbumKey,
+              name: album.Name,
+              url: album.WebUri,
+              imageCount: album.ImageCount || 0,
+              date: album.DateModified || album.DateAdded || album.Date,
+              highlightImage: thumbUrl
+            };
+          }),
           debug: {
             totalReturned: albums.length,
             endpoint: endpoint,
-            rawResponse: result?.Response ? Object.keys(result.Response) : null
+            rawResponse: result?.Response ? Object.keys(result.Response) : null,
+            // Include sample album structure for debugging
+            sampleAlbum: albums.length > 0 ? {
+              hasUris: !!albums[0].Uris,
+              urisKeys: albums[0].Uris ? Object.keys(albums[0].Uris) : null,
+              highlightImageKeys: albums[0].Uris?.HighlightImage ? Object.keys(albums[0].Uris.HighlightImage) : null
+            } : null
           }
         })
       };
