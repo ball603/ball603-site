@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gallery Manager - Ball603 CMS</title>
+  <link rel="stylesheet" href="cms-style.css">
+  <style>
+    .gallery-manager {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-top: 20px;
+    }
+    
+    @media (max-width: 1024px) {
+      .gallery-manager {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    .panel {
+      background: #fff;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .panel h2 {
+      margin: 0 0 16px 0;
+      font-size: 18px;
+      color: #333;
+      border-bottom: 2px solid #e65100;
+      padding-bottom: 8px;
+    }
+    
+    .search-box {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
+      margin-bottom: 16px;
+    }
+    
+    .search-box:focus {
+      outline: none;
+      border-color: #e65100;
+    }
+    
+    .album-list {
+      max-height: 500px;
+      overflow-y: auto;
+      border: 1px solid #eee;
+      border-radius: 6px;
+    }
+    
+    .album-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px;
+      border-bottom: 1px solid #eee;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    
+    .album-item:hover {
+      background: #f5f5f5;
+    }
+    
+    .album-item.selected {
+      background: #fff3e0;
+      border-left: 3px solid #e65100;
+    }
+    
+    .album-thumb {
+      width: 60px;
+      height: 40px;
+      object-fit: cover;
+      border-radius: 4px;
+      background: #eee;
+    }
+    
+    .album-info {
+      flex: 1;
+      min-width: 0;
+    }
+    
+    .album-name {
+      font-weight: 500;
+      font-size: 14px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    
+    .album-meta {
+      font-size: 12px;
+      color: #666;
+    }
+    
+    .album-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 4px;
+    }
+    
+    .album-tag {
+      font-size: 10px;
+      background: #e0e0e0;
+      padding: 2px 6px;
+      border-radius: 10px;
+      color: #555;
+    }
+    
+    .team-selector {
+      margin-top: 16px;
+    }
+    
+    .team-selector h3 {
+      font-size: 14px;
+      margin: 0 0 12px 0;
+      color: #555;
+    }
+    
+    .quick-select {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    
+    .quick-btn {
+      padding: 6px 12px;
+      border: 1px solid #ddd;
+      background: #fff;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.2s;
+    }
+    
+    .quick-btn:hover {
+      background: #f5f5f5;
+      border-color: #e65100;
+    }
+    
+    .division-group {
+      margin-bottom: 16px;
+    }
+    
+    .division-header {
+      font-weight: 600;
+      font-size: 13px;
+      color: #333;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .division-header button {
+      font-size: 11px;
+      padding: 2px 8px;
+      border: 1px solid #ccc;
+      background: #f9f9f9;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+    
+    .team-checkboxes {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 6px;
+    }
+    
+    .team-checkbox {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+    }
+    
+    .team-checkbox input {
+      accent-color: #e65100;
+    }
+    
+    .action-buttons {
+      margin-top: 20px;
+      display: flex;
+      gap: 12px;
+    }
+    
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .btn-primary {
+      background: #e65100;
+      color: #fff;
+    }
+    
+    .btn-primary:hover {
+      background: #bf4400;
+    }
+    
+    .btn-primary:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    
+    .btn-secondary {
+      background: #f5f5f5;
+      color: #333;
+      border: 1px solid #ddd;
+    }
+    
+    .btn-secondary:hover {
+      background: #eee;
+    }
+    
+    .existing-tags {
+      margin-top: 20px;
+    }
+    
+    .existing-tags h3 {
+      font-size: 14px;
+      margin: 0 0 12px 0;
+      color: #555;
+    }
+    
+    .tag-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    
+    .tag-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: #e8f5e9;
+      padding: 6px 10px;
+      border-radius: 16px;
+      font-size: 13px;
+    }
+    
+    .tag-remove {
+      background: none;
+      border: none;
+      color: #c62828;
+      cursor: pointer;
+      font-size: 16px;
+      line-height: 1;
+      padding: 0;
+    }
+    
+    .tag-remove:hover {
+      color: #b71c1c;
+    }
+    
+    .status-message {
+      padding: 12px;
+      border-radius: 6px;
+      margin-top: 16px;
+      font-size: 14px;
+    }
+    
+    .status-success {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+    
+    .status-error {
+      background: #ffebee;
+      color: #c62828;
+    }
+    
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #666;
+    }
+    
+    .no-selection {
+      text-align: center;
+      padding: 40px;
+      color: #999;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <nav class="cms-nav">
+    <div class="nav-brand">Ball603 CMS</div>
+    <div class="nav-links">
+      <a href="index.html">Dashboard</a>
+      <a href="articles.html">Articles</a>
+      <a href="schedule.html">Schedule</a>
+      <a href="galleries.html" class="active">Galleries</a>
+      <a href="contributors.html">Contributors</a>
+    </div>
+  </nav>
+
+  <main class="cms-main">
+    <header class="page-header">
+      <h1>📷 Gallery Manager</h1>
+      <p>Tag SmugMug galleries to teams for display on team pages</p>
+    </header>
+
+    <div class="gallery-manager">
+      <!-- Left Panel: Album Browser -->
+      <div class="panel">
+        <h2>SmugMug Albums</h2>
+        <input type="text" class="search-box" id="albumSearch" placeholder="Search albums...">
+        <div class="album-list" id="albumList">
+          <div class="loading">Loading albums...</div>
+        </div>
+      </div>
+
+      <!-- Right Panel: Team Tagging -->
+      <div class="panel">
+        <h2>Tag to Teams</h2>
+        <div id="tagPanel">
+          <div class="no-selection">Select an album from the left to tag it to teams</div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const SUPABASE_URL = 'https://suncdkxfqkwwnmhosxcf.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN1bmNka3hmcWt3d25taG9zeGNmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwNTk4MzIsImV4cCI6MjA4MDYzNTgzMn0.aT6V8Zx_YozqOh1ZnC6x-czI9vo-QhHKmP69PgY-8xw';
+
+    // All NHIAA teams organized by division
+    const TEAMS_BY_DIVISION = {
+      'D-I Boys': ['Bedford', 'Bishop Guertin', 'Concord', 'Dover', 'Exeter', 'Goffstown', 'Londonderry', 'Manchester Central', 'Manchester Memorial', 'Merrimack', 'Nashua North', 'Nashua South', 'Pinkerton', 'Salem', 'Timberlane', 'Winnacunnet'],
+      'D-II Boys': ['Bow', 'Coe-Brown', 'Hanover', 'Hollis-Brookline', 'John Stark', 'Keene', 'Kennett', 'Kingswood', 'Laconia', 'Lebanon', 'Merrimack Valley', 'Milford', 'Oyster River', 'Pelham', 'Pembroke', 'Plymouth', 'Portsmouth', 'Souhegan', 'Spaulding', 'Windham'],
+      'D-III Boys': ['Belmont', 'Berlin', 'Bishop Brady', 'Campbell', 'ConVal', 'Derryfield', 'Fall Mountain', 'Franklin', 'Gilford', 'Hillsboro-Deering', 'Hopkinton', 'Inter-Lakes', 'Kearsarge', 'Mascenic', 'Mascoma Valley', 'Monadnock', 'Newfound', 'Newport', 'Prospect Mountain', 'Raymond', 'Sanborn', 'Somersworth', 'St. Thomas Aquinas', 'Stevens', 'Trinity', 'White Mountains', 'Winnisquam'],
+      'D-IV Boys': ['Colebrook', 'Concord Christian', 'Epping', 'Farmington', 'Gorham', 'Groveton', 'Hinsdale', 'Lin-Wood', 'Lisbon', 'Littleton', 'Moultonborough', 'Mount Royal', 'Newmarket', 'Nute', 'Pittsburg-Canaan', 'Portsmouth Christian', 'Profile', 'Sunapee', 'Wilton-Lyndeborough', 'Woodsville'],
+      'D-I Girls': ['Bedford', 'Bishop Guertin', 'Concord', 'Dover', 'Exeter', 'Goffstown', 'Londonderry', 'Manchester Central', 'Manchester Memorial', 'Merrimack', 'Nashua North', 'Nashua South', 'Pinkerton', 'Salem', 'Timberlane', 'Winnacunnet'],
+      'D-II Girls': ['Bow', 'Coe-Brown', 'Hanover', 'Hollis-Brookline', 'John Stark', 'Keene', 'Kennett', 'Kingswood', 'Laconia', 'Lebanon', 'Merrimack Valley', 'Milford', 'Oyster River', 'Pelham', 'Pembroke', 'Plymouth', 'Portsmouth', 'Souhegan', 'Spaulding', 'Windham'],
+      'D-III Girls': ['Belmont', 'Berlin', 'Bishop Brady', 'Campbell', 'ConVal', 'Derryfield', 'Fall Mountain', 'Franklin', 'Gilford', 'Hillsboro-Deering', 'Hopkinton', 'Inter-Lakes', 'Kearsarge', 'Mascenic', 'Mascoma Valley', 'Monadnock', 'Newfound', 'Newport', 'Prospect Mountain', 'Raymond', 'Sanborn', 'Somersworth', 'St. Thomas Aquinas', 'Stevens', 'Trinity', 'White Mountains', 'Winnisquam'],
+      'D-IV Girls': ['Colebrook', 'Concord Christian', 'Epping', 'Farmington', 'Gorham', 'Groveton', 'Hinsdale', 'Lin-Wood', 'Lisbon', 'Littleton', 'Moultonborough', 'Mount Royal', 'Newmarket', 'Nute', 'Pittsburg-Canaan', 'Portsmouth Christian', 'Profile', 'Sunapee', 'Wilton-Lyndeborough', 'Woodsville']
+    };
+
+    // Get unique teams (combined boys/girls)
+    const ALL_TEAMS = [...new Set(Object.values(TEAMS_BY_DIVISION).flat())].sort();
+
+    // Convert team name to slug
+    function teamToSlug(team) {
+      return team.toLowerCase().replace(/[^a-z0-9]/g, '');
+    }
+
+    let albums = [];
+    let selectedAlbum = null;
+    let existingTags = {};
+
+    // Fetch albums from Supabase
+    async function loadAlbums() {
+      try {
+        const response = await fetch(
+          `${SUPABASE_URL}/rest/v1/smugmug_albums?select=*&order=album_date.desc`,
+          {
+            headers: {
+              'apikey': SUPABASE_ANON_KEY,
+              'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+            }
+          }
+        );
+        
+        albums = await response.json();
+        
+        // Also load existing tags
+        await loadExistingTags();
+        
+        renderAlbumList();
+      } catch (err) {
+        console.error('Error loading albums:', err);
+        document.getElementById('albumList').innerHTML = '<div class="loading">Error loading albums</div>';
+      }
+    }
+
+    // Fetch existing team_galleries tags
+    async function loadExistingTags() {
+      try {
+        const response = await fetch(
+          `${SUPABASE_URL}/rest/v1/team_galleries?select=*`,
+          {
+            headers: {
+              'apikey': SUPABASE_ANON_KEY,
+              'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+            }
+          }
+        );
+        
+        const tags = await response.json();
+        
+        // Group by album_key
+        existingTags = {};
+        for (const tag of tags) {
+          if (!existingTags[tag.album_key]) {
+            existingTags[tag.album_key] = [];
+          }
+          existingTags[tag.album_key].push(tag.team_slug);
+        }
+      } catch (err) {
+        console.error('Error loading tags:', err);
+      }
+    }
+
+    // Render album list
+    function renderAlbumList(filter = '') {
+      const container = document.getElementById('albumList');
+      const filterLower = filter.toLowerCase();
+      
+      const filtered = albums.filter(a => 
+        !filter || a.name.toLowerCase().includes(filterLower)
+      );
+      
+      if (filtered.length === 0) {
+        container.innerHTML = '<div class="loading">No albums found</div>';
+        return;
+      }
+      
+      container.innerHTML = filtered.map(album => {
+        const tags = existingTags[album.album_key] || [];
+        const isSelected = selectedAlbum?.album_key === album.album_key;
+        const date = album.album_date ? new Date(album.album_date).toLocaleDateString() : '';
+        
+        return `
+          <div class="album-item ${isSelected ? 'selected' : ''}" data-key="${album.album_key}">
+            <img class="album-thumb" src="${album.thumbnail_url || ''}" alt="" onerror="this.style.display='none'">
+            <div class="album-info">
+              <div class="album-name">${album.name}</div>
+              <div class="album-meta">${date} • ${album.image_count || 0} photos</div>
+              ${tags.length > 0 ? `
+                <div class="album-tags">
+                  ${tags.slice(0, 3).map(t => `<span class="album-tag">${t}</span>`).join('')}
+                  ${tags.length > 3 ? `<span class="album-tag">+${tags.length - 3} more</span>` : ''}
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+      
+      // Add click handlers
+      container.querySelectorAll('.album-item').forEach(item => {
+        item.addEventListener('click', () => selectAlbum(item.dataset.key));
+      });
+    }
+
+    // Select an album
+    function selectAlbum(albumKey) {
+      selectedAlbum = albums.find(a => a.album_key === albumKey);
+      renderAlbumList(document.getElementById('albumSearch').value);
+      renderTagPanel();
+    }
+
+    // Render the tag panel for selected album
+    function renderTagPanel() {
+      const panel = document.getElementById('tagPanel');
+      
+      if (!selectedAlbum) {
+        panel.innerHTML = '<div class="no-selection">Select an album from the left to tag it to teams</div>';
+        return;
+      }
+      
+      const currentTags = existingTags[selectedAlbum.album_key] || [];
+      
+      panel.innerHTML = `
+        <div class="selected-album">
+          <strong>${selectedAlbum.name}</strong>
+          <div style="font-size: 13px; color: #666; margin-top: 4px;">
+            ${selectedAlbum.image_count || 0} photos • 
+            <a href="${selectedAlbum.url}" target="_blank">View on SmugMug</a>
+          </div>
+        </div>
+        
+        <div class="team-selector">
+          <h3>Quick Select</h3>
+          <div class="quick-select">
+            <button class="quick-btn" onclick="selectAll()">All Teams</button>
+            <button class="quick-btn" onclick="selectNone()">Clear All</button>
+            <button class="quick-btn" onclick="selectDivision('D-I')">All D-I</button>
+            <button class="quick-btn" onclick="selectDivision('D-II')">All D-II</button>
+            <button class="quick-btn" onclick="selectDivision('D-III')">All D-III</button>
+            <button class="quick-btn" onclick="selectDivision('D-IV')">All D-IV</button>
+          </div>
+          
+          <h3>Select Teams</h3>
+          <div class="team-checkboxes">
+            ${ALL_TEAMS.map(team => {
+              const slug = teamToSlug(team);
+              const checked = currentTags.includes(slug) ? 'checked' : '';
+              return `
+                <label class="team-checkbox">
+                  <input type="checkbox" name="team" value="${slug}" ${checked}>
+                  ${team}
+                </label>
+              `;
+            }).join('')}
+          </div>
+        </div>
+        
+        <div class="action-buttons">
+          <button class="btn btn-primary" onclick="saveTags()">Save Tags</button>
+          <button class="btn btn-secondary" onclick="selectAlbum(null)">Cancel</button>
+        </div>
+        
+        <div id="statusMessage"></div>
+        
+        ${currentTags.length > 0 ? `
+          <div class="existing-tags">
+            <h3>Current Tags (${currentTags.length})</h3>
+            <div class="tag-list">
+              ${currentTags.map(slug => `
+                <div class="tag-item">
+                  ${slug}
+                  <button class="tag-remove" onclick="removeTag('${slug}')" title="Remove">×</button>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+      `;
+    }
+
+    // Quick select functions
+    function selectAll() {
+      document.querySelectorAll('input[name="team"]').forEach(cb => cb.checked = true);
+    }
+
+    function selectNone() {
+      document.querySelectorAll('input[name="team"]').forEach(cb => cb.checked = false);
+    }
+
+    function selectDivision(div) {
+      const divisionTeams = new Set();
+      Object.entries(TEAMS_BY_DIVISION).forEach(([key, teams]) => {
+        if (key.includes(div)) {
+          teams.forEach(t => divisionTeams.add(teamToSlug(t)));
+        }
+      });
+      
+      document.querySelectorAll('input[name="team"]').forEach(cb => {
+        if (divisionTeams.has(cb.value)) {
+          cb.checked = true;
+        }
+      });
+    }
+
+    // Save tags
+    async function saveTags() {
+      if (!selectedAlbum) return;
+      
+      const selectedTeams = Array.from(document.querySelectorAll('input[name="team"]:checked'))
+        .map(cb => cb.value);
+      
+      const currentTags = existingTags[selectedAlbum.album_key] || [];
+      
+      // Find tags to add and remove
+      const toAdd = selectedTeams.filter(t => !currentTags.includes(t));
+      const toRemove = currentTags.filter(t => !selectedTeams.includes(t));
+      
+      const statusEl = document.getElementById('statusMessage');
+      
+      try {
+        // Remove unselected tags
+        if (toRemove.length > 0) {
+          for (const slug of toRemove) {
+            await fetch(
+              `${SUPABASE_URL}/rest/v1/team_galleries?album_key=eq.${selectedAlbum.album_key}&team_slug=eq.${slug}`,
+              {
+                method: 'DELETE',
+                headers: {
+                  'apikey': SUPABASE_ANON_KEY,
+                  'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                }
+              }
+            );
+          }
+        }
+        
+        // Add new tags
+        if (toAdd.length > 0) {
+          const newTags = toAdd.map(slug => ({
+            album_key: selectedAlbum.album_key,
+            team_slug: slug,
+            added_by: 'cms'
+          }));
+          
+          await fetch(
+            `${SUPABASE_URL}/rest/v1/team_galleries`,
+            {
+              method: 'POST',
+              headers: {
+                'apikey': SUPABASE_ANON_KEY,
+                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                'Content-Type': 'application/json',
+                'Prefer': 'resolution=merge-duplicates'
+              },
+              body: JSON.stringify(newTags)
+            }
+          );
+        }
+        
+        // Update local state
+        existingTags[selectedAlbum.album_key] = selectedTeams;
+        
+        statusEl.className = 'status-message status-success';
+        statusEl.textContent = `Saved! Added ${toAdd.length}, removed ${toRemove.length} tags.`;
+        
+        // Refresh displays
+        renderAlbumList(document.getElementById('albumSearch').value);
+        renderTagPanel();
+        
+      } catch (err) {
+        console.error('Error saving tags:', err);
+        statusEl.className = 'status-message status-error';
+        statusEl.textContent = 'Error saving tags. Please try again.';
+      }
+    }
+
+    // Remove a single tag
+    async function removeTag(slug) {
+      if (!selectedAlbum) return;
+      
+      try {
+        await fetch(
+          `${SUPABASE_URL}/rest/v1/team_galleries?album_key=eq.${selectedAlbum.album_key}&team_slug=eq.${slug}`,
+          {
+            method: 'DELETE',
+            headers: {
+              'apikey': SUPABASE_ANON_KEY,
+              'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+            }
+          }
+        );
+        
+        // Update local state
+        const tags = existingTags[selectedAlbum.album_key] || [];
+        existingTags[selectedAlbum.album_key] = tags.filter(t => t !== slug);
+        
+        renderAlbumList(document.getElementById('albumSearch').value);
+        renderTagPanel();
+        
+      } catch (err) {
+        console.error('Error removing tag:', err);
+      }
+    }
+
+    // Search filter
+    document.getElementById('albumSearch').addEventListener('input', (e) => {
+      renderAlbumList(e.target.value);
+    });
+
+    // Initialize
+    loadAlbums();
+  </script>
+</body>
+</html>
