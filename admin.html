@@ -2985,9 +2985,6 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     </div>
   </div>
   
-  <!-- SmugMug Photo Browser Modal (for individual photos) -->
-  <div class="modal-overlay" id="smugmugPhotoModal">
-
   <!-- ==================== VIDEO PANEL ==================== -->
   <div class="panel" id="videoPanel" style="display: none;">
     <div class="toolbar" style="flex-wrap: wrap; gap: 10px; margin-bottom: 20px;">
@@ -3008,6 +3005,117 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         <button class="filter-btn" onclick="filterVideos('pinned', this)" data-filter="pinned" style="padding: 8px 16px; border: 1px solid #ddd; background: #fff; border-radius: 20px; font-size: 13px; cursor: pointer;">📌 Pinned</button>
         <button class="filter-btn" onclick="filterVideos('hidden', this)" data-filter="hidden" style="padding: 8px 16px; border: 1px solid #ddd; background: #fff; border-radius: 20px; font-size: 13px; cursor: pointer;">👁‍🗨 Hidden</button>
       </div>
+      <input type="text" id="videoSearchInput" placeholder="Search videos..." oninput="searchVideos(this.value)" style="padding: 8px 15px; border: 1px solid #ddd; border-radius: 20px; font-size: 13px; width: 250px;">
+      <span id="videoCountDisplay" style="margin-left: auto; font-size: 13px; color: #666;">0 videos</span>
+    </div>
+    
+    <!-- Video List -->
+    <div id="videoList" style="border: 1px solid #eee; border-radius: 8px; overflow: hidden;">
+      <div style="display: grid; grid-template-columns: 120px 1fr 100px 80px 80px 120px; padding: 12px 15px; background: #f5f5f5; font-weight: 600; font-size: 12px; text-transform: uppercase; color: #666; gap: 10px;">
+        <div>Thumbnail</div>
+        <div>Title</div>
+        <div>Published</div>
+        <div>Pinned</div>
+        <div>Hidden</div>
+        <div>Actions</div>
+      </div>
+      <div id="videoListBody">
+        <div class="loading">Loading videos...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add/Edit Video Modal -->
+  <div class="modal-overlay" id="videoModal">
+    <div class="modal" style="max-width: 700px;">
+      <div class="modal-header">
+        <h3 id="videoModalTitle">Add YouTube Video</h3>
+        <button class="modal-close" onclick="closeVideoModal()">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 20px;">
+        <input type="hidden" id="videoId">
+        
+        <!-- YouTube URL/ID Input -->
+        <div class="form-group" style="margin-bottom: 20px;">
+          <label style="font-size: 13px; font-weight: 600; color: #555; display: block; margin-bottom: 6px;">YouTube Video URL or ID</label>
+          <div style="display: flex; gap: 10px;">
+            <input type="text" id="videoYoutubeInput" placeholder="https://youtube.com/watch?v=... or video ID" style="flex: 1; padding: 10px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px;">
+            <button onclick="fetchVideoDetails()" style="background: #ff0000; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: 500;">Fetch Info</button>
+          </div>
+          <small style="font-size: 11px; color: #999;">Paste a YouTube URL or just the video ID (e.g., dQw4w9WgXcQ)</small>
+        </div>
+        
+        <!-- Video Preview -->
+        <div id="videoPreviewSection" style="display: none; margin-bottom: 20px; background: #f9f9f9; border-radius: 8px; padding: 15px;">
+          <div style="display: flex; gap: 15px;">
+            <img id="videoPreviewThumb" src="" style="width: 180px; height: 100px; object-fit: cover; border-radius: 6px; background: #333;">
+            <div style="flex: 1;">
+              <div id="videoPreviewTitle" style="font-weight: 600; margin-bottom: 5px;"></div>
+              <div id="videoPreviewMeta" style="font-size: 12px; color: #666;"></div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Manual Fields -->
+        <div class="form-group" style="margin-bottom: 15px;">
+          <label style="font-size: 13px; font-weight: 600; color: #555; display: block; margin-bottom: 6px;">Title</label>
+          <input type="text" id="videoTitle" placeholder="Video title" style="width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px;">
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 15px;">
+          <label style="font-size: 13px; font-weight: 600; color: #555; display: block; margin-bottom: 6px;">Description</label>
+          <textarea id="videoDescription" placeholder="Video description (optional)" rows="3" style="width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; font-family: inherit; resize: vertical;"></textarea>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+          <div class="form-group">
+            <label style="font-size: 13px; font-weight: 600; color: #555; display: block; margin-bottom: 6px;">Published Date</label>
+            <input type="date" id="videoPublishedAt" style="width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px;">
+          </div>
+          <div class="form-group">
+            <label style="font-size: 13px; font-weight: 600; color: #555; display: block; margin-bottom: 6px;">Duration</label>
+            <input type="text" id="videoDuration" placeholder="e.g., PT5M30S" style="width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px;">
+            <small style="font-size: 11px; color: #999;">ISO 8601 format (auto-filled from YouTube)</small>
+          </div>
+        </div>
+        
+        <!-- Team Tags -->
+        <div class="form-group" style="margin-bottom: 15px;">
+          <label style="font-size: 13px; font-weight: 600; color: #555; display: block; margin-bottom: 6px;">Team Tags</label>
+          <div id="videoTeamTags" style="display: flex; flex-wrap: wrap; gap: 6px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; min-height: 50px; background: #fafafa;">
+            <!-- Tags will be added here -->
+          </div>
+          <div style="margin-top: 8px;">
+            <select id="videoTeamSelect" onchange="addVideoTeamTag(this.value); this.value='';" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px;">
+              <option value="">+ Add team tag...</option>
+            </select>
+          </div>
+        </div>
+        
+        <!-- Options -->
+        <div style="display: flex; gap: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px;">
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="videoPinned" style="width: 18px; height: 18px;">
+            <span style="font-size: 13px;">📌 Pin to top</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="videoHidden" style="width: 18px; height: 18px;">
+            <span style="font-size: 13px;">👁‍🗨 Hidden</span>
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer" style="display: flex; justify-content: space-between;">
+        <button onclick="deleteVideo()" id="videoDeleteBtn" style="background: #ffebee; color: #c62828; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; display: none;">Delete</button>
+        <div style="display: flex; gap: 10px; margin-left: auto;">
+          <button class="btn-modal btn-modal-cancel" onclick="closeVideoModal()">Cancel</button>
+          <button class="btn-modal btn-modal-select" onclick="saveVideo()">Save Video</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SmugMug Photo Browser Modal (for individual photos) -->
+  <div class="modal-overlay" id="smugmugPhotoModal">
       <input type="text" id="videoSearchInput" placeholder="Search videos..." oninput="searchVideos(this.value)" style="padding: 8px 15px; border: 1px solid #ddd; border-radius: 20px; font-size: 13px; width: 250px;">
       <span id="videoCountDisplay" style="margin-left: auto; font-size: 13px; color: #666;">0 videos</span>
     </div>
@@ -11216,6 +11324,9 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     let currentVideoTags = [];
     
     async function loadVideos() {
+      console.log('Loading videos...');
+      document.getElementById('videoListBody').innerHTML = '<div class="loading">Loading videos...</div>';
+      
       try {
         const { data: videos, error } = await supabase
           .from('youtube_videos')
@@ -11224,15 +11335,26 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           .order('sort_order', { ascending: true })
           .order('published_at', { ascending: false });
         
-        if (error) throw error;
+        if (error) {
+          console.error('Supabase error:', error);
+          throw error;
+        }
         
+        console.log('Videos loaded:', videos?.length || 0);
         allVideos = videos || [];
         renderVideoList();
         populateVideoTeamSelect();
         
       } catch (err) {
         console.error('Error loading videos:', err);
-        document.getElementById('videoListBody').innerHTML = '<div style="padding: 40px; text-align: center; color: #888;">Error loading videos</div>';
+        document.getElementById('videoListBody').innerHTML = `
+          <div style="padding: 40px; text-align: center; color: #c62828;">
+            <div style="font-size: 24px; margin-bottom: 10px;">⚠️</div>
+            <p style="margin: 0 0 10px 0;"><strong>Error loading videos</strong></p>
+            <p style="margin: 0; font-size: 12px; color: #666;">${err.message || 'Unknown error'}</p>
+            <p style="margin: 10px 0 0 0; font-size: 12px; color: #888;">Make sure you've run the SQL to create the youtube_videos table</p>
+          </div>
+        `;
       }
     }
     
