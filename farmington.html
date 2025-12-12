@@ -787,15 +787,22 @@
       
       games.forEach(g => {
         const gameDate = new Date(g.date + 'T00:00:00');
-        const hasScore = g.home_score !== null && g.away_score !== null;
         const isHome = isThisTeam(g.home);
         
+        // Check for scores the same way schedule.html does
+        const hs = String(g.home_score || '').trim();
+        const as = String(g.away_score || '').trim();
+        const hasScore = hs !== '' && as !== '';
+        
         if (hasScore) {
-          const teamScore = isHome ? g.home_score : g.away_score;
-          const oppScore = isHome ? g.away_score : g.home_score;
-          if (teamScore > oppScore) wins++;
+          const homeScore = parseInt(hs);
+          const awayScore = parseInt(as);
+          const teamScore = isHome ? homeScore : awayScore;
+          const oppScore = isHome ? awayScore : homeScore;
+          const won = teamScore > oppScore;
+          if (won) wins++;
           else losses++;
-          completedGames.push({ ...g, isHome, teamScore, oppScore, won: teamScore > oppScore });
+          completedGames.push({ ...g, isHome, teamScore, oppScore, won });
         } else if (gameDate >= today) {
           upcomingGames.push({ ...g, isHome });
         }
