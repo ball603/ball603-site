@@ -922,10 +922,11 @@
     // ===== LOAD ARTICLES =====
     async function loadArticles() {
       try {
+        // Tags are stored as jsonb array, use cs (contains) with proper format
         const { data: articles, error } = await supabase
           .from('articles')
           .select('id, title, slug, excerpt, featured_image_url, published_at, category')
-          .contains('tags', [TEAM_CONFIG.slug])
+          .filter('tags', 'cs', '["' + TEAM_CONFIG.slug + '"]')
           .eq('status', 'published')
           .order('published_at', { ascending: false })
           .limit(3);
