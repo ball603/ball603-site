@@ -188,12 +188,13 @@ function parseSchedulePage(html, gender, division) {
         time = cells[4];
       }
       
-      // Game ID based on home team, gender, date, and away team
-      const homeSlug = homeTeam.toLowerCase().replace(/[^a-z0-9]/g, '');
-      const awaySlug = awayTeam.toLowerCase().replace(/[^a-z0-9]/g, '');
+      // Game ID uses sorted teams for consistency (handles inconsistent home/away on NHIAA)
+      const team1 = homeTeam.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const team2 = awayTeam.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const sortedTeams = [team1, team2].sort();
       const genderCode = gender === 'Boys' ? 'b' : 'g';
       const dateStr = isoDate.replace(/-/g, '');
-      const gameId = `nhiaa_${homeSlug}_${genderCode}_${dateStr}_${awaySlug}`;
+      const gameId = `nhiaa_${sortedTeams[0]}_${genderCode}_${dateStr}_${sortedTeams[1]}`;
       
       games.push({
         game_id: gameId,
@@ -215,12 +216,25 @@ function parseSchedulePage(html, gender, division) {
 }
 
 function deduplicateGames(games) {
-  const seen = new Set();
-  return games.filter(game => {
-    if (seen.has(game.game_id)) return false;
-    seen.add(game.game_id);
-    return true;
-  });
+  const seen = new Map();
+  
+  for (const game of games) {
+    // Create canonical key by sorting team names (handles inconsistent home/away)
+    const teams = [game.home_team, game.away_team].sort();
+    const canonicalKey = `${game.date}_${teams[0]}_${teams[1]}_${game.gender}`;
+    
+    if (!seen.has(canonicalKey)) {
+      seen.set(canonicalKey, game);
+    } else {
+      // If we already have this game, prefer the one with scores
+      const existing = seen.get(canonicalKey);
+      if (game.home_score && !existing.home_score) {
+        seen.set(canonicalKey, game);
+      }
+    }
+  }
+  
+  return Array.from(seen.values());
 }
 
 async function getExistingGames() {
