@@ -335,8 +335,15 @@
       </div>
     </section>
 
+    <!-- Quick Navigation -->
+    <nav class="history-nav">
+      <a href="#dynastySection" class="history-nav-link active">👑 Dynasty Leaders</a>
+      <a href="#championshipBrowser" class="history-nav-link">📚 Championship Browser</a>
+      <a href="#bracketsSection" class="history-nav-link">🏀 Tournament Brackets</a>
+    </nav>
+
     <!-- Dynasty Leaders -->
-    <section class="dynasty-section">
+    <section class="dynasty-section" id="dynastySection">
       <div class="dynasty-header">
         <h2 class="section-title">👑 Dynasty Leaders</h2>
         <p class="section-subtitle">Schools with the most state championships (all-time, boys & girls combined)</p>
@@ -357,7 +364,7 @@
     </section>
 
     <!-- Championship Browser -->
-    <section class="championship-browser">
+    <section class="championship-browser" id="championshipBrowser">
       <div class="browser-header">
         <h2 class="section-title">📚 Championship Browser</h2>
       </div>
@@ -396,7 +403,8 @@
         </div>
         <div class="filter-group filter-search">
           <label for="searchSchool">Search School</label>
-          <input type="text" id="searchSchool" placeholder="Find a school...">
+          <input type="text" id="searchSchool" placeholder="Find a school..." list="schoolsList">
+          <datalist id="schoolsList"></datalist>
         </div>
       </div>
       
@@ -407,7 +415,7 @@
     </section>
 
     <!-- Tournament Brackets Section (2017-2024) -->
-    <section class="brackets-section">
+    <section class="brackets-section" id="bracketsSection">
       <div class="brackets-header">
         <h2 class="section-title">🏀 Tournament Brackets</h2>
         <p class="section-subtitle">Complete bracket data from 2017-2024</p>
@@ -418,11 +426,11 @@
           <!-- Populated by JS -->
         </div>
         <div class="bracket-filters">
-          <select id="bracketGender">
+          <select id="bracketGender" class="bracket-select-highlight">
             <option value="boys">Boys</option>
             <option value="girls">Girls</option>
           </select>
-          <select id="bracketDivision">
+          <select id="bracketDivision" class="bracket-select-highlight">
             <option value="D-I">Division I</option>
             <option value="D-II">Division II</option>
             <option value="D-III">Division III</option>
@@ -474,6 +482,7 @@
     // Initialize
     document.addEventListener('DOMContentLoaded', () => {
       buildChampionshipList();
+      populateSchoolsList();
       updateHeroStats();
       renderDynastyLeaders();
       renderRecentDynasties();
@@ -490,6 +499,17 @@
       allChampionships.sort((a, b) => b.year - a.year);
     }
     
+    function populateSchoolsList() {
+      const schools = new Set();
+      allChampionships.forEach(c => {
+        schools.add(c.champion);
+        schools.add(c.runner_up);
+      });
+      const sortedSchools = [...schools].sort();
+      const datalist = document.getElementById('schoolsList');
+      datalist.innerHTML = sortedSchools.map(s => `<option value="${s}">`).join('');
+    }
+    
     function updateHeroStats() {
       document.getElementById('totalChampionships').textContent = allChampionships.length;
       
@@ -501,13 +521,19 @@
       document.getElementById('yearsSpan').textContent = span + '+';
     }
     
+    function getOrdinal(n) {
+      const suffixes = ['th', 'st', 'nd', 'rd'];
+      const v = n % 100;
+      return n + (suffixes[(v - 20) % 10] || suffixes[v] || suffixes[0]);
+    }
+    
     function renderDynastyLeaders() {
       const leaders = getDynastyLeaders("all", 5);
       const grid = document.getElementById('dynastyGrid');
       
       grid.innerHTML = leaders.map((school, index) => `
         <div class="dynasty-card ${index < 3 ? 'dynasty-top-' + (index + 1) : ''}">
-          <div class="dynasty-rank">${index + 1}</div>
+          <div class="dynasty-rank">${getOrdinal(index + 1)}</div>
           <img src="/logos/100px/${school.school.replace(/\s+/g, '')}.png" 
                alt="${school.school}" 
                class="dynasty-logo"
@@ -648,13 +674,49 @@
       
       const yearData = TOURNAMENT_BRACKETS[selectedBracketYear];
       
-      if (!yearData || yearData.note) {
+      if (!yearData) {
         container.innerHTML = `
           <div class="bracket-note">
             <div class="bracket-note-icon">📋</div>
-            <div class="bracket-note-text">${yearData?.note || 'No bracket data available for this year'}</div>
+            <div class="bracket-note-text">No bracket data available for this year</div>
           </div>
         `;
+        return;
+      }
+      
+      // Handle COVID year with co-champions
+      if (yearData.note) {
+        const bracket = yearData[gender]?.[division];
+        if (bracket && bracket.coChampions) {
+          container.innerHTML = `
+            <div class="bracket-covid-note">
+              <div class="covid-banner">🏆 COVID-19 Season</div>
+              <div class="covid-message">${yearData.note}</div>
+            </div>
+            <div class="bracket-co-champions">
+              <div class="co-champions-label">Co-Champions</div>
+              <div class="co-champions-teams">
+                ${bracket.coChampions.map(team => `
+                  <div class="co-champion-team">
+                    <img src="/logos/100px/${team.replace(/\s+/g, '')}.png" 
+                         alt="${team}" 
+                         class="co-champion-logo"
+                         onerror="this.style.display='none'">
+                    <div class="co-champion-name">${team}</div>
+                  </div>
+                `).join('<div class="co-champion-divider">&</div>')}
+              </div>
+              ${bracket.notes ? `<div class="bracket-story">${bracket.notes}</div>` : ''}
+            </div>
+          `;
+        } else {
+          container.innerHTML = `
+            <div class="bracket-note">
+              <div class="bracket-note-icon">📋</div>
+              <div class="bracket-note-text">${yearData.note}</div>
+            </div>
+          `;
+        }
         return;
       }
       
