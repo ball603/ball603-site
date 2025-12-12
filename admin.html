@@ -1587,13 +1587,15 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         </div>
         
         <div class="form-group" style="margin-bottom: 15px;">
-          <label>Logo URL *</label>
-          <div style="display: flex; gap: 10px;">
-            <input type="text" id="sponsorLogoUrl" placeholder="https://..." style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
-            <button onclick="browseSponsorLogo()" style="padding: 10px 15px; background: #e3f2fd; color: #1565c0; border: none; border-radius: 5px; cursor: pointer;">Browse</button>
+          <label>Logo *</label>
+          <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+            <input type="file" id="sponsorLogoFile" accept="image/*" onchange="handleSponsorLogoUpload(this)" style="flex: 1;">
+            <span style="color: #888; font-size: 12px; align-self: center;">or</span>
+            <input type="text" id="sponsorLogoUrl" placeholder="Paste URL..." style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 5px;" onchange="previewSponsorLogo()">
           </div>
-          <div id="sponsorLogoPreview" style="margin-top: 10px; display: none;">
-            <img id="sponsorLogoImg" src="" alt="Preview" style="max-width: 200px; max-height: 80px; border: 1px solid #ddd; border-radius: 4px;">
+          <div id="sponsorLogoPreview" style="display: none; padding: 10px; background: #f5f5f5; border-radius: 6px; text-align: center;">
+            <img id="sponsorLogoImg" src="" alt="Preview" style="max-width: 200px; max-height: 80px; border-radius: 4px;">
+            <div id="sponsorUploadStatus" style="font-size: 11px; color: #666; margin-top: 5px;"></div>
           </div>
         </div>
         
@@ -10853,6 +10855,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('sponsorModalTitle').textContent = sponsor ? 'Edit Sponsor' : 'Add Sponsor';
       document.getElementById('sponsorDeleteBtn').style.display = sponsor ? 'block' : 'none';
       
+      // Reset file input
+      document.getElementById('sponsorLogoFile').value = '';
+      document.getElementById('sponsorUploadStatus').textContent = '';
+      
       // Populate team dropdown
       const teamSelect = document.getElementById('sponsorTeam');
       if (teamSelect.options.length <= 1) {
@@ -10876,6 +10882,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         if (sponsor.logo_url) {
           document.getElementById('sponsorLogoPreview').style.display = 'block';
           document.getElementById('sponsorLogoImg').src = sponsor.logo_url;
+        } else {
+          document.getElementById('sponsorLogoPreview').style.display = 'none';
         }
       } else {
         document.getElementById('sponsorId').value = '';
@@ -10997,13 +11005,63 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       }
     }
     
-    function browseSponsorLogo() {
-      // For now, just prompt for URL. Could integrate SmugMug browser later.
-      const url = prompt('Enter logo URL:', document.getElementById('sponsorLogoUrl').value);
+    async function handleSponsorLogoUpload(input) {
+      const file = input.files[0];
+      if (!file) return;
+      
+      const statusEl = document.getElementById('sponsorUploadStatus');
+      const previewEl = document.getElementById('sponsorLogoPreview');
+      const imgEl = document.getElementById('sponsorLogoImg');
+      
+      // Show preview immediately
+      previewEl.style.display = 'block';
+      imgEl.src = URL.createObjectURL(file);
+      statusEl.textContent = 'Uploading...';
+      statusEl.style.color = '#1565c0';
+      
+      try {
+        // Generate unique filename
+        const ext = file.name.split('.').pop();
+        const filename = `sponsor_${Date.now()}.${ext}`;
+        
+        // Upload to Supabase Storage
+        const { data, error } = await supabase.storage
+          .from('sponsors')
+          .upload(filename, file, {
+            cacheControl: '3600',
+            upsert: false
+          });
+        
+        if (error) throw error;
+        
+        // Get public URL
+        const { data: urlData } = supabase.storage
+          .from('sponsors')
+          .getPublicUrl(filename);
+        
+        const publicUrl = urlData.publicUrl;
+        
+        // Set the URL in the input
+        document.getElementById('sponsorLogoUrl').value = publicUrl;
+        
+        statusEl.textContent = '✓ Uploaded successfully';
+        statusEl.style.color = '#2e7d32';
+        
+      } catch (err) {
+        console.error('Upload error:', err);
+        statusEl.textContent = 'Upload failed: ' + err.message;
+        statusEl.style.color = '#c62828';
+      }
+    }
+    
+    function previewSponsorLogo() {
+      const url = document.getElementById('sponsorLogoUrl').value;
       if (url) {
-        document.getElementById('sponsorLogoUrl').value = url;
         document.getElementById('sponsorLogoPreview').style.display = 'block';
         document.getElementById('sponsorLogoImg').src = url;
+        document.getElementById('sponsorUploadStatus').textContent = '';
+      } else {
+        document.getElementById('sponsorLogoPreview').style.display = 'none';
       }
     }
     
@@ -11011,12 +11069,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     document.addEventListener('DOMContentLoaded', function() {
       const logoInput = document.getElementById('sponsorLogoUrl');
       if (logoInput) {
-        logoInput.addEventListener('change', function() {
-          if (this.value) {
-            document.getElementById('sponsorLogoPreview').style.display = 'block';
-            document.getElementById('sponsorLogoImg').src = this.value;
-          }
-        });
+        logoInput.addEventListener('input', previewSponsorLogo);
       }
     });
   </script>
