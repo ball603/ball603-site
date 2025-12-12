@@ -186,16 +186,37 @@ export const handler = async (event) => {
     if (action === 'albums') {
       // Try searching for recent albums via the user's album list
       // Request HighlightImage with ImageSizes expansion for thumbnails
-      let endpoint = '/api/v2/user/ball603!albums?count=100&_expand=HighlightImage.ImageSizes&SortDirection=Descending&SortMethod=LastUpdated&Scope=ball603';
+      // Fetch up to 500 albums to get full history
+      let endpoint = '/api/v2/user/ball603!albums?count=500&_expand=HighlightImage.ImageSizes&SortDirection=Descending&SortMethod=LastUpdated&Scope=ball603';
       let result = await smugmugRequest(endpoint);
       
       let albums = result?.Response?.Album || [];
       
       // If that didn't work, try the search endpoint
       if (albums.length === 0) {
-        endpoint = '/api/v2/album!search?count=100&Scope=ball603&SortDirection=Descending&SortMethod=LastUpdated&_expand=HighlightImage.ImageSizes';
+        endpoint = '/api/v2/album!search?count=500&Scope=ball603&SortDirection=Descending&SortMethod=LastUpdated&_expand=HighlightImage.ImageSizes';
         result = await smugmugRequest(endpoint);
         albums = result?.Response?.Album || [];
+      }
+      
+      // Sample the first album to debug thumbnail structure
+      let sampleDebug = null;
+      if (albums.length > 0) {
+        const sample = albums[0];
+        sampleDebug = {
+          name: sample.Name,
+          hasUris: !!sample.Uris,
+          urisKeys: sample.Uris ? Object.keys(sample.Uris) : null,
+          highlightImage: sample.Uris?.HighlightImage ? {
+            keys: Object.keys(sample.Uris.HighlightImage),
+            hasImage: !!sample.Uris.HighlightImage.Image,
+            imageKeys: sample.Uris.HighlightImage.Image ? Object.keys(sample.Uris.HighlightImage.Image) : null,
+            thumbnailUrl: sample.Uris.HighlightImage.Image?.ThumbnailUrl,
+            hasImageSizes: !!sample.Uris.HighlightImage.Image?.Uris?.ImageSizes,
+            imageSizesKeys: sample.Uris.HighlightImage.Image?.Uris?.ImageSizes ? Object.keys(sample.Uris.HighlightImage.Image.Uris.ImageSizes) : null
+          } : null,
+          albumThumbnailUrl: sample.ThumbnailUrl
+        };
       }
       
       return {
@@ -232,13 +253,7 @@ export const handler = async (event) => {
           debug: {
             totalReturned: albums.length,
             endpoint: endpoint,
-            rawResponse: result?.Response ? Object.keys(result.Response) : null,
-            // Include sample album structure for debugging
-            sampleAlbum: albums.length > 0 ? {
-              hasUris: !!albums[0].Uris,
-              urisKeys: albums[0].Uris ? Object.keys(albums[0].Uris) : null,
-              highlightImageKeys: albums[0].Uris?.HighlightImage ? Object.keys(albums[0].Uris.HighlightImage) : null
-            } : null
+            sampleAlbum: sampleDebug
           }
         })
       };
