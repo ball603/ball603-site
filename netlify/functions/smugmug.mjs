@@ -184,62 +184,54 @@ export const handler = async (event) => {
     }
     
     if (action === 'albums') {
-      // Try searching for recent albums via the user's album list
-      // Request HighlightImage with ImageSizes expansion for thumbnails
-      // Fetch up to 500 albums to get full history
-      let endpoint = '/api/v2/user/ball603!albums?count=500&_expand=HighlightImage.ImageSizes&SortDirection=Descending&SortMethod=LastUpdated&Scope=ball603';
-      let result = await smugmugRequest(endpoint);
+      // SmugMug limits to 100 per request, so we need to paginate
+      // Also, HighlightImage expansion doesn't include the actual image URL directly
+      // We need to request AlbumHighlightImage instead or fetch images separately
       
-      let albums = result?.Response?.Album || [];
+      let allAlbums = [];
+      let start = 1;
+      const pageSize = 100;
+      let hasMore = true;
       
-      // If that didn't work, try the search endpoint
-      if (albums.length === 0) {
-        endpoint = '/api/v2/album!search?count=500&Scope=ball603&SortDirection=Descending&SortMethod=LastUpdated&_expand=HighlightImage.ImageSizes';
-        result = await smugmugRequest(endpoint);
-        albums = result?.Response?.Album || [];
+      // Fetch up to 500 albums (5 pages)
+      while (hasMore && allAlbums.length < 500) {
+        const endpoint = `/api/v2/user/ball603!albums?count=${pageSize}&start=${start}&SortDirection=Descending&SortMethod=LastUpdated`;
+        const result = await smugmugRequest(endpoint);
+        
+        const albums = result?.Response?.Album || [];
+        if (albums.length === 0) {
+          hasMore = false;
+        } else {
+          allAlbums = allAlbums.concat(albums);
+          start += albums.length;
+          
+          // Check if we got fewer than requested (means we're at the end)
+          if (albums.length < pageSize) {
+            hasMore = false;
+          }
+        }
       }
       
-      // Sample the first album to debug thumbnail structure
-      let sampleDebug = null;
-      if (albums.length > 0) {
-        const sample = albums[0];
-        sampleDebug = {
-          name: sample.Name,
-          hasUris: !!sample.Uris,
-          urisKeys: sample.Uris ? Object.keys(sample.Uris) : null,
-          highlightImage: sample.Uris?.HighlightImage ? {
-            keys: Object.keys(sample.Uris.HighlightImage),
-            hasImage: !!sample.Uris.HighlightImage.Image,
-            imageKeys: sample.Uris.HighlightImage.Image ? Object.keys(sample.Uris.HighlightImage.Image) : null,
-            thumbnailUrl: sample.Uris.HighlightImage.Image?.ThumbnailUrl,
-            hasImageSizes: !!sample.Uris.HighlightImage.Image?.Uris?.ImageSizes,
-            imageSizesKeys: sample.Uris.HighlightImage.Image?.Uris?.ImageSizes ? Object.keys(sample.Uris.HighlightImage.Image.Uris.ImageSizes) : null
-          } : null,
-          albumThumbnailUrl: sample.ThumbnailUrl
-        };
-      }
+      // For thumbnails, we'll construct them from the album URL
+      // SmugMug albums have a predictable thumbnail URL pattern
+      // Or we can use the first image endpoint
       
       return {
         statusCode: 200,
         headers,
         body: JSON.stringify({
           success: true,
-          albums: albums.map(album => {
-            // Try multiple paths to get the highlight image thumbnail
-            const highlightImage = album.Uris?.HighlightImage;
-            const image = highlightImage?.Image;
-            const imageSizes = image?.Uris?.ImageSizes?.ImageSizes || highlightImage?.ImageSizes?.ImageSizes || {};
+          albums: allAlbums.map(album => {
+            // Try to get thumbnail from various sources
+            let thumbUrl = null;
             
-            // Try various thumbnail URL sources
-            const thumbUrl = 
-              imageSizes.SmallImageUrl ||
-              imageSizes.ThumbImageUrl ||
-              imageSizes.TinyImageUrl ||
-              imageSizes.MediumImageUrl ||
-              image?.ThumbnailUrl ||
-              highlightImage?.ThumbnailUrl ||
-              album.ThumbnailUrl ||
-              null;
+            // Method 1: Check if there's a direct thumbnail URL
+            if (album.Uris?.AlbumHighlightImage?.Uri) {
+              // We'd need to fetch this, but for now skip
+            }
+            
+            // Method 2: Construct URL from album key (SmugMug pattern)
+            // This requires fetching the first image - we'll do that client-side
             
             return {
               key: album.AlbumKey,
@@ -247,14 +239,38 @@ export const handler = async (event) => {
               url: album.WebUri,
               imageCount: album.ImageCount || 0,
               date: album.DateModified || album.DateAdded || album.Date,
-              highlightImage: thumbUrl
+              highlightImage: thumbUrl,
+              // Include the album images endpoint so client can fetch first image
+              imagesUri: album.Uris?.AlbumImages?.Uri || null
             };
           }),
           debug: {
-            totalReturned: albums.length,
-            endpoint: endpoint,
-            sampleAlbum: sampleDebug
+            totalReturned: allAlbums.length,
+            pagesLoaded: Math.ceil(allAlbums.length / pageSize)
           }
+        })
+      };
+    } else if (action === 'albumThumb' && albumKey) {
+      // New action to fetch a single album's first image for thumbnail
+      const endpoint = `/api/v2/album/${albumKey}!images?count=1&_expand=ImageSizes`;
+      const result = await smugmugRequest(endpoint);
+      
+      const images = result?.Response?.AlbumImage || [];
+      let thumbUrl = null;
+      
+      if (images.length > 0) {
+        const img = images[0];
+        const sizes = img.Uris?.ImageSizes?.ImageSizes || {};
+        thumbUrl = sizes.SmallImageUrl || sizes.ThumbImageUrl || sizes.MediumImageUrl || img.ThumbnailUrl;
+      }
+      
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+          success: true,
+          albumKey: albumKey,
+          thumbnailUrl: thumbUrl
         })
       };
       
