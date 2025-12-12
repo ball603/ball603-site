@@ -720,20 +720,27 @@
       try {
         const response = await fetch('/.netlify/functions/get-games');
         const data = await response.json();
+        
+        // Handle both field name formats (home/away or home_team/away_team)
         const allGames = (data.games || []).map(g => ({
           ...g,
-          home: normalizeTeamName(g.home),
-          away: normalizeTeamName(g.away)
+          home: normalizeTeamName(g.home || g.home_team),
+          away: normalizeTeamName(g.away || g.away_team),
+          home_score: g.home_score,
+          away_score: g.away_score
         }));
         
-        // Filter games for this team
+        // Filter games for this team (check all name variations)
+        const teamNames = [TEAM_CONFIG.name, TEAM_CONFIG.shortname, TEAM_CONFIG.fullName, ...TEAM_CONFIG.nameVariations];
         const teamGames = allGames.filter(g => 
-          g.home === TEAM_CONFIG.name || g.away === TEAM_CONFIG.name
+          teamNames.includes(g.home) || teamNames.includes(g.away)
         );
         
         // Split by gender
         teamData.schedules.boys = teamGames.filter(g => g.gender === 'Boys');
         teamData.schedules.girls = teamGames.filter(g => g.gender === 'Girls');
+        
+        console.log(`Loaded ${teamData.schedules.boys.length} boys games, ${teamData.schedules.girls.length} girls games`);
         
         renderSchedules();
       } catch (err) {
@@ -757,8 +764,16 @@
       
       if (!games || games.length === 0) {
         container.innerHTML = '<div class="empty-state"><p>No games scheduled yet</p></div>';
+        if (recordEl) recordEl.textContent = '0-0';
+        if (quickRecordEl) quickRecordEl.textContent = '0-0';
+        if (nextGameEl) nextGameEl.textContent = '--';
+        if (lastResultEl) lastResultEl.textContent = '--';
         return;
       }
+      
+      // Helper to check if a team name matches this team
+      const teamNames = [TEAM_CONFIG.name, TEAM_CONFIG.shortname, TEAM_CONFIG.fullName, ...TEAM_CONFIG.nameVariations];
+      const isThisTeam = (name) => teamNames.includes(name);
       
       // Sort games by date
       games.sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -771,9 +786,9 @@
       today.setHours(0, 0, 0, 0);
       
       games.forEach(g => {
-        const gameDate = new Date(g.date);
+        const gameDate = new Date(g.date + 'T00:00:00');
         const hasScore = g.home_score !== null && g.away_score !== null;
-        const isHome = g.home === TEAM_CONFIG.name;
+        const isHome = isThisTeam(g.home);
         
         if (hasScore) {
           const teamScore = isHome ? g.home_score : g.away_score;
@@ -788,32 +803,36 @@
       
       // Update record displays
       const record = `${wins}-${losses}`;
-      recordEl.textContent = record;
-      quickRecordEl.textContent = record;
+      if (recordEl) recordEl.textContent = record;
+      if (quickRecordEl) quickRecordEl.textContent = record;
       
       // Update next game
-      if (upcomingGames.length > 0) {
-        const next = upcomingGames[0];
-        const opp = next.isHome ? next.away : next.home;
-        const dateStr = formatShortDate(next.date);
-        nextGameEl.textContent = `${dateStr} ${next.isHome ? 'vs' : '@'} ${opp}`;
-      } else {
-        nextGameEl.textContent = '--';
+      if (nextGameEl) {
+        if (upcomingGames.length > 0) {
+          const next = upcomingGames[0];
+          const opp = next.isHome ? next.away : next.home;
+          const dateStr = formatShortDate(next.date);
+          nextGameEl.textContent = `${dateStr} ${next.isHome ? 'vs' : '@'} ${opp}`;
+        } else {
+          nextGameEl.textContent = '--';
+        }
       }
       
       // Update last result
-      if (completedGames.length > 0) {
-        const last = completedGames[completedGames.length - 1];
-        const opp = last.isHome ? last.away : last.home;
-        lastResultEl.textContent = `${last.won ? 'W' : 'L'} ${last.teamScore}-${last.oppScore} ${last.isHome ? 'vs' : '@'} ${opp}`;
-      } else {
-        lastResultEl.textContent = '--';
+      if (lastResultEl) {
+        if (completedGames.length > 0) {
+          const last = completedGames[completedGames.length - 1];
+          const opp = last.isHome ? last.away : last.home;
+          lastResultEl.textContent = `${last.won ? 'W' : 'L'} ${last.teamScore}-${last.oppScore} ${last.isHome ? 'vs' : '@'} ${opp}`;
+        } else {
+          lastResultEl.textContent = '--';
+        }
       }
       
-      // Render game list (mix of recent completed + upcoming, max 6)
-      const recentCompleted = completedGames.slice(-3).reverse();
-      const nextUp = upcomingGames.slice(0, 3);
-      const displayGames = [...recentCompleted, ...nextUp].slice(0, 6);
+      // Render game list (mix of recent completed + upcoming, max 8)
+      const recentCompleted = completedGames.slice(-4).reverse();
+      const nextUp = upcomingGames.slice(0, 4);
+      const displayGames = [...recentCompleted, ...nextUp].slice(0, 8);
       
       if (displayGames.length === 0) {
         container.innerHTML = '<div class="empty-state"><p>No games to display</p></div>';
@@ -821,8 +840,7 @@
       }
       
       container.innerHTML = displayGames.map(g => {
-        const opp = g.isHome ? (g.away || g.home) : (g.home || g.away);
-        const isHome = g.home === TEAM_CONFIG.name;
+        const opp = g.isHome ? g.away : g.home;
         const hasResult = g.teamScore !== undefined;
         
         let resultClass = 'upcoming';
@@ -837,12 +855,54 @@
           <div class="schedule-game-item">
             <div class="schedule-game-date">${formatShortDate(g.date)}</div>
             <div class="schedule-game-opponent">
-              ${isHome ? 'vs' : '@'} ${opp}
+              <img src="/logos/100px/${getLogoFilename(opp)}" 
+                   onerror="this.style.display='none'" 
+                   class="schedule-game-logo" alt="">
+              <span>${g.isHome ? 'vs' : '@'} ${opp}</span>
             </div>
             <div class="schedule-game-result ${resultClass}">${resultText}</div>
           </div>
         `;
       }).join('');
+    }
+
+    // Helper to get logo filename (same as schedule.html)
+    function getLogoFilename(teamName) {
+      if (!teamName) return 'Ball603-white.png';
+      const specialCases = {
+        'coe-brown': 'CoeBrown',
+        'bishop brady': 'BishopBrady',
+        'bishop guertin': 'BishopGuertin',
+        'concord christian': 'ConcordChristian',
+        'con-val': 'ConVal',
+        'conval': 'ConVal',
+        'fall mountain': 'FallMountain',
+        'hillsboro-deering': 'HillsboroDeering',
+        'hollis-brookline': 'HollisBrookline',
+        'holy family': 'HolyFamily',
+        'inter-lakes': 'InterLakes',
+        'john stark': 'JohnStark',
+        'lin-wood': 'LinWood',
+        'manchester central': 'ManchesterCentral',
+        'manchester memorial': 'ManchesterMemorial',
+        'manchester west': 'ManchesterWest',
+        'mascoma valley': 'Mascoma',
+        'merrimack valley': 'MerrimackValley',
+        'mount royal': 'MountRoyal',
+        'nashua north': 'NashuaNorth',
+        'nashua south': 'NashuaSouth',
+        'oyster river': 'OysterRiver',
+        'pittsburg-canaan': 'PittsburgCanaan',
+        'portsmouth christian': 'PortsmouthChristian',
+        'prospect mountain': 'ProspectMountain',
+        'st. thomas aquinas': 'StThomasAquinas',
+        'st thomas aquinas': 'StThomasAquinas',
+        'white mountains': 'WhiteMountains',
+        'wilton-lyndeborough': 'WiltonLyndeborough'
+      };
+      const lower = teamName.toLowerCase().trim();
+      if (specialCases[lower]) return specialCases[lower] + '.png';
+      return teamName.split(/[\s-]+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join('') + '.png';
     }
 
     function renderScheduleError() {
