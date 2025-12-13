@@ -116,6 +116,113 @@ function normalizeTeamName(name) {
   return normalizations[name] || name;
 }
 
+// Convert team name to consistent slug for game IDs
+// This prevents duplicates from variant spellings/truncations from NHIAA
+function teamSlug(name) {
+  if (!name) return '';
+  
+  // Map of normalized team names to consistent short slugs
+  const slugMap = {
+    'Alvirne': 'alvirne',
+    'Bedford': 'bedford',
+    'Belmont': 'belmont',
+    'Berlin': 'berlin',
+    'Bishop Brady': 'bishopbrady',
+    'Bishop Guertin': 'bishopguertin',
+    'Bow': 'bow',
+    'Campbell': 'campbell',
+    'Coe-Brown': 'coebrown',
+    'Colebrook': 'colebrook',
+    'ConVal': 'conval',
+    'Conant': 'conant',
+    'Concord Christian': 'concordchristian',
+    'Concord': 'concord',
+    'Derryfield': 'derryfield',
+    'Dover': 'dover',
+    'Epping': 'epping',
+    'Exeter': 'exeter',
+    'Fall Mountain': 'fallmountain',
+    'Farmington': 'farmington',
+    'Franklin': 'franklin',
+    'Gilford': 'gilford',
+    'Goffstown': 'goffstown',
+    'Gorham': 'gorham',
+    'Groveton': 'groveton',
+    'Hanover': 'hanover',
+    'Hillsboro-Deering': 'hillsborodeering',
+    'Hinsdale': 'hinsdale',
+    'Hollis-Brookline': 'hollisbrookline',
+    'Holy Family': 'holyfamily',
+    'Hopkinton': 'hopkinton',
+    'Inter-Lakes': 'interlakes',
+    'John Stark': 'johnstark',
+    'Kearsarge': 'kearsarge',
+    'Keene': 'keene',
+    'Kennett': 'kennett',
+    'Kingswood': 'kingswood',
+    'Laconia': 'laconia',
+    'Lebanon': 'lebanon',
+    'Lin-Wood': 'linwood',
+    'Lisbon': 'lisbon',
+    'Littleton': 'littleton',
+    'Londonderry': 'londonderry',
+    'Manchester Central': 'manchestercentral',
+    'Manchester Memorial': 'manchestermemorial',
+    'Manchester West': 'manchesterwest',
+    'Mascenic': 'mascenic',
+    'Mascoma Valley': 'mascomavalley',
+    'Merrimack Valley': 'merrimackvalley',
+    'Merrimack': 'merrimack',
+    'Milford': 'milford',
+    'Monadnock': 'monadnock',
+    'Moultonborough': 'moultonborough',
+    'Mount Royal': 'mountroyal',
+    'Nashua North': 'nashuanorth',
+    'Nashua South': 'nashuasouth',
+    'Newfound': 'newfound',
+    'Newmarket': 'newmarket',
+    'Newport': 'newport',
+    'Nute': 'nute',
+    'Oyster River': 'oysterriver',
+    'Pelham': 'pelham',
+    'Pembroke': 'pembroke',
+    'Pinkerton': 'pinkerton',
+    'Pittsburg-Canaan': 'pittsburgcanaan',
+    'Pittsburg': 'pittsburg',
+    'Pittsfield': 'pittsfield',
+    'Plymouth': 'plymouth',
+    'Portsmouth Christian': 'portsmouthchristian',
+    'Portsmouth': 'portsmouth',
+    'Profile': 'profile',
+    'Prospect Mountain': 'prospectmountain',
+    'Raymond': 'raymond',
+    'St. Thomas Aquinas': 'stthomasaquinas',
+    'Salem': 'salem',
+    'Sanborn': 'sanborn',
+    'Somersworth': 'somersworth',
+    'Souhegan': 'souhegan',
+    'Spaulding': 'spaulding',
+    'Stevens': 'stevens',
+    'Sunapee': 'sunapee',
+    'Timberlane': 'timberlane',
+    'Trinity': 'trinity',
+    'White Mountains': 'whitemountains',
+    'Wilton-Lyndeborough': 'wiltonlyndeborough',
+    'Windham': 'windham',
+    'Winnacunnet': 'winnacunnet',
+    'Winnisquam': 'winnisquam',
+    'Woodsville': 'woodsville',
+  };
+  
+  // If we have a known slug, use it
+  if (slugMap[name]) {
+    return slugMap[name];
+  }
+  
+  // Fallback: create slug from name (lowercase, alphanumeric only)
+  return name.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
 function parseSchedulePage(html, gender, division) {
   const games = [];
   
@@ -188,9 +295,9 @@ function parseSchedulePage(html, gender, division) {
         time = cells[4];
       }
       
-      // Game ID uses sorted teams for consistency (handles inconsistent home/away on NHIAA)
-      const team1 = homeTeam.toLowerCase().replace(/[^a-z0-9]/g, '');
-      const team2 = awayTeam.toLowerCase().replace(/[^a-z0-9]/g, '');
+      // Game ID uses sorted team slugs for consistency (handles inconsistent home/away on NHIAA)
+      const team1 = teamSlug(homeTeam);
+      const team2 = teamSlug(awayTeam);
       const sortedTeams = [team1, team2].sort();
       const genderCode = gender === 'Boys' ? 'b' : 'g';
       const dateStr = isoDate.replace(/-/g, '');
@@ -219,8 +326,8 @@ function deduplicateGames(games) {
   const seen = new Map();
   
   for (const game of games) {
-    // Create canonical key by sorting team names (handles inconsistent home/away)
-    const teams = [game.home_team, game.away_team].sort();
+    // Create canonical key by sorting team slugs (handles inconsistent home/away)
+    const teams = [teamSlug(game.home_team), teamSlug(game.away_team)].sort();
     const canonicalKey = `${game.date}_${teams[0]}_${teams[1]}_${game.gender}`;
     
     if (!seen.has(canonicalKey)) {
@@ -268,8 +375,8 @@ async function cleanupDuplicates() {
         continue; // Skip games with missing required fields
       }
       
-      const team1 = game.home_team.toLowerCase().replace(/[^a-z0-9]/g, '');
-      const team2 = game.away_team.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const team1 = teamSlug(game.home_team);
+      const team2 = teamSlug(game.away_team);
       const sortedTeams = [team1, team2].sort();
       const genderCode = game.gender.toLowerCase().charAt(0);
       const canonicalKey = `${game.date}_${sortedTeams[0]}_${sortedTeams[1]}_${genderCode}`;
