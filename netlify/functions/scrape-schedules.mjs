@@ -709,7 +709,13 @@ export default async (request) => {
 };
 
 export const config = {
-  // Nov-Mar: hourly during season
-  // Converted to UTC (EST+5)
-  schedule: "0 * * 1,2,3,11,12 *"
+  // Nov-Mar schedule:
+  // - Mon-Fri 6-11 PM EST: Every 5 minutes (for live score updates)
+  // - All other times: Hourly
+  // Times converted to UTC (EST + 5 hours)
+  schedule: [
+    "*/5 23 * 1,2,3,11,12 1-5",     // Every 5 min, 6-7 PM EST Mon-Fri
+    "*/5 0-3 * 1,2,3,11,12 2-6",    // Every 5 min, 7-11 PM EST Mon-Fri (next day UTC)
+    "0 * * 1,2,3,11,12 *"           // Hourly all times (covers daytime + weekends)
+  ]
 };
