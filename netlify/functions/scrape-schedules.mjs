@@ -318,14 +318,12 @@ async function cleanupDuplicates() {
     }
   }
   
-  // Delete duplicates in batches
+  // Delete duplicates one at a time to avoid URL encoding issues
   if (idsToDelete.length > 0) {
-    const batchSize = 50;
-    for (let i = 0; i < idsToDelete.length; i += batchSize) {
-      const batch = idsToDelete.slice(i, i + batchSize);
-      // URL-encode the game IDs to handle special characters
-      const encodedIds = batch.map(id => encodeURIComponent(id)).join(',');
-      const deleteUrl = `${SUPABASE_URL}/rest/v1/games?game_id=in.(${encodedIds})`;
+    let deleteCount = 0;
+    
+    for (const gameId of idsToDelete) {
+      const deleteUrl = `${SUPABASE_URL}/rest/v1/games?game_id=eq.${encodeURIComponent(gameId)}`;
       
       const deleteResponse = await fetch(deleteUrl, {
         method: 'DELETE',
@@ -336,11 +334,13 @@ async function cleanupDuplicates() {
       });
       
       if (!deleteResponse.ok) {
-        console.error(`Failed to delete batch:`, await deleteResponse.text());
+        console.error(`Failed to delete ${gameId}:`, await deleteResponse.text());
+      } else {
+        deleteCount++;
       }
     }
     
-    console.log(`  Deleted ${idsToDelete.length} duplicate games`);
+    console.log(`  Deleted ${deleteCount} duplicate games`);
   } else {
     console.log(`  No duplicates found`);
   }
