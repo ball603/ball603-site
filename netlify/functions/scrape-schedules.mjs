@@ -349,7 +349,7 @@ async function cleanupDuplicates() {
     // Fetch all NHIAA games from Supabase
     console.log('  Fetching existing games...');
     const response = await fetch(
-      `${SUPABASE_URL}/rest/v1/games?level=eq.NHIAA&select=game_id,date,home_team,away_team,gender,home_score,away_score,photog1,photog2,videog,writer,photos_url,recap_url,highlights_url,notes,game_description`,
+      `${SUPABASE_URL}/rest/v1/games?level=eq.NHIAA&select=*`,
       {
         headers: {
           'apikey': SUPABASE_SERVICE_KEY,
@@ -361,7 +361,7 @@ async function cleanupDuplicates() {
     
     if (!response.ok) {
       console.error('Failed to fetch games for duplicate cleanup:', response.status);
-      return { duplicatesRemoved: 0 };
+      return { duplicatesRemoved: 0, gameIdsMigrated: 0 };
     }
     
     const games = await response.json();
@@ -387,51 +387,80 @@ async function cleanupDuplicates() {
       groups.get(canonicalKey).push(game);
     }
     
-    // Find groups with duplicates and determine which to delete
+    // Process groups - fix IDs and remove duplicates
     const idsToDelete = [];
+    let migratedCount = 0;
     
     for (const [key, gameGroup] of groups) {
+      // Generate the CORRECT canonical game_id for this matchup
+      const sampleGame = gameGroup[0];
+      const team1 = teamSlug(sampleGame.home_team);
+      const team2 = teamSlug(sampleGame.away_team);
+      const sortedTeams = [team1, team2].sort();
+      const genderCode = sampleGame.gender.toLowerCase().charAt(0);
+      const dateStr = sampleGame.date.replace(/-/g, '');
+      const correctGameId = `nhiaa_${sortedTeams[0]}_${genderCode}_${dateStr}_${sortedTeams[1]}`;
+      
       if (gameGroup.length > 1) {
+        // DUPLICATES FOUND
         console.log(`  Found ${gameGroup.length} duplicates for: ${key}`);
         
         // Score each game - higher score = keep it
         const scored = gameGroup.map(g => {
           let score = 0;
-          // Prefer games with scores
           if (g.home_score !== null && g.away_score !== null) score += 100;
-          // Prefer games with assignments
           if (g.photog1) score += 10;
           if (g.photog2) score += 10;
           if (g.videog) score += 10;
           if (g.writer) score += 10;
-          // Prefer games with coverage URLs
           if (g.photos_url) score += 20;
           if (g.recap_url) score += 20;
           if (g.highlights_url) score += 20;
-          // Prefer games with notes/descriptions
           if (g.notes) score += 5;
           if (g.game_description) score += 5;
-          // Prefer the new ID format (nhiaa_...)
-          if (g.game_id && g.game_id.startsWith('nhiaa_')) score += 1;
+          // Bonus if already has correct ID
+          if (g.game_id === correctGameId) score += 50;
           
           return { game: g, score };
         });
         
-        // Sort by score descending - keep the highest
         scored.sort((a, b) => b.score - a.score);
-        
-        // Keep the first one, delete the rest
         const keeper = scored[0].game;
+        
+        console.log(`    Correct ID should be: ${correctGameId}`);
         console.log(`    Keeping: ${keeper.game_id} (score: ${scored[0].score})`);
         
+        // If keeper has wrong ID, migrate it
+        if (keeper.game_id !== correctGameId) {
+          console.log(`    Migrating to correct ID: ${correctGameId}`);
+          const migrated = await migrateGameId(keeper, correctGameId);
+          if (migrated) {
+            migratedCount++;
+            idsToDelete.push(keeper.game_id); // Delete old record
+          }
+        }
+        
+        // Delete all other duplicates
         for (let i = 1; i < scored.length; i++) {
           console.log(`    Deleting: ${scored[i].game.game_id} (score: ${scored[i].score})`);
           idsToDelete.push(scored[i].game.game_id);
         }
+        
+      } else {
+        // SINGLE RECORD - but check if ID needs fixing
+        const game = gameGroup[0];
+        if (game.game_id !== correctGameId) {
+          console.log(`  Fixing ID: ${game.game_id} -> ${correctGameId}`);
+          const migrated = await migrateGameId(game, correctGameId);
+          if (migrated) {
+            migratedCount++;
+            idsToDelete.push(game.game_id);
+          }
+        }
       }
     }
     
-    // Delete duplicates one at a time
+    // Delete old records
     if (idsToDelete.length > 0) {
       let deleteCount = 0;
       
@@ -447,26 +476,59 @@ async function cleanupDuplicates() {
             }
           });
           
-          if (!deleteResponse.ok) {
-            console.error(`Failed to delete ${gameId}:`, await deleteResponse.text());
-          } else {
+          if (deleteResponse.ok) {
             deleteCount++;
+          } else {
+            console.error(`Failed to delete ${gameId}:`, await deleteResponse.text());
           }
         } catch (deleteError) {
           console.error(`Error deleting ${gameId}:`, deleteError.message);
         }
       }
       
-      console.log(`  Deleted ${deleteCount} duplicate games`);
-      return { duplicatesRemoved: deleteCount };
+      console.log(`  Deleted ${deleteCount} old/duplicate games`);
+      console.log(`  Migrated ${migratedCount} game IDs to canonical format`);
+      return { duplicatesRemoved: deleteCount, gameIdsMigrated: migratedCount };
     } else {
-      console.log(`  No duplicates found`);
-      return { duplicatesRemoved: 0 };
+      console.log(`  No duplicates or ID fixes needed`);
+      return { duplicatesRemoved: 0, gameIdsMigrated: 0 };
     }
   } catch (error) {
     console.error('Error in cleanupDuplicates:', error.message);
-    // Don't fail the whole scrape if cleanup fails
-    return { duplicatesRemoved: 0 };
+    return { duplicatesRemoved: 0, gameIdsMigrated: 0 };
+  }
+}
+
+// Migrate a game to a new game_id, preserving all data
+async function migrateGameId(oldGame, newGameId) {
+  try {
+    // Create new record with correct ID and all existing data
+    const newGame = { ...oldGame, game_id: newGameId };
+    delete newGame.id; // Remove any auto-generated id field
+    
+    const insertResponse = await fetch(
+      `${SUPABASE_URL}/rest/v1/games`,
+      {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_SERVICE_KEY,
+          'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'resolution=merge-duplicates'
+        },
+        body: JSON.stringify(newGame)
+      }
+    );
+    
+    if (!insertResponse.ok) {
+      console.error(`Failed to create migrated game:`, await insertResponse.text());
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error(`Error migrating game:`, error.message);
+    return false;
   }
 }
 
@@ -599,9 +661,9 @@ export default async (request) => {
   console.log('Ball603 Schedule Scraper - Starting...');
   
   try {
-    // Step 1: Clean up any existing duplicates first
-    console.log('Step 1: Checking for duplicate games in database...');
-    const { duplicatesRemoved } = await cleanupDuplicates();
+    // Step 1: Clean up any existing duplicates and fix malformed IDs
+    console.log('Step 1: Checking for duplicate games and fixing IDs...');
+    const { duplicatesRemoved, gameIdsMigrated } = await cleanupDuplicates();
     
     // Step 2: Scrape fresh data from NHIAA
     console.log('Step 2: Scraping NHIAA schedules...');
@@ -621,7 +683,7 @@ export default async (request) => {
     console.log(`Total unique games from scrape: ${dedupedGames.length}`);
     
     // Step 4: Upsert to database
-    console.log('Step 3: Upserting to Supabase...');
+    console.log('Step 4: Upserting to Supabase...');
     const { rowCount, changesDetected } = await updateSupabase(dedupedGames);
     
     return new Response(JSON.stringify({
@@ -629,6 +691,7 @@ export default async (request) => {
       gamesScraped: dedupedGames.length,
       gamesUpserted: rowCount,
       duplicatesRemoved: duplicatesRemoved,
+      gameIdsMigrated: gameIdsMigrated || 0,
       scheduleChanges: changesDetected,
       timestamp: new Date().toISOString()
     }), { 
