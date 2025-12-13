@@ -238,114 +238,129 @@ function deduplicateGames(games) {
 }
 
 async function cleanupDuplicates() {
-  // Fetch all NHIAA games from Supabase
-  const response = await fetch(
-    `${SUPABASE_URL}/rest/v1/games?level=eq.NHIAA&select=*`,
-    {
-      headers: {
-        'apikey': SUPABASE_SERVICE_KEY,
-        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
-        'Range': '0-9999'
-      }
-    }
-  );
-  
-  if (!response.ok) {
-    console.error('Failed to fetch games for duplicate cleanup:', response.status);
-    return { duplicatesRemoved: 0 };
-  }
-  
-  const games = await response.json();
-  console.log(`  Analyzing ${games.length} existing games for duplicates...`);
-  
-  // Group by canonical key: date_team1_team2_gender (teams sorted alphabetically)
-  const groups = new Map();
-  
-  for (const game of games) {
-    const team1 = (game.home_team || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-    const team2 = (game.away_team || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-    const sortedTeams = [team1, team2].sort();
-    const genderCode = (game.gender || '').toLowerCase().charAt(0);
-    const canonicalKey = `${game.date}_${sortedTeams[0]}_${sortedTeams[1]}_${genderCode}`;
-    
-    if (!groups.has(canonicalKey)) {
-      groups.set(canonicalKey, []);
-    }
-    groups.get(canonicalKey).push(game);
-  }
-  
-  // Find groups with duplicates and determine which to delete
-  const idsToDelete = [];
-  
-  for (const [key, gameGroup] of groups) {
-    if (gameGroup.length > 1) {
-      console.log(`  Found ${gameGroup.length} duplicates for: ${key}`);
-      
-      // Score each game - higher score = keep it
-      const scored = gameGroup.map(g => {
-        let score = 0;
-        // Prefer games with scores
-        if (g.home_score !== null && g.away_score !== null) score += 100;
-        // Prefer games with assignments
-        if (g.photog1) score += 10;
-        if (g.photog2) score += 10;
-        if (g.videog) score += 10;
-        if (g.writer) score += 10;
-        // Prefer games with coverage URLs
-        if (g.photos_url) score += 20;
-        if (g.recap_url) score += 20;
-        if (g.highlights_url) score += 20;
-        // Prefer games with notes/descriptions
-        if (g.notes) score += 5;
-        if (g.game_description) score += 5;
-        // Prefer the new ID format (nhiaa_...)
-        if (g.game_id && g.game_id.startsWith('nhiaa_')) score += 1;
-        
-        return { game: g, score };
-      });
-      
-      // Sort by score descending - keep the highest
-      scored.sort((a, b) => b.score - a.score);
-      
-      // Keep the first one, delete the rest
-      const keeper = scored[0].game;
-      console.log(`    Keeping: ${keeper.game_id} (score: ${scored[0].score})`);
-      
-      for (let i = 1; i < scored.length; i++) {
-        console.log(`    Deleting: ${scored[i].game.game_id} (score: ${scored[i].score})`);
-        idsToDelete.push(scored[i].game.game_id);
-      }
-    }
-  }
-  
-  // Delete duplicates one at a time to avoid URL encoding issues
-  if (idsToDelete.length > 0) {
-    let deleteCount = 0;
-    
-    for (const gameId of idsToDelete) {
-      const deleteUrl = `${SUPABASE_URL}/rest/v1/games?game_id=eq.${encodeURIComponent(gameId)}`;
-      
-      const deleteResponse = await fetch(deleteUrl, {
-        method: 'DELETE',
+  try {
+    // Fetch all NHIAA games from Supabase
+    console.log('  Fetching existing games...');
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/games?level=eq.NHIAA&select=game_id,date,home_team,away_team,gender,home_score,away_score,photog1,photog2,videog,writer,photos_url,recap_url,highlights_url,notes,game_description`,
+      {
         headers: {
           'apikey': SUPABASE_SERVICE_KEY,
-          'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`
+          'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+          'Range': '0-9999'
         }
-      });
+      }
+    );
+    
+    if (!response.ok) {
+      console.error('Failed to fetch games for duplicate cleanup:', response.status);
+      return { duplicatesRemoved: 0 };
+    }
+    
+    const games = await response.json();
+    console.log(`  Analyzing ${games.length} existing games for duplicates...`);
+    
+    // Group by canonical key: date_team1_team2_gender (teams sorted alphabetically)
+    const groups = new Map();
+    
+    for (const game of games) {
+      if (!game.home_team || !game.away_team || !game.date || !game.gender) {
+        continue; // Skip games with missing required fields
+      }
       
-      if (!deleteResponse.ok) {
-        console.error(`Failed to delete ${gameId}:`, await deleteResponse.text());
-      } else {
-        deleteCount++;
+      const team1 = game.home_team.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const team2 = game.away_team.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const sortedTeams = [team1, team2].sort();
+      const genderCode = game.gender.toLowerCase().charAt(0);
+      const canonicalKey = `${game.date}_${sortedTeams[0]}_${sortedTeams[1]}_${genderCode}`;
+      
+      if (!groups.has(canonicalKey)) {
+        groups.set(canonicalKey, []);
+      }
+      groups.get(canonicalKey).push(game);
+    }
+    
+    // Find groups with duplicates and determine which to delete
+    const idsToDelete = [];
+    
+    for (const [key, gameGroup] of groups) {
+      if (gameGroup.length > 1) {
+        console.log(`  Found ${gameGroup.length} duplicates for: ${key}`);
+        
+        // Score each game - higher score = keep it
+        const scored = gameGroup.map(g => {
+          let score = 0;
+          // Prefer games with scores
+          if (g.home_score !== null && g.away_score !== null) score += 100;
+          // Prefer games with assignments
+          if (g.photog1) score += 10;
+          if (g.photog2) score += 10;
+          if (g.videog) score += 10;
+          if (g.writer) score += 10;
+          // Prefer games with coverage URLs
+          if (g.photos_url) score += 20;
+          if (g.recap_url) score += 20;
+          if (g.highlights_url) score += 20;
+          // Prefer games with notes/descriptions
+          if (g.notes) score += 5;
+          if (g.game_description) score += 5;
+          // Prefer the new ID format (nhiaa_...)
+          if (g.game_id && g.game_id.startsWith('nhiaa_')) score += 1;
+          
+          return { game: g, score };
+        });
+        
+        // Sort by score descending - keep the highest
+        scored.sort((a, b) => b.score - a.score);
+        
+        // Keep the first one, delete the rest
+        const keeper = scored[0].game;
+        console.log(`    Keeping: ${keeper.game_id} (score: ${scored[0].score})`);
+        
+        for (let i = 1; i < scored.length; i++) {
+          console.log(`    Deleting: ${scored[i].game.game_id} (score: ${scored[i].score})`);
+          idsToDelete.push(scored[i].game.game_id);
+        }
       }
     }
     
-    console.log(`  Deleted ${deleteCount} duplicate games`);
-  } else {
-    console.log(`  No duplicates found`);
+    // Delete duplicates one at a time
+    if (idsToDelete.length > 0) {
+      let deleteCount = 0;
+      
+      for (const gameId of idsToDelete) {
+        try {
+          const deleteUrl = `${SUPABASE_URL}/rest/v1/games?game_id=eq.${encodeURIComponent(gameId)}`;
+          
+          const deleteResponse = await fetch(deleteUrl, {
+            method: 'DELETE',
+            headers: {
+              'apikey': SUPABASE_SERVICE_KEY,
+              'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`
+            }
+          });
+          
+          if (!deleteResponse.ok) {
+            console.error(`Failed to delete ${gameId}:`, await deleteResponse.text());
+          } else {
+            deleteCount++;
+          }
+        } catch (deleteError) {
+          console.error(`Error deleting ${gameId}:`, deleteError.message);
+        }
+      }
+      
+      console.log(`  Deleted ${deleteCount} duplicate games`);
+      return { duplicatesRemoved: deleteCount };
+    } else {
+      console.log(`  No duplicates found`);
+      return { duplicatesRemoved: 0 };
+    }
+  } catch (error) {
+    console.error('Error in cleanupDuplicates:', error.message);
+    // Don't fail the whole scrape if cleanup fails
+    return { duplicatesRemoved: 0 };
   }
-  
-  return { duplicatesRemoved: idsToDelete.length };
 }
 
 async function getExistingGames() {
