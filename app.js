@@ -193,41 +193,66 @@ function isToday(dateStr) {
 
 /**
  * Get logo filename for a team
+ * First checks teams database for logo_filename, then falls back to name conversion
  */
 function getLogoFilename(teamName) {
   if (!teamName) return 'Ball603-white.png';
   
-  // Handle special cases
+  // First, try to find the team in state.teams and use their logo_filename
+  if (state.teams && state.teams.length > 0) {
+    const team = state.teams.find(t => 
+      t.shortname === teamName || 
+      t.full_name === teamName || 
+      t.abbrev === teamName ||
+      (t.shortname && teamName.toLowerCase() === t.shortname.toLowerCase()) ||
+      (t.full_name && teamName.toLowerCase() === t.full_name.toLowerCase())
+    );
+    
+    if (team && team.logo_filename) {
+      return team.logo_filename;
+    }
+  }
+  
+  // Fallback: Handle special cases for teams not in database (e.g., colleges)
   const specialCases = {
-    'UNH': 'new-hampshire.png',
-    'University of New Hampshire': 'new-hampshire.png',
-    'SNHU': 'southern-new-hampshire.png',
-    'Southern New Hampshire University': 'southern-new-hampshire.png',
-    'Dartmouth': 'dartmouth.png',
-    'Dartmouth College': 'dartmouth.png',
-    'St. Anselm': 'saint-anselm.png',
-    "Saint Anselm": 'saint-anselm.png',
-    "St. Anselm College": 'saint-anselm.png',
-    'Franklin Pierce': 'franklin-pierce.png',
-    'Keene State': 'keene-state.png',
-    'Plymouth State': 'plymouth-state.png',
-    'Rivier': 'rivier.png',
-    'NEC': 'new-england-college.png',
-    'New England College': 'new-england-college.png',
-    'Colby-Sawyer': 'colby-sawyer.png'
+    'UNH': 'UNH.png',
+    'University of New Hampshire': 'UNH.png',
+    'SNHU': 'SouthernNewHampshire.png',
+    'Southern New Hampshire': 'SouthernNewHampshire.png',
+    'Southern New Hampshire University': 'SouthernNewHampshire.png',
+    'Dartmouth': 'Dartmouth.png',
+    'Dartmouth College': 'Dartmouth.png',
+    'St. Anselm': 'SaintAnselm.png',
+    'Saint Anselm': 'SaintAnselm.png',
+    'St. Anselm College': 'SaintAnselm.png',
+    'Saint Anselm College': 'SaintAnselm.png',
+    'Franklin Pierce': 'FranklinPierce.png',
+    'Franklin Pierce University': 'FranklinPierce.png',
+    'Keene State': 'KeeneState.png',
+    'Keene State College': 'KeeneState.png',
+    'Plymouth State': 'PlymouthState.png',
+    'Plymouth State University': 'PlymouthState.png',
+    'Rivier': 'Rivier.png',
+    'Rivier University': 'Rivier.png',
+    'NEC': 'NewEnglandCollege.png',
+    'New England College': 'NewEnglandCollege.png',
+    'Colby-Sawyer': 'ColbySawyer.png',
+    'Colby-Sawyer College': 'ColbySawyer.png'
   };
   
   if (specialCases[teamName]) {
     return specialCases[teamName];
   }
   
-  // Convert to filename format
-  return teamName
-    .toLowerCase()
-    .replace(/'/g, '')
-    .replace(/\./g, '')
-    .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9-]/g, '') + '.png';
+  // Final fallback: Convert team name to PascalCase filename
+  // e.g., "Bishop Brady" -> "BishopBrady.png"
+  const filename = teamName
+    .split(/[\s-]+/)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join('')
+    .replace(/[^a-zA-Z0-9]/g, '') + '.png';
+  
+  return filename;
 }
 
 /**
@@ -903,7 +928,8 @@ async function initApp() {
   initKeyboardHandlers();
   initTouchHandlers();
   
-  // Fetch initial data
+  // Fetch initial data (teams first so logo lookups work)
+  await fetchTeams();
   await Promise.all([
     fetchGames(),
     fetchArticles()
