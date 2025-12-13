@@ -41,8 +41,7 @@
     .ticker-container {
       display: flex;
       align-items: center;
-      max-width: 1400px;
-      margin: 0 auto;
+      width: 100%;
     }
     
     .ticker-label {
@@ -55,6 +54,13 @@
       letter-spacing: 0.5px;
       white-space: nowrap;
       flex-shrink: 0;
+      text-decoration: none;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    
+    .ticker-label:hover {
+      background: #e56b00;
     }
     
     .ticker-scroll {
@@ -68,6 +74,34 @@
     
     .ticker-scroll::-webkit-scrollbar {
       display: none;
+    }
+    
+    .ticker-arrow {
+      background: rgba(255,255,255,0.1);
+      border: none;
+      color: white;
+      width: 32px;
+      height: 100%;
+      min-height: 48px;
+      cursor: pointer;
+      font-size: 18px;
+      transition: background 0.2s;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .ticker-arrow:hover {
+      background: rgba(255,255,255,0.2);
+    }
+    
+    .ticker-arrow-left {
+      border-right: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .ticker-arrow-right {
+      border-left: 1px solid rgba(255,255,255,0.1);
     }
     
     .ticker-game {
@@ -86,7 +120,7 @@
     }
     
     .ticker-game:hover {
-      background: rgba(255,255,255,0.05);
+      background: rgba(255,255,255,0.05) !important;
     }
     
     .ticker-teams {
@@ -170,53 +204,29 @@
       50% { opacity: 0.5; }
     }
     
-    .ticker-nav {
-      display: flex;
-      gap: 4px;
-      padding: 0 12px;
-      flex-shrink: 0;
-    }
-    
-    .ticker-nav button {
-      background: rgba(255,255,255,0.1);
-      border: none;
-      color: white;
-      width: 28px;
-      height: 28px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 14px;
-      transition: background 0.2s;
-    }
-    
-    .ticker-nav button:hover {
-      background: rgba(255,255,255,0.2);
-    }
-    
-    .ticker-link {
-      background: transparent;
-      border: none;
-      color: var(--accent);
-      font-size: 11px;
-      font-weight: 600;
-      padding: 8px 16px;
-      cursor: pointer;
-      white-space: nowrap;
-      flex-shrink: 0;
-    }
-    
-    .ticker-link:hover {
-      text-decoration: underline;
-    }
-    
+    /* Mobile ticker styles */
     @media (max-width: 768px) {
-      .ticker-label {
-        padding: 10px 12px;
-        font-size: 10px;
+      .ticker-container {
+        align-items: stretch;
       }
-      .ticker-nav {
+      
+      .ticker-label {
+        writing-mode: vertical-rl;
+        text-orientation: mixed;
+        transform: rotate(180deg);
+        padding: 12px 6px;
+        font-size: 10px;
+        letter-spacing: 1px;
+        min-width: auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      
+      .ticker-arrow {
         display: none;
       }
+      
       .ticker-game {
         min-width: 160px;
         padding: 8px 12px;
@@ -884,7 +894,8 @@
   <!-- ===== SCORES TICKER ===== -->
   <div class="scores-ticker">
     <div class="ticker-container">
-      <div class="ticker-label">Scores</div>
+      <a href="/schedule" class="ticker-label">Scores</a>
+      <button class="ticker-arrow ticker-arrow-left" onclick="scrollTickerPage(-1)">&#8249;</button>
       <div class="ticker-scroll" id="tickerScroll">
         <!-- Populated by JS -->
         <div class="ticker-game">
@@ -897,11 +908,7 @@
           <div class="skeleton" style="width: 100%; height: 40px;"></div>
         </div>
       </div>
-      <div class="ticker-nav">
-        <button onclick="scrollTicker(-1)">&#8249;</button>
-        <button onclick="scrollTicker(1)">&#8250;</button>
-      </div>
-      <button class="ticker-link" onclick="location.href='/schedule'">Full Schedule &#8594;</button>
+      <button class="ticker-arrow ticker-arrow-right" onclick="scrollTickerPage(1)">&#8250;</button>
     </div>
   </div>
   
@@ -1096,7 +1103,7 @@
         <svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
       </a>
     </div>
-    <p class="footer-copyright">Â© 2025 Ball603. All rights reserved.</p>
+    <p class="footer-copyright">&copy; 2025 Ball603. All rights reserved.</p>
   </footer>
   
   <!-- App.js for Ball603 utilities -->
@@ -1106,10 +1113,11 @@
   <script>
     const PLACEHOLDER_IMG = 'https://placehold.co/800x450/1a1a1a/f57c00?text=Ball603';
     
-    // Ticker scroll function
-    function scrollTicker(direction) {
+    // Ticker scroll function - pages through scores by visible width
+    function scrollTickerPage(direction) {
       const ticker = document.getElementById('tickerScroll');
-      ticker.scrollBy({ left: direction * 200, behavior: 'smooth' });
+      const visibleWidth = ticker.clientWidth;
+      ticker.scrollBy({ left: direction * visibleWidth, behavior: 'smooth' });
     }
     
     // Wait for Ball603 to be ready
