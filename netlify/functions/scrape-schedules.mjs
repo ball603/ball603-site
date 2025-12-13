@@ -237,6 +237,117 @@ function deduplicateGames(games) {
   return Array.from(seen.values());
 }
 
+async function cleanupDuplicates() {
+  // Fetch all NHIAA games from Supabase
+  const response = await fetch(
+    `${SUPABASE_URL}/rest/v1/games?level=eq.NHIAA&select=*`,
+    {
+      headers: {
+        'apikey': SUPABASE_SERVICE_KEY,
+        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+        'Range': '0-9999'
+      }
+    }
+  );
+  
+  if (!response.ok) {
+    console.error('Failed to fetch games for duplicate cleanup:', response.status);
+    return { duplicatesRemoved: 0 };
+  }
+  
+  const games = await response.json();
+  console.log(`  Analyzing ${games.length} existing games for duplicates...`);
+  
+  // Group by canonical key: date_team1_team2_gender (teams sorted alphabetically)
+  const groups = new Map();
+  
+  for (const game of games) {
+    const team1 = (game.home_team || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const team2 = (game.away_team || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const sortedTeams = [team1, team2].sort();
+    const genderCode = (game.gender || '').toLowerCase().charAt(0);
+    const canonicalKey = `${game.date}_${sortedTeams[0]}_${sortedTeams[1]}_${genderCode}`;
+    
+    if (!groups.has(canonicalKey)) {
+      groups.set(canonicalKey, []);
+    }
+    groups.get(canonicalKey).push(game);
+  }
+  
+  // Find groups with duplicates and determine which to delete
+  const idsToDelete = [];
+  
+  for (const [key, gameGroup] of groups) {
+    if (gameGroup.length > 1) {
+      console.log(`  Found ${gameGroup.length} duplicates for: ${key}`);
+      
+      // Score each game - higher score = keep it
+      const scored = gameGroup.map(g => {
+        let score = 0;
+        // Prefer games with scores
+        if (g.home_score !== null && g.away_score !== null) score += 100;
+        // Prefer games with assignments
+        if (g.photog1) score += 10;
+        if (g.photog2) score += 10;
+        if (g.videog) score += 10;
+        if (g.writer) score += 10;
+        // Prefer games with coverage URLs
+        if (g.photos_url) score += 20;
+        if (g.recap_url) score += 20;
+        if (g.highlights_url) score += 20;
+        // Prefer games with notes/descriptions
+        if (g.notes) score += 5;
+        if (g.game_description) score += 5;
+        // Prefer the new ID format (nhiaa_...)
+        if (g.game_id && g.game_id.startsWith('nhiaa_')) score += 1;
+        
+        return { game: g, score };
+      });
+      
+      // Sort by score descending - keep the highest
+      scored.sort((a, b) => b.score - a.score);
+      
+      // Keep the first one, delete the rest
+      const keeper = scored[0].game;
+      console.log(`    Keeping: ${keeper.game_id} (score: ${scored[0].score})`);
+      
+      for (let i = 1; i < scored.length; i++) {
+        console.log(`    Deleting: ${scored[i].game.game_id} (score: ${scored[i].score})`);
+        idsToDelete.push(scored[i].game.game_id);
+      }
+    }
+  }
+  
+  // Delete duplicates in batches
+  if (idsToDelete.length > 0) {
+    const batchSize = 50;
+    for (let i = 0; i < idsToDelete.length; i += batchSize) {
+      const batch = idsToDelete.slice(i, i + batchSize);
+      // URL-encode the game IDs to handle special characters
+      const encodedIds = batch.map(id => encodeURIComponent(id)).join(',');
+      const deleteUrl = `${SUPABASE_URL}/rest/v1/games?game_id=in.(${encodedIds})`;
+      
+      const deleteResponse = await fetch(deleteUrl, {
+        method: 'DELETE',
+        headers: {
+          'apikey': SUPABASE_SERVICE_KEY,
+          'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`
+        }
+      });
+      
+      if (!deleteResponse.ok) {
+        console.error(`Failed to delete batch:`, await deleteResponse.text());
+      }
+    }
+    
+    console.log(`  Deleted ${idsToDelete.length} duplicate games`);
+  } else {
+    console.log(`  No duplicates found`);
+  }
+  
+  return { duplicatesRemoved: idsToDelete.length };
+}
+
 async function getExistingGames() {
   // Fetch all NHIAA games from Supabase
   const response = await fetch(
@@ -366,6 +477,12 @@ export default async (request) => {
   console.log('Ball603 Schedule Scraper - Starting...');
   
   try {
+    // Step 1: Clean up any existing duplicates first
+    console.log('Step 1: Checking for duplicate games in database...');
+    const { duplicatesRemoved } = await cleanupDuplicates();
+    
+    // Step 2: Scrape fresh data from NHIAA
+    console.log('Step 2: Scraping NHIAA schedules...');
     const allGames = [];
     
     for (const { url, gender, division } of SCHEDULE_URLS) {
@@ -377,15 +494,19 @@ export default async (request) => {
       console.log(`  Found ${games.length} game entries`);
     }
     
+    // Step 3: Deduplicate scraped data
     const dedupedGames = deduplicateGames(allGames);
-    console.log(`Total unique games: ${dedupedGames.length}`);
+    console.log(`Total unique games from scrape: ${dedupedGames.length}`);
     
+    // Step 4: Upsert to database
+    console.log('Step 3: Upserting to Supabase...');
     const { rowCount, changesDetected } = await updateSupabase(dedupedGames);
     
     return new Response(JSON.stringify({
       success: true,
       gamesScraped: dedupedGames.length,
       gamesUpserted: rowCount,
+      duplicatesRemoved: duplicatesRemoved,
       scheduleChanges: changesDetected,
       timestamp: new Date().toISOString()
     }), { 
