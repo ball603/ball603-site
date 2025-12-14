@@ -3750,6 +3750,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const select = document.getElementById('articlePhotographer');
       if (!select) return;
       
+      // Always start with None option
+      select.innerHTML = '<option value="">None</option>';
+      
+      // Try to load photographers from contributors table
       try {
         const { data: photographers, error } = await supabase
           .from('contributors')
@@ -3758,28 +3762,26 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           .eq('active', true)
           .order('display_name');
         
-        if (error) throw error;
-        
-        // Clear existing options except "None"
-        select.innerHTML = '<option value="">None</option>';
-        
-        // Add photographers
-        (photographers || []).forEach(p => {
-          const option = document.createElement('option');
-          option.value = p.display_name;
-          option.textContent = p.display_name;
-          select.appendChild(option);
-        });
-        
-        // Add "Other..." option
-        const otherOption = document.createElement('option');
-        otherOption.value = 'other';
-        otherOption.textContent = 'Other...';
-        select.appendChild(otherOption);
-        
+        if (!error && photographers && photographers.length > 0) {
+          // Add photographers from database
+          photographers.forEach(p => {
+            if (p.display_name) {
+              const option = document.createElement('option');
+              option.value = p.display_name;
+              option.textContent = p.display_name;
+              select.appendChild(option);
+            }
+          });
+        }
       } catch (err) {
         console.error('Error loading photographers:', err);
       }
+      
+      // Always add "Other..." option at the end
+      const otherOption = document.createElement('option');
+      otherOption.value = 'other';
+      otherOption.textContent = 'Other...';
+      select.appendChild(otherOption);
     }
     
     // Image Upload to Supabase Storage
