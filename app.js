@@ -64,11 +64,24 @@ async function fetchArticles(limit = 20) {
       .from('articles')
       .select('*')
       .eq('status', 'published')
-      .order('published_at', { ascending: false })
       .limit(limit);
     
     if (error) throw error;
-    state.articles = data || [];
+    
+    // Sort by article_date first, fallback to published_at
+    // Pinned articles stay at top
+    const articles = (data || []).sort((a, b) => {
+      // Pinned articles first
+      if (a.pinned && !b.pinned) return -1;
+      if (!a.pinned && b.pinned) return 1;
+      
+      // Then sort by article_date (or published_at as fallback)
+      const dateA = new Date(a.article_date || a.published_at || 0);
+      const dateB = new Date(b.article_date || b.published_at || 0);
+      return dateB - dateA; // Newest first
+    });
+    
+    state.articles = articles;
     return state.articles;
   } catch (error) {
     console.error('Error fetching articles:', error);
