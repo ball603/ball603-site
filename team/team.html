@@ -208,6 +208,10 @@
         <span class="menu-icon">📰</span>
         <span class="menu-text">News</span>
       </a>
+      <a href="#galleries" class="team-menu-item" data-section="galleries">
+        <span class="menu-icon">📷</span>
+        <span class="menu-text">Galleries</span>
+      </a>
       <a href="#schedules" class="team-menu-item" data-section="schedules">
         <span class="menu-icon">📅</span>
         <span class="menu-text">Schedules</span>
@@ -215,10 +219,6 @@
       <a href="#rosters" class="team-menu-item" data-section="rosters">
         <span class="menu-icon">👥</span>
         <span class="menu-text">Rosters</span>
-      </a>
-      <a href="#galleries" class="team-menu-item" data-section="galleries">
-        <span class="menu-icon">📷</span>
-        <span class="menu-text">Galleries</span>
       </a>
       <a href="#history" class="team-menu-item" data-section="history">
         <span class="menu-icon">🏆</span>
@@ -245,12 +245,12 @@
           <span class="quick-stat-value" id="boysRecord">--</span>
         </div>
         <div class="quick-stat">
-          <span class="quick-stat-label">Next Game</span>
-          <span class="quick-stat-value" id="boysNextGame">--</span>
-        </div>
-        <div class="quick-stat">
           <span class="quick-stat-label">Last Result</span>
           <span class="quick-stat-value" id="boysLastResult">--</span>
+        </div>
+        <div class="quick-stat">
+          <span class="quick-stat-label">Next Game</span>
+          <span class="quick-stat-value" id="boysNextGame">--</span>
         </div>
       </div>
     </div>
@@ -262,12 +262,12 @@
           <span class="quick-stat-value" id="girlsRecord">--</span>
         </div>
         <div class="quick-stat">
-          <span class="quick-stat-label">Next Game</span>
-          <span class="quick-stat-value" id="girlsNextGame">--</span>
-        </div>
-        <div class="quick-stat">
           <span class="quick-stat-label">Last Result</span>
           <span class="quick-stat-value" id="girlsLastResult">--</span>
+        </div>
+        <div class="quick-stat">
+          <span class="quick-stat-label">Next Game</span>
+          <span class="quick-stat-value" id="girlsNextGame">--</span>
         </div>
       </div>
     </div>
@@ -284,6 +284,20 @@
       </div>
       <div class="stories-featured" id="storiesFeatured">
         <div class="empty-state"><p>No stories yet. Check back soon!</p></div>
+      </div>
+    </section>
+
+    <!-- GALLERIES SECTION -->
+    <section class="team-section" id="galleries">
+      <div class="section-header">
+        <h2 class="section-title">📷 Photo Galleries</h2>
+      </div>
+      <div class="galleries-container">
+        <button class="gallery-arrow gallery-arrow-left" id="galleryArrowLeft" aria-label="Scroll left">‹</button>
+        <div class="galleries-scroll" id="galleriesGrid">
+          <div class="empty-state"><p>Loading galleries...</p></div>
+        </div>
+        <button class="gallery-arrow gallery-arrow-right" id="galleryArrowRight" aria-label="Scroll right">›</button>
       </div>
     </section>
 
@@ -356,20 +370,6 @@
       </div>
     </section>
 
-    <!-- GALLERIES SECTION -->
-    <section class="team-section" id="galleries">
-      <div class="section-header">
-        <h2 class="section-title">📷 Photo Galleries</h2>
-      </div>
-      <div class="galleries-container">
-        <button class="gallery-arrow gallery-arrow-left" id="galleryArrowLeft" aria-label="Scroll left">‹</button>
-        <div class="galleries-scroll" id="galleriesGrid">
-          <div class="empty-state"><p>Loading galleries...</p></div>
-        </div>
-        <button class="gallery-arrow gallery-arrow-right" id="galleryArrowRight" aria-label="Scroll right">›</button>
-      </div>
-    </section>
-
     <!-- HISTORY SECTION -->
     <section class="team-section" id="history">
       <div class="section-header">
@@ -405,7 +405,7 @@
             <div class="empty-state"><p>Loading...</p></div>
           </div>
           <div class="feature-box-footer">
-            <a href="/603intheNCAA" class="feature-footer-link">See full NHIAA list →</a>
+            <a href="/603intheNCAA" class="feature-footer-link">See full NCAA list →</a>
             <a href="#" class="feature-footer-link secondary" id="collegeMailtoLink">Know someone? Let us know</a>
           </div>
         </div>
@@ -1027,11 +1027,24 @@
       const titles = champs.totalTitles || 0, runnerUps = champs.totalRunnerUp || 0, total = titles + runnerUps;
       if (total === 0) { container.innerHTML = ''; container.style.display = 'none'; return; }
       container.style.display = 'flex';
+      
+      // Count boys and girls titles
+      const boysTitles = (champs.boys || []).filter(g => g.result === 'champion').length;
+      const girlsTitles = (champs.girls || []).filter(g => g.result === 'champion').length;
+      let sublabelText = '';
+      if (boysTitles > 0 && girlsTitles > 0) {
+        sublabelText = `${boysTitles} Boys &#8211; ${girlsTitles} Girls`;
+      } else if (boysTitles > 0) {
+        sublabelText = `${boysTitles} Boys`;
+      } else if (girlsTitles > 0) {
+        sublabelText = `${girlsTitles} Girls`;
+      }
+      
       container.innerHTML = `
-        ${titles > 0 ? `<div class="team-hero-stats-primary"><div class="team-hero-stat championship"><span class="stat-icon">🏆</span><div class="stat-text"><span class="stat-value">${titles}</span><span class="stat-label">State Championship${titles !== 1 ? 's' : ''}</span><span class="stat-sublabel">Boys & Girls Combined</span></div></div></div>` : ''}
+        ${titles > 0 ? `<div class="team-hero-stats-primary"><div class="team-hero-stat championship"><span class="stat-icon">&#127942;</span><div class="stat-text"><span class="stat-value">${titles}</span><span class="stat-label">State Championship${titles !== 1 ? 's' : ''}</span><span class="stat-sublabel">${sublabelText}</span></div></div></div>` : ''}
         <div class="team-hero-stats-secondary">
-          ${runnerUps > 0 ? `<div class="team-hero-stat-small runner-up"><span class="stat-icon">🥈</span><span class="stat-value">${runnerUps}</span><span class="stat-label">Runner-Up${runnerUps !== 1 ? 's' : ''}</span></div>` : ''}
-          ${total > 0 ? `<div class="team-hero-stat-small finals"><span class="stat-icon">🏀</span><span class="stat-value">${total}</span><span class="stat-label">Title Game${total !== 1 ? 's' : ''}</span></div>` : ''}
+          ${runnerUps > 0 ? `<div class="team-hero-stat-small runner-up"><span class="stat-icon">&#129352;</span><span class="stat-value">${runnerUps}</span><span class="stat-label">Runner-Up${runnerUps !== 1 ? 's' : ''}</span></div>` : ''}
+          ${total > 0 ? `<div class="team-hero-stat-small finals"><span class="stat-icon">&#127936;</span><span class="stat-value">${total}</span><span class="stat-label">Title Game${total !== 1 ? 's' : ''}</span></div>` : ''}
         </div>`;
     }
 
@@ -1041,11 +1054,11 @@
       if (allGames.length === 0) { container.innerHTML = '<div class="empty-state"><p>No championship game appearances on record.</p></div>'; return; }
       const wins = allGames.filter(g => g.result === 'champion');
       container.innerHTML = `
-        ${wins.length > 0 ? `<div class="championship-cards-row">${wins.slice(0, 6).map(g => `<div class="championship-card"><div class="champ-year">${g.year}</div><div class="champ-trophy">🏆</div><div class="champ-division">${g.division}</div><div class="champ-gender">${g.gender || ''}</div><div class="champ-score">${g.champion_score} - ${g.runner_up_score}${g.overtime ? ' OT' : ''}</div><div class="champ-opponent">vs ${g.runner_up}</div></div>`).join('')}</div>` : ''}
+        ${wins.length > 0 ? `<div class="championship-cards-row">${wins.slice(0, 6).map(g => `<div class="championship-card"><div class="champ-year">${g.year}</div><div class="champ-trophy">&#127942;</div><div class="champ-gender">${g.gender || ''}</div><div class="champ-division">${g.division}</div><div class="champ-score-box"><span class="champ-score">${g.champion_score} - ${g.runner_up_score}${g.overtime ? ' OT' : ''}</span></div><div class="champ-opponent">vs ${g.runner_up}</div></div>`).join('')}</div>` : ''}
         <div class="history-timeline"><h3>All Title Game Appearances</h3><div class="timeline-list">${allGames.map(g => {
           const isChamp = g.result === 'champion', opp = isChamp ? g.runner_up : g.champion;
           const score = isChamp ? `${g.champion_score} - ${g.runner_up_score}` : `${g.runner_up_score} - ${g.champion_score}`;
-          return `<div class="timeline-item ${isChamp ? 'champion' : 'runner-up'}"><span class="timeline-year">${g.year}</span><span class="timeline-gender">${g.gender || ''}</span><span class="timeline-result">${isChamp ? '🏆 Champion' : '🥈 Runner-Up'}</span><span class="timeline-score">${score}${g.overtime ? ' OT' : ''}</span><span class="timeline-opponent">vs ${opp}</span></div>`;
+          return `<div class="timeline-item ${isChamp ? 'champion' : 'runner-up'}"><span class="timeline-year">${g.year}</span><span class="timeline-gender">${g.gender || ''}</span><span class="timeline-result">${isChamp ? '&#127942; Champion' : '&#129352; Runner-Up'}</span><span class="timeline-score">${score}${g.overtime ? ' OT' : ''}</span><span class="timeline-opponent">vs ${opp}</span></div>`;
         }).join('')}</div></div>`;
     }
 
