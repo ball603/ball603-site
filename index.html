@@ -876,6 +876,25 @@
       font-weight: 500;
     }
     
+    /* Photo Credit Overlay */
+    .photo-credit {
+      position: absolute;
+      bottom: 8px;
+      right: 8px;
+      background: rgba(255, 255, 255, 0.85);
+      color: #333;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 500;
+      z-index: 2;
+    }
+    
+    .story-image-wrap {
+      position: relative;
+      flex-shrink: 0;
+    }
+    
     /* Video Grid */
     .video-grid {
       display: flex;
@@ -1417,12 +1436,15 @@
       const heroFeatured = document.getElementById('heroFeatured');
       if (published.length > 0) {
         const featured = published[0];
+        const photographer = featured.photographer || featured.game_data?.photographer || featured.featured_image_caption || '';
+        const showAuthor = featured.author && featured.author !== 'Ball603 Staff';
         heroFeatured.innerHTML = `
           <img src="${featured.featured_image_url || PLACEHOLDER_IMG}" alt="${featured.title}">
+          ${photographer ? `<div class="photo-credit">📷 ${photographer}</div>` : ''}
           <div class="hero-overlay">
             <span class="hero-tag">${featured.youtube_url ? '&#127916; Video' : getTag(featured)}</span>
             <h2 class="hero-title">${featured.title}</h2>
-            <p class="hero-meta">${Ball603.formatDate(featured.published_at?.split('T')[0], 'short')} &#8226; ${featured.author || 'Ball603'}</p>
+            <p class="hero-meta">${Ball603.formatDate(featured.published_at?.split('T')[0], 'short')}${showAuthor ? ` &#8226; ${featured.author}` : ''}</p>
           </div>
         `;
         heroFeatured.onclick = () => Ball603.goToArticle(featured.slug);
@@ -1431,15 +1453,19 @@
       // Secondary articles
       const heroSidebar = document.getElementById('heroSidebar');
       if (published.length > 1) {
-        heroSidebar.innerHTML = published.slice(1, 3).map(article => `
-          <article class="hero-secondary" onclick="Ball603.goToArticle('${article.slug}')">
-            <img src="${article.featured_image_url || PLACEHOLDER_IMG}" alt="${article.title}">
-            <div class="hero-overlay">
-              <span class="hero-tag">${getTag(article)}</span>
-              <h2 class="hero-title">${article.title}</h2>
-            </div>
-          </article>
-        `).join('');
+        heroSidebar.innerHTML = published.slice(1, 3).map(article => {
+          const photographer = article.photographer || article.game_data?.photographer || article.featured_image_caption || '';
+          return `
+            <article class="hero-secondary" onclick="Ball603.goToArticle('${article.slug}')">
+              <img src="${article.featured_image_url || PLACEHOLDER_IMG}" alt="${article.title}">
+              ${photographer ? `<div class="photo-credit">📷 ${photographer}</div>` : ''}
+              <div class="hero-overlay">
+                <span class="hero-tag">${getTag(article)}</span>
+                <h2 class="hero-title">${article.title}</h2>
+              </div>
+            </article>
+          `;
+        }).join('');
       }
     }
     
@@ -1455,17 +1481,21 @@
         return;
       }
       
-      container.innerHTML = published.map(article => `
-        <article class="story-card" onclick="Ball603.goToArticle('${article.slug}')">
-          <img src="${article.featured_image_url || PLACEHOLDER_IMG}" alt="" class="story-image">
-          <div class="story-content">
-            <span class="story-tag">${getTag(article)}</span>
-            <h3 class="story-title">${article.title}</h3>
-            <p class="story-excerpt">${article.excerpt || ''}</p>
-            <p class="story-meta">${Ball603.formatDate(article.published_at?.split('T')[0], 'short')} &#8226; ${article.author || 'Ball603'}</p>
-          </div>
-        </article>
-      `).join('');
+      container.innerHTML = published.map(article => {
+        const photographer = article.photographer || article.game_data?.photographer || article.featured_image_caption || '';
+        return `
+          <article class="story-card" onclick="Ball603.goToArticle('${article.slug}')">
+            <div class="story-image-wrap">
+              <img src="${article.featured_image_url || PLACEHOLDER_IMG}" alt="" class="story-image">
+              ${photographer ? `<div class="photo-credit">📷 ${photographer}</div>` : ''}
+            </div>
+            <div class="story-content">
+              <h3 class="story-title">${article.title}</h3>
+              <p class="story-meta">📅 ${Ball603.formatDate(article.published_at?.split('T')[0], 'short')}</p>
+            </div>
+          </article>
+        `;
+      }).join('');
     }
     
     /**
@@ -1480,12 +1510,16 @@
         return;
       }
       
-      container.innerHTML = withPhotos.map(article => `
-        <div class="gallery-thumb" onclick="Ball603.goToArticle('${article.slug}')">
-          <img src="${article.featured_image_url}" alt="${article.title}">
-          <div class="gallery-thumb-overlay">${article.title.substring(0, 25)}${article.title.length > 25 ? '...' : ''}</div>
-        </div>
-      `).join('');
+      container.innerHTML = withPhotos.map(article => {
+        const photographer = article.photographer || article.game_data?.photographer || article.featured_image_caption || '';
+        return `
+          <div class="gallery-thumb" onclick="Ball603.goToArticle('${article.slug}')">
+            <img src="${article.featured_image_url}" alt="${article.title}">
+            ${photographer ? `<div class="photo-credit">📷 ${photographer}</div>` : ''}
+            <div class="gallery-thumb-overlay">${article.title.substring(0, 25)}${article.title.length > 25 ? '...' : ''}</div>
+          </div>
+        `;
+      }).join('');
     }
     
     /**
