@@ -128,6 +128,38 @@
       return teamName.split(/[\s-]+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join('') + '.png';
     }
     
+    function loadFavorites() {
+      try {
+        const saved = localStorage.getItem('ball603Favorites');
+        return saved ? JSON.parse(saved) : { teams: [], divisions: [] };
+      } catch { return { teams: [], divisions: [] }; }
+    }
+    
+    function getGamePriority(game) {
+      const favorites = loadFavorites();
+      if (favorites.teams?.length > 0) {
+        const homeLower = (game.home || '').toLowerCase();
+        const awayLower = (game.away || '').toLowerCase();
+        const homeMatch = favorites.teams.some(t => {
+          const favLower = t.toLowerCase();
+          return homeLower === favLower || homeLower.includes(favLower) || favLower.includes(homeLower);
+        });
+        const awayMatch = favorites.teams.some(t => {
+          const favLower = t.toLowerCase();
+          return awayLower === favLower || awayLower.includes(favLower) || favLower.includes(awayLower);
+        });
+        if (homeMatch || awayMatch) return 0;
+      }
+      if (favorites.divisions?.length > 0 && game.division) {
+        const divisionMap = { 'D1': ['D1', 'D-I'], 'D2': ['D2', 'D-II'], 'D3': ['D3', 'D-III'], 'D4': ['D4', 'D-IV'] };
+        for (const favDiv of favorites.divisions) {
+          const matches = divisionMap[favDiv] || [favDiv];
+          if (matches.includes(game.division)) return 1;
+        }
+      }
+      return 2;
+    }
+    
     function formatTime(timeStr) {
       if (!timeStr) return 'TBD';
       // Remove leading zero from hour (e.g., "05:00 PM" -> "5:00 PM")
@@ -160,8 +192,8 @@
       let games = allGames.filter(g => g.date === dateStr && (!level || g.level === level) && (!gender || g.gender === gender) && (!search || g.home.toLowerCase().includes(search) || g.away.toLowerCase().includes(search)));
       games.sort((a,b) => {
         // First by favorites priority
-        const priorityA = Ball603.getGamePriority ? Ball603.getGamePriority(a) : 2;
-        const priorityB = Ball603.getGamePriority ? Ball603.getGamePriority(b) : 2;
+        const priorityA = getGamePriority(a);
+        const priorityB = getGamePriority(b);
         if (priorityA !== priorityB) return priorityA - priorityB;
         // Then by time
         const pt = t => { if (!t) return 9999; const u = t.toUpperCase(); if (u === 'TBD' || u === 'TBA') return 9998; if (u === 'FINAL') return -1; const m = u.match(/(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?/i); if (!m) return 9997; let h = parseInt(m[1]); const min = parseInt(m[2]||'0'); if (m[3]==='PM' && h!==12) h+=12; if (m[3]==='AM' && h===12) h=0; return h*60+min; };
