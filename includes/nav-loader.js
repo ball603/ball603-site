@@ -300,14 +300,34 @@
       }
     }
     
+    console.log('All teams loaded:', teams.length);
+    
     // Filter to high school teams only and group by division
     const hsTeams = teams.filter(t => t.level === 'High School');
+    console.log('High school teams:', hsTeams.length);
+    
+    // Log unique divisions to see what format they're in
+    const divisions = [...new Set(hsTeams.map(t => t.division))];
+    console.log('Unique divisions found:', divisions);
+    
+    // Log a sample team to see structure
+    if (hsTeams.length > 0) {
+      console.log('Sample team:', hsTeams[0]);
+    }
+    
     const byDivision = {
       'D-I': hsTeams.filter(t => t.division === 'D-I').sort((a,b) => a.shortname.localeCompare(b.shortname)),
       'D-II': hsTeams.filter(t => t.division === 'D-II').sort((a,b) => a.shortname.localeCompare(b.shortname)),
       'D-III': hsTeams.filter(t => t.division === 'D-III').sort((a,b) => a.shortname.localeCompare(b.shortname)),
       'D-IV': hsTeams.filter(t => t.division === 'D-IV').sort((a,b) => a.shortname.localeCompare(b.shortname))
     };
+    
+    console.log('Teams by division:', {
+      'D-I': byDivision['D-I'].length,
+      'D-II': byDivision['D-II'].length,
+      'D-III': byDivision['D-III'].length,
+      'D-IV': byDivision['D-IV'].length
+    });
     
     // Store for filtering
     window._teamsForModal = byDivision;
