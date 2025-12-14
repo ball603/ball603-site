@@ -882,9 +882,6 @@
     
     /* More Headlines */
     .headline-item {
-      display: flex;
-      align-items: center;
-      gap: 10px;
       padding: 8px 0;
       border-bottom: 1px solid #f0f0f0;
     }
@@ -893,21 +890,12 @@
       border-bottom: none;
     }
     
-    .headline-logo {
-      width: 24px;
-      height: 24px;
-      border-radius: 4px;
-      object-fit: contain;
-      flex-shrink: 0;
-    }
-    
     .headline-link {
-      flex: 1;
       font-size: 13px;
       font-weight: 500;
       color: #333;
       text-decoration: none;
-      line-height: 1.3;
+      line-height: 1.4;
       display: -webkit-box;
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
@@ -1618,23 +1606,11 @@
         return;
       }
       
-      container.innerHTML = headlines.map(article => {
-        // Try to get winning team from game_data
-        const gameData = article.game_data || {};
-        let winningTeam = '';
-        if (gameData.homeScore && gameData.awayScore) {
-          winningTeam = parseInt(gameData.homeScore) > parseInt(gameData.awayScore) ? gameData.home : gameData.away;
-        } else if (gameData.home) {
-          winningTeam = gameData.home;
-        }
-        
-        return `
-          <div class="headline-item">
-            <img class="headline-logo" src="${Ball603.getLogoUrl(winningTeam)}" alt="" onerror="this.src='/logos/100px/Ball603-white.png'">
-            <a href="/article/${article.slug}" class="headline-link">${article.title}</a>
-          </div>
-        `;
-      }).join('');
+      container.innerHTML = headlines.map(article => `
+        <div class="headline-item">
+          <a href="/article/${article.slug}" class="headline-link">${article.title}</a>
+        </div>
+      `).join('');
     }
     
     /**
@@ -1644,6 +1620,12 @@
       const container = document.getElementById('latestVideo');
       
       try {
+        // Use Ball603.supabase client
+        if (!Ball603.supabase) {
+          container.innerHTML = '<p style="color: #999; text-align: center;">Videos coming soon</p>';
+          return;
+        }
+        
         const { data: videos, error } = await Ball603.supabase
           .from('youtube_videos')
           .select('*')
@@ -1659,9 +1641,9 @@
         const video = videos[0];
         // Extract video ID from URL
         let videoId = '';
-        if (video.url.includes('youtube.com/watch')) {
+        if (video.url && video.url.includes('youtube.com/watch')) {
           videoId = new URL(video.url).searchParams.get('v');
-        } else if (video.url.includes('youtu.be/')) {
+        } else if (video.url && video.url.includes('youtu.be/')) {
           videoId = video.url.split('youtu.be/')[1].split('?')[0];
         }
         
@@ -1681,6 +1663,7 @@
           `;
         }
       } catch (err) {
+        console.error('Error loading video:', err);
         container.innerHTML = '<p style="color: #999; text-align: center;">Videos coming soon</p>';
       }
     }
@@ -1690,6 +1673,7 @@
      */
     let standingsGender = 'Boys';
     let standingsDivision = 'D-I';
+    let allStandings = [];
     
     function setStandingsGender(gender) {
       standingsGender = gender;
@@ -1697,7 +1681,7 @@
       document.querySelectorAll('.gender-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.gender === gender);
       });
-      renderStandings();
+      renderStandingsData();
     }
     
     function setStandingsDivision(div) {
@@ -1706,72 +1690,57 @@
       document.querySelectorAll('.standings-tab').forEach(tab => {
         tab.classList.toggle('active', tab.dataset.div === div);
       });
-      renderStandings();
+      renderStandingsData();
+    }
+    
+    /**
+     * Load standings from Netlify function
+     */
+    async function renderStandings() {
+      const container = document.getElementById('standingsMini');
+      
+      try {
+        const response = await fetch('/.netlify/functions/get-standings');
+        const data = await response.json();
+        
+        if (data.standings && data.standings.length > 0) {
+          allStandings = data.standings;
+          renderStandingsData();
+        } else {
+          container.innerHTML = '<div class="standings-empty">No standings available</div>';
+        }
+      } catch (err) {
+        console.error('Error loading standings:', err);
+        container.innerHTML = '<div class="standings-empty">Unable to load standings</div>';
+      }
     }
     
     /**
      * Render standings based on selected gender and division
      */
-    function renderStandings() {
+    function renderStandingsData() {
       const container = document.getElementById('standingsMini');
-      const teams = Ball603.state?.teams || [];
-      const games = Ball603.state?.games || [];
       
-      // Filter teams by gender and division
-      const divisionTeams = teams.filter(t => 
-        t.gender === standingsGender && 
-        t.division === standingsDivision &&
-        t.active
+      // Filter standings by gender and division
+      const filtered = allStandings.filter(s => 
+        s.gender === standingsGender && 
+        s.division === standingsDivision
       );
       
-      if (divisionTeams.length === 0) {
+      if (filtered.length === 0) {
         container.innerHTML = '<div class="standings-empty">No standings available</div>';
         return;
       }
       
-      // Calculate records from games
-      const teamRecords = {};
-      divisionTeams.forEach(t => {
-        teamRecords[t.full_name] = { wins: 0, losses: 0, team: t };
-      });
-      
-      games.forEach(game => {
-        if (game.home_score == null || game.away_score == null) return;
-        if (game.gender !== standingsGender) return;
-        
-        const homeScore = parseInt(game.home_score);
-        const awayScore = parseInt(game.away_score);
-        
-        if (teamRecords[game.home_team]) {
-          if (homeScore > awayScore) teamRecords[game.home_team].wins++;
-          else teamRecords[game.home_team].losses++;
-        }
-        if (teamRecords[game.away_team]) {
-          if (awayScore > homeScore) teamRecords[game.away_team].wins++;
-          else teamRecords[game.away_team].losses++;
-        }
-      });
-      
-      // Sort by wins (desc), then losses (asc)
-      const sorted = Object.entries(teamRecords)
-        .map(([name, data]) => ({ name, ...data }))
-        .sort((a, b) => {
-          if (b.wins !== a.wins) return b.wins - a.wins;
-          return a.losses - b.losses;
-        })
-        .slice(0, 5);
-      
-      if (sorted.length === 0 || sorted.every(t => t.wins === 0 && t.losses === 0)) {
-        container.innerHTML = '<div class="standings-empty">Season standings coming soon</div>';
-        return;
-      }
+      // Sort by power rating (descending)
+      const sorted = filtered.sort((a, b) => (b.power_rating || 0) - (a.power_rating || 0)).slice(0, 5);
       
       container.innerHTML = sorted.map((s, i) => `
         <div class="standings-row">
           <span class="standings-rank">${i + 1}</span>
-          <img class="standings-logo" src="${Ball603.getLogoUrl(s.name)}" alt="" onerror="this.src='/logos/100px/Ball603-white.png'">
-          <a href="/team/${s.team?.slug || ''}" class="standings-team-link">${Ball603.getShortName(s.name)}</a>
-          <span class="standings-record">${s.wins}-${s.losses}</span>
+          <img class="standings-logo" src="${Ball603.getLogoUrl(s.school)}" alt="" onerror="this.src='/logos/100px/Ball603-white.png'">
+          <a href="/team/${Ball603.getTeamSlug ? Ball603.getTeamSlug(s.school, standingsGender) : ''}" class="standings-team-link">${Ball603.getShortName(s.school)}</a>
+          <span class="standings-record">${s.wins || 0}-${s.losses || 0}</span>
         </div>
       `).join('');
     }
