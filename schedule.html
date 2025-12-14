@@ -159,6 +159,11 @@
       const dateStr = getDateString(currentDate);
       let games = allGames.filter(g => g.date === dateStr && (!level || g.level === level) && (!gender || g.gender === gender) && (!search || g.home.toLowerCase().includes(search) || g.away.toLowerCase().includes(search)));
       games.sort((a,b) => {
+        // First by favorites priority
+        const priorityA = Ball603.getGamePriority ? Ball603.getGamePriority(a) : 2;
+        const priorityB = Ball603.getGamePriority ? Ball603.getGamePriority(b) : 2;
+        if (priorityA !== priorityB) return priorityA - priorityB;
+        // Then by time
         const pt = t => { if (!t) return 9999; const u = t.toUpperCase(); if (u === 'TBD' || u === 'TBA') return 9998; if (u === 'FINAL') return -1; const m = u.match(/(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?/i); if (!m) return 9997; let h = parseInt(m[1]); const min = parseInt(m[2]||'0'); if (m[3]==='PM' && h!==12) h+=12; if (m[3]==='AM' && h===12) h=0; return h*60+min; };
         return pt(a.time) - pt(b.time);
       });
