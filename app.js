@@ -68,17 +68,36 @@ async function fetchArticles(limit = 20) {
     
     if (error) throw error;
     
-    // Sort by article_date first, fallback to published_at
-    // Pinned articles stay at top
+    // Helper to get sortable date string (YYYY-MM-DD)
+    function getDateString(article) {
+      if (article.article_date) {
+        return article.article_date; // Already YYYY-MM-DD
+      }
+      if (article.published_at) {
+        return article.published_at.split('T')[0]; // Extract date part
+      }
+      return '1970-01-01';
+    }
+    
+    // Sort: pinned first, then by date (newest first)
+    // For same date, use published_at time as tiebreaker
     const articles = (data || []).sort((a, b) => {
       // Pinned articles first
       if (a.pinned && !b.pinned) return -1;
       if (!a.pinned && b.pinned) return 1;
       
-      // Then sort by article_date (or published_at as fallback)
-      const dateA = new Date(a.article_date || a.published_at || 0);
-      const dateB = new Date(b.article_date || b.published_at || 0);
-      return dateB - dateA; // Newest first
+      // Compare by date string (YYYY-MM-DD sorts correctly as string)
+      const dateA = getDateString(a);
+      const dateB = getDateString(b);
+      
+      if (dateA !== dateB) {
+        return dateB.localeCompare(dateA); // Newest date first
+      }
+      
+      // Same date - use published_at timestamp as tiebreaker
+      const timeA = a.published_at ? new Date(a.published_at).getTime() : 0;
+      const timeB = b.published_at ? new Date(b.published_at).getTime() : 0;
+      return timeB - timeA; // Most recently published first
     });
     
     state.articles = articles;

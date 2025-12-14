@@ -521,7 +521,18 @@
       return str.substring(0, len).trim() + '...';
     }
     
-    // Get the effective date for an article (article_date takes priority)
+    // Get the effective date string for an article (YYYY-MM-DD format)
+    function getArticleDateString(article) {
+      if (article.article_date) {
+        return article.article_date; // Already YYYY-MM-DD
+      }
+      if (article.published_at) {
+        return article.published_at.split('T')[0]; // Extract date part
+      }
+      return '1970-01-01';
+    }
+    
+    // Get full date for display purposes
     function getArticleDate(article) {
       return article.article_date || article.published_at || null;
     }
@@ -692,18 +703,25 @@
         return matchesSearch && matchesTag && matchesTeam;
       });
       
-      // Sort by article_date (priority) or published_at (fallback)
+      // Sort by date string (YYYY-MM-DD compares correctly as string)
+      // For same date, use published_at time as tiebreaker
       filteredArticles.sort((a, b) => {
-        const dateA = new Date(getArticleDate(a) || 0);
-        const dateB = new Date(getArticleDate(b) || 0);
+        const dateA = getArticleDateString(a);
+        const dateB = getArticleDateString(b);
         
-        switch (sortValue) {
-          case 'oldest':
-            return dateA - dateB;
-          case 'newest':
-          default:
-            return dateB - dateA;
+        // Primary sort by date
+        let comparison;
+        if (dateA !== dateB) {
+          comparison = dateB.localeCompare(dateA); // Newest date first
+        } else {
+          // Same date - use published_at timestamp as tiebreaker
+          const timeA = a.published_at ? new Date(a.published_at).getTime() : 0;
+          const timeB = b.published_at ? new Date(b.published_at).getTime() : 0;
+          comparison = timeB - timeA; // Most recently published first
         }
+        
+        // Reverse for oldest first
+        return sortValue === 'oldest' ? -comparison : comparison;
       });
       
       currentPage = 1;
