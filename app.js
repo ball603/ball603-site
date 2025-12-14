@@ -181,11 +181,10 @@ const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 /**
- * Get today's date string (YYYY-MM-DD)
+ * Get today's date string in EST (YYYY-MM-DD)
  */
 function getTodayString() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
 }
 
 /**
@@ -424,7 +423,7 @@ function getTodaysGames() {
 function getCompletedGames(daysBack = 3) {
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - daysBack);
-  const startStr = startDate.toISOString().split('T')[0];
+  const startStr = startDate.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
   
   const completed = state.games.filter(g => {
     const hasScore = g.homeScore !== null && g.awayScore !== null && 
@@ -442,7 +441,7 @@ function getUpcomingGames(days = 7) {
   const today = getTodayString();
   const endDate = new Date();
   endDate.setDate(endDate.getDate() + days);
-  const endStr = endDate.toISOString().split('T')[0];
+  const endStr = endDate.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
   
   const upcoming = state.games.filter(g => g.date >= today && g.date <= endStr);
   
