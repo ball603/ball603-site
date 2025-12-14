@@ -318,14 +318,24 @@ function getGamePriority(game) {
   
   // Check if either team is a favorite
   if (favorites.teams?.length > 0) {
-    const homeMatch = favorites.teams.some(t => 
-      game.home === t || game.home_team === t || 
-      game.home?.toLowerCase() === t.toLowerCase()
-    );
-    const awayMatch = favorites.teams.some(t => 
-      game.away === t || game.away_team === t || 
-      game.away?.toLowerCase() === t.toLowerCase()
-    );
+    const homeLower = (game.home || '').toLowerCase();
+    const awayLower = (game.away || '').toLowerCase();
+    
+    const homeMatch = favorites.teams.some(t => {
+      const favLower = t.toLowerCase();
+      // Check exact match, or if one contains the other
+      return homeLower === favLower || 
+             homeLower.includes(favLower) || 
+             favLower.includes(homeLower);
+    });
+    
+    const awayMatch = favorites.teams.some(t => {
+      const favLower = t.toLowerCase();
+      return awayLower === favLower || 
+             awayLower.includes(favLower) || 
+             favLower.includes(awayLower);
+    });
+    
     if (homeMatch || awayMatch) return 0;
   }
   
