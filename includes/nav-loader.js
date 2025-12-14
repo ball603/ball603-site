@@ -302,35 +302,26 @@
     
     console.log('All teams loaded:', teams.length);
     
-    // Filter to high school teams only and group by division
+    // Filter to high school teams only
     const hsTeams = teams.filter(t => t.level === 'High School');
     console.log('High school teams:', hsTeams.length);
     
-    // Log unique divisions to see what format they're in
-    const divisions = [...new Set(hsTeams.map(t => t.division))];
-    console.log('Unique divisions found:', divisions);
-    
-    // Log a sample team to see structure
-    if (hsTeams.length > 0) {
-      console.log('Sample team:', hsTeams[0]);
+    // Deduplicate by shortname (teams have separate Boys/Girls records)
+    const uniqueTeams = [];
+    const seen = new Set();
+    for (const team of hsTeams) {
+      if (!seen.has(team.shortname)) {
+        seen.add(team.shortname);
+        uniqueTeams.push(team);
+      }
     }
     
-    const byDivision = {
-      'D1': hsTeams.filter(t => t.division === 'D1').sort((a,b) => a.shortname.localeCompare(b.shortname)),
-      'D2': hsTeams.filter(t => t.division === 'D2').sort((a,b) => a.shortname.localeCompare(b.shortname)),
-      'D3': hsTeams.filter(t => t.division === 'D3').sort((a,b) => a.shortname.localeCompare(b.shortname)),
-      'D4': hsTeams.filter(t => t.division === 'D4').sort((a,b) => a.shortname.localeCompare(b.shortname))
-    };
+    // Sort alphabetically
+    uniqueTeams.sort((a, b) => a.shortname.localeCompare(b.shortname));
+    console.log('Unique teams:', uniqueTeams.length);
     
-    console.log('Teams by division:', {
-      'D1': byDivision['D1'].length,
-      'D2': byDivision['D2'].length,
-      'D3': byDivision['D3'].length,
-      'D4': byDivision['D4'].length
-    });
-    
-    // Store for filtering
-    window._teamsForModal = byDivision;
+    // Store flat list for filtering
+    window._teamsForModal = uniqueTeams;
     
     renderTeamsList();
     renderSelectedTags();
@@ -338,39 +329,30 @@
 
   function renderTeamsList(filter = '') {
     const listContainer = document.getElementById('favoritesTeamsList');
-    const byDivision = window._teamsForModal || {};
+    const allTeams = window._teamsForModal || [];
     const selectedTeams = window._tempSelectedTeams || [];
     
-    let html = '';
+    const filteredTeams = filter 
+      ? allTeams.filter(t => t.shortname.toLowerCase().includes(filter) || t.full_name?.toLowerCase().includes(filter))
+      : allTeams;
     
-    for (const [division, teams] of Object.entries(byDivision)) {
-      const filteredTeams = filter 
-        ? teams.filter(t => t.shortname.toLowerCase().includes(filter) || t.full_name?.toLowerCase().includes(filter))
-        : teams;
-      
-      if (filteredTeams.length === 0) continue;
-      
-      html += `<div class="favorites-division-group" data-division="${division}">`;
-      html += `<div class="favorites-division-header">${division}</div>`;
-      
-      for (const team of filteredTeams) {
-        const isSelected = selectedTeams.includes(team.shortname);
-        const logoFilename = team.logo_filename || (team.shortname.replace(/[^a-zA-Z0-9]/g, '') + '.png');
-        
-        html += `
-          <div class="favorites-team-item ${isSelected ? 'selected' : ''}" data-team="${team.shortname}">
-            <img class="favorites-team-logo" src="/logos/100px/${logoFilename}" alt="" onerror="this.style.display='none'">
-            <span class="favorites-team-name">${team.shortname}</span>
-            <span class="favorites-team-check"></span>
-          </div>
-        `;
-      }
-      
-      html += '</div>';
+    if (filteredTeams.length === 0) {
+      listContainer.innerHTML = '<div class="favorites-no-results">No teams found</div>';
+      return;
     }
     
-    if (!html) {
-      html = '<div class="favorites-no-results">No teams found</div>';
+    let html = '';
+    for (const team of filteredTeams) {
+      const isSelected = selectedTeams.includes(team.shortname);
+      const logoFilename = team.logo_filename || (team.shortname.replace(/[^a-zA-Z0-9]/g, '') + '.png');
+      
+      html += `
+        <div class="favorites-team-item ${isSelected ? 'selected' : ''}" data-team="${team.shortname}">
+          <img class="favorites-team-logo" src="/logos/100px/${logoFilename}" alt="" onerror="this.style.display='none'">
+          <span class="favorites-team-name">${team.shortname}</span>
+          <span class="favorites-team-check"></span>
+        </div>
+      `;
     }
     
     listContainer.innerHTML = html;
@@ -430,10 +412,10 @@
 
   function saveFavoritesFromModal() {
     const divisions = [];
-    if (document.getElementById('favDiv1').checked) divisions.push('D-I');
-    if (document.getElementById('favDiv2').checked) divisions.push('D-II');
-    if (document.getElementById('favDiv3').checked) divisions.push('D-III');
-    if (document.getElementById('favDiv4').checked) divisions.push('D-IV');
+    if (document.getElementById('favDiv1').checked) divisions.push('D1');
+    if (document.getElementById('favDiv2').checked) divisions.push('D2');
+    if (document.getElementById('favDiv3').checked) divisions.push('D3');
+    if (document.getElementById('favDiv4').checked) divisions.push('D4');
     
     const teams = window._tempSelectedTeams || [];
     
