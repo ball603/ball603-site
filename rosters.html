@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Ball603 - New Hampshire High School Basketball Team Rosters">
+  <meta name="theme-color" content="#f57c00">
+  <title>Rosters | Ball603</title>
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="apple-touch-icon" href="/logo.png">
+  
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <!-- Shared Styles -->
+  <link rel="stylesheet" href="/styles.css">
+  
+  <style>
+    /* ===== ROSTERS PAGE STYLES ===== */
+    
+    .rosters-page {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    .rosters-header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    
+    .rosters-title {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+    }
+    
+    .rosters-subtitle {
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+    
+    /* Gender Toggle */
+    .gender-toggle {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    
+    .gender-btn {
+      padding: 12px 32px;
+      font-size: 15px;
+      font-weight: 700;
+      border: 2px solid var(--border-color);
+      background: var(--bg-card);
+      color: var(--text-secondary);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .gender-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    
+    .gender-btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+    }
+    
+    /* Team Selector */
+    .team-selector {
+      max-width: 400px;
+      margin: 0 auto 24px;
+    }
+    
+    .team-select {
+      width: 100%;
+      padding: 14px 16px;
+      font-size: 15px;
+      font-weight: 500;
+      border: 2px solid var(--border-color);
+      border-radius: 8px;
+      background: var(--bg-card);
+      color: var(--text-primary);
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      background-size: 20px;
+    }
+    
+    .team-select:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    
+    /* Roster Card */
+    .roster-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    
+    .roster-card-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 20px;
+      background: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .roster-team-logo {
+      width: 64px;
+      height: 64px;
+      object-fit: contain;
+      border-radius: 8px;
+    }
+    
+    .roster-team-info {
+      flex: 1;
+    }
+    
+    .roster-team-name {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    
+    .roster-team-meta {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+    
+    .roster-table-wrap {
+      overflow-x: auto;
+    }
+    
+    .roster-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    .roster-table th,
+    .roster-table td {
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .roster-table th {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      background: var(--bg-tertiary);
+    }
+    
+    .roster-table td {
+      font-size: 14px;
+      color: var(--text-primary);
+    }
+    
+    .roster-table tbody tr:hover {
+      background: var(--bg-tertiary);
+    }
+    
+    .roster-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+    
+    .roster-table .number {
+      font-weight: 700;
+      color: var(--accent);
+      width: 50px;
+    }
+    
+    .roster-table .name {
+      font-weight: 600;
+    }
+    
+    .roster-table .position,
+    .roster-table .year,
+    .roster-table .height {
+      color: var(--text-secondary);
+    }
+    
+    /* Empty/Loading States */
+    .roster-empty {
+      padding: 60px 20px;
+      text-align: center;
+      color: var(--text-muted);
+    }
+    
+    .roster-empty-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+    
+    .roster-empty p {
+      font-size: 15px;
+    }
+    
+    .roster-loading {
+      padding: 60px 20px;
+      text-align: center;
+    }
+    
+    .roster-loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--border-color);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    /* Mobile */
+    @media (max-width: 600px) {
+      .rosters-title {
+        font-size: 24px;
+      }
+      
+      .gender-btn {
+        padding: 10px 20px;
+        font-size: 14px;
+      }
+      
+      .roster-card-header {
+        padding: 16px;
+      }
+      
+      .roster-team-logo {
+        width: 48px;
+        height: 48px;
+      }
+      
+      .roster-team-name {
+        font-size: 18px;
+      }
+      
+      .roster-table th,
+      .roster-table td {
+        padding: 10px 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  
+  <!-- Header loaded via JS -->
+  <div id="header-placeholder"></div>
+  <div id="mobile-menu-placeholder"></div>
+  <div id="favorites-modal-placeholder"></div>
+  
+  <!-- Main Content -->
+  <main class="rosters-page">
+    
+    <div class="rosters-header">
+      <h1 class="rosters-title">Team Rosters</h1>
+      <p class="rosters-subtitle">2024-25 New Hampshire High School Basketball</p>
+    </div>
+    
+    <!-- Gender Toggle -->
+    <div class="gender-toggle">
+      <button class="gender-btn active" id="boysBtn" onclick="selectGender('Boys')">Boys</button>
+      <button class="gender-btn" id="girlsBtn" onclick="selectGender('Girls')">Girls</button>
+    </div>
+    
+    <!-- Team Selector -->
+    <div class="team-selector">
+      <select class="team-select" id="teamSelect" onchange="loadRoster()">
+        <option value="">Select a team...</option>
+      </select>
+    </div>
+    
+    <!-- Roster Display -->
+    <div class="roster-card" id="rosterCard" style="display: none;">
+      <div class="roster-card-header">
+        <img id="rosterLogo" class="roster-team-logo" src="/logo.png" alt="">
+        <div class="roster-team-info">
+          <div class="roster-team-name" id="rosterTeamName">Team Name</div>
+          <div class="roster-team-meta" id="rosterTeamMeta">Division</div>
+        </div>
+      </div>
+      <div class="roster-table-wrap">
+        <table class="roster-table">
+          <thead>
+            <tr>
+              <th class="number">#</th>
+              <th class="name">Name</th>
+              <th class="position">Pos</th>
+              <th class="year">Year</th>
+              <th class="height">Height</th>
+            </tr>
+          </thead>
+          <tbody id="rosterBody">
+          </tbody>
+        </table>
+      </div>
+    </div>
+    
+    <!-- Empty State -->
+    <div class="roster-empty" id="rosterEmpty">
+      <div class="roster-empty-icon">&#127936;</div>
+      <p>Select a team above to view their roster</p>
+    </div>
+    
+    <!-- Loading State -->
+    <div class="roster-loading" id="rosterLoading" style="display: none;">
+      <div class="roster-loading-spinner"></div>
+      <p>Loading roster...</p>
+    </div>
+    
+  </main>
+  
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="footer-logo">
+      <img src="/logo.png" alt="Ball603">
+    </div>
+    <div class="footer-links">
+      <a href="/about">About Us</a>
+      <a href="/contact">Contact</a>
+    </div>
+    <div class="footer-social">
+      <a href="https://facebook.com/ball603" target="_blank" title="Facebook">
+        <svg viewBox="0 0 24 24"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+      </a>
+      <a href="https://www.instagram.com/ball603nh/" target="_blank" title="Instagram">
+        <svg viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+      </a>
+      <a href="https://x.com/Ball603NH" target="_blank" title="X (Twitter)">
+        <svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+      </a>
+    </div>
+    <p class="footer-copyright">&copy; 2025 Ball603. All rights reserved.</p>
+  </footer>
+  
+  <!-- Shared JS -->
+  <script src="/app.js"></script>
+  
+  <!-- Nav Loader -->
+  <script src="/includes/nav-loader.js"></script>
+  
+  <!-- Rosters Page JS -->
+  <script>
+    // ===== SUPABASE CLIENT =====
+    const SUPABASE_URL = 'https://suncdkxfqkwwnmhosxcf.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN1bmNka3hmcWt3d25taG9zeGNmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwNTk4MzIsImV4cCI6MjA4MDYzNTgzMn0.aT6V8Zx_YozqOh1ZnC6x-czI9vo-QhHKmP69PgY-8xw';
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    
+    // ===== STATE =====
+    let currentGender = 'Boys';
+    let allTeams = [];
+    let allRosters = [];
+    
+    // ===== INITIALIZATION =====
+    document.addEventListener('DOMContentLoaded', async () => {
+      await loadTeams();
+      await loadAllRosters();
+      populateTeamDropdown();
+    });
+    
+    // ===== LOAD TEAMS =====
+    async function loadTeams() {
+      try {
+        const { data: teams, error } = await supabase
+          .from('teams')
+          .select('*')
+          .eq('level', 'High School')
+          .eq('active', true)
+          .order('shortname');
+        
+        if (error) throw error;
+        allTeams = teams || [];
+      } catch (err) {
+        console.error('Error loading teams:', err);
+      }
+    }
+    
+    // ===== LOAD ALL ROSTERS =====
+    async function loadAllRosters() {
+      try {
+        const { data: rosters, error } = await supabase
+          .from('roster_submissions')
+          .select('*')
+          .eq('status', 'approved');
+        
+        if (error) throw error;
+        allRosters = rosters || [];
+      } catch (err) {
+        console.error('Error loading rosters:', err);
+      }
+    }
+    
+    // ===== POPULATE TEAM DROPDOWN =====
+    function populateTeamDropdown() {
+      const select = document.getElementById('teamSelect');
+      const filteredTeams = allTeams.filter(t => t.gender === currentGender);
+      
+      // Get unique shortnames
+      const seen = new Set();
+      const uniqueTeams = filteredTeams.filter(t => {
+        if (seen.has(t.shortname)) return false;
+        seen.add(t.shortname);
+        return true;
+      });
+      
+      // Sort alphabetically
+      uniqueTeams.sort((a, b) => a.shortname.localeCompare(b.shortname));
+      
+      select.innerHTML = '<option value="">Select a team...</option>' + 
+        uniqueTeams.map(t => `<option value="${t.shortname}">${t.shortname}</option>`).join('');
+      
+      // Reset display
+      document.getElementById('rosterCard').style.display = 'none';
+      document.getElementById('rosterEmpty').style.display = 'block';
+    }
+    
+    // ===== SELECT GENDER =====
+    function selectGender(gender) {
+      currentGender = gender;
+      
+      // Update buttons
+      document.getElementById('boysBtn').classList.toggle('active', gender === 'Boys');
+      document.getElementById('girlsBtn').classList.toggle('active', gender === 'Girls');
+      
+      // Repopulate dropdown
+      populateTeamDropdown();
+    }
+    
+    // ===== LOAD ROSTER =====
+    async function loadRoster() {
+      const select = document.getElementById('teamSelect');
+      const teamName = select.value;
+      
+      if (!teamName) {
+        document.getElementById('rosterCard').style.display = 'none';
+        document.getElementById('rosterEmpty').style.display = 'block';
+        document.getElementById('rosterLoading').style.display = 'none';
+        return;
+      }
+      
+      // Show loading
+      document.getElementById('rosterCard').style.display = 'none';
+      document.getElementById('rosterEmpty').style.display = 'none';
+      document.getElementById('rosterLoading').style.display = 'block';
+      
+      // Find roster
+      const roster = allRosters.find(r => {
+        const normalizedSchool = (r.school || '').toLowerCase().trim();
+        const normalizedTeam = teamName.toLowerCase().trim();
+        return normalizedSchool === normalizedTeam && r.gender === currentGender;
+      });
+      
+      // Find team info
+      const team = allTeams.find(t => t.shortname === teamName && t.gender === currentGender);
+      
+      // Hide loading
+      document.getElementById('rosterLoading').style.display = 'none';
+      
+      if (!roster || !roster.players || roster.players.length === 0) {
+        document.getElementById('rosterEmpty').style.display = 'block';
+        document.getElementById('rosterEmpty').innerHTML = `
+          <div class="roster-empty-icon">&#128203;</div>
+          <p>No roster available for ${teamName}</p>
+          <p style="font-size: 13px; margin-top: 8px; color: #888;">Coaches can submit rosters via our <a href="/roster-submission-form" style="color: var(--accent);">submission form</a></p>
+        `;
+        return;
+      }
+      
+      // Update header
+      document.getElementById('rosterLogo').src = Ball603.getLogoUrl(teamName);
+      document.getElementById('rosterLogo').onerror = function() { this.src = '/logo.png'; };
+      document.getElementById('rosterTeamName').textContent = team?.full_name || teamName;
+      document.getElementById('rosterTeamMeta').textContent = `${currentGender} ${team?.division || ''} Basketball`;
+      
+      // Render players
+      const tbody = document.getElementById('rosterBody');
+      const players = roster.players.sort((a, b) => {
+        // Sort by number (numeric)
+        const numA = parseInt(a.number) || 999;
+        const numB = parseInt(b.number) || 999;
+        return numA - numB;
+      });
+      
+      tbody.innerHTML = players.map(p => `
+        <tr>
+          <td class="number">${p.number || '-'}</td>
+          <td class="name">${p.name || ''}</td>
+          <td class="position">${p.position || '-'}</td>
+          <td class="year">${p.year || '-'}</td>
+          <td class="height">${p.height || '-'}</td>
+        </tr>
+      `).join('');
+      
+      // Show roster
+      document.getElementById('rosterCard').style.display = 'block';
+    }
+  </script>
+  
+</body>
+</html>
