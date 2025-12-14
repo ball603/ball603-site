@@ -616,20 +616,20 @@
     
     /* ===== STORY CARDS ===== */
     .stories-list {
-      display: flex;
-      flex-direction: column;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
       gap: 20px;
     }
     
     .story-card {
       display: flex;
-      gap: 16px;
-      padding: 16px;
+      flex-direction: column;
       background: white;
       border-radius: 10px;
       border: 1px solid #e8e8e8;
       cursor: pointer;
       transition: all 0.2s;
+      overflow: hidden;
     }
     
     .story-card:hover {
@@ -638,14 +638,14 @@
     }
     
     .story-image {
-      width: 140px;
-      height: 90px;
-      border-radius: 8px;
+      width: 100%;
+      height: 160px;
       object-fit: cover;
       flex-shrink: 0;
     }
     
     .story-content {
+      padding: 14px;
       flex: 1;
       min-width: 0;
     }
@@ -684,9 +684,19 @@
     .story-meta {
       font-size: 12px;
       color: #999;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    
+    .story-photographer {
+      color: #666;
     }
     
     @media (max-width: 600px) {
+      .stories-list {
+        grid-template-columns: 1fr;
+      }
       .story-card {
         flex-direction: column;
       }
@@ -1476,7 +1486,7 @@
      */
     function renderStories(articles) {
       const container = document.getElementById('storiesList');
-      const published = articles.filter(a => a.status === 'published').slice(3, 9);
+      const published = articles.filter(a => a.status === 'published').slice(3, 23);
       
       if (published.length === 0) {
         container.innerHTML = '<div class="empty-state"><p>No stories yet</p></div>';
@@ -1487,16 +1497,17 @@
         const photographer = article.photographer || article.game_data?.photographerName || '';
         const displayDate = article.article_date || article.published_at?.split('T')[0] || '';
         const excerptHtml = article.excerpt ? `<p class="story-excerpt">${article.excerpt}</p>` : '';
+        const photographerHtml = photographer ? `<span class="story-photographer">&#128247; ${photographer}</span>` : '';
         return `
           <article class="story-card" onclick="Ball603.goToArticle('${article.slug}')">
-            <div class="story-image-wrap">
-              <img src="${article.featured_image_url || PLACEHOLDER_IMG}" alt="" class="story-image">
-              ${photographer ? `<div class="photo-credit">&#128247; ${photographer}</div>` : ''}
-            </div>
+            <img src="${article.featured_image_url || PLACEHOLDER_IMG}" alt="" class="story-image">
             <div class="story-content">
               <h3 class="story-title">${article.title}</h3>
               ${excerptHtml}
-              <p class="story-meta">&#128197; ${Ball603.formatDate(displayDate, 'short')}</p>
+              <div class="story-meta">
+                ${photographerHtml}
+                <span>&#128197; ${Ball603.formatDate(displayDate, 'short')}</span>
+              </div>
             </div>
           </article>
         `;

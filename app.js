@@ -68,13 +68,7 @@ async function fetchArticles(limit = 20) {
       .order('created_at', { ascending: false })
       .limit(100);
     
-    if (error) {
-      console.error('Error fetching articles:', error);
-      throw error;
-    }
-    
-    console.log('=== ARTICLES DEBUG ===');
-    console.log('Total articles fetched:', (data || []).length);
+    if (error) throw error;
     
     // Helper to get sortable date string (YYYY-MM-DD)
     function getDateString(article) {
