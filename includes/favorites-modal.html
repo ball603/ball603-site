@@ -1,0 +1,520 @@
+<!-- Favorites Modal -->
+<div class="favorites-modal-overlay" id="favoritesOverlay"></div>
+<div class="favorites-modal" id="favoritesModal">
+  <div class="favorites-modal-header">
+    <h2>My Teams</h2>
+    <button class="favorites-modal-close" id="favoritesClose" aria-label="Close">
+      <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
+        <line x1="18" y1="6" x2="6" y2="18"/>
+        <line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+    </button>
+  </div>
+  
+  <div class="favorites-modal-body">
+    <p class="favorites-intro">Select your favorite teams and divisions. Their games will appear first in the scores ticker and schedule.</p>
+    
+    <!-- Divisions Section -->
+    <div class="favorites-section">
+      <h3>Divisions</h3>
+      <div class="favorites-divisions">
+        <label class="favorites-checkbox">
+          <input type="checkbox" id="favDiv1" value="D-I">
+          <span class="checkbox-mark"></span>
+          <span class="checkbox-label">Division I</span>
+        </label>
+        <label class="favorites-checkbox">
+          <input type="checkbox" id="favDiv2" value="D-II">
+          <span class="checkbox-mark"></span>
+          <span class="checkbox-label">Division II</span>
+        </label>
+        <label class="favorites-checkbox">
+          <input type="checkbox" id="favDiv3" value="D-III">
+          <span class="checkbox-mark"></span>
+          <span class="checkbox-label">Division III</span>
+        </label>
+        <label class="favorites-checkbox">
+          <input type="checkbox" id="favDiv4" value="D-IV">
+          <span class="checkbox-mark"></span>
+          <span class="checkbox-label">Division IV</span>
+        </label>
+      </div>
+    </div>
+    
+    <!-- Teams Section -->
+    <div class="favorites-section">
+      <h3>Teams</h3>
+      <div class="favorites-search-wrap">
+        <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" class="favorites-search-icon">
+          <circle cx="11" cy="11" r="8"/>
+          <path d="m21 21-4.35-4.35"/>
+        </svg>
+        <input type="text" id="favoritesTeamSearch" placeholder="Search teams..." class="favorites-search">
+        <button id="favoritesClearSearch" class="favorites-clear-search" style="display: none;">&times;</button>
+      </div>
+      
+      <div class="favorites-selected" id="favoritesSelected">
+        <!-- Selected teams shown here as tags -->
+      </div>
+      
+      <div class="favorites-teams-list" id="favoritesTeamsList">
+        <!-- Teams grouped by division, populated by JS -->
+        <div class="favorites-loading">Loading teams...</div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="favorites-modal-footer">
+    <button class="favorites-btn-clear" id="favoritesClearAll">Clear All</button>
+    <button class="favorites-btn-save" id="favoritesSave">Save Favorites</button>
+  </div>
+</div>
+
+<style>
+  .favorites-modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 9998;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  
+  .favorites-modal-overlay.active {
+    display: block;
+    opacity: 1;
+  }
+  
+  .favorites-modal {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.95);
+    background: white;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 500px;
+    max-height: 85vh;
+    z-index: 9999;
+    opacity: 0;
+    transition: opacity 0.2s, transform 0.2s;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .favorites-modal.active {
+    display: flex;
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  
+  .favorites-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid #eee;
+    flex-shrink: 0;
+  }
+  
+  .favorites-modal-header h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .favorites-modal-header h2::before {
+    content: '';
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    background: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' fill='%23f57c00' xmlns='http://www.w3.org/2000/svg'%3E%3Cpolygon points='12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2'/%3E%3C/svg%3E") center/contain no-repeat;
+  }
+  
+  .favorites-modal-close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    color: #666;
+  }
+  
+  .favorites-modal-close:hover {
+    color: #333;
+  }
+  
+  .favorites-modal-close svg {
+    width: 24px;
+    height: 24px;
+  }
+  
+  .favorites-modal-body {
+    padding: 20px;
+    overflow-y: auto;
+    flex: 1;
+  }
+  
+  .favorites-intro {
+    color: #666;
+    font-size: 14px;
+    margin: 0 0 20px 0;
+    line-height: 1.5;
+  }
+  
+  .favorites-section {
+    margin-bottom: 24px;
+  }
+  
+  .favorites-section:last-child {
+    margin-bottom: 0;
+  }
+  
+  .favorites-section h3 {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #999;
+    margin: 0 0 12px 0;
+  }
+  
+  .favorites-divisions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  
+  .favorites-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: #f8f8f8;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  
+  .favorites-checkbox:hover {
+    background: #f0f0f0;
+  }
+  
+  .favorites-checkbox input {
+    display: none;
+  }
+  
+  .checkbox-mark {
+    width: 20px;
+    height: 20px;
+    border: 2px solid #ddd;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+  
+  .favorites-checkbox input:checked + .checkbox-mark {
+    background: var(--accent, #f57c00);
+    border-color: var(--accent, #f57c00);
+  }
+  
+  .favorites-checkbox input:checked + .checkbox-mark::after {
+    content: '';
+    width: 6px;
+    height: 10px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg) translate(-1px, -1px);
+  }
+  
+  .checkbox-label {
+    font-size: 14px;
+    color: #333;
+  }
+  
+  .favorites-search-wrap {
+    position: relative;
+    margin-bottom: 12px;
+  }
+  
+  .favorites-search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 18px;
+    height: 18px;
+    color: #999;
+  }
+  
+  .favorites-search {
+    width: 100%;
+    padding: 10px 36px 10px 40px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  
+  .favorites-search:focus {
+    border-color: var(--accent, #f57c00);
+  }
+  
+  .favorites-clear-search {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #ddd;
+    border: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    color: #666;
+  }
+  
+  .favorites-clear-search:hover {
+    background: #ccc;
+  }
+  
+  .favorites-selected {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+    min-height: 0;
+  }
+  
+  .favorites-selected:empty {
+    display: none;
+  }
+  
+  .favorites-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--accent, #f57c00);
+    color: white;
+    padding: 4px 8px 4px 10px;
+    border-radius: 16px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+  
+  .favorites-tag-remove {
+    background: rgba(255,255,255,0.3);
+    border: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 1;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .favorites-tag-remove:hover {
+    background: rgba(255,255,255,0.5);
+  }
+  
+  .favorites-teams-list {
+    max-height: 250px;
+    overflow-y: auto;
+    border: 1px solid #eee;
+    border-radius: 8px;
+  }
+  
+  .favorites-loading {
+    padding: 20px;
+    text-align: center;
+    color: #999;
+  }
+  
+  .favorites-division-group {
+    border-bottom: 1px solid #eee;
+  }
+  
+  .favorites-division-group:last-child {
+    border-bottom: none;
+  }
+  
+  .favorites-division-header {
+    padding: 8px 12px;
+    background: #f8f8f8;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #999;
+    position: sticky;
+    top: 0;
+  }
+  
+  .favorites-team-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  
+  .favorites-team-item:hover {
+    background: #f5f5f5;
+  }
+  
+  .favorites-team-item.selected {
+    background: #fff8f0;
+  }
+  
+  .favorites-team-logo {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+    border-radius: 4px;
+  }
+  
+  .favorites-team-name {
+    flex: 1;
+    font-size: 14px;
+    color: #333;
+  }
+  
+  .favorites-team-check {
+    width: 20px;
+    height: 20px;
+    border: 2px solid #ddd;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  
+  .favorites-team-item.selected .favorites-team-check {
+    background: var(--accent, #f57c00);
+    border-color: var(--accent, #f57c00);
+  }
+  
+  .favorites-team-item.selected .favorites-team-check::after {
+    content: '';
+    width: 6px;
+    height: 10px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg) translate(-1px, -1px);
+  }
+  
+  .favorites-no-results {
+    padding: 20px;
+    text-align: center;
+    color: #999;
+    font-size: 14px;
+  }
+  
+  .favorites-modal-footer {
+    display: flex;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-top: 1px solid #eee;
+    flex-shrink: 0;
+  }
+  
+  .favorites-btn-clear {
+    background: none;
+    border: 1px solid #ddd;
+    color: #666;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  
+  .favorites-btn-clear:hover {
+    background: #f5f5f5;
+    border-color: #ccc;
+  }
+  
+  .favorites-btn-save {
+    background: var(--accent, #f57c00);
+    border: none;
+    color: white;
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  
+  .favorites-btn-save:hover {
+    background: #e56b00;
+  }
+  
+  /* Header button styles */
+  .favorites-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    transition: background 0.2s;
+  }
+  
+  .favorites-toggle:hover {
+    background: rgba(255,255,255,0.1);
+  }
+  
+  .favorites-toggle svg {
+    width: 18px;
+    height: 18px;
+  }
+  
+  .favorites-toggle.has-favorites svg {
+    fill: var(--accent, #f57c00);
+    stroke: var(--accent, #f57c00);
+  }
+  
+  @media (max-width: 768px) {
+    .favorites-toggle span {
+      display: none;
+    }
+    
+    .favorites-toggle {
+      padding: 8px;
+    }
+    
+    .favorites-modal {
+      width: 95%;
+      max-height: 90vh;
+    }
+    
+    .favorites-divisions {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
