@@ -79,12 +79,6 @@ async function fetchArticles(limit = 20) {
       return '1970-01-01';
     }
     
-    // DEBUG: Log article dates before sorting
-    console.log('=== ARTICLE SORTING DEBUG ===');
-    (data || []).slice(0, 10).forEach(a => {
-      console.log(`"${a.title.substring(0, 40)}..." | article_date: ${a.article_date} | published_at: ${a.published_at} | pinned: ${a.pinned} | sortDate: ${getDateString(a)}`);
-    });
-    
     // Sort: pinned first, then by date (newest first)
     // For same date, use published_at time as tiebreaker
     const articles = (data || []).sort((a, b) => {
@@ -104,12 +98,6 @@ async function fetchArticles(limit = 20) {
       const timeA = a.published_at ? new Date(a.published_at).getTime() : 0;
       const timeB = b.published_at ? new Date(b.published_at).getTime() : 0;
       return timeB - timeA; // Most recently published first
-    });
-    
-    // DEBUG: Log after sorting
-    console.log('=== AFTER SORTING ===');
-    articles.slice(0, 10).forEach((a, i) => {
-      console.log(`${i+1}. "${a.title.substring(0, 40)}..." | sortDate: ${getDateString(a)} | pinned: ${a.pinned}`);
     });
     
     state.articles = articles;
