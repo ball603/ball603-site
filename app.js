@@ -519,7 +519,7 @@ function goToGame(gameId) {
   // For now, find if there's an article for this game
   const article = state.articles.find(a => a.game_id === gameId);
   if (article) {
-    window.location.href = `/articles/${article.slug}`;
+    window.location.href = `/article/${article.slug}`;
   } else {
     // Could show a modal with game details or go to schedule
     console.log('Game:', gameId);
