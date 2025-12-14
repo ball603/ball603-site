@@ -1141,7 +1141,7 @@
     
     /**
      * Render scores ticker - Shows only completed games from today and yesterday
-     * Today's finals appear first, sorted by most recent
+     * Favorite teams/divisions appear first, then sorted by date/time
      */
     function renderTicker() {
       const container = document.getElementById('tickerScroll');
@@ -1164,9 +1164,14 @@
         return isRecentDate && hasScore;
       });
       
-      // Sort: today's games first, then by time descending (most recent first)
+      // Sort: favorites first, then today's games, then by time descending
       completedGames.sort((a, b) => {
-        // Today's games come first
+        // First by favorites priority (0 = favorite team, 1 = favorite division, 2 = neither)
+        const priorityA = Ball603.getGamePriority ? Ball603.getGamePriority(a) : 2;
+        const priorityB = Ball603.getGamePriority ? Ball603.getGamePriority(b) : 2;
+        if (priorityA !== priorityB) return priorityA - priorityB;
+        
+        // Then today's games come first
         if (a.date === todayStr && b.date !== todayStr) return -1;
         if (b.date === todayStr && a.date !== todayStr) return 1;
         // Within same day, sort by time descending (later games first)
