@@ -330,8 +330,19 @@ function getGamePriority(game) {
   }
   
   // Check if game is in a favorite division
+  // Handle both formats: D1/D2/D3/D4 (teams) and D-I/D-II/D-III/D-IV (games)
   if (favorites.divisions?.length > 0 && game.division) {
-    if (favorites.divisions.includes(game.division)) return 1;
+    const divisionMap = {
+      'D1': ['D1', 'D-I'],
+      'D2': ['D2', 'D-II'],
+      'D3': ['D3', 'D-III'],
+      'D4': ['D4', 'D-IV']
+    };
+    
+    for (const favDiv of favorites.divisions) {
+      const matches = divisionMap[favDiv] || [favDiv];
+      if (matches.includes(game.division)) return 1;
+    }
   }
   
   return 2;
