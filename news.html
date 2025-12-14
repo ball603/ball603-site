@@ -113,11 +113,26 @@
       font-size: 0.95rem;
       outline: none;
       cursor: pointer;
-      min-width: 180px;
+      min-width: 150px;
       background: #fff;
     }
     
     .sort-select:focus {
+      border-color: #f57c00;
+    }
+    
+    .team-select {
+      padding: 10px 15px;
+      border: 1px solid #ddd;
+      border-radius: 25px;
+      font-size: 0.95rem;
+      outline: none;
+      cursor: pointer;
+      min-width: 180px;
+      background: #fff;
+    }
+    
+    .team-select:focus {
       border-color: #f57c00;
     }
     
@@ -454,6 +469,11 @@
   <!-- Filter Bar -->
   <div class="news-filter-bar">
     <div class="filter-inner">
+      <div class="filter-group">
+        <select class="team-select" id="teamFilter">
+          <option value="">All Teams</option>
+        </select>
+      </div>
       <div class="search-box">
         <input type="text" id="newsSearchInput" placeholder="Search articles...">
       </div>
@@ -461,8 +481,6 @@
         <select class="sort-select" id="sortSelect">
           <option value="newest">Newest First</option>
           <option value="oldest">Oldest First</option>
-          <option value="title-az">Title A-Z</option>
-          <option value="title-za">Title Z-A</option>
         </select>
       </div>
       <div class="filter-group">
@@ -520,6 +538,7 @@
     let allArticles = [];
     let filteredArticles = [];
     let allTags = [];
+    let allTeams = [];
     let currentPage = 1;
     let currentView = 'grid';
     const articlesPerPage = 12;
@@ -577,6 +596,8 @@
         allTags = [...tagSet].sort();
         populateTagFilter();
         
+        await loadTeamsForFilter();
+        
         renderArticles();
       } catch (err) {
         console.error('Error loading articles:', err);
@@ -600,6 +621,39 @@
       });
     }
 
+    // ===== LOAD TEAMS FOR FILTER =====
+    async function loadTeamsForFilter() {
+      try {
+        const { data: teams, error } = await supabase
+          .from('teams')
+          .select('shortname')
+          .eq('level', 'High School')
+          .eq('active', true)
+          .order('shortname');
+
+        if (error) throw error;
+
+        // Dedupe by shortname
+        const seen = new Set();
+        allTeams = (teams || []).filter(t => {
+          if (seen.has(t.shortname)) return false;
+          seen.add(t.shortname);
+          return true;
+        });
+
+        // Populate dropdown
+        const select = document.getElementById('teamFilter');
+        allTeams.forEach(team => {
+          const option = document.createElement('option');
+          option.value = team.shortname.toLowerCase();
+          option.textContent = team.shortname;
+          select.appendChild(option);
+        });
+      } catch (err) {
+        console.error('Error loading teams:', err);
+      }
+    }
+
     // ===== FILTER & SORT =====
     function applyFiltersAndSort() {
       console.log('applyFiltersAndSort called');
@@ -607,6 +661,7 @@
       console.log('Search term:', searchTerm);
       const sortValue = document.getElementById('sortSelect').value;
       const tagValue = document.getElementById('tagFilter').value;
+      const teamValue = document.getElementById('teamFilter').value;
       console.log('allArticles count:', allArticles.length);
       
       // Filter
@@ -621,7 +676,13 @@
         const matchesTag = !tagValue || 
           (article.tags && article.tags.includes(tagValue));
         
-        return matchesSearch && matchesTag;
+        // Team filter - check if team name appears in title, content, or tags
+        const matchesTeam = !teamValue || 
+          article.title?.toLowerCase().includes(teamValue) ||
+          stripHtml(article.content)?.toLowerCase().includes(teamValue) ||
+          (article.tags && article.tags.some(t => t.toLowerCase().includes(teamValue)));
+        
+        return matchesSearch && matchesTag && matchesTeam;
       });
       
       // Sort
@@ -629,10 +690,6 @@
         switch (sortValue) {
           case 'oldest':
             return new Date(a.published_at || 0) - new Date(b.published_at || 0);
-          case 'title-az':
-            return (a.title || '').localeCompare(b.title || '');
-          case 'title-za':
-            return (b.title || '').localeCompare(a.title || '');
           case 'newest':
           default:
             return new Date(b.published_at || 0) - new Date(a.published_at || 0);
@@ -733,6 +790,9 @@
       
       // Tag filter
       document.getElementById('tagFilter').addEventListener('change', applyFiltersAndSort);
+      
+      // Team filter
+      document.getElementById('teamFilter').addEventListener('change', applyFiltersAndSort);
       
       // View toggle
       document.querySelectorAll('.view-btn').forEach(btn => {
