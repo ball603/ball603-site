@@ -43,6 +43,47 @@
       margin: 0;
     }
     
+    /* Mobile Sticky Search Bar */
+    .mobile-sticky-search {
+      display: none;
+      position: sticky;
+      top: 0;
+      z-index: 500;
+      background: #f5f5f5;
+      padding: 10px 15px;
+      border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .mobile-sticky-search .search-box {
+      width: 100%;
+      position: relative;
+    }
+    
+    .mobile-sticky-search .search-box input {
+      width: 100%;
+      padding: 10px 15px 10px 40px;
+      border: 1px solid #ddd;
+      border-radius: 25px;
+      font-size: 0.95rem;
+      outline: none;
+      background: #fff;
+    }
+    
+    .mobile-sticky-search .search-box input:focus {
+      border-color: #f57c00;
+    }
+    
+    .mobile-sticky-search .search-box::before {
+      content: '\1F50D';
+      position: absolute;
+      left: 15px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 0.9rem;
+      opacity: 0.5;
+      pointer-events: none;
+    }
+    
     /* Filter Bar */
     .news-filter-bar {
       background: #f5f5f5;
@@ -96,7 +137,7 @@
     }
     
     .search-box::before {
-      content: '🔍';
+      content: '\1F50D';
       position: absolute;
       left: 15px;
       top: 50%;
@@ -151,12 +192,6 @@
       border-color: #f57c00;
     }
     
-    .article-count {
-      font-size: 0.9rem;
-      color: #666;
-      margin-left: auto;
-    }
-    
     /* Main Content */
     .news-main {
       padding: 30px 20px 60px;
@@ -206,19 +241,6 @@
     
     .article-card:hover .article-thumbnail img {
       transform: scale(1.05);
-    }
-    
-    .photo-credit {
-      position: absolute;
-      bottom: 8px;
-      right: 8px;
-      background: rgba(255, 255, 255, 0.85);
-      color: #333;
-      padding: 4px 8px;
-      border-radius: 4px;
-      font-size: 11px;
-      font-weight: 500;
-      z-index: 2;
     }
     
     .article-info {
@@ -282,70 +304,19 @@
       margin-top: auto;
       padding-top: 15px;
       border-top: 1px solid #f0f0f0;
+      flex-wrap: wrap;
+    }
+    
+    .article-meta-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
     }
     
     .article-author {
       display: flex;
       align-items: center;
       gap: 5px;
-    }
-    
-    /* List View */
-    .article-list {
-      display: flex;
-      flex-direction: column;
-      gap: 0;
-    }
-    
-    .article-list .article-card {
-      flex-direction: row;
-      border-radius: 8px;
-      margin-bottom: 15px;
-    }
-    
-    .article-list .article-thumbnail {
-      width: 200px;
-      min-width: 200px;
-      padding-top: 0;
-      height: 140px;
-    }
-    
-    .article-list .article-info {
-      padding: 15px 20px;
-    }
-    
-    .article-list .article-title {
-      font-size: 1rem;
-    }
-    
-    .article-list .article-excerpt {
-      -webkit-line-clamp: 2;
-    }
-    
-    /* View Toggle */
-    .view-toggle {
-      display: flex;
-      gap: 5px;
-    }
-    
-    .view-btn {
-      padding: 8px 12px;
-      border: 1px solid #ddd;
-      background: #fff;
-      border-radius: 5px;
-      cursor: pointer;
-      font-size: 1rem;
-      transition: all 0.2s;
-    }
-    
-    .view-btn:hover {
-      border-color: #f57c00;
-    }
-    
-    .view-btn.active {
-      background: #f57c00;
-      border-color: #f57c00;
-      color: white;
     }
     
     /* Pagination */
@@ -428,40 +399,33 @@
         font-size: 24px;
       }
       
+      /* Show mobile sticky search */
+      .mobile-sticky-search {
+        display: block;
+      }
+      
+      /* Filter bar is NOT sticky on mobile */
+      .news-filter-bar {
+        position: static;
+      }
+      
+      /* Hide desktop search box on mobile */
+      .news-filter-bar .search-box {
+        display: none;
+      }
+      
       .filter-inner {
         flex-direction: column;
         align-items: stretch;
         gap: 15px;
       }
       
-      .search-box {
-        max-width: none;
-      }
-      
-      .sort-select, .tag-select {
+      .sort-select, .tag-select, .team-select {
         width: 100%;
-      }
-      
-      .article-count {
-        margin-left: 0;
-        text-align: center;
       }
       
       .article-grid {
         grid-template-columns: 1fr;
-      }
-      
-      .article-list .article-card {
-        flex-direction: column;
-      }
-      
-      .article-list .article-thumbnail {
-        width: 100%;
-        height: 180px;
-      }
-      
-      .view-toggle {
-        display: none;
       }
     }
   </style>
@@ -477,6 +441,13 @@
   <div class="page-header">
     <h1 class="page-title">News</h1>
     <p class="page-subtitle">All the latest from the Granite State hardwood</p>
+  </div>
+
+  <!-- Mobile Sticky Search Bar -->
+  <div class="mobile-sticky-search">
+    <div class="search-box">
+      <input type="text" id="mobileSearchInput" placeholder="Search articles...">
+    </div>
   </div>
 
   <!-- Filter Bar -->
@@ -501,11 +472,6 @@
           <option value="">All Categories</option>
         </select>
       </div>
-      <div class="view-toggle">
-        <button class="view-btn active" data-view="grid" title="Grid View">▦</button>
-        <button class="view-btn" data-view="list" title="List View">☰</button>
-      </div>
-      <div class="article-count" id="articleCountDisplay">Loading...</div>
     </div>
   </div>
 
@@ -520,9 +486,9 @@
     
     <!-- Pagination -->
     <div class="pagination" id="pagination" style="display: none;">
-      <button class="pagination-btn" id="prevBtn" disabled>← Previous</button>
+      <button class="pagination-btn" id="prevBtn" disabled>&#8592; Previous</button>
       <span class="pagination-info" id="pageInfo">Page 1 of 1</span>
-      <button class="pagination-btn" id="nextBtn" disabled>Next →</button>
+      <button class="pagination-btn" id="nextBtn" disabled>Next &#8594;</button>
     </div>
   </main>
 
@@ -538,7 +504,7 @@
       <a href="https://www.instagram.com/ball603nh/" target="_blank" title="Instagram"><svg viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg></a>
       <a href="https://x.com/Ball603NH" target="_blank" title="X (Twitter)"><svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></a>
     </div>
-    <p class="footer-copyright">© 2025 Ball603. All rights reserved.</p>
+    <p class="footer-copyright">&#169; 2025 Ball603. All rights reserved.</p>
   </footer>
 
   <script>
@@ -553,8 +519,7 @@
     let allTags = [];
     let allTeams = [];
     let currentPage = 1;
-    let currentView = 'grid';
-    const articlesPerPage = 12;
+    const articlesPerPage = 100;
 
     // ===== UTILITIES =====
     function formatDate(dateStr) {
@@ -581,6 +546,29 @@
       if (!str) return '';
       if (str.length <= len) return str;
       return str.substring(0, len).trim() + '...';
+    }
+
+    // ===== FORMAT TAG FOR DISPLAY =====
+    function formatTagDisplay(tag) {
+      if (!tag) return '';
+      
+      // Check for roman numerals (D-I, D-II, D-III, D-IV)
+      const romanNumeralPattern = /^d-i{1,3}v?$/i;
+      if (romanNumeralPattern.test(tag)) {
+        return tag.toUpperCase();
+      }
+      
+      // Check for NHIAA
+      if (tag.toLowerCase() === 'nhiaa') {
+        return 'NHIAA';
+      }
+      
+      // Title Case for everything else
+      return tag
+        .replace(/-/g, ' ')
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ');
     }
 
     // ===== LOAD ARTICLES =====
@@ -640,7 +628,7 @@
         console.error('Error loading articles:', err);
         document.getElementById('articlesContainer').innerHTML = `
           <div class="empty-state">
-            <div class="empty-state-icon">📰</div>
+            <div class="empty-state-icon">&#128240;</div>
             <p>Unable to load articles. Please try again later.</p>
           </div>
         `;
@@ -653,7 +641,7 @@
       allTags.forEach(tag => {
         const option = document.createElement('option');
         option.value = tag;
-        option.textContent = tag.charAt(0).toUpperCase() + tag.slice(1).replace(/-/g, ' ');
+        option.textContent = formatTagDisplay(tag);
         select.appendChild(option);
       });
     }
@@ -691,10 +679,18 @@
       }
     }
 
+    // ===== GET CURRENT SEARCH VALUE =====
+    function getSearchValue() {
+      // Check both search inputs and return whichever has a value
+      const desktopSearch = document.getElementById('newsSearchInput').value;
+      const mobileSearch = document.getElementById('mobileSearchInput').value;
+      return (desktopSearch || mobileSearch).toLowerCase();
+    }
+
     // ===== FILTER & SORT =====
     function applyFiltersAndSort() {
       console.log('applyFiltersAndSort called');
-      const searchTerm = document.getElementById('newsSearchInput').value.toLowerCase();
+      const searchTerm = getSearchValue();
       console.log('Search term:', searchTerm);
       const sortValue = document.getElementById('sortSelect').value;
       const tagValue = document.getElementById('tagFilter').value;
@@ -742,13 +738,10 @@
       const container = document.getElementById('articlesContainer');
       const pagination = document.getElementById('pagination');
       
-      // Update count
-      document.getElementById('articleCountDisplay').textContent = `${filteredArticles.length} article${filteredArticles.length !== 1 ? 's' : ''}`;
-      
       if (filteredArticles.length === 0) {
         container.innerHTML = `
           <div class="empty-state">
-            <div class="empty-state-icon">📰</div>
+            <div class="empty-state-icon">&#128240;</div>
             <p>${allArticles.length === 0 ? 'No articles yet. Check back soon!' : 'No articles match your search.'}</p>
           </div>
         `;
@@ -762,9 +755,8 @@
       const endIndex = startIndex + articlesPerPage;
       const pageArticles = filteredArticles.slice(startIndex, endIndex);
       
-      // Render grid/list
-      const viewClass = currentView === 'list' ? 'article-list' : 'article-grid';
-      container.innerHTML = `<div class="${viewClass}">${pageArticles.map(renderArticleCard).join('')}</div>`;
+      // Render grid
+      container.innerHTML = `<div class="article-grid">${pageArticles.map(renderArticleCard).join('')}</div>`;
       
       // Update pagination
       if (totalPages > 1) {
@@ -783,38 +775,73 @@
       
       // Get photographer from game_data if available
       const photographer = article.photographer || article.game_data?.photographerName || article.featured_image_caption || '';
+      
+      // Get author (only show if not Ball603 Staff)
+      const author = article.author && article.author.toLowerCase() !== 'ball603 staff' ? article.author : '';
+
+      // Build meta items
+      let metaHtml = `<span class="article-meta-item">&#128197; ${formatDate(article.published_at)}</span>`;
+      
+      if (author) {
+        metaHtml += `<span class="article-meta-item">&#9998; ${escapeHtml(author)}</span>`;
+      }
+      
+      if (photographer) {
+        metaHtml += `<span class="article-meta-item">&#128247; ${escapeHtml(photographer)}</span>`;
+      }
 
       return `
         <a href="${url}" class="article-card">
           <div class="article-thumbnail">
             <img src="${image}" alt="${escapeHtml(article.title)}" onerror="this.src='/logo.png'; this.style.objectFit='contain'; this.style.padding='20px'; this.style.background='#f5f5f5';">
-            ${photographer ? `<div class="photo-credit">📷 ${escapeHtml(photographer)}</div>` : ''}
           </div>
           <div class="article-info">
             <h3 class="article-title">${escapeHtml(article.title)}</h3>
             <div class="article-meta">
-              <span>📅 ${formatDate(article.published_at)}</span>
+              ${metaHtml}
             </div>
           </div>
         </a>
       `;
     }
 
+    // ===== SYNC SEARCH INPUTS =====
+    function syncSearchInputs(sourceId) {
+      const desktopInput = document.getElementById('newsSearchInput');
+      const mobileInput = document.getElementById('mobileSearchInput');
+      
+      if (sourceId === 'newsSearchInput') {
+        mobileInput.value = desktopInput.value;
+      } else {
+        desktopInput.value = mobileInput.value;
+      }
+    }
+
     // ===== EVENT LISTENERS =====
     function initEventListeners() {
-      // Search
+      // Search - Desktop
       let searchTimeout;
-      const searchInput = document.getElementById('newsSearchInput');
-      console.log('News search input found:', searchInput);
+      const desktopSearchInput = document.getElementById('newsSearchInput');
+      console.log('Desktop search input found:', desktopSearchInput);
       
-      if (searchInput) {
-        searchInput.addEventListener('input', (e) => {
-          console.log('Search input event fired, value:', e.target.value);
+      if (desktopSearchInput) {
+        desktopSearchInput.addEventListener('input', (e) => {
+          console.log('Desktop search input event fired, value:', e.target.value);
+          syncSearchInputs('newsSearchInput');
           clearTimeout(searchTimeout);
           searchTimeout = setTimeout(applyFiltersAndSort, 300);
         });
-      } else {
-        console.error('Could not find newsSearchInput element');
+      }
+      
+      // Search - Mobile
+      const mobileSearchInput = document.getElementById('mobileSearchInput');
+      if (mobileSearchInput) {
+        mobileSearchInput.addEventListener('input', (e) => {
+          console.log('Mobile search input event fired, value:', e.target.value);
+          syncSearchInputs('mobileSearchInput');
+          clearTimeout(searchTimeout);
+          searchTimeout = setTimeout(applyFiltersAndSort, 300);
+        });
       }
       
       // Sort
@@ -825,16 +852,6 @@
       
       // Team filter
       document.getElementById('teamFilter').addEventListener('change', applyFiltersAndSort);
-      
-      // View toggle
-      document.querySelectorAll('.view-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-          currentView = btn.dataset.view;
-          renderArticles();
-        });
-      });
       
       // Pagination
       document.getElementById('prevBtn').addEventListener('click', () => {
