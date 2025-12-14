@@ -271,7 +271,10 @@ function getLogoFilename(teamName) {
     'NEC': 'NewEnglandCollege.png',
     'New England College': 'NewEnglandCollege.png',
     'Colby-Sawyer': 'ColbySawyer.png',
-    'Colby-Sawyer College': 'ColbySawyer.png'
+    'Colby-Sawyer College': 'ColbySawyer.png',
+    'Coe-Brown': 'CoeBrown.png',
+    'Coe-Brown Northwood': 'CoeBrown.png',
+    'Coe-Brown Northwood Academy': 'CoeBrown.png'
   };
   
   if (specialCases[teamName]) {

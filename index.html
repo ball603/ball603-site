@@ -637,11 +637,17 @@
       border-color: #d0d0d0;
     }
     
-    .story-image {
+    .story-image-container {
       width: 100%;
       aspect-ratio: 16 / 9;
-      object-fit: cover;
+      overflow: hidden;
       flex-shrink: 0;
+    }
+    
+    .story-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
     }
     
     .story-content {
@@ -699,10 +705,6 @@
       }
       .story-card {
         flex-direction: column;
-      }
-      .story-image {
-        width: 100%;
-        height: 180px;
       }
     }
     
@@ -904,20 +906,6 @@
     
     .headline-link:hover {
       color: var(--accent);
-    }
-    
-    /* Latest Video Embed */
-    .video-embed {
-      aspect-ratio: 16 / 9;
-      width: 100%;
-      border-radius: 8px;
-      overflow: hidden;
-    }
-    
-    .video-embed iframe {
-      width: 100%;
-      height: 100%;
-      border: none;
     }
     
     /* Gallery Grid */
@@ -1285,17 +1273,6 @@
             <div class="skeleton" style="height: 30px;"></div>
           </div>
         </div>
-        
-        <!-- Latest Video -->
-        <div class="sidebar-card">
-          <div class="sidebar-header">
-            <h3 class="sidebar-title">&#127916; Latest Video</h3>
-            <a href="/video" class="sidebar-link">Watch More &#8594;</a>
-          </div>
-          <div class="sidebar-content" id="latestVideo">
-            <div class="skeleton" style="aspect-ratio: 16/9;"></div>
-          </div>
-        </div>
       </aside>
     </div>
   </div>
@@ -1405,7 +1382,6 @@
       
       renderTicker();
       renderStandings();
-      renderLatestVideo();
     });
     
     /**
@@ -1579,7 +1555,9 @@
         const photographerHtml = photographer ? `<span class="story-photographer">&#128247; ${photographer}</span>` : '';
         return `
           <article class="story-card" onclick="Ball603.goToArticle('${article.slug}')">
-            <img src="${article.featured_image_url || PLACEHOLDER_IMG}" alt="" class="story-image">
+            <div class="story-image-container">
+              <img src="${article.featured_image_url || PLACEHOLDER_IMG}" alt="" class="story-image">
+            </div>
             <div class="story-content">
               <h3 class="story-title">${article.title}</h3>
               ${excerptHtml}
@@ -1611,61 +1589,6 @@
           <a href="/article/${article.slug}" class="headline-link">${article.title}</a>
         </div>
       `).join('');
-    }
-    
-    /**
-     * Render latest YouTube video embed
-     */
-    async function renderLatestVideo() {
-      const container = document.getElementById('latestVideo');
-      
-      try {
-        // Use Ball603.supabase client
-        if (!Ball603.supabase) {
-          container.innerHTML = '<p style="color: #999; text-align: center;">Videos coming soon</p>';
-          return;
-        }
-        
-        const { data: videos, error } = await Ball603.supabase
-          .from('youtube_videos')
-          .select('*')
-          .eq('hidden', false)
-          .order('published_at', { ascending: false })
-          .limit(1);
-        
-        if (error || !videos || videos.length === 0) {
-          container.innerHTML = '<p style="color: #999; text-align: center;">No videos yet</p>';
-          return;
-        }
-        
-        const video = videos[0];
-        // Extract video ID from URL
-        let videoId = '';
-        if (video.url && video.url.includes('youtube.com/watch')) {
-          videoId = new URL(video.url).searchParams.get('v');
-        } else if (video.url && video.url.includes('youtu.be/')) {
-          videoId = video.url.split('youtu.be/')[1].split('?')[0];
-        }
-        
-        if (videoId) {
-          container.innerHTML = `
-            <div class="video-embed">
-              <iframe src="https://www.youtube.com/embed/${videoId}" 
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                      allowfullscreen></iframe>
-            </div>
-          `;
-        } else {
-          container.innerHTML = `
-            <a href="${video.url}" target="_blank" style="display: block; text-align: center; color: var(--accent);">
-              Watch latest video &#8594;
-            </a>
-          `;
-        }
-      } catch (err) {
-        console.error('Error loading video:', err);
-        container.innerHTML = '<p style="color: #999; text-align: center;">Videos coming soon</p>';
-      }
     }
     
     /**
