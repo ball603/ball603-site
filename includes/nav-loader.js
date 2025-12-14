@@ -219,11 +219,21 @@
 
     // Team search
     if (teamSearch) {
-      teamSearch.addEventListener('input', () => {
-        const query = teamSearch.value.trim().toLowerCase();
+      console.log('Attaching search listener to:', teamSearch);
+      teamSearch.addEventListener('input', (e) => {
+        const query = e.target.value.trim().toLowerCase();
+        console.log('Search query:', query);
         clearSearch.style.display = query ? 'block' : 'none';
         filterTeamsList(query);
       });
+      // Also handle keyup for better compatibility
+      teamSearch.addEventListener('keyup', (e) => {
+        const query = e.target.value.trim().toLowerCase();
+        clearSearch.style.display = query ? 'block' : 'none';
+        filterTeamsList(query);
+      });
+    } else {
+      console.error('Could not find favoritesTeamSearch element');
     }
 
     // Clear search
