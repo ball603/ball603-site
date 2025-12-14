@@ -1119,6 +1119,10 @@
                 <div id="gsPhotographers" style="margin-bottom: 16px; padding: 10px 12px; background: #f9f9f9; border: 1px solid #ddd; border-radius: 6px; font-size: 12px; display: none;">
                   <span style="color: #666; font-weight: 500;">&#128247; Photo Credit:</span>
                   <div id="gsPhotogCheckboxes" style="margin-top: 8px;"></div>
+                  <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #ddd;">
+                    <label style="font-size: 11px; color: #888; display: block; margin-bottom: 4px;">Guest Photographer:</label>
+                    <input type="text" id="gsGuestPhotographer" placeholder="Enter guest photographer name..." style="width: 100%; padding: 6px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; box-sizing: border-box;">
+                  </div>
                 </div>
                 
                 <!-- Generate Button -->
@@ -1283,6 +1287,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           <div id="bsPhotographers" style="margin-bottom: 15px; padding: 10px 12px; background: #fff; border: 1px solid #ddd; border-radius: 6px; font-size: 12px; display: none;">
             <span style="color: #666; font-weight: 500;">&#128247; Photo Credit:</span>
             <div id="bsPhotogCheckboxes" style="margin-top: 8px;"></div>
+            <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #ddd;">
+              <label style="font-size: 11px; color: #888; display: block; margin-bottom: 4px;">Guest Photographer:</label>
+              <input type="text" id="bsGuestPhotographer" placeholder="Enter guest photographer name..." style="width: 100%; padding: 6px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; box-sizing: border-box;">
+            </div>
           </div>
           
           <!-- Generate Button -->
@@ -1507,6 +1515,17 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
                 <option value="other">Other...</option>
               </select>
               <input type="text" id="articleAuthorOther" placeholder="Enter author name..." style="display: none; margin-top: 8px;">
+            </div>
+          </div>
+          
+          <div class="sidebar-card">
+            <h4>&#128247; Photographer</h4>
+            <div class="form-group">
+              <select id="articlePhotographer" onchange="toggleOtherPhotographer()">
+                <option value="">None</option>
+                <!-- Photographers populated dynamically -->
+              </select>
+              <input type="text" id="articlePhotographerOther" placeholder="Enter photographer name..." style="display: none; margin-top: 8px;">
             </div>
           </div>
           
@@ -3674,6 +3693,95 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       }
     }
     
+    // Photographer "Other" toggle
+    function toggleOtherPhotographer() {
+      const select = document.getElementById('articlePhotographer');
+      const otherInput = document.getElementById('articlePhotographerOther');
+      
+      if (select.value === 'other') {
+        otherInput.style.display = 'block';
+        otherInput.focus();
+      } else {
+        otherInput.style.display = 'none';
+        otherInput.value = '';
+      }
+    }
+    
+    // Get the actual photographer value (handles "other" option)
+    function getPhotographerValue() {
+      const select = document.getElementById('articlePhotographer');
+      if (!select) return '';
+      if (select.value === 'other') {
+        return document.getElementById('articlePhotographerOther').value.trim() || '';
+      }
+      return select.value || '';
+    }
+    
+    // Set photographer value (handles custom names)
+    function setPhotographerValue(photographer) {
+      const select = document.getElementById('articlePhotographer');
+      const otherInput = document.getElementById('articlePhotographerOther');
+      
+      if (!select || !otherInput) return;
+      
+      if (!photographer) {
+        select.value = '';
+        otherInput.style.display = 'none';
+        otherInput.value = '';
+        return;
+      }
+      
+      // Check if photographer matches one of the preset options
+      const options = Array.from(select.options).map(o => o.value);
+      if (options.includes(photographer) && photographer !== 'other') {
+        select.value = photographer;
+        otherInput.style.display = 'none';
+        otherInput.value = '';
+      } else {
+        // Custom photographer - select "other" and fill in the name
+        select.value = 'other';
+        otherInput.style.display = 'block';
+        otherInput.value = photographer || '';
+      }
+    }
+    
+    // Populate photographer dropdown from contributors
+    async function populatePhotographerDropdown() {
+      const select = document.getElementById('articlePhotographer');
+      if (!select) return;
+      
+      try {
+        const { data: photographers, error } = await supabase
+          .from('contributors')
+          .select('display_name')
+          .eq('is_photographer', true)
+          .eq('active', true)
+          .order('display_name');
+        
+        if (error) throw error;
+        
+        // Clear existing options except "None"
+        select.innerHTML = '<option value="">None</option>';
+        
+        // Add photographers
+        (photographers || []).forEach(p => {
+          const option = document.createElement('option');
+          option.value = p.display_name;
+          option.textContent = p.display_name;
+          select.appendChild(option);
+        });
+        
+        // Add "Other..." option
+        const otherOption = document.createElement('option');
+        otherOption.value = 'other';
+        otherOption.textContent = 'Other...';
+        select.appendChild(otherOption);
+        
+      } catch (err) {
+        console.error('Error loading photographers:', err);
+      }
+    }
+    
     // Image Upload to Supabase Storage
     async function uploadImageToSupabase(file, folder = 'articles') {
       const timestamp = Date.now();
@@ -3885,6 +3993,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('mainContainer').style.display = 'block';
       loadArticles();
       loadGamesForStory();
+      populatePhotographerDropdown();
       
       // Initialize Quill editor
       setTimeout(() => {
@@ -4984,7 +5093,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             gender: gsGeneratedData.proofData.gender,
             division: gsGeneratedData.proofData.division,
             awayRecord: gsGeneratedData.proofData.awayRecord,
-            homeRecord: gsGeneratedData.proofData.homeRecord
+            homeRecord: gsGeneratedData.proofData.homeRecord,
+            photographerName: gsGeneratedData.photographerName
           };
           
           // Set up article editor
@@ -4999,6 +5109,9 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           selectedGame = gsSelectedGame;
           document.getElementById('smugmugUrl').value = '';
           document.getElementById('smugmugThumbUrl').value = '';
+          
+          // Set photographer from story
+          setPhotographerValue(gsGeneratedData.photographerName || '');
           document.getElementById('youtubeUrl').value = '';
           setAuthorValue('KJ Cardinal');
           isScheduled = false;
@@ -5161,6 +5274,11 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.querySelectorAll('input[name="gsPhotog"]:checked').forEach(cb => {
         selectedPhotogs.push(cb.value);
       });
+      // Check for guest photographer
+      const guestPhotog = document.getElementById('gsGuestPhotographer')?.value.trim();
+      if (guestPhotog) {
+        selectedPhotogs.push(guestPhotog);
+      }
       const photographerName = selectedPhotogs.join(' & ');
       
       const proofData = {
@@ -5444,6 +5562,11 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.querySelectorAll('input[name="bsPhotog"]:checked').forEach(cb => {
         selectedPhotogs.push(cb.value);
       });
+      // Check for guest photographer
+      const guestPhotog = document.getElementById('bsGuestPhotographer')?.value.trim();
+      if (guestPhotog) {
+        selectedPhotogs.push(guestPhotog);
+      }
       const photographerName = selectedPhotogs.join(' & ');
       
       // Get school info
@@ -5498,6 +5621,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           document.getElementById('smugmugThumbUrl').value = '';
           document.getElementById('youtubeUrl').value = '';
           setAuthorValue('KJ Cardinal');
+          setPhotographerValue(photographerName || '');
           isScheduled = false;
           scheduledTime = null;
           document.getElementById('scheduledDateTime').value = '';
@@ -5552,6 +5676,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('smugmugThumbUrl').value = '';
       document.getElementById('youtubeUrl').value = '';
       setAuthorValue('KJ Cardinal');
+      setPhotographerValue('');
       document.getElementById('articleDate').value = new Date().toISOString().split('T')[0];
       isScheduled = false;
       scheduledTime = null;
@@ -5593,6 +5718,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('smugmugUrl').value = article.smugmug_gallery_url || '';
       document.getElementById('youtubeUrl').value = article.youtube_url || '';
       setAuthorValue(article.author || 'KJ Cardinal');
+      setPhotographerValue(article.photographer || article.game_data?.photographerName || '');
       
       // Handle article date
       if (article.article_date) {
@@ -5759,6 +5885,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         featured_image_url: document.getElementById('featuredImageUrl').value || null,
         featured_image_caption: document.getElementById('featuredImageCaptionField').value || null,
         author: getAuthorValue(),
+        photographer: getPhotographerValue() || null,
         tags: currentTags,
         article_date: document.getElementById('articleDate').value || null,
         scheduled_at: scheduledAt,
@@ -5829,6 +5956,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         featured_image_url: document.getElementById('featuredImageUrl').value || null,
         featured_image_caption: document.getElementById('featuredImageCaptionField').value || null,
         author: getAuthorValue(),
+        photographer: getPhotographerValue() || null,
         tags: currentTags,
         article_date: document.getElementById('articleDate').value || null,
         social_posts: socialPosts,
@@ -5913,6 +6041,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         featured_image_url: document.getElementById('featuredImageUrl').value || null,
         featured_image_caption: document.getElementById('featuredImageCaptionField').value || null,
         author: getAuthorValue(),
+        photographer: getPhotographerValue() || null,
         tags: currentTags,
         article_date: document.getElementById('articleDate').value || null,
         social_posts: socialPosts,
