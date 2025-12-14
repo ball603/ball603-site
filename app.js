@@ -298,11 +298,66 @@ function getShortName(teamName) {
 // ===== GAME HELPERS =====
 
 /**
+ * Load favorites from localStorage
+ */
+function loadFavorites() {
+  try {
+    const saved = localStorage.getItem('ball603Favorites');
+    return saved ? JSON.parse(saved) : { teams: [], divisions: [] };
+  } catch {
+    return { teams: [], divisions: [] };
+  }
+}
+
+/**
+ * Check if a game involves a favorite team or division
+ * Returns priority: 0 = favorite team, 1 = favorite division, 2 = neither
+ */
+function getGamePriority(game) {
+  const favorites = loadFavorites();
+  
+  // Check if either team is a favorite
+  if (favorites.teams?.length > 0) {
+    const homeMatch = favorites.teams.some(t => 
+      game.home === t || game.home_team === t || 
+      game.home?.toLowerCase() === t.toLowerCase()
+    );
+    const awayMatch = favorites.teams.some(t => 
+      game.away === t || game.away_team === t || 
+      game.away?.toLowerCase() === t.toLowerCase()
+    );
+    if (homeMatch || awayMatch) return 0;
+  }
+  
+  // Check if game is in a favorite division
+  if (favorites.divisions?.length > 0 && game.division) {
+    if (favorites.divisions.includes(game.division)) return 1;
+  }
+  
+  return 2;
+}
+
+/**
+ * Sort games with favorites first
+ */
+function sortByFavorites(games) {
+  return games.sort((a, b) => {
+    const priorityA = getGamePriority(a);
+    const priorityB = getGamePriority(b);
+    
+    if (priorityA !== priorityB) return priorityA - priorityB;
+    
+    // Same priority - sort by date (newest first) then time
+    return b.date.localeCompare(a.date) || (b.time || '').localeCompare(a.time || '');
+  });
+}
+
+/**
  * Get today's games
  */
 function getTodaysGames() {
   const today = getTodayString();
-  return state.games.filter(g => g.date === today);
+  return sortByFavorites(state.games.filter(g => g.date === today));
 }
 
 /**
@@ -313,11 +368,13 @@ function getCompletedGames(daysBack = 3) {
   startDate.setDate(startDate.getDate() - daysBack);
   const startStr = startDate.toISOString().split('T')[0];
   
-  return state.games.filter(g => {
+  const completed = state.games.filter(g => {
     const hasScore = g.homeScore !== null && g.awayScore !== null && 
                      g.homeScore !== '' && g.awayScore !== '';
     return hasScore && g.date >= startStr;
-  }).sort((a, b) => b.date.localeCompare(a.date) || (b.time || '').localeCompare(a.time || ''));
+  });
+  
+  return sortByFavorites(completed);
 }
 
 /**
@@ -329,8 +386,22 @@ function getUpcomingGames(days = 7) {
   endDate.setDate(endDate.getDate() + days);
   const endStr = endDate.toISOString().split('T')[0];
   
-  return state.games.filter(g => g.date >= today && g.date <= endStr)
-    .sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''));
+  const upcoming = state.games.filter(g => g.date >= today && g.date <= endStr);
+  
+  // Sort by date first, then by favorites priority within each date
+  return upcoming.sort((a, b) => {
+    // First by date (ascending - soonest first)
+    const dateCompare = a.date.localeCompare(b.date);
+    if (dateCompare !== 0) return dateCompare;
+    
+    // Then by favorites priority
+    const priorityA = getGamePriority(a);
+    const priorityB = getGamePriority(b);
+    if (priorityA !== priorityB) return priorityA - priorityB;
+    
+    // Finally by time
+    return (a.time || '').localeCompare(b.time || '');
+  });
 }
 
 /**
@@ -938,6 +1009,11 @@ async function initApp() {
   // Render ticker with completed games
   renderTicker(getCompletedGames());
   
+  // Listen for favorites updates to re-render ticker
+  document.addEventListener('favorites:updated', () => {
+    renderTicker(getCompletedGames());
+  });
+  
   // Dispatch event for page-specific initialization
   document.dispatchEvent(new CustomEvent('ball603:ready', { detail: state }));
 }
@@ -952,6 +1028,7 @@ if (document.readyState === 'loading') {
 // ===== EXPORTS (for modules) =====
 window.Ball603 = {
   state,
+  supabase: null, // Will be set after init
   fetchGames,
   fetchArticles,
   fetchTeams,
@@ -974,5 +1051,7 @@ window.Ball603 = {
   goToArticle,
   toggleFollowTeam,
   isTeamFollowed,
-  showToast
+  showToast,
+  loadFavorites,
+  getGamePriority
 };
