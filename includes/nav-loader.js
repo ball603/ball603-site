@@ -290,7 +290,7 @@
     if (teams.length === 0) {
       // Fetch teams if not loaded
       try {
-        const response = await fetch('/.netlify/functions/teams?level=High School&active=true');
+        const response = await fetch('/.netlify/functions/teams?active=true');
         const data = await response.json();
         teams = data.teams || [];
       } catch (err) {
@@ -306,13 +306,27 @@
     const hsTeams = teams.filter(t => t.level === 'High School');
     console.log('High school teams:', hsTeams.length);
     
+    // Get college teams too
+    const collegeTeams = teams.filter(t => t.level === 'College');
+    console.log('College teams:', collegeTeams.length);
+    
     // Deduplicate by shortname (teams have separate Boys/Girls records)
     const uniqueTeams = [];
     const seen = new Set();
+    
+    // Add HS teams first
     for (const team of hsTeams) {
       if (!seen.has(team.shortname)) {
         seen.add(team.shortname);
-        uniqueTeams.push(team);
+        uniqueTeams.push({ ...team, teamType: 'HS' });
+      }
+    }
+    
+    // Add college teams
+    for (const team of collegeTeams) {
+      if (!seen.has(team.shortname)) {
+        seen.add(team.shortname);
+        uniqueTeams.push({ ...team, teamType: 'College' });
       }
     }
     
@@ -345,11 +359,12 @@
     for (const team of filteredTeams) {
       const isSelected = selectedTeams.includes(team.shortname);
       const logoFilename = team.logo_filename || (team.shortname.replace(/[^a-zA-Z0-9]/g, '') + '.png');
+      const typeLabel = team.teamType === 'College' ? '<span class="favorites-team-type">College</span>' : '';
       
       html += `
         <div class="favorites-team-item ${isSelected ? 'selected' : ''}" data-team="${team.shortname}">
           <img class="favorites-team-logo" src="/logos/100px/${logoFilename}" alt="" onerror="this.style.display='none'">
-          <span class="favorites-team-name">${team.shortname}</span>
+          <span class="favorites-team-name">${team.shortname}${typeLabel}</span>
           <span class="favorites-team-check"></span>
         </div>
       `;
