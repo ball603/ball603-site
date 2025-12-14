@@ -13346,20 +13346,20 @@ function getSchoolChampionships(schoolName) {
   
   CHAMPIONSHIP_HISTORY.boys.forEach(game => {
     if (matchSchool(game.champion)) {
-      results.boys.push({ ...game, result: 'champion' });
+      results.boys.push({ ...game, result: 'champion', gender: 'Boys' });
       results.totalTitles++;
     } else if (matchSchool(game.runner_up)) {
-      results.boys.push({ ...game, result: 'runner_up' });
+      results.boys.push({ ...game, result: 'runner_up', gender: 'Boys' });
       results.totalRunnerUp++;
     }
   });
   
   CHAMPIONSHIP_HISTORY.girls.forEach(game => {
     if (matchSchool(game.champion)) {
-      results.girls.push({ ...game, result: 'champion' });
+      results.girls.push({ ...game, result: 'champion', gender: 'Girls' });
       results.totalTitles++;
     } else if (matchSchool(game.runner_up)) {
-      results.girls.push({ ...game, result: 'runner_up' });
+      results.girls.push({ ...game, result: 'runner_up', gender: 'Girls' });
       results.totalRunnerUp++;
     }
   });
