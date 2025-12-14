@@ -530,7 +530,7 @@ function goToGame(gameId) {
  * Navigate to article
  */
 function goToArticle(slug) {
-  window.location.href = `/articles/${slug}`;
+  window.location.href = `/article/${slug}`;
 }
 
 // ===== GALLERY =====
