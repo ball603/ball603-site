@@ -103,6 +103,7 @@
       transform: translateY(-50%);
       font-size: 0.9rem;
       opacity: 0.5;
+      pointer-events: none;
     }
     
     .sort-select {
@@ -552,6 +553,7 @@
 
     // ===== LOAD ARTICLES =====
     async function loadArticles() {
+      console.log('loadArticles called');
       try {
         const { data: articles, error } = await supabase
           .from('articles')
@@ -563,6 +565,7 @@
 
         allArticles = articles || [];
         filteredArticles = [...allArticles];
+        console.log('Articles loaded:', allArticles.length);
 
         // Extract all unique tags
         const tagSet = new Set();
@@ -599,9 +602,12 @@
 
     // ===== FILTER & SORT =====
     function applyFiltersAndSort() {
+      console.log('applyFiltersAndSort called');
       const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+      console.log('Search term:', searchTerm);
       const sortValue = document.getElementById('sortSelect').value;
       const tagValue = document.getElementById('tagFilter').value;
+      console.log('allArticles count:', allArticles.length);
       
       // Filter
       filteredArticles = allArticles.filter(article => {
@@ -709,10 +715,21 @@
     function initEventListeners() {
       // Search
       let searchTimeout;
-      document.getElementById('searchInput').addEventListener('input', (e) => {
-        clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(applyFiltersAndSort, 300);
-      });
+      const searchInput = document.getElementById('searchInput');
+      console.log('News search input found:', searchInput);
+      
+      if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+          console.log('Search input event fired, value:', e.target.value);
+          clearTimeout(searchTimeout);
+          searchTimeout = setTimeout(() => {
+            console.log('Calling applyFiltersAndSort');
+            applyFiltersAndSort();
+          }, 300);
+        });
+      } else {
+        console.error('Could not find searchInput element');
+      }
       
       // Sort
       document.getElementById('sortSelect').addEventListener('change', applyFiltersAndSort);
@@ -751,6 +768,7 @@
 
     // ===== INIT =====
     document.addEventListener('DOMContentLoaded', () => {
+      console.log('News page DOMContentLoaded');
       initEventListeners();
       loadArticles();
     });
