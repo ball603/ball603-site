@@ -258,10 +258,10 @@
     window._tempSelectedTeams = [...(favorites.teams || [])];
     
     // Set division checkboxes
-    document.getElementById('favDiv1').checked = favorites.divisions?.includes('D-I') || false;
-    document.getElementById('favDiv2').checked = favorites.divisions?.includes('D-II') || false;
-    document.getElementById('favDiv3').checked = favorites.divisions?.includes('D-III') || false;
-    document.getElementById('favDiv4').checked = favorites.divisions?.includes('D-IV') || false;
+    document.getElementById('favDiv1').checked = favorites.divisions?.includes('D1') || false;
+    document.getElementById('favDiv2').checked = favorites.divisions?.includes('D2') || false;
+    document.getElementById('favDiv3').checked = favorites.divisions?.includes('D3') || false;
+    document.getElementById('favDiv4').checked = favorites.divisions?.includes('D4') || false;
     
     // Load teams list
     loadTeamsForModal();
@@ -316,17 +316,17 @@
     }
     
     const byDivision = {
-      'D-I': hsTeams.filter(t => t.division === 'D-I').sort((a,b) => a.shortname.localeCompare(b.shortname)),
-      'D-II': hsTeams.filter(t => t.division === 'D-II').sort((a,b) => a.shortname.localeCompare(b.shortname)),
-      'D-III': hsTeams.filter(t => t.division === 'D-III').sort((a,b) => a.shortname.localeCompare(b.shortname)),
-      'D-IV': hsTeams.filter(t => t.division === 'D-IV').sort((a,b) => a.shortname.localeCompare(b.shortname))
+      'D1': hsTeams.filter(t => t.division === 'D1').sort((a,b) => a.shortname.localeCompare(b.shortname)),
+      'D2': hsTeams.filter(t => t.division === 'D2').sort((a,b) => a.shortname.localeCompare(b.shortname)),
+      'D3': hsTeams.filter(t => t.division === 'D3').sort((a,b) => a.shortname.localeCompare(b.shortname)),
+      'D4': hsTeams.filter(t => t.division === 'D4').sort((a,b) => a.shortname.localeCompare(b.shortname))
     };
     
     console.log('Teams by division:', {
-      'D-I': byDivision['D-I'].length,
-      'D-II': byDivision['D-II'].length,
-      'D-III': byDivision['D-III'].length,
-      'D-IV': byDivision['D-IV'].length
+      'D1': byDivision['D1'].length,
+      'D2': byDivision['D2'].length,
+      'D3': byDivision['D3'].length,
+      'D4': byDivision['D4'].length
     });
     
     // Store for filtering
