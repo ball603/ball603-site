@@ -998,145 +998,146 @@
     
     <!-- Game Story Modal -->
     <div id="gameStoryModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 1000; overflow-y: auto;">
-      <div style="max-width: 550px; margin: 30px auto; background: #f5f5f5; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+      <div style="max-width: 950px; margin: 30px auto; background: #f5f5f5; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
         
         <!-- Modal Header -->
         <div style="background: #444; color: white; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center;">
-          <h2 style="margin: 0; font-size: 15px; font-weight: 500;" id="gameStoryTitle">New Scorebook Story</h2>
+          <h2 style="margin: 0; font-size: 15px; font-weight: 500;" id="gameStoryTitle">Scorebook Story</h2>
           <button onclick="closeGameStory()" style="background: none; border: none; color: #ccc; font-size: 20px; cursor: pointer; line-height: 1;">&times;</button>
         </div>
         
-        <!-- Step 1: Select Game -->
-        <div id="gsStep1" style="padding: 16px;">
-          <!-- Date Nav + Search + Gender -->
-          <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 12px;">
-            <button onclick="gsPrevDay()" style="background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 6px 10px; cursor: pointer; font-size: 14px;">&lt;</button>
-            <div id="gsCurrentDate" style="font-size: 12px; font-weight: 600; min-width: 90px; text-align: center;"></div>
-            <button onclick="gsNextDay()" style="background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 6px 10px; cursor: pointer; font-size: 14px;">&gt;</button>
-            <input type="text" id="gsGameSearch" placeholder="Search..." oninput="filterGameList()" style="width: 70px; padding: 5px 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 11px;">
-            <div style="display: flex; gap: 6px; font-size: 11px; white-space: nowrap;">
-              <label style="display: flex; align-items: center; gap: 2px; cursor: pointer;">
-                <input type="radio" name="gsGender" value="Boys" checked onchange="filterGameList()"> Boys
-              </label>
-              <label style="display: flex; align-items: center; gap: 2px; cursor: pointer;">
-                <input type="radio" name="gsGender" value="Girls" onchange="filterGameList()"> Girls
-              </label>
-              <label style="display: flex; align-items: center; gap: 2px; cursor: pointer;">
-                <input type="radio" name="gsGender" value="Men" onchange="filterGameList()"> Men
-              </label>
-              <label style="display: flex; align-items: center; gap: 2px; cursor: pointer;">
-                <input type="radio" name="gsGender" value="Women" onchange="filterGameList()"> Women
-              </label>
+        <!-- Main Content: Side-by-Side Layout -->
+        <div id="gsMainContent" style="display: flex; gap: 20px; padding: 16px; flex-wrap: wrap;">
+          
+          <!-- Left: Game Selection -->
+          <div style="flex: 1; min-width: 300px; max-width: 400px;">
+            <div style="background: #fff; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
+              <div style="background: #f57c00; color: white; padding: 12px 16px;">
+                <h3 style="margin: 0; font-size: 14px;">Select Game</h3>
+              </div>
+              <div style="padding: 12px;">
+                <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                  <input type="date" id="gsDateFilter" onchange="populateGameList()" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 5px; font-size: 12px;">
+                  <select id="gsGenderFilter" onchange="populateGameList()" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 5px; font-size: 12px;">
+                    <option value="Boys">Boys</option>
+                    <option value="Girls">Girls</option>
+                    <option value="Men">Men</option>
+                    <option value="Women">Women</option>
+                  </select>
+                </div>
+                <input type="text" id="gsGameSearch" placeholder="Search teams..." oninput="populateGameList()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px; font-size: 12px; margin-bottom: 12px; box-sizing: border-box;">
+                <div id="gsGameList" style="max-height: 400px; overflow-y: auto; border: 1px solid #eee; border-radius: 5px;">
+                  <div style="padding: 20px; text-align: center; color: #888;">Loading games...</div>
+                </div>
+              </div>
             </div>
           </div>
-          <div id="gsGameList" class="gs-game-list">
-            <!-- Games populated here -->
-          </div>
-        </div>
-        
-        <!-- Step 2: Box Score Entry -->
-        <div id="gsStep2" style="display: none; padding: 16px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <button onclick="backToGameSelect()" style="background: #f5f5f5; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer;">&#8592; Back</button>
-            <h3 style="margin: 0; font-size: 16px; color: #333;" id="gsMatchupTitle">Game</h3>
-            <div style="width: 80px;"></div>
-          </div>
           
-          <!-- Quarter Scores -->
-          <div style="background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 12px; margin-bottom: 12px;">
-            <span style="font-weight: 600; font-size: 12px; display: block; margin-bottom: 8px;">Quarter Scores</span>
-            <table style="width: 100%; font-size: 12px; border-collapse: collapse;">
-              <thead>
-                <tr style="background: #f5f5f5;">
-                  <th style="padding: 6px; text-align: left; width: 120px;">Team</th>
-                  <th style="padding: 6px; width: 40px;">Q1</th>
-                  <th style="padding: 6px; width: 40px;">Q2</th>
-                  <th style="padding: 6px; width: 40px;">Q3</th>
-                  <th style="padding: 6px; width: 40px;">Q4</th>
-                  <th id="otHeaders" style="padding: 0;"></th>
-                  <th style="padding: 6px; width: 40px;"><button onclick="addOT()" style="background: #e0e0e0; border: none; padding: 3px 6px; border-radius: 3px; cursor: pointer; font-size: 10px;">+OT</button></th>
-                  <th style="padding: 6px; width: 50px;">Final</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td id="gsAwayName" style="padding: 6px; font-weight: 500;">Away</td>
-                  <td><input type="text" id="gsAwayQ1" class="quarter-input" onchange="calcGameFinal('away')"></td>
-                  <td><input type="text" id="gsAwayQ2" class="quarter-input" onchange="calcGameFinal('away')"></td>
-                  <td><input type="text" id="gsAwayQ3" class="quarter-input" onchange="calcGameFinal('away')"></td>
-                  <td><input type="text" id="gsAwayQ4" class="quarter-input" onchange="calcGameFinal('away')"></td>
-                  <td id="gsAwayOT" style="padding: 0;"></td>
-                  <td></td>
-                  <td><input type="text" id="gsAwayFinal" class="quarter-input" style="background: #e8f5e9; font-weight: bold;" readonly></td>
-                </tr>
-                <tr>
-                  <td id="gsHomeName" style="padding: 6px; font-weight: 500;">Home</td>
-                  <td><input type="text" id="gsHomeQ1" class="quarter-input" onchange="calcGameFinal('home')"></td>
-                  <td><input type="text" id="gsHomeQ2" class="quarter-input" onchange="calcGameFinal('home')"></td>
-                  <td><input type="text" id="gsHomeQ3" class="quarter-input" onchange="calcGameFinal('home')"></td>
-                  <td><input type="text" id="gsHomeQ4" class="quarter-input" onchange="calcGameFinal('home')"></td>
-                  <td id="gsHomeOT" style="padding: 0;"></td>
-                  <td></td>
-                  <td><input type="text" id="gsHomeFinal" class="quarter-input" style="background: #e8f5e9; font-weight: bold;" readonly></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          
-          <!-- Team Rosters Stacked - Away (Road) on top -->
-          <div style="margin-bottom: 15px;">
-            <!-- Away Team -->
-            <div style="background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 12px; margin-bottom: 12px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <span style="font-weight: 600; font-size: 13px;" id="gsAwayLabel">Away</span>
-                <span style="font-size: 11px; color: #666;">Pts: <strong id="gsAwayPtsTotal">0</strong> <span id="gsAwayMatch"></span></span>
+          <!-- Right: Box Score Entry -->
+          <div style="flex: 2; min-width: 400px;">
+            
+            <!-- Entry Panel (shown when game selected) -->
+            <div id="gsEntryPanel" style="display: none; background: #fff; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
+              <div style="background: #333; color: white; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="margin: 0; font-size: 14px;" id="gsMatchupTitle">Game</h3>
+                <button onclick="clearGameSelection()" style="background: none; border: none; color: #ccc; font-size: 18px; cursor: pointer;">&times;</button>
               </div>
-              <div style="display: grid; grid-template-columns: 1fr 45px 45px; gap: 5px; font-size: 10px; color: #888; margin-bottom: 5px; padding: 0 5px;">
-                <span>Player</span>
-                <span style="text-align: center;">Pts</span>
-                <span style="text-align: center;">3FG</span>
+              <div style="padding: 16px;">
+                
+                <!-- Quarter Scores -->
+                <div style="margin-bottom: 16px;">
+                  <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 8px;">Quarter Scores</label>
+                  <table style="width: 100%; font-size: 12px; border-collapse: collapse; background: #f9f9f9; border-radius: 5px;">
+                    <thead>
+                      <tr style="background: #eee;">
+                        <th style="padding: 8px; text-align: left; width: 100px;">Team</th>
+                        <th style="padding: 8px; width: 45px;">Q1</th>
+                        <th style="padding: 8px; width: 45px;">Q2</th>
+                        <th style="padding: 8px; width: 45px;">Q3</th>
+                        <th style="padding: 8px; width: 45px;">Q4</th>
+                        <th style="padding: 8px; width: 45px;" id="otHeaders"></th>
+                        <th style="padding: 8px; width: 50px;">Final</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td id="gsAwayName" style="padding: 8px; font-weight: 500;">Away</td>
+                        <td><input type="number" id="gsAwayQ1" class="quarter-input" onchange="calcGameFinal('away')"></td>
+                        <td><input type="number" id="gsAwayQ2" class="quarter-input" onchange="calcGameFinal('away')"></td>
+                        <td><input type="number" id="gsAwayQ3" class="quarter-input" onchange="calcGameFinal('away')"></td>
+                        <td><input type="number" id="gsAwayQ4" class="quarter-input" onchange="calcGameFinal('away')"></td>
+                        <td id="gsAwayOT"></td>
+                        <td><input type="number" id="gsAwayFinal" class="quarter-input" style="background: #e8f5e9; font-weight: bold;" readonly></td>
+                      </tr>
+                      <tr>
+                        <td id="gsHomeName" style="padding: 8px; font-weight: 500;">Home</td>
+                        <td><input type="number" id="gsHomeQ1" class="quarter-input" onchange="calcGameFinal('home')"></td>
+                        <td><input type="number" id="gsHomeQ2" class="quarter-input" onchange="calcGameFinal('home')"></td>
+                        <td><input type="number" id="gsHomeQ3" class="quarter-input" onchange="calcGameFinal('home')"></td>
+                        <td><input type="number" id="gsHomeQ4" class="quarter-input" onchange="calcGameFinal('home')"></td>
+                        <td id="gsHomeOT"></td>
+                        <td><input type="number" id="gsHomeFinal" class="quarter-input" style="background: #e8f5e9; font-weight: bold;" readonly></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  <button onclick="addOT()" style="margin-top: 8px; background: #eee; border: 1px solid #ccc; padding: 4px 10px; border-radius: 4px; font-size: 11px; cursor: pointer;">+ Add OT</button>
+                </div>
+                
+                <!-- Rosters Side-by-Side -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+                  <!-- Away Team -->
+                  <div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                      <label style="font-size: 12px; font-weight: 600;" id="gsAwayLabel">Away Scorers</label>
+                      <span style="font-size: 11px; color: #888;">Total: <strong id="gsAwayPtsTotal">0</strong> <span id="gsAwayMatch"></span></span>
+                    </div>
+                    <div id="gsAwayRoster" class="bash-roster-container">
+                      <!-- Populated by JS -->
+                    </div>
+                    <button onclick="addBlankPlayer('away')" style="margin-top: 6px; background: #f5f5f5; border: 1px solid #ddd; padding: 4px 10px; border-radius: 4px; font-size: 11px; cursor: pointer; width: 100%;">+ Add Player</button>
+                  </div>
+                  <!-- Home Team -->
+                  <div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                      <label style="font-size: 12px; font-weight: 600;" id="gsHomeLabel">Home Scorers</label>
+                      <span style="font-size: 11px; color: #888;">Total: <strong id="gsHomePtsTotal">0</strong> <span id="gsHomeMatch"></span></span>
+                    </div>
+                    <div id="gsHomeRoster" class="bash-roster-container">
+                      <!-- Populated by JS -->
+                    </div>
+                    <button onclick="addBlankPlayer('home')" style="margin-top: 6px; background: #f5f5f5; border: 1px solid #ddd; padding: 4px 10px; border-radius: 4px; font-size: 11px; cursor: pointer; width: 100%;">+ Add Player</button>
+                  </div>
+                </div>
+                
+                <!-- Game Notes -->
+                <div style="margin-bottom: 16px;">
+                  <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 6px;">Game Notes (optional)</label>
+                  <textarea id="gsNotes" style="width: 100%; min-height: 60px; padding: 8px; border: 1px solid #ddd; border-radius: 5px; font-size: 12px; box-sizing: border-box;" placeholder="Key plays, storylines, milestones..."></textarea>
+                </div>
+                
+                <!-- Photographers -->
+                <div id="gsPhotographers" style="margin-bottom: 16px; padding: 10px 12px; background: #f9f9f9; border: 1px solid #ddd; border-radius: 6px; font-size: 12px; display: none;">
+                  <span style="color: #666; font-weight: 500;">&#128247; Photo Credit:</span>
+                  <div id="gsPhotogCheckboxes" style="margin-top: 8px;"></div>
+                </div>
+                
+                <!-- Generate Button -->
+                <button onclick="generateGameStory()" id="gsGenerateBtn" style="width: 100%; background: #f57c00; color: white; border: none; padding: 12px; border-radius: 5px; font-size: 14px; font-weight: 600; cursor: pointer;">
+                  &#10024; Generate Story
+                </button>
               </div>
-              <div id="gsAwayRoster">
-                <!-- Roster rows -->
-              </div>
-              <button onclick="addBlankPlayer('away')" style="width: 100%; margin-top: 8px; background: #e0e0e0; border: none; padding: 6px; border-radius: 4px; cursor: pointer; font-size: 11px;">+ Add Player</button>
             </div>
             
-            <!-- Home Team -->
-            <div style="background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 12px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <span style="font-weight: 600; font-size: 13px;" id="gsHomeLabel">Home</span>
-                <span style="font-size: 11px; color: #666;">Pts: <strong id="gsHomePtsTotal">0</strong> <span id="gsHomeMatch"></span></span>
-              </div>
-              <div style="display: grid; grid-template-columns: 1fr 45px 45px; gap: 5px; font-size: 10px; color: #888; margin-bottom: 5px; padding: 0 5px;">
-                <span>Player</span>
-                <span style="text-align: center;">Pts</span>
-                <span style="text-align: center;">3FG</span>
-              </div>
-              <div id="gsHomeRoster">
-                <!-- Roster rows -->
-              </div>
-              <button onclick="addBlankPlayer('home')" style="width: 100%; margin-top: 8px; background: #e0e0e0; border: none; padding: 6px; border-radius: 4px; cursor: pointer; font-size: 11px;">+ Add Player</button>
+            <!-- Empty State -->
+            <div id="gsEmptyState" style="background: #f9f9f9; border: 2px dashed #ddd; border-radius: 8px; padding: 60px 20px; text-align: center;">
+              <div style="font-size: 48px; margin-bottom: 10px; color: #ccc;">&#9998;</div>
+              <h3 style="margin: 0 0 8px; color: #666;">Select a Game</h3>
+              <p style="margin: 0; color: #888; font-size: 13px;">Choose a game from the list to create a scorebook story</p>
             </div>
           </div>
-          
-          <!-- Notes -->
-          <div style="margin-bottom: 12px;">
-            <label style="font-size: 12px; font-weight: 600; color: #333; display: block; margin-bottom: 5px;">Game Notes (optional)</label>
-            <textarea id="gsNotes" style="width: 100%; min-height: 50px; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;" placeholder="Any storylines, key plays, milestones..."></textarea>
-          </div>
-          
-          <!-- Photographers -->
-          <div id="gsPhotographers" style="margin-bottom: 15px; padding: 10px 12px; background: #fff; border: 1px solid #ddd; border-radius: 6px; font-size: 12px; display: none;">
-            <span style="color: #666; font-weight: 500;">&#128247; Photo Credit:</span>
-            <div id="gsPhotogCheckboxes" style="margin-top: 8px;"></div>
-          </div>
-          
-          <!-- Generate Button -->
-          <button onclick="generateGameStory()" id="gsGenerateBtn" style="width: 100%; background: #444; color: white; border: none; padding: 15px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;">&#10024; Generate Story
-          </button>
         </div>
         
+        <!-- Step 3: Preview & Edit Article -->
         <!-- Step 3: Preview & Edit Article -->
         <div id="gsStep3" style="display: none; padding: 16px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
@@ -4468,16 +4469,26 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     function newGameStory() {
       gsSelectedGame = null;
       otCount = 0;
-      gsSelectedDate = new Date(); // Start with today
       gsGeneratedData = null;
       document.getElementById('gameStoryModal').style.display = 'block';
-      document.getElementById('gsStep1').style.display = 'block';
-      document.getElementById('gsStep2').style.display = 'none';
+      document.getElementById('gsMainContent').style.display = 'flex';
+      document.getElementById('gsEntryPanel').style.display = 'none';
+      document.getElementById('gsEmptyState').style.display = 'block';
       document.getElementById('gsStep3').style.display = 'none';
       document.getElementById('gsGameSearch').value = '';
-      updateGsDateDisplay();
+      // Set date filter to today
+      const today = new Date();
+      document.getElementById('gsDateFilter').value = getDateString(today);
+      document.getElementById('gsGenderFilter').value = 'Boys';
       populateGameList();
       document.body.style.overflow = 'hidden';
+    }
+    
+    function clearGameSelection() {
+      gsSelectedGame = null;
+      otCount = 0;
+      document.getElementById('gsEntryPanel').style.display = 'none';
+      document.getElementById('gsEmptyState').style.display = 'block';
     }
     
     function closeGameStory() {
@@ -4532,13 +4543,13 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       }
       
       const searchFilter = document.getElementById('gsGameSearch').value.toLowerCase();
-      const selectedDateStr = getDateString(gsSelectedDate);
-      const selectedGender = document.querySelector('input[name="gsGender"]:checked')?.value || 'Boys';
+      const selectedDateStr = document.getElementById('gsDateFilter').value;
+      const selectedGender = document.getElementById('gsGenderFilter').value;
       
       // Filter by selected date, gender, and search
       let filtered = games.filter(g => {
         // Must match selected date
-        if (g.date !== selectedDateStr) return false;
+        if (selectedDateStr && g.date !== selectedDateStr) return false;
         // Must match selected gender
         if (g.gender !== selectedGender) return false;
         // Filter by search
@@ -4563,21 +4574,22 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         return;
       }
       
-      // Build simple list
+      // Build game list with status indicators like Bash version
       let html = '';
       
       filtered.forEach(g => {
         const hasRecap = g.recap_link && g.recap_link.trim() !== '';
-        const rowStyle = hasRecap 
-          ? 'background: #f9f9f9; color: #bbb; cursor: not-allowed;' 
-          : 'cursor: pointer;';
-        const hoverClass = 'game-row-hover';
-        const onclick = `onclick="selectGameForStory('${g.game_id}')"`;
+        const hasScore = g.away_score !== null && g.home_score !== null;
+        const statusColor = hasRecap ? '#4caf50' : (hasScore ? '#ff9800' : '#ccc');
+        const statusText = hasRecap ? 'Published' : (hasScore ? 'Has Score' : 'Pending');
         
-        html += `
-          <div class="${hoverClass}" style="padding: 10px 12px; border-bottom: 1px solid #eee; ${rowStyle}" ${onclick}>
-            <span style="font-size: 13px;">${g.away} @ ${g.home}${hasRecap ? ' <span style="font-size: 10px; color: #888;">(redo)</span>' : ''}</span>
-          </div>`;
+        html += `<div onclick="selectGameForStory('${g.game_id}')" style="padding: 10px 12px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; justify-content: space-between; align-items: center;" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background=''">
+          <div>
+            <div style="font-size: 13px; font-weight: 500;">${g.away} @ ${g.home}</div>
+            <div style="font-size: 11px; color: #888;">${g.time || ''} - ${g.level || ''} ${g.division || ''}</div>
+          </div>
+          <span style="font-size: 10px; padding: 2px 8px; border-radius: 10px; background: ${statusColor}; color: white;">${statusText}</span>
+        </div>`;
       });
       
       container.innerHTML = html;
@@ -4591,9 +4603,9 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       gsSelectedGame = games.find(g => g.game_id === gameId);
       if (!gsSelectedGame) return;
       
-      // Move to step 2
-      document.getElementById('gsStep1').style.display = 'none';
-      document.getElementById('gsStep2').style.display = 'block';
+      // Show entry panel, hide empty state
+      document.getElementById('gsEmptyState').style.display = 'none';
+      document.getElementById('gsEntryPanel').style.display = 'block';
       
       // Set matchup title
       document.getElementById('gsMatchupTitle').textContent = `${gsSelectedGame.away} @ ${gsSelectedGame.home}`;
@@ -4840,14 +4852,17 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     }
     
     function backToGameSelect() {
-      document.getElementById('gsStep1').style.display = 'block';
-      document.getElementById('gsStep2').style.display = 'none';
+      // In the new side-by-side layout, just clear selection and show empty state
+      clearGameSelection();
       document.getElementById('gsStep3').style.display = 'none';
+      document.getElementById('gsMainContent').style.display = 'flex';
     }
     
     function backToBoxScore() {
-      document.getElementById('gsStep2').style.display = 'block';
       document.getElementById('gsStep3').style.display = 'none';
+      document.getElementById('gsMainContent').style.display = 'flex';
+      document.getElementById('gsEntryPanel').style.display = 'block';
+      document.getElementById('gsEmptyState').style.display = 'none';
     }
     
     function toggleArticleEdit() {
@@ -5189,7 +5204,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           };
           
           // Show preview step
-          document.getElementById('gsStep2').style.display = 'none';
+          document.getElementById('gsMainContent').style.display = 'none';
           document.getElementById('gsStep3').style.display = 'block';
           document.getElementById('gsPreviewHeadline').value = data.headline || '';
           document.getElementById('gsPreviewArticle').value = data.article || '';
