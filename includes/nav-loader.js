@@ -97,14 +97,17 @@
     if (mobileClose) mobileClose.addEventListener('click', closeDrawer);
     if (mobileOverlay) mobileOverlay.addEventListener('click', closeDrawer);
 
-    // Expandable submenus
-    document.querySelectorAll('.mobile-nav-item[data-expandable]').forEach(item => {
-      const link = item.querySelector('.mobile-nav-link');
+    // Expandable submenus - use event delegation on the drawer
+    mobileDrawer.addEventListener('click', (e) => {
+      // Find if click was on or inside an expandable item's link
+      const link = e.target.closest('.mobile-nav-item[data-expandable] > a, .mobile-nav-item[data-expandable] > .mobile-nav-link');
       if (link) {
-        link.addEventListener('click', (e) => {
-          e.preventDefault();
+        e.preventDefault();
+        e.stopPropagation();
+        const item = link.closest('.mobile-nav-item[data-expandable]');
+        if (item) {
           item.classList.toggle('expanded');
-        });
+        }
       }
     });
 
