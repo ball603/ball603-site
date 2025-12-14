@@ -60,13 +60,21 @@ async function fetchArticles(limit = 20) {
     const client = initSupabase();
     if (!client) return [];
     
+    // Fetch more than we need, then sort client-side
     const { data, error } = await client
       .from('articles')
       .select('*')
       .eq('status', 'published')
-      .limit(limit);
+      .order('created_at', { ascending: false })
+      .limit(100);
     
-    if (error) throw error;
+    if (error) {
+      console.error('Error fetching articles:', error);
+      throw error;
+    }
+    
+    console.log('=== ARTICLES DEBUG ===');
+    console.log('Total articles fetched:', (data || []).length);
     
     // Helper to get sortable date string (YYYY-MM-DD)
     function getDateString(article) {
