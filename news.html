@@ -598,7 +598,31 @@
         
         await loadTeamsForFilter();
         
-        renderArticles();
+        // Check for URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const tagParam = urlParams.get('tag');
+        const teamParam = urlParams.get('team');
+        
+        if (tagParam) {
+          const tagSelect = document.getElementById('tagFilter');
+          // Find matching tag (case-insensitive)
+          const matchingTag = allTags.find(t => t.toLowerCase() === tagParam.toLowerCase());
+          if (matchingTag) {
+            tagSelect.value = matchingTag;
+          }
+        }
+        
+        if (teamParam) {
+          const teamSelect = document.getElementById('teamFilter');
+          teamSelect.value = teamParam.toLowerCase();
+        }
+        
+        // Apply filters if URL params were set
+        if (tagParam || teamParam) {
+          applyFiltersAndSort();
+        } else {
+          renderArticles();
+        }
       } catch (err) {
         console.error('Error loading articles:', err);
         document.getElementById('articlesContainer').innerHTML = `
