@@ -6,7 +6,7 @@
 (function() {
   'use strict';
 
-// ===== ONESIGNAL PUSH NOTIFICATIONS =====
+/* ===== ONESIGNAL PUSH NOTIFICATIONS =====
 (function loadOneSignal() {
   // Load OneSignal SDK
   const sdk = document.createElement('script');
@@ -19,7 +19,7 @@
   init.src = '/js/onesignal-init.js';
   init.defer = true;
   document.head.appendChild(init);
-})();
+})();*/
 
   // ===== REGISTER SERVICE WORKER FOR PWA =====
   if ('serviceWorker' in navigator) {
