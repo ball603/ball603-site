@@ -19,6 +19,335 @@
     });
   }
 
+  // ===== PWA INSTALL BANNER =====
+  let deferredPrompt = null;
+  
+  // Capture the install prompt event (Android/Chrome)
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    console.log('[PWA] Install prompt captured');
+    showInstallBanner();
+  });
+
+  // Detect platform
+  function isIOS() {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  }
+  
+  function isAndroid() {
+    return /Android/.test(navigator.userAgent);
+  }
+  
+  function isStandalone() {
+    return window.matchMedia('(display-mode: standalone)').matches || 
+           window.navigator.standalone === true;
+  }
+
+  // Check if banner was dismissed
+  function wasDismissed() {
+    const dismissed = localStorage.getItem('ball603_install_dismissed');
+    if (!dismissed) return false;
+    // Allow showing again after 7 days
+    const dismissedTime = parseInt(dismissed, 10);
+    const sevenDays = 7 * 24 * 60 * 60 * 1000;
+    return (Date.now() - dismissedTime) < sevenDays;
+  }
+
+  // Create and show the install banner
+  function showInstallBanner() {
+    // Don't show if already installed, dismissed, or not on mobile
+    if (isStandalone() || wasDismissed()) return;
+    
+    // Only show on mobile or if we have the deferred prompt
+    if (!isIOS() && !deferredPrompt) return;
+
+    // Inject banner CSS
+    const style = document.createElement('style');
+    style.textContent = `
+      .pwa-install-banner {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+        color: #fff;
+        padding: 15px 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 15px;
+        z-index: 9999;
+        box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
+        transform: translateY(100%);
+        animation: slideUp 0.4s ease forwards;
+        animation-delay: 1s;
+      }
+      
+      @keyframes slideUp {
+        to { transform: translateY(0); }
+      }
+      
+      .pwa-install-banner-content {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex: 1;
+      }
+      
+      .pwa-install-banner-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 10px;
+        flex-shrink: 0;
+      }
+      
+      .pwa-install-banner-text h4 {
+        margin: 0 0 2px;
+        font-size: 14px;
+        font-weight: 600;
+      }
+      
+      .pwa-install-banner-text p {
+        margin: 0;
+        font-size: 12px;
+        color: #aaa;
+      }
+      
+      .pwa-install-banner-actions {
+        display: flex;
+        gap: 10px;
+        flex-shrink: 0;
+      }
+      
+      .pwa-install-btn {
+        background: #f57c00;
+        color: #fff;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      
+      .pwa-install-btn:hover {
+        background: #ff9800;
+      }
+      
+      .pwa-dismiss-btn {
+        background: transparent;
+        color: #888;
+        border: none;
+        padding: 10px;
+        font-size: 12px;
+        cursor: pointer;
+      }
+      
+      .pwa-dismiss-btn:hover {
+        color: #fff;
+      }
+      
+      /* iOS Instructions Modal */
+      .pwa-ios-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.85);
+        z-index: 10000;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+      
+      .pwa-ios-modal.active {
+        display: flex;
+      }
+      
+      .pwa-ios-content {
+        background: #1a1a1a;
+        border-radius: 16px;
+        padding: 30px;
+        max-width: 340px;
+        text-align: center;
+      }
+      
+      .pwa-ios-content h3 {
+        margin: 0 0 20px;
+        font-size: 18px;
+        color: #fff;
+      }
+      
+      .pwa-ios-steps {
+        text-align: left;
+        margin: 20px 0;
+      }
+      
+      .pwa-ios-step {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 0;
+        border-bottom: 1px solid #333;
+        color: #ccc;
+        font-size: 14px;
+      }
+      
+      .pwa-ios-step:last-child {
+        border-bottom: none;
+      }
+      
+      .pwa-ios-step-num {
+        width: 28px;
+        height: 28px;
+        background: #f57c00;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 13px;
+        color: #fff;
+        flex-shrink: 0;
+      }
+      
+      .pwa-ios-step svg {
+        width: 20px;
+        height: 20px;
+        flex-shrink: 0;
+      }
+      
+      .pwa-ios-close {
+        background: #333;
+        color: #fff;
+        border: none;
+        padding: 12px 30px;
+        border-radius: 20px;
+        font-size: 14px;
+        cursor: pointer;
+        margin-top: 10px;
+      }
+      
+      @media (max-width: 480px) {
+        .pwa-install-banner {
+          flex-direction: column;
+          text-align: center;
+          padding: 20px;
+        }
+        
+        .pwa-install-banner-content {
+          flex-direction: column;
+        }
+        
+        .pwa-install-banner-actions {
+          width: 100%;
+          justify-content: center;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+
+    // Create banner HTML
+    const banner = document.createElement('div');
+    banner.className = 'pwa-install-banner';
+    banner.id = 'pwaInstallBanner';
+    banner.innerHTML = `
+      <div class="pwa-install-banner-content">
+        <img src="/icons/icon-192x192.png" alt="Ball603" class="pwa-install-banner-icon" onerror="this.src='/logo.png'">
+        <div class="pwa-install-banner-text">
+          <h4>Get the Ball603 App</h4>
+          <p>Fast access to scores, schedules & news</p>
+        </div>
+      </div>
+      <div class="pwa-install-banner-actions">
+        <button class="pwa-install-btn" id="pwaInstallBtn">Install</button>
+        <button class="pwa-dismiss-btn" id="pwaDismissBtn">Not now</button>
+      </div>
+    `;
+    
+    // Create iOS instructions modal
+    const iosModal = document.createElement('div');
+    iosModal.className = 'pwa-ios-modal';
+    iosModal.id = 'pwaIosModal';
+    iosModal.innerHTML = `
+      <div class="pwa-ios-content">
+        <img src="/icons/icon-192x192.png" alt="Ball603" style="width: 60px; height: 60px; border-radius: 12px; margin-bottom: 15px;" onerror="this.src='/logo.png'">
+        <h3>Add Ball603 to Home Screen</h3>
+        <div class="pwa-ios-steps">
+          <div class="pwa-ios-step">
+            <span class="pwa-ios-step-num">1</span>
+            <span>Tap the Share button</span>
+            <svg fill="none" stroke="#f57c00" stroke-width="2" viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"/></svg>
+          </div>
+          <div class="pwa-ios-step">
+            <span class="pwa-ios-step-num">2</span>
+            <span>Scroll and tap "Add to Home Screen"</span>
+          </div>
+          <div class="pwa-ios-step">
+            <span class="pwa-ios-step-num">3</span>
+            <span>Tap "Add" to confirm</span>
+          </div>
+        </div>
+        <button class="pwa-ios-close" id="pwaIosClose">Got it</button>
+      </div>
+    `;
+
+    // Add to page
+    document.body.appendChild(banner);
+    document.body.appendChild(iosModal);
+
+    // Event listeners
+    document.getElementById('pwaInstallBtn').addEventListener('click', handleInstall);
+    document.getElementById('pwaDismissBtn').addEventListener('click', dismissBanner);
+    document.getElementById('pwaIosClose').addEventListener('click', () => {
+      document.getElementById('pwaIosModal').classList.remove('active');
+    });
+    iosModal.addEventListener('click', (e) => {
+      if (e.target === iosModal) {
+        iosModal.classList.remove('active');
+      }
+    });
+  }
+
+  function handleInstall() {
+    if (isIOS()) {
+      // Show iOS instructions
+      document.getElementById('pwaIosModal').classList.add('active');
+    } else if (deferredPrompt) {
+      // Trigger Android install prompt
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then((choiceResult) => {
+        if (choiceResult.outcome === 'accepted') {
+          console.log('[PWA] User accepted install');
+          hideBanner();
+        }
+        deferredPrompt = null;
+      });
+    }
+  }
+
+  function dismissBanner() {
+    localStorage.setItem('ball603_install_dismissed', Date.now().toString());
+    hideBanner();
+  }
+
+  function hideBanner() {
+    const banner = document.getElementById('pwaInstallBanner');
+    if (banner) {
+      banner.style.transform = 'translateY(100%)';
+      setTimeout(() => banner.remove(), 300);
+    }
+  }
+
+  // Show iOS banner after a short delay (no beforeinstallprompt event on iOS)
+  if (isIOS() && !isStandalone() && !wasDismissed()) {
+    setTimeout(showInstallBanner, 2000);
+  }
+
   let headerLoaded = false;
   let mobileMenuLoaded = false;
   let favoritesModalLoaded = false;
