@@ -311,6 +311,7 @@
       <button class="tab" onclick="showTab('graphics')">&#127912; Graphics</button>
       <button class="tab" onclick="showTab('galleries')">&#128247; Galleries</button>
       <button class="tab" onclick="showTab('video')">&#127916; Video</button>
+      <button class="tab" onclick="showTab('settings')">⚙️ Settings</button>
     </div>
     
     <!-- Articles List Panel -->
@@ -3425,6 +3426,68 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     </div>
   </div>
 
+  <!-- Settings Panel -->
+  <div class="panel" id="settingsPanel" style="display: none;">
+    <div style="max-width: 800px; margin: 0 auto; padding: 20px;">
+      <h2 style="margin-bottom: 30px; color: #333;">Site Settings</h2>
+      
+      <!-- Ticker Settings -->
+      <div style="background: #fff; border-radius: 10px; padding: 25px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.08);">
+        <h3 style="margin: 0 0 20px; font-size: 18px; color: #333; border-bottom: 2px solid #f57c00; padding-bottom: 10px;">
+          📊 Scores Ticker
+        </h3>
+        
+        <div style="margin-bottom: 20px;">
+          <label style="font-weight: 600; color: #555; display: block; margin-bottom: 10px;">Mode</label>
+          <div style="display: flex; gap: 15px;">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="radio" name="tickerMode" value="auto" id="tickerModeAuto" checked onchange="updateTickerMode()">
+              <span>Auto (Yesterday + Today)</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="radio" name="tickerMode" value="manual" id="tickerModeManual" onchange="updateTickerMode()">
+              <span>Manual</span>
+            </label>
+          </div>
+        </div>
+        
+        <div id="tickerManualOptions" style="display: none; background: #f9f9f9; padding: 15px; border-radius: 8px; margin-top: 15px;">
+          <label style="font-weight: 600; color: #555; display: block; margin-bottom: 10px;">Show games from:</label>
+          <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="checkbox" id="tickerShowYesterday" checked onchange="saveTickerSettings()">
+              <span>Yesterday</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="checkbox" id="tickerShowToday" checked onchange="saveTickerSettings()">
+              <span>Today</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="checkbox" id="tickerShowTomorrow" onchange="saveTickerSettings()">
+              <span>Tomorrow</span>
+            </label>
+          </div>
+          <p style="margin-top: 10px; font-size: 12px; color: #888;">
+            Past dates show only completed games (finals). Today and tomorrow show all games.
+          </p>
+        </div>
+        
+        <div style="margin-top: 20px;">
+          <button onclick="saveTickerSettings()" style="background: #f57c00; color: white; border: none; padding: 10px 25px; border-radius: 5px; cursor: pointer; font-weight: 600;">
+            Save Ticker Settings
+          </button>
+          <span id="tickerSaveStatus" style="margin-left: 15px; color: #4caf50; display: none;">✓ Saved!</span>
+        </div>
+      </div>
+      
+      <!-- Future settings sections can go here -->
+      <div style="background: #f5f5f5; border-radius: 10px; padding: 25px; color: #888; text-align: center;">
+        <p>More settings coming soon...</p>
+      </div>
+      
+    </div>
+  </div>
+
   <script src="rosters_data.js"></script>
   <script>
     // Supabase config
@@ -4024,6 +4087,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('graphicsPanel').style.display = tab === 'graphics' ? 'block' : 'none';
       document.getElementById('galleriesPanel').style.display = tab === 'galleries' ? 'block' : 'none';
       document.getElementById('videoPanel').style.display = tab === 'video' ? 'block' : 'none';
+      document.getElementById('settingsPanel').style.display = tab === 'settings' ? 'block' : 'none';
       document.getElementById('editorPanel').style.display = 'none';
       
       // Load teams when tab is selected
@@ -4049,6 +4113,11 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       // Load Bash data when tab is selected
       if (tab === 'bash' && bashSchedule.length === 0) {
         loadBashData();
+      }
+      
+      // Load settings when tab is selected
+      if (tab === 'settings') {
+        loadSiteSettings();
       }
       
       // Initialize Graphics Creator when tab is selected
@@ -12019,6 +12088,92 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       } catch (err) {
         console.error('Error deleting video:', err);
         showToast('Error deleting video', 'error');
+      }
+    }
+    
+    // ===== SITE SETTINGS =====
+    let siteSettingsLoaded = false;
+    
+    async function loadSiteSettings() {
+      if (siteSettingsLoaded) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('site_settings')
+          .select('*')
+          .eq('key', 'ticker_settings')
+          .single();
+        
+        if (data && data.value) {
+          const settings = data.value;
+          
+          // Set mode
+          if (settings.mode === 'manual') {
+            document.getElementById('tickerModeManual').checked = true;
+            document.getElementById('tickerManualOptions').style.display = 'block';
+          } else {
+            document.getElementById('tickerModeAuto').checked = true;
+            document.getElementById('tickerManualOptions').style.display = 'none';
+          }
+          
+          // Set checkboxes
+          document.getElementById('tickerShowYesterday').checked = settings.showYesterday !== false;
+          document.getElementById('tickerShowToday').checked = settings.showToday !== false;
+          document.getElementById('tickerShowTomorrow').checked = settings.showTomorrow === true;
+        }
+        
+        siteSettingsLoaded = true;
+      } catch (err) {
+        console.log('No existing ticker settings, using defaults');
+        siteSettingsLoaded = true;
+      }
+    }
+    
+    function updateTickerMode() {
+      const isManual = document.getElementById('tickerModeManual').checked;
+      document.getElementById('tickerManualOptions').style.display = isManual ? 'block' : 'none';
+      
+      // If switching to auto, reset to defaults
+      if (!isManual) {
+        document.getElementById('tickerShowYesterday').checked = true;
+        document.getElementById('tickerShowToday').checked = true;
+        document.getElementById('tickerShowTomorrow').checked = false;
+      }
+    }
+    
+    async function saveTickerSettings() {
+      const isManual = document.getElementById('tickerModeManual').checked;
+      
+      const settings = {
+        mode: isManual ? 'manual' : 'auto',
+        showYesterday: document.getElementById('tickerShowYesterday').checked,
+        showToday: document.getElementById('tickerShowToday').checked,
+        showTomorrow: document.getElementById('tickerShowTomorrow').checked
+      };
+      
+      try {
+        // Upsert the settings
+        const { error } = await supabase
+          .from('site_settings')
+          .upsert({
+            key: 'ticker_settings',
+            value: settings,
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'key'
+          });
+        
+        if (error) throw error;
+        
+        // Show success
+        const status = document.getElementById('tickerSaveStatus');
+        status.style.display = 'inline';
+        setTimeout(() => { status.style.display = 'none'; }, 3000);
+        
+        showToast('Ticker settings saved', 'success');
+      } catch (err) {
+        console.error('Error saving ticker settings:', err);
+        showToast('Error saving settings: ' + err.message, 'error');
       }
     }
   </script>

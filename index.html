@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Ball603 - New Hampshire High School and College Basketball Coverage. Schedules, scores, standings, photos, and stories.">
   <meta name="theme-color" content="#f57c00">
-  <title>Ball603 | Basketball in the Granite State</title>
+  <title>Ball603 | NH Basketball Coverage</title>
   
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="/logo.png">
@@ -337,6 +338,11 @@
     .ticker-status.live {
       color: #4caf50;
       animation: pulse 2s infinite;
+    }
+    
+    .ticker-status.upcoming {
+      color: var(--accent);
+      font-weight: 700;
     }
     
     @keyframes pulse {
@@ -1747,36 +1753,89 @@
         document.getElementById('storiesList').innerHTML = '<div class="empty-state"><p>No stories yet. Check back soon!</p></div>';
       }
       
+      await loadTickerSettings();
       renderTicker();
       renderStandings();
     });
     
     /**
-     * Render scores ticker - Shows only completed games from today and yesterday
+     * Render scores ticker - Shows yesterday's finals + all today's games
+     * Can be controlled via CMS settings (auto/manual mode)
      * Filters by NHIAA/NCAA selection, but always shows My Teams favorites
      */
+    
+    // Ticker settings (loaded from Supabase or defaults)
+    let tickerSettings = {
+      mode: 'auto',  // 'auto' or 'manual'
+      showYesterday: true,
+      showToday: true,
+      showTomorrow: false
+    };
+    
+    // Load ticker settings from Supabase
+    async function loadTickerSettings() {
+      try {
+        const { data, error } = await supabase
+          .from('site_settings')
+          .select('value')
+          .eq('key', 'ticker_settings')
+          .single();
+        
+        if (data && data.value) {
+          tickerSettings = { ...tickerSettings, ...data.value };
+        }
+      } catch (err) {
+        // Use defaults if settings don't exist
+        console.log('[Ticker] Using default settings');
+      }
+    }
+    
     function renderTicker() {
       const container = document.getElementById('tickerScroll');
       const games = Ball603.state?.games || [];
       const filter = loadTickerFilter();
       
-      // Get today and yesterday date strings in EST
-      const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
-      const yesterday = new Date();
+      // Get date strings in EST
+      const now = new Date();
+      const todayStr = now.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+      
+      const yesterday = new Date(now);
       yesterday.setDate(yesterday.getDate() - 1);
       const yesterdayStr = yesterday.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
       
-      // Filter to yesterday and today, only games with final scores
-      let completedGames = games.filter(game => {
+      const tomorrow = new Date(now);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomorrowStr = tomorrow.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+      
+      // Build list of dates to show based on settings
+      const datesToShow = [];
+      if (tickerSettings.showYesterday) datesToShow.push(yesterdayStr);
+      if (tickerSettings.showToday) datesToShow.push(todayStr);
+      if (tickerSettings.showTomorrow) datesToShow.push(tomorrowStr);
+      
+      // Filter games for selected dates
+      let tickerGames = games.filter(game => {
         const gameDate = game.date;
-        const isRecentDate = gameDate === todayStr || gameDate === yesterdayStr;
+        return datesToShow.includes(gameDate);
+      });
+      
+      // For yesterday (and past dates), only show games with final scores
+      // For today and tomorrow, show all games
+      tickerGames = tickerGames.filter(game => {
+        const gameDate = game.date;
         const hasScore = (game.home_score !== null && game.home_score !== '' && game.home_score !== undefined) &&
                          (game.away_score !== null && game.away_score !== '' && game.away_score !== undefined);
-        return isRecentDate && hasScore;
+        
+        // Past dates: only show completed games
+        if (gameDate < todayStr) {
+          return hasScore;
+        }
+        // Today and future: show all games
+        return true;
       });
       
       // Apply NHIAA/NCAA filter (but always keep favorites)
-      completedGames = completedGames.filter(game => {
+      tickerGames = tickerGames.filter(game => {
         const priority = Ball603.getGamePriority ? Ball603.getGamePriority(game) : 2;
         // Always show favorite teams (priority 0) or favorite divisions (priority 1)
         if (priority < 2) return true;
@@ -1791,28 +1850,36 @@
         return false;
       });
       
-      // Sort: favorites first, then today's games, then by time descending
-      completedGames.sort((a, b) => {
-        // First by favorites priority (0 = favorite team, 1 = favorite division, 2 = neither)
-        const priorityA = Ball603.getGamePriority ? Ball603.getGamePriority(a) : 2;
-        const priorityB = Ball603.getGamePriority ? Ball603.getGamePriority(b) : 2;
-        if (priorityA !== priorityB) return priorityA - priorityB;
+      // Sort: finals first (most recent), then upcoming by time
+      tickerGames.sort((a, b) => {
+        const hasScoreA = (a.home_score !== null && a.home_score !== '' && a.home_score !== undefined);
+        const hasScoreB = (b.home_score !== null && b.home_score !== '' && b.home_score !== undefined);
         
-        // Then today's games come first
-        if (a.date === todayStr && b.date !== todayStr) return -1;
-        if (b.date === todayStr && a.date !== todayStr) return 1;
-        // Within same day, sort by time descending (later games first)
-        const timeA = a.time || '00:00';
-        const timeB = b.time || '00:00';
-        return timeB.localeCompare(timeA);
+        // Completed games first
+        if (hasScoreA && !hasScoreB) return -1;
+        if (!hasScoreA && hasScoreB) return 1;
+        
+        // Within completed games: most recent first
+        if (hasScoreA && hasScoreB) {
+          if (a.date !== b.date) return b.date.localeCompare(a.date);
+          const timeA = a.time || '00:00';
+          const timeB = b.time || '00:00';
+          return timeB.localeCompare(timeA);
+        }
+        
+        // Within upcoming games: earliest first
+        if (a.date !== b.date) return a.date.localeCompare(b.date);
+        const timeA = a.time || '23:59';
+        const timeB = b.time || '23:59';
+        return timeA.localeCompare(timeB);
       });
       
-      if (completedGames.length === 0) {
+      if (tickerGames.length === 0) {
         container.innerHTML = `
           <div class="ticker-game" onclick="location.href='/schedule'">
             <div class="ticker-teams">
               <div class="ticker-team">
-                <span class="ticker-name" style="color: rgba(255,255,255,0.5);">No recent finals</span>
+                <span class="ticker-name" style="color: rgba(255,255,255,0.5);">No games scheduled</span>
               </div>
             </div>
             <span class="ticker-status">View Schedule</span>
@@ -1821,15 +1888,31 @@
         return;
       }
       
-      container.innerHTML = completedGames.map(game => {
+      container.innerHTML = tickerGames.map(game => {
         const awayScore = game.away_score ?? game.awayScore ?? '';
         const homeScore = game.home_score ?? game.homeScore ?? '';
-        const awayWins = parseInt(awayScore) > parseInt(homeScore);
-        const homeWins = parseInt(homeScore) > parseInt(awayScore);
+        const hasScore = awayScore !== '' && homeScore !== '';
+        const awayWins = hasScore && parseInt(awayScore) > parseInt(homeScore);
+        const homeWins = hasScore && parseInt(homeScore) > parseInt(awayScore);
         
-        // Show "Final" for all (since we filtered to completed games only)
-        const isToday = game.date === todayStr;
-        const statusText = isToday ? 'Final' : 'Final';
+        // Determine status text
+        let statusText, statusClass;
+        if (hasScore) {
+          statusText = 'Final';
+          statusClass = 'final';
+        } else {
+          // Format time for upcoming games
+          const timeStr = game.time || '';
+          if (timeStr) {
+            const [h, m] = timeStr.split(':').map(Number);
+            const ampm = h >= 12 ? 'PM' : 'AM';
+            const hour = h % 12 || 12;
+            statusText = `${hour}:${String(m).padStart(2, '0')} ${ampm}`;
+          } else {
+            statusText = 'TBD';
+          }
+          statusClass = 'upcoming';
+        }
         
         // Get gender label
         const gender = (game.gender || 'Boys').toUpperCase();
@@ -1840,17 +1923,17 @@
               <div class="ticker-team">
                 <img class="ticker-logo" src="${Ball603.getLogoUrl(game.away)}" alt="" onerror="this.style.display='none'">
                 <span class="ticker-name">${Ball603.getShortName(game.away)}</span>
-                <span class="ticker-score ${awayWins ? 'winner' : ''}">${awayScore}</span>
+                <span class="ticker-score ${awayWins ? 'winner' : ''}">${hasScore ? awayScore : ''}</span>
               </div>
               <div class="ticker-team">
                 <img class="ticker-logo" src="${Ball603.getLogoUrl(game.home)}" alt="" onerror="this.style.display='none'">
                 <span class="ticker-name">${Ball603.getShortName(game.home)}</span>
-                <span class="ticker-score ${homeWins ? 'winner' : ''}">${homeScore}</span>
+                <span class="ticker-score ${homeWins ? 'winner' : ''}">${hasScore ? homeScore : ''}</span>
               </div>
             </div>
             <div class="ticker-info">
               <span class="ticker-gender">${gender}</span>
-              <span class="ticker-status final">${statusText}</span>
+              <span class="ticker-status ${statusClass}">${statusText}</span>
             </div>
           </div>
         `;
