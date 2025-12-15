@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1a1a1a">
+  <title>Final Score | Ball603</title>
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="apple-touch-icon" href="/logo.png">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a1a;
+      color: #fff;
+      min-height: 100vh;
+      min-height: -webkit-fill-available;
+    }
+    
+    .container {
+      max-width: 500px;
+      margin: 0 auto;
+      padding: 20px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .logo {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 20px;
+      display: block;
+    }
+    
+    .page {
+      display: none;
+      flex-direction: column;
+      flex: 1;
+    }
+    
+    .page.active {
+      display: flex;
+    }
+    
+    .page-title {
+      font-size: 24px;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 30px;
+      color: #fff;
+    }
+    
+    .page-subtitle {
+      font-size: 16px;
+      text-align: center;
+      color: #999;
+      margin-bottom: 30px;
+    }
+    
+    /* Login */
+    .login-input {
+      width: 100%;
+      padding: 16px 20px;
+      font-size: 18px;
+      border: 2px solid #333;
+      border-radius: 12px;
+      background: #222;
+      color: #fff;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    
+    .login-input:focus {
+      outline: none;
+      border-color: #f57c00;
+    }
+    
+    .login-input::placeholder {
+      color: #666;
+    }
+    
+    .login-error {
+      color: #ff5252;
+      text-align: center;
+      margin-bottom: 15px;
+      font-size: 14px;
+    }
+    
+    /* Buttons */
+    .btn {
+      width: 100%;
+      padding: 18px 24px;
+      font-size: 18px;
+      font-weight: 600;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: transform 0.1s, opacity 0.2s;
+    }
+    
+    .btn:active {
+      transform: scale(0.98);
+    }
+    
+    .btn-primary {
+      background: #f57c00;
+      color: #fff;
+    }
+    
+    .btn-primary:hover {
+      background: #e66a00;
+    }
+    
+    .btn-secondary {
+      background: #333;
+      color: #fff;
+      margin-top: 12px;
+    }
+    
+    .btn-secondary:hover {
+      background: #444;
+    }
+    
+    /* Gender Selection */
+    .gender-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin-top: auto;
+      margin-bottom: auto;
+    }
+    
+    .gender-btn {
+      padding: 24px;
+      font-size: 22px;
+      font-weight: 700;
+      border: 2px solid #333;
+      border-radius: 16px;
+      background: #222;
+      color: #fff;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .gender-btn:hover {
+      border-color: #f57c00;
+      background: #2a2a2a;
+    }
+    
+    .gender-btn:active {
+      transform: scale(0.98);
+    }
+    
+    /* Games List */
+    .games-header {
+      font-size: 18px;
+      font-weight: 600;
+      color: #f57c00;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+    
+    .games-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      flex: 1;
+      overflow-y: auto;
+      padding-bottom: 80px;
+    }
+    
+    .game-pill {
+      display: flex;
+      align-items: center;
+      padding: 14px 16px;
+      background: #222;
+      border: 2px solid #333;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .game-pill:hover {
+      border-color: #f57c00;
+      background: #2a2a2a;
+    }
+    
+    .game-pill:active {
+      transform: scale(0.98);
+    }
+    
+    .game-pill.final {
+      opacity: 0.5;
+      cursor: default;
+    }
+    
+    .game-pill.final:hover {
+      border-color: #333;
+      background: #222;
+    }
+    
+    .game-pill-content {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 15px;
+      font-weight: 500;
+    }
+    
+    .game-pill-logo {
+      width: 28px;
+      height: 28px;
+      object-fit: contain;
+    }
+    
+    .game-pill-at {
+      color: #666;
+      font-size: 13px;
+    }
+    
+    .game-pill-score {
+      font-size: 13px;
+      color: #f57c00;
+      margin-left: auto;
+      white-space: nowrap;
+    }
+    
+    .edit-btn {
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      background: #f57c00;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-left: 10px;
+    }
+    
+    .edit-btn:hover {
+      background: #e66a00;
+    }
+    
+    /* Score Entry */
+    .score-entry {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .team-score-row {
+      display: flex;
+      align-items: center;
+      padding: 20px;
+      background: #222;
+      border-radius: 12px;
+      margin-bottom: 12px;
+    }
+    
+    .team-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+    }
+    
+    .team-logo {
+      width: 48px;
+      height: 48px;
+      object-fit: contain;
+    }
+    
+    .team-name {
+      font-size: 16px;
+      font-weight: 600;
+    }
+    
+    .score-input {
+      width: 80px;
+      padding: 12px;
+      font-size: 28px;
+      font-weight: 700;
+      text-align: center;
+      border: 2px solid #333;
+      border-radius: 10px;
+      background: #1a1a1a;
+      color: #fff;
+    }
+    
+    .score-input:focus {
+      outline: none;
+      border-color: #f57c00;
+    }
+    
+    .status-select {
+      width: 100%;
+      padding: 16px 20px;
+      font-size: 16px;
+      border: 2px solid #333;
+      border-radius: 12px;
+      background: #222;
+      color: #fff;
+      margin-top: 20px;
+      cursor: pointer;
+    }
+    
+    .status-select:focus {
+      outline: none;
+      border-color: #f57c00;
+    }
+    
+    .submit-section {
+      margin-top: auto;
+      padding-top: 20px;
+    }
+    
+    /* Confirmation */
+    .confirm-box {
+      background: #222;
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 30px;
+    }
+    
+    .confirm-matchup {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    
+    .confirm-team {
+      text-align: center;
+      flex: 1;
+    }
+    
+    .confirm-logo {
+      width: 56px;
+      height: 56px;
+      object-fit: contain;
+      margin-bottom: 8px;
+    }
+    
+    .confirm-name {
+      font-size: 14px;
+      font-weight: 500;
+      color: #ccc;
+      margin-bottom: 8px;
+    }
+    
+    .confirm-score {
+      font-size: 36px;
+      font-weight: 700;
+      color: #fff;
+    }
+    
+    .confirm-score.winner {
+      color: #f57c00;
+    }
+    
+    .confirm-vs {
+      font-size: 14px;
+      color: #666;
+      padding: 0 10px;
+    }
+    
+    .confirm-status {
+      text-align: center;
+      font-size: 14px;
+      font-weight: 600;
+      color: #f57c00;
+      text-transform: uppercase;
+    }
+    
+    /* Thanks */
+    .thanks-icon {
+      font-size: 64px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    
+    .thanks-message {
+      font-size: 28px;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    
+    /* Back button */
+    .back-btn {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      padding: 8px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      background: #333;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      z-index: 100;
+    }
+    
+    .back-btn:hover {
+      background: #444;
+    }
+    
+    /* Loading */
+    .loading {
+      text-align: center;
+      color: #999;
+      padding: 40px;
+    }
+    
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      color: #666;
+      padding: 40px;
+    }
+    
+    .empty-state-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    
+    <!-- Login Page -->
+    <div class="page active" id="loginPage">
+      <img src="/logo.png" alt="Ball603" class="logo">
+      <h1 class="page-title">Final Score Entry</h1>
+      <p class="page-subtitle">Enter password to continue</p>
+      <div id="loginError" class="login-error" style="display: none;"></div>
+      <input type="password" id="passwordInput" class="login-input" placeholder="Password" autocomplete="off">
+      <button class="btn btn-primary" onclick="checkPassword()">Enter</button>
+    </div>
+    
+    <!-- Gender Selection Page -->
+    <div class="page" id="genderPage">
+      <img src="/logo.png" alt="Ball603" class="logo">
+      <h1 class="page-title">Let's choose your game.</h1>
+      <div class="gender-buttons">
+        <button class="gender-btn" onclick="selectGender('Boys')">&#127936; Boys</button>
+        <button class="gender-btn" onclick="selectGender('Girls')">&#127936; Girls</button>
+      </div>
+    </div>
+    
+    <!-- Games List Page -->
+    <div class="page" id="gamesPage">
+      <button class="back-btn" onclick="goToGender()">&#8592; Back</button>
+      <h2 class="games-header" id="gamesHeader">Boys: December 15, 2024</h2>
+      <div class="games-list" id="gamesList">
+        <div class="loading">Loading games...</div>
+      </div>
+    </div>
+    
+    <!-- Score Entry Page -->
+    <div class="page" id="scorePage">
+      <button class="back-btn" onclick="goToGames()">&#8592; Back</button>
+      <h1 class="page-title">Enter Score</h1>
+      <div class="score-entry">
+        <div class="team-score-row">
+          <div class="team-info">
+            <img id="awayLogo" class="team-logo" src="/logo.png" alt="">
+            <span id="awayName" class="team-name">Away Team</span>
+          </div>
+          <input type="number" id="awayScore" class="score-input" value="0" min="0" inputmode="numeric" pattern="[0-9]*">
+        </div>
+        <div class="team-score-row">
+          <div class="team-info">
+            <img id="homeLogo" class="team-logo" src="/logo.png" alt="">
+            <span id="homeName" class="team-name">Home Team</span>
+          </div>
+          <input type="number" id="homeScore" class="score-input" value="0" min="0" inputmode="numeric" pattern="[0-9]*">
+        </div>
+        <select id="gameStatus" class="status-select">
+          <option value="FINAL">Final</option>
+          <option value="FINAL (OT)">Final (OT)</option>
+          <option value="FINAL (2OT)">Final (2OT)</option>
+          <option value="FINAL (3OT)">Final (3OT)</option>
+          <option value="FINAL (4OT)">Final (4OT)</option>
+          <option value="FINAL (5OT)">Final (5OT)</option>
+        </select>
+        <div class="submit-section">
+          <button class="btn btn-primary" onclick="submitScore()">Submit Score</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Confirmation Page -->
+    <div class="page" id="confirmPage">
+      <button class="back-btn" onclick="goToScore()">&#8592; Back</button>
+      <h1 class="page-title">Confirm Score</h1>
+      <div class="confirm-box">
+        <div class="confirm-matchup">
+          <div class="confirm-team">
+            <img id="confirmAwayLogo" class="confirm-logo" src="/logo.png" alt="">
+            <div id="confirmAwayName" class="confirm-name">Away</div>
+            <div id="confirmAwayScore" class="confirm-score">0</div>
+          </div>
+          <div class="confirm-vs">@</div>
+          <div class="confirm-team">
+            <img id="confirmHomeLogo" class="confirm-logo" src="/logo.png" alt="">
+            <div id="confirmHomeName" class="confirm-name">Home</div>
+            <div id="confirmHomeScore" class="confirm-score">0</div>
+          </div>
+        </div>
+        <div id="confirmStatus" class="confirm-status">FINAL</div>
+      </div>
+      <button class="btn btn-primary" onclick="confirmScore()">Click to Confirm</button>
+      <button class="btn btn-secondary" onclick="goToScore()">Go Back & Edit</button>
+    </div>
+    
+    <!-- Thanks Page -->
+    <div class="page" id="thanksPage">
+      <div style="margin: auto;">
+        <img src="/logo.png" alt="Ball603" class="logo" style="width: 120px; height: 120px;">
+        <div class="thanks-message">Thanks for the assist!</div>
+        <button class="btn btn-primary" onclick="startOver()">Enter Another Score</button>
+      </div>
+    </div>
+    
+  </div>
+
+  <script>
+    // Supabase setup
+    const SUPABASE_URL = 'https://suncdkxfqkwwnmhosxcf.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN1bmNka3hmcWt3d25taG9zeGNmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzMwODI0MjAsImV4cCI6MjA0ODY1ODQyMH0.yMDgMF7UNKkaF4FpJHUDBPNVgSfGST4Ilrp7hhZ1rLE';
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    
+    const PASSWORD = 'assist';
+    let allGames = [];
+    let selectedGender = null;
+    let selectedGame = null;
+    
+    // Helper to get logo filename
+    function getLogoFilename(team) {
+      if (!team) return 'Ball603-white.png';
+      return team.replace(/[^a-zA-Z0-9]/g, '') + '.png';
+    }
+    
+    // Helper to get current date in EST
+    function getESTDate() {
+      return new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+    }
+    
+    // Format date
+    function formatDate(date) {
+      const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+      return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+    }
+    
+    // Get date string for query
+    function getDateString(d) {
+      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+    
+    // Normalize team names
+    function normalizeTeamName(name) {
+      if (!name) return name;
+      const n = {'Alvirne High School':'Alvirne','Bedford High School':'Bedford','Belmont High School':'Belmont','Bishop Brady High School':'Bishop Brady','Bishop Guertin High School':'Bishop Guertin','Bow High School':'Bow','Campbell High School':'Campbell','Coe-Brown Northwood Academy':'Coe-Brown','Concord High School':'Concord','Concord Christian Academy':'Concord Christian','ConVal Regional High School':'ConVal','Derryfield School':'Derryfield','Dover High School':'Dover','Exeter High School':'Exeter','Farmington High School':'Farmington','Gilford High School':'Gilford','Goffstown High School':'Goffstown','Hanover High School':'Hanover','Hollis-Brookline High School':'Hollis-Brookline','Keene High School':'Keene','Kennett High School':'Kennett','Kingswood Regional High School':'Kingswood','Laconia High School':'Laconia','Lebanon High School':'Lebanon','Londonderry High School':'Londonderry','Manchester Central High School':'Manchester Central','Manchester Memorial High School':'Manchester Memorial','Manchester West High School':'Manchester West','Mascoma Valley':'Mascoma','Merrimack High School':'Merrimack','Milford High School':'Milford','Nashua High School North':'Nashua North','Nashua High School South':'Nashua South','Oyster River High School':'Oyster River','Pelham High School':'Pelham','Pembroke Academy':'Pembroke','Pinkerton Academy':'Pinkerton','Plymouth Regional High School':'Plymouth','Portsmouth High School':'Portsmouth','Salem High School':'Salem','Souhegan High School':'Souhegan','Spaulding High School':'Spaulding','St. Thomas Aquinas High School':'St. Thomas Aquinas','Timberlane Regional High School':'Timberlane','Trinity High School':'Trinity','Windham High School':'Windham','Winnacunnet High School':'Winnacunnet'};
+      return n[name] || name;
+    }
+    
+    // Show page
+    function showPage(pageId) {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.getElementById(pageId).classList.add('active');
+    }
+    
+    // Check password
+    function checkPassword() {
+      const input = document.getElementById('passwordInput').value;
+      const errorEl = document.getElementById('loginError');
+      
+      if (input.toLowerCase() === PASSWORD) {
+        errorEl.style.display = 'none';
+        showPage('genderPage');
+        loadGames();
+      } else {
+        errorEl.textContent = 'Incorrect password';
+        errorEl.style.display = 'block';
+      }
+    }
+    
+    // Handle enter key on password
+    document.getElementById('passwordInput').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') checkPassword();
+    });
+    
+    // Load games from Supabase
+    async function loadGames() {
+      try {
+        const response = await fetch('/.netlify/functions/get-games');
+        const data = await response.json();
+        allGames = (data.games || []).map(g => ({
+          ...g,
+          home: normalizeTeamName(g.home),
+          away: normalizeTeamName(g.away)
+        }));
+      } catch (err) {
+        console.error('Error loading games:', err);
+      }
+    }
+    
+    // Select gender
+    function selectGender(gender) {
+      selectedGender = gender;
+      renderGames();
+      showPage('gamesPage');
+    }
+    
+    // Render games list
+    function renderGames() {
+      const today = getESTDate();
+      const dateStr = getDateString(today);
+      
+      document.getElementById('gamesHeader').textContent = `${selectedGender}: ${formatDate(today)}`;
+      
+      // Filter to today's NHIAA games for selected gender
+      let games = allGames.filter(g => 
+        g.date === dateStr && 
+        g.gender === selectedGender &&
+        g.level !== 'College'
+      );
+      
+      // Sort alphabetically by away team
+      games.sort((a, b) => (a.away || '').localeCompare(b.away || ''));
+      
+      const listEl = document.getElementById('gamesList');
+      
+      if (games.length === 0) {
+        listEl.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">&#127936;</div>
+            <div>No ${selectedGender.toLowerCase()} games today</div>
+          </div>
+        `;
+        return;
+      }
+      
+      listEl.innerHTML = games.map(game => {
+        const isFinal = game.time === 'FINAL' || (game.time && game.time.includes('FINAL')) || 
+                        (game.away_score !== null && game.away_score !== '' && 
+                         game.home_score !== null && game.home_score !== '');
+        
+        const scoreText = isFinal ? `${game.away_score}-${game.home_score}` : '';
+        
+        return `
+          <div class="game-pill ${isFinal ? 'final' : ''}" onclick="${isFinal ? '' : `selectGame('${game.game_id}')`}">
+            <div class="game-pill-content">
+              <img class="game-pill-logo" src="/logos/100px/${getLogoFilename(game.away)}" onerror="this.src='/logos/100px/Ball603-white.png'" alt="">
+              <span>${game.away}</span>
+              <span class="game-pill-at">at</span>
+              <img class="game-pill-logo" src="/logos/100px/${getLogoFilename(game.home)}" onerror="this.src='/logos/100px/Ball603-white.png'" alt="">
+              <span>${game.home}</span>
+            </div>
+            ${isFinal ? `
+              <span class="game-pill-score">${scoreText}</span>
+              <button class="edit-btn" onclick="event.stopPropagation(); editGame('${game.game_id}')">EDIT</button>
+            ` : ''}
+          </div>
+        `;
+      }).join('');
+    }
+    
+    // Select game for score entry
+    function selectGame(gameId) {
+      selectedGame = allGames.find(g => g.game_id === gameId);
+      if (!selectedGame) return;
+      
+      document.getElementById('awayLogo').src = `/logos/100px/${getLogoFilename(selectedGame.away)}`;
+      document.getElementById('awayName').textContent = selectedGame.away;
+      document.getElementById('homeLogo').src = `/logos/100px/${getLogoFilename(selectedGame.home)}`;
+      document.getElementById('homeName').textContent = selectedGame.home;
+      document.getElementById('awayScore').value = '0';
+      document.getElementById('homeScore').value = '0';
+      document.getElementById('gameStatus').value = 'FINAL';
+      
+      showPage('scorePage');
+    }
+    
+    // Edit existing game
+    function editGame(gameId) {
+      selectedGame = allGames.find(g => g.game_id === gameId);
+      if (!selectedGame) return;
+      
+      document.getElementById('awayLogo').src = `/logos/100px/${getLogoFilename(selectedGame.away)}`;
+      document.getElementById('awayName').textContent = selectedGame.away;
+      document.getElementById('homeLogo').src = `/logos/100px/${getLogoFilename(selectedGame.home)}`;
+      document.getElementById('homeName').textContent = selectedGame.home;
+      document.getElementById('awayScore').value = selectedGame.away_score || '0';
+      document.getElementById('homeScore').value = selectedGame.home_score || '0';
+      document.getElementById('gameStatus').value = selectedGame.time || 'FINAL';
+      
+      showPage('scorePage');
+    }
+    
+    // Submit score (go to confirmation)
+    function submitScore() {
+      const awayScore = parseInt(document.getElementById('awayScore').value) || 0;
+      const homeScore = parseInt(document.getElementById('homeScore').value) || 0;
+      const status = document.getElementById('gameStatus').value;
+      
+      // Set confirmation page
+      document.getElementById('confirmAwayLogo').src = `/logos/100px/${getLogoFilename(selectedGame.away)}`;
+      document.getElementById('confirmAwayName').textContent = selectedGame.away;
+      document.getElementById('confirmAwayScore').textContent = awayScore;
+      document.getElementById('confirmAwayScore').className = 'confirm-score' + (awayScore > homeScore ? ' winner' : '');
+      
+      document.getElementById('confirmHomeLogo').src = `/logos/100px/${getLogoFilename(selectedGame.home)}`;
+      document.getElementById('confirmHomeName').textContent = selectedGame.home;
+      document.getElementById('confirmHomeScore').textContent = homeScore;
+      document.getElementById('confirmHomeScore').className = 'confirm-score' + (homeScore > awayScore ? ' winner' : '');
+      
+      document.getElementById('confirmStatus').textContent = status;
+      
+      showPage('confirmPage');
+    }
+    
+    // Confirm and save score
+    async function confirmScore() {
+      const awayScore = parseInt(document.getElementById('awayScore').value) || 0;
+      const homeScore = parseInt(document.getElementById('homeScore').value) || 0;
+      const status = document.getElementById('gameStatus').value;
+      
+      // If both scores are 0, revert to pregame state
+      let updateData;
+      if (awayScore === 0 && homeScore === 0) {
+        updateData = {
+          away_score: null,
+          home_score: null,
+          time: selectedGame.original_time || 'TBD'
+        };
+      } else {
+        updateData = {
+          away_score: awayScore,
+          home_score: homeScore,
+          time: status
+        };
+      }
+      
+      try {
+        const { error } = await supabase
+          .from('games')
+          .update(updateData)
+          .eq('game_id', selectedGame.game_id);
+        
+        if (error) {
+          console.error('Error saving score:', error);
+          alert('Error saving score. Please try again.');
+          return;
+        }
+        
+        // Update local data
+        const gameIndex = allGames.findIndex(g => g.game_id === selectedGame.game_id);
+        if (gameIndex !== -1) {
+          allGames[gameIndex] = { ...allGames[gameIndex], ...updateData };
+        }
+        
+        showPage('thanksPage');
+      } catch (err) {
+        console.error('Error:', err);
+        alert('Error saving score. Please try again.');
+      }
+    }
+    
+    // Navigation
+    function goToGender() {
+      showPage('genderPage');
+    }
+    
+    function goToGames() {
+      renderGames();
+      showPage('gamesPage');
+    }
+    
+    function goToScore() {
+      showPage('scorePage');
+    }
+    
+    function startOver() {
+      selectedGame = null;
+      showPage('genderPage');
+    }
+  </script>
+</body>
+</html>
