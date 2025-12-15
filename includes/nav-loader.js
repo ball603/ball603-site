@@ -99,15 +99,19 @@
 
     // Expandable submenus - use event delegation on the drawer
     mobileDrawer.addEventListener('click', (e) => {
-      // Find if click was on or inside an expandable item's link
-      const link = e.target.closest('.mobile-nav-item[data-expandable] > a, .mobile-nav-item[data-expandable] > .mobile-nav-link');
-      if (link) {
+      // Find if click was within an expandable item
+      const expandableItem = e.target.closest('.mobile-nav-item[data-expandable]');
+      if (!expandableItem) return;
+      
+      // Get the main link (not subnav links)
+      const mainLink = expandableItem.querySelector(':scope > a, :scope > .mobile-nav-link');
+      if (!mainLink) return;
+      
+      // Check if click was on the main link or its children (like the SVG icon)
+      if (e.target === mainLink || mainLink.contains(e.target)) {
         e.preventDefault();
         e.stopPropagation();
-        const item = link.closest('.mobile-nav-item[data-expandable]');
-        if (item) {
-          item.classList.toggle('expanded');
-        }
+        expandableItem.classList.toggle('expanded');
       }
     });
 
