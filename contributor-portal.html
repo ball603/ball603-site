@@ -532,10 +532,28 @@
           </div>
         </div>
       </div>
+      
+      <div class="section">
+        <div class="section-header">
+          <h2>&#128274; Change Password</h2>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label>New Password</label>
+            <input type="password" id="newPassword" placeholder="Enter new password">
+          </div>
+          <div class="form-group">
+            <label>Confirm New Password</label>
+            <input type="password" id="confirmNewPassword" placeholder="Confirm new password">
+          </div>
+        </div>
+        <p style="font-size: 12px; color: #666; margin-bottom: 15px;">Password must be at least 6 characters.</p>
+        <button class="btn-save-inline" onclick="changePassword()">Update Password</button>
+        <span id="passwordChangeStatus" style="margin-left: 10px; font-size: 13px;"></span>
+      </div>
     </div>
   </div>
-  
-  <!-- Cropper Modal -->
   <div class="modal-overlay" id="cropperModal">
     <div class="modal">
       <div class="modal-header">
@@ -1107,6 +1125,57 @@
         showToast('Error saving profile', 'error');
       } finally {
         btns.forEach(btn => { btn.disabled = false; btn.textContent = 'Save Changes'; });
+      }
+    }
+    
+    async function changePassword() {
+      const newPassword = document.getElementById('newPassword').value;
+      const confirmPassword = document.getElementById('confirmNewPassword').value;
+      const statusEl = document.getElementById('passwordChangeStatus');
+      
+      // Validation
+      if (!newPassword || !confirmPassword) {
+        statusEl.style.color = '#c00';
+        statusEl.textContent = 'Please fill in both fields';
+        return;
+      }
+      
+      if (newPassword.length < 6) {
+        statusEl.style.color = '#c00';
+        statusEl.textContent = 'Password must be at least 6 characters';
+        return;
+      }
+      
+      if (newPassword !== confirmPassword) {
+        statusEl.style.color = '#c00';
+        statusEl.textContent = 'Passwords do not match';
+        return;
+      }
+      
+      statusEl.style.color = '#666';
+      statusEl.textContent = 'Updating...';
+      
+      try {
+        const { error } = await supabase.auth.updateUser({ password: newPassword });
+        
+        if (error) {
+          statusEl.style.color = '#c00';
+          statusEl.textContent = error.message;
+          return;
+        }
+        
+        // Clear fields and show success
+        document.getElementById('newPassword').value = '';
+        document.getElementById('confirmNewPassword').value = '';
+        statusEl.style.color = '#4CAF50';
+        statusEl.textContent = 'Password updated successfully!';
+        
+        // Clear status after 3 seconds
+        setTimeout(() => { statusEl.textContent = ''; }, 3000);
+        
+      } catch (err) {
+        statusEl.style.color = '#c00';
+        statusEl.textContent = 'Error updating password';
       }
     }
     
