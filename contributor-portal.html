@@ -281,7 +281,7 @@
         
         <!-- Recent Coverage -->
         <div class="section-card">
-          <h2><span class="section-icon">📸</span> Your Recent Coverage</h2>
+          <h2><span class="section-icon">📸</span> Your Recent Galleries</h2>
           <div class="recent-grid" id="recentGrid">
             <div class="loading"><span class="loading-spinner"></span> Loading...</div>
           </div>
@@ -577,7 +577,7 @@
   
   <script>
     // Version marker for debugging deployment issues
-    console.log('Contributor Portal v210 loaded');
+    console.log('Contributor Portal v212 loaded');
     
     // Supabase setup
     const SUPABASE_URL = 'https://suncdkxfqkwwnmhosxcf.supabase.co';
@@ -1052,19 +1052,18 @@
         const response = await fetch(`/.netlify/functions/games?end_date=${today}&limit=500`);
         const games = await response.json();
         
+        // Only show games where contributor is assigned AND has a photos_url
         const myGames = games.filter(g => 
           ((g.photog1 || '').trim() === contributorName || 
-           (g.photog2 || '').trim() === contributorName || 
-           (g.videog || '').trim() === contributorName || 
-           (g.writer || '').trim() === contributorName) &&
-          (g.photos_url || g.recap_url)
-        ).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8);
+           (g.photog2 || '').trim() === contributorName) &&
+          g.photos_url
+        ).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6);
         
         if (myGames.length === 0) {
           container.innerHTML = `
             <div class="empty-state" style="grid-column: 1/-1;">
               <div class="empty-icon">📸</div>
-              <p>No recent coverage yet</p>
+              <p>No galleries yet</p>
             </div>
           `;
           return;
@@ -1073,10 +1072,12 @@
         container.innerHTML = myGames.map(game => {
           const [year, month, day] = game.date.split('-');
           const monthName = MONTH_NAMES_SHORT[parseInt(month, 10) - 1];
-          const link = game.photos_url || game.recap_url || '#';
-          const hasPhotos = !!game.photos_url;
-          const hasRecap = !!game.recap_url;
-          const thumbUrl = game.photos_thumb_url;
+          const link = game.photos_url;
+          
+          // Try to get SmugMug thumbnail from photos_url
+          // SmugMug gallery URLs look like: https://ball603.smugmug.com/2024-25/...
+          // Thumbnail can be derived or use photos_thumb_url if stored
+          let thumbUrl = game.photos_thumb_url || '';
           
           return `
             <a class="recent-card" href="${link}" target="_blank">
@@ -1088,10 +1089,6 @@
               <div class="recent-info">
                 <div class="recent-teams">${game.away} @ ${game.home}</div>
                 <div class="recent-date">${monthName} ${parseInt(day)}, ${year}</div>
-                <div class="recent-badges">
-                  ${hasPhotos ? '<span class="recent-badge">📸</span>' : ''}
-                  ${hasRecap ? '<span class="recent-badge">📝</span>' : ''}
-                </div>
               </div>
             </a>
           `;
@@ -1099,7 +1096,7 @@
         
       } catch (err) {
         console.error('Error loading recent:', err);
-        container.innerHTML = '<div class="empty-state" style="grid-column: 1/-1;">Error loading coverage</div>';
+        container.innerHTML = '<div class="empty-state" style="grid-column: 1/-1;">Error loading galleries</div>';
       }
     }
     
