@@ -6,21 +6,6 @@
 (function() {
   'use strict';
 
-/* ===== ONESIGNAL PUSH NOTIFICATIONS =====
-(function loadOneSignal() {
-  // Load OneSignal SDK
-  const sdk = document.createElement('script');
-  sdk.src = 'https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js';
-  sdk.defer = true;
-  document.head.appendChild(sdk);
-  
-  // Load Ball603 OneSignal init
-  const init = document.createElement('script');
-  init.src = '/js/onesignal-init.js';
-  init.defer = true;
-  document.head.appendChild(init);
-})();*/
-
   // ===== REGISTER SERVICE WORKER FOR PWA =====
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
@@ -460,12 +445,19 @@
       const expandableItem = e.target.closest('.mobile-nav-item[data-expandable]');
       if (!expandableItem) return;
       
+      // If click was on a subnav link, let it navigate normally
+      const subnavLink = e.target.closest('.mobile-subnav a');
+      if (subnavLink) return;
+      
       // Get the main link (not subnav links)
       const mainLink = expandableItem.querySelector(':scope > a, :scope > .mobile-nav-link');
       if (!mainLink) return;
       
-      // Check if click was on the main link or its children (like the SVG icon)
-      if (e.target === mainLink || mainLink.contains(e.target)) {
+      // Check if click was on the main link area (not the subnav)
+      const subnav = expandableItem.querySelector('.mobile-subnav');
+      const clickedInSubnav = subnav && subnav.contains(e.target);
+      
+      if (!clickedInSubnav) {
         e.preventDefault();
         e.stopPropagation();
         expandableItem.classList.toggle('expanded');
