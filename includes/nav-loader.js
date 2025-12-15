@@ -6,6 +6,19 @@
 (function() {
   'use strict';
 
+  // ===== REGISTER SERVICE WORKER FOR PWA =====
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/service-worker.js')
+        .then((registration) => {
+          console.log('[PWA] Service Worker registered:', registration.scope);
+        })
+        .catch((error) => {
+          console.log('[PWA] Service Worker registration failed:', error);
+        });
+    });
+  }
+
   let headerLoaded = false;
   let mobileMenuLoaded = false;
   let favoritesModalLoaded = false;
