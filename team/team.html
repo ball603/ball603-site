@@ -451,7 +451,7 @@
       document.getElementById('teamLogo').alt = fullName;
       document.getElementById('teamMeta').textContent = town ? `${town}, NH` : 'New Hampshire';
 
-      document.getElementById('newsViewAllLink').href = `/articles?team=${encodeURIComponent(name)}`;
+      document.getElementById('newsViewAllLink').href = `/news?team=${encodeURIComponent(name.toLowerCase())}`;
       document.getElementById('sponsorFallbackLink').href = `mailto:kj@ball603.com?subject=Team Sponsorship Inquiry - ${encodeURIComponent(name)}`;
       document.getElementById('sponsorFallbackLine1').textContent = `Enjoying our coverage of the ${fullName}?`;
       document.getElementById('scorersSubtitle').textContent = `${fullName} 1000-Point Scorers`;
@@ -702,11 +702,13 @@
           });
         }
         
-        const teamTag = TEAM_CONFIG.slug.toLowerCase();
+        // Normalize team slug for comparison (strip all non-alphanumeric)
+        const teamTagNormalized = TEAM_CONFIG.slug.toLowerCase().replace(/[^a-z0-9]/g, '');
         const filtered = (articles || []).filter(a => {
           if (!a.tags) return false;
           const tagArray = Array.isArray(a.tags) ? a.tags : JSON.parse(a.tags || '[]');
-          return tagArray.includes(teamTag);
+          // Normalize each tag for comparison
+          return tagArray.some(tag => tag.toLowerCase().replace(/[^a-z0-9]/g, '') === teamTagNormalized);
         }).slice(0, 6);
         renderArticles(filtered);
       } catch (err) { console.error('Error loading articles:', err); }
