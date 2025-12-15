@@ -541,11 +541,11 @@
         <div class="form-row">
           <div class="form-group">
             <label>New Password</label>
-            <input type="password" id="newPassword" placeholder="Enter new password">
+            <input type="password" id="changeNewPassword" placeholder="Enter new password">
           </div>
           <div class="form-group">
             <label>Confirm New Password</label>
-            <input type="password" id="confirmNewPassword" placeholder="Confirm new password">
+            <input type="password" id="changeConfirmPassword" placeholder="Confirm new password">
           </div>
         </div>
         <p style="font-size: 12px; color: #666; margin-bottom: 15px;">Password must be at least 6 characters.</p>
@@ -662,6 +662,24 @@
           await loadContributorProfile();
         }
       });
+      
+      // Check for error in URL (e.g., expired link)
+      if (window.location.hash && window.location.hash.includes('error=')) {
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const error = hashParams.get('error');
+        const errorDescription = hashParams.get('error_description');
+        
+        console.log('Auth error in URL:', error, errorDescription);
+        
+        if (error === 'access_denied' || errorDescription?.includes('expired')) {
+          document.getElementById('loginError').textContent = 'Reset link has expired. Please request a new one.';
+          showForgotPassword();
+          // Clear the error from URL
+          const cleanUrl = window.location.pathname + window.location.search;
+          history.replaceState(null, '', cleanUrl);
+          return;
+        }
+      }
       
       // Check if URL has auth tokens (hash fragment)
       if (window.location.hash && window.location.hash.includes('access_token')) {
@@ -1155,8 +1173,8 @@
     }
     
     async function changePassword() {
-      const newPassword = document.getElementById('newPassword').value;
-      const confirmPassword = document.getElementById('confirmNewPassword').value;
+      const newPassword = document.getElementById('changeNewPassword').value;
+      const confirmPassword = document.getElementById('changeConfirmPassword').value;
       const statusEl = document.getElementById('passwordChangeStatus');
       
       // Validation
@@ -1191,8 +1209,8 @@
         }
         
         // Clear fields and show success
-        document.getElementById('newPassword').value = '';
-        document.getElementById('confirmNewPassword').value = '';
+        document.getElementById('changeNewPassword').value = '';
+        document.getElementById('changeConfirmPassword').value = '';
         statusEl.style.color = '#4CAF50';
         statusEl.textContent = 'Password updated successfully!';
         
