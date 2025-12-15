@@ -723,17 +723,22 @@
         byYear[c.year].push(c);
       });
       
-      // Sort each year's championships: Boys D-I, Girls D-I, Boys D-II, Girls D-II, etc.
-      const divisionOrder = ['Division I', 'Class L', 'Division II', 'Class I', 'Division III', 'Class M', 'Division IV', 'Class S'];
+      // Helper to get division number
+      function getDivNum(division) {
+        if (division.includes('IV') || division.includes('S')) return 4;
+        if (division.includes('III') || division.includes('M')) return 3;
+        if (division.includes('II') || division.includes('I Class') || division.includes('Class I')) return 2;
+        return 1; // Division I, Class L
+      }
+      
+      // Sort each year: Boys D-I, Girls D-I, Boys D-II, Girls D-II, etc.
       Object.keys(byYear).forEach(year => {
         byYear[year].sort((a, b) => {
-          // Get division rank
-          const aDivRank = divisionOrder.findIndex(d => a.division.includes(d.split(' ')[0]));
-          const bDivRank = divisionOrder.findIndex(d => b.division.includes(d.split(' ')[0]));
-          const aDivIndex = aDivRank !== -1 ? Math.floor(aDivRank / 2) : 99;
-          const bDivIndex = bDivRank !== -1 ? Math.floor(bDivRank / 2) : 99;
+          const aDivNum = getDivNum(a.division);
+          const bDivNum = getDivNum(b.division);
           
-          if (aDivIndex !== bDivIndex) return aDivIndex - bDivIndex;
+          // First sort by division
+          if (aDivNum !== bDivNum) return aDivNum - bDivNum;
           // Within same division, boys before girls
           if (a.gender === 'boys' && b.gender === 'girls') return -1;
           if (a.gender === 'girls' && b.gender === 'boys') return 1;
@@ -748,14 +753,8 @@
           <div class="championship-year-header">${year}</div>
           <div class="championship-cards">
             ${byYear[year].map(c => {
-              // Determine division number for CSS ordering
-              let divNum = 1;
-              if (c.division.includes('II') && !c.division.includes('III') && !c.division.includes('IV')) divNum = 2;
-              else if (c.division.includes('III')) divNum = 3;
-              else if (c.division.includes('IV')) divNum = 4;
-              else if (c.division.includes('I') || c.division.includes('L')) divNum = 1;
-              else if (c.division.includes('M')) divNum = 3;
-              else if (c.division.includes('S')) divNum = 4;
+              // Use same getDivNum logic for CSS ordering
+              const divNum = getDivNum(c.division);
               
               return `
               <div class="championship-card ${c.notes ? 'has-notes' : ''}" data-gender="${c.gender}" data-div="${divNum}">
