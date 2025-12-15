@@ -148,18 +148,73 @@
       pointer-events: none;
     }
     
-    .team-select {
-      padding: 10px 15px;
+    /* Custom Dropdown */
+    .custom-dropdown {
+      position: relative;
+      min-width: 180px;
+    }
+    
+    .dropdown-toggle {
+      width: 100%;
+      padding: 10px 35px 10px 15px;
       border: 1px solid #ddd;
       border-radius: 25px;
       font-size: 0.95rem;
       outline: none;
       cursor: pointer;
-      min-width: 180px;
+      background: #fff;
+      text-align: left;
+      position: relative;
     }
     
-    .team-select:focus {
+    .dropdown-toggle::after {
+      content: '';
+      position: absolute;
+      right: 15px;
+      top: 50%;
+      transform: translateY(-50%);
+      border-left: 5px solid transparent;
+      border-right: 5px solid transparent;
+      border-top: 5px solid #666;
+    }
+    
+    .dropdown-toggle:focus {
       border-color: #f57c00;
+    }
+    
+    .dropdown-menu {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 12px;
+      margin-top: 5px;
+      max-height: 250px;
+      overflow-y: auto;
+      z-index: 1000;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    .dropdown-menu.show {
+      display: block;
+    }
+    
+    .dropdown-item {
+      padding: 10px 15px;
+      cursor: pointer;
+      font-size: 0.95rem;
+    }
+    
+    .dropdown-item:hover {
+      background: #f5f5f5;
+    }
+    
+    .dropdown-item.active {
+      background: #fff3e0;
+      color: #f57c00;
     }
     
     .video-count {
@@ -483,12 +538,16 @@
       height: 16px;
     }
     
+    /* Mobile Sticky Search - hidden on desktop */
+    .mobile-sticky-search {
+      display: none;
+    }
+    
     /* Mobile Responsive */
     @media (max-width: 768px) {
       /* Dark Theme */
       body {
         background: #1a1a1a;
-        color-scheme: dark;
       }
       
       .video-hero {
@@ -528,40 +587,72 @@
         color: white;
       }
       
-      /* Search box STICKY */
+      /* Hide desktop search on mobile */
       .search-box {
+        display: none;
+      }
+      
+      /* Mobile sticky search */
+      .mobile-sticky-search {
+        display: block;
         position: sticky;
         top: 0;
         z-index: 100;
         background: #1a1a1a;
-        padding: 10px 0;
-        margin: 0 -20px;
-        padding-left: 20px;
-        padding-right: 20px;
-        max-width: none;
+        padding: 12px 20px;
       }
       
-      .search-box input {
+      .mobile-sticky-search input {
+        width: 100%;
+        padding: 12px 15px;
+        border: 1px solid #444;
+        border-radius: 25px;
+        font-size: 16px;
+        outline: none;
         background: #2d2d2d;
-        border-color: #444;
         color: #fff;
-        padding: 10px 15px;
       }
       
-      .search-box input::placeholder {
+      .mobile-sticky-search input::placeholder {
         color: #888;
       }
       
-      .search-box::before {
-        display: none;
+      .mobile-sticky-search input:focus {
+        border-color: #f57c00;
       }
       
-      .team-select {
+      /* Custom dropdown dark theme */
+      .custom-dropdown {
+        width: 100%;
+      }
+      
+      .dropdown-toggle {
         background: #2d2d2d;
         border-color: #444;
         color: #fff;
         width: 100%;
-        color-scheme: dark;
+      }
+      
+      .dropdown-toggle::after {
+        border-top-color: #888;
+      }
+      
+      .dropdown-menu {
+        background: #2d2d2d;
+        border-color: #444;
+      }
+      
+      .dropdown-item {
+        color: #fff;
+      }
+      
+      .dropdown-item:hover {
+        background: #3d3d3d;
+      }
+      
+      .dropdown-item.active {
+        background: #3d3d3d;
+        color: #f57c00;
       }
       
       .video-count {
@@ -635,12 +726,16 @@
   <div class="video-filter-bar">
     <div class="filter-inner">
       <div class="filter-group">
-        <select class="team-select" id="teamFilter">
-          <option value="">All Teams</option>
-        </select>
+        <div class="custom-dropdown" id="teamDropdown">
+          <button class="dropdown-toggle" id="teamFilterToggle">All Teams</button>
+          <div class="dropdown-menu" id="teamFilterMenu">
+            <div class="dropdown-item active" data-value="">All Teams</div>
+          </div>
+        </div>
       </div>
       <div class="search-box">
         <input type="text" id="videoSearch" placeholder="Search videos...">
+      </div>
       </div>
       <a href="https://www.youtube.com/@ball603nh?sub_confirmation=1" target="_blank" class="subscribe-btn">
         <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
@@ -650,6 +745,11 @@
       </a>
       <div class="video-count" id="videoCountDisplay">Loading...</div>
     </div>
+  </div>
+  
+  <!-- Mobile Sticky Search (outside filter bar so sticky works) -->
+  <div class="mobile-sticky-search">
+    <input type="text" id="videoSearchMobile" placeholder="Search videos...">
   </div>
 
   <!-- Main Content -->
@@ -800,17 +900,29 @@
           return true;
         });
 
-        // Populate dropdown
-        const select = document.getElementById('teamFilter');
+        // Populate custom dropdown
+        const menu = document.getElementById('teamFilterMenu');
         allTeams.forEach(t => {
-          const option = document.createElement('option');
-          option.value = t.shortname.toLowerCase().replace(/[^a-z0-9]/g, '');
-          option.textContent = t.shortname;
-          select.appendChild(option);
+          const item = document.createElement('div');
+          item.className = 'dropdown-item';
+          item.dataset.value = t.shortname.toLowerCase().replace(/[^a-z0-9]/g, '');
+          item.textContent = t.shortname;
+          item.addEventListener('click', () => selectTeam(item));
+          menu.appendChild(item);
         });
       } catch (err) {
         console.error('Error loading teams:', err);
       }
+    }
+    
+    // Select team from dropdown
+    function selectTeam(item) {
+      currentTeam = item.dataset.value;
+      document.getElementById('teamFilterToggle').textContent = item.textContent;
+      document.querySelectorAll('.dropdown-item').forEach(i => i.classList.remove('active'));
+      item.classList.add('active');
+      document.getElementById('teamFilterMenu').classList.remove('show');
+      renderVideos();
     }
 
     // ===== RENDER VIDEOS =====
@@ -947,15 +1059,36 @@
 
     // ===== FILTERS =====
     function initFilters() {
-      // Team select
-      document.getElementById('teamFilter').addEventListener('change', (e) => {
-        currentTeam = e.target.value;
-        renderVideos();
+      // Custom dropdown toggle
+      const toggle = document.getElementById('teamFilterToggle');
+      const menu = document.getElementById('teamFilterMenu');
+      
+      toggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        menu.classList.toggle('show');
+      });
+      
+      // Close dropdown when clicking outside
+      document.addEventListener('click', () => {
+        menu.classList.remove('show');
+      });
+      
+      // "All Teams" option
+      document.querySelector('.dropdown-item[data-value=""]').addEventListener('click', function() {
+        selectTeam(this);
       });
 
-      // Search
+      // Desktop search
       document.getElementById('videoSearch').addEventListener('input', (e) => {
         searchTerm = e.target.value;
+        document.getElementById('videoSearchMobile').value = e.target.value;
+        renderVideos();
+      });
+      
+      // Mobile search
+      document.getElementById('videoSearchMobile').addEventListener('input', (e) => {
+        searchTerm = e.target.value;
+        document.getElementById('videoSearch').value = e.target.value;
         renderVideos();
       });
     }
