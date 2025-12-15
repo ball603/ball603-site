@@ -560,7 +560,7 @@
   
   <script>
     // Version marker for debugging deployment issues
-    console.log('Contributor Portal v215 loaded');
+    console.log('Contributor Portal v216 loaded');
     
     // Supabase setup (for database only, not auth)
     const SUPABASE_URL = 'https://suncdkxfqkwwnmhosxcf.supabase.co';
@@ -838,8 +838,10 @@
       container.innerHTML = '<div class="loading"><span class="loading-spinner"></span> Loading...</div>';
       
       try {
-        const response = await fetch(`/.netlify/functions/games?end_date=${today}&limit=500`);
-        const games = await response.json();
+        // Fetch all albums from SmugMug
+        const response = await fetch('/.netlify/functions/smugmug?action=albums');
+        const data = await response.json();
+        const albums = data.albums || [];
         
         // Create search variations of contributor name for URL matching
         // "KJ Cardinal" -> ["kj-cardinal", "kj_cardinal", "kjcardinal"]
@@ -849,20 +851,24 @@
         const nameNoSpace = nameLower.replace(/\s+/g, '');
         
         console.log('Recent galleries lookup for:', contributorName);
-        console.log('Searching URLs for:', nameHyphen);
+        console.log('Searching SmugMug albums for:', nameHyphen);
+        console.log('Total albums from SmugMug:', albums.length);
         
-        // Find games where contributor name appears in the photos_url
-        const myGames = games.filter(g => {
-          if (!g.photos_url) return false;
-          const urlLower = g.photos_url.toLowerCase();
+        // Find albums where contributor name appears in the URL or name
+        const myAlbums = albums.filter(album => {
+          const urlLower = (album.url || album.WebUri || '').toLowerCase();
+          const nameLowerAlbum = (album.name || album.Name || '').toLowerCase();
           return urlLower.includes(nameHyphen) || 
                  urlLower.includes(nameUnderscore) || 
-                 urlLower.includes(nameNoSpace);
-        }).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6);
+                 urlLower.includes(nameNoSpace) ||
+                 nameLowerAlbum.includes(nameHyphen) || 
+                 nameLowerAlbum.includes(nameUnderscore) || 
+                 nameLowerAlbum.includes(nameNoSpace);
+        }).slice(0, 6);
         
-        console.log('My galleries found:', myGames.length);
+        console.log('My galleries found:', myAlbums.length);
         
-        if (myGames.length === 0) {
+        if (myAlbums.length === 0) {
           container.innerHTML = `
             <div class="empty-state" style="grid-column: 1/-1;">
               <div class="empty-icon">📸</div>
@@ -872,30 +878,52 @@
           return;
         }
         
-        container.innerHTML = myGames.map(game => {
-          const [year, month, day] = game.date.split('-');
-          const monthName = MONTH_NAMES_SHORT[parseInt(month, 10) - 1];
-          const link = game.photos_url;
-          const away = game.away_team || game.away || 'Away';
-          const home = game.home_team || game.home || 'Home';
+        container.innerHTML = myAlbums.map(album => {
+          const albumName = album.name || album.Name || 'Gallery';
+          const albumUrl = album.url || album.WebUri || '#';
+          const thumbUrl = album.highlightImage || album.ThumbnailUrl || '';
           
-          // Try to get SmugMug thumbnail from photos_url
-          let thumbUrl = game.photos_thumb_url || '';
+          // Try to parse date from album name (format: MMDDYY or MM-DD-YY at end)
+          let dateDisplay = '';
+          const dateMatch = albumName.match(/(\d{1,2})[-\/]?(\d{1,2})[-\/]?(\d{2,4})(?:-|$|\s)/);
+          if (dateMatch) {
+            const month = parseInt(dateMatch[1]);
+            const day = parseInt(dateMatch[2]);
+            const year = dateMatch[3].length === 2 ? '20' + dateMatch[3] : dateMatch[3];
+            dateDisplay = `${MONTH_NAMES_SHORT[month - 1]} ${day}, ${year}`;
+          }
+          
+          // Clean up album name for display (remove date and photographer name)
+          let displayName = albumName
+            .replace(/[-_]\d{6,8}[-_]?/g, '') // Remove dates like -121225-
+            .replace(new RegExp(nameHyphen, 'gi'), '')
+            .replace(new RegExp(nameUnderscore, 'gi'), '')
+            .replace(new RegExp(nameNoSpace, 'gi'), '')
+            .replace(/[-_]+$/, '')
+            .replace(/^[-_]+/, '')
+            .replace(/-+/g, ' ')
+            .trim();
           
           return `
-            <a class="recent-card" href="${link}" target="_blank">
+            <a class="recent-card" href="${albumUrl}" target="_blank">
               <div class="recent-thumb">
                 ${thumbUrl 
-                  ? `<img src="${thumbUrl}" alt="${away} @ ${home}" onerror="this.parentElement.innerHTML='<span class=\\'thumb-placeholder\\'>📷</span>'">` 
+                  ? `<img src="${thumbUrl}" alt="${displayName}" onerror="this.parentElement.innerHTML='<span class=\\'thumb-placeholder\\'>📷</span>'">` 
                   : '<span class="thumb-placeholder">📷</span>'}
               </div>
               <div class="recent-info">
-                <div class="recent-teams">${away} @ ${home}</div>
-                <div class="recent-date">${monthName} ${parseInt(day)}, ${year}</div>
+                <div class="recent-teams">${displayName || albumName}</div>
+                ${dateDisplay ? `<div class="recent-date">${dateDisplay}</div>` : ''}
               </div>
             </a>
           `;
         }).join('');
+        
+      } catch (err) {
+        console.error('Error loading recent:', err);
+        container.innerHTML = '<div class="empty-state" style="grid-column: 1/-1;">Error loading galleries</div>';
+      }
+    }
         
       } catch (err) {
         console.error('Error loading recent:', err);
