@@ -123,13 +123,18 @@
     }
     
     .search-box::before {
-      content: '\1F4CD';
+      content: '🔍';
       position: absolute;
       left: 15px;
       top: 50%;
       transform: translateY(-50%);
       font-size: 0.9rem;
       opacity: 0.5;
+    }
+    
+    /* Mobile sticky search bar */
+    .mobile-sticky-search {
+      display: none;
     }
     
     .teams-count {
@@ -291,6 +296,41 @@
         color: #888;
       }
       
+      /* Mobile sticky search - shown on mobile */
+      .mobile-sticky-search {
+        display: block;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        background: #1a1a1a;
+        padding: 12px 20px;
+        border-bottom: 1px solid #333;
+      }
+      
+      .mobile-sticky-search input {
+        width: 100%;
+        padding: 12px 15px;
+        border: 1px solid #444;
+        border-radius: 25px;
+        font-size: 1rem;
+        background: #2d2d2d;
+        color: #fff;
+        outline: none;
+      }
+      
+      .mobile-sticky-search input::placeholder {
+        color: #888;
+      }
+      
+      .mobile-sticky-search input:focus {
+        border-color: #f57c00;
+      }
+      
+      /* Hide desktop search box on mobile */
+      .teams-filter-bar .search-box {
+        display: none;
+      }
+      
       /* Filter bar NOT sticky on mobile */
       .teams-filter-bar {
         background: #1a1a1a;
@@ -317,28 +357,6 @@
         background: #f57c00;
         border-color: #f57c00;
         color: white;
-      }
-      
-      /* Search box sticky on mobile */
-      .search-box {
-        position: sticky;
-        top: 0;
-        z-index: 100;
-        background: #1a1a1a;
-        padding: 10px 0;
-        margin: 0 -20px;
-        padding-left: 20px;
-        padding-right: 20px;
-      }
-      
-      .search-box input {
-        background: #2d2d2d;
-        border-color: #444;
-        color: #fff;
-      }
-      
-      .search-box input::placeholder {
-        color: #888;
       }
       
       .teams-count {
@@ -384,10 +402,6 @@
         flex-wrap: wrap;
       }
       
-      .search-box {
-        max-width: none;
-      }
-      
       .teams-grid {
         grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
         gap: 15px;
@@ -419,6 +433,11 @@
   <div class="page-header">
     <h1 class="page-title">NHIAA Teams</h1>
     <p class="page-subtitle">New Hampshire High School Basketball</p>
+  </div>
+
+  <!-- Mobile Sticky Search (only visible on mobile) -->
+  <div class="mobile-sticky-search">
+    <input type="text" id="mobileTeamSearch" placeholder="Search teams...">
   </div>
 
   <!-- Filter Bar -->
@@ -630,10 +649,19 @@
         });
       });
 
-      // Search input
+      // Search inputs (desktop and mobile)
       const searchInput = document.getElementById('teamSearch');
+      const mobileSearchInput = document.getElementById('mobileTeamSearch');
+      
       searchInput.addEventListener('input', (e) => {
         searchTerm = e.target.value;
+        mobileSearchInput.value = searchTerm; // Sync mobile input
+        renderTeams();
+      });
+      
+      mobileSearchInput.addEventListener('input', (e) => {
+        searchTerm = e.target.value;
+        searchInput.value = searchTerm; // Sync desktop input
         renderTeams();
       });
     }
