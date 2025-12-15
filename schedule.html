@@ -11,126 +11,379 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="stylesheet" href="/styles.css">
   <style>
-    /* Hide mobile-only elements on desktop */
-    .mobile-only {
+    /* ===== DESKTOP STYLES ===== */
+    .schedule-main {
+      padding: 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    .schedule-controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      padding: 15px 0;
+      margin-bottom: 20px;
+    }
+    
+    .date-nav {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .date-btn {
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      background: #fff;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    
+    .date-btn:hover {
+      border-color: #f57c00;
+      color: #f57c00;
+    }
+    
+    .current-date {
+      font-weight: 600;
+      font-size: 15px;
+      min-width: 180px;
+      text-align: center;
+    }
+    
+    .filter-select {
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      background: #fff;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+      min-width: 100px;
+    }
+    
+    .filter-select:hover, .filter-select:focus {
+      border-color: #f57c00;
+      outline: none;
+    }
+    
+    .calendar-btn {
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      background: #fff;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    
+    .calendar-btn:hover {
+      border-color: #f57c00;
+    }
+    
+    .search-box {
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      background: #fff;
+      border-radius: 6px;
+      font-size: 14px;
+      width: 180px;
+    }
+    
+    .search-box:focus {
+      border-color: #f57c00;
+      outline: none;
+    }
+    
+    .today-btn {
+      padding: 8px 16px;
+      border: none;
+      background: #f57c00;
+      color: #fff;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    
+    .today-btn:hover {
+      background: #e66a00;
+    }
+    
+    /* Mobile sticky date bar - hidden on desktop */
+    .mobile-date-sticky {
       display: none;
     }
     
-    /* Mobile Dark Theme */
+    /* Mobile search - hidden on desktop */
+    .mobile-search-bar {
+      display: none;
+    }
+    
+    /* Section header */
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #f57c00;
+    }
+    
+    .section-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #333;
+    }
+    
+    .game-count {
+      font-size: 14px;
+      color: #666;
+    }
+    
+    /* ===== DESKTOP TABLE STYLES ===== */
+    .games-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    
+    .games-table th {
+      background: #f8f9fa;
+      padding: 12px 15px;
+      text-align: left;
+      font-size: 13px;
+      font-weight: 600;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 2px solid #e9ecef;
+    }
+    
+    .games-table td {
+      padding: 12px 15px;
+      border-bottom: 1px solid #f0f0f0;
+      vertical-align: middle;
+    }
+    
+    .games-table tr:hover {
+      background: #fafafa;
+    }
+    
+    .games-table .col-level,
+    .games-table .col-gender {
+      width: 80px;
+      font-size: 13px;
+      color: #666;
+    }
+    
+    .games-table .col-matchup {
+      min-width: 300px;
+    }
+    
+    .games-table .col-status {
+      width: 140px;
+      text-align: center;
+    }
+    
+    .games-table .col-coverage {
+      width: 100px;
+      text-align: center;
+    }
+    
+    .matchup-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .matchup-team {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 140px;
+    }
+    
+    .matchup-logo {
+      width: 28px;
+      height: 28px;
+      object-fit: contain;
+    }
+    
+    .matchup-name {
+      font-weight: 500;
+      font-size: 14px;
+    }
+    
+    .matchup-name.winner {
+      font-weight: 700;
+    }
+    
+    .matchup-score {
+      font-weight: 700;
+      font-size: 15px;
+      min-width: 30px;
+      text-align: right;
+    }
+    
+    .matchup-score.winner {
+      color: #f57c00;
+    }
+    
+    .matchup-at {
+      color: #999;
+      font-size: 12px;
+      margin: 0 4px;
+    }
+    
+    .game-time {
+      font-size: 14px;
+      color: #333;
+    }
+    
+    .final-badge {
+      display: inline-block;
+      background: #333;
+      color: #fff;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    
+    .coverage-link {
+      font-size: 18px;
+      margin: 0 4px;
+      text-decoration: none;
+    }
+    
+    .coverage-link:hover {
+      transform: scale(1.2);
+    }
+    
+    /* Hide mobile cards on desktop */
+    .games-grid {
+      display: none;
+    }
+    
+    /* ===== MOBILE STYLES ===== */
     @media (max-width: 768px) {
-      .desktop-only {
-        display: none !important;
-      }
-      
-      .mobile-only {
-        display: inline-flex !important;
-      }
-      
       body {
         background: #1a1a1a;
       }
       
       .schedule-main {
         background: #1a1a1a;
-      }
-      
-      /* Controls NOT sticky - only search will be */
-      .schedule-controls {
-        background: #1a1a1a;
-        position: static;
-        padding: 15px;
-      }
-      
-      /* Line 1: Date with arrows on far left/right */
-      .date-nav {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        background: transparent;
-        margin-bottom: 12px;
         padding: 0;
-        gap: 10px;
       }
       
-      .date-nav .current-date {
-        flex: 1;
-        text-align: center;
-        color: #fff;
-        font-size: 1.1rem;
-        font-weight: 600;
+      /* Hide desktop controls */
+      .schedule-controls {
+        display: none;
       }
       
-      .date-btn {
-        background: #3d3d3d;
-        color: #fff;
-        border: 1px solid #444;
-        padding: 10px 14px;
-        border-radius: 8px;
-      }
-      
-      /* Line 2: Level, Gender, Calendar, Today */
-      .filters {
-        display: grid;
-        grid-template-columns: 1fr 1fr auto auto;
-        gap: 8px;
+      /* Mobile sticky date bar */
+      .mobile-date-sticky {
+        display: flex;
         align-items: center;
-        margin-bottom: 0;
-      }
-      
-      .filter-select {
-        background: #2d2d2d;
-        color: #fff;
-        border: 1px solid #444;
-        padding: 10px;
-        border-radius: 8px;
-        font-size: 0.9rem;
-      }
-      
-      .calendar-btn {
-        background: #3d3d3d;
-        color: #fff;
-        border: 1px solid #444;
-        padding: 10px 12px;
-        border-radius: 8px;
-      }
-      
-      .today-btn.mobile-only {
-        background: #f57c00;
-        color: #fff;
-        border: none;
-        padding: 10px 14px;
-        border-radius: 8px;
-        font-weight: 600;
-        font-size: 0.9rem;
-      }
-      
-      /* Line 3: Search box - STICKY */
-      .mobile-search-sticky {
+        justify-content: space-between;
+        background: #1a1a1a;
+        padding: 12px 15px;
         position: sticky;
         top: 0;
         z-index: 100;
-        background: #1a1a1a;
-        padding: 12px 0;
-        margin: 0 -15px;
-        padding-left: 15px;
-        padding-right: 15px;
+        border-bottom: 1px solid #333;
       }
       
-      .search-box {
-        width: 100%;
+      .mobile-date-sticky .date-btn {
+        background: #2d2d2d;
+        border: 1px solid #444;
+        color: #fff;
+        padding: 10px 14px;
+        border-radius: 6px;
+      }
+      
+      .mobile-date-sticky .current-date {
+        color: #fff;
+        font-size: 14px;
+        font-weight: 600;
+        flex: 1;
+        text-align: center;
+      }
+      
+      /* Mobile filters row */
+      .mobile-filters {
+        display: grid;
+        grid-template-columns: 1fr 1fr 50px 60px;
+        gap: 8px;
+        padding: 12px 15px;
+        background: #1a1a1a;
+      }
+      
+      .mobile-filters .filter-select {
+        background: #2d2d2d;
+        border: 1px solid #444;
+        color: #fff;
+        padding: 10px;
+        border-radius: 6px;
+        font-size: 14px;
+      }
+      
+      .mobile-filters .filter-select option {
         background: #2d2d2d;
         color: #fff;
-        border: 1px solid #444;
-        padding: 12px 15px;
-        border-radius: 8px;
-        font-size: 1rem;
       }
       
-      .search-box::placeholder {
+      .mobile-filters .calendar-btn {
+        background: #2d2d2d;
+        border: 1px solid #444;
+        color: #fff;
+        padding: 10px;
+        border-radius: 6px;
+      }
+      
+      .mobile-filters .today-btn {
+        background: #f57c00;
+        color: #fff;
+        border: none;
+        padding: 10px;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 13px;
+      }
+      
+      /* Mobile search bar */
+      .mobile-search-bar {
+        display: block;
+        padding: 0 15px 12px;
+        background: #1a1a1a;
+      }
+      
+      .mobile-search-bar .search-box {
+        width: 100%;
+        padding: 12px 15px;
+        background: #2d2d2d;
+        border: 1px solid #444;
+        color: #fff;
+        border-radius: 8px;
+        font-size: 15px;
+        text-align: center;
+      }
+      
+      .mobile-search-bar .search-box::placeholder {
         color: #888;
       }
       
+      /* Section header mobile */
       .section-header {
+        padding: 15px;
+        border-bottom: none;
         background: #1a1a1a;
       }
       
@@ -142,70 +395,148 @@
         color: #888;
       }
       
-      /* Game cards dark theme */
+      /* Hide desktop table on mobile */
+      .games-table {
+        display: none;
+      }
+      
+      /* Show mobile cards */
+      .games-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 12px;
+        padding: 0 15px 20px;
+      }
+      
       .game-card {
         background: #2d2d2d;
+        border-radius: 10px;
+        overflow: hidden;
         border: 1px solid #3d3d3d;
       }
       
       .game-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 15px;
         background: #252525;
         border-bottom: 1px solid #3d3d3d;
       }
       
-      .game-card-body {
-        background: #2d2d2d;
-      }
-      
-      .game-team {
-        background: #2d2d2d;
-      }
-      
       .game-level {
+        font-size: 12px;
         color: #aaa;
+        text-transform: uppercase;
       }
       
       .game-time {
+        font-size: 13px;
         color: #f57c00;
+        font-weight: 600;
+      }
+      
+      .game-card-body {
+        padding: 12px 15px;
+      }
+      
+      .game-team {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 0;
+      }
+      
+      .team-info {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      
+      .team-logo {
+        width: 36px;
+        height: 36px;
+      }
+      
+      .team-logo img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
       }
       
       .team-name {
+        font-size: 15px;
+        font-weight: 500;
         color: #fff;
       }
       
       .team-record {
+        font-size: 12px;
         color: #888;
       }
       
       .team-score {
-        color: #fff;
+        font-size: 20px;
+        font-weight: 700;
+        color: #888;
+        min-width: 36px;
+        text-align: center;
+        padding: 4px 8px;
+        border-radius: 4px;
         background: #3d3d3d;
       }
       
       .team-score.winner {
-        background: #f57c00;
+        color: #fff;
+        background: #2e7d32;
+      }
+      
+      .game-card-footer {
+        display: flex;
+        justify-content: flex-end;
+        padding: 10px 15px;
+        background: #252525;
+        border-top: 1px solid #3d3d3d;
+        gap: 12px;
+      }
+      
+      .game-card-footer .coverage-link {
+        font-size: 20px;
+        text-decoration: none;
       }
       
       .game-description {
         background: #3d3d3d;
         color: #aaa;
+        padding: 8px 15px;
+        font-size: 12px;
+        text-align: center;
       }
       
-      .game-card-footer {
-        background: #252525;
-        border-top: 1px solid #3d3d3d;
-      }
-      
-      .coverage-link {
-        color: #f57c00;
+      .game-status {
+        background: #333;
+        color: #fff;
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 700;
       }
       
       .empty-state {
+        text-align: center;
+        padding: 60px 20px;
         color: #888;
       }
       
+      .empty-icon {
+        font-size: 48px;
+        margin-bottom: 15px;
+      }
+      
       .empty-title {
+        font-size: 18px;
         color: #fff;
+        margin-bottom: 8px;
       }
       
       .empty-text {
@@ -230,6 +561,27 @@
         color: #666;
       }
     }
+    
+    /* Empty state desktop */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+    }
+    
+    .empty-icon {
+      font-size: 48px;
+      margin-bottom: 15px;
+    }
+    
+    .empty-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    
+    .empty-text {
+      color: #666;
+    }
   </style>
 </head>
 <body>
@@ -240,38 +592,65 @@
   <script src="/includes/nav-loader.js"></script>
 
   <main class="schedule-main">
+    <!-- Desktop Controls (single row) -->
     <div class="schedule-controls">
       <div class="date-nav">
         <button class="date-btn" onclick="prevDay()">&#9664;</button>
         <div class="current-date" id="currentDate">Loading...</div>
         <button class="date-btn" onclick="nextDay()">&#9654;</button>
-        <button class="today-btn desktop-only" onclick="goToToday()">Today</button>
       </div>
-      <div class="filters">
-        <select class="filter-select" id="levelFilter" onchange="renderSchedule()">
-          <option value="">All Levels</option>
-          <option value="NHIAA">NHIAA</option>
-          <option value="College">College</option>
-          <option value="Prep">Prep</option>
-        </select>
-        <select class="filter-select" id="genderFilter" onchange="renderSchedule()">
-          <option value="">All</option>
-          <option value="Boys">Boys</option>
-          <option value="Girls">Girls</option>
-          <option value="Men">Men</option>
-          <option value="Women">Women</option>
-        </select>
-        <button class="calendar-btn" onclick="openCalendar()" title="Pick a date">&#128197;</button>
-        <button class="today-btn mobile-only" onclick="goToToday()">Today</button>
-      </div>
-      <div class="mobile-search-sticky">
-        <input type="text" class="search-box" id="teamSearchInput" placeholder="Search teams..." oninput="renderSchedule()">
-      </div>
+      <select class="filter-select" id="levelFilter" onchange="renderSchedule()">
+        <option value="">Level</option>
+        <option value="NHIAA">NHIAA</option>
+        <option value="College">College</option>
+      </select>
+      <select class="filter-select" id="genderFilter" onchange="renderSchedule()">
+        <option value="">Gender</option>
+        <option value="Boys">Boys</option>
+        <option value="Girls">Girls</option>
+        <option value="Men">Men</option>
+        <option value="Women">Women</option>
+      </select>
+      <button class="calendar-btn" onclick="openCalendar()" title="Pick a date">&#128197;</button>
+      <input type="text" class="search-box" id="teamSearchInput" placeholder="Search teams..." oninput="renderSchedule()">
+      <button class="today-btn" onclick="goToToday()">Today</button>
     </div>
+    
+    <!-- Mobile Date Bar (sticky) -->
+    <div class="mobile-date-sticky">
+      <button class="date-btn" onclick="prevDay()">&#9664;</button>
+      <div class="current-date" id="currentDateMobile">Loading...</div>
+      <button class="date-btn" onclick="nextDay()">&#9654;</button>
+    </div>
+    
+    <!-- Mobile Filters Row -->
+    <div class="mobile-filters">
+      <select class="filter-select" id="levelFilterMobile" onchange="syncFilter('level')">
+        <option value="">Level</option>
+        <option value="NHIAA">NHIAA</option>
+        <option value="College">College</option>
+      </select>
+      <select class="filter-select" id="genderFilterMobile" onchange="syncFilter('gender')">
+        <option value="">Gender</option>
+        <option value="Boys">Boys</option>
+        <option value="Girls">Girls</option>
+        <option value="Men">Men</option>
+        <option value="Women">Women</option>
+      </select>
+      <button class="calendar-btn" onclick="openCalendar()">&#128197;</button>
+      <button class="today-btn" onclick="goToToday()">Today</button>
+    </div>
+    
+    <!-- Mobile Search Bar -->
+    <div class="mobile-search-bar">
+      <input type="text" class="search-box" id="teamSearchMobile" placeholder="Search teams..." oninput="syncSearch()">
+    </div>
+    
     <div class="section-header">
       <div class="section-title" id="sectionTitle">Today's Games</div>
       <div class="game-count" id="gameCount"></div>
     </div>
+    
     <div id="gamesContainer">
       <div class="empty-state">
         <div class="empty-icon">&#9203;</div>
@@ -316,17 +695,25 @@
   </div>
 
   <script>
-    // Mobile Menu
-    const searchToggle = document.getElementById('searchToggle');
-    const searchDropdown = document.getElementById('searchDropdown');
-    if (searchToggle && searchDropdown) {
-      searchToggle.addEventListener('click', (e) => { e.stopPropagation(); searchDropdown.classList.toggle('active'); });
-      document.addEventListener('click', (e) => { if (!searchDropdown.contains(e.target) && e.target !== searchToggle) searchDropdown.classList.remove('active'); });
+    // Sync mobile/desktop filters
+    function syncFilter(type) {
+      if (type === 'level') {
+        document.getElementById('levelFilter').value = document.getElementById('levelFilterMobile').value;
+      } else if (type === 'gender') {
+        document.getElementById('genderFilter').value = document.getElementById('genderFilterMobile').value;
+      }
+      renderSchedule();
+    }
+    
+    function syncSearch() {
+      document.getElementById('teamSearchInput').value = document.getElementById('teamSearchMobile').value;
+      renderSchedule();
     }
 
     // Schedule
     const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
     const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const SHORT_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     
     // Helper to get current date in EST
     function getESTDate() {
@@ -336,29 +723,35 @@
     let allGames = [], currentDate = getESTDate(), calendarDate = getESTDate();
     currentDate.setHours(0,0,0,0);
 
-    function getDateString(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
-    function formatDateDisplay(d) { return '<span class="day-name">' + DAY_NAMES[d.getDay()] + '</span>, ' + MONTH_NAMES[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear(); }
-    function isToday(d) { const t = getESTDate(); return d.getDate() === t.getDate() && d.getMonth() === t.getMonth() && d.getFullYear() === t.getFullYear(); }
-    function updateDateDisplay() { document.getElementById('currentDate').innerHTML = formatDateDisplay(currentDate); document.getElementById('sectionTitle').textContent = isToday(currentDate) ? "Today's Games" : 'Games for ' + MONTH_NAMES[currentDate.getMonth()] + ' ' + currentDate.getDate(); }
-    function prevDay() { currentDate.setDate(currentDate.getDate()-1); updateDateDisplay(); renderSchedule(); }
-    function nextDay() { currentDate.setDate(currentDate.getDate()+1); updateDateDisplay(); renderSchedule(); }
-    function goToToday() { currentDate = getESTDate(); currentDate.setHours(0,0,0,0); updateDateDisplay(); renderSchedule(); }
-
-    function getLogoFilename(teamName) {
-      if (!teamName) return 'Ball603-white.png';
-      const sc = {'coe-brown':'CoeBrown','bishop brady':'BishopBrady','bishop guertin':'BishopGuertin','concord christian':'ConcordChristian','con-val':'ConVal','conval':'ConVal','fall mountain':'FallMountain','hillsboro-deering':'HillsboroDeering','hollis-brookline':'HollisBrookline','holy family':'HolyFamily','inter-lakes':'InterLakes','john stark':'JohnStark','lin-wood':'LinWood','manchester central':'ManchesterCentral','manchester memorial':'ManchesterMemorial','manchester west':'ManchesterWest','mascoma valley':'Mascoma','merrimack valley':'MerrimackValley','mount royal':'MountRoyal','nashua north':'NashuaNorth','nashua south':'NashuaSouth','oyster river':'OysterRiver','pittsburg-canaan':'PittsburgCanaan','portsmouth christian':'PortsmouthChristian','prospect mountain':'ProspectMountain','st. thomas aquinas':'StThomasAquinas','st thomas aquinas':'StThomasAquinas','white mountains':'WhiteMountains','wilton-lyndeborough':'WiltonLyndeborough'};
-      const lower = teamName.toLowerCase().trim();
-      if (sc[lower]) return sc[lower] + '.png';
-      return teamName.split(/[\s-]+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join('') + '.png';
-    }
+    function getDateString(d) { return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
     
+    function updateDateDisplay() {
+      const dateText = DAY_NAMES[currentDate.getDay()] + ', ' + MONTH_NAMES[currentDate.getMonth()] + ' ' + currentDate.getDate();
+      const shortDateText = SHORT_MONTHS[currentDate.getMonth()] + ' ' + currentDate.getDate() + ', ' + currentDate.getFullYear();
+      document.getElementById('currentDate').textContent = dateText;
+      document.getElementById('currentDateMobile').textContent = shortDateText;
+      const today = getESTDate(); today.setHours(0,0,0,0);
+      const diff = Math.floor((currentDate - today) / 86400000);
+      document.getElementById('sectionTitle').textContent = diff === 0 ? "Today's Games" : diff === 1 ? "Tomorrow's Games" : diff === -1 ? "Yesterday's Games" : dateText;
+      renderSchedule();
+    }
+
+    function prevDay() { currentDate.setDate(currentDate.getDate()-1); updateDateDisplay(); }
+    function nextDay() { currentDate.setDate(currentDate.getDate()+1); updateDateDisplay(); }
+    function goToToday() { currentDate = getESTDate(); currentDate.setHours(0,0,0,0); updateDateDisplay(); }
+
+    function getLogoFilename(team) {
+      if (!team) return 'Ball603-white.png';
+      return team.replace(/[^a-zA-Z0-9]/g, '') + '.png';
+    }
+
     function loadFavorites() {
       try {
         const saved = localStorage.getItem('ball603Favorites');
         return saved ? JSON.parse(saved) : { teams: [], divisions: [] };
       } catch { return { teams: [], divisions: [] }; }
     }
-    
+
     function getGamePriority(game) {
       const favorites = loadFavorites();
       if (favorites.teams?.length > 0) {
@@ -386,7 +779,6 @@
     
     function formatTime(timeStr) {
       if (!timeStr) return 'TBD';
-      // Remove leading zero from hour (e.g., "05:00 PM" -> "5:00 PM")
       return timeStr.replace(/^0(\d)/, '$1');
     }
 
@@ -415,39 +807,74 @@
       const dateStr = getDateString(currentDate);
       let games = allGames.filter(g => g.date === dateStr && (!level || g.level === level) && (!gender || g.gender === gender) && (!search || g.home.toLowerCase().includes(search) || g.away.toLowerCase().includes(search)));
       games.sort((a,b) => {
-        // First by favorites priority
         const priorityA = getGamePriority(a);
         const priorityB = getGamePriority(b);
         if (priorityA !== priorityB) return priorityA - priorityB;
-        // Then by time
         const pt = t => { if (!t) return 9999; const u = t.toUpperCase(); if (u === 'TBD' || u === 'TBA') return 9998; if (u === 'FINAL') return -1; const m = u.match(/(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?/i); if (!m) return 9997; let h = parseInt(m[1]); const min = parseInt(m[2]||'0'); if (m[3]==='PM' && h!==12) h+=12; if (m[3]==='AM' && h===12) h=0; return h*60+min; };
         return pt(a.time) - pt(b.time);
       });
       document.getElementById('gameCount').textContent = games.length + ' game' + (games.length !== 1 ? 's' : '');
-      if (games.length === 0) { document.getElementById('gamesContainer').innerHTML = '<div class="empty-state"><div class="empty-icon">&#127936;</div><div class="empty-title">No games scheduled</div><div class="empty-text">Try a different date</div></div>'; return; }
-      let html = '<div class="games-grid">';
+      
+      if (games.length === 0) { 
+        document.getElementById('gamesContainer').innerHTML = '<div class="empty-state"><div class="empty-icon">&#127936;</div><div class="empty-title">No games scheduled</div><div class="empty-text">Try a different date</div></div>'; 
+        return; 
+      }
+      
+      // Desktop table
+      let tableHtml = '<table class="games-table"><thead><tr><th class="col-level">Level</th><th class="col-gender">Gender</th><th class="col-matchup">Match-up</th><th class="col-status">Time/Status</th><th class="col-coverage">Coverage</th></tr></thead><tbody>';
+      
+      // Mobile cards
+      let cardsHtml = '<div class="games-grid">';
+      
       games.forEach(g => {
         const as = String(g.away_score||'').trim(), hs = String(g.home_score||'').trim();
         const hasScore = as !== '' && hs !== '';
         const isFinal = g.time === 'FINAL' || hasScore;
-        const aw = hasScore && parseInt(as) > parseInt(hs), hw = hasScore && parseInt(hs) > parseInt(as);
-        const td = isFinal ? '<span class="game-status">FINAL</span>' : formatTime(g.time);
+        const aw = hasScore && parseInt(as) > parseInt(hs);
+        const hw = hasScore && parseInt(hs) > parseInt(as);
+        
         let cov = '';
         if (g.photos_url) cov += '<a href="'+g.photos_url+'" class="coverage-link" title="Photos">&#128248;</a>';
         if (g.recap_url) cov += '<a href="'+g.recap_url+'" class="coverage-link" title="Recap">&#128221;</a>';
         if (g.highlights_url) cov += '<a href="'+g.highlights_url+'" class="coverage-link" title="Video">&#127909;</a>';
-        html += '<div class="game-card">';
-        if (g.gamedescription) html += '<div class="game-description">'+g.gamedescription+'</div>';
-        html += '<div class="game-card-header"><span class="game-level">'+(g.gender||'')+' '+(g.level||'')+'</span><span class="game-time">'+td+'</span></div>';
-        html += '<div class="game-card-body">';
-        html += '<div class="game-team"><div class="team-info"><div class="team-logo"><img src="/logos/100px/'+getLogoFilename(g.away)+'" onerror="this.src=\'/logos/100px/Ball603-white.png\'"></div><div><div class="team-name">'+(g.away||'TBD')+'</div>'+(g.away_record?'<div class="team-record">'+g.away_record+'</div>':'')+'</div></div>'+(hasScore?'<div class="team-score'+(aw?' winner':'')+'">'+as+'</div>':'')+'</div>';
-        html += '<div class="game-team"><div class="team-info"><div class="team-logo"><img src="/logos/100px/'+getLogoFilename(g.home)+'" onerror="this.src=\'/logos/100px/Ball603-white.png\'"></div><div><div class="team-name">'+(g.home||'TBD')+'</div>'+(g.home_record?'<div class="team-record">'+g.home_record+'</div>':'')+'</div></div>'+(hasScore?'<div class="team-score'+(hw?' winner':'')+'">'+hs+'</div>':'')+'</div>';
-        html += '</div>';
-        if (cov) html += '<div class="game-card-footer"><div class="game-venue"></div><div class="game-coverage">'+cov+'</div></div>';
-        html += '</div>';
+        
+        // Desktop table row
+        let statusCell = '';
+        if (isFinal) {
+          statusCell = '<span class="matchup-score'+(aw?' winner':'')+'">'+as+'</span> - <span class="matchup-score'+(hw?' winner':'')+'">'+hs+'</span> <span class="final-badge">Final</span>';
+        } else {
+          statusCell = '<span class="game-time">'+formatTime(g.time)+'</span>';
+        }
+        
+        tableHtml += '<tr>';
+        tableHtml += '<td class="col-level">'+(g.level||'')+'</td>';
+        tableHtml += '<td class="col-gender">'+(g.gender||'')+'</td>';
+        tableHtml += '<td class="col-matchup"><div class="matchup-row">';
+        tableHtml += '<div class="matchup-team"><img class="matchup-logo" src="/logos/100px/'+getLogoFilename(g.away)+'" onerror="this.src=\'/logos/100px/Ball603-white.png\'"><span class="matchup-name'+(aw?' winner':'')+'">'+(g.away||'TBD')+'</span></div>';
+        tableHtml += '<span class="matchup-at">@</span>';
+        tableHtml += '<div class="matchup-team"><img class="matchup-logo" src="/logos/100px/'+getLogoFilename(g.home)+'" onerror="this.src=\'/logos/100px/Ball603-white.png\'"><span class="matchup-name'+(hw?' winner':'')+'">'+(g.home||'TBD')+'</span></div>';
+        tableHtml += '</div></td>';
+        tableHtml += '<td class="col-status">'+statusCell+'</td>';
+        tableHtml += '<td class="col-coverage">'+(cov||'-')+'</td>';
+        tableHtml += '</tr>';
+        
+        // Mobile card
+        const td = isFinal ? '<span class="game-status">FINAL</span>' : formatTime(g.time);
+        cardsHtml += '<div class="game-card">';
+        if (g.gamedescription) cardsHtml += '<div class="game-description">'+g.gamedescription+'</div>';
+        cardsHtml += '<div class="game-card-header"><span class="game-level">'+(g.gender||'')+' '+(g.level||'')+'</span><span class="game-time">'+td+'</span></div>';
+        cardsHtml += '<div class="game-card-body">';
+        cardsHtml += '<div class="game-team"><div class="team-info"><div class="team-logo"><img src="/logos/100px/'+getLogoFilename(g.away)+'" onerror="this.src=\'/logos/100px/Ball603-white.png\'"></div><div><div class="team-name">'+(g.away||'TBD')+'</div>'+(g.away_record?'<div class="team-record">'+g.away_record+'</div>':'')+'</div></div>'+(hasScore?'<div class="team-score'+(aw?' winner':'')+'">'+as+'</div>':'')+'</div>';
+        cardsHtml += '<div class="game-team"><div class="team-info"><div class="team-logo"><img src="/logos/100px/'+getLogoFilename(g.home)+'" onerror="this.src=\'/logos/100px/Ball603-white.png\'"></div><div><div class="team-name">'+(g.home||'TBD')+'</div>'+(g.home_record?'<div class="team-record">'+g.home_record+'</div>':'')+'</div></div>'+(hasScore?'<div class="team-score'+(hw?' winner':'')+'">'+hs+'</div>':'')+'</div>';
+        cardsHtml += '</div>';
+        if (cov) cardsHtml += '<div class="game-card-footer">'+cov+'</div>';
+        cardsHtml += '</div>';
       });
-      html += '</div>';
-      document.getElementById('gamesContainer').innerHTML = html;
+      
+      tableHtml += '</tbody></table>';
+      cardsHtml += '</div>';
+      
+      document.getElementById('gamesContainer').innerHTML = tableHtml + cardsHtml;
     }
 
     function openCalendar() { calendarDate = new Date(currentDate); renderCalendar(); document.getElementById('calendarOverlay').classList.add('show'); }
@@ -467,7 +894,7 @@
       for (let d = 1; d <= rem; d++) { const ds = getDateString(new Date(y,m+1,d)); html += '<div class="calendar-day other-month'+(gd[ds]?' has-games':'')+'" onclick="selectDate('+y+','+(m+1)+','+d+')">'+d+'</div>'; }
       document.getElementById('calendarDays').innerHTML = html;
     }
-    function selectDate(y,m,d) { currentDate = new Date(y,m,d); currentDate.setHours(0,0,0,0); updateDateDisplay(); renderSchedule(); document.getElementById('calendarOverlay').classList.remove('show'); }
+    function selectDate(y,m,d) { currentDate = new Date(y,m,d); currentDate.setHours(0,0,0,0); updateDateDisplay(); document.getElementById('calendarOverlay').classList.remove('show'); }
 
     updateDateDisplay();
     loadGames();
