@@ -209,23 +209,6 @@
         <input type="email" id="loginEmail" placeholder="Email address">
         <input type="password" id="loginPassword" placeholder="Password">
         <button onclick="handleLogin()">Sign In</button>
-        <div class="login-link">
-          <a onclick="showForgotPassword()">Forgot password?</a>
-        </div>
-      </div>
-      
-      <div id="forgotForm" style="display: none;">
-        <input type="email" id="resetEmail" placeholder="Email address">
-        <button onclick="handleResetPassword()">Send Reset Link</button>
-        <div class="login-link">
-          <a onclick="showLogin()">Back to login</a>
-        </div>
-      </div>
-      
-      <div id="setPasswordForm" style="display: none;">
-        <input type="password" id="newPassword" placeholder="Create password (min 6 characters)">
-        <input type="password" id="confirmPassword" placeholder="Confirm password">
-        <button onclick="handleSetPassword()">Set Password</button>
       </div>
     </div>
   </div>
@@ -577,21 +560,19 @@
   
   <script>
     // Version marker for debugging deployment issues
-    console.log('Contributor Portal v212 loaded');
+    console.log('Contributor Portal v213 loaded');
     
-    // Supabase setup
+    // Supabase setup (for database only, not auth)
     const SUPABASE_URL = 'https://suncdkxfqkwwnmhosxcf.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_hHSpgZPD327r11GaQG9iHw_uZbuaWmF';
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     
-    let currentUser = null;
     let currentContributor = null;
     let portfolioItems = [];
     let cropper = null;
     let currentUploadType = null;
     let portfolioExpanded = false;
     let scheduleInstance = null;
-    let isLoadingProfile = false; // Prevent double-loading
     
     const NHIAA_SCHOOLS = [
       'Alvirne', 'Bedford', 'Belmont', 'Berlin', 'Bishop Brady', 'Bishop Guertin', 'Bow',
@@ -639,99 +620,12 @@
         });
       });
       
-      // Set up auth state listener
-      supabase.auth.onAuthStateChange(async (event, session) => {
-        console.log('Auth event:', event, session ? 'has session' : 'no session');
-        
-        // Handle password recovery
-        if (event === 'PASSWORD_RECOVERY') {
-          console.log('PASSWORD_RECOVERY event');
-          currentUser = session.user;
-          showSetPassword();
-          return;
-        }
-        
-        // Handle sign in - only load profile once
-        if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session) {
-          currentUser = session.user;
-          // Only load profile if not in password set mode and not already loaded
-          if (document.getElementById('setPasswordForm').style.display !== 'block' && !currentContributor) {
-            console.log(event + ' - calling loadContributorProfile');
-            await loadContributorProfile();
-          }
-        } 
-        
-        // Handle sign out
-        if (event === 'SIGNED_OUT') {
-          currentUser = null;
-          currentContributor = null;
-          isLoadingProfile = false;
-          showLoginScreen();
-          resetLoginButton();
-        }
-      });
-      
-      // Check for error in URL (e.g., expired link)
-      if (window.location.hash && window.location.hash.includes('error=')) {
-        const hashParams = new URLSearchParams(window.location.hash.substring(1));
-        const error = hashParams.get('error');
-        const errorDescription = hashParams.get('error_description');
-        
-        console.log('Auth error in URL:', error, errorDescription);
-        
-        if (error === 'access_denied' || errorDescription?.includes('expired')) {
-          document.getElementById('loginError').textContent = 'Reset link has expired. Please request a new one.';
-          showForgotPassword();
-          // Clear the error from URL
-          const cleanUrl = window.location.pathname + window.location.search;
-          history.replaceState(null, '', cleanUrl);
-          return;
-        }
+      // Check for existing session (stored in sessionStorage)
+      const savedEmail = sessionStorage.getItem('contributor_email');
+      if (savedEmail) {
+        console.log('Found saved session for:', savedEmail);
+        await loadContributorByEmail(savedEmail);
       }
-      
-      // Check if URL has auth tokens (hash fragment)
-      if (window.location.hash && window.location.hash.includes('access_token')) {
-        // Parse the hash to check token type
-        const hashParams = new URLSearchParams(window.location.hash.substring(1));
-        const tokenType = hashParams.get('type');
-        
-        console.log('Token detected, type:', tokenType);
-        
-        if (tokenType === 'recovery') {
-          // Password reset link - let Supabase process the token first
-          // Then show the set password form
-          // DON'T clear hash yet - Supabase needs it
-          
-          // Give Supabase a moment to process the token and establish session
-          setTimeout(async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            console.log('Recovery session check:', session ? 'valid' : 'none');
-            if (session) {
-              currentUser = session.user;
-              showSetPassword();
-              // Now we can clear the hash
-              const cleanUrl = window.location.pathname + window.location.search;
-              history.replaceState(null, '', cleanUrl);
-            } else {
-              console.error('No session after recovery token');
-              document.getElementById('loginError').textContent = 'Reset link expired. Please request a new one.';
-              showForgotPassword();
-            }
-          }, 500);
-          return;
-        }
-        
-        // Other token types (magic link, etc) - let onAuthStateChange handle them
-        return;
-      }
-      
-      // No tokens in URL - check for existing session
-      const { data: { session }, error } = await supabase.auth.getSession();
-      if (error) {
-        console.error('Session check error:', error);
-      }
-      // If there's a session, INITIAL_SESSION event will fire from onAuthStateChange
-      // If no session, just show login screen (it's already visible by default)
     });
     
     // View Management
@@ -758,36 +652,11 @@
           supabaseClient: supabase
         });
       } else if (scheduleInstance && currentContributor) {
-        // Update contributor name if it changed
         scheduleInstance.setContributor(currentContributor.name);
       }
     }
     
-    // Auth functions
-    function showLogin() {
-      document.getElementById('loginForm').style.display = 'block';
-      document.getElementById('forgotForm').style.display = 'none';
-      document.getElementById('setPasswordForm').style.display = 'none';
-      document.getElementById('loginSubtitle').textContent = 'Sign in to manage your profile';
-      document.getElementById('loginError').textContent = '';
-    }
-    
-    function showForgotPassword() {
-      document.getElementById('loginForm').style.display = 'none';
-      document.getElementById('forgotForm').style.display = 'block';
-      document.getElementById('setPasswordForm').style.display = 'none';
-      document.getElementById('loginSubtitle').textContent = 'Reset your password';
-      document.getElementById('loginError').textContent = '';
-    }
-    
-    function showSetPassword() {
-      document.getElementById('loginForm').style.display = 'none';
-      document.getElementById('forgotForm').style.display = 'none';
-      document.getElementById('setPasswordForm').style.display = 'block';
-      document.getElementById('loginSubtitle').textContent = 'Create your password';
-      document.getElementById('loginError').textContent = '';
-    }
-    
+    // Screen functions
     function showLoginScreen() {
       document.getElementById('loginScreen').style.display = 'flex';
       document.getElementById('mainHeader').style.display = 'none';
@@ -800,8 +669,9 @@
       document.getElementById('mainContent').style.display = 'block';
     }
     
+    // Simple database login
     async function handleLogin() {
-      const email = document.getElementById('loginEmail').value.trim();
+      const email = document.getElementById('loginEmail').value.trim().toLowerCase();
       const password = document.getElementById('loginPassword').value;
       const errorEl = document.getElementById('loginError');
       const loginBtn = document.querySelector('#loginForm button');
@@ -816,143 +686,31 @@
       errorEl.textContent = '';
       
       try {
-        console.log('Attempting sign in for:', email);
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) {
-          console.log('Sign in error:', error);
-          errorEl.textContent = error.message.includes('Invalid') ? 'Invalid email or password' : error.message;
+        console.log('Looking up contributor:', email);
+        
+        // Simple database lookup - check email and password
+        const { data: contributor, error } = await supabase
+          .from('contributors')
+          .select('*')
+          .eq('email', email)
+          .eq('password', password)
+          .eq('active', true)
+          .single();
+        
+        if (error || !contributor) {
+          console.log('Login failed:', error?.message || 'No match');
+          errorEl.textContent = 'Invalid email or password';
           loginBtn.disabled = false;
           loginBtn.textContent = 'Sign In';
           return;
         }
-        console.log('Sign in successful, loading profile...');
-        currentUser = data.user;
-        // Don't call loadContributorProfile here - let onAuthStateChange handle it
-        // This prevents double loading
-      } catch (err) {
-        console.error('Login catch error:', err);
-        errorEl.textContent = 'Login failed. Please try again.';
-        loginBtn.disabled = false;
-        loginBtn.textContent = 'Sign In';
-      }
-    }
-    
-    async function handleResetPassword() {
-      const email = document.getElementById('resetEmail').value.trim();
-      const errorEl = document.getElementById('loginError');
-      if (!email) { errorEl.textContent = 'Please enter your email'; return; }
-      
-      try {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: window.location.origin + '/contributor-portal.html'
-        });
-        if (error) { errorEl.textContent = error.message; return; }
-        errorEl.className = 'login-success';
-        errorEl.textContent = 'Check your email for the reset link!';
-      } catch (err) {
-        errorEl.textContent = 'Failed to send reset email';
-      }
-    }
-    
-    async function handleSetPassword() {
-      const password = document.getElementById('newPassword').value;
-      const confirmPassword = document.getElementById('confirmPassword').value;
-      const errorEl = document.getElementById('loginError');
-      
-      if (!password || !confirmPassword) { errorEl.textContent = 'Please enter and confirm your password'; return; }
-      if (password.length < 6) { errorEl.textContent = 'Password must be at least 6 characters'; return; }
-      if (password !== confirmPassword) { errorEl.textContent = 'Passwords do not match'; return; }
-      
-      try {
-        // Verify we have an active session before attempting to update
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
-          errorEl.textContent = 'Session expired. Please request a new password reset link.';
-          setTimeout(() => showForgotPassword(), 2000);
-          return;
-        }
         
-        const { error } = await supabase.auth.updateUser({ password });
-        if (error) { 
-          console.error('Password update error:', error);
-          errorEl.textContent = error.message; 
-          return; 
-        }
-        document.getElementById('newPassword').value = '';
-        document.getElementById('confirmPassword').value = '';
-        showToast('Password set successfully!', 'success');
-        await loadContributorProfile();
-      } catch (err) {
-        console.error('Password set error:', err);
-        errorEl.textContent = 'Error setting password. Please try again.';
-      }
-    }
-    
-    async function handleLogout() {
-      try {
-        await supabase.auth.signOut();
-        currentUser = null;
-        currentContributor = null;
-        scheduleInstance = null;
-        window.location.reload();
-      } catch (err) {
-        console.error('Logout error:', err);
-        window.location.reload();
-      }
-    }
-    
-    // Load contributor profile
-    async function loadContributorProfile() {
-      console.log('loadContributorProfile called, currentUser:', currentUser?.email);
-      
-      // Prevent double-loading
-      if (isLoadingProfile) {
-        console.log('Already loading profile, skipping');
-        return;
-      }
-      
-      if (!currentUser) {
-        console.log('No currentUser, returning');
-        resetLoginButton();
-        return;
-      }
-      
-      isLoadingProfile = true;
-      
-      try {
-        console.log('Querying contributors table for:', currentUser.email);
-        const { data: contributor, error } = await supabase
-          .from('contributors')
-          .select('*')
-          .eq('email', currentUser.email)
-          .single();
+        console.log('Login successful for:', contributor.name);
         
-        console.log('Query result:', { contributor: contributor?.name, error: error?.message });
+        // Save session
+        sessionStorage.setItem('contributor_email', email);
         
-        if (error || !contributor) {
-          console.log('No contributor found or error');
-          document.getElementById('loginError').textContent = 'No contributor account found for this email.';
-          resetLoginButton();
-          await supabase.auth.signOut();
-          isLoadingProfile = false;
-          return;
-        }
-        
-        if (!contributor.active) {
-          console.log('Contributor inactive');
-          document.getElementById('loginError').textContent = 'Your account is inactive. Contact admin.';
-          resetLoginButton();
-          await supabase.auth.signOut();
-          isLoadingProfile = false;
-          return;
-        }
-        
-        if (!contributor.auth_user_id) {
-          console.log('Linking auth_user_id');
-          await supabase.from('contributors').update({ auth_user_id: currentUser.id }).eq('id', contributor.id);
-        }
-        
-        console.log('Setting currentContributor and showing main screen');
+        // Load profile
         currentContributor = contributor;
         populateForm(contributor);
         await loadPortfolio();
@@ -963,20 +721,51 @@
         loadDashboardData();
         
       } catch (err) {
-        console.error('Error loading profile:', err);
-        document.getElementById('loginError').textContent = 'Error loading profile. Please try again.';
-        resetLoginButton();
-      } finally {
-        isLoadingProfile = false;
-      }
-    }
-    
-    function resetLoginButton() {
-      const loginBtn = document.querySelector('#loginForm button');
-      if (loginBtn) {
+        console.error('Login error:', err);
+        errorEl.textContent = 'Login failed. Please try again.';
         loginBtn.disabled = false;
         loginBtn.textContent = 'Sign In';
       }
+    }
+    
+    // Load contributor by email (for session restore)
+    async function loadContributorByEmail(email) {
+      try {
+        const { data: contributor, error } = await supabase
+          .from('contributors')
+          .select('*')
+          .eq('email', email)
+          .eq('active', true)
+          .single();
+        
+        if (error || !contributor) {
+          console.log('Session invalid, clearing');
+          sessionStorage.removeItem('contributor_email');
+          return;
+        }
+        
+        console.log('Session restored for:', contributor.name);
+        currentContributor = contributor;
+        populateForm(contributor);
+        await loadPortfolio();
+        
+        document.getElementById('userName').textContent = contributor.name;
+        document.getElementById('welcomeName').textContent = contributor.name.split(' ')[0];
+        showMainScreen();
+        loadDashboardData();
+        
+      } catch (err) {
+        console.error('Session restore error:', err);
+        sessionStorage.removeItem('contributor_email');
+      }
+    }
+    
+    // Logout
+    async function handleLogout() {
+      sessionStorage.removeItem('contributor_email');
+      currentContributor = null;
+      scheduleInstance = null;
+      window.location.reload();
     }
     
     // Dashboard
@@ -1242,11 +1031,21 @@
         return;
       }
       
+      if (!currentContributor) {
+        statusEl.style.color = '#c00';
+        statusEl.textContent = 'Not logged in';
+        return;
+      }
+      
       statusEl.style.color = '#666';
       statusEl.textContent = 'Updating...';
       
       try {
-        const { error } = await supabase.auth.updateUser({ password: newPassword });
+        // Update password in contributors table
+        const { error } = await supabase
+          .from('contributors')
+          .update({ password: newPassword })
+          .eq('id', currentContributor.id);
         
         if (error) {
           statusEl.style.color = '#c00';
