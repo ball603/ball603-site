@@ -274,12 +274,10 @@ function populateTeamFilter() {
 function getTeamLogo(teamName) {
   if (!teamName || isPlaceholder(teamName)) return DEFAULT_LOGO;
   
-  // Clean up team name for filename
+  // Clean up team name for filename - match main site format
   const filename = teamName
     .replace(/\s*\(.*\)\s*/g, '') // Remove parenthetical like (ME), (TN)
-    .replace(/[^a-zA-Z0-9\s-]/g, '') // Remove special chars
-    .replace(/\s+/g, '-') // Replace spaces with dashes
-    .toLowerCase();
+    .replace(/[^a-zA-Z0-9]/g, ''); // Remove all non-alphanumeric chars
   
   return `${LOGO_PATH}${filename}.png`;
 }
