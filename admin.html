@@ -8924,7 +8924,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       selectedBonusAlbum = null;
       document.getElementById('btnSelectBonusAlbum').disabled = true;
       document.getElementById('bonusAlbumSearch').value = '';
-      document.getElementById('bonusGalleryModal').classList.add('active');
+      document.getElementById('bonusGalleryModal').classList.add('open');
       
       // Populate photographer dropdown
       await populateBonusPhotographerDropdown();
@@ -8932,13 +8932,23 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       // Load albums if not already loaded
       if (smugmugAlbums.length === 0) {
         document.getElementById('bonusAlbumGrid').innerHTML = '<div class="loading">Loading albums...</div>';
-        await loadSmugMugAlbums();
+        try {
+          const response = await fetch('/.netlify/functions/smugmug?action=albums');
+          const data = await response.json();
+          if (data.success) {
+            smugmugAlbums = data.albums || [];
+          }
+        } catch (err) {
+          console.error('SmugMug error:', err);
+          document.getElementById('bonusAlbumGrid').innerHTML = '<div class="loading">Could not connect to SmugMug</div>';
+          return;
+        }
       }
       renderBonusAlbumGrid('');
     }
     
     function closeBonusGalleryModal() {
-      document.getElementById('bonusGalleryModal').classList.remove('active');
+      document.getElementById('bonusGalleryModal').classList.remove('open');
       currentBonusSlot = null;
       selectedBonusAlbum = null;
     }
@@ -8992,12 +9002,13 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       
       grid.innerHTML = filtered.map(album => `
         <div class="album-card ${selectedBonusAlbum?.key === album.key ? 'selected' : ''}" onclick="selectBonusAlbumCard('${album.key}')">
-          <div class="album-thumb">
-            ${album.highlightImage ? `<img src="${album.highlightImage}" alt="${album.name}">` : '<div class="no-image">No Image</div>'}
-          </div>
+          <img class="album-thumb" 
+               src="${album.highlightImage || 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect fill=%22%23f5f5f5%22 width=%22100%22 height=%22100%22/><text x=%2250%22 y=%2255%22 text-anchor=%22middle%22 fill=%22%23ccc%22 font-size=%2230%22></text></svg>'}" 
+               alt="${album.name}"
+               onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect fill=%22%23f5f5f5%22 width=%22100%22 height=%22100%22/><text x=%2250%22 y=%2255%22 text-anchor=%22middle%22 fill=%22%23ccc%22 font-size=%2230%22></text></svg>'">
           <div class="album-info">
-            <div class="album-name">${album.name}</div>
-            <div class="album-count">${album.imageCount || 0} photos</div>
+            <div class="album-name" title="${album.name}">${album.name}</div>
+            <div class="album-meta">${album.imageCount || 0} photos</div>
           </div>
         </div>
       `).join('');
