@@ -560,7 +560,7 @@
   
   <script>
     // Version marker for debugging deployment issues
-    console.log('Contributor Portal v214 loaded');
+    console.log('Contributor Portal v215 loaded');
     
     // Supabase setup (for database only, not auth)
     const SUPABASE_URL = 'https://suncdkxfqkwwnmhosxcf.supabase.co';
@@ -841,21 +841,24 @@
         const response = await fetch(`/.netlify/functions/games?end_date=${today}&limit=500`);
         const games = await response.json();
         
-        console.log('Recent galleries lookup for:', contributorName);
-        console.log('Games with photos_url:', games.filter(g => g.photos_url).map(g => ({
-          date: g.date,
-          matchup: `${g.away_team || g.away} @ ${g.home_team || g.home}`,
-          photog1: g.photog1,
-          photog2: g.photog2,
-          photos_url: g.photos_url
-        })));
+        // Create search variations of contributor name for URL matching
+        // "KJ Cardinal" -> ["kj-cardinal", "kj_cardinal", "kjcardinal"]
+        const nameLower = contributorName.toLowerCase();
+        const nameHyphen = nameLower.replace(/\s+/g, '-');
+        const nameUnderscore = nameLower.replace(/\s+/g, '_');
+        const nameNoSpace = nameLower.replace(/\s+/g, '');
         
-        // Only show games where contributor is assigned AND has a photos_url
-        const myGames = games.filter(g => 
-          ((g.photog1 || '').trim() === contributorName || 
-           (g.photog2 || '').trim() === contributorName) &&
-          g.photos_url
-        ).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6);
+        console.log('Recent galleries lookup for:', contributorName);
+        console.log('Searching URLs for:', nameHyphen);
+        
+        // Find games where contributor name appears in the photos_url
+        const myGames = games.filter(g => {
+          if (!g.photos_url) return false;
+          const urlLower = g.photos_url.toLowerCase();
+          return urlLower.includes(nameHyphen) || 
+                 urlLower.includes(nameUnderscore) || 
+                 urlLower.includes(nameNoSpace);
+        }).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6);
         
         console.log('My galleries found:', myGames.length);
         
