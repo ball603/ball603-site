@@ -690,8 +690,18 @@
     async function loadArticles() {
       if (!TEAM_CONFIG) return;
       try {
-        const { data: articles, error } = await supabase.from('articles').select('id, title, slug, excerpt, featured_image_url, published_at, tags').eq('status', 'published').order('published_at', { ascending: false }).limit(20);
+        const { data: articles, error } = await supabase.from('articles').select('id, title, slug, excerpt, featured_image_url, published_at, article_date, tags').eq('status', 'published').limit(50);
         if (error) throw error;
+        
+        // Sort client-side: article_date takes priority over published_at
+        if (articles) {
+          articles.sort((a, b) => {
+            const dateA = a.article_date || a.published_at;
+            const dateB = b.article_date || b.published_at;
+            return new Date(dateB) - new Date(dateA);
+          });
+        }
+        
         const teamTag = TEAM_CONFIG.slug.toLowerCase();
         const filtered = (articles || []).filter(a => {
           if (!a.tags) return false;
@@ -707,24 +717,26 @@
       if (!articles || articles.length === 0) { container.innerHTML = '<div class="empty-state"><p>No stories yet. Check back soon!</p></div>'; return; }
       const featured = articles[0], secondary = articles.slice(1, 3);
       const featuredPhotog = featured.photographer || featured.game_data?.photographerName || featured.featured_image_caption || '';
+      const featuredDate = featured.article_date || featured.published_at;
       container.innerHTML = `
         <a href="/article/${featured.slug}" class="story-box-large">
           <div class="story-box-image" style="background-image: url('${featured.featured_image_url || '/images/placeholder.jpg'}');">
-            ${featuredPhotog ? `<div class="photo-credit">📷 ${featuredPhotog}</div>` : ''}
+            ${featuredPhotog ? `<div class="photo-credit">&#128247; ${featuredPhotog}</div>` : ''}
           </div>
           <div class="story-box-content">
             <h3 class="story-box-title">${featured.title}</h3>
-            <span class="story-box-date">📅 ${formatDate(featured.published_at)}</span>
+            <span class="story-box-date">&#128197; ${formatDate(featuredDate)}</span>
           </div>
         </a>
         ${secondary.length > 0 ? `<div class="story-box-stack">${secondary.map(a => {
           const photog = a.photographer || a.game_data?.photographerName || a.featured_image_caption || '';
+          const artDate = a.article_date || a.published_at;
           return `
             <a href="/article/${a.slug}" class="story-box-small">
               <div class="story-box-image" style="background-image: url('${a.featured_image_url || '/images/placeholder.jpg'}');">
-                ${photog ? `<div class="photo-credit">📷 ${photog}</div>` : ''}
+                ${photog ? `<div class="photo-credit">&#128247; ${photog}</div>` : ''}
               </div>
-              <div class="story-box-content"><h4 class="story-box-title">${a.title}</h4><span class="story-box-date">📅 ${formatDate(a.published_at)}</span></div>
+              <div class="story-box-content"><h4 class="story-box-title">${a.title}</h4><span class="story-box-date">&#128197; ${formatDate(artDate)}</span></div>
             </a>`;
         }).join('')}</div>` : ''}
       `;
