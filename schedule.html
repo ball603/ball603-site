@@ -11,8 +11,21 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="stylesheet" href="/styles.css">
   <style>
+    /* Hide mobile-only elements on desktop */
+    .mobile-only {
+      display: none;
+    }
+    
     /* Mobile Dark Theme */
     @media (max-width: 768px) {
+      .desktop-only {
+        display: none !important;
+      }
+      
+      .mobile-only {
+        display: inline-flex !important;
+      }
+      
       body {
         background: #1a1a1a;
       }
@@ -21,40 +34,96 @@
         background: #1a1a1a;
       }
       
+      /* Controls NOT sticky - only search will be */
       .schedule-controls {
         background: #1a1a1a;
-        position: sticky;
-        top: 0;
-        z-index: 100;
-        padding-top: 10px;
-        padding-bottom: 10px;
-        border-bottom: 1px solid #333;
+        position: static;
+        padding: 15px;
       }
       
+      /* Line 1: Date with arrows on far left/right */
       .date-nav {
-        background: #2d2d2d;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: transparent;
+        margin-bottom: 12px;
+        padding: 0;
+        gap: 10px;
       }
       
-      .current-date {
+      .date-nav .current-date {
+        flex: 1;
+        text-align: center;
         color: #fff;
+        font-size: 1.1rem;
+        font-weight: 600;
       }
       
-      .date-btn, .today-btn, .calendar-btn {
+      .date-btn {
         background: #3d3d3d;
         color: #fff;
-        border-color: #444;
+        border: 1px solid #444;
+        padding: 10px 14px;
+        border-radius: 8px;
+      }
+      
+      /* Line 2: Level, Gender, Calendar, Today */
+      .filters {
+        display: grid;
+        grid-template-columns: 1fr 1fr auto auto;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 0;
       }
       
       .filter-select {
         background: #2d2d2d;
         color: #fff;
-        border-color: #444;
+        border: 1px solid #444;
+        padding: 10px;
+        border-radius: 8px;
+        font-size: 0.9rem;
+      }
+      
+      .calendar-btn {
+        background: #3d3d3d;
+        color: #fff;
+        border: 1px solid #444;
+        padding: 10px 12px;
+        border-radius: 8px;
+      }
+      
+      .today-btn.mobile-only {
+        background: #f57c00;
+        color: #fff;
+        border: none;
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.9rem;
+      }
+      
+      /* Line 3: Search box - STICKY */
+      .mobile-search-sticky {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        background: #1a1a1a;
+        padding: 12px 0;
+        margin: 0 -15px;
+        padding-left: 15px;
+        padding-right: 15px;
       }
       
       .search-box {
+        width: 100%;
         background: #2d2d2d;
         color: #fff;
-        border-color: #444;
+        border: 1px solid #444;
+        padding: 12px 15px;
+        border-radius: 8px;
+        font-size: 1rem;
       }
       
       .search-box::placeholder {
@@ -73,13 +142,23 @@
         color: #888;
       }
       
+      /* Game cards dark theme */
       .game-card {
         background: #2d2d2d;
-        border-color: #3d3d3d;
+        border: 1px solid #3d3d3d;
       }
       
       .game-card-header {
-        border-bottom-color: #3d3d3d;
+        background: #252525;
+        border-bottom: 1px solid #3d3d3d;
+      }
+      
+      .game-card-body {
+        background: #2d2d2d;
+      }
+      
+      .game-team {
+        background: #2d2d2d;
       }
       
       .game-level {
@@ -100,11 +179,25 @@
       
       .team-score {
         color: #fff;
+        background: #3d3d3d;
+      }
+      
+      .team-score.winner {
+        background: #f57c00;
       }
       
       .game-description {
         background: #3d3d3d;
         color: #aaa;
+      }
+      
+      .game-card-footer {
+        background: #252525;
+        border-top: 1px solid #3d3d3d;
+      }
+      
+      .coverage-link {
+        color: #f57c00;
       }
       
       .empty-state {
@@ -152,7 +245,7 @@
         <button class="date-btn" onclick="prevDay()">&#9664;</button>
         <div class="current-date" id="currentDate">Loading...</div>
         <button class="date-btn" onclick="nextDay()">&#9654;</button>
-        <button class="today-btn" onclick="goToToday()">Today</button>
+        <button class="today-btn desktop-only" onclick="goToToday()">Today</button>
       </div>
       <div class="filters">
         <select class="filter-select" id="levelFilter" onchange="renderSchedule()">
@@ -168,8 +261,11 @@
           <option value="Men">Men</option>
           <option value="Women">Women</option>
         </select>
-        <input type="text" class="search-box" id="teamSearchInput" placeholder="Search teams..." oninput="renderSchedule()">
         <button class="calendar-btn" onclick="openCalendar()" title="Pick a date">&#128197;</button>
+        <button class="today-btn mobile-only" onclick="goToToday()">Today</button>
+      </div>
+      <div class="mobile-search-sticky">
+        <input type="text" class="search-box" id="teamSearchInput" placeholder="Search teams..." oninput="renderSchedule()">
       </div>
     </div>
     <div class="section-header">
