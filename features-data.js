@@ -13482,16 +13482,6 @@ const DYNASTIES = {
     years: ['2022 D-IV', '2023 D-III', '2024 D-II'],
     titles: 3,
     notes: 'Won titles in 3 different divisions as they moved up classifications'
-  },
-  'Bishop Guertin Girls D-I': {
-    years: [2022, 2023],
-    titles: 2,
-    notes: 'Back-to-back including upset as #5 seed in 2022'
-  },
-  'Pelham Boys D-II': {
-    years: [2023, 2024],
-    titles: 2,
-    notes: 'Back-to-back: 2023 as #5 Cinderella, 2024 as #1 seed'
   }
 };
 
