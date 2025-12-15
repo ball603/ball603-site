@@ -748,6 +748,49 @@
       padding: 16px;
     }
     
+    /* Sponsor Card */
+    .sponsor-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+      text-decoration: none;
+      text-align: center;
+      transition: all 0.2s;
+    }
+    
+    .sponsor-card:hover {
+      border-color: var(--accent);
+      box-shadow: 0 4px 12px rgba(245, 124, 0, 0.15);
+    }
+    
+    .sponsor-logo {
+      width: 60px;
+      height: 60px;
+      object-fit: contain;
+      margin-bottom: 12px;
+    }
+    
+    .sponsor-headline {
+      font-size: 14px;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin: 0 0 8px 0;
+      line-height: 1.4;
+    }
+    
+    .sponsor-cta {
+      font-size: 13px;
+      color: #666;
+      margin: 0;
+      line-height: 1.4;
+    }
+    
+    /* Mobile Standings Section - Hidden on desktop */
+    .mobile-standings-section {
+      display: none;
+    }
+    
     /* Standings */
     .standings-gender-toggle {
       display: flex;
@@ -1357,6 +1400,59 @@
       .footer-copyright {
         color: #666;
       }
+      
+      /* Mobile Standings - Show on mobile */
+      .mobile-standings-section {
+        display: block;
+        padding: 0 16px 16px;
+      }
+      
+      /* Hide sidebar standings on mobile */
+      .sidebar > .sidebar-card:first-child {
+        display: none;
+      }
+      
+      /* Mobile scrollbar for mobile standings */
+      #standingsMiniMobile {
+        max-height: 340px;
+        overflow-y: auto;
+      }
+      
+      #standingsMiniMobile::-webkit-scrollbar {
+        width: 6px;
+      }
+      
+      #standingsMiniMobile::-webkit-scrollbar-track {
+        background: #333;
+        border-radius: 3px;
+      }
+      
+      #standingsMiniMobile::-webkit-scrollbar-thumb {
+        background: #555;
+        border-radius: 3px;
+      }
+      
+      #standingsMiniMobile::-webkit-scrollbar-thumb:hover {
+        background: #666;
+      }
+      
+      /* Sponsor card dark theme */
+      .sponsor-card {
+        background: #1e1e1e;
+        border-color: #333;
+      }
+      
+      .sponsor-card:hover {
+        border-color: var(--accent);
+      }
+      
+      .sponsor-headline {
+        color: #fff;
+      }
+      
+      .sponsor-cta {
+        color: #aaa;
+      }
     }
   </style>
 </head>
@@ -1447,6 +1543,35 @@
     </div>
   </nav>
   
+  <!-- ===== MOBILE STANDINGS (hidden on desktop) ===== -->
+  <div class="mobile-standings-section">
+    <div class="sidebar-card">
+      <div class="sidebar-header">
+        <h3 class="sidebar-title">&#128202; Standings</h3>
+        <a href="/standings" class="sidebar-link">Full Standings &#8594;</a>
+      </div>
+      <!-- Gender Toggle -->
+      <div class="standings-gender-toggle">
+        <button class="gender-btn active" data-gender="Boys" onclick="setStandingsGender('Boys')">Boys</button>
+        <button class="gender-btn" data-gender="Girls" onclick="setStandingsGender('Girls')">Girls</button>
+      </div>
+      <!-- Division Tabs -->
+      <div class="standings-tabs">
+        <button class="standings-tab active" data-div="D-I" onclick="setStandingsDivision('D-I')">D-I</button>
+        <button class="standings-tab" data-div="D-II" onclick="setStandingsDivision('D-II')">D-II</button>
+        <button class="standings-tab" data-div="D-III" onclick="setStandingsDivision('D-III')">D-III</button>
+        <button class="standings-tab" data-div="D-IV" onclick="setStandingsDivision('D-IV')">D-IV</button>
+      </div>
+      <div class="sidebar-content" id="standingsMiniMobile">
+        <div class="skeleton" style="height: 40px; margin-bottom: 8px;"></div>
+        <div class="skeleton" style="height: 40px; margin-bottom: 8px;"></div>
+        <div class="skeleton" style="height: 40px; margin-bottom: 8px;"></div>
+        <div class="skeleton" style="height: 40px; margin-bottom: 8px;"></div>
+        <div class="skeleton" style="height: 40px;"></div>
+      </div>
+    </div>
+  </div>
+  
   <!-- ===== MAIN CONTENT ===== -->
   <div class="content-wrapper">
     <div class="content-grid">
@@ -1506,6 +1631,13 @@
             <div class="skeleton" style="height: 30px;"></div>
           </div>
         </div>
+        
+        <!-- Sponsor CTA -->
+        <a href="mailto:kj@ball603.com" class="sidebar-card sponsor-card">
+          <img src="/logo.png" alt="Ball603" class="sponsor-logo">
+          <p class="sponsor-headline">Enjoying our coverage of Basketball in the Granite State?</p>
+          <p class="sponsor-cta">Click to inquire about more details on our sponsorship offerings</p>
+        </a>
       </aside>
     </div>
   </div>
@@ -1852,6 +1984,7 @@
      */
     async function renderStandings() {
       const container = document.getElementById('standingsMini');
+      const mobileContainer = document.getElementById('standingsMiniMobile');
       
       try {
         const response = await fetch('/.netlify/functions/get-standings');
@@ -1861,11 +1994,15 @@
           allStandings = data.standings;
           renderStandingsData();
         } else {
-          container.innerHTML = '<div class="standings-empty">No standings available</div>';
+          const emptyHtml = '<div class="standings-empty">No standings available</div>';
+          container.innerHTML = emptyHtml;
+          if (mobileContainer) mobileContainer.innerHTML = emptyHtml;
         }
       } catch (err) {
         console.error('Error loading standings:', err);
-        container.innerHTML = '<div class="standings-empty">Unable to load standings</div>';
+        const errorHtml = '<div class="standings-empty">Unable to load standings</div>';
+        container.innerHTML = errorHtml;
+        if (mobileContainer) mobileContainer.innerHTML = errorHtml;
       }
     }
     
@@ -1874,6 +2011,7 @@
      */
     function renderStandingsData() {
       const container = document.getElementById('standingsMini');
+      const mobileContainer = document.getElementById('standingsMiniMobile');
       
       // Filter standings by gender and division
       const filtered = allStandings.filter(s => 
@@ -1882,14 +2020,16 @@
       );
       
       if (filtered.length === 0) {
-        container.innerHTML = '<div class="standings-empty">No standings available</div>';
+        const emptyHtml = '<div class="standings-empty">No standings available</div>';
+        container.innerHTML = emptyHtml;
+        if (mobileContainer) mobileContainer.innerHTML = emptyHtml;
         return;
       }
       
       // Sort by power rating (descending)
       const sorted = filtered.sort((a, b) => (b.power_rating || 0) - (a.power_rating || 0));
       
-      container.innerHTML = sorted.map((s, i) => `
+      const standingsHtml = sorted.map((s, i) => `
         <div class="standings-row">
           <span class="standings-rank">${i + 1}</span>
           <img class="standings-logo" src="${Ball603.getLogoUrl(s.school)}" alt="" onerror="this.src='/logos/100px/Ball603-white.png'">
@@ -1897,6 +2037,9 @@
           <span class="standings-record">${s.wins || 0}-${s.losses || 0}</span>
         </div>
       `).join('');
+      
+      container.innerHTML = standingsHtml;
+      if (mobileContainer) mobileContainer.innerHTML = standingsHtml;
     }
     
     /**
