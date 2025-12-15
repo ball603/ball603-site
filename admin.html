@@ -1569,6 +1569,42 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           </div>
           
           <div class="sidebar-card">
+            <h4>&#128248; Bonus Galleries</h4>
+            <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+              <button type="button" onclick="openBonusGalleryModal(1)" style="flex: 1; padding: 8px 12px; background: #e3f2fd; color: #1565c0; border: 1px solid #bbdefb; border-radius: 20px; cursor: pointer; font-size: 12px; font-weight: 500;">&#128247; Bonus 1</button>
+              <button type="button" onclick="openBonusGalleryModal(2)" style="flex: 1; padding: 8px 12px; background: #e3f2fd; color: #1565c0; border: 1px solid #bbdefb; border-radius: 20px; cursor: pointer; font-size: 12px; font-weight: 500;">&#128247; Bonus 2</button>
+            </div>
+            <div id="bonusGalleryPreviews">
+              <div id="bonusGallery1Preview" style="display: none; margin-bottom: 8px; padding: 8px; background: #f5f5f5; border-radius: 6px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <img id="bonusGallery1Thumb" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;">
+                  <div style="flex: 1; min-width: 0;">
+                    <div style="font-size: 11px; font-weight: 600; color: #333;">Bonus 1</div>
+                    <div id="bonusGallery1Photog" style="font-size: 10px; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></div>
+                  </div>
+                  <button type="button" onclick="clearBonusGallery(1)" style="background: none; border: none; color: #c62828; cursor: pointer; font-size: 14px;" title="Remove">&times;</button>
+                </div>
+              </div>
+              <div id="bonusGallery2Preview" style="display: none; margin-bottom: 8px; padding: 8px; background: #f5f5f5; border-radius: 6px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <img id="bonusGallery2Thumb" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;">
+                  <div style="flex: 1; min-width: 0;">
+                    <div style="font-size: 11px; font-weight: 600; color: #333;">Bonus 2</div>
+                    <div id="bonusGallery2Photog" style="font-size: 10px; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></div>
+                  </div>
+                  <button type="button" onclick="clearBonusGallery(2)" style="background: none; border: none; color: #c62828; cursor: pointer; font-size: 14px;" title="Remove">&times;</button>
+                </div>
+              </div>
+            </div>
+            <input type="hidden" id="bonusGallery1Url">
+            <input type="hidden" id="bonusGallery1ThumbUrl">
+            <input type="hidden" id="bonusGallery1Photographer">
+            <input type="hidden" id="bonusGallery2Url">
+            <input type="hidden" id="bonusGallery2ThumbUrl">
+            <input type="hidden" id="bonusGallery2Photographer">
+          </div>
+          
+          <div class="sidebar-card">
             <h4> Article Date</h4>
             <div class="form-group">
               <label>Publication Date</label>
@@ -3265,6 +3301,35 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       <div class="modal-footer">
         <button class="btn-modal btn-modal-cancel" onclick="closeSmugMugBrowser()">Cancel</button>
         <button class="btn-modal btn-modal-select" id="btnSelectAlbum" onclick="selectSmugMugAlbum()" disabled>Select Album</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bonus Gallery Modal -->
+  <div class="modal-overlay" id="bonusGalleryModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>&#128248; Select Bonus Gallery</h3>
+        <button class="modal-close" onclick="closeBonusGalleryModal()">&times;</button>
+      </div>
+      <div class="modal-search">
+        <input type="text" id="bonusAlbumSearch" placeholder="Search albums..." oninput="searchBonusAlbums(this.value)">
+      </div>
+      <div class="modal-body">
+        <div class="album-grid" id="bonusAlbumGrid">
+          <div class="loading">Loading albums...</div>
+        </div>
+      </div>
+      <div style="padding: 15px 20px; border-top: 1px solid #eee;">
+        <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px;">Photographer</label>
+        <select id="bonusGalleryPhotographerSelect" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px;">
+          <option value="">Select photographer...</option>
+          <!-- Populated dynamically -->
+        </select>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-modal btn-modal-cancel" onclick="closeBonusGalleryModal()">Cancel</button>
+        <button class="btn-modal btn-modal-select" id="btnSelectBonusAlbum" onclick="selectBonusGalleryAlbum()" disabled>Select</button>
       </div>
     </div>
   </div>
@@ -5803,6 +5868,16 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       // Clear featured image
       removeFeaturedImage();
       
+      // Clear bonus galleries (silently)
+      document.getElementById('bonusGallery1Url').value = '';
+      document.getElementById('bonusGallery1ThumbUrl').value = '';
+      document.getElementById('bonusGallery1Photographer').value = '';
+      document.getElementById('bonusGallery1Preview').style.display = 'none';
+      document.getElementById('bonusGallery2Url').value = '';
+      document.getElementById('bonusGallery2ThumbUrl').value = '';
+      document.getElementById('bonusGallery2Photographer').value = '';
+      document.getElementById('bonusGallery2Preview').style.display = 'none';
+      
       // Clear generated social posts (this is a manual article)
       generatedSocialPosts = {
         facebookPost: null,
@@ -5857,6 +5932,17 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       } else {
         removeFeaturedImage();
       }
+      
+      // Handle bonus galleries
+      document.getElementById('bonusGallery1Url').value = article.bonus_gallery_1_url || '';
+      document.getElementById('bonusGallery1ThumbUrl').value = article.bonus_gallery_1_thumb || '';
+      document.getElementById('bonusGallery1Photographer').value = article.bonus_gallery_1_photographer || '';
+      updateBonusGalleryPreview(1);
+      
+      document.getElementById('bonusGallery2Url').value = article.bonus_gallery_2_url || '';
+      document.getElementById('bonusGallery2ThumbUrl').value = article.bonus_gallery_2_thumb || '';
+      document.getElementById('bonusGallery2Photographer').value = article.bonus_gallery_2_photographer || '';
+      updateBonusGalleryPreview(2);
       
       // Handle scheduling
       if (article.scheduled_at) {
@@ -6002,6 +6088,12 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         featured_image_caption: document.getElementById('featuredImageCaptionField').value || null,
         author: getAuthorValue(),
         photographer: getPhotographerValue() || null,
+        bonus_gallery_1_url: document.getElementById('bonusGallery1Url').value || null,
+        bonus_gallery_1_thumb: document.getElementById('bonusGallery1ThumbUrl').value || null,
+        bonus_gallery_1_photographer: document.getElementById('bonusGallery1Photographer').value || null,
+        bonus_gallery_2_url: document.getElementById('bonusGallery2Url').value || null,
+        bonus_gallery_2_thumb: document.getElementById('bonusGallery2ThumbUrl').value || null,
+        bonus_gallery_2_photographer: document.getElementById('bonusGallery2Photographer').value || null,
         tags: currentTags,
         article_date: document.getElementById('articleDate').value || null,
         scheduled_at: scheduledAt,
@@ -6073,6 +6165,12 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         featured_image_caption: document.getElementById('featuredImageCaptionField').value || null,
         author: getAuthorValue(),
         photographer: getPhotographerValue() || null,
+        bonus_gallery_1_url: document.getElementById('bonusGallery1Url').value || null,
+        bonus_gallery_1_thumb: document.getElementById('bonusGallery1ThumbUrl').value || null,
+        bonus_gallery_1_photographer: document.getElementById('bonusGallery1Photographer').value || null,
+        bonus_gallery_2_url: document.getElementById('bonusGallery2Url').value || null,
+        bonus_gallery_2_thumb: document.getElementById('bonusGallery2ThumbUrl').value || null,
+        bonus_gallery_2_photographer: document.getElementById('bonusGallery2Photographer').value || null,
         tags: currentTags,
         article_date: document.getElementById('articleDate').value || null,
         social_posts: socialPosts,
@@ -6158,6 +6256,12 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         featured_image_caption: document.getElementById('featuredImageCaptionField').value || null,
         author: getAuthorValue(),
         photographer: getPhotographerValue() || null,
+        bonus_gallery_1_url: document.getElementById('bonusGallery1Url').value || null,
+        bonus_gallery_1_thumb: document.getElementById('bonusGallery1ThumbUrl').value || null,
+        bonus_gallery_1_photographer: document.getElementById('bonusGallery1Photographer').value || null,
+        bonus_gallery_2_url: document.getElementById('bonusGallery2Url').value || null,
+        bonus_gallery_2_thumb: document.getElementById('bonusGallery2ThumbUrl').value || null,
+        bonus_gallery_2_photographer: document.getElementById('bonusGallery2Photographer').value || null,
         tags: currentTags,
         article_date: document.getElementById('articleDate').value || null,
         social_posts: socialPosts,
@@ -8806,6 +8910,155 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       
       closeSmugMugBrowser();
       showToast('Album selected!', 'success');
+    }
+    
+    // =====================================
+    // BONUS GALLERY FUNCTIONS
+    // =====================================
+    
+    let currentBonusSlot = null;
+    let selectedBonusAlbum = null;
+    
+    async function openBonusGalleryModal(slot) {
+      currentBonusSlot = slot;
+      selectedBonusAlbum = null;
+      document.getElementById('btnSelectBonusAlbum').disabled = true;
+      document.getElementById('bonusAlbumSearch').value = '';
+      document.getElementById('bonusGalleryModal').classList.add('active');
+      
+      // Populate photographer dropdown
+      await populateBonusPhotographerDropdown();
+      
+      // Load albums if not already loaded
+      if (smugmugAlbums.length === 0) {
+        document.getElementById('bonusAlbumGrid').innerHTML = '<div class="loading">Loading albums...</div>';
+        await loadSmugMugAlbums();
+      }
+      renderBonusAlbumGrid('');
+    }
+    
+    function closeBonusGalleryModal() {
+      document.getElementById('bonusGalleryModal').classList.remove('active');
+      currentBonusSlot = null;
+      selectedBonusAlbum = null;
+    }
+    
+    async function populateBonusPhotographerDropdown() {
+      const select = document.getElementById('bonusGalleryPhotographerSelect');
+      select.innerHTML = '<option value="">Select photographer...</option>';
+      
+      try {
+        const { data: photographers, error } = await supabase
+          .from('contributors')
+          .select('name')
+          .eq('is_photographer', true)
+          .eq('active', true)
+          .order('name');
+        
+        if (!error && photographers && photographers.length > 0) {
+          photographers.forEach(p => {
+            if (p.name) {
+              const option = document.createElement('option');
+              option.value = p.name;
+              option.textContent = p.name;
+              select.appendChild(option);
+            }
+          });
+        }
+      } catch (err) {
+        console.error('Error loading photographers for bonus gallery:', err);
+      }
+      
+      // Add "Other..." option
+      const otherOption = document.createElement('option');
+      otherOption.value = 'other';
+      otherOption.textContent = 'Other...';
+      select.appendChild(otherOption);
+    }
+    
+    function renderBonusAlbumGrid(searchTerm) {
+      const grid = document.getElementById('bonusAlbumGrid');
+      let filtered = smugmugAlbums;
+      
+      if (searchTerm) {
+        const term = searchTerm.toLowerCase();
+        filtered = smugmugAlbums.filter(a => a.name.toLowerCase().includes(term));
+      }
+      
+      if (filtered.length === 0) {
+        grid.innerHTML = '<div class="loading">No albums found</div>';
+        return;
+      }
+      
+      grid.innerHTML = filtered.map(album => `
+        <div class="album-card ${selectedBonusAlbum?.key === album.key ? 'selected' : ''}" onclick="selectBonusAlbumCard('${album.key}')">
+          <div class="album-thumb">
+            ${album.highlightImage ? `<img src="${album.highlightImage}" alt="${album.name}">` : '<div class="no-image">No Image</div>'}
+          </div>
+          <div class="album-info">
+            <div class="album-name">${album.name}</div>
+            <div class="album-count">${album.imageCount || 0} photos</div>
+          </div>
+        </div>
+      `).join('');
+    }
+    
+    function searchBonusAlbums(value) {
+      renderBonusAlbumGrid(value);
+    }
+    
+    function selectBonusAlbumCard(key) {
+      selectedBonusAlbum = smugmugAlbums.find(a => a.key === key);
+      document.getElementById('btnSelectBonusAlbum').disabled = !selectedBonusAlbum;
+      renderBonusAlbumGrid(document.getElementById('bonusAlbumSearch').value);
+    }
+    
+    function selectBonusGalleryAlbum() {
+      if (!selectedBonusAlbum || !currentBonusSlot) return;
+      
+      const photographer = document.getElementById('bonusGalleryPhotographerSelect').value;
+      
+      // Store values in hidden fields
+      document.getElementById(`bonusGallery${currentBonusSlot}Url`).value = selectedBonusAlbum.url;
+      document.getElementById(`bonusGallery${currentBonusSlot}ThumbUrl`).value = selectedBonusAlbum.highlightImage || '';
+      document.getElementById(`bonusGallery${currentBonusSlot}Photographer`).value = photographer || '';
+      
+      // Update preview
+      updateBonusGalleryPreview(currentBonusSlot);
+      
+      closeBonusGalleryModal();
+      showToast(`Bonus Gallery ${currentBonusSlot} selected!`, 'success');
+    }
+    
+    function updateBonusGalleryPreview(slot) {
+      const url = document.getElementById(`bonusGallery${slot}Url`).value;
+      const thumb = document.getElementById(`bonusGallery${slot}ThumbUrl`).value;
+      const photog = document.getElementById(`bonusGallery${slot}Photographer`).value;
+      
+      const preview = document.getElementById(`bonusGallery${slot}Preview`);
+      const thumbImg = document.getElementById(`bonusGallery${slot}Thumb`);
+      const photogDiv = document.getElementById(`bonusGallery${slot}Photog`);
+      
+      if (url) {
+        if (thumb) {
+          thumbImg.src = thumb;
+        } else {
+          thumbImg.src = '/logo.png';
+        }
+        photogDiv.textContent = photog ? `&#128247; ${photog}` : 'No photographer';
+        photogDiv.innerHTML = photog ? `&#128247; ${photog}` : 'No photographer';
+        preview.style.display = 'block';
+      } else {
+        preview.style.display = 'none';
+      }
+    }
+    
+    function clearBonusGallery(slot) {
+      document.getElementById(`bonusGallery${slot}Url`).value = '';
+      document.getElementById(`bonusGallery${slot}ThumbUrl`).value = '';
+      document.getElementById(`bonusGallery${slot}Photographer`).value = '';
+      document.getElementById(`bonusGallery${slot}Preview`).style.display = 'none';
+      showToast(`Bonus Gallery ${slot} cleared`, 'success');
     }
     
     // =====================================
