@@ -6,10 +6,6 @@
 // Configuration
 const ONESIGNAL_APP_ID = '4a0f408c-5c71-4fb3-9f92-6f6927759c2f';
 
-// Supabase configuration - update with your credentials
-const SUPABASE_URL = 'https://suncdkxfqkwwnmhosxcf.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_hHSpgZPD327r11GaQG9iHw_uZbuaWmF';
-
 // State
 let allTeams = [];
 let selectedTeams = new Set();
@@ -111,24 +107,16 @@ btnSubscribe.addEventListener('click', async () => {
 });
 
 /**
- * Load teams from Supabase
+ * Load teams from Netlify function
  */
 async function loadTeams() {
     try {
-        // Option 1: If you have Supabase client library loaded
-        // const { data, error } = await supabase.from('teams').select('*').order('name');
+        const response = await fetch('/.netlify/functions/teams?active=true');
+        const data = await response.json();
         
-        // Option 2: Direct fetch (if you don't want to load full Supabase client)
-        const response = await fetch(`${SUPABASE_URL}/rest/v1/teams?select=*&order=name`, {
-            headers: {
-                'apikey': SUPABASE_ANON_KEY,
-                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
-            }
-        });
-
         if (!response.ok) throw new Error('Failed to fetch teams');
         
-        allTeams = await response.json();
+        allTeams = data.teams || [];
         renderTeams(allTeams);
     } catch (err) {
         console.error('Error loading teams:', err);
@@ -147,20 +135,26 @@ function renderTeams(teams, filter = 'all') {
     // Filter by level if specified
     let filteredTeams = teams;
     if (filter === 'high-school') {
-        filteredTeams = teams.filter(t => t.level === 'high-school' || !t.level);
+        filteredTeams = teams.filter(t => t.level === 'High School' || !t.level);
     } else if (filter === 'college') {
-        filteredTeams = teams.filter(t => t.level === 'college');
+        filteredTeams = teams.filter(t => t.level === 'College');
     }
 
-    // Group by region
+    // Group by region/division
     const regions = {};
     filteredTeams.forEach(team => {
-        const region = team.region || 'Other';
+        // Use division for high school, or 'College' for college teams
+        const region = team.division || team.region || (team.level === 'College' ? 'College' : 'Other');
         if (!regions[region]) regions[region] = [];
-        regions[region].push(team);
+        
+        // Avoid duplicates (teams appear for both Boys and Girls)
+        const existingTeam = regions[region].find(t => t.shortname === team.shortname);
+        if (!existingTeam) {
+            regions[region].push(team);
+        }
     });
 
-    // Sort regions (put college at the end)
+    // Sort regions
     const sortedRegions = Object.keys(regions).sort((a, b) => {
         if (a === 'College') return 1;
         if (b === 'College') return -1;
@@ -172,8 +166,8 @@ function renderTeams(teams, filter = 'all') {
     
     sortedRegions.forEach(region => {
         const regionTeams = regions[region];
-        const selectedInRegion = regionTeams.filter(t => selectedTeams.has(t.slug || t.id)).length;
-        const isCollege = region === 'College' || regionTeams[0]?.level === 'college';
+        const selectedInRegion = regionTeams.filter(t => selectedTeams.has(t.shortname || t.slug || t.id)).length;
+        const isCollege = region === 'College' || regionTeams[0]?.level === 'College';
         
         html += `
             <div class="region-group ${isCollege ? 'college-section' : ''}">
@@ -185,16 +179,20 @@ function renderTeams(teams, filter = 'all') {
                     <span class="region-count">${selectedInRegion}/${regionTeams.length} selected</span>
                 </div>
                 <div class="region-teams">
-                    ${regionTeams.map(team => `
-                        <div class="team-item ${selectedTeams.has(team.slug || team.id) ? 'selected' : ''}" 
-                             data-team-slug="${team.slug || team.id}"
-                             data-team-name="${team.name}"
-                             onclick="toggleTeam(this)">
-                            <div class="team-checkbox"></div>
-                            ${team.logo_url ? `<img src="${team.logo_url}" alt="" class="team-logo">` : ''}
-                            <span class="team-name">${team.name}</span>
-                        </div>
-                    `).join('')}
+                    ${regionTeams.map(team => {
+                        const teamId = team.shortname || team.slug || team.id;
+                        const logoFilename = team.logo_filename || (team.shortname?.replace(/[^a-zA-Z0-9]/g, '') + '.png');
+                        return `
+                            <div class="team-item ${selectedTeams.has(teamId) ? 'selected' : ''}" 
+                                 data-team-slug="${teamId}"
+                                 data-team-name="${team.shortname || team.name}"
+                                 onclick="toggleTeam(this)">
+                                <div class="team-checkbox"></div>
+                                <img src="/logos/100px/${logoFilename}" alt="" class="team-logo" onerror="this.style.display='none'">
+                                <span class="team-name">${team.shortname || team.name}</span>
+                            </div>
+                        `;
+                    }).join('')}
                 </div>
             </div>
         `;
