@@ -263,17 +263,16 @@
 </head>
 <body>
   
-  <!-- Header loaded via JS -->
-  <div id="header-placeholder"></div>
-  <div id="mobile-menu-placeholder"></div>
-  <div id="favorites-modal-placeholder"></div>
+  <!-- Navigation (loaded dynamically) -->
+  <div id="site-header"></div>
+  <div id="mobile-menu"></div>
   
   <!-- Main Content -->
   <main class="rosters-page">
     
     <div class="rosters-header">
       <h1 class="rosters-title">Team Rosters</h1>
-      <p class="rosters-subtitle">2024-25 New Hampshire High School Basketball</p>
+      <p class="rosters-subtitle">2025-26 New Hampshire High School Basketball</p>
     </div>
     
     <!-- Gender Toggle -->
@@ -412,25 +411,31 @@
     // ===== POPULATE TEAM DROPDOWN =====
     function populateTeamDropdown() {
       const select = document.getElementById('teamSelect');
-      const filteredTeams = allTeams.filter(t => t.gender === currentGender);
       
-      // Get unique shortnames
-      const seen = new Set();
-      const uniqueTeams = filteredTeams.filter(t => {
-        if (seen.has(t.shortname)) return false;
-        seen.add(t.shortname);
-        return true;
-      });
+      // Get teams that have approved rosters for current gender (case-insensitive)
+      const genderLower = currentGender.toLowerCase();
+      const teamsWithRosters = allRosters
+        .filter(r => (r.gender || '').toLowerCase() === genderLower)
+        .map(r => r.school)
+        .filter(Boolean);
       
-      // Sort alphabetically
-      uniqueTeams.sort((a, b) => a.shortname.localeCompare(b.shortname));
+      // Remove duplicates and sort
+      const uniqueTeams = [...new Set(teamsWithRosters)].sort((a, b) => a.localeCompare(b));
       
-      select.innerHTML = '<option value="">Select a team...</option>' + 
-        uniqueTeams.map(t => `<option value="${t.shortname}">${t.shortname}</option>`).join('');
+      if (uniqueTeams.length === 0) {
+        select.innerHTML = '<option value="">No rosters available yet</option>';
+      } else {
+        select.innerHTML = '<option value="">Select a team...</option>' + 
+          uniqueTeams.map(t => `<option value="${t}">${t}</option>`).join('');
+      }
       
       // Reset display
       document.getElementById('rosterCard').style.display = 'none';
       document.getElementById('rosterEmpty').style.display = 'block';
+      document.getElementById('rosterEmpty').innerHTML = `
+        <div class="roster-empty-icon">&#127936;</div>
+        <p>Select a team above to view their roster</p>
+      `;
     }
     
     // ===== SELECT GENDER =====
@@ -462,11 +467,13 @@
       document.getElementById('rosterEmpty').style.display = 'none';
       document.getElementById('rosterLoading').style.display = 'block';
       
-      // Find roster
+      // Find roster - check both school exact match and partial matches (case-insensitive)
+      const genderLower = currentGender.toLowerCase();
       const roster = allRosters.find(r => {
         const normalizedSchool = (r.school || '').toLowerCase().trim();
         const normalizedTeam = teamName.toLowerCase().trim();
-        return normalizedSchool === normalizedTeam && r.gender === currentGender;
+        const rosterGender = (r.gender || '').toLowerCase();
+        return normalizedSchool === normalizedTeam && rosterGender === genderLower;
       });
       
       // Find team info
@@ -475,7 +482,10 @@
       // Hide loading
       document.getElementById('rosterLoading').style.display = 'none';
       
-      if (!roster || !roster.players || roster.players.length === 0) {
+      // Get players - handle both players and players_json field names
+      const players = roster?.players_json || roster?.players || [];
+      
+      if (!roster || !players || players.length === 0) {
         document.getElementById('rosterEmpty').style.display = 'block';
         document.getElementById('rosterEmpty').innerHTML = `
           <div class="roster-empty-icon">&#128203;</div>
@@ -485,27 +495,32 @@
         return;
       }
       
-      // Update header
+      // Update header with logo + TeamName Gender format
       document.getElementById('rosterLogo').src = Ball603.getLogoUrl(teamName);
       document.getElementById('rosterLogo').onerror = function() { this.src = '/logo.png'; };
-      document.getElementById('rosterTeamName').textContent = team?.full_name || teamName;
-      document.getElementById('rosterTeamMeta').textContent = `${currentGender} ${team?.division || ''} Basketball`;
+      document.getElementById('rosterTeamName').textContent = `${teamName} ${currentGender}`;
+      
+      // Build meta info
+      let metaParts = [];
+      if (team?.division) metaParts.push(team.division);
+      if (roster?.head_coach) metaParts.push(`Coach: ${roster.head_coach}`);
+      document.getElementById('rosterTeamMeta').innerHTML = metaParts.join(' &bull; ') || '';
       
       // Render players
       const tbody = document.getElementById('rosterBody');
-      const players = roster.players.sort((a, b) => {
+      const sortedPlayers = [...players].sort((a, b) => {
         // Sort by number (numeric)
         const numA = parseInt(a.number) || 999;
         const numB = parseInt(b.number) || 999;
         return numA - numB;
       });
       
-      tbody.innerHTML = players.map(p => `
+      tbody.innerHTML = sortedPlayers.map(p => `
         <tr>
           <td class="number">${p.number || '-'}</td>
           <td class="name">${p.name || ''}</td>
           <td class="position">${p.position || '-'}</td>
-          <td class="year">${p.year || '-'}</td>
+          <td class="year">${p.class || p.year || '-'}</td>
           <td class="height">${p.height || '-'}</td>
         </tr>
       `).join('');
