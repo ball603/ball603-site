@@ -345,6 +345,15 @@
       font-weight: 700;
     }
     
+    .ticker-game.favorite {
+      border-left: 2px solid var(--accent);
+    }
+    
+    .ticker-star {
+      color: var(--accent);
+      font-size: 10px;
+    }
+    
     @keyframes pulse {
       0%, 100% { opacity: 1; }
       50% { opacity: 0.5; }
@@ -1850,12 +1859,17 @@
         return false;
       });
       
-      // Sort: finals first (most recent), then upcoming by time
+      // Sort: My Teams first, then finals, then upcoming by time
       tickerGames.sort((a, b) => {
+        // First priority: favorite teams (My Teams)
+        const priorityA = Ball603.getGamePriority ? Ball603.getGamePriority(a) : 2;
+        const priorityB = Ball603.getGamePriority ? Ball603.getGamePriority(b) : 2;
+        if (priorityA !== priorityB) return priorityA - priorityB;
+        
         const hasScoreA = (a.home_score !== null && a.home_score !== '' && a.home_score !== undefined);
         const hasScoreB = (b.home_score !== null && b.home_score !== '' && b.home_score !== undefined);
         
-        // Completed games first
+        // Within same priority: completed games first
         if (hasScoreA && !hasScoreB) return -1;
         if (!hasScoreA && hasScoreB) return 1;
         
@@ -1895,6 +1909,9 @@
         const awayWins = hasScore && parseInt(awayScore) > parseInt(homeScore);
         const homeWins = hasScore && parseInt(homeScore) > parseInt(awayScore);
         
+        // Check if this is a favorite team game
+        const isFavorite = Ball603.getGamePriority ? Ball603.getGamePriority(game) === 0 : false;
+        
         // Determine status text
         let statusText, statusClass;
         if (hasScore) {
@@ -1916,7 +1933,7 @@
         const gender = (game.gender || 'Boys').toUpperCase();
         
         return `
-          <div class="ticker-game" onclick="Ball603.goToGame && Ball603.goToGame('${game.game_id}')">
+          <div class="ticker-game ${isFavorite ? 'favorite' : ''}" onclick="Ball603.goToGame && Ball603.goToGame('${game.game_id}')">
             <div class="ticker-teams">
               <div class="ticker-team">
                 <img class="ticker-logo" src="${Ball603.getLogoUrl(game.away)}" alt="" onerror="this.style.display='none'">
@@ -1930,6 +1947,7 @@
               </div>
             </div>
             <div class="ticker-info">
+              ${isFavorite ? '<span class="ticker-star">★</span>' : ''}
               <span class="ticker-gender">${gender}</span>
               <span class="ticker-status ${statusClass}">${statusText}</span>
             </div>
