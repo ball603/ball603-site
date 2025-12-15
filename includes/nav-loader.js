@@ -6,6 +6,21 @@
 (function() {
   'use strict';
 
+// ===== ONESIGNAL PUSH NOTIFICATIONS =====
+(function loadOneSignal() {
+  // Load OneSignal SDK
+  const sdk = document.createElement('script');
+  sdk.src = 'https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js';
+  sdk.defer = true;
+  document.head.appendChild(sdk);
+  
+  // Load Ball603 OneSignal init
+  const init = document.createElement('script');
+  init.src = '/js/onesignal-init.js';
+  init.defer = true;
+  document.head.appendChild(init);
+})();
+
   // ===== REGISTER SERVICE WORKER FOR PWA =====
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
