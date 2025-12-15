@@ -576,6 +576,9 @@
   <script src="contributor-schedule.js"></script>
   
   <script>
+    // Version marker for debugging deployment issues
+    console.log('Contributor Portal v210 loaded');
+    
     // Supabase setup
     const SUPABASE_URL = 'https://suncdkxfqkwwnmhosxcf.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_hHSpgZPD327r11GaQG9iHw_uZbuaWmF';
@@ -588,6 +591,7 @@
     let currentUploadType = null;
     let portfolioExpanded = false;
     let scheduleInstance = null;
+    let isLoadingProfile = false; // Prevent double-loading
     
     const NHIAA_SCHOOLS = [
       'Alvirne', 'Bedford', 'Belmont', 'Berlin', 'Bishop Brady', 'Bishop Guertin', 'Bow',
@@ -635,35 +639,35 @@
         });
       });
       
-      // Set up auth state listener FIRST - this handles all auth events including recovery/magic links
+      // Set up auth state listener
       supabase.auth.onAuthStateChange(async (event, session) => {
         console.log('Auth event:', event, session ? 'has session' : 'no session');
         
+        // Handle password recovery
         if (event === 'PASSWORD_RECOVERY') {
-          // User clicked password reset link - show set password form
+          console.log('PASSWORD_RECOVERY event');
           currentUser = session.user;
           showSetPassword();
           return;
         }
         
-        if (event === 'SIGNED_IN' && session) {
-          console.log('SIGNED_IN event - calling loadContributorProfile');
+        // Handle sign in - only load profile once
+        if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session) {
           currentUser = session.user;
-          // Only load profile if not in password set mode
-          if (document.getElementById('setPasswordForm').style.display !== 'block') {
+          // Only load profile if not in password set mode and not already loaded
+          if (document.getElementById('setPasswordForm').style.display !== 'block' && !currentContributor) {
+            console.log(event + ' - calling loadContributorProfile');
             await loadContributorProfile();
-          } else {
-            console.log('Skipping profile load - in password set mode');
           }
-        } else if (event === 'SIGNED_OUT') {
+        } 
+        
+        // Handle sign out
+        if (event === 'SIGNED_OUT') {
           currentUser = null;
           currentContributor = null;
+          isLoadingProfile = false;
           showLoginScreen();
-        } else if (event === 'INITIAL_SESSION' && session) {
-          // Existing session on page load
-          console.log('INITIAL_SESSION event - calling loadContributorProfile');
-          currentUser = session.user;
-          await loadContributorProfile();
+          resetLoginButton();
         }
       });
       
@@ -900,10 +904,20 @@
     // Load contributor profile
     async function loadContributorProfile() {
       console.log('loadContributorProfile called, currentUser:', currentUser?.email);
-      if (!currentUser) {
-        console.log('No currentUser, returning');
+      
+      // Prevent double-loading
+      if (isLoadingProfile) {
+        console.log('Already loading profile, skipping');
         return;
       }
+      
+      if (!currentUser) {
+        console.log('No currentUser, returning');
+        resetLoginButton();
+        return;
+      }
+      
+      isLoadingProfile = true;
       
       try {
         console.log('Querying contributors table for:', currentUser.email);
@@ -913,19 +927,23 @@
           .eq('email', currentUser.email)
           .single();
         
-        console.log('Query result:', { contributor, error });
+        console.log('Query result:', { contributor: contributor?.name, error: error?.message });
         
         if (error || !contributor) {
           console.log('No contributor found or error');
-          document.getElementById('loginError').textContent = 'No contributor account found.';
+          document.getElementById('loginError').textContent = 'No contributor account found for this email.';
+          resetLoginButton();
           await supabase.auth.signOut();
+          isLoadingProfile = false;
           return;
         }
         
         if (!contributor.active) {
           console.log('Contributor inactive');
-          document.getElementById('loginError').textContent = 'Your account is inactive.';
+          document.getElementById('loginError').textContent = 'Your account is inactive. Contact admin.';
+          resetLoginButton();
           await supabase.auth.signOut();
+          isLoadingProfile = false;
           return;
         }
         
@@ -946,7 +964,18 @@
         
       } catch (err) {
         console.error('Error loading profile:', err);
-        document.getElementById('loginError').textContent = 'Error loading profile';
+        document.getElementById('loginError').textContent = 'Error loading profile. Please try again.';
+        resetLoginButton();
+      } finally {
+        isLoadingProfile = false;
+      }
+    }
+    
+    function resetLoginButton() {
+      const loginBtn = document.querySelector('#loginForm button');
+      if (loginBtn) {
+        loginBtn.disabled = false;
+        loginBtn.textContent = 'Sign In';
       }
     }
     
