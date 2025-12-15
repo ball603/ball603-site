@@ -560,7 +560,7 @@
   
   <script>
     // Version marker for debugging deployment issues
-    console.log('Contributor Portal v213 loaded');
+    console.log('Contributor Portal v214 loaded');
     
     // Supabase setup (for database only, not auth)
     const SUPABASE_URL = 'https://suncdkxfqkwwnmhosxcf.supabase.co';
@@ -841,12 +841,23 @@
         const response = await fetch(`/.netlify/functions/games?end_date=${today}&limit=500`);
         const games = await response.json();
         
+        console.log('Recent galleries lookup for:', contributorName);
+        console.log('Games with photos_url:', games.filter(g => g.photos_url).map(g => ({
+          date: g.date,
+          matchup: `${g.away_team || g.away} @ ${g.home_team || g.home}`,
+          photog1: g.photog1,
+          photog2: g.photog2,
+          photos_url: g.photos_url
+        })));
+        
         // Only show games where contributor is assigned AND has a photos_url
         const myGames = games.filter(g => 
           ((g.photog1 || '').trim() === contributorName || 
            (g.photog2 || '').trim() === contributorName) &&
           g.photos_url
         ).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6);
+        
+        console.log('My galleries found:', myGames.length);
         
         if (myGames.length === 0) {
           container.innerHTML = `
@@ -862,21 +873,21 @@
           const [year, month, day] = game.date.split('-');
           const monthName = MONTH_NAMES_SHORT[parseInt(month, 10) - 1];
           const link = game.photos_url;
+          const away = game.away_team || game.away || 'Away';
+          const home = game.home_team || game.home || 'Home';
           
           // Try to get SmugMug thumbnail from photos_url
-          // SmugMug gallery URLs look like: https://ball603.smugmug.com/2024-25/...
-          // Thumbnail can be derived or use photos_thumb_url if stored
           let thumbUrl = game.photos_thumb_url || '';
           
           return `
             <a class="recent-card" href="${link}" target="_blank">
               <div class="recent-thumb">
                 ${thumbUrl 
-                  ? `<img src="${thumbUrl}" alt="${game.away} @ ${game.home}" onerror="this.parentElement.innerHTML='<span class=\\'thumb-placeholder\\'>📷</span>'">` 
+                  ? `<img src="${thumbUrl}" alt="${away} @ ${home}" onerror="this.parentElement.innerHTML='<span class=\\'thumb-placeholder\\'>📷</span>'">` 
                   : '<span class="thumb-placeholder">📷</span>'}
               </div>
               <div class="recent-info">
-                <div class="recent-teams">${game.away} @ ${game.home}</div>
+                <div class="recent-teams">${away} @ ${home}</div>
                 <div class="recent-date">${monthName} ${parseInt(day)}, ${year}</div>
               </div>
             </a>
