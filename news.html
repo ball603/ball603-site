@@ -464,8 +464,36 @@
         if (error) throw error;
 
         allArticles = articles || [];
-        filteredArticles = [...allArticles];
         console.log('Articles loaded:', allArticles.length);
+        
+        // Check for URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const tagParam = urlParams.get('tag');
+        const teamParam = urlParams.get('team');
+        
+        // Pre-filter by tag or team if specified in URL
+        if (tagParam) {
+          const tagNormalized = tagParam.toLowerCase().replace(/[^a-z0-9]/g, '');
+          allArticles = allArticles.filter(a => {
+            if (!a.tags) return false;
+            return a.tags.some(t => t.toLowerCase().replace(/[^a-z0-9]/g, '') === tagNormalized);
+          });
+          console.log('Filtered by tag:', tagParam, '- Found:', allArticles.length);
+          // Update page title/subtitle
+          document.querySelector('.page-subtitle').textContent = `Showing articles tagged "${tagParam}"`;
+        } else if (teamParam) {
+          const teamNormalized = teamParam.toLowerCase().replace(/[^a-z0-9]/g, '');
+          allArticles = allArticles.filter(a => {
+            if (!a.tags) return false;
+            return a.tags.some(t => t.toLowerCase().replace(/[^a-z0-9]/g, '') === teamNormalized);
+          });
+          console.log('Filtered by team:', teamParam, '- Found:', allArticles.length);
+          // Update page title/subtitle
+          const teamDisplay = teamParam.split(/[-\s]/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+          document.querySelector('.page-subtitle').textContent = `Showing articles for ${teamDisplay}`;
+        }
+        
+        filteredArticles = [...allArticles];
         
         // Apply filters and sort
         applyFiltersAndSort();
