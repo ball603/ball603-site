@@ -732,16 +732,19 @@
       const homeScore = parseInt(document.getElementById('homeScore').value) || 0;
       const status = document.getElementById('gameStatus').value;
       
-      // If both scores are 0, revert to pregame state
-      let updateData;
+      // Prepare data for API
+      let requestData;
       if (awayScore === 0 && homeScore === 0) {
-        updateData = {
+        // Reset to pregame state
+        requestData = {
+          game_id: selectedGame.game_id,
           away_score: null,
           home_score: null,
-          time: selectedGame.original_time || 'TBD'
+          time: null
         };
       } else {
-        updateData = {
+        requestData = {
+          game_id: selectedGame.game_id,
           away_score: awayScore,
           home_score: homeScore,
           time: status
@@ -749,13 +752,16 @@
       }
       
       try {
-        const { error } = await supabase
-          .from('games')
-          .update(updateData)
-          .eq('game_id', selectedGame.game_id);
+        const response = await fetch('/.netlify/functions/update-score', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestData)
+        });
         
-        if (error) {
-          console.error('Error saving score:', error);
+        const result = await response.json();
+        
+        if (!response.ok || !result.success) {
+          console.error('Error saving score:', result);
           alert('Error saving score. Please try again.');
           return;
         }
@@ -763,7 +769,15 @@
         // Update local data
         const gameIndex = allGames.findIndex(g => g.game_id === selectedGame.game_id);
         if (gameIndex !== -1) {
-          allGames[gameIndex] = { ...allGames[gameIndex], ...updateData };
+          if (awayScore === 0 && homeScore === 0) {
+            allGames[gameIndex].away_score = null;
+            allGames[gameIndex].home_score = null;
+            allGames[gameIndex].time = result.time || 'TBD';
+          } else {
+            allGames[gameIndex].away_score = awayScore;
+            allGames[gameIndex].home_score = homeScore;
+            allGames[gameIndex].time = status;
+          }
         }
         
         showPage('thanksPage');
