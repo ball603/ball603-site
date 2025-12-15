@@ -108,15 +108,19 @@
       border: 1px solid var(--border-color);
       border-radius: 12px;
       overflow: hidden;
+      max-width: 600px;
+      margin: 0 auto;
     }
     
     .roster-card-header {
       display: flex;
+      flex-direction: column;
       align-items: center;
-      gap: 16px;
+      gap: 12px;
       padding: 20px;
       background: var(--bg-tertiary);
       border-bottom: 1px solid var(--border-color);
+      text-align: center;
     }
     
     .roster-team-logo {
@@ -126,20 +130,37 @@
       border-radius: 8px;
     }
     
-    .roster-team-info {
-      flex: 1;
-    }
-    
     .roster-team-name {
       font-size: 20px;
       font-weight: 700;
       color: var(--text-primary);
+      text-decoration: none;
+      transition: color 0.2s;
     }
     
-    .roster-team-meta {
-      font-size: 13px;
+    .roster-team-name:hover {
+      color: var(--accent);
+    }
+    
+    .roster-card-footer {
+      padding: 16px 20px;
+      background: var(--bg-tertiary);
+      border-top: 1px solid var(--border-color);
+      font-size: 14px;
       color: var(--text-secondary);
-      margin-top: 4px;
+    }
+    
+    .roster-coach-line {
+      margin-bottom: 4px;
+    }
+    
+    .roster-coach-line:last-child {
+      margin-bottom: 0;
+    }
+    
+    .roster-coach-label {
+      font-weight: 600;
+      color: var(--text-primary);
     }
     
     .roster-table-wrap {
@@ -190,8 +211,7 @@
     }
     
     .roster-table .position,
-    .roster-table .year,
-    .roster-table .height {
+    .roster-table .year {
       color: var(--text-secondary);
     }
     
@@ -292,10 +312,7 @@
     <div class="roster-card" id="rosterCard" style="display: none;">
       <div class="roster-card-header">
         <img id="rosterLogo" class="roster-team-logo" src="/logo.png" alt="">
-        <div class="roster-team-info">
-          <div class="roster-team-name" id="rosterTeamName">Team Name</div>
-          <div class="roster-team-meta" id="rosterTeamMeta">Division</div>
-        </div>
+        <a id="rosterTeamName" class="roster-team-name" href="#">Team Name</a>
       </div>
       <div class="roster-table-wrap">
         <table class="roster-table">
@@ -303,14 +320,15 @@
             <tr>
               <th class="number">#</th>
               <th class="name">Name</th>
+              <th class="year">Class</th>
               <th class="position">Pos</th>
-              <th class="year">Year</th>
-              <th class="height">Height</th>
             </tr>
           </thead>
           <tbody id="rosterBody">
           </tbody>
         </table>
+      </div>
+      <div class="roster-card-footer" id="rosterFooter" style="display: none;">
       </div>
     </div>
     
@@ -492,18 +510,34 @@
         return;
       }
       
-      // Update header with logo + TeamName Gender format
+      // Update header with logo + TeamName Gender format, link to team page
+      const teamSlug = teamName.toLowerCase().replace(/[^a-z0-9]+/g, '');
       document.getElementById('rosterLogo').src = Ball603.getLogoUrl(teamName);
       document.getElementById('rosterLogo').onerror = function() { this.src = '/logo.png'; };
-      document.getElementById('rosterTeamName').textContent = `${teamName} ${currentGender}`;
+      const teamNameEl = document.getElementById('rosterTeamName');
+      teamNameEl.textContent = `${teamName} ${currentGender}`;
+      teamNameEl.href = `/${teamSlug}`;
       
-      // Build meta info
-      let metaParts = [];
-      if (team?.division) metaParts.push(team.division);
-      if (roster?.head_coach) metaParts.push(`Coach: ${roster.head_coach}`);
-      document.getElementById('rosterTeamMeta').innerHTML = metaParts.join(' &bull; ') || '';
+      // Build footer with coaches
+      const footer = document.getElementById('rosterFooter');
+      let footerHtml = '';
+      if (roster?.head_coach) {
+        footerHtml += `<div class="roster-coach-line"><span class="roster-coach-label">Head Coach:</span> ${roster.head_coach}</div>`;
+      }
+      if (roster?.assistant_coaches) {
+        const assistants = roster.assistant_coaches;
+        const hasMultiple = assistants.includes(',') || assistants.includes('&');
+        const label = hasMultiple ? 'Assistant Coaches:' : 'Assistant Coach:';
+        footerHtml += `<div class="roster-coach-line"><span class="roster-coach-label">${label}</span> ${assistants}</div>`;
+      }
+      if (footerHtml) {
+        footer.innerHTML = footerHtml;
+        footer.style.display = 'block';
+      } else {
+        footer.style.display = 'none';
+      }
       
-      // Render players
+      // Render players - columns: #, Name, Class, Pos
       const tbody = document.getElementById('rosterBody');
       const sortedPlayers = [...players].sort((a, b) => {
         // Sort by number (numeric)
@@ -516,11 +550,10 @@
         <tr>
           <td class="number">${p.number || '-'}</td>
           <td class="name">${p.name || ''}</td>
-          <td class="position">${p.position || '-'}</td>
           <td class="year">${p.class || p.year || '-'}</td>
-          <td class="height">${p.height || '-'}</td>
+          <td class="position">${p.position || '-'}</td>
         </tr>
-      `).join('');
+      `).join(';');
       
       // Show roster
       document.getElementById('rosterCard').style.display = 'block';
