@@ -362,10 +362,15 @@
           <span>&#128196;</span> Restore Coverage
         </button>
         <input type="file" id="coverageRestoreInput" accept=".csv" style="display: none;" onchange="restoreCoverageFromCSV(this.files[0])">
-        <div style="display: flex; gap: 8px; align-items: center; margin-left: auto; flex-wrap: wrap;">
-          <input type="date" id="gameStartDate" onchange="filterGames()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px;">
-          <span style="color: #888;">to</span>
-          <input type="date" id="gameEndDate" onchange="filterGames()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px;">
+        
+        <!-- Date Navigation -->
+        <div style="display: flex; align-items: center; gap: 8px; margin-left: auto;">
+          <button onclick="navigateGameDate(-1)" style="padding: 8px 14px; border: 1px solid #ddd; background: #fff; border-radius: 5px; cursor: pointer; font-size: 16px;">◀</button>
+          <button onclick="goToToday()" id="currentGameDate" style="padding: 8px 16px; border: 1px solid #ddd; background: #fff; border-radius: 5px; cursor: pointer; font-size: 13px; font-weight: 600; min-width: 140px;">Today</button>
+          <button onclick="navigateGameDate(1)" style="padding: 8px 14px; border: 1px solid #ddd; background: #fff; border-radius: 5px; cursor: pointer; font-size: 16px;">▶</button>
+        </div>
+        
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
           <select id="gameLevelFilter" onchange="filterGames()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px;">
             <option value="">All Levels</option>
             <option value="NHIAA">NHIAA</option>
@@ -396,7 +401,7 @@
             <option value="Men">Men</option>
             <option value="Women">Women</option>
           </select>
-          <input type="text" id="gameSearchBox" placeholder="Search games..." oninput="filterGames()" style="width: 150px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px;">
+          <input type="text" id="gameSearchBox" placeholder="Search teams..." oninput="filterGames()" style="width: 150px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px;">
         </div>
       </div>
       
@@ -412,8 +417,8 @@
         </div>
       </div>
       
-      <div class="article-list" id="gameList">
-        <div class="article-row header" style="grid-template-columns: 90px 1fr 1fr 70px 80px 50px 80px 100px;">
+      <div class="article-list" id="gameList" style="max-height: calc(100vh - 280px); overflow-y: auto;">
+        <div class="article-row header" style="grid-template-columns: 90px 1fr 1fr 70px 80px 50px 80px 100px; position: sticky; top: 0; z-index: 10; background: #fff;">
           <div>Date</div>
           <div>Away</div>
           <div>Home</div>
@@ -7878,9 +7883,65 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       datalist.innerHTML = allTeams.map(t => `<option value="${t.shortname}">`).join('');
     }
     
+    // Current date for navigation
+    let currentViewDate = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+    
+    function getTodayStr() {
+      return new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+    }
+    
+    function formatDateHeader(dateStr) {
+      const date = new Date(dateStr + 'T12:00:00');
+      const today = getTodayStr();
+      const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
+      const formatted = date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      if (dateStr === today) return 'Today - ' + formatted;
+      return dayName + ', ' + formatted;
+    }
+    
+    function navigateGameDate(delta) {
+      const date = new Date(currentViewDate + 'T12:00:00');
+      date.setDate(date.getDate() + delta);
+      currentViewDate = date.toISOString().split('T')[0];
+      updateDateDisplay();
+      scrollToDate(currentViewDate);
+    }
+    
+    function goToToday() {
+      currentViewDate = getTodayStr();
+      updateDateDisplay();
+      scrollToDate(currentViewDate);
+    }
+    
+    function updateDateDisplay() {
+      const btn = document.getElementById('currentGameDate');
+      if (!btn) return;
+      const today = getTodayStr();
+      if (currentViewDate === today) {
+        btn.textContent = 'Today';
+        btn.style.background = '#e3f2fd';
+        btn.style.borderColor = '#1565c0';
+        btn.style.color = '#1565c0';
+      } else {
+        const date = new Date(currentViewDate + 'T12:00:00');
+        btn.textContent = date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+        btn.style.background = '#fff';
+        btn.style.borderColor = '#ddd';
+        btn.style.color = '#333';
+      }
+    }
+    
+    function scrollToDate(dateStr) {
+      const container = document.getElementById('gameList');
+      const header = document.getElementById('date-header-' + dateStr);
+      if (header && container) {
+        const headerTop = header.offsetTop;
+        const stickyHeaderHeight = 45;
+        container.scrollTop = headerTop - stickyHeaderHeight;
+      }
+    }
+    
     function filterGames() {
-      const startDate = document.getElementById('gameStartDate')?.value;
-      const endDate = document.getElementById('gameEndDate')?.value;
       const level = document.getElementById('gameLevelFilter')?.value;
       const division = document.getElementById('gameDivisionFilter')?.value;
       const gender = document.getElementById('gameGenderFilter')?.value;
@@ -7889,8 +7950,6 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const finalOnly = document.getElementById('showFinalOnly')?.checked;
       
       filteredGames = allGames.filter(g => {
-        if (startDate && g.date < startDate) return false;
-        if (endDate && g.date > endDate) return false;
         if (level && g.level !== level) return false;
         if (division && g.division !== division) return false;
         if (gender && g.gender !== gender) return false;
@@ -7900,94 +7959,70 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         return true;
       });
       
+      filteredGames.sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''));
+      
       renderGameList();
     }
     
     function renderGameList() {
       const container = document.getElementById('gameList');
       const countEl = document.getElementById('gameCount');
+      const today = getTodayStr();
       
       const finalCount = filteredGames.filter(g => g.status === 'final').length;
-      countEl.textContent = `${filteredGames.length} games (${finalCount} final)`;
+      countEl.textContent = filteredGames.length + ' games (' + finalCount + ' final)';
       
       if (filteredGames.length === 0) {
-        container.innerHTML = `
-          <div class="article-row header" style="grid-template-columns: 90px 1fr 1fr 70px 80px 50px 80px 100px;">
-            <div>Date</div>
-            <div>Away</div>
-            <div>Home</div>
-            <div>Score</div>
-            <div>Division</div>
-            <div>URLs</div>
-            <div>Coverage</div>
-            <div>Actions</div>
-          </div>
-          <div style="padding: 40px; text-align: center; color: #888;">No games found</div>
-        `;
+        container.innerHTML = '<div class="article-row header" style="grid-template-columns: 90px 1fr 1fr 70px 80px 50px 80px 100px; position: sticky; top: 0; z-index: 10; background: #fff;"><div>Time</div><div>Away</div><div>Home</div><div>Score</div><div>Division</div><div>URLs</div><div>Coverage</div><div>Actions</div></div><div style="padding: 40px; text-align: center; color: #888;">No games found</div>';
         return;
       }
       
-      container.innerHTML = `
-        <div class="article-row header" style="grid-template-columns: 90px 1fr 1fr 70px 80px 50px 80px 100px;">
-          <div>Date</div>
-          <div>Away</div>
-          <div>Home</div>
-          <div>Score</div>
-          <div>Division</div>
-          <div>URLs</div>
-          <div>Coverage</div>
-          <div>Actions</div>
-        </div>
-        ${filteredGames.map(game => {
-          // Check for non-empty string values
+      const gamesByDate = {};
+      filteredGames.forEach(game => {
+        if (!gamesByDate[game.date]) gamesByDate[game.date] = [];
+        gamesByDate[game.date].push(game);
+      });
+      
+      let html = '<div class="article-row header" style="grid-template-columns: 90px 1fr 1fr 70px 80px 50px 80px 100px; position: sticky; top: 0; z-index: 10; background: #fff;"><div>Time</div><div>Away</div><div>Home</div><div>Score</div><div>Division</div><div>URLs</div><div>Coverage</div><div>Actions</div></div>';
+      
+      Object.keys(gamesByDate).sort().forEach(date => {
+        const isToday = date === today;
+        const games = gamesByDate[date];
+        
+        html += '<div id="date-header-' + date + '" style="padding: 10px 15px; background: ' + (isToday ? '#1565c0' : '#f0f0f0') + '; color: ' + (isToday ? '#fff' : '#333') + '; font-weight: 600; font-size: 13px; border-bottom: 1px solid #ddd;">' + formatDateHeader(date) + ' (' + games.length + ' game' + (games.length !== 1 ? 's' : '') + ')</div>';
+        
+        games.forEach(game => {
           const hasPhotog = (game.photog1 && game.photog1.trim()) || (game.photog2 && game.photog2.trim());
           const hasVideog = game.videog && game.videog.trim();
           const hasWriter = game.writer && game.writer.trim();
-          
           const coverageIcons = [];
           if (hasPhotog) coverageIcons.push('&#128247;');
           if (hasVideog) coverageIcons.push('&#127909;');
-          if (hasWriter) coverageIcons.push('&#9997;');
-          
-          // Check for URLs
+          if (hasWriter) coverageIcons.push('&#9997;');
           const hasUrls = game.photos_url || game.recap_url || game.highlights_url || game.live_stream_url;
           const urlCount = [game.photos_url, game.recap_url, game.highlights_url, game.live_stream_url].filter(Boolean).length;
+          const score = game.status === 'final' ? (game.away_score || 0) + '-' + (game.home_score || 0) : (game.time || '-');
+          const rowBg = isToday ? 'background: #e3f2fd;' : '';
+          const cancelled = game.status === 'cancelled' ? 'opacity: 0.5; text-decoration: line-through;' : '';
           
-          const score = game.status === 'final' 
-            ? `${game.away_score || 0}-${game.home_score || 0}`
-            : (game.time || '-');
-          
-          const dateDisplay = new Date(game.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-          
-          return `
-            <div class="article-row" style="grid-template-columns: 90px 1fr 1fr 70px 80px 50px 80px 100px; ${game.status === 'cancelled' ? 'opacity: 0.5; text-decoration: line-through;' : ''}">
-              <div style="font-size: 12px;">
-                <div>${dateDisplay}</div>
-                <div style="font-size: 10px; color: #888;">${game.gender || ''}</div>
-              </div>
-              <div style="font-size: 13px;">${game.away_team || '-'}</div>
-              <div style="font-size: 13px; font-weight: 500;">${game.home_team || '-'}</div>
-              <div style="font-size: 12px; ${game.status === 'final' ? 'font-weight: 600;' : 'color: #888;'}">
-                ${score}
-                <button onclick="openQuickScore(${game.id})" style="background: none; border: none; cursor: pointer; padding: 2px; margin-left: 3px; font-size: 11px; color: #1565c0;" title="Quick edit score">✏️</button>
-              </div>
-              <div style="font-size: 11px; color: #666;">${game.division || '-'}</div>
-              <div style="text-align: center;">
-                <button onclick="openUrlModal(${game.id})" style="background: ${hasUrls ? '#f3e5f5' : '#f5f5f5'}; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px;" title="${hasUrls ? urlCount + ' URL(s) set' : 'No URLs'}">
-                  ${hasUrls ? '&#128279;' : '&#9675;'}
-                </button>
-              </div>
-              <div style="font-size: 14px;">${coverageIcons.join(' ') || '-'}</div>
-              <div class="article-actions">
-                <button class="btn-edit" onclick="editGame(${game.id})">Edit</button>
-                <button class="btn-delete" onclick="deleteGame(${game.id})">Delete</button>
-              </div>
-            </div>
-          `;
-        }).join('')}
-      `;
+          html += '<div class="article-row" style="grid-template-columns: 90px 1fr 1fr 70px 80px 50px 80px 100px; ' + rowBg + cancelled + '">';
+          html += '<div style="font-size: 12px;"><div>' + (game.time || 'TBD') + '</div><div style="font-size: 10px; color: #888;">' + (game.gender || '') + '</div></div>';
+          html += '<div style="font-size: 13px;">' + (game.away_team || '-') + '</div>';
+          html += '<div style="font-size: 13px; font-weight: 500;">' + (game.home_team || '-') + '</div>';
+          html += '<div style="font-size: 12px; ' + (game.status === 'final' ? 'font-weight: 600;' : 'color: #888;') + '">' + score + '<button onclick="openQuickScore(' + game.id + ')" style="background: none; border: none; cursor: pointer; padding: 2px; margin-left: 3px; font-size: 11px; color: #1565c0;" title="Quick edit score">✏️</button></div>';
+          html += '<div style="font-size: 11px; color: #666;">' + (game.division || '-') + '</div>';
+          html += '<div style="text-align: center;"><button onclick="openUrlModal(' + game.id + ')" style="background: ' + (hasUrls ? '#f3e5f5' : '#f5f5f5') + '; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px;" title="' + (hasUrls ? urlCount + ' URL(s) set' : 'No URLs') + '">' + (hasUrls ? '&#128279;' : '&#9675;') + '</button></div>';
+          html += '<div style="font-size: 14px;">' + (coverageIcons.join(' ') || '-') + '</div>';
+          html += '<div class="article-actions"><button class="btn-edit" onclick="editGame(' + game.id + ')">Edit</button><button class="btn-delete" onclick="deleteGame(' + game.id + ')">Delete</button></div>';
+          html += '</div>';
+        });
+      });
+      
+      container.innerHTML = html;
+      setTimeout(function() { updateDateDisplay(); scrollToDate(currentViewDate); }, 100);
     }
     
+    function openGameModal(game = null) {
     function openGameModal(game = null) {
       document.getElementById('gameModalTitle').textContent = game ? 'Edit Game' : 'Add Game';
       document.getElementById('gameModal').style.display = 'block';
