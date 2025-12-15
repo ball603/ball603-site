@@ -663,14 +663,40 @@
         }
       });
       
-      // Check if URL has auth tokens (hash fragment) - let Supabase handle them
-      // The onAuthStateChange listener above will fire with the appropriate event
+      // Check if URL has auth tokens (hash fragment)
       if (window.location.hash && window.location.hash.includes('access_token')) {
-        // Tokens present - Supabase will process them and fire onAuthStateChange
-        // Clear the hash from URL for cleaner display
-        const cleanUrl = window.location.pathname + window.location.search;
-        history.replaceState(null, '', cleanUrl);
-        return; // Wait for onAuthStateChange to handle it
+        // Parse the hash to check token type
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const tokenType = hashParams.get('type');
+        
+        console.log('Token detected, type:', tokenType);
+        
+        if (tokenType === 'recovery') {
+          // Password reset link - let Supabase process the token first
+          // Then show the set password form
+          // DON'T clear hash yet - Supabase needs it
+          
+          // Give Supabase a moment to process the token and establish session
+          setTimeout(async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            console.log('Recovery session check:', session ? 'valid' : 'none');
+            if (session) {
+              currentUser = session.user;
+              showSetPassword();
+              // Now we can clear the hash
+              const cleanUrl = window.location.pathname + window.location.search;
+              history.replaceState(null, '', cleanUrl);
+            } else {
+              console.error('No session after recovery token');
+              document.getElementById('loginError').textContent = 'Reset link expired. Please request a new one.';
+              showForgotPassword();
+            }
+          }, 500);
+          return;
+        }
+        
+        // Other token types (magic link, etc) - let onAuthStateChange handle them
+        return;
       }
       
       // No tokens in URL - check for existing session
