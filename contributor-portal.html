@@ -647,10 +647,13 @@
         }
         
         if (event === 'SIGNED_IN' && session) {
+          console.log('SIGNED_IN event - calling loadContributorProfile');
           currentUser = session.user;
           // Only load profile if not in password set mode
           if (document.getElementById('setPasswordForm').style.display !== 'block') {
             await loadContributorProfile();
+          } else {
+            console.log('Skipping profile load - in password set mode');
           }
         } else if (event === 'SIGNED_OUT') {
           currentUser = null;
@@ -658,6 +661,7 @@
           showLoginScreen();
         } else if (event === 'INITIAL_SESSION' && session) {
           // Existing session on page load
+          console.log('INITIAL_SESSION event - calling loadContributorProfile');
           currentUser = session.user;
           await loadContributorProfile();
         }
@@ -808,16 +812,21 @@
       errorEl.textContent = '';
       
       try {
+        console.log('Attempting sign in for:', email);
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) {
+          console.log('Sign in error:', error);
           errorEl.textContent = error.message.includes('Invalid') ? 'Invalid email or password' : error.message;
           loginBtn.disabled = false;
           loginBtn.textContent = 'Sign In';
           return;
         }
+        console.log('Sign in successful, loading profile...');
         currentUser = data.user;
-        await loadContributorProfile();
+        // Don't call loadContributorProfile here - let onAuthStateChange handle it
+        // This prevents double loading
       } catch (err) {
+        console.error('Login catch error:', err);
         errorEl.textContent = 'Login failed. Please try again.';
         loginBtn.disabled = false;
         loginBtn.textContent = 'Sign In';
@@ -890,31 +899,42 @@
     
     // Load contributor profile
     async function loadContributorProfile() {
-      if (!currentUser) return;
+      console.log('loadContributorProfile called, currentUser:', currentUser?.email);
+      if (!currentUser) {
+        console.log('No currentUser, returning');
+        return;
+      }
       
       try {
+        console.log('Querying contributors table for:', currentUser.email);
         const { data: contributor, error } = await supabase
           .from('contributors')
           .select('*')
           .eq('email', currentUser.email)
           .single();
         
+        console.log('Query result:', { contributor, error });
+        
         if (error || !contributor) {
+          console.log('No contributor found or error');
           document.getElementById('loginError').textContent = 'No contributor account found.';
           await supabase.auth.signOut();
           return;
         }
         
         if (!contributor.active) {
+          console.log('Contributor inactive');
           document.getElementById('loginError').textContent = 'Your account is inactive.';
           await supabase.auth.signOut();
           return;
         }
         
         if (!contributor.auth_user_id) {
+          console.log('Linking auth_user_id');
           await supabase.from('contributors').update({ auth_user_id: currentUser.id }).eq('id', contributor.id);
         }
         
+        console.log('Setting currentContributor and showing main screen');
         currentContributor = contributor;
         populateForm(contributor);
         await loadPortfolio();
