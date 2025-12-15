@@ -427,6 +427,31 @@
       </div>
     </div>
     
+    <!-- Quick Score Modal -->
+    <div id="quickScoreModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 2000; align-items: center; justify-content: center;">
+      <div style="background: #fff; border-radius: 10px; padding: 25px; max-width: 350px; width: 90%; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+        <h3 style="margin: 0 0 5px; font-size: 16px; color: #333;">Quick Score Update</h3>
+        <p id="quickScoreMatchup" style="margin: 0 0 20px; font-size: 13px; color: #666;"></p>
+        <input type="hidden" id="quickScoreGameId">
+        <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: center; margin-bottom: 20px;">
+          <div>
+            <label style="display: block; font-size: 11px; color: #888; margin-bottom: 5px;" id="quickScoreAwayLabel">Away</label>
+            <input type="number" id="quickScoreAway" style="width: 100%; padding: 12px; font-size: 24px; text-align: center; border: 2px solid #ddd; border-radius: 8px; font-weight: 600;" min="0">
+          </div>
+          <span style="font-size: 24px; color: #ccc; padding-top: 15px;">-</span>
+          <div>
+            <label style="display: block; font-size: 11px; color: #888; margin-bottom: 5px;" id="quickScoreHomeLabel">Home</label>
+            <input type="number" id="quickScoreHome" style="width: 100%; padding: 12px; font-size: 24px; text-align: center; border: 2px solid #ddd; border-radius: 8px; font-weight: 600;" min="0">
+          </div>
+        </div>
+        <div style="display: flex; gap: 10px;">
+          <button onclick="closeQuickScore()" style="flex: 1; padding: 12px; border: 1px solid #ddd; background: #f5f5f5; border-radius: 6px; cursor: pointer; font-size: 14px;">Cancel</button>
+          <button onclick="clearQuickScore()" style="padding: 12px 16px; border: 1px solid #ffcdd2; background: #ffebee; color: #c62828; border-radius: 6px; cursor: pointer; font-size: 14px;">Clear</button>
+          <button onclick="saveQuickScore()" style="flex: 1; padding: 12px; border: none; background: #1565c0; color: white; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600;">Save</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Game Edit Modal -->
     <div id="gameModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 2000; overflow-y: auto;">
       <div style="max-width: 800px; margin: 30px auto; background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
@@ -7942,7 +7967,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
               </div>
               <div style="font-size: 13px;">${game.away_team || '-'}</div>
               <div style="font-size: 13px; font-weight: 500;">${game.home_team || '-'}</div>
-              <div style="font-size: 12px; ${game.status === 'final' ? 'font-weight: 600;' : 'color: #888;'}">${score}</div>
+              <div style="font-size: 12px; ${game.status === 'final' ? 'font-weight: 600;' : 'color: #888;'}">
+                ${score}
+                <button onclick="openQuickScore(${game.id})" style="background: none; border: none; cursor: pointer; padding: 2px; margin-left: 3px; font-size: 11px; color: #1565c0;" title="Quick edit score">✏️</button>
+              </div>
               <div style="font-size: 11px; color: #666;">${game.division || '-'}</div>
               <div style="text-align: center;">
                 <button onclick="openUrlModal(${game.id})" style="background: ${hasUrls ? '#f3e5f5' : '#f5f5f5'}; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px;" title="${hasUrls ? urlCount + ' URL(s) set' : 'No URLs'}">
@@ -8029,6 +8057,83 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         divSelect.value = currentVal;
       }
     }
+    
+    // Quick Score Functions
+    function openQuickScore(gameId) {
+      const game = allGames.find(g => g.id === gameId);
+      if (!game) return;
+      
+      document.getElementById('quickScoreGameId').value = gameId;
+      document.getElementById('quickScoreMatchup').textContent = `${game.away_team} @ ${game.home_team} • ${new Date(game.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+      document.getElementById('quickScoreAwayLabel').textContent = game.away_team || 'Away';
+      document.getElementById('quickScoreHomeLabel').textContent = game.home_team || 'Home';
+      document.getElementById('quickScoreAway').value = game.away_score || '';
+      document.getElementById('quickScoreHome').value = game.home_score || '';
+      
+      const modal = document.getElementById('quickScoreModal');
+      modal.style.display = 'flex';
+      
+      // Focus away score input
+      setTimeout(() => document.getElementById('quickScoreAway').focus(), 100);
+    }
+    
+    function closeQuickScore() {
+      document.getElementById('quickScoreModal').style.display = 'none';
+    }
+    
+    async function saveQuickScore() {
+      const gameId = parseInt(document.getElementById('quickScoreGameId').value);
+      const awayScore = document.getElementById('quickScoreAway').value;
+      const homeScore = document.getElementById('quickScoreHome').value;
+      
+      // Determine status based on scores
+      const hasScore = awayScore !== '' && homeScore !== '';
+      const status = hasScore ? 'final' : 'scheduled';
+      
+      try {
+        const { error } = await supabase
+          .from('games')
+          .update({
+            away_score: awayScore === '' ? null : parseInt(awayScore),
+            home_score: homeScore === '' ? null : parseInt(homeScore),
+            status: status
+          })
+          .eq('id', gameId);
+        
+        if (error) throw error;
+        
+        // Update local data
+        const game = allGames.find(g => g.id === gameId);
+        if (game) {
+          game.away_score = awayScore === '' ? null : parseInt(awayScore);
+          game.home_score = homeScore === '' ? null : parseInt(homeScore);
+          game.status = status;
+        }
+        
+        closeQuickScore();
+        filterGames();
+        showToast('Score updated!', 'success');
+      } catch (err) {
+        console.error('Error updating score:', err);
+        showToast('Error updating score', 'error');
+      }
+    }
+    
+    async function clearQuickScore() {
+      document.getElementById('quickScoreAway').value = '';
+      document.getElementById('quickScoreHome').value = '';
+      await saveQuickScore();
+    }
+    
+    // Close quick score modal on escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && document.getElementById('quickScoreModal').style.display === 'flex') {
+        closeQuickScore();
+      }
+      if (e.key === 'Enter' && document.getElementById('quickScoreModal').style.display === 'flex') {
+        saveQuickScore();
+      }
+    });
     
     async function editGame(gameId) {
       const game = allGames.find(g => g.id === gameId);
