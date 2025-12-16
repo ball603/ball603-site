@@ -466,12 +466,30 @@
 
     // Mobile search
     const mobileSearchInput = document.getElementById('mobileSearchInput');
+    const mobileSearchBtn = document.getElementById('mobileSearchBtn');
+    
+    function doMobileSearch() {
+      if (mobileSearchInput && mobileSearchInput.value.trim()) {
+        window.location.href = '/search?q=' + encodeURIComponent(mobileSearchInput.value.trim());
+      }
+    }
+    
     if (mobileSearchInput) {
       mobileSearchInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter' && mobileSearchInput.value.trim()) {
-          window.location.href = '/search?q=' + encodeURIComponent(mobileSearchInput.value.trim());
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          doMobileSearch();
         }
       });
+      
+      // Handle mobile keyboard "search" action
+      mobileSearchInput.addEventListener('search', (e) => {
+        doMobileSearch();
+      });
+    }
+    
+    if (mobileSearchBtn) {
+      mobileSearchBtn.addEventListener('click', doMobileSearch);
     }
   }
 
