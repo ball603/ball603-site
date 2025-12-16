@@ -9025,20 +9025,32 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     }
     
     async function selectBonusGalleryAlbum() {
-      if (!selectedBonusAlbum || !currentBonusSlot) return;
+      if (!selectedBonusAlbum || !currentBonusSlot) {
+        console.log('No album or slot selected:', { selectedBonusAlbum, currentBonusSlot });
+        return;
+      }
+      
+      console.log('Selected album:', selectedBonusAlbum);
       
       const photographer = document.getElementById('bonusGalleryPhotographerSelect').value;
       
       // Store URL and photographer
-      document.getElementById(`bonusGallery${currentBonusSlot}Url`).value = selectedBonusAlbum.url;
+      const albumUrl = selectedBonusAlbum.url || selectedBonusAlbum.WebUri || '';
+      console.log('Album URL:', albumUrl);
+      
+      document.getElementById(`bonusGallery${currentBonusSlot}Url`).value = albumUrl;
       document.getElementById(`bonusGallery${currentBonusSlot}Photographer`).value = photographer || '';
       
       // Fetch thumbnail from SmugMug API
       let thumbUrl = selectedBonusAlbum.highlightImage || '';
-      if (!thumbUrl && selectedBonusAlbum.key) {
+      const albumKey = selectedBonusAlbum.key || selectedBonusAlbum.AlbumKey;
+      
+      if (!thumbUrl && albumKey) {
         try {
-          const response = await fetch(`/.netlify/functions/smugmug?action=albumThumb&albumKey=${selectedBonusAlbum.key}`);
+          console.log('Fetching thumbnail for album key:', albumKey);
+          const response = await fetch(`/.netlify/functions/smugmug?action=albumThumb&albumKey=${albumKey}`);
           const data = await response.json();
+          console.log('Thumbnail response:', data);
           if (data.success && data.thumbnailUrl) {
             thumbUrl = data.thumbnailUrl;
           }
@@ -9047,6 +9059,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         }
       }
       
+      console.log('Final thumb URL:', thumbUrl);
       document.getElementById(`bonusGallery${currentBonusSlot}ThumbUrl`).value = thumbUrl;
       
       // Update preview
