@@ -21,7 +21,7 @@
   </script>
   
   <!-- Supabase -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0"></script>
   
   <!-- Styles -->
   <link rel="stylesheet" href="/styles.css">
@@ -1075,109 +1075,14 @@
     let linkedGame = null;
     let galleryPhotos = [];
     
-    // Supabase config
-    const SUPABASE_URL = 'https://suncdkxfqkwwnmhosxcf.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN1bmNka3hmcWt3d25taG9zeGNmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwNTk4MzIsImV4cCI6MjA4MDYzNTgzMn0.aT6V8Zx_YozqOh1ZnC6x-czI9vo-QhHKmP69PgY-8xw';
-    let supabaseClient = null;
-    
-    // Fallback utilities (used before Ball603 is ready)
-    const fallbackUtils = {
-      formatDate: (dateStr, format = 'medium') => {
-        if (!dateStr) return '';
-        try {
-          const date = new Date(dateStr + 'T00:00:00');
-          if (isNaN(date.getTime())) return dateStr;
-          const options = format === 'long' 
-            ? { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }
-            : format === 'short'
-            ? { month: 'short', day: 'numeric' }
-            : { month: 'long', day: 'numeric', year: 'numeric' };
-          return date.toLocaleDateString('en-US', options);
-        } catch (e) {
-          return dateStr;
-        }
-      },
-      getLogoUrl: (teamName) => {
-        if (!teamName) return '/logos/100px/Ball603-white.png';
-        const normalized = teamName.replace(/\s+/g, '').replace(/[^a-zA-Z0-9]/g, '');
-        return `/logos/100px/${normalized}.png`;
-      },
-      formatDivision: (game) => {
-        if (!game) return '';
-        return game.division || game.gender || '';
-      }
-    };
-    
-    // Safe wrapper to use Ball603 if available, otherwise fallback
-    function safeFormatDate(dateStr, format) {
-      if (typeof Ball603 !== 'undefined' && Ball603.formatDate) {
-        return Ball603.formatDate(dateStr, format);
-      }
-      return fallbackUtils.formatDate(dateStr, format);
-    }
-    
-    function safeGetLogoUrl(teamName) {
-      if (typeof Ball603 !== 'undefined' && Ball603.getLogoUrl) {
-        return Ball603.getLogoUrl(teamName);
-      }
-      return fallbackUtils.getLogoUrl(teamName);
-    }
-    
-    function safeFormatDivision(game) {
-      if (typeof Ball603 !== 'undefined' && Ball603.formatDivision) {
-        return Ball603.formatDivision(game);
-      }
-      return fallbackUtils.formatDivision(game);
-    }
-    
-    // Wait for Supabase library to load
-    async function waitForSupabase(maxWait = 5000) {
-      const start = Date.now();
-      while ((!window.supabase || typeof window.supabase.createClient !== 'function') && (Date.now() - start) < maxWait) {
-        await new Promise(resolve => setTimeout(resolve, 50));
-      }
-      if (!window.supabase || typeof window.supabase.createClient !== 'function') {
-        throw new Error('Supabase library failed to load');
-      }
-      return window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    }
-    
-    // Initialize article page - don't wait for ball603:ready
-    async function initArticlePage() {
-      try {
-        console.log('[Article] Starting initialization...');
-        
-        // Initialize Supabase client directly (don't wait for app.js)
-        supabaseClient = await waitForSupabase();
-        console.log('[Article] Supabase client ready');
-        
-        // Load article immediately
-        await loadArticle();
-        
-      } catch (err) {
-        console.error('[Article] Initialization error:', err);
-        showError('Error loading article');
-      }
-    }
-    
-    // Start loading when DOM is ready
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', initArticlePage);
-    } else {
-      initArticlePage();
-    }
-    
-    // Also listen for ball603:ready to get games data for linked game display
-    document.addEventListener('ball603:ready', () => {
-      console.log('[Article] Ball603 app ready - checking for linked game');
-      // If article already loaded, try to find linked game now that games are available
-      if (currentArticle && currentArticle.game_id && !linkedGame && Ball603.state.games) {
-        linkedGame = Ball603.state.games.find(g => g.game_id === currentArticle.game_id);
-        if (linkedGame) {
-          console.log('[Article] Found linked game, re-rendering');
-          renderArticle(currentArticle);
-        }
-      }
+    // Initialize on app ready
+    document.addEventListener('ball603:ready', async () => {
+      // Initialize Supabase client (uses global supabaseClient from app.js)
+      supabaseClient = window.supabase.createClient(
+        'https://suncdkxfqkwwnmhosxcf.supabase.co',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN1bmNka3hmcWt3d25taG9zeGNmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwNTk4MzIsImV4cCI6MjA4MDYzNTgzMn0.aT6V8Zx_YozqOh1ZnC6x-czI9vo-QhHKmP69PgY-8xw'
+      );
+      await loadArticle();
     });
     
     /**
@@ -1193,18 +1098,12 @@
         slug = pathParts[pathParts.length - 2] || '';
       }
       
-      console.log('[Article] URL path:', window.location.pathname);
-      console.log('[Article] Extracted slug:', slug);
-      
       if (!slug || slug === 'article') {
-        console.error('[Article] No valid slug found');
         showError('Article not found');
         return;
       }
       
       try {
-        console.log('[Article] Fetching article from Supabase...');
-        
         // Fetch article from Supabase
         const { data: article, error } = await supabaseClient
           .from('articles')
@@ -1212,25 +1111,16 @@
           .eq('slug', slug)
           .single();
         
-        if (error) {
-          console.error('[Article] Supabase error:', error);
+        if (error || !article) {
           showError('Article not found');
           return;
         }
         
-        if (!article) {
-          console.error('[Article] No article returned for slug:', slug);
-          showError('Article not found');
-          return;
-        }
-        
-        console.log('[Article] Article loaded:', article.title);
         currentArticle = article;
         
-        // Fetch linked game if exists (Ball603.state.games might not be ready yet)
-        if (article.game_id && typeof Ball603 !== 'undefined' && Ball603.state?.games) {
+        // Fetch linked game if exists
+        if (article.game_id && Ball603.state.games) {
           linkedGame = Ball603.state.games.find(g => g.game_id === article.game_id);
-          console.log('[Article] Linked game:', linkedGame ? linkedGame.away + ' vs ' + linkedGame.home : 'not found');
         }
         
         // Update page metadata
@@ -1246,7 +1136,7 @@
         await loadRelatedArticles(article);
         
       } catch (err) {
-        console.error('[Article] Error loading article:', err);
+        console.error('Error loading article:', err);
         showError('Error loading article');
       }
     }
@@ -1336,10 +1226,10 @@
         
         gameBoxHtml = `
           <div class="game-box">
-            <div class="game-box-header">${safeFormatDivision(linkedGame)}</div>
+            <div class="game-box-header">${Ball603.formatDivision(linkedGame)}</div>
             <div class="game-matchup">
               <div class="game-team">
-                <img class="game-team-logo" src="${safeGetLogoUrl(linkedGame.away)}" alt="${linkedGame.away}" onerror="this.src='/logos/100px/Ball603-white.png'">
+                <img class="game-team-logo" src="${Ball603.getLogoUrl(linkedGame.away)}" alt="${linkedGame.away}" onerror="this.src='/logos/100px/Ball603-white.png'">
                 <div class="game-team-name">${linkedGame.away}</div>
               </div>
               <div class="game-score-center">
@@ -1351,13 +1241,13 @@
                 ${hasScore ? '<div class="game-status">Final</div>' : ''}
               </div>
               <div class="game-team">
-                <img class="game-team-logo" src="${safeGetLogoUrl(linkedGame.home)}" alt="${linkedGame.home}" onerror="this.src='/logos/100px/Ball603-white.png'">
+                <img class="game-team-logo" src="${Ball603.getLogoUrl(linkedGame.home)}" alt="${linkedGame.home}" onerror="this.src='/logos/100px/Ball603-white.png'">
                 <div class="game-team-name">${linkedGame.home}</div>
               </div>
             </div>
             ${quarterScoresSection}
             <div class="game-details">
-              <div class="game-detail">📅 ${safeFormatDate(linkedGame.date, 'medium')}</div>
+              <div class="game-detail">📅 ${Ball603.formatDate(linkedGame.date, 'medium')}</div>
               ${linkedGame.location ? `<div class="game-detail">📍 ${linkedGame.location}</div>` : ''}
             </div>
           </div>
@@ -1501,7 +1391,7 @@
           <h1 class="article-title">${article.title}</h1>
           <div class="article-meta">
             <span class="article-author">${article.author || 'Ball603'}</span>
-            <span class="article-date">${safeFormatDate(article.article_date || article.published_at?.split('T')[0], 'long')}</span>
+            <span class="article-date">${Ball603.formatDate(article.article_date || article.published_at?.split('T')[0], 'long')}</span>
             <div class="article-share">
               <button class="share-btn" onclick="shareTwitter()" title="Share on Twitter">𝕏</button>
               <button class="share-btn" onclick="shareFacebook()" title="Share on Facebook">f</button>
@@ -1643,9 +1533,7 @@
      * Load related articles
      */
     async function loadRelatedArticles(article) {
-      // Get related articles from Ball603 state if available
-      const allArticles = (typeof Ball603 !== 'undefined' && Ball603.state?.articles) || [];
-      const related = allArticles
+      const related = (Ball603.state.articles || [])
         .filter(a => a.id !== article.id && a.status === 'published')
         .slice(0, 4);
       
@@ -1658,7 +1546,7 @@
           <img src="${a.featured_image_url || '/logo.png'}" alt="" class="related-card-image" loading="lazy">
           <div class="related-card-content">
             <h3 class="related-card-title">${a.title}</h3>
-            <p class="related-card-meta">${safeFormatDate(a.published_at?.split('T')[0], 'short')}</p>
+            <p class="related-card-meta">${Ball603.formatDate(a.published_at?.split('T')[0], 'short')}</p>
           </div>
         </a>
       `).join('');
