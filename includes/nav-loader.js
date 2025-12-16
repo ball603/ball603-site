@@ -356,7 +356,6 @@
   function checkAndInit() {
     if (headerLoaded && mobileMenuLoaded) {
       initMobileMenu();
-      initHeaderSearch();
     }
     if (headerLoaded && mobileMenuLoaded && favoritesModalLoaded) {
       initFavoritesModal();
@@ -488,63 +487,6 @@
     if (mobileSearchBtn) {
       mobileSearchBtn.addEventListener('click', doMobileSearch);
     }
-  }
-
-  /**
-   * Initialize header search functionality
-   */
-  function initHeaderSearch() {
-    const searchToggle = document.getElementById('searchToggle');
-    const searchDropdown = document.getElementById('searchDropdown');
-    const searchInput = document.getElementById('searchInput');
-
-    console.log('[Nav] initHeaderSearch called');
-    console.log('[Nav] searchToggle:', searchToggle);
-    console.log('[Nav] searchDropdown:', searchDropdown);
-
-    if (!searchToggle || !searchDropdown) {
-      console.error('[Nav] Search elements not found - searchToggle:', !!searchToggle, 'searchDropdown:', !!searchDropdown);
-      return;
-    }
-
-    console.log('[Nav] Attaching search toggle click listener');
-
-    // Toggle search dropdown
-    searchToggle.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      console.log('[Nav] Search toggle clicked');
-      searchDropdown.classList.toggle('active');
-      console.log('[Nav] Search dropdown active:', searchDropdown.classList.contains('active'));
-      if (searchDropdown.classList.contains('active') && searchInput) {
-        setTimeout(() => searchInput.focus(), 50);
-      }
-    });
-
-    // Close on outside click
-    document.addEventListener('click', (e) => {
-      if (!searchDropdown.contains(e.target) && !searchToggle.contains(e.target)) {
-        searchDropdown.classList.remove('active');
-      }
-    });
-
-    // Close on Escape key
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && searchDropdown.classList.contains('active')) {
-        searchDropdown.classList.remove('active');
-      }
-    });
-
-    // Search on Enter
-    if (searchInput) {
-      searchInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter' && searchInput.value.trim()) {
-          window.location.href = '/search?q=' + encodeURIComponent(searchInput.value.trim());
-        }
-      });
-    }
-
-    console.log('[Nav] Header search initialized successfully');
   }
 
   /**
