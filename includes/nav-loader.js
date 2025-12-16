@@ -422,47 +422,50 @@
     }
 
     // Open drawer
-    mobileToggle.addEventListener('click', () => {
+    mobileToggle.addEventListener('click', function() {
       mobileDrawer.classList.add('active');
       if (mobileOverlay) mobileOverlay.classList.add('active');
       document.body.style.overflow = 'hidden';
     });
 
     // Close drawer
-    const closeDrawer = () => {
+    function closeDrawer() {
       mobileDrawer.classList.remove('active');
       if (mobileOverlay) mobileOverlay.classList.remove('active');
       document.body.style.overflow = '';
-    };
+    }
 
     if (mobileClose) mobileClose.addEventListener('click', closeDrawer);
     if (mobileOverlay) mobileOverlay.addEventListener('click', closeDrawer);
 
-    // Expandable submenus - simplified for better mobile compatibility
-    mobileDrawer.addEventListener('click', (e) => {
-      // If click was on a subnav link, let it navigate normally
-      if (e.target.closest('.mobile-subnav a')) {
-        return;
-      }
-      
-      // Check if click was on the main link of an expandable item
-      const clickedLink = e.target.closest('.mobile-nav-item[data-expandable] > .mobile-nav-link');
-      const clickedItem = e.target.closest('.mobile-nav-item[data-expandable]');
-      
-      // Only toggle if we clicked directly on the expandable item's main link area
-      if (clickedLink || (clickedItem && !e.target.closest('.mobile-subnav'))) {
-        e.preventDefault();
-        e.stopPropagation();
-        if (clickedItem) {
-          clickedItem.classList.toggle('expanded');
-          console.log('[Nav] Mobile menu expanded:', clickedItem.classList.contains('expanded'));
+    // Expandable submenus - find and attach handlers directly
+    var expandableItems = mobileDrawer.querySelectorAll('.mobile-nav-item[data-expandable]');
+    
+    for (var i = 0; i < expandableItems.length; i++) {
+      (function(item) {
+        var mainLink = item.querySelector('.mobile-nav-link');
+        
+        if (mainLink) {
+          // Handle both click and touchend for mobile reliability
+          function toggleExpand(e) {
+            // Don't toggle if clicking on a subnav link
+            if (e.target.closest('.mobile-subnav')) {
+              return;
+            }
+            
+            e.preventDefault();
+            e.stopPropagation();
+            item.classList.toggle('expanded');
+          }
+          
+          mainLink.addEventListener('click', toggleExpand);
         }
-      }
-    });
+      })(expandableItems[i]);
+    }
 
     // Mobile search
-    const mobileSearchInput = document.getElementById('mobileSearchInput');
-    const mobileSearchBtn = document.getElementById('mobileSearchBtn');
+    var mobileSearchInput = document.getElementById('mobileSearchInput');
+    var mobileSearchBtn = document.getElementById('mobileSearchBtn');
     
     function doMobileSearch() {
       if (mobileSearchInput && mobileSearchInput.value.trim()) {
@@ -471,16 +474,11 @@
     }
     
     if (mobileSearchInput) {
-      mobileSearchInput.addEventListener('keypress', (e) => {
+      mobileSearchInput.addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
           e.preventDefault();
           doMobileSearch();
         }
-      });
-      
-      // Handle mobile keyboard "search" action
-      mobileSearchInput.addEventListener('search', (e) => {
-        doMobileSearch();
       });
     }
     
