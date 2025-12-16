@@ -26,13 +26,13 @@ const state = {
 };
 
 // ===== SUPABASE CLIENT =====
-var supabase = supabase || null;
+var supabaseClient = null;
 
 function initSupabase() {
-  if (window.supabase && !supabase) {
-    supabase = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+  if (window.supabase && !supabaseClient) {
+    supabaseClient = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
   }
-  return supabase;
+  return supabaseClient;
 }
 
 // ===== DATA FETCHING =====
@@ -1085,7 +1085,7 @@ if (document.readyState === 'loading') {
 // ===== EXPORTS (for modules) =====
 window.Ball603 = {
   state,
-  supabase: null, // Will be set after init
+  getSupabase: initSupabase,
   fetchGames,
   fetchArticles,
   fetchTeams,
