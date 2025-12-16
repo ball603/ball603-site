@@ -623,8 +623,8 @@
         
         renderGalleries();
         
-        // Load thumbnails in background for visible galleries
-        loadThumbnails();
+        // Setup lazy loading for thumbnails
+        setupThumbnailObserver();
         
       } catch (err) {
         console.error('Error loading galleries:', err);
@@ -637,28 +637,55 @@
       }
     }
     
-    // ===== LOAD THUMBNAILS =====
-    async function loadThumbnails() {
-      // Load thumbnails for first 20 galleries initially
-      const galleriesNeedingThumbs = allGalleries.filter(g => !g.thumbnail_url).slice(0, 20);
-      
-      for (const gallery of galleriesNeedingThumbs) {
-        try {
-          const response = await fetch(`/.netlify/functions/smugmug?action=albumThumb&albumKey=${gallery.album_key}`);
-          const data = await response.json();
-          
-          if (data.success && data.thumbnailUrl) {
-            gallery.thumbnail_url = data.thumbnailUrl;
+    // ===== LAZY LOAD THUMBNAILS =====
+    let thumbnailObserver = null;
+    const loadedThumbnails = new Set();
+    
+    function setupThumbnailObserver() {
+      // Create intersection observer to load thumbnails as cards scroll into view
+      thumbnailObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            const card = entry.target;
+            const albumKey = card.dataset.albumKey;
             
-            // Update the image in the DOM if it exists
-            const img = document.querySelector(`[data-album-key="${gallery.album_key}"] img`);
-            if (img) {
-              img.src = getHighQualityThumb(data.thumbnailUrl);
+            if (albumKey && !loadedThumbnails.has(albumKey)) {
+              loadedThumbnails.add(albumKey);
+              loadThumbnail(albumKey, card);
             }
           }
-        } catch (err) {
-          console.error('Error loading thumbnail for', gallery.album_key, err);
+        });
+      }, {
+        rootMargin: '200px', // Start loading 200px before coming into view
+        threshold: 0
+      });
+      
+      // Observe all gallery cards
+      document.querySelectorAll('.gallery-card[data-album-key]').forEach(card => {
+        thumbnailObserver.observe(card);
+      });
+    }
+    
+    async function loadThumbnail(albumKey, card) {
+      try {
+        const response = await fetch(`/.netlify/functions/smugmug?action=albumThumb&albumKey=${albumKey}`);
+        const data = await response.json();
+        
+        if (data.success && data.thumbnailUrl) {
+          // Update gallery data
+          const gallery = allGalleries.find(g => g.album_key === albumKey);
+          if (gallery) {
+            gallery.thumbnail_url = data.thumbnailUrl;
+          }
+          
+          // Update the image in the DOM
+          const img = card.querySelector('img');
+          if (img) {
+            img.src = data.thumbnailUrl;
+          }
         }
+      } catch (err) {
+        console.error('Error loading thumbnail for', albumKey, err);
       }
     }
 
@@ -728,10 +755,19 @@
       }
 
       container.innerHTML = `<div class="gallery-grid">${galleriesToShow.map(g => renderGalleryCard(g)).join('')}</div>`;
+      
+      // Re-setup observer for new cards
+      if (thumbnailObserver) {
+        document.querySelectorAll('.gallery-card[data-album-key]').forEach(card => {
+          if (!loadedThumbnails.has(card.dataset.albumKey)) {
+            thumbnailObserver.observe(card);
+          }
+        });
+      }
     }
 
     function renderGalleryCard(gallery, isPinned = false) {
-      const thumbnail = getHighQualityThumb(gallery.thumbnail_url) || '/logo.png';
+      const thumbnail = gallery.thumbnail_url || '/logo.png';
       const tags = galleryTeamTags[gallery.album_key] || [];
       const albumUrl = gallery.album_url || `https://ball603.smugmug.com/`;
 
