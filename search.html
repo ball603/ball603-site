@@ -301,82 +301,69 @@
   <script src="/includes/nav-loader.js"></script>
   
   <script>
-    const SUPABASE_URL = 'https://suncdkxfqkwwnmhosxcf.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN1bmNka3hmcWt3d25taG9zeGNmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwNTk4MzIsImV4cCI6MjA4MDYzNTgzMn0.aT6V8Zx_YozqOh1ZnC6x-czI9vo-QhHKmP69PgY-8xw';
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    var SUPABASE_URL = 'https://suncdkxfqkwwnmhosxcf.supabase.co';
+    var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN1bmNka3hmcWt3d25taG9zeGNmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwNTk4MzIsImV4cCI6MjA4MDYzNTgzMn0.aT6V8Zx_YozqOh1ZnC6x-czI9vo-QhHKmP69PgY-8xw';
+    var supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     
-    let allArticles = [];
-    let allTeams = [];
-    let currentTab = 'articles';
-    let currentQuery = '';
+    var allArticles = [];
+    var allTeams = [];
+    var currentTab = 'articles';
+    var currentQuery = '';
     
-    // Get query from URL
-    document.addEventListener('DOMContentLoaded', async () => {
-      const params = new URLSearchParams(window.location.search);
-      const query = params.get('q');
+    // Get query from URL on page load
+    document.addEventListener('DOMContentLoaded', async function() {
+      var params = new URLSearchParams(window.location.search);
+      var query = params.get('q');
       
       if (query) {
         document.getElementById('searchQuery').value = query;
+        document.getElementById('searchResults').innerHTML = '<div class="loading">Loading...</div>';
         await loadData();
         search(query);
       }
       
       // Tab switching
-      document.querySelectorAll('.search-tab').forEach(tab => {
-        tab.addEventListener('click', () => {
-          document.querySelectorAll('.search-tab').forEach(t => t.classList.remove('active'));
-          tab.classList.add('active');
-          currentTab = tab.dataset.tab;
+      var tabs = document.querySelectorAll('.search-tab');
+      for (var i = 0; i < tabs.length; i++) {
+        tabs[i].addEventListener('click', function(e) {
+          var allTabs = document.querySelectorAll('.search-tab');
+          for (var j = 0; j < allTabs.length; j++) {
+            allTabs[j].classList.remove('active');
+          }
+          e.target.classList.add('active');
+          currentTab = e.target.dataset.tab;
           renderResults();
         });
-      });
+      }
     });
     
     async function loadData() {
-      console.log('[Search] Loading data from Supabase...');
-      
       // Load articles
-      const { data: articles, error: articlesError } = await supabase
+      var articlesResult = await supabase
         .from('articles')
         .select('*')
         .eq('status', 'published')
         .order('published_at', { ascending: false });
       
-      if (articlesError) {
-        console.error('[Search] Error loading articles:', articlesError);
-      } else {
-        console.log('[Search] Loaded articles:', articles?.length || 0);
-        if (articles?.length > 0) {
-          console.log('[Search] Sample article:', articles[0]);
-        }
-      }
+      allArticles = articlesResult.data || [];
       
-      allArticles = articles || [];
-      
-      // Load teams
-      const { data: teams, error: teamsError } = await supabase
+      // Load teams - use full_name for ordering (matches app.js)
+      var teamsResult = await supabase
         .from('teams')
         .select('*')
-        .order('school');
+        .eq('active', true)
+        .order('full_name');
       
-      if (teamsError) {
-        console.error('[Search] Error loading teams:', teamsError);
-      } else {
-        console.log('[Search] Loaded teams:', teams?.length || 0);
-      }
-      
-      allTeams = teams || [];
-      
-      console.log('[Search] Data load complete. Articles:', allArticles.length, 'Teams:', allTeams.length);
+      allTeams = teamsResult.data || [];
     }
     
     async function performSearch(e) {
       e.preventDefault();
-      const query = document.getElementById('searchQuery').value.trim();
+      var query = document.getElementById('searchQuery').value.trim();
       if (!query) return;
       
       // Update URL
-      window.history.replaceState({}, '', `/search?q=${encodeURIComponent(query)}`);
+      window.history.replaceState({}, '', '/search?q=' + encodeURIComponent(query));
       
       if (allArticles.length === 0) {
         document.getElementById('searchResults').innerHTML = '<div class="loading">Loading...</div>';
@@ -393,119 +380,116 @@
     }
     
     function renderResults() {
-      const container = document.getElementById('searchResults');
-      const infoEl = document.getElementById('searchResultsInfo');
-      
-      console.log('[Search] renderResults called, currentTab:', currentTab);
-      console.log('[Search] allArticles count:', allArticles.length);
+      var container = document.getElementById('searchResults');
+      var infoEl = document.getElementById('searchResultsInfo');
       
       // Filter articles
-      const filteredArticles = allArticles.filter(article => {
-        const title = (article.title || '').toLowerCase();
-        const content = (article.content || '').toLowerCase();
-        const excerpt = (article.excerpt || '').toLowerCase();
-        const tags = (article.tags || []).join(' ').toLowerCase();
+      var filteredArticles = [];
+      for (var i = 0; i < allArticles.length; i++) {
+        var article = allArticles[i];
+        var title = (article.title || '').toLowerCase();
+        var content = (article.content || '').toLowerCase();
+        var excerpt = (article.excerpt || '').toLowerCase();
+        var tags = (article.tags || []).join(' ').toLowerCase();
         
-        return title.includes(currentQuery) || 
-               content.includes(currentQuery) || 
-               excerpt.includes(currentQuery) ||
-               tags.includes(currentQuery);
-      });
-      
-      console.log('[Search] filteredArticles count:', filteredArticles.length);
+        if (title.indexOf(currentQuery) !== -1 || 
+            content.indexOf(currentQuery) !== -1 || 
+            excerpt.indexOf(currentQuery) !== -1 ||
+            tags.indexOf(currentQuery) !== -1) {
+          filteredArticles.push(article);
+        }
+      }
       
       // Filter teams
-      const filteredTeams = allTeams.filter(team => {
-        const school = (team.school || '').toLowerCase();
-        const mascot = (team.mascot || '').toLowerCase();
-        const slug = (team.slug || '').toLowerCase();
+      var filteredTeams = [];
+      for (var i = 0; i < allTeams.length; i++) {
+        var team = allTeams[i];
+        var shortname = (team.shortname || '').toLowerCase();
+        var fullName = (team.full_name || '').toLowerCase();
+        var mascot = (team.mascot || '').toLowerCase();
         
-        return school.includes(currentQuery) || 
-               mascot.includes(currentQuery) ||
-               slug.includes(currentQuery);
-      });
+        if (shortname.indexOf(currentQuery) !== -1 || 
+            fullName.indexOf(currentQuery) !== -1 ||
+            mascot.indexOf(currentQuery) !== -1) {
+          filteredTeams.push(team);
+        }
+      }
       
       // Update counts
-      document.getElementById('articleCount').textContent = `(${filteredArticles.length})`;
-      document.getElementById('teamCount').textContent = `(${filteredTeams.length})`;
+      document.getElementById('articleCount').textContent = '(' + filteredArticles.length + ')';
+      document.getElementById('teamCount').textContent = '(' + filteredTeams.length + ')';
       
       if (currentTab === 'articles') {
-        infoEl.textContent = `${filteredArticles.length} article${filteredArticles.length !== 1 ? 's' : ''} found for "${currentQuery}"`;
+        infoEl.textContent = filteredArticles.length + ' article' + (filteredArticles.length !== 1 ? 's' : '') + ' found for "' + currentQuery + '"';
         
         if (filteredArticles.length === 0) {
-          container.innerHTML = `
-            <div class="empty-state">
-              <div class="empty-state-icon">&#128240;</div>
-              <p>No articles found matching "${currentQuery}"</p>
-            </div>
-          `;
+          container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">&#128240;</div><p>No articles found matching "' + escapeHtml(currentQuery) + '"</p></div>';
           return;
         }
         
-        const articlesHtml = filteredArticles.slice(0, 50).map(article => {
-          const excerpt = stripHtml(article.excerpt || article.content || '').substring(0, 150);
-          const date = article.published_at ? formatDate(article.published_at) : '';
-          const image = article.featured_image_url || '/logo.png';
+        var html = '';
+        var max = Math.min(filteredArticles.length, 50);
+        for (var i = 0; i < max; i++) {
+          var article = filteredArticles[i];
+          var excerpt = stripHtml(article.excerpt || article.content || '').substring(0, 150);
+          var date = article.published_at ? formatDate(article.published_at) : '';
+          var image = article.featured_image_url || '/logo.png';
           
-          return `
-            <a href="/article/${article.slug}" class="article-result">
-              <img src="${image}" alt="" class="article-result-image" onerror="this.src='/logo.png'">
-              <div class="article-result-content">
-                <h3 class="article-result-title">${escapeHtml(article.title)}</h3>
-                <p class="article-result-excerpt">${excerpt}...</p>
-                <div class="article-result-meta">${date}</div>
-              </div>
-            </a>
-          `;
-        }).join('');
+          html += '<a href="/article/' + article.slug + '" class="article-result">';
+          html += '<img src="' + image + '" alt="" class="article-result-image" onerror="this.src=\'/logo.png\'">';
+          html += '<div class="article-result-content">';
+          html += '<h3 class="article-result-title">' + escapeHtml(article.title) + '</h3>';
+          html += '<p class="article-result-excerpt">' + excerpt + '...</p>';
+          html += '<div class="article-result-meta">' + date + '</div>';
+          html += '</div></a>';
+        }
+        container.innerHTML = html;
         
-        console.log('[Search] Generated HTML length:', articlesHtml.length);
-        container.innerHTML = articlesHtml;
       } else {
-        infoEl.textContent = `${filteredTeams.length} team${filteredTeams.length !== 1 ? 's' : ''} found for "${currentQuery}"`;
+        infoEl.textContent = filteredTeams.length + ' team' + (filteredTeams.length !== 1 ? 's' : '') + ' found for "' + currentQuery + '"';
         
         if (filteredTeams.length === 0) {
-          container.innerHTML = `
-            <div class="empty-state">
-              <div class="empty-state-icon">&#127936;</div>
-              <p>No teams found matching "${currentQuery}"</p>
-            </div>
-          `;
+          container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">&#127936;</div><p>No teams found matching "' + escapeHtml(currentQuery) + '"</p></div>';
           return;
         }
         
-        container.innerHTML = filteredTeams.map(team => {
-          const logo = `/logos/100px/${team.logo || 'default.png'}`;
-          const info = [team.gender, team.level, team.division].filter(Boolean).join(' • ');
+        var html = '';
+        for (var i = 0; i < filteredTeams.length; i++) {
+          var team = filteredTeams[i];
+          var logoFile = team.logo_filename || (team.shortname ? team.shortname.replace(/[^a-zA-Z0-9]/g, '') + '.png' : 'default.png');
+          var logo = '/logos/100px/' + logoFile;
+          var infoParts = [];
+          if (team.gender) infoParts.push(team.gender);
+          if (team.level) infoParts.push(team.level);
+          if (team.division) infoParts.push(team.division);
+          var info = infoParts.join(' &#8226; ');
           
-          return `
-            <a href="/teams/${team.slug}" class="team-result">
-              <img src="${logo}" alt="" class="team-result-logo" onerror="this.src='/logo.png'">
-              <div>
-                <div class="team-result-name">${escapeHtml(team.school)} ${escapeHtml(team.mascot || '')}</div>
-                <div class="team-result-info">${info}</div>
-              </div>
-            </a>
-          `;
-        }).join('');
+          html += '<a href="/' + team.shortname + '" class="team-result">';
+          html += '<img src="' + logo + '" alt="" class="team-result-logo" onerror="this.src=\'/logo.png\'">';
+          html += '<div>';
+          html += '<div class="team-result-name">' + escapeHtml(team.full_name || team.shortname) + '</div>';
+          html += '<div class="team-result-info">' + info + '</div>';
+          html += '</div></a>';
+        }
+        container.innerHTML = html;
       }
     }
     
     function stripHtml(html) {
-      const div = document.createElement('div');
+      var div = document.createElement('div');
       div.innerHTML = html;
       return div.textContent || div.innerText || '';
     }
     
     function escapeHtml(text) {
       if (!text) return '';
-      const div = document.createElement('div');
+      var div = document.createElement('div');
       div.textContent = text;
       return div.innerHTML;
     }
     
     function formatDate(dateStr) {
-      const date = new Date(dateStr);
+      var date = new Date(dateStr);
       return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     }
   </script>
