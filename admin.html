@@ -3596,7 +3596,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     // Supabase config
     const SUPABASE_URL = 'https://suncdkxfqkwwnmhosxcf.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_hHSpgZPD327r11GaQG9iHw_uZbuaWmF';
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     
     // CMS Password
     const CMS_PASSWORD = 'Gr@niteSt@teHoops';
@@ -3956,7 +3956,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
       const filePath = `${folder}/${timestamp}-${safeName}`;
       
-      const { data, error } = await supabase.storage
+      const { data, error } = await db.storage
         .from('images')
         .upload(filePath, file, {
           cacheControl: '3600',
@@ -3969,7 +3969,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       }
       
       // Get public URL
-      const { data: urlData } = supabase.storage
+      const { data: urlData } = db.storage
         .from('images')
         .getPublicUrl(filePath);
       
@@ -9633,7 +9633,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       closeDeleteBySlugModal();
       
       // Refresh articles list
-      const { data } = await supabase.from('articles').select('*').order('created_at', { ascending: false });
+      const { data } = await db.from('articles').select('*').order('created_at', { ascending: false });
       articles = data || [];
       renderArticles();
     }
@@ -9671,19 +9671,19 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     }
     
     async function loadBashSchedule() {
-      const { data, error } = await supabase.from('bash_schedule').select('*').order('date').order('time');
+      const { data, error } = await db.from('bash_schedule').select('*').order('date').order('time');
       bashSchedule = error ? [] : (data || []);
       renderBashSchedule();
     }
     
     async function loadBashChampions() {
-      const { data, error } = await supabase.from('bash_champions').select('*').order('year', { ascending: false });
+      const { data, error } = await db.from('bash_champions').select('*').order('year', { ascending: false });
       bashChampions = error ? [] : (data || []);
       renderBashChampions();
     }
     
     async function loadBashAwards() {
-      const { data, error } = await supabase.from('bash_awards').select('*').order('year', { ascending: false }).order('gender');
+      const { data, error } = await db.from('bash_awards').select('*').order('year', { ascending: false }).order('gender');
       bashAwards = error ? [] : (data || []);
       renderBashAwards();
     }
@@ -9692,7 +9692,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     let bashContent = [];
     
     async function loadBashContent() {
-      const { data, error } = await supabase.from('bash_content').select('*').order('pinned', { ascending: false }).order('published_at', { ascending: false });
+      const { data, error } = await db.from('bash_content').select('*').order('pinned', { ascending: false }).order('published_at', { ascending: false });
       bashContent = error ? [] : (data || []);
       renderBashContent();
     }
@@ -9793,8 +9793,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       
       try {
         const { error } = id 
-          ? await supabase.from('bash_content').update(data).eq('id', id)
-          : await supabase.from('bash_content').insert([data]);
+          ? await db.from('bash_content').update(data).eq('id', id)
+          : await db.from('bash_content').insert([data]);
         if (error) throw error;
         showToast('Story saved', 'success');
         closeBashStoryModal();
@@ -9807,7 +9807,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     async function deleteBashContent(id) {
       if (!confirm('Delete this content?')) return;
       try {
-        const { error } = await supabase.from('bash_content').delete().eq('id', id);
+        const { error } = await db.from('bash_content').delete().eq('id', id);
         if (error) throw error;
         showToast('Deleted', 'success');
         await loadBashContent();
@@ -9820,7 +9820,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const item = bashContent.find(c => c.id === id);
       if (!item) return;
       try {
-        const { error } = await supabase.from('bash_content').update({ pinned: !item.pinned }).eq('id', id);
+        const { error } = await db.from('bash_content').update({ pinned: !item.pinned }).eq('id', id);
         if (error) throw error;
         showToast(item.pinned ? 'Unpinned' : 'Pinned', 'success');
         await loadBashContent();
@@ -9976,7 +9976,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         highlights: document.getElementById('bashGameHighlights').value || null
       };
       try {
-        const { error } = id ? await supabase.from('bash_schedule').update(data).eq('id', id) : await supabase.from('bash_schedule').insert([data]);
+        const { error } = id ? await db.from('bash_schedule').update(data).eq('id', id) : await db.from('bash_schedule').insert([data]);
         if (error) throw error;
         showToast('Game saved', 'success');
         closeBashGameModal();
@@ -9987,7 +9987,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     async function deleteBashGame(id) {
       if (!confirm('Delete this game?')) return;
       try {
-        const { error } = await supabase.from('bash_schedule').delete().eq('id', id);
+        const { error } = await db.from('bash_schedule').delete().eq('id', id);
         if (error) throw error;
         showToast('Deleted', 'success');
         await loadBashSchedule();
@@ -10034,7 +10034,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         overtime: document.getElementById('bashChampionOvertime').checked
       };
       try {
-        const { error } = id ? await supabase.from('bash_champions').update(data).eq('id', id) : await supabase.from('bash_champions').insert([data]);
+        const { error } = id ? await db.from('bash_champions').update(data).eq('id', id) : await db.from('bash_champions').insert([data]);
         if (error) throw error;
         showToast('Champion saved', 'success');
         closeBashChampionModal();
@@ -10045,7 +10045,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     async function deleteBashChampion(id) {
       if (!confirm('Delete?')) return;
       try {
-        const { error } = await supabase.from('bash_champions').delete().eq('id', id);
+        const { error } = await db.from('bash_champions').delete().eq('id', id);
         if (error) throw error;
         showToast('Deleted', 'success');
         await loadBashChampions();
@@ -10086,7 +10086,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         school: document.getElementById('bashAwardSchool').value
       };
       try {
-        const { error } = id ? await supabase.from('bash_awards').update(data).eq('id', id) : await supabase.from('bash_awards').insert([data]);
+        const { error } = id ? await db.from('bash_awards').update(data).eq('id', id) : await db.from('bash_awards').insert([data]);
         if (error) throw error;
         showToast('Award saved', 'success');
         closeBashAwardModal();
@@ -10098,7 +10098,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     async function deleteBashAward(id) {
       if (!confirm('Delete?')) return;
       try {
-        const { error } = await supabase.from('bash_awards').delete().eq('id', id);
+        const { error } = await db.from('bash_awards').delete().eq('id', id);
         if (error) throw error;
         showToast('Deleted', 'success');
         await loadBashAwards();
@@ -10136,9 +10136,9 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         try {
           const text = await file.text();
           const data = JSON.parse(text);
-          if (data.schedule) for (const g of data.schedule) { delete g.id; await supabase.from('bash_schedule').insert([g]); }
-          if (data.champions) for (const c of data.champions) { delete c.id; await supabase.from('bash_champions').insert([c]); }
-          if (data.awards) for (const a of data.awards) { delete a.id; await supabase.from('bash_awards').insert([a]); }
+          if (data.schedule) for (const g of data.schedule) { delete g.id; await db.from('bash_schedule').insert([g]); }
+          if (data.champions) for (const c of data.champions) { delete c.id; await db.from('bash_champions').insert([c]); }
+          if (data.awards) for (const a of data.awards) { delete a.id; await db.from('bash_awards').insert([a]); }
           showToast('Imported', 'success');
           await loadBashData();
         } catch (err) { showToast('Error: ' + err.message, 'error'); }
@@ -10517,11 +10517,11 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       };
       
       try {
-        const { data, error } = await supabase.from('articles').insert([articleData]).select();
+        const { data, error } = await db.from('articles').insert([articleData]).select();
         if (error) throw error;
         
         // Update game score in bash_schedule
-        await supabase.from('bash_schedule').update({
+        await db.from('bash_schedule').update({
           away_score: awayFinal,
           home_score: homeFinal,
           overtime: bashSBOTCount > 0,
@@ -10643,7 +10643,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       };
       
       try {
-        const { error } = await supabase.from('articles').insert([articleData]);
+        const { error } = await db.from('articles').insert([articleData]);
         if (error) throw error;
         
         showToast('Recap published to both sites!', 'success');
@@ -12047,7 +12047,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         const filename = `sponsor_${Date.now()}.${ext}`;
         
         // Upload to Supabase Storage
-        const { data, error } = await supabase.storage
+        const { data, error } = await db.storage
           .from('sponsors')
           .upload(filename, file, {
             cacheControl: '3600',
@@ -12057,7 +12057,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         if (error) throw error;
         
         // Get public URL
-        const { data: urlData } = supabase.storage
+        const { data: urlData } = db.storage
           .from('sponsors')
           .getPublicUrl(filename);
         

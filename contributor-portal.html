@@ -582,7 +582,7 @@
     // Supabase setup
     const SUPABASE_URL = 'https://suncdkxfqkwwnmhosxcf.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_hHSpgZPD327r11GaQG9iHw_uZbuaWmF';
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     
     let currentUser = null;
     let currentContributor = null;
@@ -640,7 +640,7 @@
       });
       
       // Set up auth state listener
-      supabase.auth.onAuthStateChange(async (event, session) => {
+      db.auth.onAuthStateChange(async (event, session) => {
         console.log('Auth event:', event, session ? 'has session' : 'no session');
         
         // Handle password recovery
@@ -704,7 +704,7 @@
           
           // Give Supabase a moment to process the token and establish session
           setTimeout(async () => {
-            const { data: { session } } = await supabase.auth.getSession();
+            const { data: { session } } = await db.auth.getSession();
             console.log('Recovery session check:', session ? 'valid' : 'none');
             if (session) {
               currentUser = session.user;
@@ -726,7 +726,7 @@
       }
       
       // No tokens in URL - check for existing session
-      const { data: { session }, error } = await supabase.auth.getSession();
+      const { data: { session }, error } = await db.auth.getSession();
       if (error) {
         console.error('Session check error:', error);
       }
@@ -817,7 +817,7 @@
       
       try {
         console.log('Attempting sign in for:', email);
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data, error } = await db.auth.signInWithPassword({ email, password });
         if (error) {
           console.log('Sign in error:', error);
           errorEl.textContent = error.message.includes('Invalid') ? 'Invalid email or password' : error.message;
@@ -843,7 +843,7 @@
       if (!email) { errorEl.textContent = 'Please enter your email'; return; }
       
       try {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        const { error } = await db.auth.resetPasswordForEmail(email, {
           redirectTo: window.location.origin + '/contributor-portal.html'
         });
         if (error) { errorEl.textContent = error.message; return; }
@@ -865,14 +865,14 @@
       
       try {
         // Verify we have an active session before attempting to update
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session } } = await db.auth.getSession();
         if (!session) {
           errorEl.textContent = 'Session expired. Please request a new password reset link.';
           setTimeout(() => showForgotPassword(), 2000);
           return;
         }
         
-        const { error } = await supabase.auth.updateUser({ password });
+        const { error } = await db.auth.updateUser({ password });
         if (error) { 
           console.error('Password update error:', error);
           errorEl.textContent = error.message; 
@@ -890,7 +890,7 @@
     
     async function handleLogout() {
       try {
-        await supabase.auth.signOut();
+        await db.auth.signOut();
         currentUser = null;
         currentContributor = null;
         scheduleInstance = null;
@@ -933,7 +933,7 @@
           console.log('No contributor found or error');
           document.getElementById('loginError').textContent = 'No contributor account found for this email.';
           resetLoginButton();
-          await supabase.auth.signOut();
+          await db.auth.signOut();
           isLoadingProfile = false;
           return;
         }
@@ -942,14 +942,14 @@
           console.log('Contributor inactive');
           document.getElementById('loginError').textContent = 'Your account is inactive. Contact admin.';
           resetLoginButton();
-          await supabase.auth.signOut();
+          await db.auth.signOut();
           isLoadingProfile = false;
           return;
         }
         
         if (!contributor.auth_user_id) {
           console.log('Linking auth_user_id');
-          await supabase.from('contributors').update({ auth_user_id: currentUser.id }).eq('id', contributor.id);
+          await db.from('contributors').update({ auth_user_id: currentUser.id }).eq('id', contributor.id);
         }
         
         console.log('Setting currentContributor and showing main screen');
@@ -1201,7 +1201,7 @@
       };
       
       try {
-        const { error } = await supabase.from('contributors').update(updates).eq('id', currentContributor.id);
+        const { error } = await db.from('contributors').update(updates).eq('id', currentContributor.id);
         if (error) throw error;
         
         currentContributor = { ...currentContributor, ...updates };
@@ -1249,7 +1249,7 @@
       statusEl.textContent = 'Updating...';
       
       try {
-        const { error } = await supabase.auth.updateUser({ password: newPassword });
+        const { error } = await db.auth.updateUser({ password: newPassword });
         
         if (error) {
           statusEl.style.color = '#c00';
@@ -1396,7 +1396,7 @@
       if (!confirm('Remove this link?')) return;
       
       try {
-        const { error } = await supabase.from('contributor_portfolio').delete().eq('id', id);
+        const { error } = await db.from('contributor_portfolio').delete().eq('id', id);
         if (error) throw error;
         portfolioItems = portfolioItems.filter(p => p.id !== id);
         renderPortfolio();
@@ -1451,10 +1451,10 @@
       
       try {
         const filename = `contributors/${currentContributor.id}/${type}-${Date.now()}.jpg`;
-        const { error } = await supabase.storage.from('images').upload(filename, file, { cacheControl: '3600', upsert: true });
+        const { error } = await db.storage.from('images').upload(filename, file, { cacheControl: '3600', upsert: true });
         if (error) throw error;
         
-        const { data: urlData } = supabase.storage.from('images').getPublicUrl(filename);
+        const { data: urlData } = db.storage.from('images').getPublicUrl(filename);
         document.getElementById(`${type}Url`).value = urlData.publicUrl;
         setImagePreview(type, urlData.publicUrl);
         showToast('Image uploaded!', 'success');

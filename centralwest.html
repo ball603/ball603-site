@@ -239,7 +239,7 @@
     // ===== SUPABASE CLIENT =====
     const SUPABASE_URL = 'https://suncdkxfqkwwnmhosxcf.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN1bmNka3hmcWt3d25taG9zeGNmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwNTk4MzIsImV4cCI6MjA4MDYzNTgzMn0.aT6V8Zx_YozqOh1ZnC6x-czI9vo-QhHKmP69PgY-8xw';
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     // ===== HARDCODED TEAM CONFIG FOR CENTRAL-WEST =====
     const TEAM_CONFIG = {
@@ -532,7 +532,7 @@
     // ===== LOAD GALLERIES =====
     async function loadGalleries() {
       try {
-        const { data: albums } = await supabase.from('smugmug_albums').select('*').order('image_count', { ascending: false });
+        const { data: albums } = await db.from('smugmug_albums').select('*').order('image_count', { ascending: false });
         if (!albums) return;
         
         const teamNames = TEAM_CONFIG.nameVariations;
@@ -542,7 +542,7 @@
         });
         
         // Also check manual gallery assignments
-        const { data: manualGalleries } = await supabase.from('team_galleries').select('album_key').eq('team_slug', 'centralwest');
+        const { data: manualGalleries } = await db.from('team_galleries').select('album_key').eq('team_slug', 'centralwest');
         const manualKeys = (manualGalleries || []).map(g => g.album_key);
         const manualAlbums = albums.filter(a => manualKeys.includes(a.album_key));
         
@@ -585,7 +585,7 @@
     // ===== LOAD ARTICLES =====
     async function loadArticles() {
       try {
-        const { data: articles, error } = await supabase.from('articles').select('*').eq('status', 'published');
+        const { data: articles, error } = await db.from('articles').select('*').eq('status', 'published');
         if (error) throw error;
         
         const teamTagNormalized = 'centralwest';
