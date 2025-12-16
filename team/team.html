@@ -71,31 +71,31 @@
   <nav class="team-menu-bar">
     <div class="team-menu-inner">
       <a href="#news" class="team-menu-item" data-section="news">
-        <span class="menu-icon">📰</span>
+        <span class="menu-icon">&#128240;</span>
         <span class="menu-text">News</span>
       </a>
       <a href="#galleries" class="team-menu-item" data-section="galleries">
-        <span class="menu-icon">📷</span>
+        <span class="menu-icon">&#128247;</span>
         <span class="menu-text">Galleries</span>
       </a>
       <a href="#schedules" class="team-menu-item" data-section="schedules">
-        <span class="menu-icon">📅</span>
+        <span class="menu-icon">&#128197;</span>
         <span class="menu-text">Schedules</span>
       </a>
       <a href="#rosters" class="team-menu-item" data-section="rosters">
-        <span class="menu-icon">👥</span>
+        <span class="menu-icon">&#128101;</span>
         <span class="menu-text">Rosters</span>
       </a>
       <a href="#history" class="team-menu-item" data-section="history">
-        <span class="menu-icon">🏆</span>
+        <span class="menu-icon">&#127942;</span>
         <span class="menu-text">History</span>
       </a>
       <a href="#1k-club" class="team-menu-item" data-section="1k-club">
-        <span class="menu-icon">🎯</span>
+        <span class="menu-icon">&#127919;</span>
         <span class="menu-text">1K in the 603</span>
       </a>
       <a href="#college" class="team-menu-item" data-section="college">
-        <span class="menu-icon">🎓</span>
+        <span class="menu-icon">&#127891;</span>
         <span class="menu-text">603 in the NCAA</span>
       </a>
     </div>
@@ -145,7 +145,7 @@
     <!-- NEWS SECTION -->
     <section class="team-section" id="news">
       <div class="section-header">
-        <h2 class="section-title">📰 Latest News</h2>
+        <h2 class="section-title">&#128240; Latest News</h2>
         <a href="#" class="section-link" id="newsViewAllLink">View All →</a>
       </div>
       <div class="stories-featured" id="storiesFeatured">
@@ -156,7 +156,7 @@
     <!-- GALLERIES SECTION -->
     <section class="team-section" id="galleries">
       <div class="section-header">
-        <h2 class="section-title">📷 Photo Galleries</h2>
+        <h2 class="section-title">&#128247; Photo Galleries</h2>
       </div>
       <div class="galleries-container">
         <button class="gallery-arrow gallery-arrow-left" id="galleryArrowLeft" aria-label="Scroll left">‹</button>
@@ -183,7 +183,7 @@
     <!-- SCHEDULES SECTION -->
     <section class="team-section" id="schedules">
       <div class="section-header">
-        <h2 class="section-title">📅 Schedules</h2>
+        <h2 class="section-title">&#128197; Schedules</h2>
       </div>
       <div class="schedules-grid">
         <div class="schedule-card">
@@ -210,7 +210,7 @@
     <!-- ROSTERS SECTION -->
     <section class="team-section" id="rosters">
       <div class="section-header">
-        <h2 class="section-title">👥 Rosters</h2>
+        <h2 class="section-title">&#128101; Rosters</h2>
       </div>
       <div class="rosters-grid">
         <div class="roster-card" id="boysRosterCard">
@@ -239,7 +239,7 @@
     <!-- HISTORY SECTION -->
     <section class="team-section" id="history">
       <div class="section-header">
-        <h2 class="section-title">🏆 Championship History</h2>
+        <h2 class="section-title">&#127942; Championship History</h2>
       </div>
       <div class="history-content" id="historyContent">
         <div class="empty-state"><p>Loading championship history...</p></div>
@@ -251,7 +251,7 @@
       <div class="features-grid">
         <div class="feature-box" id="1k-club">
           <div class="feature-box-header">
-            <h2 class="feature-box-title">🎯 1K in the 603</h2>
+            <h2 class="feature-box-title">&#127919; 1K in the 603</h2>
             <span class="feature-box-subtitle" id="scorersSubtitle">1000-Point Scorers</span>
           </div>
           <div class="feature-box-content" id="scorersList">
@@ -264,7 +264,7 @@
         </div>
         <div class="feature-box" id="college">
           <div class="feature-box-header">
-            <h2 class="feature-box-title">🎓 603 in the NCAA</h2>
+            <h2 class="feature-box-title">&#127891; 603 in the NCAA</h2>
             <span class="feature-box-subtitle" id="collegeSubtitle">Currently Playing in College</span>
           </div>
           <div class="feature-box-content" id="collegePlayersList">
@@ -363,6 +363,7 @@
       if (!teamLoaded) { showTeamNotFound(slug); return; }
 
       updatePageWithTeamInfo();
+      applyGenderVisibility();
       initMenuNavigation();
       createParticles();
       
@@ -389,8 +390,17 @@
 
         if (error) throw error;
 
-        const team = teams.find(t => toSlug(t.shortname) === slug);
-        if (!team) { console.error('Team not found for slug:', slug); return false; }
+        // Find all team entries matching this slug (could be Boys, Girls, or both)
+        const matchingTeams = teams.filter(t => toSlug(t.shortname) === slug);
+        if (matchingTeams.length === 0) { console.error('Team not found for slug:', slug); return false; }
+
+        // Use the first match for team info (they share same school info)
+        const team = matchingTeams[0];
+        
+        // Determine which genders are available
+        const hasBoys = matchingTeams.some(t => t.gender === 'Boys');
+        const hasGirls = matchingTeams.some(t => t.gender === 'Girls');
+        const isCombinedTeam = team.combined_team === true;
 
         // Use logo_filename from database if set, otherwise fall back to generated filename
         const logoFilename = team.logo_filename 
@@ -398,6 +408,20 @@
           : toLogoFilename(team.shortname);
         const primaryColor = team.primary_hex && team.primary_hex !== 'TBD' ? team.primary_hex : '#f57c00';
         const secondaryColor = team.secondary_hex && team.secondary_hex !== 'TBD' ? team.secondary_hex : '#333333';
+
+        // Build name variations
+        let nameVariations = [
+          team.shortname,
+          team.full_name,
+          team.abbrev,
+          team.mascot ? `${team.shortname} ${team.mascot}` : null,
+          team.mascot ? `${team.abbrev} ${team.mascot}` : null
+        ].filter(Boolean);
+        
+        // Add special variations for combined teams
+        if (isCombinedTeam && team.shortname === 'Central-West') {
+          nameVariations.push('Manchester Central-West', 'Central West', 'CentralWest', 'Man. Central-Man. West');
+        }
 
         TEAM_CONFIG = {
           slug: slug,
@@ -414,13 +438,10 @@
           },
           logo: `/logos/200px/${logoFilename}.png`,
           logoFilename: logoFilename,
-          nameVariations: [
-            team.shortname,
-            team.full_name,
-            team.abbrev,
-            team.mascot ? `${team.shortname} ${team.mascot}` : null,
-            team.mascot ? `${team.abbrev} ${team.mascot}` : null
-          ].filter(Boolean)
+          nameVariations: nameVariations,
+          hasBoys: hasBoys,
+          hasGirls: hasGirls,
+          isCombinedTeam: isCombinedTeam
         };
 
         console.log('Loaded TEAM_CONFIG:', TEAM_CONFIG);
@@ -428,6 +449,42 @@
       } catch (err) {
         console.error('Error loading team config:', err);
         return false;
+      }
+    }
+    
+    // ===== APPLY GENDER VISIBILITY =====
+    function applyGenderVisibility() {
+      if (!TEAM_CONFIG) return;
+      
+      const { hasBoys, hasGirls } = TEAM_CONFIG;
+      
+      // If team has both genders, nothing to hide
+      if (hasBoys && hasGirls) return;
+      
+      // Single-gender team - hide the missing gender's elements
+      if (!hasBoys) {
+        // Hide boys elements
+        document.querySelector('.boys-stats')?.classList.add('hidden');
+        document.querySelector('.schedules-grid .schedule-card:first-child')?.classList.add('hidden');
+        document.getElementById('boysRosterCard')?.classList.add('hidden');
+      }
+      
+      if (!hasGirls) {
+        // Hide girls elements
+        document.querySelector('.girls-stats')?.classList.add('hidden');
+        document.querySelector('.schedules-grid .schedule-card:last-child')?.classList.add('hidden');
+        document.getElementById('girlsRosterCard')?.classList.add('hidden');
+      }
+      
+      // Adjust grids for single-gender display
+      if (!hasBoys || !hasGirls) {
+        // Center the quick stats
+        const quickStats = document.getElementById('quickStats');
+        if (quickStats) quickStats.classList.add('single-gender');
+        
+        // Make schedule and roster grids single column
+        document.querySelector('.schedules-grid')?.classList.add('single-gender');
+        document.querySelector('.rosters-grid')?.classList.add('single-gender');
       }
     }
 
