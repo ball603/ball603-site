@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Search Ball603 - Find articles, teams, and coverage">
+  <meta name="theme-color" content="#f57c00">
+  <title>Search | Ball603</title>
+  
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="apple-touch-icon" href="/logo.png">
+  
+  <!-- Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-S4BN80729K"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-S4BN80729K');
+  </script>
+  
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <!-- Shared Styles -->
+  <link rel="stylesheet" href="/styles.css">
+  
+  <style>
+    .search-page {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 30px 20px 60px;
+    }
+    
+    .search-header {
+      margin-bottom: 30px;
+    }
+    
+    .search-header h1 {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin: 0 0 20px;
+    }
+    
+    .search-form {
+      display: flex;
+      gap: 10px;
+    }
+    
+    .search-input {
+      flex: 1;
+      padding: 12px 16px;
+      font-size: 16px;
+      border: 2px solid var(--border-color);
+      border-radius: 8px;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      outline: none;
+    }
+    
+    .search-input:focus {
+      border-color: var(--accent);
+    }
+    
+    .search-btn {
+      padding: 12px 24px;
+      font-size: 16px;
+      font-weight: 600;
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    
+    .search-btn:hover {
+      background: var(--accent-hover);
+    }
+    
+    .search-results-info {
+      margin-bottom: 20px;
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+    
+    .search-tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 10px;
+    }
+    
+    .search-tab {
+      padding: 8px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      background: none;
+      border: none;
+      cursor: pointer;
+      border-radius: 6px;
+    }
+    
+    .search-tab.active {
+      background: var(--accent);
+      color: white;
+    }
+    
+    .search-tab:hover:not(.active) {
+      background: var(--bg-secondary);
+    }
+    
+    .result-count {
+      font-size: 12px;
+      opacity: 0.7;
+    }
+    
+    /* Article Results */
+    .article-result {
+      display: flex;
+      gap: 16px;
+      padding: 16px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      margin-bottom: 12px;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    
+    .article-result:hover {
+      border-color: var(--accent);
+      transform: translateX(4px);
+    }
+    
+    .article-result-image {
+      width: 120px;
+      height: 80px;
+      border-radius: 6px;
+      object-fit: cover;
+      flex-shrink: 0;
+    }
+    
+    .article-result-content {
+      flex: 1;
+      min-width: 0;
+    }
+    
+    .article-result-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin: 0 0 6px;
+      line-height: 1.3;
+    }
+    
+    .article-result-excerpt {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin: 0 0 8px;
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    
+    .article-result-meta {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    
+    /* Team Results */
+    .team-result {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      margin-bottom: 8px;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    
+    .team-result:hover {
+      border-color: var(--accent);
+      transform: translateX(4px);
+    }
+    
+    .team-result-logo {
+      width: 40px;
+      height: 40px;
+      object-fit: contain;
+    }
+    
+    .team-result-name {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    
+    .team-result-info {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+    
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-secondary);
+    }
+    
+    .empty-state-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+    
+    .empty-state p {
+      margin: 0;
+      font-size: 16px;
+    }
+    
+    /* Loading */
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-secondary);
+    }
+    
+    @media (max-width: 600px) {
+      .article-result {
+        flex-direction: column;
+      }
+      
+      .article-result-image {
+        width: 100%;
+        height: 160px;
+      }
+      
+      .search-form {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Navigation loaded by nav-loader.js -->
+  
+  <main class="search-page">
+    <div class="search-header">
+      <h1>🔍 Search Ball603</h1>
+      <form class="search-form" onsubmit="performSearch(event)">
+        <input type="text" id="searchQuery" class="search-input" placeholder="Search articles, teams..." autofocus>
+        <button type="submit" class="search-btn">Search</button>
+      </form>
+    </div>
+    
+    <div id="searchTabs" class="search-tabs" style="display: none;">
+      <button class="search-tab active" data-tab="articles">Articles <span class="result-count" id="articleCount"></span></button>
+      <button class="search-tab" data-tab="teams">Teams <span class="result-count" id="teamCount"></span></button>
+    </div>
+    
+    <div id="searchResultsInfo" class="search-results-info"></div>
+    
+    <div id="searchResults">
+      <div class="empty-state">
+        <div class="empty-state-icon">🔍</div>
+        <p>Enter a search term to find articles and teams</p>
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="footer-content">
+      <img src="/logo.png" alt="Ball603" class="footer-logo">
+      <p class="footer-tagline">New Hampshire's Home for Hoops</p>
+      <p class="footer-copyright">© 2025 Ball603. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <!-- Nav Loader -->
+  <script src="/includes/nav-loader.js"></script>
+  
+  <script>
+    const SUPABASE_URL = 'https://suncdkxfqkwwnmhosxcf.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN1bmNka3hmcWt3d25taG9zeGNmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzY0NTI0MDgsImV4cCI6MjA1MjAyODQwOH0.yzM4CRX_lglhPUk8Y0Ez3pLZuJOKeLrew5wcfW4zjMY';
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    
+    let allArticles = [];
+    let allTeams = [];
+    let currentTab = 'articles';
+    let currentQuery = '';
+    
+    // Get query from URL
+    document.addEventListener('DOMContentLoaded', async () => {
+      const params = new URLSearchParams(window.location.search);
+      const query = params.get('q');
+      
+      if (query) {
+        document.getElementById('searchQuery').value = query;
+        await loadData();
+        search(query);
+      }
+      
+      // Tab switching
+      document.querySelectorAll('.search-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          document.querySelectorAll('.search-tab').forEach(t => t.classList.remove('active'));
+          tab.classList.add('active');
+          currentTab = tab.dataset.tab;
+          renderResults();
+        });
+      });
+    });
+    
+    async function loadData() {
+      // Load articles
+      const { data: articles } = await supabase
+        .from('articles')
+        .select('*')
+        .eq('status', 'published')
+        .order('published_at', { ascending: false });
+      
+      allArticles = articles || [];
+      
+      // Load teams
+      const { data: teams } = await supabase
+        .from('teams')
+        .select('*')
+        .order('school');
+      
+      allTeams = teams || [];
+    }
+    
+    async function performSearch(e) {
+      e.preventDefault();
+      const query = document.getElementById('searchQuery').value.trim();
+      if (!query) return;
+      
+      // Update URL
+      window.history.replaceState({}, '', `/search?q=${encodeURIComponent(query)}`);
+      
+      if (allArticles.length === 0) {
+        document.getElementById('searchResults').innerHTML = '<div class="loading">Loading...</div>';
+        await loadData();
+      }
+      
+      search(query);
+    }
+    
+    function search(query) {
+      currentQuery = query.toLowerCase();
+      document.getElementById('searchTabs').style.display = 'flex';
+      renderResults();
+    }
+    
+    function renderResults() {
+      const container = document.getElementById('searchResults');
+      const infoEl = document.getElementById('searchResultsInfo');
+      
+      // Filter articles
+      const filteredArticles = allArticles.filter(article => {
+        const title = (article.title || '').toLowerCase();
+        const content = (article.content || '').toLowerCase();
+        const excerpt = (article.excerpt || '').toLowerCase();
+        const tags = (article.tags || []).join(' ').toLowerCase();
+        
+        return title.includes(currentQuery) || 
+               content.includes(currentQuery) || 
+               excerpt.includes(currentQuery) ||
+               tags.includes(currentQuery);
+      });
+      
+      // Filter teams
+      const filteredTeams = allTeams.filter(team => {
+        const school = (team.school || '').toLowerCase();
+        const mascot = (team.mascot || '').toLowerCase();
+        const slug = (team.slug || '').toLowerCase();
+        
+        return school.includes(currentQuery) || 
+               mascot.includes(currentQuery) ||
+               slug.includes(currentQuery);
+      });
+      
+      // Update counts
+      document.getElementById('articleCount').textContent = `(${filteredArticles.length})`;
+      document.getElementById('teamCount').textContent = `(${filteredTeams.length})`;
+      
+      if (currentTab === 'articles') {
+        infoEl.textContent = `${filteredArticles.length} article${filteredArticles.length !== 1 ? 's' : ''} found for "${currentQuery}"`;
+        
+        if (filteredArticles.length === 0) {
+          container.innerHTML = `
+            <div class="empty-state">
+              <div class="empty-state-icon">📰</div>
+              <p>No articles found matching "${currentQuery}"</p>
+            </div>
+          `;
+          return;
+        }
+        
+        container.innerHTML = filteredArticles.slice(0, 50).map(article => {
+          const excerpt = stripHtml(article.excerpt || article.content || '').substring(0, 150);
+          const date = article.published_at ? formatDate(article.published_at) : '';
+          const image = article.featured_image_url || '/logo.png';
+          
+          return `
+            <a href="/article/${article.slug}" class="article-result">
+              <img src="${image}" alt="" class="article-result-image" onerror="this.src='/logo.png'">
+              <div class="article-result-content">
+                <h3 class="article-result-title">${escapeHtml(article.title)}</h3>
+                <p class="article-result-excerpt">${excerpt}...</p>
+                <div class="article-result-meta">${date}</div>
+              </div>
+            </a>
+          `;
+        }).join('');
+      } else {
+        infoEl.textContent = `${filteredTeams.length} team${filteredTeams.length !== 1 ? 's' : ''} found for "${currentQuery}"`;
+        
+        if (filteredTeams.length === 0) {
+          container.innerHTML = `
+            <div class="empty-state">
+              <div class="empty-state-icon">🏀</div>
+              <p>No teams found matching "${currentQuery}"</p>
+            </div>
+          `;
+          return;
+        }
+        
+        container.innerHTML = filteredTeams.map(team => {
+          const logo = `/logos/100px/${team.logo || 'default.png'}`;
+          const info = [team.gender, team.level, team.division].filter(Boolean).join(' • ');
+          
+          return `
+            <a href="/teams/${team.slug}" class="team-result">
+              <img src="${logo}" alt="" class="team-result-logo" onerror="this.src='/logo.png'">
+              <div>
+                <div class="team-result-name">${escapeHtml(team.school)} ${escapeHtml(team.mascot || '')}</div>
+                <div class="team-result-info">${info}</div>
+              </div>
+            </a>
+          `;
+        }).join('');
+      }
+    }
+    
+    function stripHtml(html) {
+      const div = document.createElement('div');
+      div.innerHTML = html;
+      return div.textContent || div.innerText || '';
+    }
+    
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+    
+    function formatDate(dateStr) {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+  </script>
+</body>
+</html>
