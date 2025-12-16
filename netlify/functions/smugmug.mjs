@@ -195,7 +195,7 @@ export const handler = async (event) => {
       
       // Fetch up to 500 albums (5 pages)
       while (hasMore && allAlbums.length < 500) {
-        const endpoint = `/api/v2/user/ball603!albums?count=${pageSize}&start=${start}&SortDirection=Descending&SortMethod=LastUpdated`;
+        const endpoint = `/api/v2/user/ball603!albums?count=${pageSize}&start=${start}&SortDirection=Descending&SortMethod=LastUpdated&_expand=HighlightImage`;
         const result = await smugmugRequest(endpoint);
         
         const albums = result?.Response?.Album || [];
@@ -212,26 +212,27 @@ export const handler = async (event) => {
         }
       }
       
-      // For thumbnails, we'll construct them from the album URL
-      // SmugMug albums have a predictable thumbnail URL pattern
-      // Or we can use the first image endpoint
-      
       return {
         statusCode: 200,
         headers,
         body: JSON.stringify({
           success: true,
           albums: allAlbums.map(album => {
-            // Try to get thumbnail from various sources
+            // Get thumbnail from expanded HighlightImage
             let thumbUrl = null;
             
-            // Method 1: Check if there's a direct thumbnail URL
-            if (album.Uris?.AlbumHighlightImage?.Uri) {
-              // We'd need to fetch this, but for now skip
+            // Check for expanded HighlightImage data
+            if (album.Uris?.HighlightImage?.Image) {
+              const img = album.Uris.HighlightImage.Image;
+              // Try to get a reasonable sized thumbnail
+              thumbUrl = img.ThumbnailUrl || img.ThumbUrl;
             }
             
-            // Method 2: Construct URL from album key (SmugMug pattern)
-            // This requires fetching the first image - we'll do that client-side
+            // Fallback: check AlbumHighlightImage if different structure
+            if (!thumbUrl && album.Uris?.AlbumHighlightImage?.Image) {
+              const img = album.Uris.AlbumHighlightImage.Image;
+              thumbUrl = img.ThumbnailUrl || img.ThumbUrl;
+            }
             
             return {
               key: album.AlbumKey,
@@ -240,7 +241,6 @@ export const handler = async (event) => {
               imageCount: album.ImageCount || 0,
               date: album.DateModified || album.DateAdded || album.Date,
               highlightImage: thumbUrl,
-              // Include the album images endpoint so client can fetch first image
               imagesUri: album.Uris?.AlbumImages?.Uri || null
             };
           }),
