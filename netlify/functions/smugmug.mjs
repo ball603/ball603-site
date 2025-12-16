@@ -195,7 +195,7 @@ export const handler = async (event) => {
       
       // Fetch up to 500 albums (5 pages)
       while (hasMore && allAlbums.length < 500) {
-        const endpoint = `/api/v2/user/ball603!albums?count=${pageSize}&start=${start}&SortDirection=Descending&SortMethod=LastUpdated&_expand=HighlightImage`;
+        const endpoint = `/api/v2/user/ball603!albums?count=${pageSize}&start=${start}&SortDirection=Descending&SortMethod=LastUpdated`;
         const result = await smugmugRequest(endpoint);
         
         const albums = result?.Response?.Album || [];
@@ -218,29 +218,13 @@ export const handler = async (event) => {
         body: JSON.stringify({
           success: true,
           albums: allAlbums.map(album => {
-            // Get thumbnail from expanded HighlightImage
-            let thumbUrl = null;
-            
-            // Check for expanded HighlightImage data
-            if (album.Uris?.HighlightImage?.Image) {
-              const img = album.Uris.HighlightImage.Image;
-              // Try to get a reasonable sized thumbnail
-              thumbUrl = img.ThumbnailUrl || img.ThumbUrl;
-            }
-            
-            // Fallback: check AlbumHighlightImage if different structure
-            if (!thumbUrl && album.Uris?.AlbumHighlightImage?.Image) {
-              const img = album.Uris.AlbumHighlightImage.Image;
-              thumbUrl = img.ThumbnailUrl || img.ThumbUrl;
-            }
-            
             return {
               key: album.AlbumKey,
               name: album.Name,
               url: album.WebUri,
               imageCount: album.ImageCount || 0,
               date: album.DateModified || album.DateAdded || album.Date,
-              highlightImage: thumbUrl,
+              highlightImage: null,
               imagesUri: album.Uris?.AlbumImages?.Uri || null
             };
           }),
