@@ -29,10 +29,21 @@ const state = {
 var supabaseClient = null;
 
 function initSupabase() {
-  if (window.supabase && !supabaseClient) {
+  if (window.supabase && typeof window.supabase.createClient === 'function' && !supabaseClient) {
     supabaseClient = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
   }
   return supabaseClient;
+}
+
+/**
+ * Wait for Supabase library to be fully loaded
+ */
+async function waitForSupabase(maxWait = 5000) {
+  const start = Date.now();
+  while ((!window.supabase || typeof window.supabase.createClient !== 'function') && (Date.now() - start) < maxWait) {
+    await new Promise(resolve => setTimeout(resolve, 50));
+  }
+  return initSupabase();
 }
 
 // ===== DATA FETCHING =====
@@ -1043,8 +1054,8 @@ function showToast(message, type = 'default', duration = 3000) {
  * Initialize the application
  */
 async function initApp() {
-  // Initialize Supabase
-  initSupabase();
+  // Initialize Supabase (wait for library to load)
+  await waitForSupabase();
   
   // Load followed teams
   loadFollowedTeams();
