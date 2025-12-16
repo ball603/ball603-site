@@ -396,6 +396,9 @@
       const container = document.getElementById('searchResults');
       const infoEl = document.getElementById('searchResultsInfo');
       
+      console.log('[Search] renderResults called, currentTab:', currentTab);
+      console.log('[Search] allArticles count:', allArticles.length);
+      
       // Filter articles
       const filteredArticles = allArticles.filter(article => {
         const title = (article.title || '').toLowerCase();
@@ -408,6 +411,8 @@
                excerpt.includes(currentQuery) ||
                tags.includes(currentQuery);
       });
+      
+      console.log('[Search] filteredArticles count:', filteredArticles.length);
       
       // Filter teams
       const filteredTeams = allTeams.filter(team => {
@@ -437,7 +442,7 @@
           return;
         }
         
-        container.innerHTML = filteredArticles.slice(0, 50).map(article => {
+        const articlesHtml = filteredArticles.slice(0, 50).map(article => {
           const excerpt = stripHtml(article.excerpt || article.content || '').substring(0, 150);
           const date = article.published_at ? formatDate(article.published_at) : '';
           const image = article.featured_image_url || '/logo.png';
@@ -453,6 +458,9 @@
             </a>
           `;
         }).join('');
+        
+        console.log('[Search] Generated HTML length:', articlesHtml.length);
+        container.innerHTML = articlesHtml;
       } else {
         infoEl.textContent = `${filteredTeams.length} team${filteredTeams.length !== 1 ? 's' : ''} found for "${currentQuery}"`;
         
