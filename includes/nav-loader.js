@@ -439,28 +439,25 @@
     if (mobileClose) mobileClose.addEventListener('click', closeDrawer);
     if (mobileOverlay) mobileOverlay.addEventListener('click', closeDrawer);
 
-    // Expandable submenus - use event delegation on the drawer
+    // Expandable submenus - simplified for better mobile compatibility
     mobileDrawer.addEventListener('click', (e) => {
-      // Find if click was within an expandable item
-      const expandableItem = e.target.closest('.mobile-nav-item[data-expandable]');
-      if (!expandableItem) return;
-      
       // If click was on a subnav link, let it navigate normally
-      const subnavLink = e.target.closest('.mobile-subnav a');
-      if (subnavLink) return;
+      if (e.target.closest('.mobile-subnav a')) {
+        return;
+      }
       
-      // Get the main link (not subnav links)
-      const mainLink = expandableItem.querySelector(':scope > a, :scope > .mobile-nav-link');
-      if (!mainLink) return;
+      // Check if click was on the main link of an expandable item
+      const clickedLink = e.target.closest('.mobile-nav-item[data-expandable] > .mobile-nav-link');
+      const clickedItem = e.target.closest('.mobile-nav-item[data-expandable]');
       
-      // Check if click was on the main link area (not the subnav)
-      const subnav = expandableItem.querySelector('.mobile-subnav');
-      const clickedInSubnav = subnav && subnav.contains(e.target);
-      
-      if (!clickedInSubnav) {
+      // Only toggle if we clicked directly on the expandable item's main link area
+      if (clickedLink || (clickedItem && !e.target.closest('.mobile-subnav'))) {
         e.preventDefault();
         e.stopPropagation();
-        expandableItem.classList.toggle('expanded');
+        if (clickedItem) {
+          clickedItem.classList.toggle('expanded');
+          console.log('[Nav] Mobile menu expanded:', clickedItem.classList.contains('expanded'));
+        }
       }
     });
 
@@ -501,20 +498,39 @@
     const searchDropdown = document.getElementById('searchDropdown');
     const searchInput = document.getElementById('searchInput');
 
-    if (!searchToggle || !searchDropdown) return;
+    console.log('[Nav] initHeaderSearch called');
+    console.log('[Nav] searchToggle:', searchToggle);
+    console.log('[Nav] searchDropdown:', searchDropdown);
+
+    if (!searchToggle || !searchDropdown) {
+      console.error('[Nav] Search elements not found - searchToggle:', !!searchToggle, 'searchDropdown:', !!searchDropdown);
+      return;
+    }
+
+    console.log('[Nav] Attaching search toggle click listener');
 
     // Toggle search dropdown
     searchToggle.addEventListener('click', (e) => {
+      e.preventDefault();
       e.stopPropagation();
+      console.log('[Nav] Search toggle clicked');
       searchDropdown.classList.toggle('active');
+      console.log('[Nav] Search dropdown active:', searchDropdown.classList.contains('active'));
       if (searchDropdown.classList.contains('active') && searchInput) {
-        searchInput.focus();
+        setTimeout(() => searchInput.focus(), 50);
       }
     });
 
     // Close on outside click
     document.addEventListener('click', (e) => {
       if (!searchDropdown.contains(e.target) && !searchToggle.contains(e.target)) {
+        searchDropdown.classList.remove('active');
+      }
+    });
+
+    // Close on Escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && searchDropdown.classList.contains('active')) {
         searchDropdown.classList.remove('active');
       }
     });
@@ -527,6 +543,8 @@
         }
       });
     }
+
+    console.log('[Nav] Header search initialized successfully');
   }
 
   /**
