@@ -26,7 +26,7 @@ const state = {
 };
 
 // ===== SUPABASE CLIENT =====
-let supabase = null;
+var supabase = supabase || null;
 
 function initSupabase() {
   if (window.supabase && !supabase) {
