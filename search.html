@@ -254,15 +254,15 @@
   <main class="search-page">
     <div class="search-header">
       <h1>&#128269; Search Ball603</h1>
-      <form class="search-form" onsubmit="performSearch(event)">
+      <form class="search-form" id="searchForm">
         <input type="text" id="searchQuery" class="search-input" placeholder="Search articles, teams..." autofocus>
         <button type="submit" class="search-btn">Search</button>
       </form>
     </div>
     
     <div id="searchTabs" class="search-tabs" style="display: none;">
-      <button class="search-tab active" data-tab="articles">Articles <span class="result-count" id="articleCount"></span></button>
-      <button class="search-tab" data-tab="teams">Teams <span class="result-count" id="teamCount"></span></button>
+      <button type="button" class="search-tab active" id="tabArticles">Articles <span class="result-count" id="articleCount"></span></button>
+      <button type="button" class="search-tab" id="tabTeams">Teams <span class="result-count" id="teamCount"></span></button>
     </div>
     
     <div id="searchResultsInfo" class="search-results-info"></div>
@@ -301,196 +301,219 @@
   <script src="/includes/nav-loader.js"></script>
   
   <script>
+    // Supabase setup
     var SUPABASE_URL = 'https://suncdkxfqkwwnmhosxcf.supabase.co';
     var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN1bmNka3hmcWt3d25taG9zeGNmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwNTk4MzIsImV4cCI6MjA4MDYzNTgzMn0.aT6V8Zx_YozqOh1ZnC6x-czI9vo-QhHKmP69PgY-8xw';
     var supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     
+    // State
     var allArticles = [];
     var allTeams = [];
     var currentTab = 'articles';
     var currentQuery = '';
     
-    // Get query from URL on page load
-    document.addEventListener('DOMContentLoaded', async function() {
+    // DOM elements
+    var searchForm = document.getElementById('searchForm');
+    var searchInput = document.getElementById('searchQuery');
+    var searchTabs = document.getElementById('searchTabs');
+    var tabArticles = document.getElementById('tabArticles');
+    var tabTeams = document.getElementById('tabTeams');
+    var articleCount = document.getElementById('articleCount');
+    var teamCount = document.getElementById('teamCount');
+    var resultsInfo = document.getElementById('searchResultsInfo');
+    var resultsContainer = document.getElementById('searchResults');
+    
+    // Initialize on page load
+    window.onload = function() {
+      // Check for query in URL
       var params = new URLSearchParams(window.location.search);
       var query = params.get('q');
       
       if (query) {
-        document.getElementById('searchQuery').value = query;
-        document.getElementById('searchResults').innerHTML = '<div class="loading">Loading...</div>';
-        await loadData();
-        search(query);
+        searchInput.value = query;
+        doSearch(query);
       }
       
-      // Tab switching
-      var tabs = document.querySelectorAll('.search-tab');
-      for (var i = 0; i < tabs.length; i++) {
-        tabs[i].addEventListener('click', function(e) {
-          var allTabs = document.querySelectorAll('.search-tab');
-          for (var j = 0; j < allTabs.length; j++) {
-            allTabs[j].classList.remove('active');
-          }
-          e.target.classList.add('active');
-          currentTab = e.target.dataset.tab;
-          renderResults();
-        });
-      }
-    });
+      // Form submit handler
+      searchForm.onsubmit = function(e) {
+        e.preventDefault();
+        var query = searchInput.value.trim();
+        if (query) {
+          window.history.replaceState({}, '', '/search?q=' + encodeURIComponent(query));
+          doSearch(query);
+        }
+      };
+      
+      // Tab click handlers
+      tabArticles.onclick = function() {
+        currentTab = 'articles';
+        tabArticles.className = 'search-tab active';
+        tabTeams.className = 'search-tab';
+        showResults();
+      };
+      
+      tabTeams.onclick = function() {
+        currentTab = 'teams';
+        tabArticles.className = 'search-tab';
+        tabTeams.className = 'search-tab active';
+        showResults();
+      };
+    };
     
-    async function loadData() {
+    // Main search function
+    function doSearch(query) {
+      currentQuery = query.toLowerCase();
+      resultsContainer.innerHTML = '<div class="loading">Loading...</div>';
+      
+      // Load data if needed, then show results
+      if (allArticles.length === 0) {
+        loadData(function() {
+          searchTabs.style.display = 'flex';
+          showResults();
+        });
+      } else {
+        searchTabs.style.display = 'flex';
+        showResults();
+      }
+    }
+    
+    // Load data from Supabase
+    function loadData(callback) {
+      var articlesLoaded = false;
+      var teamsLoaded = false;
+      
+      function checkDone() {
+        if (articlesLoaded && teamsLoaded && callback) {
+          callback();
+        }
+      }
+      
       // Load articles
-      var articlesResult = await supabase
+      supabase
         .from('articles')
         .select('*')
         .eq('status', 'published')
-        .order('published_at', { ascending: false });
+        .order('published_at', { ascending: false })
+        .then(function(result) {
+          allArticles = result.data || [];
+          articlesLoaded = true;
+          checkDone();
+        });
       
-      allArticles = articlesResult.data || [];
-      
-      // Load teams - use full_name for ordering (matches app.js)
-      var teamsResult = await supabase
+      // Load teams
+      supabase
         .from('teams')
         .select('*')
         .eq('active', true)
-        .order('full_name');
-      
-      allTeams = teamsResult.data || [];
+        .order('full_name')
+        .then(function(result) {
+          allTeams = result.data || [];
+          teamsLoaded = true;
+          checkDone();
+        });
     }
     
-    async function performSearch(e) {
-      e.preventDefault();
-      var query = document.getElementById('searchQuery').value.trim();
-      if (!query) return;
-      
-      // Update URL
-      window.history.replaceState({}, '', '/search?q=' + encodeURIComponent(query));
-      
-      if (allArticles.length === 0) {
-        document.getElementById('searchResults').innerHTML = '<div class="loading">Loading...</div>';
-        await loadData();
-      }
-      
-      search(query);
-    }
-    
-    function search(query) {
-      currentQuery = query.toLowerCase();
-      document.getElementById('searchTabs').style.display = 'flex';
-      renderResults();
-    }
-    
-    function renderResults() {
-      var container = document.getElementById('searchResults');
-      var infoEl = document.getElementById('searchResultsInfo');
-      
+    // Display results
+    function showResults() {
       // Filter articles
       var filteredArticles = [];
       for (var i = 0; i < allArticles.length; i++) {
-        var article = allArticles[i];
-        var title = (article.title || '').toLowerCase();
-        var content = (article.content || '').toLowerCase();
-        var excerpt = (article.excerpt || '').toLowerCase();
-        var tags = (article.tags || []).join(' ').toLowerCase();
-        
-        if (title.indexOf(currentQuery) !== -1 || 
-            content.indexOf(currentQuery) !== -1 || 
-            excerpt.indexOf(currentQuery) !== -1 ||
-            tags.indexOf(currentQuery) !== -1) {
-          filteredArticles.push(article);
+        var a = allArticles[i];
+        var searchText = (a.title || '') + ' ' + (a.content || '') + ' ' + (a.excerpt || '') + ' ' + (a.tags || []).join(' ');
+        if (searchText.toLowerCase().indexOf(currentQuery) !== -1) {
+          filteredArticles.push(a);
         }
       }
       
       // Filter teams
       var filteredTeams = [];
       for (var i = 0; i < allTeams.length; i++) {
-        var team = allTeams[i];
-        var shortname = (team.shortname || '').toLowerCase();
-        var fullName = (team.full_name || '').toLowerCase();
-        var mascot = (team.mascot || '').toLowerCase();
-        
-        if (shortname.indexOf(currentQuery) !== -1 || 
-            fullName.indexOf(currentQuery) !== -1 ||
-            mascot.indexOf(currentQuery) !== -1) {
-          filteredTeams.push(team);
+        var t = allTeams[i];
+        var searchText = (t.shortname || '') + ' ' + (t.full_name || '') + ' ' + (t.mascot || '');
+        if (searchText.toLowerCase().indexOf(currentQuery) !== -1) {
+          filteredTeams.push(t);
         }
       }
       
-      // Update counts
-      document.getElementById('articleCount').textContent = '(' + filteredArticles.length + ')';
-      document.getElementById('teamCount').textContent = '(' + filteredTeams.length + ')';
+      // Update tab counts
+      articleCount.textContent = '(' + filteredArticles.length + ')';
+      teamCount.textContent = '(' + filteredTeams.length + ')';
+      
+      // Build HTML based on current tab
+      var html = '';
       
       if (currentTab === 'articles') {
-        infoEl.textContent = filteredArticles.length + ' article' + (filteredArticles.length !== 1 ? 's' : '') + ' found for "' + currentQuery + '"';
+        resultsInfo.textContent = filteredArticles.length + ' article' + (filteredArticles.length !== 1 ? 's' : '') + ' found for "' + currentQuery + '"';
         
         if (filteredArticles.length === 0) {
-          container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">&#128240;</div><p>No articles found matching "' + escapeHtml(currentQuery) + '"</p></div>';
-          return;
+          html = '<div class="empty-state"><div class="empty-state-icon">&#128240;</div><p>No articles found matching "' + escapeHtml(currentQuery) + '"</p></div>';
+        } else {
+          for (var i = 0; i < filteredArticles.length && i < 50; i++) {
+            var article = filteredArticles[i];
+            var title = escapeHtml(article.title || 'Untitled');
+            var slug = article.slug || '';
+            var excerpt = stripHtml(article.excerpt || article.content || '').substring(0, 150);
+            var date = article.published_at ? formatDate(article.published_at) : '';
+            var image = article.featured_image_url || '/logo.png';
+            
+            html += '<a href="/article/' + slug + '" class="article-result">';
+            html += '<img src="' + image + '" alt="" class="article-result-image" onerror="this.src=\'/logo.png\'">';
+            html += '<div class="article-result-content">';
+            html += '<h3 class="article-result-title">' + title + '</h3>';
+            html += '<p class="article-result-excerpt">' + excerpt + '...</p>';
+            html += '<div class="article-result-meta">' + date + '</div>';
+            html += '</div></a>';
+          }
         }
-        
-        var html = '';
-        var max = Math.min(filteredArticles.length, 50);
-        for (var i = 0; i < max; i++) {
-          var article = filteredArticles[i];
-          var excerpt = stripHtml(article.excerpt || article.content || '').substring(0, 150);
-          var date = article.published_at ? formatDate(article.published_at) : '';
-          var image = article.featured_image_url || '/logo.png';
-          
-          html += '<a href="/article/' + article.slug + '" class="article-result">';
-          html += '<img src="' + image + '" alt="" class="article-result-image" onerror="this.src=\'/logo.png\'">';
-          html += '<div class="article-result-content">';
-          html += '<h3 class="article-result-title">' + escapeHtml(article.title) + '</h3>';
-          html += '<p class="article-result-excerpt">' + excerpt + '...</p>';
-          html += '<div class="article-result-meta">' + date + '</div>';
-          html += '</div></a>';
-        }
-        container.innerHTML = html;
-        
       } else {
-        infoEl.textContent = filteredTeams.length + ' team' + (filteredTeams.length !== 1 ? 's' : '') + ' found for "' + currentQuery + '"';
+        resultsInfo.textContent = filteredTeams.length + ' team' + (filteredTeams.length !== 1 ? 's' : '') + ' found for "' + currentQuery + '"';
         
         if (filteredTeams.length === 0) {
-          container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">&#127936;</div><p>No teams found matching "' + escapeHtml(currentQuery) + '"</p></div>';
-          return;
+          html = '<div class="empty-state"><div class="empty-state-icon">&#127936;</div><p>No teams found matching "' + escapeHtml(currentQuery) + '"</p></div>';
+        } else {
+          for (var i = 0; i < filteredTeams.length; i++) {
+            var team = filteredTeams[i];
+            var name = escapeHtml(team.full_name || team.shortname || 'Unknown');
+            var shortname = team.shortname || '';
+            var logoFile = team.logo_filename || (shortname.replace(/[^a-zA-Z0-9]/g, '') + '.png');
+            var infoParts = [];
+            if (team.gender) infoParts.push(team.gender);
+            if (team.level) infoParts.push(team.level);
+            if (team.division) infoParts.push(team.division);
+            var info = infoParts.join(' &#8226; ');
+            
+            html += '<a href="/' + shortname + '" class="team-result">';
+            html += '<img src="/logos/100px/' + logoFile + '" alt="" class="team-result-logo" onerror="this.src=\'/logo.png\'">';
+            html += '<div>';
+            html += '<div class="team-result-name">' + name + '</div>';
+            html += '<div class="team-result-info">' + info + '</div>';
+            html += '</div></a>';
+          }
         }
-        
-        var html = '';
-        for (var i = 0; i < filteredTeams.length; i++) {
-          var team = filteredTeams[i];
-          var logoFile = team.logo_filename || (team.shortname ? team.shortname.replace(/[^a-zA-Z0-9]/g, '') + '.png' : 'default.png');
-          var logo = '/logos/100px/' + logoFile;
-          var infoParts = [];
-          if (team.gender) infoParts.push(team.gender);
-          if (team.level) infoParts.push(team.level);
-          if (team.division) infoParts.push(team.division);
-          var info = infoParts.join(' &#8226; ');
-          
-          html += '<a href="/' + team.shortname + '" class="team-result">';
-          html += '<img src="' + logo + '" alt="" class="team-result-logo" onerror="this.src=\'/logo.png\'">';
-          html += '<div>';
-          html += '<div class="team-result-name">' + escapeHtml(team.full_name || team.shortname) + '</div>';
-          html += '<div class="team-result-info">' + info + '</div>';
-          html += '</div></a>';
-        }
-        container.innerHTML = html;
       }
+      
+      // Set the HTML
+      resultsContainer.innerHTML = html;
     }
     
-    function stripHtml(html) {
+    // Utility functions
+    function stripHtml(str) {
       var div = document.createElement('div');
-      div.innerHTML = html;
+      div.innerHTML = str || '';
       return div.textContent || div.innerText || '';
     }
     
-    function escapeHtml(text) {
-      if (!text) return '';
+    function escapeHtml(str) {
+      if (!str) return '';
       var div = document.createElement('div');
-      div.textContent = text;
+      div.textContent = str;
       return div.innerHTML;
     }
     
     function formatDate(dateStr) {
-      var date = new Date(dateStr);
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      var d = new Date(dateStr);
+      var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return months[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
     }
   </script>
 </body>
