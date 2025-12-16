@@ -245,8 +245,8 @@ export const handler = async (event) => {
       if (images.length > 0) {
         const img = images[0];
         const sizes = img.Uris?.ImageSizes?.ImageSizes || {};
-        // Use ThumbImageUrl first for faster loading on galleries page
-        thumbUrl = sizes.ThumbImageUrl || sizes.SmallImageUrl || img.ThumbnailUrl;
+        // Use SmallImageUrl for good balance of quality and speed
+        thumbUrl = sizes.SmallImageUrl || sizes.ThumbImageUrl || img.ThumbnailUrl;
       }
       
       return {
