@@ -603,22 +603,29 @@
     // ===== LOAD GALLERIES =====
     async function loadGalleries() {
       try {
-        // Load galleries
-        const { data: galleries, error } = await supabase
-          .from('smugmug_albums')
-          .select('*')
-          .eq('hidden', false)
-          .order('pinned', { ascending: false })
-          .order('album_date', { ascending: false });
-
-        if (error) throw error;
-
-        allGalleries = galleries || [];
-
-        // Load team tags
-        await loadTeamTags();
+        // Fetch albums directly from SmugMug API
+        const response = await fetch('/.netlify/functions/smugmug?action=albums');
+        const data = await response.json();
+        
+        if (!data.success) throw new Error('Failed to load albums');
+        
+        // Map API response to expected format
+        allGalleries = (data.albums || []).map(album => ({
+          album_key: album.key,
+          name: album.name,
+          album_url: album.url,
+          image_count: album.imageCount,
+          album_date: album.date,
+          thumbnail_url: null, // Will be loaded separately
+          pinned: false,
+          hidden: false
+        }));
         
         renderGalleries();
+        
+        // Load thumbnails in background for visible galleries
+        loadThumbnails();
+        
       } catch (err) {
         console.error('Error loading galleries:', err);
         document.getElementById('galleriesContainer').innerHTML = `
@@ -627,6 +634,31 @@
             <p>Unable to load galleries. Please try again later.</p>
           </div>
         `;
+      }
+    }
+    
+    // ===== LOAD THUMBNAILS =====
+    async function loadThumbnails() {
+      // Load thumbnails for first 20 galleries initially
+      const galleriesNeedingThumbs = allGalleries.filter(g => !g.thumbnail_url).slice(0, 20);
+      
+      for (const gallery of galleriesNeedingThumbs) {
+        try {
+          const response = await fetch(`/.netlify/functions/smugmug?action=albumThumb&albumKey=${gallery.album_key}`);
+          const data = await response.json();
+          
+          if (data.success && data.thumbnailUrl) {
+            gallery.thumbnail_url = data.thumbnailUrl;
+            
+            // Update the image in the DOM if it exists
+            const img = document.querySelector(`[data-album-key="${gallery.album_key}"] img`);
+            if (img) {
+              img.src = getHighQualityThumb(data.thumbnailUrl);
+            }
+          }
+        } catch (err) {
+          console.error('Error loading thumbnail for', gallery.album_key, err);
+        }
       }
     }
 
@@ -699,14 +731,14 @@
     }
 
     function renderGalleryCard(gallery, isPinned = false) {
-      const thumbnail = getHighQualityThumb(gallery.thumbnail_url) || '';
+      const thumbnail = getHighQualityThumb(gallery.thumbnail_url) || '/logo.png';
       const tags = galleryTeamTags[gallery.album_key] || [];
       const albumUrl = gallery.album_url || `https://ball603.smugmug.com/`;
 
       return `
-        <a href="${albumUrl}" target="_blank" class="gallery-card ${isPinned ? 'pinned' : ''}">
+        <a href="${albumUrl}" target="_blank" class="gallery-card ${isPinned ? 'pinned' : ''}" data-album-key="${gallery.album_key}">
           <div class="gallery-thumbnail">
-            <img src="${thumbnail}" alt="${escapeHtml(gallery.name)}" onerror="if(!this.dataset.tried){this.dataset.tried='1';this.src='${gallery.thumbnail_url||''}'}else{this.src='/logo.png';this.style.objectFit='contain';this.style.padding='20px';}">
+            <img src="${thumbnail}" alt="${escapeHtml(gallery.name)}" onerror="this.src='/logo.png';this.style.objectFit='contain';this.style.padding='20px';">
             <div class="gallery-overlay">
               <span class="gallery-overlay-text">View Gallery →</span>
             </div>
