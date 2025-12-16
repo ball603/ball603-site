@@ -9024,15 +9024,30 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       renderBonusAlbumGrid(document.getElementById('bonusAlbumSearch').value);
     }
     
-    function selectBonusGalleryAlbum() {
+    async function selectBonusGalleryAlbum() {
       if (!selectedBonusAlbum || !currentBonusSlot) return;
       
       const photographer = document.getElementById('bonusGalleryPhotographerSelect').value;
       
-      // Store values in hidden fields
+      // Store URL and photographer
       document.getElementById(`bonusGallery${currentBonusSlot}Url`).value = selectedBonusAlbum.url;
-      document.getElementById(`bonusGallery${currentBonusSlot}ThumbUrl`).value = selectedBonusAlbum.highlightImage || '';
       document.getElementById(`bonusGallery${currentBonusSlot}Photographer`).value = photographer || '';
+      
+      // Fetch thumbnail from SmugMug API
+      let thumbUrl = selectedBonusAlbum.highlightImage || '';
+      if (!thumbUrl && selectedBonusAlbum.key) {
+        try {
+          const response = await fetch(`/.netlify/functions/smugmug?action=albumThumb&albumKey=${selectedBonusAlbum.key}`);
+          const data = await response.json();
+          if (data.success && data.thumbnailUrl) {
+            thumbUrl = data.thumbnailUrl;
+          }
+        } catch (err) {
+          console.error('Error fetching thumbnail:', err);
+        }
+      }
+      
+      document.getElementById(`bonusGallery${currentBonusSlot}ThumbUrl`).value = thumbUrl;
       
       // Update preview
       updateBonusGalleryPreview(currentBonusSlot);
