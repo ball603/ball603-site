@@ -774,13 +774,16 @@
         const { data: articles, error } = await supabase
           .from('articles')
           .select('*')
-          .or('tags.cs.["jam-session"],tags.cs.["Jam-Session"]')
           .eq('status', 'published')
           .order('article_date', { ascending: false });
 
         if (error) throw error;
 
-        const allArticles = articles || [];
+        // Filter for jam-session tag (case-insensitive)
+        const allArticles = (articles || []).filter(article => {
+          if (!article.tags || !Array.isArray(article.tags)) return false;
+          return article.tags.some(tag => tag.toLowerCase() === 'jam-session');
+        });
         
         if (allArticles.length === 0) {
           renderEmpty();
