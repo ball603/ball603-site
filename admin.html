@@ -334,6 +334,11 @@
     .gc-template-thumb { width: 100%; aspect-ratio: 4/5; object-fit: cover; border-radius: 4px; margin-bottom: 10px; background: #f0f0f0; }
     .gc-template-name { font-size: 13px; font-weight: 500; color: #333; margin-bottom: 4px; }
     .gc-template-desc { font-size: 11px; color: #888; }
+    .gc-align-btn { width: 28px; height: 26px; border: 1px solid #ddd; background: #fff; border-radius: 4px; cursor: pointer; font-size: 12px; display: flex; align-items: center; justify-content: center; }
+    .gc-align-btn:hover { background: #f5f5f5; border-color: #ccc; }
+    .gc-align-btn:active { background: #e8e8e8; }
+    .gc-polygon-drawing { cursor: crosshair !important; }
+    .gc-polygon-point { fill: #f57c00; stroke: #fff; stroke-width: 2; }
   </style>
 </head>
 <body>
@@ -3068,6 +3073,29 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
                 <option value="1200x630">Facebook Post (1200×630)</option>
                 <option value="1200x675">Twitter Post (1200×675)</option>
               </select>
+            </div>
+          </div>
+          
+          <!-- School Colors (for variables) -->
+          <div class="gc-sidebar-card">
+            <div class="gc-card-header" onclick="toggleGcCard(this)">
+              <span>&#127912; School Colors</span>
+              <span class="gc-toggle">&#9660;</span>
+            </div>
+            <div class="gc-card-body">
+              <select id="gcCreatorTeamSelect" onchange="applyCreatorTeamColors()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; margin-bottom: 10px;">
+                <option value="">Select team for color variables...</option>
+              </select>
+              <div style="display: flex; gap: 10px;">
+                <div style="flex: 1; text-align: center;">
+                  <div id="gcCreatorPrimaryPreview" style="width: 100%; height: 30px; background: #1e3a8a; border-radius: 4px; border: 1px solid #ddd;"></div>
+                  <div style="font-size: 10px; color: #888; margin-top: 4px;">{{primary}}</div>
+                </div>
+                <div style="flex: 1; text-align: center;">
+                  <div id="gcCreatorSecondaryPreview" style="width: 100%; height: 30px; background: #fbbf24; border-radius: 4px; border: 1px solid #ddd;"></div>
+                  <div style="font-size: 10px; color: #888; margin-top: 4px;">{{secondary}}</div>
+                </div>
+              </div>
             </div>
           </div>
           
@@ -11289,17 +11317,20 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       
       gcTemplateTeams = teams;
       
-      // Populate team select in template editor
-      const select = document.getElementById('gcTemplateTeamSelect');
-      if (select) {
-        select.innerHTML = '<option value="">Select team...</option>';
+      // Group teams by level
+      const grouped = {};
+      teams.forEach(t => {
+        const key = t.level || 'Other';
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(t);
+      });
+      
+      // Helper to populate a select element
+      function populateTeamSelect(selectId) {
+        const select = document.getElementById(selectId);
+        if (!select) return;
         
-        const grouped = {};
-        teams.forEach(t => {
-          const key = t.level || 'Other';
-          if (!grouped[key]) grouped[key] = [];
-          grouped[key].push(t);
-        });
+        select.innerHTML = '<option value="">Select team...</option>';
         
         Object.keys(grouped).sort().forEach(level => {
           const optgroup = document.createElement('optgroup');
@@ -11314,6 +11345,29 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           });
           select.appendChild(optgroup);
         });
+      }
+      
+      // Populate both selects
+      populateTeamSelect('gcTemplateTeamSelect');
+      populateTeamSelect('gcCreatorTeamSelect');
+    }
+    
+    function applyCreatorTeamColors() {
+      const select = document.getElementById('gcCreatorTeamSelect');
+      const option = select?.selectedOptions[0];
+      
+      if (option && option.dataset.primary) {
+        gcTemplatePrimary = option.dataset.primary;
+        gcTemplateSecondary = option.dataset.secondary || '#666666';
+        
+        // Update preview swatches
+        const primaryPreview = document.getElementById('gcCreatorPrimaryPreview');
+        const secondaryPreview = document.getElementById('gcCreatorSecondaryPreview');
+        if (primaryPreview) primaryPreview.style.background = gcTemplatePrimary;
+        if (secondaryPreview) secondaryPreview.style.background = gcTemplateSecondary;
+        
+        // Re-render canvas with new colors
+        renderGcCanvas();
       }
     }
     
@@ -11665,6 +11719,18 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       html += `
         <hr style="border: none; border-top: 1px solid #eee; margin: 10px 0;">
         <div class="gc-layer-field">
+          <label>Align</label>
+          <div style="display: flex; gap: 4px; margin-bottom: 6px;">
+            <button onclick="alignLayer('${layer.id}', 'left')" class="gc-align-btn" title="Align Left">◀</button>
+            <button onclick="alignLayer('${layer.id}', 'center-h')" class="gc-align-btn" title="Center Horizontally">⬌</button>
+            <button onclick="alignLayer('${layer.id}', 'right')" class="gc-align-btn" title="Align Right">▶</button>
+            <span style="width: 10px;"></span>
+            <button onclick="alignLayer('${layer.id}', 'top')" class="gc-align-btn" title="Align Top">▲</button>
+            <button onclick="alignLayer('${layer.id}', 'center-v')" class="gc-align-btn" title="Center Vertically">⬍</button>
+            <button onclick="alignLayer('${layer.id}', 'bottom')" class="gc-align-btn" title="Align Bottom">▼</button>
+          </div>
+        </div>
+        <div class="gc-layer-field">
           <label>Opacity: ${layer.opacity}%</label>
           <input type="range" min="0" max="100" value="${layer.opacity}" 
                  onchange="updateLayerSetting('${layer.id}', 'opacity', parseInt(this.value)); this.previousElementSibling.textContent = 'Opacity: ' + this.value + '%'">
@@ -11759,6 +11825,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     function renderImageSettings(layer) {
       const s = layer.settings;
       const hasImage = s.src || s.imageData;
+      const hasPolygonMask = s.mask === 'polygon' && s.polygonPoints?.length > 0;
       
       return `
         <div class="gc-layer-field">
@@ -11783,13 +11850,28 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         </div>
         <div class="gc-layer-field">
           <label>Mask</label>
-          <select onchange="updateLayerSetting('${layer.id}', 'settings.mask', this.value || null)">
+          <select id="maskSelect-${layer.id}" onchange="handleMaskChange('${layer.id}', this.value)">
             <option value="" ${!s.mask ? 'selected' : ''}>None</option>
             <option value="rectangle" ${s.mask === 'rectangle' ? 'selected' : ''}>Rectangle</option>
             <option value="circle" ${s.mask === 'circle' ? 'selected' : ''}>Circle</option>
             <option value="polygon" ${s.mask === 'polygon' ? 'selected' : ''}>Polygon (custom)</option>
           </select>
         </div>
+        ${s.mask === 'polygon' ? `
+          <div class="gc-layer-field">
+            <div style="display: flex; gap: 6px;">
+              <button onclick="startPolygonDrawing('${layer.id}')" class="gc-btn gc-btn-secondary" style="flex: 1; padding: 6px 10px; font-size: 11px;">
+                ${gcPolygonDrawingLayerId === '${layer.id}' ? '🎯 Drawing...' : '✏️ Draw Mask'}
+              </button>
+              ${hasPolygonMask ? `
+                <button onclick="clearPolygonMask('${layer.id}')" class="gc-btn gc-btn-danger" style="padding: 6px 10px; font-size: 11px;">Clear</button>
+              ` : ''}
+            </div>
+            ${hasPolygonMask ? `<div style="font-size: 10px; color: #4caf50; margin-top: 4px;">✓ ${s.polygonPoints.length} points defined</div>` : `
+              <div style="font-size: 10px; color: #888; margin-top: 4px;">Click canvas to add points. Double-click to finish.</div>
+            `}
+          </div>
+        ` : ''}
       `;
     }
     
@@ -11854,6 +11936,195 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       }
       
       renderGcCanvas();
+    }
+    
+    // ===== LAYER ALIGNMENT =====
+    
+    function alignLayer(layerId, alignment) {
+      const layer = gcLayers.find(l => l.id === layerId);
+      if (!layer) return;
+      
+      // Get layer dimensions
+      const layerW = layer.size?.width || gcCanvasWidth;
+      const layerH = layer.size?.height || gcCanvasHeight;
+      
+      // For text/image layers that use center origin, we calculate differently
+      const usesCenterOrigin = (layer.type === 'text' || layer.type === 'image');
+      
+      switch (alignment) {
+        case 'left':
+          layer.position.x = usesCenterOrigin ? layerW / 2 : 0;
+          break;
+        case 'center-h':
+          layer.position.x = gcCanvasWidth / 2;
+          break;
+        case 'right':
+          layer.position.x = usesCenterOrigin ? gcCanvasWidth - layerW / 2 : gcCanvasWidth - layerW;
+          break;
+        case 'top':
+          layer.position.y = usesCenterOrigin ? layerH / 2 : 0;
+          break;
+        case 'center-v':
+          layer.position.y = gcCanvasHeight / 2;
+          break;
+        case 'bottom':
+          layer.position.y = usesCenterOrigin ? gcCanvasHeight - layerH / 2 : gcCanvasHeight - layerH;
+          break;
+      }
+      
+      renderGcCanvas();
+      showToast('Layer aligned', 'success');
+    }
+    
+    // ===== MASK HANDLING =====
+    
+    function handleMaskChange(layerId, maskType) {
+      const layer = gcLayers.find(l => l.id === layerId);
+      if (!layer) return;
+      
+      layer.settings.mask = maskType || null;
+      
+      // Clear polygon points if switching away from polygon
+      if (maskType !== 'polygon') {
+        layer.settings.polygonPoints = null;
+        stopPolygonDrawing();
+      }
+      
+      renderGcLayersList();
+      renderGcCanvas();
+    }
+    
+    // ===== POLYGON MASK DRAWING =====
+    
+    let gcPolygonDrawingLayerId = null;
+    let gcPolygonPoints = [];
+    let gcPolygonPreviewObjects = [];
+    
+    function startPolygonDrawing(layerId) {
+      // If already drawing this layer, stop
+      if (gcPolygonDrawingLayerId === layerId) {
+        stopPolygonDrawing();
+        return;
+      }
+      
+      // Start drawing
+      gcPolygonDrawingLayerId = layerId;
+      gcPolygonPoints = [];
+      
+      // Clear any existing preview objects
+      gcPolygonPreviewObjects.forEach(obj => gcCanvas.remove(obj));
+      gcPolygonPreviewObjects = [];
+      
+      // Add click handler to canvas
+      gcCanvas.on('mouse:down', handlePolygonClick);
+      gcCanvas.on('mouse:dblclick', finishPolygonDrawing);
+      
+      // Visual feedback
+      document.getElementById('gcCanvasContainer').classList.add('gc-polygon-drawing');
+      
+      showToast('Click to add points. Double-click to finish.', 'success');
+      renderGcLayersList();
+    }
+    
+    function handlePolygonClick(e) {
+      if (!gcPolygonDrawingLayerId) return;
+      
+      // Get click position in canvas coordinates (accounting for zoom)
+      const pointer = gcCanvas.getPointer(e.e);
+      const x = pointer.x;
+      const y = pointer.y;
+      
+      // Add point
+      gcPolygonPoints.push({ x, y });
+      
+      // Draw point marker
+      const circle = new fabric.Circle({
+        left: x,
+        top: y,
+        radius: 6 / gcZoomFactor,
+        fill: '#f57c00',
+        stroke: '#fff',
+        strokeWidth: 2 / gcZoomFactor,
+        originX: 'center',
+        originY: 'center',
+        selectable: false,
+        evented: false
+      });
+      gcCanvas.add(circle);
+      gcPolygonPreviewObjects.push(circle);
+      
+      // Draw line to previous point
+      if (gcPolygonPoints.length > 1) {
+        const prev = gcPolygonPoints[gcPolygonPoints.length - 2];
+        const line = new fabric.Line([prev.x, prev.y, x, y], {
+          stroke: '#f57c00',
+          strokeWidth: 2 / gcZoomFactor,
+          strokeDashArray: [5, 5],
+          selectable: false,
+          evented: false
+        });
+        gcCanvas.add(line);
+        gcPolygonPreviewObjects.push(line);
+      }
+      
+      gcCanvas.renderAll();
+    }
+    
+    function finishPolygonDrawing() {
+      if (!gcPolygonDrawingLayerId || gcPolygonPoints.length < 3) {
+        if (gcPolygonPoints.length < 3) {
+          showToast('Need at least 3 points for a polygon', 'error');
+        }
+        return;
+      }
+      
+      // Save points to layer
+      const layer = gcLayers.find(l => l.id === gcPolygonDrawingLayerId);
+      if (layer) {
+        layer.settings.polygonPoints = [...gcPolygonPoints];
+      }
+      
+      // Clean up
+      stopPolygonDrawing();
+      
+      // Re-render
+      renderGcLayersList();
+      renderGcCanvas();
+      
+      showToast(`Polygon mask created with ${gcPolygonPoints.length} points`, 'success');
+    }
+    
+    function stopPolygonDrawing() {
+      // Remove event handlers
+      if (gcCanvas) {
+        gcCanvas.off('mouse:down', handlePolygonClick);
+        gcCanvas.off('mouse:dblclick', finishPolygonDrawing);
+      }
+      
+      // Clear preview objects
+      gcPolygonPreviewObjects.forEach(obj => {
+        if (gcCanvas) gcCanvas.remove(obj);
+      });
+      gcPolygonPreviewObjects = [];
+      
+      // Reset state
+      gcPolygonDrawingLayerId = null;
+      gcPolygonPoints = [];
+      
+      // Remove cursor class
+      document.getElementById('gcCanvasContainer')?.classList.remove('gc-polygon-drawing');
+      
+      if (gcCanvas) gcCanvas.renderAll();
+    }
+    
+    function clearPolygonMask(layerId) {
+      const layer = gcLayers.find(l => l.id === layerId);
+      if (layer) {
+        layer.settings.polygonPoints = null;
+        renderGcLayersList();
+        renderGcCanvas();
+        showToast('Polygon mask cleared', 'success');
+      }
     }
     
     // ===== IMAGE HANDLING =====
@@ -12118,7 +12389,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         
         // Apply mask if set
         if (layer.settings.mask) {
-          applyMask(img, layer.settings.mask, targetW, targetH);
+          applyMask(img, layer.settings.mask, targetW, targetH, layer.settings.polygonPoints);
         }
         
         // Find and replace placeholder
@@ -12147,7 +12418,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       });
     }
     
-    function applyMask(img, maskType, width, height) {
+    function applyMask(img, maskType, width, height, polygonPoints) {
       if (maskType === 'circle') {
         img.set({
           clipPath: new fabric.Circle({
@@ -12165,6 +12436,23 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             originY: 'center',
             rx: 20,
             ry: 20
+          })
+        });
+      } else if (maskType === 'polygon' && polygonPoints?.length >= 3) {
+        // Convert points to Fabric polygon format
+        // Points are stored in absolute canvas coordinates, need to make relative to image center
+        const imgCenterX = img.left;
+        const imgCenterY = img.top;
+        
+        const relativePoints = polygonPoints.map(p => ({
+          x: p.x - imgCenterX,
+          y: p.y - imgCenterY
+        }));
+        
+        img.set({
+          clipPath: new fabric.Polygon(relativePoints, {
+            originX: 'center',
+            originY: 'center'
           })
         });
       }
