@@ -11349,10 +11349,14 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       // Helper to populate a select element
       function populateTeamSelect(selectId) {
         const select = document.getElementById(selectId);
-        if (!select) return;
+        if (!select) {
+          console.log('Select not found:', selectId);
+          return;
+        }
         
         select.innerHTML = '<option value="">Select team...</option>';
         
+        let teamCount = 0;
         Object.keys(grouped).sort().forEach(level => {
           const optgroup = document.createElement('optgroup');
           optgroup.label = level;
@@ -11360,12 +11364,25 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             const opt = document.createElement('option');
             opt.value = t.id;
             opt.textContent = `${t.shortname} (${t.gender || ''} ${t.division || ''})`.trim();
-            opt.dataset.primary = formatHex(t.primary_hex) || '#1e3a8a';
-            opt.dataset.secondary = formatHex(t.secondary_hex) || '#fbbf24';
+            const primary = formatHex(t.primary_hex) || '#1e3a8a';
+            const secondary = formatHex(t.secondary_hex) || '#fbbf24';
+            opt.dataset.primary = primary;
+            opt.dataset.secondary = secondary;
+            
+            // Log Farmington specifically
+            if (t.shortname === 'Farmington') {
+              console.log('Farmington team data:', t);
+              console.log('Farmington colors - raw primary_hex:', t.primary_hex, '-> formatted:', primary);
+              console.log('Farmington colors - raw secondary_hex:', t.secondary_hex, '-> formatted:', secondary);
+            }
+            
             optgroup.appendChild(opt);
+            teamCount++;
           });
           select.appendChild(optgroup);
         });
+        
+        console.log(`Populated ${selectId} with ${teamCount} teams`);
       }
       
       // Populate both selects
@@ -11801,14 +11818,14 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         </div>
         <div class="gc-layer-field">
           <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-            <input type="checkbox" ${s.useSchoolColor ? 'checked' : ''} onchange="updateLayerSetting('${layer.id}', 'settings.useSchoolColor', this.checked); renderGcLayersList()">
+            <input type="checkbox" ${s.useSchoolColor ? 'checked' : ''} onchange="updateLayerSetting('${layer.id}', 'settings.useSchoolColor', this.checked); if(this.checked && !gcLayers.find(l=>l.id==='${layer.id}').settings.schoolColorType) updateLayerSetting('${layer.id}', 'settings.schoolColorType', 'primary'); renderGcLayersList()">
             Use school color variable
           </label>
         </div>
         ${s.useSchoolColor ? `
           <div class="gc-layer-field">
-            <select onchange="updateLayerSetting('${layer.id}', 'settings.schoolColorType', this.value)">
-              <option value="primary" ${s.schoolColorType === 'primary' ? 'selected' : ''}>{{primary}}</option>
+            <select onchange="updateLayerSetting('${layer.id}', 'settings.schoolColorType', this.value); renderGcCanvas()">
+              <option value="primary" ${s.schoolColorType !== 'secondary' ? 'selected' : ''}>{{primary}}</option>
               <option value="secondary" ${s.schoolColorType === 'secondary' ? 'selected' : ''}>{{secondary}}</option>
             </select>
           </div>
@@ -11872,7 +11889,11 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       
       return `
         <div class="gc-layer-field">
-          <div class="gc-dropzone" id="dropzone-${layer.id}" onclick="triggerImageUpload('${layer.id}')">
+          <div class="gc-dropzone" id="dropzone-${layer.id}" 
+               onclick="triggerImageUpload('${layer.id}')"
+               ondragover="event.preventDefault(); this.classList.add('drag-over');"
+               ondragleave="this.classList.remove('drag-over');"
+               ondrop="event.preventDefault(); this.classList.remove('drag-over'); handleDropzoneFile('${layer.id}', event);">
             ${hasImage ? `
               <div style="font-size: 20px; color: #4caf50; margin-bottom: 5px;">✓</div>
               <div class="gc-dropzone-text">Image loaded. Click to replace.</div>
@@ -12256,6 +12277,27 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       reader.readAsDataURL(file);
     }
     
+    function handleDropzoneFile(layerId, event) {
+      const file = event.dataTransfer.files[0];
+      if (!file || !file.type.startsWith('image/')) {
+        showToast('Please drop an image file', 'error');
+        return;
+      }
+      
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const layer = gcLayers.find(l => l.id === layerId);
+        if (layer) {
+          layer.settings.imageData = e.target.result;
+          layer.settings.src = null;
+          renderGcLayersList();
+          renderGcCanvas();
+          showToast('Image loaded', 'success');
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+    
     // Setup dropzone drag and drop
     function setupImageDropzone(layerId) {
       const dropzone = document.getElementById(`dropzone-${layerId}`);
@@ -12381,7 +12423,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       
       // Handle school color variables
       if (layer.settings.useSchoolColor) {
-        color = layer.settings.schoolColorType === 'primary' ? gcTemplatePrimary : gcTemplateSecondary;
+        // Default to primary if schoolColorType is not set or is 'primary'
+        color = layer.settings.schoolColorType === 'secondary' ? gcTemplateSecondary : gcTemplatePrimary;
       }
       
       return new fabric.Rect({
@@ -13076,8 +13119,9 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         }
         
         if (tempLayer.settings.useSchoolColor) {
-          tempLayer.settings.color = tempLayer.settings.schoolColorType === 'primary' 
-            ? gcTemplatePrimary : gcTemplateSecondary;
+          // Default to primary if schoolColorType is not set or is 'primary'
+          tempLayer.settings.color = tempLayer.settings.schoolColorType === 'secondary' 
+            ? gcTemplateSecondary : gcTemplatePrimary;
         }
         
         if (tempLayer.settings.colors) {
