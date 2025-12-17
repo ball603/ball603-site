@@ -11358,6 +11358,16 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           return;
         }
         
+        // Create clip mask - polygon from top of canvas to the angled bar
+        const clipPath = new fabric.Polygon([
+          { x: 0, y: 0 },
+          { x: GC_PREVIEW_WIDTH, y: 0 },
+          { x: GC_PREVIEW_WIDTH, y: GC_DIVIDER_END_Y * GC_PREVIEW_SCALE },
+          { x: 0, y: GC_DIVIDER_START_Y * GC_PREVIEW_SCALE }
+        ], {
+          absolutePositioned: true
+        });
+        
         // Scale to fit the upper portion of canvas
         const maxWidth = GC_PREVIEW_WIDTH;
         const maxHeight = GC_PREVIEW_HEIGHT * 0.65;
@@ -11371,7 +11381,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           top: maxHeight / 2,
           originX: 'center',
           originY: 'center',
-          selectable: true
+          selectable: true,
+          clipPath: clipPath
         });
         
         gcPhotoObject = img;
@@ -11385,7 +11396,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         
         // Update dropzone appearance
         document.getElementById('gcPhotoDropzone').innerHTML = `
-          <div style="font-size: 24px; margin-bottom: 5px;">&#9997;…</div>
+          <div style="font-size: 24px; margin-bottom: 5px;">✓</div>
           <div style="font-size: 12px; color: #4CAF50;">Photo loaded! Drop another to replace.</div>
         `;
         
@@ -11516,8 +11527,19 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       ctx.closePath();
       ctx.fill();
       
-      // Draw photo if exists
+      // Draw photo if exists (clipped to the angled mask area)
       if (gcPhotoObject) {
+        ctx.save();
+        
+        // Create clipping path matching the mask
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(GC_FULL_WIDTH, 0);
+        ctx.lineTo(GC_FULL_WIDTH, GC_DIVIDER_END_Y);
+        ctx.lineTo(0, GC_DIVIDER_START_Y);
+        ctx.closePath();
+        ctx.clip();
+        
         const photoScale = 1 / GC_PREVIEW_SCALE;
         const img = gcPhotoObject.getElement();
         const left = (gcPhotoObject.left - (gcPhotoObject.width * gcPhotoObject.scaleX / 2)) * photoScale;
@@ -11526,6 +11548,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         const height = gcPhotoObject.height * gcPhotoObject.scaleY * photoScale;
         
         ctx.drawImage(img, left, top, width, height);
+        ctx.restore();
       }
       
       // Draw overlay template
