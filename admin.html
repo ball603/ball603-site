@@ -330,6 +330,7 @@
     <div class="tabs tabs-row-2">
       <button class="tab" onclick="showTab('championships')">🏆 Championships</button>
       <button class="tab" onclick="showTab('scorers1k')">🎯 1K Scorers</button>
+      <button class="tab" onclick="showTab('ncaaplayers')">🎓 NCAA Players</button>
     </div>
     
     <!-- Articles List Panel -->
@@ -3822,6 +3823,132 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     </div>
   </div>
 
+  <!-- NCAA Players Panel -->
+  <div class="panel" id="ncaaplayersPanel" style="display: none;">
+    <div class="toolbar" style="flex-wrap: wrap; gap: 10px;">
+      <button class="btn-new" onclick="openNCAAPlayerModal()">
+        <span>+</span> Add Player
+      </button>
+      <div style="margin-left: auto; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+        <select id="ncaaCollegeFilter" onchange="filterNCAAPlayers()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px;">
+          <option value="">All Colleges</option>
+        </select>
+        <select id="ncaaGenderFilter" onchange="filterNCAAPlayers()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px;">
+          <option value="">All Genders</option>
+          <option value="Boys">Boys</option>
+          <option value="Girls">Girls</option>
+        </select>
+        <select id="ncaaDivisionFilter" onchange="filterNCAAPlayers()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px;">
+          <option value="">All Divisions</option>
+          <option value="D1">D1</option>
+          <option value="D2">D2</option>
+          <option value="D3">D3</option>
+          <option value="JUCO">JUCO</option>
+        </select>
+        <select id="ncaaActiveFilter" onchange="filterNCAAPlayers()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px;">
+          <option value="true">Active Only</option>
+          <option value="">All Players</option>
+          <option value="false">Inactive Only</option>
+        </select>
+        <input type="text" id="ncaaSearchBox" placeholder="Search name, school, college..." oninput="filterNCAAPlayers()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px; width: 200px;">
+      </div>
+    </div>
+    
+    <div style="margin-bottom: 15px; padding: 10px 15px; background: #e8f5e9; border-radius: 6px; display: flex; justify-content: space-between; align-items: center;">
+      <span id="ncaaCount" style="font-size: 13px; color: #2e7d32;">Loading...</span>
+      <div style="display: flex; gap: 10px;">
+        <button onclick="exportNCAAPlayers()" style="padding: 6px 12px; background: #e3f2fd; color: #1565c0; border: none; border-radius: 4px; font-size: 12px; cursor: pointer;">Export CSV</button>
+      </div>
+    </div>
+    
+    <div class="article-list" id="ncaaPlayersList" style="margin-top: 15px; max-height: 600px; overflow-y: auto;">
+      <div class="article-row header" style="grid-template-columns: 1fr 180px 180px 60px 60px 100px;">
+        <div>Name</div>
+        <div>High School</div>
+        <div>College</div>
+        <div>Gender</div>
+        <div>Div</div>
+        <div>Actions</div>
+      </div>
+      <div class="loading">Loading players...</div>
+    </div>
+  </div>
+  
+  <!-- NCAA Player Modal -->
+  <div id="ncaaPlayerModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+    <div style="background: white; padding: 30px; border-radius: 12px; max-width: 500px; width: 90%; max-height: 90vh; overflow-y: auto;">
+      <h2 style="margin-top: 0; margin-bottom: 20px;" id="ncaaPlayerModalTitle">Add NCAA Player</h2>
+      <input type="hidden" id="ncaaPlayerId">
+      
+      <div class="form-group" style="margin-bottom: 15px;">
+        <label>Player Name *</label>
+        <input type="text" id="ncaaPlayerName" placeholder="Full name..." style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+      </div>
+      
+      <div class="form-group" style="margin-bottom: 15px;">
+        <label>High School *</label>
+        <input type="text" id="ncaaPlayerHighSchool" placeholder="NH high school..." style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+      </div>
+      
+      <div class="form-group" style="margin-bottom: 15px;">
+        <label>College *</label>
+        <input type="text" id="ncaaPlayerCollege" placeholder="Current college..." style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;" list="collegesList">
+        <datalist id="collegesList"></datalist>
+      </div>
+      
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+        <div class="form-group">
+          <label>Gender</label>
+          <select id="ncaaPlayerGender" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+            <option value="">Unknown</option>
+            <option value="Boys">Boys</option>
+            <option value="Girls">Girls</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Division</label>
+          <select id="ncaaPlayerDivision" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+            <option value="">Unknown</option>
+            <option value="D1">D1</option>
+            <option value="D2">D2</option>
+            <option value="D3">D3</option>
+            <option value="JUCO">JUCO</option>
+            <option value="NAIA">NAIA</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>HS Grad Year</label>
+          <input type="number" id="ncaaPlayerGradYear" placeholder="2024" min="2000" max="2100" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+        </div>
+      </div>
+      
+      <div class="form-group" style="margin-bottom: 15px;">
+        <label>Position</label>
+        <input type="text" id="ncaaPlayerPosition" placeholder="G, F, C..." style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+      </div>
+      
+      <div class="form-group" style="margin-bottom: 15px;">
+        <label>Notes</label>
+        <textarea id="ncaaPlayerNotes" rows="2" placeholder="Optional notes..." style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-family: inherit;"></textarea>
+      </div>
+      
+      <div style="margin-bottom: 20px;">
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+          <input type="checkbox" id="ncaaPlayerActive" checked style="width: 18px; height: 18px;">
+          <span>Currently Active (still playing in college)</span>
+        </label>
+      </div>
+      
+      <div style="display: flex; justify-content: space-between; padding-top: 15px; border-top: 1px solid #eee;">
+        <button id="ncaaPlayerDeleteBtn" onclick="deleteNCAAPlayer()" style="padding: 10px 20px; background: #ffebee; color: #c62828; border: none; border-radius: 5px; cursor: pointer; display: none;">Delete</button>
+        <div style="display: flex; gap: 10px; margin-left: auto;">
+          <button onclick="closeNCAAPlayerModal()" style="padding: 10px 20px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 5px; cursor: pointer;">Cancel</button>
+          <button onclick="saveNCAAPlayer()" style="padding: 10px 20px; background: #f57c00; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500;">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="rosters_data.js"></script>
   <script>
     // Supabase config
@@ -4424,6 +4551,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('settingsPanel').style.display = tab === 'settings' ? 'block' : 'none';
       document.getElementById('championshipsPanel').style.display = tab === 'championships' ? 'block' : 'none';
       document.getElementById('scorers1kPanel').style.display = tab === 'scorers1k' ? 'block' : 'none';
+      document.getElementById('ncaaplayersPanel').style.display = tab === 'ncaaplayers' ? 'block' : 'none';
       document.getElementById('editorPanel').style.display = 'none';
       
       // Load teams when tab is selected
@@ -4484,6 +4612,11 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       // Load 1K Scorers when tab is selected
       if (tab === 'scorers1k' && allScorers1K.length === 0) {
         loadScorers1K();
+      }
+      
+      // Load NCAA Players when tab is selected
+      if (tab === 'ncaaplayers' && allNCAAPlayers.length === 0) {
+        loadNCAAPlayers();
       }
     }
     
@@ -12771,6 +12904,263 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         console.error('Error deleting video:', err);
         showToast('Error deleting video', 'error');
       }
+    }
+    
+    // ===== NCAA PLAYERS MANAGEMENT =====
+    let allNCAAPlayers = [];
+    let ncaaSortField = 'name';
+    let ncaaSortDir = 'asc';
+    
+    async function loadNCAAPlayers() {
+      try {
+        const { data, error } = await db
+          .from('ncaa_players')
+          .select('*')
+          .order('name', { ascending: true });
+        
+        if (error) throw error;
+        
+        allNCAAPlayers = data || [];
+        populateCollegesFilter();
+        populateCollegesDatalist();
+        filterNCAAPlayers();
+        
+      } catch (err) {
+        console.error('Error loading NCAA players:', err);
+        showToast('Error loading NCAA players', 'error');
+        document.getElementById('ncaaPlayersList').innerHTML = `
+          <div class="article-row header" style="grid-template-columns: 1fr 180px 180px 60px 60px 100px;">
+            <div>Name</div><div>High School</div><div>College</div><div>Gender</div><div>Div</div><div>Actions</div>
+          </div>
+          <div style="padding: 40px; text-align: center; color: #999;">Error loading players. Make sure the table exists.</div>`;
+      }
+    }
+    
+    function populateCollegesFilter() {
+      const colleges = [...new Set(allNCAAPlayers.map(p => p.college))].sort();
+      const select = document.getElementById('ncaaCollegeFilter');
+      select.innerHTML = '<option value="">All Colleges</option>' + 
+        colleges.map(c => `<option value="${c}">${c}</option>`).join('');
+    }
+    
+    function populateCollegesDatalist() {
+      const colleges = [...new Set(allNCAAPlayers.map(p => p.college))].sort();
+      const datalist = document.getElementById('collegesList');
+      datalist.innerHTML = colleges.map(c => `<option value="${c}">`).join('');
+    }
+    
+    function filterNCAAPlayers() {
+      const college = document.getElementById('ncaaCollegeFilter').value;
+      const gender = document.getElementById('ncaaGenderFilter').value;
+      const division = document.getElementById('ncaaDivisionFilter').value;
+      const activeFilter = document.getElementById('ncaaActiveFilter').value;
+      const search = document.getElementById('ncaaSearchBox').value.toLowerCase();
+      
+      let filtered = allNCAAPlayers.filter(p => {
+        if (college && p.college !== college) return false;
+        if (gender && p.gender !== gender) return false;
+        if (division && p.division !== division) return false;
+        if (activeFilter === 'true' && p.active === false) return false;
+        if (activeFilter === 'false' && p.active !== false) return false;
+        if (search && !p.name.toLowerCase().includes(search) && 
+            !p.high_school.toLowerCase().includes(search) && 
+            !p.college.toLowerCase().includes(search)) return false;
+        return true;
+      });
+      
+      // Sort
+      filtered.sort((a, b) => {
+        let aVal = a[ncaaSortField];
+        let bVal = b[ncaaSortField];
+        if (aVal === null && bVal === null) return 0;
+        if (aVal === null) return 1;
+        if (bVal === null) return -1;
+        if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+        if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+        if (aVal < bVal) return ncaaSortDir === 'asc' ? -1 : 1;
+        if (aVal > bVal) return ncaaSortDir === 'asc' ? 1 : -1;
+        return 0;
+      });
+      
+      renderNCAAPlayers(filtered);
+    }
+    
+    function renderNCAAPlayers(players) {
+      const container = document.getElementById('ncaaPlayersList');
+      const countEl = document.getElementById('ncaaCount');
+      
+      const activeCount = allNCAAPlayers.filter(p => p.active !== false).length;
+      countEl.textContent = `${players.length} of ${allNCAAPlayers.length} players | ${activeCount} currently active`;
+      
+      if (players.length === 0) {
+        container.innerHTML = `
+          <div class="article-row header" style="grid-template-columns: 1fr 180px 180px 60px 60px 100px;">
+            <div>Name</div><div>High School</div><div>College</div><div>Gender</div><div>Div</div><div>Actions</div>
+          </div>
+          <div style="padding: 40px; text-align: center; color: #999;">No players found</div>`;
+        return;
+      }
+      
+      container.innerHTML = `
+        <div class="article-row header" style="grid-template-columns: 1fr 180px 180px 60px 60px 100px;">
+          <div class="sortable" onclick="sortNCAAPlayers('name')" style="cursor: pointer;">Name ${ncaaSortField === 'name' ? (ncaaSortDir === 'asc' ? '↑' : '↓') : ''}</div>
+          <div class="sortable" onclick="sortNCAAPlayers('high_school')" style="cursor: pointer;">High School ${ncaaSortField === 'high_school' ? (ncaaSortDir === 'asc' ? '↑' : '↓') : ''}</div>
+          <div class="sortable" onclick="sortNCAAPlayers('college')" style="cursor: pointer;">College ${ncaaSortField === 'college' ? (ncaaSortDir === 'asc' ? '↑' : '↓') : ''}</div>
+          <div>Gender</div>
+          <div>Div</div>
+          <div>Actions</div>
+        </div>
+        ${players.map(p => `
+          <div class="article-row ${p.active === false ? '' : ''}" style="grid-template-columns: 1fr 180px 180px 60px 60px 100px; ${p.active === false ? 'opacity: 0.5;' : ''}">
+            <div style="font-weight: 500;">${p.name}${p.active === false ? ' <span style="color: #999; font-size: 11px;">(inactive)</span>' : ''}</div>
+            <div style="font-size: 13px; color: #666;">${p.high_school}</div>
+            <div style="font-size: 13px;">${p.college}</div>
+            <div>${p.gender ? `<span style="background: ${p.gender === 'Boys' ? '#e3f2fd' : '#fce4ec'}; color: ${p.gender === 'Boys' ? '#1565c0' : '#c2185b'}; padding: 2px 6px; border-radius: 10px; font-size: 11px;">${p.gender === 'Boys' ? 'B' : 'G'}</span>` : '<span style="color: #ccc;">—</span>'}</div>
+            <div style="font-size: 12px; color: ${p.division === 'D1' ? '#ff6f00' : '#666'};">${p.division || '—'}</div>
+            <div class="article-actions">
+              <button class="btn-edit" onclick="editNCAAPlayer(${p.id})">Edit</button>
+              <button class="btn-delete" onclick="confirmDeleteNCAAPlayer(${p.id})">Del</button>
+            </div>
+          </div>
+        `).join('')}`;
+    }
+    
+    function sortNCAAPlayers(field) {
+      if (ncaaSortField === field) {
+        ncaaSortDir = ncaaSortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        ncaaSortField = field;
+        ncaaSortDir = 'asc';
+      }
+      filterNCAAPlayers();
+    }
+    
+    function openNCAAPlayerModal(player = null) {
+      document.getElementById('ncaaPlayerId').value = player?.id || '';
+      document.getElementById('ncaaPlayerName').value = player?.name || '';
+      document.getElementById('ncaaPlayerHighSchool').value = player?.high_school || '';
+      document.getElementById('ncaaPlayerCollege').value = player?.college || '';
+      document.getElementById('ncaaPlayerGender').value = player?.gender || '';
+      document.getElementById('ncaaPlayerDivision').value = player?.division || '';
+      document.getElementById('ncaaPlayerGradYear').value = player?.grad_year || '';
+      document.getElementById('ncaaPlayerPosition').value = player?.position || '';
+      document.getElementById('ncaaPlayerNotes').value = player?.notes || '';
+      document.getElementById('ncaaPlayerActive').checked = player?.active !== false;
+      
+      document.getElementById('ncaaPlayerModalTitle').textContent = player ? 'Edit NCAA Player' : 'Add NCAA Player';
+      document.getElementById('ncaaPlayerDeleteBtn').style.display = player ? 'block' : 'none';
+      
+      document.getElementById('ncaaPlayerModal').style.display = 'flex';
+    }
+    
+    function closeNCAAPlayerModal() {
+      document.getElementById('ncaaPlayerModal').style.display = 'none';
+    }
+    
+    function editNCAAPlayer(id) {
+      const player = allNCAAPlayers.find(p => p.id === id);
+      if (player) {
+        openNCAAPlayerModal(player);
+      }
+    }
+    
+    async function saveNCAAPlayer() {
+      const id = document.getElementById('ncaaPlayerId').value;
+      const name = document.getElementById('ncaaPlayerName').value.trim();
+      const high_school = document.getElementById('ncaaPlayerHighSchool').value.trim();
+      const college = document.getElementById('ncaaPlayerCollege').value.trim();
+      const gender = document.getElementById('ncaaPlayerGender').value || null;
+      const division = document.getElementById('ncaaPlayerDivision').value || null;
+      const grad_year = document.getElementById('ncaaPlayerGradYear').value ? parseInt(document.getElementById('ncaaPlayerGradYear').value) : null;
+      const position = document.getElementById('ncaaPlayerPosition').value.trim() || null;
+      const notes = document.getElementById('ncaaPlayerNotes').value.trim() || null;
+      const active = document.getElementById('ncaaPlayerActive').checked;
+      
+      if (!name || !high_school || !college) {
+        showToast('Please enter name, high school, and college', 'error');
+        return;
+      }
+      
+      try {
+        const data = { name, high_school, college, gender, division, grad_year, position, notes, active, updated_at: new Date().toISOString() };
+        
+        if (id) {
+          const { error } = await db.from('ncaa_players').update(data).eq('id', id);
+          if (error) throw error;
+          showToast('Player updated', 'success');
+        } else {
+          const { error } = await db.from('ncaa_players').insert(data);
+          if (error) throw error;
+          showToast('Player added', 'success');
+        }
+        
+        closeNCAAPlayerModal();
+        allNCAAPlayers = [];
+        loadNCAAPlayers();
+        
+      } catch (err) {
+        console.error('Error saving player:', err);
+        showToast('Error saving player: ' + err.message, 'error');
+      }
+    }
+    
+    function confirmDeleteNCAAPlayer(id) {
+      const player = allNCAAPlayers.find(p => p.id === id);
+      if (player && confirm(`Delete ${player.name} (${player.college})?`)) {
+        deleteNCAAPlayerById(id);
+      }
+    }
+    
+    async function deleteNCAAPlayer() {
+      const id = document.getElementById('ncaaPlayerId').value;
+      if (id && confirm('Are you sure you want to delete this player?')) {
+        await deleteNCAAPlayerById(id);
+        closeNCAAPlayerModal();
+      }
+    }
+    
+    async function deleteNCAAPlayerById(id) {
+      try {
+        const { error } = await db.from('ncaa_players').delete().eq('id', id);
+        if (error) throw error;
+        
+        showToast('Player deleted', 'success');
+        allNCAAPlayers = [];
+        loadNCAAPlayers();
+        
+      } catch (err) {
+        console.error('Error deleting player:', err);
+        showToast('Error deleting player', 'error');
+      }
+    }
+    
+    function exportNCAAPlayers() {
+      const college = document.getElementById('ncaaCollegeFilter').value;
+      const gender = document.getElementById('ncaaGenderFilter').value;
+      const activeFilter = document.getElementById('ncaaActiveFilter').value;
+      
+      let filtered = allNCAAPlayers;
+      if (college) filtered = filtered.filter(p => p.college === college);
+      if (gender) filtered = filtered.filter(p => p.gender === gender);
+      if (activeFilter === 'true') filtered = filtered.filter(p => p.active !== false);
+      if (activeFilter === 'false') filtered = filtered.filter(p => p.active === false);
+      
+      const csv = [
+        'Name,High School,College,Gender,Division,Grad Year,Position,Active,Notes',
+        ...filtered.map(p => 
+          `"${p.name}","${p.high_school}","${p.college}",${p.gender || ''},${p.division || ''},${p.grad_year || ''},${p.position || ''},${p.active !== false ? 'Yes' : 'No'},"${(p.notes || '').replace(/"/g, '""')}"`
+        )
+      ].join('\n');
+      
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `603-in-ncaa${college ? '-' + college.toLowerCase().replace(/\s+/g, '-') : ''}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      
+      showToast(`Exported ${filtered.length} players`, 'success');
     }
     
     // ===== CHAMPIONSHIP HISTORY MANAGEMENT =====
