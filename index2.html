@@ -356,23 +356,21 @@
     
     .ticker-day {
       font-size: 9px;
-      color: rgba(255,255,255,0.5);
+      color: rgba(255,255,255,0.4);
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.5px;
+      writing-mode: vertical-rl;
+      transform: rotate(180deg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding-right: 8px;
+      min-width: 18px;
     }
     
-    .ticker-day.today {
+    .ticker-status.has-coverage {
       color: var(--accent);
-    }
-    
-    .ticker-coverage-dot {
-      width: 6px;
-      height: 6px;
-      background: var(--accent);
-      border-radius: 50%;
-      display: inline-block;
-      margin-left: 4px;
     }
     
     .ticker-game.score-updated {
@@ -2035,13 +2033,12 @@
         
         // Get day label
         const dayLabel = getDayAbbrev(game.date, todayStr);
-        const isToday = game.date === todayStr;
         
         // Determine status text
         let statusText, statusClass;
         if (hasScore) {
           statusText = 'Final';
-          statusClass = 'final';
+          statusClass = hasCoverage ? 'final has-coverage' : 'final';
         } else {
           // Use time as-is (already formatted like "5:30 PM")
           const timeStr = game.time || '';
@@ -2067,6 +2064,7 @@
         
         return `
           <div class="${classes.join(' ')}" onclick="location.href='${clickUrl}'">
+            <span class="ticker-day">${dayLabel}</span>
             <div class="ticker-teams">
               <div class="ticker-team">
                 <img class="ticker-logo" src="${Ball603.getLogoUrl(game.away)}" alt="" onerror="this.style.display='none'">
@@ -2081,7 +2079,6 @@
             </div>
             <div class="ticker-info">
               ${isFavorite ? '<span class="ticker-star">★</span>' : ''}
-              <span class="ticker-day ${isToday ? 'today' : ''}">${dayLabel}${hasCoverage ? '<span class="ticker-coverage-dot"></span>' : ''}</span>
               <span class="ticker-gender">${gender}</span>
               <span class="ticker-status ${statusClass}">${statusText}</span>
             </div>
