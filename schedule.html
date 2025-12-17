@@ -271,6 +271,20 @@
       transform: scale(1.2);
     }
     
+    /* Team links - unstyled to match current look */
+    .team-link {
+      text-decoration: none;
+      color: inherit;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .team-link:hover {
+      text-decoration: none;
+      color: inherit;
+    }
+    
     /* Hide mobile cards on desktop */
     .games-grid {
       display: none;
@@ -457,6 +471,16 @@
         display: flex;
         align-items: center;
         gap: 10px;
+      }
+      
+      .team-info.team-link {
+        text-decoration: none;
+        color: inherit;
+      }
+      
+      .team-info.team-link:hover {
+        text-decoration: none;
+        color: inherit;
       }
       
       .team-logo {
@@ -802,6 +826,28 @@
       return n[name] || name;
     }
 
+    function getTeamSlug(teamName) {
+      if (!teamName || teamName === 'TBD') return null;
+      return teamName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    }
+
+    function getTeamLink(teamName, logoFilename, isWinner) {
+      const slug = getTeamSlug(teamName);
+      if (!slug) {
+        return `<span class="matchup-team"><img class="matchup-logo" src="/logos/100px/${logoFilename}" onerror="this.src='/logos/100px/Ball603-white.png'"><span class="matchup-name${isWinner?' winner':''}">${teamName || 'TBD'}</span></span>`;
+      }
+      return `<a href="/team/?team=${slug}#schedules" class="team-link matchup-team"><img class="matchup-logo" src="/logos/100px/${logoFilename}" onerror="this.src='/logos/100px/Ball603-white.png'"><span class="matchup-name${isWinner?' winner':''}">${teamName}</span></a>`;
+    }
+
+    function getMobileTeamLink(teamName, logoFilename, record) {
+      const slug = getTeamSlug(teamName);
+      const teamInfoContent = `<div class="team-logo"><img src="/logos/100px/${logoFilename}" onerror="this.src='/logos/100px/Ball603-white.png'"></div><div><div class="team-name">${teamName || 'TBD'}</div>${record ? '<div class="team-record">'+record+'</div>' : ''}</div>`;
+      if (!slug) {
+        return `<div class="team-info">${teamInfoContent}</div>`;
+      }
+      return `<a href="/team/?team=${slug}#schedules" class="team-info team-link">${teamInfoContent}</a>`;
+    }
+
     async function loadGames() {
       try {
         const response = await fetch('/.netlify/functions/get-games');
@@ -864,9 +910,9 @@
         tableHtml += '<td class="col-level">'+(g.level||'')+'</td>';
         tableHtml += '<td class="col-gender">'+(g.gender||'')+'</td>';
         tableHtml += '<td class="col-matchup"><div class="matchup-row">';
-        tableHtml += '<div class="matchup-team"><img class="matchup-logo" src="/logos/100px/'+getLogoFilename(g.away)+'" onerror="this.src=\'/logos/100px/Ball603-white.png\'"><span class="matchup-name'+(aw?' winner':'')+'">'+(g.away||'TBD')+'</span></div>';
+        tableHtml += getTeamLink(g.away, getLogoFilename(g.away), aw);
         tableHtml += '<span class="matchup-at">@</span>';
-        tableHtml += '<div class="matchup-team"><img class="matchup-logo" src="/logos/100px/'+getLogoFilename(g.home)+'" onerror="this.src=\'/logos/100px/Ball603-white.png\'"><span class="matchup-name'+(hw?' winner':'')+'">'+(g.home||'TBD')+'</span></div>';
+        tableHtml += getTeamLink(g.home, getLogoFilename(g.home), hw);
         tableHtml += '</div></td>';
         tableHtml += '<td class="col-status">'+statusCell+'</td>';
         tableHtml += '<td class="col-coverage">'+(cov||'-')+'</td>';
@@ -878,8 +924,8 @@
         if (g.gamedescription) cardsHtml += '<div class="game-description">'+g.gamedescription+'</div>';
         cardsHtml += '<div class="game-card-header"><span class="game-level">'+(g.gender||'')+' '+(g.level||'')+'</span><span class="game-time">'+td+'</span></div>';
         cardsHtml += '<div class="game-card-body">';
-        cardsHtml += '<div class="game-team"><div class="team-info"><div class="team-logo"><img src="/logos/100px/'+getLogoFilename(g.away)+'" onerror="this.src=\'/logos/100px/Ball603-white.png\'"></div><div><div class="team-name">'+(g.away||'TBD')+'</div>'+(g.away_record?'<div class="team-record">'+g.away_record+'</div>':'')+'</div></div>'+(hasScore?'<div class="team-score'+(aw?' winner':'')+'">'+as+'</div>':'')+'</div>';
-        cardsHtml += '<div class="game-team"><div class="team-info"><div class="team-logo"><img src="/logos/100px/'+getLogoFilename(g.home)+'" onerror="this.src=\'/logos/100px/Ball603-white.png\'"></div><div><div class="team-name">'+(g.home||'TBD')+'</div>'+(g.home_record?'<div class="team-record">'+g.home_record+'</div>':'')+'</div></div>'+(hasScore?'<div class="team-score'+(hw?' winner':'')+'">'+hs+'</div>':'')+'</div>';
+        cardsHtml += '<div class="game-team">'+getMobileTeamLink(g.away, getLogoFilename(g.away), g.away_record)+(hasScore?'<div class="team-score'+(aw?' winner':'')+'">'+as+'</div>':'')+'</div>';
+        cardsHtml += '<div class="game-team">'+getMobileTeamLink(g.home, getLogoFilename(g.home), g.home_record)+(hasScore?'<div class="team-score'+(hw?' winner':'')+'">'+hs+'</div>':'')+'</div>';
         cardsHtml += '</div>';
         if (cov) cardsHtml += '<div class="game-card-footer">'+cov+'</div>';
         cardsHtml += '</div>';
