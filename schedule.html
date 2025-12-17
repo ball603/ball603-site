@@ -8,15 +8,7 @@
   <title>Schedule | Ball603</title>
   <link rel="icon" type="image/png" href="/logo.png">
   <link rel="apple-touch-icon" href="/logo.png">
-  <!-- Google Analytics -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-S4BN80729K"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-    gtag('config', 'G-S4BN80729K');
-  </script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="stylesheet" href="/styles.css">
   <style>
     /* ===== DESKTOP STYLES ===== */
@@ -193,12 +185,8 @@
       color: #666;
     }
     
-    .games-table .col-away {
-      white-space: nowrap;
-    }
-    
-    .games-table .col-home {
-      white-space: nowrap;
+    .games-table .col-matchup {
+      min-width: 300px;
     }
     
     .games-table .col-status {
@@ -740,6 +728,15 @@
     
     let allGames = [], currentDate = getESTDate(), calendarDate = getESTDate();
     currentDate.setHours(0,0,0,0);
+    
+    // Check for date parameter in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const dateParam = urlParams.get('date');
+    if (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
+      const [year, month, day] = dateParam.split('-').map(Number);
+      currentDate = new Date(year, month - 1, day);
+      currentDate.setHours(0,0,0,0);
+    }
 
     function getDateString(d) { return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
     
@@ -801,7 +798,7 @@
 
     function normalizeTeamName(name) {
       if (!name) return name;
-      const n = {'Alvirne High School':'Alvirne','Bedford High School':'Bedford','Belmont High School':'Belmont','Bishop Brady High School':'Bishop Brady','Bishop Guertin High School':'Bishop Guertin','Bow High School':'Bow','Campbell High School':'Campbell','Coe-Brown Northwood Academy':'Coe-Brown','Concord High School':'Concord','Concord Christian Academy':'Concord Christian','ConVal Regional High School':'ConVal','Derryfield School':'Derryfield','Dover High School':'Dover','Exeter High School':'Exeter','Farmington High School':'Farmington','Gilford High School':'Gilford','Goffstown High School':'Goffstown','Hanover High School':'Hanover','Hollis-Brookline High School':'Hollis-Brookline','Keene High School':'Keene','Kennett High School':'Kennett','Kingswood Regional High School':'Kingswood','Laconia High School':'Laconia','Lebanon High School':'Lebanon','Londonderry High School':'Londonderry','Manchester Central High School':'Manchester Central','Manchester Memorial High School':'Manchester Memorial','Manchester West High School':'Manchester West','Mascoma Valley':'Mascoma','Merrimack High School':'Merrimack','Milford High School':'Milford','Nashua High School North':'Nashua North','Nashua High School South':'Nashua South','Oyster River High School':'Oyster River','Pelham High School':'Pelham','Pembroke Academy':'Pembroke','Pinkerton Academy':'Pinkerton','Plymouth Regional High School':'Plymouth','Portsmouth High School':'Portsmouth','Salem High School':'Salem','Souhegan High School':'Souhegan','Spaulding High School':'Spaulding','St. Thomas Aquinas High School':'St. Thomas Aquinas','Timberlane Regional High School':'Timberlane','Trinity High School':'Trinity','Windham High School':'Windham','Winnacunnet High School':'Winnacunnet'};
+      const n = {'Alvirne High School':'Alvirne','Bedford High School':'Bedford','Belmont High School':'Belmont','Bishop Brady High School':'Bishop Brady','Bishop Guertin High School':'Bishop Guertin','Bow High School':'Bow','Campbell High School':'Campbell','Coe-Brown Northwood Academy':'Coe-Brown','Concord High School':'Concord','Concord Christian Academy':'Concord Christian','ConVal Regional High School':'ConVal','Derryfield School':'Derryfield','Dover High School':'Dover','Exeter High School':'Exeter','Farmington High School':'Farmington','Gilford High School':'Gilford','Goffstown High School':'Goffstown','Hanover High School':'Hanover','Hollis-Brookline High School':'Hollis-Brookline','Keene High School':'Keene','Kennett High School':'Kennett','Kingswood Regional High School':'Kingswood','Laconia High School':'Laconia','Lebanon High School':'Lebanon','Londonderry High School':'Londonderry','Manchester Central High School':'Manchester Central','Manchester Memorial High School':'Manchester Memorial','Manchester West High School':'Manchester West','Merrimack High School':'Merrimack','Milford High School':'Milford','Nashua High School North':'Nashua North','Nashua High School South':'Nashua South','Oyster River High School':'Oyster River','Pelham High School':'Pelham','Pembroke Academy':'Pembroke','Pinkerton Academy':'Pinkerton','Plymouth Regional High School':'Plymouth','Portsmouth High School':'Portsmouth','Salem High School':'Salem','Souhegan High School':'Souhegan','Spaulding High School':'Spaulding','St. Thomas Aquinas High School':'St. Thomas Aquinas','Timberlane Regional High School':'Timberlane','Trinity High School':'Trinity','Windham High School':'Windham','Winnacunnet High School':'Winnacunnet'};
       return n[name] || name;
     }
 
@@ -838,7 +835,7 @@
       }
       
       // Desktop table
-      let tableHtml = '<table class="games-table"><thead><tr><th class="col-level">Level</th><th class="col-gender">Gender</th><th class="col-away">Match-up</th><th class="col-home"></th><th class="col-status">Time/Status</th><th class="col-coverage">Coverage</th></tr></thead><tbody>';
+      let tableHtml = '<table class="games-table"><thead><tr><th class="col-level">Level</th><th class="col-gender">Gender</th><th class="col-matchup">Match-up</th><th class="col-status">Time/Status</th><th class="col-coverage">Coverage</th></tr></thead><tbody>';
       
       // Mobile cards
       let cardsHtml = '<div class="games-grid">';
@@ -866,8 +863,11 @@
         tableHtml += '<tr>';
         tableHtml += '<td class="col-level">'+(g.level||'')+'</td>';
         tableHtml += '<td class="col-gender">'+(g.gender||'')+'</td>';
-        tableHtml += '<td class="col-away"><div class="matchup-team"><img class="matchup-logo" src="/logos/100px/'+getLogoFilename(g.away)+'" onerror="this.src=\'/logos/100px/Ball603-white.png\'"><span class="matchup-name'+(aw?' winner':'')+'">'+(g.away||'TBD')+'</span></div></td>';
-        tableHtml += '<td class="col-home"><div class="matchup-team"><span class="matchup-at">@</span> <img class="matchup-logo" src="/logos/100px/'+getLogoFilename(g.home)+'" onerror="this.src=\'/logos/100px/Ball603-white.png\'"><span class="matchup-name'+(hw?' winner':'')+'">'+(g.home||'TBD')+'</span></div></td>';
+        tableHtml += '<td class="col-matchup"><div class="matchup-row">';
+        tableHtml += '<div class="matchup-team"><img class="matchup-logo" src="/logos/100px/'+getLogoFilename(g.away)+'" onerror="this.src=\'/logos/100px/Ball603-white.png\'"><span class="matchup-name'+(aw?' winner':'')+'">'+(g.away||'TBD')+'</span></div>';
+        tableHtml += '<span class="matchup-at">@</span>';
+        tableHtml += '<div class="matchup-team"><img class="matchup-logo" src="/logos/100px/'+getLogoFilename(g.home)+'" onerror="this.src=\'/logos/100px/Ball603-white.png\'"><span class="matchup-name'+(hw?' winner':'')+'">'+(g.home||'TBD')+'</span></div>';
+        tableHtml += '</div></td>';
         tableHtml += '<td class="col-status">'+statusCell+'</td>';
         tableHtml += '<td class="col-coverage">'+(cov||'-')+'</td>';
         tableHtml += '</tr>';
