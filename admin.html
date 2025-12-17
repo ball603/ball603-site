@@ -11302,8 +11302,11 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     }
     
     async function loadGcTeams() {
-      let teams = allTeams;
-      if (teams.length === 0) {
+      // Always query database directly to ensure we have color data
+      // (allTeams from the teams endpoint may not include primary_hex/secondary_hex)
+      let teams = [];
+      
+      try {
         const { data, error } = await db
           .from('teams')
           .select('id, full_name, shortname, primary_hex, secondary_hex, gender, level, division')
@@ -11312,7 +11315,15 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         
         if (!error && data) {
           teams = data;
+          console.log('Loaded', teams.length, 'teams with colors');
+          // Log a sample team to verify colors are present
+          if (teams.length > 0) {
+            const sample = teams.find(t => t.shortname === 'Farmington') || teams[0];
+            console.log('Sample team:', sample.shortname, '- primary:', sample.primary_hex, 'secondary:', sample.secondary_hex);
+          }
         }
+      } catch (err) {
+        console.error('Error loading teams for graphics:', err);
       }
       
       gcTemplateTeams = teams;
@@ -11324,6 +11335,16 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         if (!grouped[key]) grouped[key] = [];
         grouped[key].push(t);
       });
+      
+      // Helper to ensure hex color has # prefix
+      function formatHex(hex) {
+        if (!hex) return null;
+        hex = hex.trim();
+        if (hex && !hex.startsWith('#')) {
+          hex = '#' + hex;
+        }
+        return hex;
+      }
       
       // Helper to populate a select element
       function populateTeamSelect(selectId) {
@@ -11339,8 +11360,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             const opt = document.createElement('option');
             opt.value = t.id;
             opt.textContent = `${t.shortname} (${t.gender || ''} ${t.division || ''})`.trim();
-            opt.dataset.primary = t.primary_hex || '#333333';
-            opt.dataset.secondary = t.secondary_hex || '#666666';
+            opt.dataset.primary = formatHex(t.primary_hex) || '#1e3a8a';
+            opt.dataset.secondary = formatHex(t.secondary_hex) || '#fbbf24';
             optgroup.appendChild(opt);
           });
           select.appendChild(optgroup);
@@ -11356,9 +11377,15 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const select = document.getElementById('gcCreatorTeamSelect');
       const option = select?.selectedOptions[0];
       
-      if (option && option.dataset.primary) {
-        gcTemplatePrimary = option.dataset.primary;
-        gcTemplateSecondary = option.dataset.secondary || '#666666';
+      console.log('applyCreatorTeamColors - selected option:', option?.textContent);
+      console.log('  dataset.primary:', option?.dataset?.primary);
+      console.log('  dataset.secondary:', option?.dataset?.secondary);
+      
+      if (option && option.value) {
+        gcTemplatePrimary = option.dataset.primary || '#1e3a8a';
+        gcTemplateSecondary = option.dataset.secondary || '#fbbf24';
+        
+        console.log('  Applied colors - primary:', gcTemplatePrimary, 'secondary:', gcTemplateSecondary);
         
         // Update preview swatches
         const primaryPreview = document.getElementById('gcCreatorPrimaryPreview');
@@ -13110,9 +13137,13 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const select = document.getElementById('gcTemplateTeamSelect');
       const option = select.selectedOptions[0];
       
-      if (option && option.dataset.primary) {
-        gcTemplatePrimary = option.dataset.primary;
-        gcTemplateSecondary = option.dataset.secondary || '#666666';
+      console.log('applyTemplateTeamColors - selected option:', option?.textContent);
+      console.log('  dataset.primary:', option?.dataset?.primary);
+      console.log('  dataset.secondary:', option?.dataset?.secondary);
+      
+      if (option && option.value) {
+        gcTemplatePrimary = option.dataset.primary || '#1e3a8a';
+        gcTemplateSecondary = option.dataset.secondary || '#fbbf24';
         
         document.getElementById('gcTemplatePrimary').value = gcTemplatePrimary;
         document.getElementById('gcTemplatePrimaryHex').value = gcTemplatePrimary;
