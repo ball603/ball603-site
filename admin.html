@@ -3625,6 +3625,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     <div style="margin-bottom: 15px; padding: 10px 15px; background: #f0f7ff; border-radius: 6px; display: flex; justify-content: space-between; align-items: center;">
       <span id="champCount" style="font-size: 13px; color: #1565c0;">Loading...</span>
       <div style="display: flex; gap: 10px;">
+        <input type="file" id="champImportFile" accept=".csv" onchange="importChampionships(this)" style="display: none;">
+        <button onclick="document.getElementById('champImportFile').click()" style="padding: 6px 12px; background: #fff3e0; color: #e65100; border: none; border-radius: 4px; font-size: 12px; cursor: pointer;">Import CSV</button>
         <button onclick="exportChampionships()" style="padding: 6px 12px; background: #e8f5e9; color: #2e7d32; border: none; border-radius: 4px; font-size: 12px; cursor: pointer;">Export CSV</button>
       </div>
     </div>
@@ -3748,6 +3750,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     <div style="margin-bottom: 15px; padding: 10px 15px; background: #fff3e0; border-radius: 6px; display: flex; justify-content: space-between; align-items: center;">
       <span id="scorer1kCount" style="font-size: 13px; color: #e65100;">Loading...</span>
       <div style="display: flex; gap: 10px;">
+        <input type="file" id="scorer1kImportFile" accept=".csv" onchange="importScorers1K(this)" style="display: none;">
+        <button onclick="document.getElementById('scorer1kImportFile').click()" style="padding: 6px 12px; background: #fff3e0; color: #e65100; border: none; border-radius: 4px; font-size: 12px; cursor: pointer;">Import CSV</button>
         <button onclick="exportScorers1K()" style="padding: 6px 12px; background: #e8f5e9; color: #2e7d32; border: none; border-radius: 4px; font-size: 12px; cursor: pointer;">Export CSV</button>
       </div>
     </div>
@@ -3857,6 +3861,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     <div style="margin-bottom: 15px; padding: 10px 15px; background: #e8f5e9; border-radius: 6px; display: flex; justify-content: space-between; align-items: center;">
       <span id="ncaaCount" style="font-size: 13px; color: #2e7d32;">Loading...</span>
       <div style="display: flex; gap: 10px;">
+        <input type="file" id="ncaaImportFile" accept=".csv" onchange="importNCAAPlayers(this)" style="display: none;">
+        <button onclick="document.getElementById('ncaaImportFile').click()" style="padding: 6px 12px; background: #fff3e0; color: #e65100; border: none; border-radius: 4px; font-size: 12px; cursor: pointer;">Import CSV</button>
         <button onclick="exportNCAAPlayers()" style="padding: 6px 12px; background: #e3f2fd; color: #1565c0; border: none; border-radius: 4px; font-size: 12px; cursor: pointer;">Export CSV</button>
       </div>
     </div>
@@ -7832,6 +7838,12 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       }
       result.push(current);
       return result;
+    }
+    
+    function parseCSV(text) {
+      // Split by newlines, handling both \r\n and \n
+      const lines = text.split(/\r?\n/).filter(line => line.trim());
+      return lines.map(line => parseCSVLine(line));
     }
     
     function showImportPreview(teams, filename) {
@@ -13163,6 +13175,76 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       showToast(`Exported ${filtered.length} players`, 'success');
     }
     
+    async function importNCAAPlayers(input) {
+      const file = input.files[0];
+      if (!file) return;
+      
+      try {
+        const text = await file.text();
+        const rows = parseCSV(text);
+        
+        if (rows.length < 2) {
+          showToast('CSV file is empty or invalid', 'error');
+          return;
+        }
+        
+        // Expected headers: Name,High School,College,Gender,Division,Grad Year,Position,Active,Notes
+        const headers = rows[0].map(h => h.toLowerCase().trim().replace(/[_-]/g, ' '));
+        const data = rows.slice(1);
+        
+        const nameIdx = headers.findIndex(h => h === 'name');
+        const hsIdx = headers.findIndex(h => h.includes('high school') || h === 'hs' || h === 'school');
+        const collegeIdx = headers.findIndex(h => h === 'college');
+        const genderIdx = headers.findIndex(h => h === 'gender');
+        const divisionIdx = headers.findIndex(h => h === 'division' || h === 'div');
+        const gradYearIdx = headers.findIndex(h => h.includes('grad') || h.includes('year') || h === 'class');
+        const positionIdx = headers.findIndex(h => h === 'position' || h === 'pos');
+        const activeIdx = headers.findIndex(h => h === 'active');
+        const notesIdx = headers.findIndex(h => h === 'notes');
+        
+        if (nameIdx === -1 || hsIdx === -1 || collegeIdx === -1) {
+          showToast('CSV must have Name, High School, and College columns', 'error');
+          return;
+        }
+        
+        const records = data.filter(row => row.length > 1 && row[nameIdx]).map(row => ({
+          name: row[nameIdx]?.trim() || '',
+          high_school: row[hsIdx]?.trim() || '',
+          college: row[collegeIdx]?.trim() || '',
+          gender: row[genderIdx]?.trim() || null,
+          division: row[divisionIdx]?.trim() || null,
+          grad_year: row[gradYearIdx] ? parseInt(row[gradYearIdx]) : null,
+          position: row[positionIdx]?.trim() || null,
+          active: activeIdx === -1 ? true : (row[activeIdx]?.toLowerCase() !== 'no' && row[activeIdx]?.toLowerCase() !== 'false'),
+          notes: row[notesIdx]?.trim() || null
+        })).filter(r => r.name && r.high_school && r.college);
+        
+        if (records.length === 0) {
+          showToast('No valid records found in CSV', 'error');
+          return;
+        }
+        
+        if (!confirm(`Import ${records.length} players? This will add new records.`)) {
+          input.value = '';
+          return;
+        }
+        
+        const { error } = await db.from('ncaa_players').insert(records);
+        
+        if (error) throw error;
+        
+        showToast(`Imported ${records.length} players`, 'success');
+        input.value = '';
+        allNCAAPlayers = [];
+        loadNCAAPlayers();
+        
+      } catch (err) {
+        console.error('Import error:', err);
+        showToast('Error importing: ' + err.message, 'error');
+        input.value = '';
+      }
+    }
+    
     // ===== CHAMPIONSHIP HISTORY MANAGEMENT =====
     let allChampionships = [];
     let champSortField = 'year';
@@ -13402,6 +13484,79 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       URL.revokeObjectURL(url);
       
       showToast(`Exported ${filtered.length} championships`, 'success');
+    }
+    
+    async function importChampionships(input) {
+      const file = input.files[0];
+      if (!file) return;
+      
+      try {
+        const text = await file.text();
+        const rows = parseCSV(text);
+        
+        if (rows.length < 2) {
+          showToast('CSV file is empty or invalid', 'error');
+          return;
+        }
+        
+        // Expected headers: Year,Gender,Division,Champion,Runner-Up,Champion Score,Runner-Up Score,Overtime,Notes
+        const headers = rows[0].map(h => h.toLowerCase().trim());
+        const data = rows.slice(1);
+        
+        const yearIdx = headers.findIndex(h => h.includes('year'));
+        const genderIdx = headers.findIndex(h => h.includes('gender'));
+        const divisionIdx = headers.findIndex(h => h.includes('division'));
+        const championIdx = headers.findIndex(h => h === 'champion');
+        const runnerUpIdx = headers.findIndex(h => h.includes('runner'));
+        const champScoreIdx = headers.findIndex(h => h.includes('champion') && h.includes('score'));
+        const runnerScoreIdx = headers.findIndex(h => h.includes('runner') && h.includes('score'));
+        const otIdx = headers.findIndex(h => h.includes('overtime') || h === 'ot');
+        const notesIdx = headers.findIndex(h => h.includes('notes'));
+        
+        if (yearIdx === -1 || championIdx === -1 || runnerUpIdx === -1) {
+          showToast('CSV must have Year, Champion, and Runner-Up columns', 'error');
+          return;
+        }
+        
+        const records = data.filter(row => row.length > 1 && row[yearIdx]).map(row => ({
+          year: parseInt(row[yearIdx]) || null,
+          gender: row[genderIdx] || 'Boys',
+          division: row[divisionIdx] || 'Division I',
+          champion: row[championIdx]?.trim() || '',
+          runner_up: row[runnerUpIdx]?.trim() || '',
+          champion_score: row[champScoreIdx] ? parseInt(row[champScoreIdx]) : null,
+          runner_up_score: row[runnerScoreIdx] ? parseInt(row[runnerScoreIdx]) : null,
+          overtime: row[otIdx]?.toLowerCase() === 'yes' || row[otIdx]?.toLowerCase() === 'true',
+          notes: row[notesIdx]?.trim() || null
+        })).filter(r => r.year && r.champion && r.runner_up);
+        
+        if (records.length === 0) {
+          showToast('No valid records found in CSV', 'error');
+          return;
+        }
+        
+        if (!confirm(`Import ${records.length} championships? This will add new records (duplicates by year/gender/division will be skipped).`)) {
+          input.value = '';
+          return;
+        }
+        
+        const { data: inserted, error } = await db.from('championship_history').upsert(records, { 
+          onConflict: 'gender,year,division',
+          ignoreDuplicates: true 
+        });
+        
+        if (error) throw error;
+        
+        showToast(`Imported ${records.length} championships`, 'success');
+        input.value = '';
+        allChampionships = [];
+        loadChampionships();
+        
+      } catch (err) {
+        console.error('Import error:', err);
+        showToast('Error importing: ' + err.message, 'error');
+        input.value = '';
+      }
     }
     
     // ===== 1K SCORERS MANAGEMENT =====
@@ -13650,6 +13805,72 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       URL.revokeObjectURL(url);
       
       showToast(`Exported ${filtered.length} scorers`, 'success');
+    }
+    
+    async function importScorers1K(input) {
+      const file = input.files[0];
+      if (!file) return;
+      
+      try {
+        const text = await file.text();
+        const rows = parseCSV(text);
+        
+        if (rows.length < 2) {
+          showToast('CSV file is empty or invalid', 'error');
+          return;
+        }
+        
+        // Expected headers: Name,School,Gender,Points,Grad Year,Notes,Verified
+        const headers = rows[0].map(h => h.toLowerCase().trim());
+        const data = rows.slice(1);
+        
+        const nameIdx = headers.findIndex(h => h === 'name');
+        const schoolIdx = headers.findIndex(h => h === 'school');
+        const genderIdx = headers.findIndex(h => h === 'gender');
+        const pointsIdx = headers.findIndex(h => h === 'points');
+        const gradYearIdx = headers.findIndex(h => h.includes('grad') || h.includes('year') || h === 'class');
+        const notesIdx = headers.findIndex(h => h === 'notes');
+        const verifiedIdx = headers.findIndex(h => h === 'verified');
+        
+        if (nameIdx === -1 || schoolIdx === -1) {
+          showToast('CSV must have Name and School columns', 'error');
+          return;
+        }
+        
+        const records = data.filter(row => row.length > 1 && row[nameIdx]).map(row => ({
+          name: row[nameIdx]?.trim() || '',
+          school: row[schoolIdx]?.trim() || '',
+          gender: row[genderIdx]?.trim() || null,
+          points: row[pointsIdx] ? parseInt(row[pointsIdx]) : null,
+          grad_year: row[gradYearIdx] ? parseInt(row[gradYearIdx]) : null,
+          notes: row[notesIdx]?.trim() || null,
+          verified: row[verifiedIdx]?.toLowerCase() === 'yes' || row[verifiedIdx]?.toLowerCase() === 'true'
+        })).filter(r => r.name && r.school);
+        
+        if (records.length === 0) {
+          showToast('No valid records found in CSV', 'error');
+          return;
+        }
+        
+        if (!confirm(`Import ${records.length} scorers? This will add new records.`)) {
+          input.value = '';
+          return;
+        }
+        
+        const { error } = await db.from('scorers_1k').insert(records);
+        
+        if (error) throw error;
+        
+        showToast(`Imported ${records.length} scorers`, 'success');
+        input.value = '';
+        allScorers1K = [];
+        loadScorers1K();
+        
+      } catch (err) {
+        console.error('Import error:', err);
+        showToast('Error importing: ' + err.message, 'error');
+        input.value = '';
+      }
     }
     
     // ===== SITE SETTINGS =====
