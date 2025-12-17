@@ -943,23 +943,43 @@
     async function loadFeaturesData() {
       if (!TEAM_CONFIG) return;
       
-      // Load 1K scorers and NCAA players from static data (fallback)
+      // Load NCAA players from static data (fallback) - keeping this static for now
       if (typeof getSchoolProfile === 'function') {
         const profile = getSchoolProfile(TEAM_CONFIG.name);
-        teamData.scorers1K = profile.scorers1K || [];
         teamData.ncaaPlayers = profile.ncaaPlayers || [];
+      }
+      
+      const schoolName = TEAM_CONFIG.name.toLowerCase()
+        .replace(/\s+hs$/i, '')
+        .replace(/\s+high\s+school$/i, '')
+        .replace(/\s+academy$/i, '')
+        .replace(/regional/i, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+      
+      // Fetch 1K Scorers from Supabase
+      try {
+        const { data: scorers, error: scorersError } = await db
+          .from('scorers_1k')
+          .select('*')
+          .ilike('school', schoolName)
+          .order('points', { ascending: false, nullsFirst: false });
+        
+        if (scorersError) throw scorersError;
+        
+        teamData.scorers1K = scorers || [];
+      } catch (err) {
+        console.error('Error fetching 1K scorers from Supabase:', err);
+        // Fallback to static data
+        if (typeof getSchool1KScorers === 'function') {
+          teamData.scorers1K = getSchool1KScorers(TEAM_CONFIG.name);
+        } else {
+          teamData.scorers1K = [];
+        }
       }
       
       // Fetch championships from Supabase
       try {
-        const schoolName = TEAM_CONFIG.name.toLowerCase()
-          .replace(/\s+hs$/i, '')
-          .replace(/\s+high\s+school$/i, '')
-          .replace(/\s+academy$/i, '')
-          .replace(/regional/i, '')
-          .replace(/\s+/g, ' ')
-          .trim();
-        
         const { data, error } = await db
           .from('championship_history')
           .select('*')
