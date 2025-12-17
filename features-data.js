@@ -13341,7 +13341,8 @@ function getSchoolChampionships(schoolName) {
   
   const matchSchool = (name) => {
     const n = normalizeSchoolName(name);
-    return n === normalized || n.includes(normalized) || normalized.includes(n);
+    // Exact match only to prevent "Laconia" matching "Laconia Christian", etc.
+    return n === normalized;
   };
   
   CHAMPIONSHIP_HISTORY.boys.forEach(game => {
