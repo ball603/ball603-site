@@ -11081,6 +11081,11 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     const GC_DIVIDER_LEFT_Y = GC_FULL_HEIGHT * 0.72;
     const GC_DIVIDER_RIGHT_Y = GC_FULL_HEIGHT * 0.62;
     
+    // The BLACK bar top edge (where photo mask ends and headline goes)
+    // LEFT side is LOWER (82%), RIGHT side is HIGHER (72%)
+    const GC_BLACK_BAR_LEFT_Y = GC_FULL_HEIGHT * 0.82;
+    const GC_BLACK_BAR_RIGHT_Y = GC_FULL_HEIGHT * 0.72;
+    
     async function initGraphicCreator() {
       if (gcInitialized) return;
       
@@ -11226,16 +11231,21 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     }
     
     function createHeadlineText() {
-      // Calculate angle to match the divider bar
-      // Bar goes from lower-left (72%) to upper-right (62%)
-      const rise = (GC_DIVIDER_RIGHT_Y - GC_DIVIDER_LEFT_Y);
+      // Calculate angle to match the BLACK bar
+      // Bar goes from lower-left (82%) to upper-right (72%)
+      const rise = (GC_BLACK_BAR_RIGHT_Y - GC_BLACK_BAR_LEFT_Y);
       const run = GC_FULL_WIDTH;
       const angleRadians = Math.atan2(rise, run);
       const angleDegrees = angleRadians * (180 / Math.PI);
       
+      // Center of the black bar vertically: average of top edge and bottom
+      // Left: (82% + 100%) / 2 = 91%, Right: (72% + 100%) / 2 = 86%
+      // Average: ~88.5%
+      const blackBarCenterY = GC_PREVIEW_HEIGHT * 0.885;
+      
       gcHeadlineObject = new fabric.Textbox('', {
         left: GC_PREVIEW_WIDTH / 2,
-        top: GC_PREVIEW_HEIGHT * 0.68,
+        top: blackBarCenterY,
         width: GC_PREVIEW_WIDTH * 0.85,
         fontFamily: 'Covered By Your Grace',
         fontSize: 24, // Preview scale
@@ -11357,13 +11367,13 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           return;
         }
         
-        // Create clip mask - polygon from top of canvas to the angled bar
-        // Bar is HIGHER on right (62%), LOWER on left (72%)
+        // Create clip mask - polygon from top of canvas to the BLACK bar top edge
+        // This keeps photo flush with where the black bar starts
         const clipPath = new fabric.Polygon([
           { x: 0, y: 0 },
           { x: GC_PREVIEW_WIDTH, y: 0 },
-          { x: GC_PREVIEW_WIDTH, y: GC_DIVIDER_RIGHT_Y * GC_PREVIEW_SCALE },
-          { x: 0, y: GC_DIVIDER_LEFT_Y * GC_PREVIEW_SCALE }
+          { x: GC_PREVIEW_WIDTH, y: GC_BLACK_BAR_RIGHT_Y * GC_PREVIEW_SCALE },
+          { x: 0, y: GC_BLACK_BAR_LEFT_Y * GC_PREVIEW_SCALE }
         ], {
           absolutePositioned: true
         });
@@ -11455,12 +11465,12 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     }
     
     function reorderLayers() {
-      // Ensure correct layer order: background -> photo -> overlay -> headline -> photog
+      // Ensure correct layer order: background -> photo -> overlay -> photog -> headline (TOP)
       if (gcBackgroundRect) gcCanvas.sendToBack(gcBackgroundRect);
       if (gcPhotoObject) gcPhotoObject.moveTo(1);
       if (gcOverlayObject) gcOverlayObject.moveTo(2);
-      if (gcHeadlineObject) gcHeadlineObject.moveTo(3);
-      if (gcPhotogObject) gcPhotogObject.moveTo(4);
+      if (gcPhotogObject) gcPhotogObject.moveTo(3);
+      if (gcHeadlineObject) gcHeadlineObject.moveTo(4);
       gcCanvas.renderAll();
     }
     
@@ -11527,16 +11537,16 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       ctx.closePath();
       ctx.fill();
       
-      // Draw photo if exists (clipped to the angled mask area)
+      // Draw photo if exists (clipped to the black bar top edge)
       if (gcPhotoObject) {
         ctx.save();
         
-        // Create clipping path matching the mask
+        // Create clipping path matching the mask - flush with black bar
         ctx.beginPath();
         ctx.moveTo(0, 0);
         ctx.lineTo(GC_FULL_WIDTH, 0);
-        ctx.lineTo(GC_FULL_WIDTH, GC_DIVIDER_RIGHT_Y);
-        ctx.lineTo(0, GC_DIVIDER_LEFT_Y);
+        ctx.lineTo(GC_FULL_WIDTH, GC_BLACK_BAR_RIGHT_Y);
+        ctx.lineTo(0, GC_BLACK_BAR_LEFT_Y);
         ctx.closePath();
         ctx.clip();
         
@@ -11562,13 +11572,14 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       if (headline) {
         const fontSize = parseInt(document.getElementById('gcHeadlineSize').value);
         
-        // Calculate angle to match divider bar
-        const rise = (GC_DIVIDER_RIGHT_Y - GC_DIVIDER_LEFT_Y);
+        // Calculate angle to match BLACK bar
+        const rise = (GC_BLACK_BAR_RIGHT_Y - GC_BLACK_BAR_LEFT_Y);
         const run = GC_FULL_WIDTH;
         const angleRadians = Math.atan2(rise, run);
         
+        // Center of black bar: ~88.5% down
         ctx.save();
-        ctx.translate(GC_FULL_WIDTH / 2, GC_FULL_HEIGHT * 0.68);
+        ctx.translate(GC_FULL_WIDTH / 2, GC_FULL_HEIGHT * 0.885);
         ctx.rotate(angleRadians);
         
         ctx.font = `${fontSize}px "Covered By Your Grace"`;
