@@ -11076,10 +11076,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     const GC_PREVIEW_WIDTH = GC_FULL_WIDTH * GC_PREVIEW_SCALE;
     const GC_PREVIEW_HEIGHT = GC_FULL_HEIGHT * GC_PREVIEW_SCALE;
     
-    // The angled divider line Y position (where black bar starts)
-    // Based on your template, the angle starts around 65% from top
-    const GC_DIVIDER_START_Y = GC_FULL_HEIGHT * 0.62;
-    const GC_DIVIDER_END_Y = GC_FULL_HEIGHT * 0.72;
+    // The angled divider line Y position (where colored bar starts)
+    // LEFT side is LOWER (72%), RIGHT side is HIGHER (62%)
+    const GC_DIVIDER_LEFT_Y = GC_FULL_HEIGHT * 0.72;
+    const GC_DIVIDER_RIGHT_Y = GC_FULL_HEIGHT * 0.62;
     
     async function initGraphicCreator() {
       if (gcInitialized) return;
@@ -11165,8 +11165,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       // Create angled polygon that matches the template
       // The shape fills the bottom area below the diagonal line
       const points = [
-        { x: 0, y: GC_DIVIDER_START_Y * GC_PREVIEW_SCALE },
-        { x: GC_PREVIEW_WIDTH, y: GC_DIVIDER_END_Y * GC_PREVIEW_SCALE },
+        { x: 0, y: GC_DIVIDER_LEFT_Y * GC_PREVIEW_SCALE },
+        { x: GC_PREVIEW_WIDTH, y: GC_DIVIDER_RIGHT_Y * GC_PREVIEW_SCALE },
         { x: GC_PREVIEW_WIDTH, y: GC_PREVIEW_HEIGHT },
         { x: 0, y: GC_PREVIEW_HEIGHT }
       ];
@@ -11227,12 +11227,11 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     
     function createHeadlineText() {
       // Calculate angle to match the divider bar
-      // Bar goes from (0, 62%) to (100%, 72%), so it slopes down-right
-      // We need negative angle to slope up-left to up-right
-      const rise = (GC_DIVIDER_END_Y - GC_DIVIDER_START_Y);
+      // Bar goes from lower-left (72%) to upper-right (62%)
+      const rise = (GC_DIVIDER_RIGHT_Y - GC_DIVIDER_LEFT_Y);
       const run = GC_FULL_WIDTH;
       const angleRadians = Math.atan2(rise, run);
-      const angleDegrees = -angleRadians * (180 / Math.PI);
+      const angleDegrees = angleRadians * (180 / Math.PI);
       
       gcHeadlineObject = new fabric.Textbox('', {
         left: GC_PREVIEW_WIDTH / 2,
@@ -11359,11 +11358,12 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         }
         
         // Create clip mask - polygon from top of canvas to the angled bar
+        // Bar is HIGHER on right (62%), LOWER on left (72%)
         const clipPath = new fabric.Polygon([
           { x: 0, y: 0 },
           { x: GC_PREVIEW_WIDTH, y: 0 },
-          { x: GC_PREVIEW_WIDTH, y: GC_DIVIDER_END_Y * GC_PREVIEW_SCALE },
-          { x: 0, y: GC_DIVIDER_START_Y * GC_PREVIEW_SCALE }
+          { x: GC_PREVIEW_WIDTH, y: GC_DIVIDER_RIGHT_Y * GC_PREVIEW_SCALE },
+          { x: 0, y: GC_DIVIDER_LEFT_Y * GC_PREVIEW_SCALE }
         ], {
           absolutePositioned: true
         });
@@ -11520,8 +11520,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const bgColor = document.getElementById('gcCustomColor').value;
       ctx.fillStyle = bgColor;
       ctx.beginPath();
-      ctx.moveTo(0, GC_DIVIDER_START_Y);
-      ctx.lineTo(GC_FULL_WIDTH, GC_DIVIDER_END_Y);
+      ctx.moveTo(0, GC_DIVIDER_LEFT_Y);
+      ctx.lineTo(GC_FULL_WIDTH, GC_DIVIDER_RIGHT_Y);
       ctx.lineTo(GC_FULL_WIDTH, GC_FULL_HEIGHT);
       ctx.lineTo(0, GC_FULL_HEIGHT);
       ctx.closePath();
@@ -11535,8 +11535,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         ctx.beginPath();
         ctx.moveTo(0, 0);
         ctx.lineTo(GC_FULL_WIDTH, 0);
-        ctx.lineTo(GC_FULL_WIDTH, GC_DIVIDER_END_Y);
-        ctx.lineTo(0, GC_DIVIDER_START_Y);
+        ctx.lineTo(GC_FULL_WIDTH, GC_DIVIDER_RIGHT_Y);
+        ctx.lineTo(0, GC_DIVIDER_LEFT_Y);
         ctx.closePath();
         ctx.clip();
         
@@ -11562,10 +11562,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       if (headline) {
         const fontSize = parseInt(document.getElementById('gcHeadlineSize').value);
         
-        // Calculate angle to match divider bar (negative to go up-left to up-right)
-        const rise = (GC_DIVIDER_END_Y - GC_DIVIDER_START_Y);
+        // Calculate angle to match divider bar
+        const rise = (GC_DIVIDER_RIGHT_Y - GC_DIVIDER_LEFT_Y);
         const run = GC_FULL_WIDTH;
-        const angleRadians = -Math.atan2(rise, run);
+        const angleRadians = Math.atan2(rise, run);
         
         ctx.save();
         ctx.translate(GC_FULL_WIDTH / 2, GC_FULL_HEIGHT * 0.68);
