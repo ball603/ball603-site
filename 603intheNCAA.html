@@ -483,29 +483,63 @@
     <p class="footer-copyright">&#169; 2025 Ball603. All rights reserved.</p>
   </footer>
 
-  <!-- Features Data -->
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0"></script>
+  
+  <!-- Features Data (fallback) -->
   <script src="/features-data.js"></script>
   
   <!-- Page Script -->
   <script>
+    // Supabase config
+    const SUPABASE_URL = 'https://suncdkxfqkwwnmhosxcf.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_hHSpgZPD327r11GaQG9iHw_uZbuaWmF';
+    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    
     // State
-    let filteredPlayers = [...NCAA_PLAYERS];
+    let allPlayers = [];
+    let allColleges = [];
+    let filteredPlayers = [];
     let sortColumn = 'name';
     let sortDirection = 'asc';
     
     // Initialize
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
+      await loadPlayers();
       updateStats();
       renderTable();
       setupEventListeners();
     });
     
+    async function loadPlayers() {
+      try {
+        const { data, error } = await db
+          .from('ncaa_players')
+          .select('*')
+          .eq('active', true)
+          .order('name', { ascending: true });
+        
+        if (error) throw error;
+        
+        allPlayers = data || [];
+        allColleges = [...new Set(allPlayers.map(p => p.college))].sort();
+        filteredPlayers = [...allPlayers];
+        
+      } catch (err) {
+        console.error('Error loading from Supabase, using static data:', err);
+        // Fallback to static data
+        allPlayers = typeof NCAA_PLAYERS !== 'undefined' ? [...NCAA_PLAYERS] : [];
+        allColleges = typeof COLLEGES !== 'undefined' ? [...COLLEGES] : [...new Set(allPlayers.map(p => p.college))].sort();
+        filteredPlayers = [...allPlayers];
+      }
+    }
+    
     function updateStats() {
-      document.getElementById('totalPlayers').textContent = NCAA_PLAYERS.length;
-      document.getElementById('totalColleges').textContent = COLLEGES.length;
+      document.getElementById('totalPlayers').textContent = allPlayers.length;
+      document.getElementById('totalColleges').textContent = allColleges.length;
       
       // Count unique high schools
-      const highSchools = new Set(NCAA_PLAYERS.map(p => p.high_school));
+      const highSchools = new Set(allPlayers.map(p => p.high_school));
       document.getElementById('totalHighSchools').textContent = highSchools.size;
     }
     
@@ -551,7 +585,7 @@
     function applyFilters() {
       const search = document.getElementById('playerSearch').value.toLowerCase().trim();
       
-      filteredPlayers = NCAA_PLAYERS.filter(player => {
+      filteredPlayers = allPlayers.filter(player => {
         if (!search) return true;
         return player.name.toLowerCase().includes(search) ||
                player.high_school.toLowerCase().includes(search) ||

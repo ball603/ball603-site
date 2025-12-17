@@ -610,18 +610,26 @@
     <p class="footer-copyright">© 2025 Ball603. All rights reserved.</p>
   </footer>
 
-  <!-- Features Data -->
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0"></script>
+  
+  <!-- Features Data (fallback + bracket data) -->
   <script src="/features-data.js"></script>
   
   <!-- Page Script -->
   <script>
+    // Supabase config
+    const SUPABASE_URL = 'https://suncdkxfqkwwnmhosxcf.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_hHSpgZPD327r11GaQG9iHw_uZbuaWmF';
+    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    
     // State
     let selectedBracketYear = 2024;
     let allChampionships = [];
     
     // Initialize
-    document.addEventListener('DOMContentLoaded', () => {
-      buildChampionshipList();
+    document.addEventListener('DOMContentLoaded', async () => {
+      await loadChampionships();
       populateSchoolsList();
       renderDynastyLeaders();
       renderRecentDynasties();
@@ -631,11 +639,54 @@
       setupEventListeners();
     });
     
-    function buildChampionshipList() {
+    async function loadChampionships() {
+      try {
+        const { data, error } = await db
+          .from('championship_history')
+          .select('*')
+          .order('year', { ascending: false });
+        
+        if (error) throw error;
+        
+        // Transform to match expected format (lowercase gender)
+        allChampionships = (data || []).map(c => ({
+          ...c,
+          gender: c.gender.toLowerCase()
+        }));
+        
+      } catch (err) {
+        console.error('Error loading from Supabase, using static data:', err);
+        // Fallback to static data
+        buildChampionshipListFromStatic();
+      }
+    }
+    
+    function buildChampionshipListFromStatic() {
       allChampionships = [];
-      CHAMPIONSHIP_HISTORY.boys.forEach(c => allChampionships.push({ ...c, gender: 'boys' }));
-      CHAMPIONSHIP_HISTORY.girls.forEach(c => allChampionships.push({ ...c, gender: 'girls' }));
-      allChampionships.sort((a, b) => b.year - a.year);
+      if (typeof CHAMPIONSHIP_HISTORY !== 'undefined') {
+        CHAMPIONSHIP_HISTORY.boys.forEach(c => allChampionships.push({ ...c, gender: 'boys' }));
+        CHAMPIONSHIP_HISTORY.girls.forEach(c => allChampionships.push({ ...c, gender: 'girls' }));
+        allChampionships.sort((a, b) => b.year - a.year);
+      }
+    }
+    
+    // Override getDynastyLeaders to use our loaded data
+    function getDynastyLeaders(gender = 'all', limit = 10) {
+      const counts = {};
+      
+      allChampionships.forEach(game => {
+        if (gender !== 'all' && game.gender !== gender) return;
+        
+        const school = game.champion;
+        if (!counts[school]) counts[school] = { titles: 0, runnerUp: 0, years: [] };
+        counts[school].titles++;
+        counts[school].years.push(game.year);
+      });
+      
+      return Object.entries(counts)
+        .map(([school, data]) => ({ school, ...data }))
+        .sort((a, b) => b.titles - a.titles)
+        .slice(0, limit);
     }
     
     function populateSchoolsList() {
