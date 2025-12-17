@@ -14,17 +14,8 @@
   <!-- PWA Manifest -->
   <link rel="manifest" href="/manifest.json">
   
-  <!-- Google Analytics -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-S4BN80729K"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-    gtag('config', 'G-S4BN80729K');
-  </script>
-  
   <!-- Supabase -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   
   <!-- Main Styles -->
   <link rel="stylesheet" href="/styles.css">
@@ -361,6 +352,45 @@
     .ticker-star {
       color: var(--accent);
       font-size: 10px;
+    }
+    
+    .ticker-day {
+      font-size: 9px;
+      color: rgba(255,255,255,0.4);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      writing-mode: vertical-rl;
+      transform: rotate(180deg);
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding-right: 8px;
+      min-width: 18px;
+    }
+    
+    .ticker-status.final {
+      color: var(--accent);
+    }
+    
+    .ticker-coverage-dot {
+      width: 6px;
+      height: 6px;
+      background: var(--accent);
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-right: 2px;
+    }
+    
+    .ticker-game.score-updated {
+      animation: scoreGlow 3s ease-out forwards;
+    }
+    
+    @keyframes scoreGlow {
+      0% { box-shadow: 0 0 8px 2px rgba(245, 124, 0, 0.6); }
+      100% { box-shadow: none; }
     }
     
     @keyframes pulse {
@@ -1777,9 +1807,9 @@
     });
     
     /**
-     * Render scores ticker - Shows yesterday's finals + all today's games
-     * Can be controlled via CMS settings (auto/manual mode)
-     * Filters by NHIAA/NCAA selection, but always shows My Teams favorites
+     * Render scores ticker - Enhanced version with polling, animations, time-based display
+     * Before noon EST: Yesterday's finals + Today's games
+     * Noon and after: Today's games only
      */
     
     // Ticker settings (loaded from Supabase or defaults)
@@ -1790,13 +1820,13 @@
       showTomorrow: false
     };
     
+    // Track previous scores to detect changes
+    let previousScores = {};
+    
     // Load ticker settings from Supabase
     async function loadTickerSettings() {
       try {
-        const client = Ball603.getSupabase();
-        if (!client) return;
-        
-        const { data, error } = await client
+        const { data, error } = await supabase
           .from('site_settings')
           .select('value')
           .eq('key', 'ticker_settings')
@@ -1809,6 +1839,55 @@
         // Use defaults if settings don't exist
         console.log('[Ticker] Using default settings');
       }
+    }
+    
+    // Get current hour in EST
+    function getESTHour() {
+      const now = new Date();
+      const estTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+      return estTime.getHours();
+    }
+    
+    // Get day abbreviation for a date
+    function getDayAbbrev(dateStr, todayStr) {
+      if (dateStr === todayStr) return 'TODAY';
+      const date = new Date(dateStr + 'T12:00:00');
+      const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+      return days[date.getDay()];
+    }
+    
+    // Check if a game has an article
+    function hasArticle(game) {
+      return game.recap_url && game.recap_url.trim() !== '';
+    }
+    
+    // Get click destination for a game
+    function getGameClickUrl(game) {
+      if (hasArticle(game)) {
+        return game.recap_url;
+      }
+      return '/schedule?date=' + game.date;
+    }
+    
+    // Refresh just the game data for ticker
+    async function refreshTickerData() {
+      try {
+        const response = await fetch('/.netlify/functions/get-games');
+        const data = await response.json();
+        if (data.games) {
+          Ball603.state.games = data.games;
+          renderTicker();
+          console.log('[Ticker] Refreshed at', new Date().toLocaleTimeString());
+        }
+      } catch (err) {
+        console.error('[Ticker] Refresh failed:', err);
+      }
+    }
+    
+    // Start polling every 90 seconds
+    function startTickerPolling() {
+      setInterval(refreshTickerData, 90000);
+      console.log('[Ticker] Polling started (90s interval)');
     }
     
     function renderTicker() {
@@ -1828,11 +1907,22 @@
       tomorrow.setDate(tomorrow.getDate() + 1);
       const tomorrowStr = tomorrow.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
       
-      // Build list of dates to show based on settings
+      // Time-based logic: before noon show yesterday, noon+ hide yesterday
+      const currentHour = getESTHour();
+      const showYesterdayByTime = currentHour < 12;
+      
+      // Build list of dates to show
       const datesToShow = [];
-      if (tickerSettings.showYesterday) datesToShow.push(yesterdayStr);
-      if (tickerSettings.showToday) datesToShow.push(todayStr);
-      if (tickerSettings.showTomorrow) datesToShow.push(tomorrowStr);
+      if (tickerSettings.mode === 'auto') {
+        // Auto mode: use time-based logic
+        if (showYesterdayByTime) datesToShow.push(yesterdayStr);
+        datesToShow.push(todayStr);
+      } else {
+        // Manual mode: use CMS settings
+        if (tickerSettings.showYesterday) datesToShow.push(yesterdayStr);
+        if (tickerSettings.showToday) datesToShow.push(todayStr);
+        if (tickerSettings.showTomorrow) datesToShow.push(tomorrowStr);
+      }
       
       // Filter games for selected dates
       let tickerGames = games.filter(game => {
@@ -1871,7 +1961,7 @@
         return false;
       });
       
-      // Sort: My Teams first, then finals, then upcoming by time
+      // Sort: My Teams first, then finals (most recent first), then upcoming by time
       tickerGames.sort((a, b) => {
         // First priority: favorite teams (My Teams)
         const priorityA = Ball603.getGamePriority ? Ball603.getGamePriority(a) : 2;
@@ -1885,7 +1975,8 @@
         if (hasScoreA && !hasScoreB) return -1;
         if (!hasScoreA && hasScoreB) return 1;
         
-        // Within completed games: most recent first
+        // Within completed games: today's finals first, then yesterday
+        // Within same day: most recent game time first
         if (hasScoreA && hasScoreB) {
           if (a.date !== b.date) return b.date.localeCompare(a.date);
           const timeA = a.time || '00:00';
@@ -1893,7 +1984,7 @@
           return timeB.localeCompare(timeA);
         }
         
-        // Within upcoming games: earliest first
+        // Within upcoming games: earliest first (today before tomorrow, earlier time first)
         if (a.date !== b.date) return a.date.localeCompare(b.date);
         const timeA = a.time || '23:59';
         const timeB = b.time || '23:59';
@@ -1914,6 +2005,27 @@
         return;
       }
       
+      // Build new scores map and detect changes
+      const newScores = {};
+      const updatedGameIds = [];
+      
+      tickerGames.forEach(game => {
+        const gameId = game.game_id;
+        const hasScore = (game.home_score !== null && game.home_score !== '' && game.home_score !== undefined);
+        if (hasScore) {
+          const scoreKey = `${game.away_score}-${game.home_score}`;
+          newScores[gameId] = scoreKey;
+          
+          // Check if this is a newly completed game
+          if (!previousScores[gameId] && scoreKey) {
+            updatedGameIds.push(gameId);
+          }
+        }
+      });
+      
+      // Update previous scores for next comparison
+      previousScores = newScores;
+      
       container.innerHTML = tickerGames.map(game => {
         const awayScore = game.away_score ?? game.awayScore ?? '';
         const homeScore = game.home_score ?? game.homeScore ?? '';
@@ -1923,6 +2035,15 @@
         
         // Check if this is a favorite team game
         const isFavorite = Ball603.getGamePriority ? Ball603.getGamePriority(game) === 0 : false;
+        
+        // Check if this game just got a score update
+        const isUpdated = updatedGameIds.includes(game.game_id);
+        
+        // Check if game has article coverage
+        const hasCoverage = hasArticle(game);
+        
+        // Get day label
+        const dayLabel = getDayAbbrev(game.date, todayStr);
         
         // Determine status text
         let statusText, statusClass;
@@ -1944,8 +2065,20 @@
         // Get gender label
         const gender = (game.gender || 'Boys').toUpperCase();
         
+        // Build class list
+        const classes = ['ticker-game'];
+        if (isFavorite) classes.push('favorite');
+        if (isUpdated) classes.push('score-updated');
+        
+        // Click URL
+        const clickUrl = getGameClickUrl(game);
+        
+        // Day label with coverage dot
+        const dayDisplay = hasCoverage ? `<span class="ticker-coverage-dot"></span>&nbsp;${dayLabel}` : dayLabel;
+        
         return `
-          <div class="ticker-game ${isFavorite ? 'favorite' : ''}" onclick="Ball603.goToGame && Ball603.goToGame('${game.game_id}')">
+          <div class="${classes.join(' ')}" onclick="location.href='${clickUrl}'">
+            <span class="ticker-day">${dayDisplay}</span>
             <div class="ticker-teams">
               <div class="ticker-team">
                 <img class="ticker-logo" src="${Ball603.getLogoUrl(game.away)}" alt="" onerror="this.style.display='none'">
@@ -1966,7 +2099,19 @@
           </div>
         `;
       }).join('');
+      
+      // Remove animation class after it completes
+      setTimeout(() => {
+        document.querySelectorAll('.ticker-game.score-updated').forEach(el => {
+          el.classList.remove('score-updated');
+        });
+      }, 3500);
     }
+    
+    // Start polling when page loads
+    document.addEventListener('ball603:ready', () => {
+      startTickerPolling();
+    });
     
     /**
      * Render hero section
