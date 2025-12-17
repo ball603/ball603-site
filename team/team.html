@@ -943,12 +943,6 @@
     async function loadFeaturesData() {
       if (!TEAM_CONFIG) return;
       
-      // Load NCAA players from static data (fallback) - keeping this static for now
-      if (typeof getSchoolProfile === 'function') {
-        const profile = getSchoolProfile(TEAM_CONFIG.name);
-        teamData.ncaaPlayers = profile.ncaaPlayers || [];
-      }
-      
       const schoolName = TEAM_CONFIG.name.toLowerCase()
         .replace(/\s+hs$/i, '')
         .replace(/\s+high\s+school$/i, '')
@@ -975,6 +969,28 @@
           teamData.scorers1K = getSchool1KScorers(TEAM_CONFIG.name);
         } else {
           teamData.scorers1K = [];
+        }
+      }
+      
+      // Fetch NCAA players from Supabase
+      try {
+        const { data: players, error: playersError } = await db
+          .from('ncaa_players')
+          .select('*')
+          .ilike('high_school', `%${schoolName}%`)
+          .eq('active', true)
+          .order('name', { ascending: true });
+        
+        if (playersError) throw playersError;
+        
+        teamData.ncaaPlayers = players || [];
+      } catch (err) {
+        console.error('Error fetching NCAA players from Supabase:', err);
+        // Fallback to static data
+        if (typeof getSchoolNCAAPlayers === 'function') {
+          teamData.ncaaPlayers = getSchoolNCAAPlayers(TEAM_CONFIG.name);
+        } else {
+          teamData.ncaaPlayers = [];
         }
       }
       
