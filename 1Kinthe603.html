@@ -363,16 +363,28 @@
     <p class="footer-copyright">© 2025 Ball603. All rights reserved.</p>
   </footer>
 
-  <!-- Features Data -->
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0"></script>
+  
+  <!-- Features Data (fallback) -->
   <script src="/features-data.js"></script>
   
   <!-- Page Script -->
   <script>
+    // Supabase config
+    const SUPABASE_URL = 'https://suncdkxfqkwwnmhosxcf.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_hHSpgZPD327r11GaQG9iHw_uZbuaWmF';
+    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    
     // State
-    let filteredScorers = [...SCORERS_1K];
+    let allScorers = [];
+    let allSchools = [];
+    let scorers2K = [];
+    let filteredScorers = [];
     
     // Initialize
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
+      await loadScorers();
       populateFilters();
       updateStats();
       render2KElite();
@@ -380,9 +392,34 @@
       setupEventListeners();
     });
     
+    async function loadScorers() {
+      try {
+        const { data, error } = await db
+          .from('scorers_1k')
+          .select('*')
+          .order('points', { ascending: false, nullsFirst: false });
+        
+        if (error) throw error;
+        
+        allScorers = data || [];
+        allSchools = [...new Set(allScorers.map(s => s.school))].sort();
+        scorers2K = allScorers.filter(s => s.points && s.points >= 2000);
+        filteredScorers = [...allScorers];
+        
+      } catch (err) {
+        console.error('Error loading from Supabase, using static data:', err);
+        // Fallback to static data
+        allScorers = typeof SCORERS_1K !== 'undefined' ? [...SCORERS_1K] : [];
+        allSchools = typeof SCHOOLS_1K !== 'undefined' ? [...SCHOOLS_1K] : [...new Set(allScorers.map(s => s.school))].sort();
+        scorers2K = allScorers.filter(s => s.points && s.points >= 2000).sort((a, b) => b.points - a.points);
+        filteredScorers = [...allScorers];
+      }
+    }
+    
     function populateFilters() {
       const schoolSelect = document.getElementById('filterSchool');
-      SCHOOLS_1K.forEach(school => {
+      schoolSelect.innerHTML = '<option value="">All Schools</option>';
+      allSchools.forEach(school => {
         const opt = document.createElement('option');
         opt.value = school;
         opt.textContent = school;
@@ -391,15 +428,15 @@
     }
     
     function updateStats() {
-      document.getElementById('totalScorers').textContent = SCORERS_1K.length.toLocaleString();
-      document.getElementById('totalSchools').textContent = SCHOOLS_1K.length;
-      const highest = SCORERS_1K.filter(s => s.points).sort((a,b) => b.points - a.points)[0];
+      document.getElementById('totalScorers').textContent = allScorers.length.toLocaleString();
+      document.getElementById('totalSchools').textContent = allSchools.length;
+      const highest = allScorers.filter(s => s.points).sort((a,b) => b.points - a.points)[0];
       document.getElementById('highestPoints').textContent = highest ? highest.points.toLocaleString() : '--';
     }
     
     function render2KElite() {
       const grid = document.getElementById('elite2KGrid');
-      grid.innerHTML = SCORERS_2K.map((scorer, index) => `
+      grid.innerHTML = scorers2K.map((scorer, index) => `
         <div class="elite-card ${index === 0 ? 'elite-top' : ''}">
           <div class="elite-rank">${index + 1}</div>
           <div class="elite-info">
@@ -423,7 +460,7 @@
       const era = document.getElementById('filterEra').value;
       const search = document.getElementById('scorerSearch').value.toLowerCase();
       
-      filteredScorers = SCORERS_1K.filter(scorer => {
+      filteredScorers = allScorers.filter(scorer => {
         // School filter
         if (school && scorer.school !== school) return false;
         
