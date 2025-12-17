@@ -56,7 +56,11 @@
     .main-container { max-width: 1200px; margin: 0 auto; padding: 20px; display: none; }
     
     /* Tabs */
-    .tabs { display: flex; gap: 5px; margin-bottom: 20px; }
+    .tabs { display: flex; gap: 5px; margin-bottom: 5px; flex-wrap: wrap; }
+    .tabs-row-2 { display: flex; gap: 5px; margin-bottom: 20px; flex-wrap: wrap; }
+    .tabs-row-2 .tab { background: #f0f0f0; }
+    .tabs-row-2 .tab:hover { background: #e5e5e5; }
+    .tabs-row-2 .tab.active { background: #1a73e8; color: #fff; }
     .tab { padding: 10px 20px; background: #fff; border: none; border-radius: 8px 8px 0 0; cursor: pointer; font-size: 14px; font-weight: 500; color: #666; }
     .tab:hover { background: #f0f0f0; }
     .tab.active { background: #f57c00; color: #fff; }
@@ -320,6 +324,11 @@
       <button class="tab" onclick="showTab('galleries')">&#128247; Galleries</button>
       <button class="tab" onclick="showTab('video')">&#127916; Video</button>
       <button class="tab" onclick="showTab('settings')">⚙️ Settings</button>
+    </div>
+    
+    <!-- Second Row of Tabs (Data Management) -->
+    <div class="tabs tabs-row-2">
+      <button class="tab" onclick="showTab('championships')">🏆 Championships</button>
     </div>
     
     <!-- Articles List Panel -->
@@ -3590,6 +3599,124 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       
     </div>
   </div>
+  
+  <!-- Championships Panel -->
+  <div class="panel" id="championshipsPanel" style="display: none;">
+    <div class="toolbar" style="flex-wrap: wrap; gap: 10px;">
+      <button class="btn-new" onclick="openChampionshipModal()">
+        <span>+</span> Add Championship
+      </button>
+      <div style="margin-left: auto; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+        <select id="champGenderFilter" onchange="filterChampionships()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px;">
+          <option value="">All Genders</option>
+          <option value="Boys">Boys</option>
+          <option value="Girls">Girls</option>
+        </select>
+        <select id="champDivisionFilter" onchange="filterChampionships()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px;">
+          <option value="">All Divisions</option>
+        </select>
+        <input type="number" id="champYearFilter" placeholder="Year" oninput="filterChampionships()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px; width: 80px;">
+        <input type="text" id="champSearchBox" placeholder="Search teams..." oninput="filterChampionships()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px; width: 150px;">
+      </div>
+    </div>
+    
+    <div style="margin-bottom: 15px; padding: 10px 15px; background: #f0f7ff; border-radius: 6px; display: flex; justify-content: space-between; align-items: center;">
+      <span id="champCount" style="font-size: 13px; color: #1565c0;">Loading...</span>
+      <div style="display: flex; gap: 10px;">
+        <button onclick="exportChampionships()" style="padding: 6px 12px; background: #e8f5e9; color: #2e7d32; border: none; border-radius: 4px; font-size: 12px; cursor: pointer;">Export CSV</button>
+      </div>
+    </div>
+    
+    <div class="article-list" id="championshipList" style="margin-top: 15px;">
+      <div class="article-row header" style="grid-template-columns: 60px 100px 150px 1fr 1fr 80px 100px;">
+        <div class="sortable" onclick="sortChampionships('year')" style="cursor: pointer;">Year ↕</div>
+        <div>Gender</div>
+        <div>Division</div>
+        <div>Champion</div>
+        <div>Runner-Up</div>
+        <div>Score</div>
+        <div>Actions</div>
+      </div>
+      <div class="loading">Loading championships...</div>
+    </div>
+  </div>
+  
+  <!-- Championship Modal -->
+  <div id="championshipModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+    <div style="background: white; padding: 30px; border-radius: 12px; max-width: 550px; width: 90%; max-height: 90vh; overflow-y: auto;">
+      <h2 style="margin-top: 0; margin-bottom: 20px;" id="championshipModalTitle">Add Championship</h2>
+      <input type="hidden" id="championshipId">
+      
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+        <div class="form-group">
+          <label>Year *</label>
+          <input type="number" id="champYear" placeholder="2024" min="1900" max="2100" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+        </div>
+        <div class="form-group">
+          <label>Gender *</label>
+          <select id="champGender" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+            <option value="Boys">Boys</option>
+            <option value="Girls">Girls</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="form-group" style="margin-bottom: 15px;">
+        <label>Division *</label>
+        <select id="champDivision" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+          <option value="Division I">Division I</option>
+          <option value="Division II">Division II</option>
+          <option value="Division III">Division III</option>
+          <option value="Division IV">Division IV</option>
+          <option value="Class L">Class L</option>
+          <option value="Class I">Class I</option>
+          <option value="Class M">Class M</option>
+          <option value="Class S">Class S</option>
+        </select>
+      </div>
+      
+      <div class="form-group" style="margin-bottom: 15px;">
+        <label>Champion *</label>
+        <input type="text" id="champChampion" placeholder="Winning school name..." style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+      </div>
+      
+      <div class="form-group" style="margin-bottom: 15px;">
+        <label>Runner-Up *</label>
+        <input type="text" id="champRunnerUp" placeholder="Losing school name..." style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+      </div>
+      
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+        <div class="form-group">
+          <label>Champion Score</label>
+          <input type="number" id="champChampionScore" placeholder="0" min="0" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+        </div>
+        <div class="form-group">
+          <label>Runner-Up Score</label>
+          <input type="number" id="champRunnerUpScore" placeholder="0" min="0" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+        </div>
+        <div class="form-group">
+          <label>Overtime?</label>
+          <select id="champOvertime" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+            <option value="false">No</option>
+            <option value="true">Yes (OT)</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="form-group" style="margin-bottom: 20px;">
+        <label>Notes</label>
+        <textarea id="champNotes" rows="2" placeholder="Optional notes about this championship..." style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-family: inherit;"></textarea>
+      </div>
+      
+      <div style="display: flex; justify-content: space-between; padding-top: 15px; border-top: 1px solid #eee;">
+        <button id="championshipDeleteBtn" onclick="deleteChampionship()" style="padding: 10px 20px; background: #ffebee; color: #c62828; border: none; border-radius: 5px; cursor: pointer; display: none;">Delete</button>
+        <div style="display: flex; gap: 10px; margin-left: auto;">
+          <button onclick="closeChampionshipModal()" style="padding: 10px 20px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 5px; cursor: pointer;">Cancel</button>
+          <button onclick="saveChampionship()" style="padding: 10px 20px; background: #f57c00; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500;">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script src="rosters_data.js"></script>
   <script>
@@ -4191,6 +4318,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('galleriesPanel').style.display = tab === 'galleries' ? 'block' : 'none';
       document.getElementById('videoPanel').style.display = tab === 'video' ? 'block' : 'none';
       document.getElementById('settingsPanel').style.display = tab === 'settings' ? 'block' : 'none';
+      document.getElementById('championshipsPanel').style.display = tab === 'championships' ? 'block' : 'none';
       document.getElementById('editorPanel').style.display = 'none';
       
       // Load teams when tab is selected
@@ -4241,6 +4369,11 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       // Load Videos when tab is selected
       if (tab === 'video' && allVideos.length === 0) {
         loadVideos();
+      }
+      
+      // Load Championships when tab is selected
+      if (tab === 'championships' && allChampionships.length === 0) {
+        loadChampionships();
       }
     }
     
@@ -12528,6 +12661,247 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         console.error('Error deleting video:', err);
         showToast('Error deleting video', 'error');
       }
+    }
+    
+    // ===== CHAMPIONSHIP HISTORY MANAGEMENT =====
+    let allChampionships = [];
+    let champSortField = 'year';
+    let champSortDir = 'desc';
+    
+    async function loadChampionships() {
+      try {
+        const { data, error } = await db
+          .from('championship_history')
+          .select('*')
+          .order('year', { ascending: false });
+        
+        if (error) throw error;
+        
+        allChampionships = data || [];
+        populateDivisionFilter();
+        filterChampionships();
+        
+      } catch (err) {
+        console.error('Error loading championships:', err);
+        showToast('Error loading championships', 'error');
+        document.getElementById('championshipList').innerHTML = `
+          <div class="article-row header" style="grid-template-columns: 60px 100px 150px 1fr 1fr 80px 100px;">
+            <div>Year</div><div>Gender</div><div>Division</div><div>Champion</div><div>Runner-Up</div><div>Score</div><div>Actions</div>
+          </div>
+          <div style="padding: 40px; text-align: center; color: #999;">Error loading championships. Make sure the table exists.</div>`;
+      }
+    }
+    
+    function populateDivisionFilter() {
+      const divisions = [...new Set(allChampionships.map(c => c.division))].sort();
+      const select = document.getElementById('champDivisionFilter');
+      select.innerHTML = '<option value="">All Divisions</option>' + 
+        divisions.map(d => `<option value="${d}">${d}</option>`).join('');
+    }
+    
+    function filterChampionships() {
+      const gender = document.getElementById('champGenderFilter').value;
+      const division = document.getElementById('champDivisionFilter').value;
+      const year = document.getElementById('champYearFilter').value;
+      const search = document.getElementById('champSearchBox').value.toLowerCase();
+      
+      let filtered = allChampionships.filter(c => {
+        if (gender && c.gender !== gender) return false;
+        if (division && c.division !== division) return false;
+        if (year && c.year !== parseInt(year)) return false;
+        if (search && !c.champion.toLowerCase().includes(search) && !c.runner_up.toLowerCase().includes(search)) return false;
+        return true;
+      });
+      
+      // Sort
+      filtered.sort((a, b) => {
+        let aVal = a[champSortField];
+        let bVal = b[champSortField];
+        if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+        if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+        if (aVal < bVal) return champSortDir === 'asc' ? -1 : 1;
+        if (aVal > bVal) return champSortDir === 'asc' ? 1 : -1;
+        return 0;
+      });
+      
+      renderChampionships(filtered);
+    }
+    
+    function sortChampionships(field) {
+      if (champSortField === field) {
+        champSortDir = champSortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        champSortField = field;
+        champSortDir = 'desc';
+      }
+      filterChampionships();
+    }
+    
+    function renderChampionships(championships) {
+      const container = document.getElementById('championshipList');
+      const countEl = document.getElementById('champCount');
+      
+      countEl.textContent = `${championships.length} of ${allChampionships.length} championships`;
+      
+      if (championships.length === 0) {
+        container.innerHTML = `
+          <div class="article-row header" style="grid-template-columns: 60px 100px 150px 1fr 1fr 80px 100px;">
+            <div class="sortable" onclick="sortChampionships('year')" style="cursor: pointer;">Year ↕</div>
+            <div>Gender</div><div>Division</div><div>Champion</div><div>Runner-Up</div><div>Score</div><div>Actions</div>
+          </div>
+          <div style="padding: 40px; text-align: center; color: #999;">No championships found</div>`;
+        return;
+      }
+      
+      container.innerHTML = `
+        <div class="article-row header" style="grid-template-columns: 60px 100px 150px 1fr 1fr 80px 100px;">
+          <div class="sortable" onclick="sortChampionships('year')" style="cursor: pointer;">Year ${champSortField === 'year' ? (champSortDir === 'asc' ? '↑' : '↓') : '↕'}</div>
+          <div>Gender</div>
+          <div>Division</div>
+          <div class="sortable" onclick="sortChampionships('champion')" style="cursor: pointer;">Champion ${champSortField === 'champion' ? (champSortDir === 'asc' ? '↑' : '↓') : ''}</div>
+          <div>Runner-Up</div>
+          <div>Score</div>
+          <div>Actions</div>
+        </div>
+        ${championships.map(c => `
+          <div class="article-row" style="grid-template-columns: 60px 100px 150px 1fr 1fr 80px 100px;">
+            <div style="font-weight: 600;">${c.year}</div>
+            <div><span style="background: ${c.gender === 'Boys' ? '#e3f2fd' : '#fce4ec'}; color: ${c.gender === 'Boys' ? '#1565c0' : '#c2185b'}; padding: 2px 8px; border-radius: 10px; font-size: 11px;">${c.gender}</span></div>
+            <div style="font-size: 12px;">${c.division}</div>
+            <div style="font-weight: 500; color: #2e7d32;">🏆 ${c.champion}</div>
+            <div style="color: #666;">${c.runner_up}</div>
+            <div style="font-size: 13px;">${c.champion_score || '?'}-${c.runner_up_score || '?'}${c.overtime ? ' OT' : ''}</div>
+            <div class="article-actions">
+              <button class="btn-edit" onclick="editChampionship(${c.id})">Edit</button>
+              <button class="btn-delete" onclick="confirmDeleteChampionship(${c.id})">Del</button>
+            </div>
+          </div>
+        `).join('')}`;
+    }
+    
+    function openChampionshipModal(championship = null) {
+      document.getElementById('championshipId').value = championship?.id || '';
+      document.getElementById('champYear').value = championship?.year || new Date().getFullYear();
+      document.getElementById('champGender').value = championship?.gender || 'Boys';
+      document.getElementById('champDivision').value = championship?.division || 'Division I';
+      document.getElementById('champChampion').value = championship?.champion || '';
+      document.getElementById('champRunnerUp').value = championship?.runner_up || '';
+      document.getElementById('champChampionScore').value = championship?.champion_score || '';
+      document.getElementById('champRunnerUpScore').value = championship?.runner_up_score || '';
+      document.getElementById('champOvertime').value = championship?.overtime ? 'true' : 'false';
+      document.getElementById('champNotes').value = championship?.notes || '';
+      
+      document.getElementById('championshipModalTitle').textContent = championship ? 'Edit Championship' : 'Add Championship';
+      document.getElementById('championshipDeleteBtn').style.display = championship ? 'block' : 'none';
+      
+      document.getElementById('championshipModal').style.display = 'flex';
+    }
+    
+    function closeChampionshipModal() {
+      document.getElementById('championshipModal').style.display = 'none';
+    }
+    
+    function editChampionship(id) {
+      const championship = allChampionships.find(c => c.id === id);
+      if (championship) {
+        openChampionshipModal(championship);
+      }
+    }
+    
+    async function saveChampionship() {
+      const id = document.getElementById('championshipId').value;
+      const year = parseInt(document.getElementById('champYear').value);
+      const gender = document.getElementById('champGender').value;
+      const division = document.getElementById('champDivision').value;
+      const champion = document.getElementById('champChampion').value.trim();
+      const runner_up = document.getElementById('champRunnerUp').value.trim();
+      const champion_score = document.getElementById('champChampionScore').value ? parseInt(document.getElementById('champChampionScore').value) : null;
+      const runner_up_score = document.getElementById('champRunnerUpScore').value ? parseInt(document.getElementById('champRunnerUpScore').value) : null;
+      const overtime = document.getElementById('champOvertime').value === 'true';
+      const notes = document.getElementById('champNotes').value.trim() || null;
+      
+      if (!year || !gender || !division || !champion || !runner_up) {
+        showToast('Please fill in all required fields', 'error');
+        return;
+      }
+      
+      try {
+        const data = { year, gender, division, champion, runner_up, champion_score, runner_up_score, overtime, notes, updated_at: new Date().toISOString() };
+        
+        if (id) {
+          const { error } = await db.from('championship_history').update(data).eq('id', id);
+          if (error) throw error;
+          showToast('Championship updated', 'success');
+        } else {
+          const { error } = await db.from('championship_history').insert(data);
+          if (error) throw error;
+          showToast('Championship added', 'success');
+        }
+        
+        closeChampionshipModal();
+        allChampionships = [];
+        loadChampionships();
+        
+      } catch (err) {
+        console.error('Error saving championship:', err);
+        showToast('Error saving championship: ' + err.message, 'error');
+      }
+    }
+    
+    function confirmDeleteChampionship(id) {
+      const championship = allChampionships.find(c => c.id === id);
+      if (championship && confirm(`Delete ${championship.year} ${championship.gender} ${championship.division} championship?\n\n${championship.champion} vs ${championship.runner_up}`)) {
+        deleteChampionshipById(id);
+      }
+    }
+    
+    async function deleteChampionship() {
+      const id = document.getElementById('championshipId').value;
+      if (id && confirm('Are you sure you want to delete this championship?')) {
+        await deleteChampionshipById(id);
+        closeChampionshipModal();
+      }
+    }
+    
+    async function deleteChampionshipById(id) {
+      try {
+        const { error } = await db.from('championship_history').delete().eq('id', id);
+        if (error) throw error;
+        
+        showToast('Championship deleted', 'success');
+        allChampionships = [];
+        loadChampionships();
+        
+      } catch (err) {
+        console.error('Error deleting championship:', err);
+        showToast('Error deleting championship', 'error');
+      }
+    }
+    
+    function exportChampionships() {
+      const gender = document.getElementById('champGenderFilter').value;
+      const division = document.getElementById('champDivisionFilter').value;
+      
+      let filtered = allChampionships;
+      if (gender) filtered = filtered.filter(c => c.gender === gender);
+      if (division) filtered = filtered.filter(c => c.division === division);
+      
+      const csv = [
+        'Year,Gender,Division,Champion,Runner-Up,Champion Score,Runner-Up Score,Overtime,Notes',
+        ...filtered.map(c => 
+          `${c.year},${c.gender},"${c.division}","${c.champion}","${c.runner_up}",${c.champion_score || ''},${c.runner_up_score || ''},${c.overtime ? 'Yes' : 'No'},"${(c.notes || '').replace(/"/g, '""')}"`
+        )
+      ].join('\n');
+      
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `championships${gender ? '-' + gender.toLowerCase() : ''}${division ? '-' + division.replace(/\s+/g, '-').toLowerCase() : ''}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      
+      showToast(`Exported ${filtered.length} championships`, 'success');
     }
     
     // ===== SITE SETTINGS =====
