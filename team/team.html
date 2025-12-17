@@ -940,12 +940,70 @@
     }
 
     // ===== LOAD FEATURES DATA =====
-    function loadFeaturesData() {
-      if (!TEAM_CONFIG || typeof getSchoolProfile !== 'function') return;
-      const profile = getSchoolProfile(TEAM_CONFIG.name);
-      teamData.scorers1K = profile.scorers1K || [];
-      teamData.ncaaPlayers = profile.ncaaPlayers || [];
-      teamData.championships = profile.championships || { boys: [], girls: [], totalTitles: 0, totalRunnerUp: 0 };
+    async function loadFeaturesData() {
+      if (!TEAM_CONFIG) return;
+      
+      // Load 1K scorers and NCAA players from static data (fallback)
+      if (typeof getSchoolProfile === 'function') {
+        const profile = getSchoolProfile(TEAM_CONFIG.name);
+        teamData.scorers1K = profile.scorers1K || [];
+        teamData.ncaaPlayers = profile.ncaaPlayers || [];
+      }
+      
+      // Fetch championships from Supabase
+      try {
+        const schoolName = TEAM_CONFIG.name.toLowerCase()
+          .replace(/\s+hs$/i, '')
+          .replace(/\s+high\s+school$/i, '')
+          .replace(/\s+academy$/i, '')
+          .replace(/regional/i, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+        
+        const { data, error } = await db
+          .from('championship_history')
+          .select('*')
+          .or(`champion.ilike.${schoolName},runner_up.ilike.${schoolName}`)
+          .order('year', { ascending: false });
+        
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+          const results = { boys: [], girls: [], totalTitles: 0, totalRunnerUp: 0 };
+          
+          data.forEach(game => {
+            const isChampion = game.champion.toLowerCase() === schoolName;
+            const entry = {
+              ...game,
+              result: isChampion ? 'champion' : 'runner_up'
+            };
+            
+            if (game.gender === 'Boys') {
+              results.boys.push(entry);
+            } else {
+              results.girls.push(entry);
+            }
+            
+            if (isChampion) {
+              results.totalTitles++;
+            } else {
+              results.totalRunnerUp++;
+            }
+          });
+          
+          teamData.championships = results;
+        } else {
+          teamData.championships = { boys: [], girls: [], totalTitles: 0, totalRunnerUp: 0 };
+        }
+      } catch (err) {
+        console.error('Error fetching championships from Supabase:', err);
+        // Fallback to static data
+        if (typeof getSchoolChampionships === 'function') {
+          teamData.championships = getSchoolChampionships(TEAM_CONFIG.name);
+        } else {
+          teamData.championships = { boys: [], girls: [], totalTitles: 0, totalRunnerUp: 0 };
+        }
+      }
     }
 
     // ===== RENDER ALL =====
