@@ -12305,10 +12305,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       gcCanvas.backgroundColor = '#ffffff';
       
       // Render each layer (bottom to top)
-      gcLayers.forEach(layer => {
+      gcLayers.forEach((layer, index) => {
         if (!layer.visible) return;
         
-        const obj = createFabricObject(layer);
+        const obj = createFabricObject(layer, gcCanvas, gcLayers);
         if (obj) {
           obj.layerId = layer.id;
           obj.selectable = !layer.locked;
@@ -12321,14 +12321,18 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       gcCanvas.renderAll();
     }
     
-    function createFabricObject(layer) {
+    function createFabricObject(layer, targetCanvas, layersArray) {
+      // Default to gcCanvas and gcLayers if not provided (backwards compatibility)
+      targetCanvas = targetCanvas || gcCanvas;
+      layersArray = layersArray || gcLayers;
+      
       switch (layer.type) {
         case 'solid':
           return createSolidObject(layer);
         case 'gradient':
           return createGradientObject(layer);
         case 'image':
-          return createImageObject(layer);
+          return createImageObject(layer, targetCanvas, layersArray);
         case 'text':
           return createTextObject(layer);
         default:
@@ -12407,34 +12411,58 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       });
     }
     
-    function createImageObject(layer) {
+    function createImageObject(layer, targetCanvas, layersArray) {
+      // Default to gcCanvas/gcLayers if not provided
+      targetCanvas = targetCanvas || gcCanvas;
+      layersArray = layersArray || gcLayers;
+      
       const imageData = layer.settings.imageData || layer.settings.src;
+      
       if (!imageData) {
-        // Return placeholder
-        return new fabric.Rect({
+        // Return visible placeholder for editable image slots
+        const placeholder = new fabric.Rect({
           left: layer.position.x,
           top: layer.position.y,
           width: layer.size?.width || 400,
           height: layer.size?.height || 300,
-          fill: '#f0f0f0',
-          stroke: '#ddd',
-          strokeWidth: 2,
-          strokeDashArray: [5, 5],
+          fill: '#e8e8e8',
+          stroke: '#bbb',
+          strokeWidth: 3,
+          strokeDashArray: [15, 10],
           originX: 'center',
-          originY: 'center'
+          originY: 'center',
+          layerId: layer.id
         });
+        return placeholder;
       }
+      
+      // Determine if it's a data URL (base64) or external URL
+      const isDataUrl = imageData.startsWith('data:');
+      const imgOptions = isDataUrl ? {} : { crossOrigin: 'anonymous' };
+      
+      // Create a reference to capture current values
+      const capturedLayer = JSON.parse(JSON.stringify(layer));
+      const capturedCanvas = targetCanvas;
+      const capturedLayers = layersArray;
       
       // Load image asynchronously
       fabric.Image.fromURL(imageData, (img) => {
-        if (!img) return;
+        if (!img) {
+          console.error('Failed to load image for layer:', capturedLayer.id);
+          return;
+        }
         
-        const targetW = layer.size?.width || gcCanvasWidth;
-        const targetH = layer.size?.height || gcCanvasHeight * 0.65;
+        if (!capturedCanvas) {
+          console.error('Canvas not available for layer:', capturedLayer.id);
+          return;
+        }
+        
+        const targetW = capturedLayer.size?.width || gcCanvasWidth;
+        const targetH = capturedLayer.size?.height || gcCanvasHeight * 0.65;
         
         // Calculate scale based on fit mode
         let scale;
-        const fit = layer.settings.fit || 'cover';
+        const fit = capturedLayer.settings.fit || 'cover';
         if (fit === 'cover') {
           scale = Math.max(targetW / img.width, targetH / img.height);
         } else if (fit === 'contain') {
@@ -12444,47 +12472,54 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         }
         
         img.set({
-          left: layer.position.x,
-          top: layer.position.y,
+          left: capturedLayer.position.x,
+          top: capturedLayer.position.y,
           scaleX: scale,
           scaleY: fit === 'stretch' ? targetH / img.height : scale,
-          angle: layer.rotation || 0,
+          angle: capturedLayer.rotation || 0,
           originX: 'center',
           originY: 'center',
-          layerId: layer.id,
-          selectable: !layer.locked,
-          opacity: layer.opacity / 100
+          layerId: capturedLayer.id,
+          selectable: !capturedLayer.locked,
+          opacity: (capturedLayer.opacity || 100) / 100
         });
         
         // Apply mask if set
-        if (layer.settings.mask) {
-          applyMask(img, layer.settings.mask, targetW, targetH, layer.settings.polygonPoints);
+        if (capturedLayer.settings.mask) {
+          applyMask(img, capturedLayer.settings.mask, targetW, targetH, capturedLayer.settings.polygonPoints);
         }
         
-        // Find and replace placeholder
-        const objects = gcCanvas.getObjects();
-        const placeholder = objects.find(o => o.layerId === layer.id);
+        // Find and replace placeholder on the target canvas
+        const objects = capturedCanvas.getObjects();
+        const placeholder = objects.find(o => o.layerId === capturedLayer.id);
         if (placeholder) {
-          gcCanvas.remove(placeholder);
+          capturedCanvas.remove(placeholder);
         }
         
-        // Add at correct position
-        const layerIndex = gcLayers.findIndex(l => l.id === layer.id);
-        gcCanvas.insertAt(img, layerIndex);
-        gcCanvas.renderAll();
-      }, { crossOrigin: 'anonymous' });
+        // Add at correct position using the captured layers array
+        const layerIndex = capturedLayers.findIndex(l => l.id === capturedLayer.id);
+        if (layerIndex >= 0) {
+          capturedCanvas.insertAt(img, layerIndex);
+        } else {
+          capturedCanvas.add(img);
+        }
+        capturedCanvas.renderAll();
+      }, imgOptions);
       
       // Return placeholder while loading
-      return new fabric.Rect({
+      const loadingPlaceholder = new fabric.Rect({
         left: layer.position.x,
         top: layer.position.y,
-        width: 100,
-        height: 100,
-        fill: '#f5f5f5',
-        visible: false,
+        width: layer.size?.width || 200,
+        height: layer.size?.height || 200,
+        fill: '#f0f0f0',
+        stroke: '#ddd',
+        strokeWidth: 1,
         originX: 'center',
-        originY: 'center'
+        originY: 'center',
+        layerId: layer.id
       });
+      return loadingPlaceholder;
     }
     
     function applyMask(img, maskType, width, height, polygonPoints) {
@@ -12756,6 +12791,11 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         if (error) throw error;
         
         gcTemplates = data || [];
+        console.log('Loaded', gcTemplates.length, 'templates from database');
+        gcTemplates.forEach((t, i) => {
+          console.log(`  Template ${i}: ${t.name}, layers:`, t.layers?.length || 0);
+        });
+        
         renderTemplateGrid();
       } catch (err) {
         console.error('Error loading templates:', err);
@@ -12808,6 +12848,16 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         return;
       }
       
+      console.log('Saving template:', name);
+      console.log('Layers to save:', gcLayers.length);
+      gcLayers.forEach((l, i) => {
+        console.log(`  Layer ${i}: ${l.name} (${l.type})`, 
+          l.type === 'image' ? `hasImageData: ${!!l.settings?.imageData}, hasSrc: ${!!l.settings?.src}` : '');
+        if (l.type === 'image' && l.settings?.imageData) {
+          console.log(`    imageData length: ${l.settings.imageData.length} chars`);
+        }
+      });
+      
       try {
         // Generate thumbnail
         const thumbnailUrl = await generateTemplateThumbnail();
@@ -12828,6 +12878,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           .single();
         
         if (error) throw error;
+        
+        console.log('Template saved successfully, id:', data.id);
         
         gcTemplates.unshift(data);
         renderTemplateGrid();
@@ -12867,7 +12919,19 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     
     function selectTemplate(templateId) {
       const template = gcTemplates.find(t => t.id == templateId);
-      if (!template) return;
+      if (!template) {
+        console.error('Template not found:', templateId);
+        return;
+      }
+      
+      console.log('Loading template:', template.name);
+      console.log('Template layers:', template.layers?.length || 0);
+      if (template.layers) {
+        template.layers.forEach((l, i) => {
+          console.log(`  Layer ${i}: ${l.name} (${l.type})`, 
+            l.type === 'image' ? `hasImageData: ${!!l.settings?.imageData}, hasSrc: ${!!l.settings?.src}` : '');
+        });
+      }
       
       gcCurrentTemplate = template;
       
@@ -12915,22 +12979,32 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     }
     
     function renderTemplatePreview() {
-      if (!gcTemplateCanvas || !gcCurrentTemplate) return;
+      if (!gcTemplateCanvas || !gcCurrentTemplate) {
+        console.error('renderTemplatePreview: Missing canvas or template');
+        return;
+      }
       
       gcTemplateCanvas.clear();
       gcTemplateCanvas.backgroundColor = '#ffffff';
       
       const layers = gcCurrentTemplate.layers || [];
+      console.log('Rendering template with', layers.length, 'layers');
       
-      layers.forEach(layer => {
-        if (!layer.visible) return;
+      layers.forEach((layer, index) => {
+        if (!layer.visible) {
+          console.log(`Layer ${index} (${layer.name}) is hidden`);
+          return;
+        }
         
-        // Create object with template color substitutions
-        const obj = createTemplateObject(layer);
+        console.log(`Rendering layer ${index}: ${layer.name} (${layer.type})`, 
+          layer.type === 'image' ? `hasImage: ${!!(layer.settings.imageData || layer.settings.src)}` : '');
+        
+        // Create object with template color substitutions, passing template canvas
+        const obj = createTemplateObject(layer, gcTemplateCanvas, layers);
         if (obj) {
           obj.selectable = false;
           obj.evented = false;
-          obj.opacity = layer.opacity / 100;
+          obj.opacity = (layer.opacity || 100) / 100;
           gcTemplateCanvas.add(obj);
         }
       });
@@ -12938,7 +13012,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       gcTemplateCanvas.renderAll();
     }
     
-    function createTemplateObject(layer) {
+    function createTemplateObject(layer, targetCanvas, layersArray) {
       // Similar to createFabricObject but uses template colors
       const tempLayer = JSON.parse(JSON.stringify(layer));
       
@@ -12964,7 +13038,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         }
       }
       
-      return createFabricObject(tempLayer);
+      return createFabricObject(tempLayer, targetCanvas, layersArray);
     }
     
     function buildEditableFields(template) {
