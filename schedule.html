@@ -831,18 +831,24 @@
       return teamName.toLowerCase().replace(/[^a-z0-9]/g, '');
     }
 
-    function getTeamLink(teamName, logoFilename, isWinner) {
+    function isCollegeGame(level) {
+      if (!level) return false;
+      const collegeLevels = ['D1', 'D2', 'D3', 'D-I', 'D-II', 'D-III', 'NAIA', 'NJCAA'];
+      return collegeLevels.includes(level.toUpperCase());
+    }
+
+    function getTeamLink(teamName, logoFilename, isWinner, level) {
       const slug = getTeamSlug(teamName);
-      if (!slug) {
+      if (!slug || isCollegeGame(level)) {
         return `<span class="matchup-team"><img class="matchup-logo" src="/logos/100px/${logoFilename}" onerror="this.src='/logos/100px/Ball603-white.png'"><span class="matchup-name${isWinner?' winner':''}">${teamName || 'TBD'}</span></span>`;
       }
       return `<a href="/${slug}#schedules" class="team-link matchup-team"><img class="matchup-logo" src="/logos/100px/${logoFilename}" onerror="this.src='/logos/100px/Ball603-white.png'"><span class="matchup-name${isWinner?' winner':''}">${teamName}</span></a>`;
     }
 
-    function getMobileTeamLink(teamName, logoFilename, record) {
+    function getMobileTeamLink(teamName, logoFilename, record, level) {
       const slug = getTeamSlug(teamName);
       const teamInfoContent = `<div class="team-logo"><img src="/logos/100px/${logoFilename}" onerror="this.src='/logos/100px/Ball603-white.png'"></div><div><div class="team-name">${teamName || 'TBD'}</div>${record ? '<div class="team-record">'+record+'</div>' : ''}</div>`;
-      if (!slug) {
+      if (!slug || isCollegeGame(level)) {
         return `<div class="team-info">${teamInfoContent}</div>`;
       }
       return `<a href="/${slug}#schedules" class="team-info team-link">${teamInfoContent}</a>`;
@@ -910,9 +916,9 @@
         tableHtml += '<td class="col-level">'+(g.level||'')+'</td>';
         tableHtml += '<td class="col-gender">'+(g.gender||'')+'</td>';
         tableHtml += '<td class="col-matchup"><div class="matchup-row">';
-        tableHtml += getTeamLink(g.away, getLogoFilename(g.away), aw);
+        tableHtml += getTeamLink(g.away, getLogoFilename(g.away), aw, g.level);
         tableHtml += '<span class="matchup-at">@</span>';
-        tableHtml += getTeamLink(g.home, getLogoFilename(g.home), hw);
+        tableHtml += getTeamLink(g.home, getLogoFilename(g.home), hw, g.level);
         tableHtml += '</div></td>';
         tableHtml += '<td class="col-status">'+statusCell+'</td>';
         tableHtml += '<td class="col-coverage">'+(cov||'-')+'</td>';
@@ -924,8 +930,8 @@
         if (g.gamedescription) cardsHtml += '<div class="game-description">'+g.gamedescription+'</div>';
         cardsHtml += '<div class="game-card-header"><span class="game-level">'+(g.gender||'')+' '+(g.level||'')+'</span><span class="game-time">'+td+'</span></div>';
         cardsHtml += '<div class="game-card-body">';
-        cardsHtml += '<div class="game-team">'+getMobileTeamLink(g.away, getLogoFilename(g.away), g.away_record)+(hasScore?'<div class="team-score'+(aw?' winner':'')+'">'+as+'</div>':'')+'</div>';
-        cardsHtml += '<div class="game-team">'+getMobileTeamLink(g.home, getLogoFilename(g.home), g.home_record)+(hasScore?'<div class="team-score'+(hw?' winner':'')+'">'+hs+'</div>':'')+'</div>';
+        cardsHtml += '<div class="game-team">'+getMobileTeamLink(g.away, getLogoFilename(g.away), g.away_record, g.level)+(hasScore?'<div class="team-score'+(aw?' winner':'')+'">'+as+'</div>':'')+'</div>';
+        cardsHtml += '<div class="game-team">'+getMobileTeamLink(g.home, getLogoFilename(g.home), g.home_record, g.level)+(hasScore?'<div class="team-score'+(hw?' winner':'')+'">'+hs+'</div>':'')+'</div>';
         cardsHtml += '</div>';
         if (cov) cardsHtml += '<div class="game-card-footer">'+cov+'</div>';
         cardsHtml += '</div>';
