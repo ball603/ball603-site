@@ -11687,6 +11687,15 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           </div>
         `;
       }).join('');
+      
+      // Setup dropzones for image layers after DOM is updated
+      setTimeout(() => {
+        gcLayers.forEach(layer => {
+          if (layer.type === 'image') {
+            setupImageDropzone(layer.id);
+          }
+        });
+      }, 0);
     }
     
     function renderLayerSettings(layer) {
@@ -12719,10 +12728,25 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       gcCanvas.setHeight(Math.round(gcCanvasHeight * currentZoom));
       gcCanvas.renderAll();
       
+      // Generate filename
+      let filename = 'ball603-graphic.png';
+      const select = document.getElementById('gcCreatorTeamSelect');
+      if (select && select.value) {
+        const team = gcTemplateTeams.find(t => t.id == select.value);
+        if (team) {
+          const shortname = (team.shortname || 'Team').replace(/\s+/g, '');
+          const gender = (team.gender || '').replace(/\s+/g, '');
+          const now = new Date();
+          const dateStr = String(now.getMonth() + 1).padStart(2, '0') + 
+                          String(now.getDate()).padStart(2, '0') + 
+                          String(now.getFullYear()).slice(-2);
+          filename = `${shortname}${gender}${dateStr}.png`;
+        }
+      }
+      
       // Download
-      const timestamp = new Date().toISOString().slice(0, 10);
       const link = document.createElement('a');
-      link.download = `ball603-graphic-${timestamp}.png`;
+      link.download = filename;
       link.href = dataURL;
       link.click();
       
@@ -13204,11 +13228,25 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       gcTemplateCanvas.setHeight(Math.round(gcCurrentTemplate.height * scale));
       gcTemplateCanvas.renderAll();
       
+      // Generate filename
+      let filename = `ball603-${gcCurrentTemplate.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}.png`;
+      const select = document.getElementById('gcTemplateTeamSelect');
+      if (select && select.value) {
+        const team = gcTemplateTeams.find(t => t.id == select.value);
+        if (team) {
+          const shortname = (team.shortname || 'Team').replace(/\s+/g, '');
+          const gender = (team.gender || '').replace(/\s+/g, '');
+          const now = new Date();
+          const dateStr = String(now.getMonth() + 1).padStart(2, '0') + 
+                          String(now.getDate()).padStart(2, '0') + 
+                          String(now.getFullYear()).slice(-2);
+          filename = `${shortname}${gender}${dateStr}.png`;
+        }
+      }
+      
       // Download
-      const timestamp = new Date().toISOString().slice(0, 10);
-      const safeName = gcCurrentTemplate.name.toLowerCase().replace(/[^a-z0-9]/g, '-');
       const link = document.createElement('a');
-      link.download = `ball603-${safeName}-${timestamp}.png`;
+      link.download = filename;
       link.href = dataURL;
       link.click();
       
