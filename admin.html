@@ -11482,6 +11482,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           locked: false,
           opacity: 100,
           position: { x: gcCanvasWidth / 2, y: gcCanvasHeight * 0.75 },
+          size: { width: gcCanvasWidth * 0.85, height: 300 },
           rotation: 0,
           editable: true,
           settings: {
@@ -11606,6 +11607,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       switch (newType) {
         case 'solid':
           layer.settings = { color: '#cccccc', useSchoolColor: false };
+          layer.size = { width: gcCanvasWidth, height: gcCanvasHeight };
           break;
         case 'gradient':
           layer.settings = { 
@@ -11613,9 +11615,12 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             direction: 'to-right',
             stops: [0, 100]
           };
+          layer.size = { width: gcCanvasWidth, height: gcCanvasHeight };
           break;
         case 'image':
           layer.settings = { src: null, imageData: null, mask: null, fit: 'cover' };
+          layer.size = { width: gcCanvasWidth, height: gcCanvasHeight * 0.6 };
+          layer.position = { x: gcCanvasWidth / 2, y: gcCanvasHeight * 0.3 };
           break;
         case 'text':
           layer.settings = {
@@ -11627,6 +11632,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             align: 'center',
             shadow: { enabled: false }
           };
+          layer.size = { width: gcCanvasWidth * 0.8, height: 200 };
+          layer.position = { x: gcCanvasWidth / 2, y: gcCanvasHeight / 2 };
           break;
       }
       
@@ -11999,6 +12006,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     let gcPolygonDrawingLayerId = null;
     let gcPolygonPoints = [];
     let gcPolygonPreviewObjects = [];
+    let gcPolygonClickRect = null;
     
     function startPolygonDrawing(layerId) {
       // If already drawing this layer, stop
@@ -12015,21 +12023,42 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       gcPolygonPreviewObjects.forEach(obj => gcCanvas.remove(obj));
       gcPolygonPreviewObjects = [];
       
-      // Add click handler to canvas
-      gcCanvas.on('mouse:down', handlePolygonClick);
+      // Disable selection on all objects temporarily
+      gcCanvas.getObjects().forEach(obj => {
+        obj._wasSelectable = obj.selectable;
+        obj.selectable = false;
+        obj.evented = false;
+      });
+      
+      // Add a transparent rect to capture all clicks (including outside objects)
+      gcPolygonClickRect = new fabric.Rect({
+        left: 0,
+        top: 0,
+        width: gcCanvasWidth,
+        height: gcCanvasHeight,
+        fill: 'transparent',
+        selectable: false,
+        evented: true,
+        hoverCursor: 'crosshair'
+      });
+      gcCanvas.add(gcPolygonClickRect);
+      gcCanvas.bringToFront(gcPolygonClickRect);
+      
+      // Add click handler
+      gcPolygonClickRect.on('mousedown', handlePolygonClick);
       gcCanvas.on('mouse:dblclick', finishPolygonDrawing);
       
       // Visual feedback
       document.getElementById('gcCanvasContainer').classList.add('gc-polygon-drawing');
       
-      showToast('Click to add points. Double-click to finish.', 'success');
+      showToast('Click anywhere to add points. Double-click to finish.', 'success');
       renderGcLayersList();
     }
     
     function handlePolygonClick(e) {
       if (!gcPolygonDrawingLayerId) return;
       
-      // Get click position in canvas coordinates (accounting for zoom)
+      // Get click position in canvas coordinates
       const pointer = gcCanvas.getPointer(e.e);
       const x = pointer.x;
       const y = pointer.y;
@@ -12041,7 +12070,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const circle = new fabric.Circle({
         left: x,
         top: y,
-        radius: 6 / gcZoomFactor,
+        radius: 8 / gcZoomFactor,
         fill: '#f57c00',
         stroke: '#fff',
         strokeWidth: 2 / gcZoomFactor,
@@ -12059,7 +12088,6 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         const line = new fabric.Line([prev.x, prev.y, x, y], {
           stroke: '#f57c00',
           strokeWidth: 2 / gcZoomFactor,
-          strokeDashArray: [5, 5],
           selectable: false,
           evented: false
         });
@@ -12067,22 +12095,46 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         gcPolygonPreviewObjects.push(line);
       }
       
+      // Draw closing line preview (to first point)
+      if (gcPolygonPoints.length > 2) {
+        // Remove old closing line if exists
+        const oldClosingLine = gcPolygonPreviewObjects.find(obj => obj._isClosingLine);
+        if (oldClosingLine) {
+          gcCanvas.remove(oldClosingLine);
+          gcPolygonPreviewObjects = gcPolygonPreviewObjects.filter(obj => !obj._isClosingLine);
+        }
+        
+        const first = gcPolygonPoints[0];
+        const closingLine = new fabric.Line([x, y, first.x, first.y], {
+          stroke: '#f57c00',
+          strokeWidth: 2 / gcZoomFactor,
+          strokeDashArray: [5, 5],
+          selectable: false,
+          evented: false
+        });
+        closingLine._isClosingLine = true;
+        gcCanvas.add(closingLine);
+        gcPolygonPreviewObjects.push(closingLine);
+      }
+      
       gcCanvas.renderAll();
     }
     
     function finishPolygonDrawing() {
       if (!gcPolygonDrawingLayerId || gcPolygonPoints.length < 3) {
-        if (gcPolygonPoints.length < 3) {
+        if (gcPolygonPoints.length > 0 && gcPolygonPoints.length < 3) {
           showToast('Need at least 3 points for a polygon', 'error');
         }
         return;
       }
       
-      // Save points to layer
+      // Save points to layer (store as canvas coordinates)
       const layer = gcLayers.find(l => l.id === gcPolygonDrawingLayerId);
       if (layer) {
         layer.settings.polygonPoints = [...gcPolygonPoints];
       }
+      
+      const pointCount = gcPolygonPoints.length;
       
       // Clean up
       stopPolygonDrawing();
@@ -12091,13 +12143,19 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       renderGcLayersList();
       renderGcCanvas();
       
-      showToast(`Polygon mask created with ${gcPolygonPoints.length} points`, 'success');
+      showToast(`Polygon mask created with ${pointCount} points`, 'success');
     }
     
     function stopPolygonDrawing() {
-      // Remove event handlers
+      // Remove click rect
+      if (gcPolygonClickRect) {
+        gcPolygonClickRect.off('mousedown', handlePolygonClick);
+        gcCanvas.remove(gcPolygonClickRect);
+        gcPolygonClickRect = null;
+      }
+      
+      // Remove dblclick handler
       if (gcCanvas) {
-        gcCanvas.off('mouse:down', handlePolygonClick);
         gcCanvas.off('mouse:dblclick', finishPolygonDrawing);
       }
       
@@ -12106,6 +12164,17 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         if (gcCanvas) gcCanvas.remove(obj);
       });
       gcPolygonPreviewObjects = [];
+      
+      // Restore selection on objects
+      if (gcCanvas) {
+        gcCanvas.getObjects().forEach(obj => {
+          if (obj._wasSelectable !== undefined) {
+            obj.selectable = obj._wasSelectable;
+            obj.evented = !obj.locked;
+            delete obj._wasSelectable;
+          }
+        });
+      }
       
       // Reset state
       gcPolygonDrawingLayerId = null;
@@ -12424,7 +12493,9 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           clipPath: new fabric.Circle({
             radius: Math.min(width, height) / 2,
             originX: 'center',
-            originY: 'center'
+            originY: 'center',
+            stroke: null,
+            strokeWidth: 0
           })
         });
       } else if (maskType === 'rectangle') {
@@ -12435,7 +12506,9 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             originX: 'center',
             originY: 'center',
             rx: 20,
-            ry: 20
+            ry: 20,
+            stroke: null,
+            strokeWidth: 0
           })
         });
       } else if (maskType === 'polygon' && polygonPoints?.length >= 3) {
@@ -12452,7 +12525,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         img.set({
           clipPath: new fabric.Polygon(relativePoints, {
             originX: 'center',
-            originY: 'center'
+            originY: 'center',
+            stroke: null,
+            strokeWidth: 0,
+            fill: '#000000' // Solid fill for clip path
           })
         });
       }
@@ -12462,16 +12538,21 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const s = layer.settings;
       const content = s.content || s.placeholder || '';
       
+      // Use layer width or default to 80% of canvas
+      const textWidth = layer.size?.width || (gcCanvasWidth * 0.8);
+      
       const textOptions = {
         left: layer.position.x,
         top: layer.position.y,
+        width: textWidth,
         fontFamily: s.font || 'Poppins',
         fontSize: s.fontSize || 48,
         fill: s.color || '#333333',
         textAlign: s.align || 'center',
         originX: 'center',
         originY: 'center',
-        angle: layer.rotation || 0
+        angle: layer.rotation || 0,
+        splitByGrapheme: false
       };
       
       if (s.shadow?.enabled) {
@@ -12489,6 +12570,19 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     // ===== CANVAS EVENTS =====
     
     function setupCanvasEvents() {
+      // Track position changes while moving (real-time)
+      gcCanvas.on('object:moving', (e) => {
+        const obj = e.target;
+        if (!obj.layerId) return;
+        
+        const layer = gcLayers.find(l => l.id === obj.layerId);
+        if (layer) {
+          layer.position.x = obj.left;
+          layer.position.y = obj.top;
+        }
+      });
+      
+      // Track all modifications (move, scale, rotate)
       gcCanvas.on('object:modified', (e) => {
         const obj = e.target;
         if (!obj.layerId) return;
@@ -12501,6 +12595,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         layer.position.y = obj.top;
         layer.rotation = obj.angle || 0;
         
+        // Update size if scaled
         if (obj.width && obj.scaleX) {
           layer.size = {
             width: obj.width * obj.scaleX,
@@ -12513,7 +12608,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         const obj = e.selected[0];
         if (obj?.layerId) {
           gcSelectedLayerId = obj.layerId;
-          renderGcLayersList();
+          // Don't re-render canvas, just update layer list UI
+          updateLayerListSelection();
         }
       });
       
@@ -12521,7 +12617,24 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         const obj = e.selected[0];
         if (obj?.layerId) {
           gcSelectedLayerId = obj.layerId;
-          renderGcLayersList();
+          updateLayerListSelection();
+        }
+      });
+      
+      gcCanvas.on('selection:cleared', () => {
+        // Don't clear selection or re-render, just update UI
+        updateLayerListSelection();
+      });
+    }
+    
+    // Update layer list selection highlighting without full re-render
+    function updateLayerListSelection() {
+      document.querySelectorAll('.gc-layer-item').forEach(item => {
+        const layerId = item.dataset.layerId;
+        if (layerId === gcSelectedLayerId) {
+          item.classList.add('selected');
+        } else {
+          item.classList.remove('selected');
         }
       });
     }
