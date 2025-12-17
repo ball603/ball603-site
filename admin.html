@@ -11226,9 +11226,16 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     }
     
     function createHeadlineText() {
+      // Calculate angle to match the divider bar
+      // Bar goes from (0, 62%) to (100%, 72%), so it slopes down-right
+      const rise = (GC_DIVIDER_END_Y - GC_DIVIDER_START_Y);
+      const run = GC_FULL_WIDTH;
+      const angleRadians = Math.atan2(rise, run);
+      const angleDegrees = angleRadians * (180 / Math.PI);
+      
       gcHeadlineObject = new fabric.Textbox('', {
         left: GC_PREVIEW_WIDTH / 2,
-        top: GC_PREVIEW_HEIGHT * 0.68,
+        top: GC_PREVIEW_HEIGHT * 0.78,
         width: GC_PREVIEW_WIDTH * 0.85,
         fontFamily: 'Covered By Your Grace',
         fontSize: 24, // Preview scale
@@ -11236,6 +11243,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         textAlign: 'center',
         originX: 'center',
         originY: 'center',
+        angle: angleDegrees,
         selectable: true,
         editable: false,
         shadow: new fabric.Shadow({
@@ -11257,7 +11265,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       
       if (gcHeadlineObject) {
         gcHeadlineObject.set({
-          text: text.toUpperCase(),
+          text: text,
           fontSize: size * GC_PREVIEW_SCALE
         });
         gcCanvas.renderAll();
@@ -11526,9 +11534,19 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       }
       
       // Draw headline text
-      const headline = document.getElementById('gcHeadline').value.toUpperCase();
+      const headline = document.getElementById('gcHeadline').value;
       if (headline) {
         const fontSize = parseInt(document.getElementById('gcHeadlineSize').value);
+        
+        // Calculate angle to match divider bar
+        const rise = (GC_DIVIDER_END_Y - GC_DIVIDER_START_Y);
+        const run = GC_FULL_WIDTH;
+        const angleRadians = Math.atan2(rise, run);
+        
+        ctx.save();
+        ctx.translate(GC_FULL_WIDTH / 2, GC_FULL_HEIGHT * 0.78);
+        ctx.rotate(angleRadians);
+        
         ctx.font = `${fontSize}px "Covered By Your Grace"`;
         ctx.fillStyle = '#ffffff';
         ctx.textAlign = 'center';
@@ -11559,17 +11577,13 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         if (currentLine) lines.push(currentLine);
         
         const lineHeight = fontSize * 1.1;
-        const startY = GC_FULL_HEIGHT * 0.68 - ((lines.length - 1) * lineHeight / 2);
+        const startY = -((lines.length - 1) * lineHeight / 2);
         
         lines.forEach((line, i) => {
-          ctx.fillText(line, GC_FULL_WIDTH / 2, startY + (i * lineHeight));
+          ctx.fillText(line, 0, startY + (i * lineHeight));
         });
         
-        // Reset shadow
-        ctx.shadowColor = 'transparent';
-        ctx.shadowBlur = 0;
-        ctx.shadowOffsetX = 0;
-        ctx.shadowOffsetY = 0;
+        ctx.restore();
       }
       
       // Draw photographer credit
