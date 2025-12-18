@@ -709,6 +709,7 @@ export default async (request) => {
 };
 
 export const config = {
+  path: "/api/scrape-schedules",
   // Nov-Mar schedule:
   // - Mon-Fri 6-11 PM EST: Every 5 minutes (for live score updates)
   // - All other times: Hourly
