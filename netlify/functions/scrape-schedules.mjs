@@ -116,6 +116,13 @@ function normalizeTeamName(name) {
   return normalizations[name] || name;
 }
 
+// Helper to convert score to integer or null
+function toIntOrNull(val) {
+  if (val === null || val === undefined || val === '') return null;
+  const num = parseInt(val);
+  return isNaN(num) ? null : num;
+}
+
 // Convert team name to consistent slug for game IDs
 // This prevents duplicates from variant spellings/truncations from NHIAA
 function teamSlug(name) {
@@ -535,7 +542,7 @@ async function migrateGameId(oldGame, newGameId) {
 async function getExistingGames() {
   // Fetch all NHIAA games from Supabase
   const response = await fetch(
-    `${SUPABASE_URL}/rest/v1/games?level=eq.NHIAA&select=game_id,date,photog1,photog2,videog,writer,notes,original_date,schedule_changed,photos_url,recap_url,highlights_url,live_stream_url,game_description,special_event`,
+    `${SUPABASE_URL}/rest/v1/games?level=eq.NHIAA&select=game_id,date,time,away_score,home_score,photog1,photog2,videog,writer,notes,original_date,schedule_changed,photos_url,recap_url,highlights_url,live_stream_url,game_description,special_event,original_time`,
     {
       headers: {
         'apikey': SUPABASE_SERVICE_KEY,
@@ -592,14 +599,28 @@ async function updateSupabase(games) {
       originalDate = g.date;
     }
     
+    // Preserve existing scores if scraper doesn't have one
+    // This prevents manual score entries from being wiped out
+    const awayScore = toIntOrNull(g.away_score) ?? toIntOrNull(existing.away_score);
+    const homeScore = toIntOrNull(g.home_score) ?? toIntOrNull(existing.home_score);
+    
+    // Determine time: if we have scores (from scraper or existing), mark as FINAL
+    // Otherwise use scraped time, or preserve existing time
+    let time = g.time || null;
+    if (awayScore !== null && homeScore !== null) {
+      time = 'FINAL';
+    } else if (!time && existing.time) {
+      time = existing.time;
+    }
+    
     return {
       game_id: g.game_id,
       date: g.date,
-      time: g.time || null,
+      time: time,
       away_team: g.away_team,
       home_team: g.home_team,
-      away_score: g.away_score,
-      home_score: g.home_score,
+      away_score: awayScore,
+      home_score: homeScore,
       gender: g.gender,
       level: g.level,
       division: g.division,
