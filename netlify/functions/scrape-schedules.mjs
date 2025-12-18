@@ -730,7 +730,6 @@ export default async (request) => {
 };
 
 export const config = {
-  path: "/api/scrape-schedules",
   // Every 5 minutes during basketball season (Nov-Mar)
   schedule: "*/5 * * 1,2,3,11,12 *"
 };
