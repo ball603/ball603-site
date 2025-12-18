@@ -178,7 +178,8 @@ function normalizeTeamName(name) {
     'Lin Wood': 'Lin-Wood',
     'Linwood': 'Lin-Wood',
     'Wilton-Lyndeborough': 'Wilton-Lyndeborough',
-    'Wilton Lyndeborough': 'Wilton-Lyndeborough'
+    'Wilton Lyndeborough': 'Wilton-Lyndeborough',
+    'Mascoma Valley': 'Mascoma'
   };
   
   return mappings[name] || name;
@@ -344,10 +345,32 @@ function getShortName(teamName) {
 
 function getTickerName(teamName) {
   if (!teamName) return '';
+  const nameTrimmed = teamName.trim();
+  const nameLower = nameTrimmed.toLowerCase();
+  
   if (state.teams && state.teams.length > 0) {
-    const team = state.teams.find(function(t) {
-      return t.full_name === teamName || t.shortname === teamName || t.school === teamName;
-    });
+    // Try exact match first
+    let team = state.teams.find(t => 
+      t.shortname === nameTrimmed || 
+      t.full_name === nameTrimmed
+    );
+    
+    // Try case-insensitive match
+    if (!team) {
+      team = state.teams.find(t => 
+        (t.shortname && t.shortname.toLowerCase() === nameLower) ||
+        (t.full_name && t.full_name.toLowerCase() === nameLower)
+      );
+    }
+    
+    // Try if shortname is contained in the full team name or vice versa
+    if (!team) {
+      team = state.teams.find(t => 
+        (t.shortname && nameLower.includes(t.shortname.toLowerCase())) ||
+        (t.shortname && t.shortname.toLowerCase().includes(nameLower))
+      );
+    }
+    
     if (team && team.ticker_abbrev) {
       return team.ticker_abbrev;
     }
