@@ -623,6 +623,10 @@ DO NOT include a headline - just the article body starting with the dateline.`;
     article += closingParagraph;
   }
   
+  // Add photo gallery line at the end
+  const photogDisplay = photographerName || 'PHOTOGNAME';
+  article += `\n\nCheck out the full photo gallery by ${photogDisplay}...`;
+  
   // Generate headline
   const marginOfVictory = winnerScore - loserScore;
   let headlineHint = '';
@@ -657,7 +661,7 @@ BANNED WORDS: blowout, dominates, destroys, crushes, demolishes, embarrasses, ro
     headline = gen;
   }
   
-  const excerpt = article.split('.').slice(0, 2).join('.').trim() + '.';
+  const excerpt = ''; // Leave excerpt empty for manual entry
   
   // Generate social posts
   return {
@@ -846,7 +850,7 @@ DO NOT include a headline - just the article body starting with the dateline.`;
     headline = gen;
   }
   
-  const excerpt = article.split('.').slice(0, 2).join('.').trim() + '.';
+  const excerpt = ''; // Leave excerpt empty for manual entry
   
   // Generate social posts
   const winnerSchoolInfo = awayWon ? awaySchoolInfo : homeSchoolInfo;
@@ -884,10 +888,10 @@ DO NOT include a headline - just the article body starting with the dateline.`;
   let facebookPost = article;
   facebookPost += `\n\nCheck out the full photo gallery by ${photogDisplay}...`;
   
-  let instagramPost = `${igHeader}\n\n${igLede}\n\n📊 Leading Scorers\n${winnerAbbrev}: ${formatIgScorers(sortedWinnerPlayers)}\n${loserAbbrev}: ${formatIgScorers(sortedLoserPlayers)}\n\n`;
+  let instagramPost = `${igHeader}\n\n${igLede}\n\n📊 Leading Scorers\n${winner.toUpperCase()}: ${formatIgScorers(sortedWinnerPlayers)}\n${loser.toUpperCase()}: ${formatIgScorers(sortedLoserPlayers)}\n\n`;
   instagramPost += `READ MORE & check out the full photo gallery by ${photogDisplay} over at Ball603.com.`;
   
-  let twitterPost = `${igHeader}\n\n${winnerAbbrev}: ${formatTwitterScorers(sortedWinnerPlayers)}\n${loserAbbrev}: ${formatTwitterScorers(sortedLoserPlayers)}\n\n`;
+  let twitterPost = `${igHeader}\n\n${winner.toUpperCase()}: ${formatTwitterScorers(sortedWinnerPlayers)}\n${loser.toUpperCase()}: ${formatTwitterScorers(sortedLoserPlayers)}\n\n`;
   twitterPost += `READ MORE & check out the full photo gallery by ${photogDisplay}...`;
   
   return {
@@ -1007,10 +1011,10 @@ Rules:
   let facebookPost = article;
   facebookPost += `\n\nCheck out the full photo gallery by ${photogDisplay}...`;
   
-  let instagramPost = `${igHeader}\n\n${igLede}\n\n📊 Leading Scorers\n${winnerAbbrev}: ${formatIgScorers(winnerScorersFromArticle)}\n${loserAbbrev}: ${formatIgScorers(loserScorersFromArticle)}\n\n`;
+  let instagramPost = `${igHeader}\n\n${igLede}\n\n📊 Leading Scorers\n${winner.toUpperCase()}: ${formatIgScorers(winnerScorersFromArticle)}\n${loser.toUpperCase()}: ${formatIgScorers(loserScorersFromArticle)}\n\n`;
   instagramPost += `READ MORE & check out the full photo gallery by ${photogDisplay} over at Ball603.com.`;
   
-  let twitterPost = `${igHeader}\n\n${winnerAbbrev}: ${formatTwitterScorers(winnerScorersFromArticle)}\n${loserAbbrev}: ${formatTwitterScorers(loserScorersFromArticle)}\n\n`;
+  let twitterPost = `${igHeader}\n\n${winner.toUpperCase()}: ${formatTwitterScorers(winnerScorersFromArticle)}\n${loser.toUpperCase()}: ${formatTwitterScorers(loserScorersFromArticle)}\n\n`;
   twitterPost += `READ MORE & check out the full photo gallery by ${photogDisplay}...`;
   
   return {
