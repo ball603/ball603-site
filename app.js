@@ -26,13 +26,24 @@ const state = {
 };
 
 // ===== SUPABASE CLIENT =====
-let supabase = null;
+var supabaseClient = null;
 
 function initSupabase() {
-  if (window.supabase && !supabase) {
-    supabase = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+  if (window.supabase && typeof window.supabase.createClient === 'function' && !supabaseClient) {
+    supabaseClient = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
   }
-  return supabase;
+  return supabaseClient;
+}
+
+/**
+ * Wait for Supabase library to be fully loaded
+ */
+async function waitForSupabase(maxWait = 5000) {
+  const start = Date.now();
+  while ((!window.supabase || typeof window.supabase.createClient !== 'function') && (Date.now() - start) < maxWait) {
+    await new Promise(resolve => setTimeout(resolve, 50));
+  }
+  return initSupabase();
 }
 
 // ===== DATA FETCHING =====
@@ -329,29 +340,6 @@ function getShortName(teamName) {
   };
   
   return shortNames[teamName] || teamName;
-}
-
-/**
- * Get ticker-specific abbreviation for a team
- * Falls back to getShortName if not found
- */
-function getTickerName(teamName) {
-  if (!teamName) return '';
-  
-  // Look up in teams data for ticker_abbrev
-  if (state.teams && state.teams.length > 0) {
-    const team = state.teams.find(t => 
-      t.full_name === teamName || 
-      t.shortname === teamName ||
-      t.school === teamName
-    );
-    if (team && team.ticker_abbrev) {
-      return team.ticker_abbrev;
-    }
-  }
-  
-  // Fallback to standard short name
-  return getShortName(teamName);
 }
 
 // ===== GAME HELPERS =====
@@ -1066,8 +1054,8 @@ function showToast(message, type = 'default', duration = 3000) {
  * Initialize the application
  */
 async function initApp() {
-  // Initialize Supabase
-  initSupabase();
+  // Initialize Supabase (wait for library to load)
+  await waitForSupabase();
   
   // Load followed teams
   loadFollowedTeams();
@@ -1108,7 +1096,7 @@ if (document.readyState === 'loading') {
 // ===== EXPORTS (for modules) =====
 window.Ball603 = {
   state,
-  supabase: null, // Will be set after init
+  getSupabase: initSupabase,
   fetchGames,
   fetchArticles,
   fetchTeams,
@@ -1117,7 +1105,6 @@ window.Ball603 = {
   getUpcomingGames,
   getLogoUrl,
   getShortName,
-  getTickerName,
   formatDate,
   formatTime,
   formatDivision,
