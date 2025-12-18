@@ -104,7 +104,7 @@
         .location-btn:hover { border-color: var(--primary); color: var(--primary); }
         .location-btn svg { width: 12px; height: 12px; }
 
-        .tonight-main { display: grid; grid-template-columns: 1fr 340px; flex: 1; min-height: 0; overflow: hidden; }
+        .tonight-main { display: grid; grid-template-columns: 1fr 380px; flex: 1; min-height: 0; overflow: hidden; }
 
         @media (max-width: 900px) {
             .tonight-main { grid-template-columns: 1fr; grid-template-rows: 50% 50%; }
@@ -140,15 +140,17 @@
         .game-location svg { width: 11px; height: 11px; color: var(--primary); flex-shrink: 0; }
         .distance-badge { background: var(--bg-page); padding: 0.05rem 0.2rem; border-radius: 2px; font-size: 0.65rem; font-weight: 600; color: var(--text-muted); margin-left: 0.2rem; }
 
-        /* TEAM ROWS - ACTUALLY LEFT ALIGNED */
-        .ticker-team {
-            display: flex;
-            align-items: center;
+        /* TEAM ROWS */
+        .b603-team-row {
+            display: flex !important;
+            flex-direction: row !important;
+            align-items: center !important;
+            justify-content: flex-start !important;
             padding: 0.1rem 0;
             gap: 0.3rem;
         }
 
-        .ticker-logo {
+        .b603-team-logo {
             width: 22px;
             height: 22px;
             border-radius: 3px;
@@ -157,13 +159,17 @@
             flex-shrink: 0;
         }
 
-        .ticker-team-name {
+        .b603-team-name {
             font-weight: 600;
             font-size: 0.95rem;
             color: var(--text-primary);
+            text-align: left !important;
+            white-space: nowrap;
+            overflow: visible;
+            flex: 0 0 auto !important;
         }
 
-        .ticker-home-badge {
+        .b603-home-badge {
             font-size: 0.5rem;
             font-weight: 700;
             color: var(--primary);
@@ -312,7 +318,7 @@
 
         function createMarker(school,games){const icon=L.divIcon({className:'custom-marker',html:`<svg width="24" height="32" viewBox="0 0 24 36" style="filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3))"><path d="M12 0C5.373 0 0 5.373 0 12c0 9 12 24 12 24s12-15 12-24c0-6.627-5.373-12-12-12z" fill="#f5831f"/><circle cx="12" cy="12" r="5" fill="#fff"/><text x="12" y="15" text-anchor="middle" fill="#f5831f" font-size="8" font-weight="bold">${games.length}</text></svg>`,iconSize:[24,32],iconAnchor:[12,32],popupAnchor:[0,-32]});const marker=L.marker([school.lat,school.lng],{icon}).addTo(map);let popupContent=`<div class="popup-content"><div class="popup-school">${school.name}</div>`;games.forEach(game=>{const away=schools[game.awayTeam];popupContent+=`<div class="popup-game"><div class="popup-game-time">${game.time} • ${game.type.charAt(0).toUpperCase()+game.type.slice(1)}</div><div class="popup-teams">${away.name}<span class="popup-vs">@</span>${school.name}</div></div>`;});popupContent+='</div>';marker.bindPopup(popupContent,{maxWidth:240,closeButton:false});marker.on('click',()=>setActiveGame(games[0].id));return marker;}
 
-        function updateGamesList(games){const container=document.getElementById('gamesList');if(games.length===0){container.innerHTML=`<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg><h3>No Games Found</h3><p>Try adjusting your filters.</p></div>`;return;}container.innerHTML=games.map(game=>{const home=schools[game.homeTeam],away=schools[game.awayTeam];const distHtml=game.distance!==undefined?`<span class="distance-badge">${game.distance.toFixed(1)} mi</span>`:'';return`<div class="game-card ${activeGameId===game.id?'active':''}" data-game-id="${game.id}" data-school="${game.homeTeam}"><div class="game-meta-row"><span class="game-type-badge ${game.type}">${game.type}</span><span class="game-time">${game.time}</span><span class="game-location"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>${home.town}${distHtml}</span></div><div class="ticker-team"><img class="ticker-logo" src="${getLogoUrl(away.name)}" alt="" onerror="this.style.display='none'"><span class="ticker-team-name">${away.name}</span></div><div class="ticker-team"><img class="ticker-logo" src="${getLogoUrl(home.name)}" alt="" onerror="this.style.display='none'"><span class="ticker-team-name">${home.name}</span><span class="ticker-home-badge">HOME</span></div></div>`;}).join('');container.querySelectorAll('.game-card').forEach(card=>{card.addEventListener('click',()=>{setActiveGame(parseInt(card.dataset.gameId));flyToSchool(card.dataset.school);});});}
+        function updateGamesList(games){const container=document.getElementById('gamesList');if(games.length===0){container.innerHTML=`<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg><h3>No Games Found</h3><p>Try adjusting your filters.</p></div>`;return;}container.innerHTML=games.map(game=>{const home=schools[game.homeTeam],away=schools[game.awayTeam];const distHtml=game.distance!==undefined?`<span class="distance-badge">${game.distance.toFixed(1)} mi</span>`:'';return`<div class="game-card ${activeGameId===game.id?'active':''}" data-game-id="${game.id}" data-school="${game.homeTeam}"><div class="game-meta-row"><span class="game-type-badge ${game.type}">${game.type}</span><span class="game-time">${game.time}</span><span class="game-location"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>${home.town}${distHtml}</span></div><div class="b603-team-row"><img class="b603-team-logo" src="${getLogoUrl(away.name)}" alt="" onerror="this.style.display='none'"><span class="b603-team-name">${away.name}</span></div><div class="b603-team-row"><img class="b603-team-logo" src="${getLogoUrl(home.name)}" alt="" onerror="this.style.display='none'"><span class="b603-team-name">${home.name}</span><span class="b603-home-badge">HOME</span></div></div>`;}).join('');container.querySelectorAll('.game-card').forEach(card=>{card.addEventListener('click',()=>{setActiveGame(parseInt(card.dataset.gameId));flyToSchool(card.dataset.school);});});}
 
         function setActiveGame(gameId){activeGameId=gameId;document.querySelectorAll('.game-card').forEach(card=>{card.classList.toggle('active',parseInt(card.dataset.gameId)===gameId);});}
         function flyToSchool(schoolId){const school=schools[schoolId];map.flyTo([school.lat,school.lng],11,{duration:0.4});markers.forEach(marker=>{const pos=marker.getLatLng();if(Math.abs(pos.lat-school.lat)<0.001&&Math.abs(pos.lng-school.lng)<0.001)marker.openPopup();});}
