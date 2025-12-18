@@ -878,15 +878,17 @@ DO NOT include a headline - just the article body starting with the dateline.`;
   const articleSentences = article.replace(/^[A-Z]+\s*[–-]\s*/, '').split(/(?<=[.!?])\s+/);
   const igLede = articleSentences.slice(0, 2).join(' ');
   
+  // Use photographer name if provided, otherwise use placeholder
+  const photogDisplay = photographerName || 'PHOTOGNAME';
+  
   let facebookPost = article;
-  if (photographerName && galleryUrl) facebookPost += `\n\nCheck out the full photo gallery by ${photographerName} over at ${galleryUrl}`;
-  else if (galleryUrl) facebookPost += `\n\nCheck out the full photo gallery over at ${galleryUrl}`;
+  facebookPost += `\n\nCheck out the full photo gallery by ${photogDisplay}...`;
   
   let instagramPost = `${igHeader}\n\n${igLede}\n\n📊 Leading Scorers\n${winnerAbbrev}: ${formatIgScorers(sortedWinnerPlayers)}\n${loserAbbrev}: ${formatIgScorers(sortedLoserPlayers)}\n\n`;
-  instagramPost += photographerName ? `READ MORE & check out the full photo gallery by ${photographerName} over at Ball603.com` : `READ MORE & check out the full photo gallery over at Ball603.com`;
+  instagramPost += `READ MORE & check out the full photo gallery by ${photogDisplay} over at Ball603.com.`;
   
   let twitterPost = `${igHeader}\n\n${winnerAbbrev}: ${formatTwitterScorers(sortedWinnerPlayers)}\n${loserAbbrev}: ${formatTwitterScorers(sortedLoserPlayers)}\n\n`;
-  twitterPost += galleryUrl ? `READ MORE & check out the full gallery over at ${galleryUrl}` : `READ MORE & check out the full gallery over at Ball603.com`;
+  twitterPost += `READ MORE & check out the full photo gallery by ${photogDisplay}...`;
   
   return {
     statusCode: 200,
@@ -926,47 +928,90 @@ async function handleSocial(body, headers) {
   const homeSchoolInfo = schoolData?.home || {};
   const winnerSchoolInfo = awayWon ? awaySchoolInfo : homeSchoolInfo;
   
-  const winnerScorers = awayWon ? proofData.awayScorers : proofData.homeScorers;
-  const loserScorers = awayWon ? proofData.homeScorers : proofData.awayScorers;
-  
-  // Sort scorers by points
-  const sortedWinnerScorers = [...(winnerScorers || [])].sort((a, b) => b.points - a.points);
-  const sortedLoserScorers = [...(loserScorers || [])].sort((a, b) => b.points - a.points);
-  
   const winnerMascot = winnerSchoolInfo.mascot || '';
   const winnerEmoji = winnerSchoolInfo.emoji || MASCOT_EMOJIS[winnerMascot] || '🏀';
   const winnerAbbrev = SCHOOL_ABBREVIATIONS[winner] || winner.substring(0, 3).toUpperCase();
   const loserAbbrev = SCHOOL_ABBREVIATIONS[loser] || loser.substring(0, 3).toUpperCase();
   
+  // Use AI to extract scorers from the EDITED article text
+  const extractPrompt = `Read this basketball game article and extract the leading scorers for each team.
+
+ARTICLE:
+${article}
+
+TEAMS:
+Winner: ${winner}
+Loser: ${loser}
+
+Return ONLY a JSON object in this exact format (no markdown, no explanation):
+{
+  "winnerScorers": [{"name": "Last Name", "points": 20}, {"name": "Last Name", "points": 15}],
+  "loserScorers": [{"name": "Last Name", "points": 18}, {"name": "Last Name", "points": 12}]
+}
+
+Rules:
+- Use LAST NAMES ONLY (e.g., "Smith" not "John Smith")
+- Include players with 10+ points, or top 2-3 scorers if none hit 10
+- Sort by points descending
+- Extract exactly what's in the article - do not use any other data`;
+
+  let winnerScorersFromArticle = [];
+  let loserScorersFromArticle = [];
+  
+  try {
+    const extractResponse = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 500, messages: [{ role: 'user', content: extractPrompt }] })
+    });
+    
+    if (extractResponse.ok) {
+      const extractData = await extractResponse.json();
+      const jsonText = extractData.content?.[0]?.text || '{}';
+      // Clean up potential markdown formatting
+      const cleanJson = jsonText.replace(/```json\n?|\n?```/g, '').trim();
+      const parsed = JSON.parse(cleanJson);
+      winnerScorersFromArticle = parsed.winnerScorers || [];
+      loserScorersFromArticle = parsed.loserScorers || [];
+    }
+  } catch (e) {
+    console.error('Error extracting scorers from article:', e);
+    // Fall back to proofData if extraction fails
+    const winnerScorers = awayWon ? proofData.awayScorers : proofData.homeScorers;
+    const loserScorers = awayWon ? proofData.homeScorers : proofData.awayScorers;
+    winnerScorersFromArticle = (winnerScorers || []).map(s => ({ name: s.name.split(' ').pop(), points: s.points }));
+    loserScorersFromArticle = (loserScorers || []).map(s => ({ name: s.name.split(' ').pop(), points: s.points }));
+  }
+  
   // Format scorers for Instagram: "Watson (11), Moulton (10)"
   function formatIgScorers(scorers) {
-    const top = (scorers || []).filter(s => s.points >= 10);
-    const list = top.length > 0 ? top : [scorers[0]].filter(Boolean);
-    return list.map(s => `${s.name.split(' ').pop()} (${s.points})`).join(', ');
+    if (!scorers || scorers.length === 0) return 'N/A';
+    return scorers.slice(0, 4).map(s => `${s.name} (${s.points})`).join(', ');
   }
   
   // Format scorers for Twitter: "Watson-11, Moulton-10"
   function formatTwitterScorers(scorers) {
-    const top = (scorers || []).filter(s => s.points >= 10);
-    const list = top.length > 0 ? top : [scorers[0]].filter(Boolean);
-    return list.map(s => `${s.name.split(' ').pop()}-${s.points}`).join(', ');
+    if (!scorers || scorers.length === 0) return 'N/A';
+    return scorers.slice(0, 4).map(s => `${s.name}-${s.points}`).join(', ');
   }
   
   const igHeader = `${winnerEmoji} 🏀 ${winner} ${winnerScore}, ${loser} ${loserScore} 🏀`;
   
   // Get lede from the edited article (first 2 sentences after dateline)
-  const articleSentences = article.replace(/^[A-Z]+,\s*N\.H\.\s*[–-]\s*/, '').split(/(?<=[.!?])\s+/);
+  const articleSentences = article.replace(/^[A-Z]+,?\s*N\.?H\.?\s*[–-]\s*/i, '').split(/(?<=[.!?])\s+/);
   const igLede = articleSentences.slice(0, 2).join(' ');
   
+  // Use photographer name if provided, otherwise use placeholder
+  const photogDisplay = photographerName || 'PHOTOGNAME';
+  
   let facebookPost = article;
-  if (photographerName && galleryUrl) facebookPost += `\n\nCheck out the full photo gallery by ${photographerName} over at ${galleryUrl}`;
-  else if (galleryUrl) facebookPost += `\n\nCheck out the full photo gallery over at ${galleryUrl}`;
+  facebookPost += `\n\nCheck out the full photo gallery by ${photogDisplay}...`;
   
-  let instagramPost = `${igHeader}\n\n${igLede}\n\n📊 Leading Scorers\n${winnerAbbrev}: ${formatIgScorers(sortedWinnerScorers)}\n${loserAbbrev}: ${formatIgScorers(sortedLoserScorers)}\n\n`;
-  instagramPost += photographerName ? `READ MORE & check out the full photo gallery by ${photographerName} over at Ball603.com` : `READ MORE & check out the full photo gallery over at Ball603.com`;
+  let instagramPost = `${igHeader}\n\n${igLede}\n\n📊 Leading Scorers\n${winnerAbbrev}: ${formatIgScorers(winnerScorersFromArticle)}\n${loserAbbrev}: ${formatIgScorers(loserScorersFromArticle)}\n\n`;
+  instagramPost += `READ MORE & check out the full photo gallery by ${photogDisplay} over at Ball603.com.`;
   
-  let twitterPost = `${igHeader}\n\n${winnerAbbrev}: ${formatTwitterScorers(sortedWinnerScorers)}\n${loserAbbrev}: ${formatTwitterScorers(sortedLoserScorers)}\n\n`;
-  twitterPost += galleryUrl ? `READ MORE & check out the full gallery over at ${galleryUrl}` : `READ MORE & check out the full gallery over at Ball603.com`;
+  let twitterPost = `${igHeader}\n\n${winnerAbbrev}: ${formatTwitterScorers(winnerScorersFromArticle)}\n${loserAbbrev}: ${formatTwitterScorers(loserScorersFromArticle)}\n\n`;
+  twitterPost += `READ MORE & check out the full photo gallery by ${photogDisplay}...`;
   
   return {
     statusCode: 200,
