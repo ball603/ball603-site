@@ -342,6 +342,19 @@ function getShortName(teamName) {
   return shortNames[teamName] || teamName;
 }
 
+function getTickerName(teamName) {
+  if (!teamName) return '';
+  if (state.teams && state.teams.length > 0) {
+    const team = state.teams.find(function(t) {
+      return t.full_name === teamName || t.shortname === teamName || t.school === teamName;
+    });
+    if (team && team.ticker_abbrev) {
+      return team.ticker_abbrev;
+    }
+  }
+  return getShortName(teamName);
+}
+
 // ===== GAME HELPERS =====
 
 /**
@@ -1105,6 +1118,7 @@ window.Ball603 = {
   getUpcomingGames,
   getLogoUrl,
   getShortName,
+  getTickerName,
   formatDate,
   formatTime,
   formatDivision,
