@@ -2244,7 +2244,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       <div class="editor-header">
         <h2> Social Media Posts</h2>
         <div class="editor-actions">
-          <button class="btn-back" onclick="closeSocialPublishing()">← Done</button>
+          <button class="btn-save" onclick="saveSocialPosts()" style="background: #2e7d32;">💾 Save All</button>
+          <button class="btn-back" onclick="closeSocialPublishing()">← Done</button>
         </div>
       </div>
       
@@ -6694,6 +6695,50 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       
       // Don't clear generatedSocialPosts - they're stored with the article
       // and can be re-accessed via the View Social Posts button
+    }
+    
+    async function saveSocialPosts() {
+      if (!currentArticle) {
+        showToast('No article to save to', 'error');
+        return;
+      }
+      
+      // Get the edited values from the textareas
+      const fbPost = document.getElementById('socialFacebookPost').value;
+      const igPost = document.getElementById('socialInstagramPost').value;
+      const twPost = document.getElementById('socialTwitterPost').value;
+      
+      // Update the generatedSocialPosts object
+      generatedSocialPosts.facebookPost = fbPost;
+      generatedSocialPosts.instagramPost = igPost;
+      generatedSocialPosts.twitterPost = twPost;
+      
+      // Build social posts object for storage
+      const socialPosts = {
+        facebookPost: fbPost || null,
+        instagramPost: igPost || null,
+        twitterPost: twPost || null
+      };
+      
+      // Save to database
+      const { error } = await db
+        .from('articles')
+        .update({ 
+          social_posts: socialPosts,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', currentArticle.id);
+      
+      if (error) {
+        console.error('Error saving social posts:', error);
+        showToast('Error saving social posts', 'error');
+        return;
+      }
+      
+      // Update currentArticle
+      currentArticle.social_posts = socialPosts;
+      
+      showToast('Social posts saved!', 'success');
     }
     
     function updateCharCount(platform) {
