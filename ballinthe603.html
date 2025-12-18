@@ -88,7 +88,7 @@
         .date-nav-btn { background: transparent; border: none; color: var(--text-secondary); padding: 0.35rem 0.4rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
         .date-nav-btn:hover { background: var(--bg-card-hover); color: var(--primary); }
         .date-nav-btn svg { width: 14px; height: 14px; }
-        .date-display { padding: 0.35rem 0.5rem; font-size: 0.75rem; font-weight: 600; color: var(--text-primary); min-width: 80px; text-align: center; border-left: 1px solid var(--border); border-right: 1px solid var(--border); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.3rem; }
+        .date-display { padding: 0.35rem 0.5rem; font-size: 0.75rem; font-weight: 600; color: var(--text-primary); min-width: 100px; text-align: center; border-left: 1px solid var(--border); border-right: 1px solid var(--border); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.3rem; }
         .date-display:hover { background: var(--bg-card-hover); }
         .date-display svg { width: 12px; height: 12px; color: var(--text-muted); }
         #dateInput { position: absolute; opacity: 0; width: 0; height: 0; }
@@ -108,9 +108,16 @@
 
         @media (max-width: 900px) {
             .tonight-main { grid-template-columns: 1fr; grid-template-rows: 50% 50%; }
-            .tonight-controls { justify-content: center; }
+            .tonight-controls { justify-content: center; flex-wrap: wrap; }
             .tonight-header-content { justify-content: center; }
             .tonight-brand { text-align: center; }
+            .control-label { display: none; }
+            .tonight-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; width: 100%; max-width: 360px; }
+            .tonight-controls .control-group { justify-content: center; }
+            .tonight-controls .control-group:nth-child(1) { order: 1; }
+            .tonight-controls .control-group:nth-child(3) { order: 2; }
+            .tonight-controls .control-group:nth-child(2) { order: 3; }
+            .tonight-controls .location-btn { order: 4; justify-content: center; }
         }
 
         .map-wrapper { position: relative; width: 100%; height: 100%; background: var(--bg-page); }
@@ -253,17 +260,6 @@
                         </div>
                     </div>
                     
-                    <div class="control-group">
-                        <label class="control-label">Within</label>
-                        <select id="distanceFilter">
-                            <option value="0">Any</option>
-                            <option value="10">10 mi</option>
-                            <option value="20">20 mi</option>
-                            <option value="30">30 mi</option>
-                            <option value="50">50 mi</option>
-                        </select>
-                    </div>
-                    
                     <button class="location-btn" id="locationBtn">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
                         My Location
@@ -331,7 +327,6 @@
         document.getElementById('dateInput').addEventListener('change',(e)=>{currentDate=new Date(e.target.value+'T00:00:00');updateDateDisplay();renderGames();});
         document.querySelectorAll('.toggle-btn').forEach(btn=>{btn.addEventListener('click',()=>{document.querySelectorAll('.toggle-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');currentFilter=btn.dataset.filter;renderGames();});});
         document.getElementById('regionFilter').addEventListener('change',(e)=>{currentRegion=e.target.value;const bounds=regionBounds[currentRegion];map.flyTo(bounds.center,bounds.zoom,{duration:0.5});renderGames();});
-        document.getElementById('distanceFilter').addEventListener('change',(e)=>{currentDistance=parseInt(e.target.value);if(currentDistance>0&&!userLocation)document.getElementById('locationBtn').click();else renderGames();});
         document.getElementById('locationBtn').addEventListener('click',()=>{if(navigator.geolocation){navigator.geolocation.getCurrentPosition((pos)=>{userLocation={lat:pos.coords.latitude,lng:pos.coords.longitude};if(userMarker)map.removeLayer(userMarker);const icon=L.divIcon({className:'user-marker',html:`<div style="width:10px;height:10px;background:#22c55e;border:2px solid white;border-radius:50%;box-shadow:0 2px 4px rgba(0,0,0,0.4)"></div>`,iconSize:[10,10],iconAnchor:[5,5]});userMarker=L.marker([userLocation.lat,userLocation.lng],{icon}).addTo(map);map.flyTo([userLocation.lat,userLocation.lng],10,{duration:0.4});renderGames();},()=>alert('Unable to get location.'));}});
 
         document.addEventListener('DOMContentLoaded',initMap);
