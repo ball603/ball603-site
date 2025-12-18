@@ -1009,7 +1009,6 @@ Rules:
   const photogDisplay = photographerName || 'PHOTOGNAME';
   
   let facebookPost = article;
-  facebookPost += `\n\nCheck out the full photo gallery by ${photogDisplay}...`;
   
   let instagramPost = `${igHeader}\n\n${igLede}\n\n📊 Leading Scorers\n${winner.toUpperCase()}: ${formatIgScorers(winnerScorersFromArticle)}\n${loser.toUpperCase()}: ${formatIgScorers(loserScorersFromArticle)}\n\n`;
   instagramPost += `READ MORE & check out the full photo gallery by ${photogDisplay} over at Ball603.com.`;
