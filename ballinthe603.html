@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Tonight's Ball in the 603 - Interactive map of tonight's New Hampshire high school basketball games.">
     <meta name="theme-color" content="#f57c00">
-    <title>Tonight's Ball in the 603 | Ball603</title>
+    <title>Ball in the 603 | Ball603</title>
     
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="/logo.png">
@@ -24,33 +24,67 @@
     
     <style>
         :root {
+            /* Light theme (desktop default) */
             --primary: #f5831f;
             --primary-dark: #d96f0f;
-            --bg-dark: #0a0a0a;
-            --bg-card: #141414;
-            --bg-card-hover: #1e1e1e;
-            --text-primary: #ffffff;
-            --text-secondary: #9ca3af;
-            --text-muted: #6b7280;
-            --border: #262626;
-            --boys-color: #3b82f6;
-            --girls-color: #ec4899;
+            --bg-page: #f5f5f5;
+            --bg-card: #ffffff;
+            --bg-card-hover: #fafafa;
+            --bg-header: #ffffff;
+            --bg-input: #ffffff;
+            --text-primary: #1a1a1a;
+            --text-secondary: #666666;
+            --text-muted: #999999;
+            --border: #e0e0e0;
+            --border-light: #eeeeee;
+            --shadow: rgba(0,0,0,0.08);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-page);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        /* ===== DARK THEME FOR MOBILE ===== */
+        @media (max-width: 768px) {
+            :root {
+                --bg-page: #0a0a0a;
+                --bg-card: #141414;
+                --bg-card-hover: #1e1e1e;
+                --bg-header: #141414;
+                --bg-input: #1a1a1a;
+                --text-primary: #ffffff;
+                --text-secondary: #9ca3af;
+                --text-muted: #6b7280;
+                --border: #262626;
+                --border-light: #1f1f1f;
+                --shadow: rgba(0,0,0,0.3);
+            }
         }
 
         /* Page Layout */
         .tonight-page {
-            background: var(--bg-dark);
+            background: var(--bg-page);
             min-height: 100vh;
         }
 
         /* Page Header */
         .tonight-header {
-            background: linear-gradient(180deg, var(--bg-card) 0%, var(--bg-dark) 100%);
+            background: var(--bg-header);
             border-bottom: 2px solid var(--primary);
             padding: 0.75rem 1.5rem;
             position: sticky;
-            top: 60px; /* Account for main nav */
+            top: 60px;
             z-index: 900;
+            box-shadow: 0 2px 8px var(--shadow);
         }
 
         .tonight-header-content {
@@ -121,7 +155,7 @@
         }
 
         input[type="date"], select {
-            background: var(--bg-dark);
+            background: var(--bg-input);
             border: 1px solid var(--border);
             color: var(--text-primary);
             padding: 0.5rem 0.75rem;
@@ -147,7 +181,7 @@
 
         .toggle-group {
             display: flex;
-            background: var(--bg-dark);
+            background: var(--bg-input);
             border-radius: 6px;
             overflow: hidden;
             border: 1px solid var(--border);
@@ -167,7 +201,7 @@
 
         .toggle-btn.active {
             background: var(--primary);
-            color: var(--bg-dark);
+            color: white;
         }
 
         .toggle-btn:hover:not(.active) {
@@ -176,7 +210,7 @@
         }
 
         .location-btn {
-            background: var(--bg-dark);
+            background: var(--bg-input);
             border: 1px solid var(--border);
             color: var(--text-primary);
             padding: 0.5rem 0.75rem;
@@ -203,14 +237,14 @@
         /* Main Layout */
         .tonight-main {
             display: grid;
-            grid-template-columns: 1fr 380px;
+            grid-template-columns: 1fr 400px;
             height: calc(100vh - 130px);
         }
 
         @media (max-width: 900px) {
             .tonight-main {
                 grid-template-columns: 1fr;
-                grid-template-rows: 55vh 1fr;
+                grid-template-rows: 50vh 1fr;
             }
             
             .tonight-controls {
@@ -231,64 +265,17 @@
             }
         }
 
-        /* Map Container with NH Mask */
+        /* Map Container */
         .map-wrapper {
             position: relative;
             width: 100%;
             height: 100%;
-            background: var(--bg-dark);
-            overflow: hidden;
-        }
-
-        .map-nh-container {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .map-masked {
-            position: relative;
-            width: 400px;
-            height: 500px;
-            max-width: 90%;
-            max-height: 90%;
+            background: var(--bg-page);
         }
 
         #map {
             width: 100%;
             height: 100%;
-            background: #1a1a1a;
-            -webkit-mask-image: url('nh-outline.png');
-            -webkit-mask-size: contain;
-            -webkit-mask-repeat: no-repeat;
-            -webkit-mask-position: center;
-            mask-image: url('nh-outline.png');
-            mask-size: contain;
-            mask-repeat: no-repeat;
-            mask-position: center;
-        }
-
-        /* NH Border Overlay */
-        .nh-border-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            background-image: url('nh-outline.png');
-            background-size: contain;
-            background-repeat: no-repeat;
-            background-position: center;
-            opacity: 0;
-            mix-blend-mode: normal;
-            filter: drop-shadow(0 0 3px var(--primary)) drop-shadow(0 0 6px var(--primary));
         }
 
         /* Region Badge */
@@ -297,7 +284,7 @@
             bottom: 20px;
             left: 20px;
             background: var(--bg-card);
-            border: 1px solid var(--primary);
+            border: 2px solid var(--primary);
             padding: 0.5rem 1rem;
             border-radius: 6px;
             font-family: 'Bebas Neue', sans-serif;
@@ -306,6 +293,7 @@
             color: var(--primary);
             z-index: 1000;
             display: none;
+            box-shadow: 0 2px 8px var(--shadow);
         }
 
         .region-badge.visible {
@@ -331,7 +319,7 @@
         .sidebar-header {
             padding: 1rem 1.25rem;
             border-bottom: 1px solid var(--border);
-            background: var(--bg-dark);
+            background: var(--bg-header);
             position: sticky;
             top: 0;
             z-index: 10;
@@ -349,7 +337,7 @@
 
         .game-count {
             background: var(--primary);
-            color: var(--bg-dark);
+            color: white;
             font-family: 'Source Sans 3', sans-serif;
             font-size: 0.75rem;
             font-weight: 700;
@@ -359,132 +347,141 @@
 
         .games-list {
             flex: 1;
-            padding: 0.5rem;
+            padding: 0;
         }
 
+        /* ===== TICKER-STYLE GAME CARDS ===== */
         .game-card {
-            background: var(--bg-dark);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 1rem;
-            margin-bottom: 0.5rem;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border-light);
+            padding: 0.75rem 1rem;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.15s;
         }
 
         .game-card:hover {
-            border-color: var(--primary);
-            transform: translateX(4px);
+            background: var(--bg-card-hover);
         }
 
         .game-card.active {
-            border-color: var(--primary);
             background: rgba(245, 131, 31, 0.08);
+            border-left: 3px solid var(--primary);
         }
 
-        .game-meta {
+        .game-card-top {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            margin-bottom: 0.75rem;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
         }
 
         .game-time {
             font-weight: 700;
             color: var(--primary);
-            font-size: 0.85rem;
+            font-size: 0.75rem;
+            text-transform: uppercase;
         }
 
-        .game-type {
+        .game-type-badge {
             font-size: 0.65rem;
             font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 0.1em;
-            padding: 0.15rem 0.5rem;
-            border-radius: 4px;
+            letter-spacing: 0.05em;
+            padding: 0.15rem 0.4rem;
+            border-radius: 3px;
+            background: var(--primary);
+            color: white;
         }
 
-        .game-type.boys {
-            background: rgba(59, 130, 246, 0.2);
-            color: var(--boys-color);
+        .game-type-badge.girls {
+            background: #1a1a1a;
         }
 
-        .game-type.girls {
-            background: rgba(236, 72, 153, 0.2);
-            color: var(--girls-color);
+        @media (max-width: 768px) {
+            .game-type-badge.girls {
+                background: #333;
+            }
         }
 
-        .game-matchup {
-            display: flex;
-            flex-direction: column;
-            gap: 0.4rem;
-        }
-
-        .team-row {
+        /* Ticker Team Row */
+        .ticker-team {
             display: flex;
             align-items: center;
             gap: 0.5rem;
+            padding: 0.35rem 0;
         }
 
-        .team-indicator {
-            width: 3px;
-            height: 20px;
-            border-radius: 2px;
-            background: var(--border);
+        .ticker-team + .ticker-team {
+            border-top: 1px solid var(--border-light);
         }
 
-        .team-row.home .team-indicator {
-            background: var(--primary);
+        .ticker-logo {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            object-fit: contain;
+            background: #f5f5f5;
+            flex-shrink: 0;
         }
 
-        .team-name {
+        @media (max-width: 768px) {
+            .ticker-logo {
+                background: #2a2a2a;
+            }
+        }
+
+        .ticker-team-name {
             font-weight: 600;
-            font-size: 0.95rem;
+            font-size: 0.9rem;
             color: var(--text-primary);
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
-        .team-record {
+        .ticker-record {
+            font-size: 0.75rem;
             color: var(--text-muted);
-            font-size: 0.8rem;
-            margin-left: auto;
+            font-weight: 500;
         }
 
-        .team-label {
-            font-size: 0.65rem;
+        .ticker-home-badge {
+            font-size: 0.6rem;
+            font-weight: 700;
             color: var(--primary);
             text-transform: uppercase;
-            font-weight: 700;
-            margin-left: 0.25rem;
+            background: rgba(245, 131, 31, 0.1);
+            padding: 0.1rem 0.3rem;
+            border-radius: 2px;
         }
 
-        .game-location {
-            margin-top: 0.75rem;
-            padding-top: 0.75rem;
-            border-top: 1px solid var(--border);
+        .game-location-row {
             display: flex;
-            align-items: flex-start;
-            gap: 0.5rem;
-            color: var(--text-secondary);
-            font-size: 0.8rem;
+            align-items: center;
+            gap: 0.4rem;
+            margin-top: 0.5rem;
+            padding-top: 0.5rem;
+            border-top: 1px solid var(--border-light);
+            color: var(--text-muted);
+            font-size: 0.7rem;
         }
 
-        .game-location svg {
-            width: 14px;
-            height: 14px;
+        .game-location-row svg {
+            width: 12px;
+            height: 12px;
             flex-shrink: 0;
-            margin-top: 2px;
             color: var(--primary);
         }
 
         .distance-badge {
             margin-left: auto;
-            background: var(--bg-card);
-            padding: 0.2rem 0.5rem;
-            border-radius: 4px;
-            font-size: 0.75rem;
+            background: var(--bg-page);
+            padding: 0.15rem 0.4rem;
+            border-radius: 3px;
+            font-size: 0.65rem;
             font-weight: 600;
             color: var(--text-muted);
-            white-space: nowrap;
         }
 
         /* Popup Styling */
@@ -492,7 +489,7 @@
             background: var(--bg-card);
             color: var(--text-primary);
             border-radius: 8px;
-            box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+            box-shadow: 0 4px 24px var(--shadow);
             border: 1px solid var(--border);
         }
 
@@ -588,7 +585,15 @@
         }
 
         .leaflet-control-attribution {
-            display: none !important;
+            background: rgba(255,255,255,0.8) !important;
+            font-size: 10px !important;
+        }
+
+        @media (max-width: 768px) {
+            .leaflet-control-attribution {
+                background: rgba(0,0,0,0.6) !important;
+                color: #888 !important;
+            }
         }
     </style>
 </head>
@@ -606,7 +611,7 @@
                 <div class="tonight-brand">
                     <img src="/logo.png" alt="Ball603" class="tonight-logo">
                     <div class="tonight-brand-text">
-                        <div class="tonight-title">TONIGHT'S <span>BALL</span> IN THE <span>603</span></div>
+                        <div class="tonight-title"><span>BALL</span> IN THE <span>603</span></div>
                         <div class="tonight-subtitle">Interactive Game Finder</div>
                     </div>
                 </div>
@@ -669,25 +674,18 @@
         <!-- Main Content -->
         <main class="tonight-main">
             <div class="map-wrapper">
-                <div class="map-nh-container">
-                    <div class="map-masked">
-                        <div id="map"></div>
-                        <div class="nh-border-overlay"></div>
-                    </div>
-                </div>
+                <div id="map"></div>
                 <div class="region-badge" id="regionBadge"></div>
             </div>
             
             <aside class="tonight-sidebar">
                 <div class="sidebar-header">
                     <div class="sidebar-title">
-                        Games Today
+                        Today's Games
                         <span class="game-count" id="gameCount">0</span>
                     </div>
                 </div>
-                <div class="games-list" id="gamesList">
-                    <!-- Games populated by JS -->
-                </div>
+                <div class="games-list" id="gamesList"></div>
             </aside>
         </main>
     </div>
@@ -699,6 +697,24 @@
     <script src="/app.js"></script>
     
     <script>
+        // =============================================
+        // NH GEOJSON BOUNDARY (accurate Census data)
+        // =============================================
+        const nhBoundary = {
+            "type": "Feature",
+            "properties": { "name": "New Hampshire" },
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [[
+                    [-70.815, 42.865], [-71.249, 42.718], [-72.457, 42.727],
+                    [-72.37, 43.522], [-72.059, 44.046], [-72.003, 44.304],
+                    [-71.586, 44.468], [-71.505, 45.008], [-71.405, 45.255],
+                    [-71.085, 45.305], [-70.944, 43.466], [-70.646, 43.09],
+                    [-70.815, 42.865]
+                ]]
+            }
+        };
+
         // =============================================
         // SAMPLE DATA - Replace with Supabase queries
         // =============================================
@@ -813,10 +829,23 @@
         };
 
         // =============================================
+        // LOGO URL HELPER
+        // =============================================
+        function getLogoUrl(teamName) {
+            // Use Ball603 helper if available, otherwise fallback
+            if (typeof Ball603 !== 'undefined' && Ball603.getLogoUrl) {
+                return Ball603.getLogoUrl(teamName);
+            }
+            const slug = teamName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+            return `/logos/100px/${slug}.png`;
+        }
+
+        // =============================================
         // APP STATE
         // =============================================
         let map;
         let markers = [];
+        let nhBorderLayer;
         let userLocation = null;
         let userMarker = null;
         let currentFilter = 'all';
@@ -828,17 +857,36 @@
         // INITIALIZE MAP
         // =============================================
         function initMap() {
+            // Check if mobile for tile style
+            const isMobile = window.innerWidth <= 768;
+            
             map = L.map('map', {
-                zoomControl: false,
-                attributionControl: false,
+                zoomControl: true,
                 minZoom: 7,
-                maxZoom: 12
+                maxZoom: 14
             }).setView([43.85, -71.5], 7.5);
 
-            // Dark map tiles
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            // Light tiles for desktop, dark for mobile
+            const tileUrl = isMobile 
+                ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+                : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+            
+            L.tileLayer(tileUrl, {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
                 subdomains: 'abcd',
                 maxZoom: 19
+            }).addTo(map);
+
+            // Add NH border as GeoJSON layer (moves with map)
+            nhBorderLayer = L.geoJSON(nhBoundary, {
+                style: {
+                    color: '#f5831f',
+                    weight: 3,
+                    fillColor: 'transparent',
+                    fillOpacity: 0,
+                    opacity: 1
+                },
+                interactive: false
             }).addTo(map);
 
             // Set today's date
@@ -895,14 +943,7 @@
 
             Object.entries(gamesByLocation).forEach(([schoolId, games]) => {
                 const school = schools[schoolId];
-                const hasGirls = games.some(g => g.type === 'girls');
-                const hasBoys = games.some(g => g.type === 'boys');
-                
-                let markerType = 'both';
-                if (hasGirls && !hasBoys) markerType = 'girls';
-                if (hasBoys && !hasGirls) markerType = 'boys';
-
-                const marker = createMarker(school, games, markerType);
+                const marker = createMarker(school, games);
                 markers.push(marker);
             });
 
@@ -919,23 +960,21 @@
         }
 
         // =============================================
-        // CREATE MARKER
+        // CREATE MARKER (always orange)
         // =============================================
-        function createMarker(school, games, type) {
-            const markerColor = type === 'boys' ? '#3b82f6' : type === 'girls' ? '#ec4899' : '#f5831f';
-            
+        function createMarker(school, games) {
             const icon = L.divIcon({
                 className: 'custom-marker',
                 html: `
-                    <svg width="24" height="32" viewBox="0 0 24 36" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));">
-                        <path d="M12 0C5.373 0 0 5.373 0 12c0 9 12 24 12 24s12-15 12-24c0-6.627-5.373-12-12-12z" fill="${markerColor}"/>
-                        <circle cx="12" cy="12" r="5" fill="#0a0a0a"/>
-                        <text x="12" y="15" text-anchor="middle" fill="white" font-size="7" font-weight="bold" font-family="sans-serif">${games.length}</text>
+                    <svg width="28" height="36" viewBox="0 0 24 36" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));">
+                        <path d="M12 0C5.373 0 0 5.373 0 12c0 9 12 24 12 24s12-15 12-24c0-6.627-5.373-12-12-12z" fill="#f5831f"/>
+                        <circle cx="12" cy="12" r="5" fill="#fff"/>
+                        <text x="12" y="15" text-anchor="middle" fill="#f5831f" font-size="8" font-weight="bold" font-family="sans-serif">${games.length}</text>
                     </svg>
                 `,
-                iconSize: [24, 32],
-                iconAnchor: [12, 32],
-                popupAnchor: [0, -32]
+                iconSize: [28, 36],
+                iconAnchor: [14, 36],
+                popupAnchor: [0, -36]
             });
 
             const marker = L.marker([school.lat, school.lng], { icon }).addTo(map);
@@ -960,7 +999,7 @@
         }
 
         // =============================================
-        // UPDATE GAMES LIST
+        // UPDATE GAMES LIST (Ticker Style)
         // =============================================
         function updateGamesList(games) {
             const container = document.getElementById('gamesList');
@@ -988,29 +1027,30 @@
 
                 return `
                     <div class="game-card ${activeGameId === game.id ? 'active' : ''}" data-game-id="${game.id}" data-school="${game.homeTeam}">
-                        <div class="game-meta">
+                        <div class="game-card-top">
                             <span class="game-time">${game.time}</span>
-                            <span class="game-type ${game.type}">${game.type}</span>
+                            <span class="game-type-badge ${game.type}">${game.type}</span>
                         </div>
-                        <div class="game-matchup">
-                            <div class="team-row away">
-                                <span class="team-indicator"></span>
-                                <span class="team-name">${awaySchool.name}</span>
-                                <span class="team-record">${game.awayRecord}</span>
-                            </div>
-                            <div class="team-row home">
-                                <span class="team-indicator"></span>
-                                <span class="team-name">${homeSchool.name}</span>
-                                <span class="team-label">HOME</span>
-                                <span class="team-record">${game.homeRecord}</span>
-                            </div>
+                        
+                        <div class="ticker-team">
+                            <img class="ticker-logo" src="${getLogoUrl(awaySchool.name)}" alt="" onerror="this.src='/logos/100px/Ball603-white.png'">
+                            <span class="ticker-team-name">${awaySchool.name}</span>
+                            <span class="ticker-record">${game.awayRecord}</span>
                         </div>
-                        <div class="game-location">
+                        
+                        <div class="ticker-team">
+                            <img class="ticker-logo" src="${getLogoUrl(homeSchool.name)}" alt="" onerror="this.src='/logos/100px/Ball603-white.png'">
+                            <span class="ticker-team-name">${homeSchool.name}</span>
+                            <span class="ticker-home-badge">HOME</span>
+                            <span class="ticker-record">${game.homeRecord}</span>
+                        </div>
+                        
+                        <div class="game-location-row">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
                                 <circle cx="12" cy="10" r="3"/>
                             </svg>
-                            <span>${homeSchool.address}</span>
+                            <span>${homeSchool.town}</span>
                             ${distanceHtml}
                         </div>
                     </div>
