@@ -1233,10 +1233,15 @@
                   </div>
                 </div>
                 
-                <!-- Generate Button -->
-                <button onclick="generateGameStory()" id="gsGenerateBtn" style="width: 100%; background: #f57c00; color: white; border: none; padding: 12px; border-radius: 5px; font-size: 14px; font-weight: 600; cursor: pointer;">
-                  ✨ Generate Story
-                </button>
+                <!-- Generate Buttons -->
+                <div style="display: flex; gap: 8px;">
+                  <button onclick="generateGameStory()" id="gsGenerateBtn" style="flex: 1; background: #f57c00; color: white; border: none; padding: 12px; border-radius: 5px; font-size: 14px; font-weight: 600; cursor: pointer;">
+                    ✨ Generate Story
+                  </button>
+                  <button onclick="writeYourOwn()" id="gsWriteOwnBtn" style="flex: 1; background: #1a73e8; color: white; border: none; padding: 12px; border-radius: 5px; font-size: 14px; font-weight: 600; cursor: pointer;">
+                    ✍️ Write Your Own
+                  </button>
+                </div>
               </div>
             </div>
             
@@ -6128,6 +6133,125 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       
       btn.disabled = false;
       btn.textContent = '✨ Generate Story';
+    }
+    
+    // Write Your Own - skip AI, go straight to edit with just quarter scores
+    function writeYourOwn() {
+      const awayFinal = parseInt(document.getElementById('gsAwayFinal').value) || 0;
+      const homeFinal = parseInt(document.getElementById('gsHomeFinal').value) || 0;
+      
+      if (!awayFinal && !homeFinal) {
+        showToast('Please enter quarter scores first', 'error');
+        return;
+      }
+      
+      // Collect quarters + OT
+      const awayQuarters = [
+        parseInt(document.getElementById('gsAwayQ1').value) || 0,
+        parseInt(document.getElementById('gsAwayQ2').value) || 0,
+        parseInt(document.getElementById('gsAwayQ3').value) || 0,
+        parseInt(document.getElementById('gsAwayQ4').value) || 0
+      ];
+      const homeQuarters = [
+        parseInt(document.getElementById('gsHomeQ1').value) || 0,
+        parseInt(document.getElementById('gsHomeQ2').value) || 0,
+        parseInt(document.getElementById('gsHomeQ3').value) || 0,
+        parseInt(document.getElementById('gsHomeQ4').value) || 0
+      ];
+      
+      // Add OT if any
+      for (let ot = 1; ot <= otCount; ot++) {
+        const awayOT = parseInt(document.getElementById(`gsAwayOT${ot}`)?.value) || 0;
+        const homeOT = parseInt(document.getElementById(`gsHomeOT${ot}`)?.value) || 0;
+        awayQuarters.push(awayOT);
+        homeQuarters.push(homeOT);
+      }
+      
+      const awayScorers = collectGSScorers('away');
+      const homeScorers = collectGSScorers('home');
+      
+      // Get school info
+      const awaySchoolInfo = getSchoolInfo(gsSelectedGame.away);
+      const homeSchoolInfo = getSchoolInfo(gsSelectedGame.home);
+      
+      // Get selected photographer(s)
+      const selectedPhotogs = [];
+      document.querySelectorAll('input[name="gsPhotog"]:checked').forEach(cb => {
+        selectedPhotogs.push(cb.value);
+      });
+      const guestPhotog = document.getElementById('gsGuestPhotographer')?.value.trim();
+      if (guestPhotog) {
+        selectedPhotogs.push(guestPhotog);
+      }
+      const photographerName = selectedPhotogs.join(' & ');
+      
+      // Store data for social post generation
+      gsGeneratedData = {
+        headline: '',
+        article: '',
+        excerpt: '',
+        proofData: {
+          awayTeam: gsSelectedGame.away,
+          homeTeam: gsSelectedGame.home,
+          awayQuarters,
+          homeQuarters,
+          awayFinal,
+          homeFinal,
+          awayScorers,
+          homeScorers,
+          gender: gsSelectedGame.gender || 'Boys',
+          division: gsSelectedGame.division || '',
+          date: gsSelectedGame.date || '',
+          notes: document.getElementById('gsNotes').value.trim(),
+          hasOT: otCount > 0
+        },
+        schoolData: {
+          away: awaySchoolInfo,
+          home: homeSchoolInfo
+        },
+        photographerName: photographerName || null
+      };
+      
+      // Show preview step with empty fields
+      document.getElementById('gsMainContent').style.display = 'none';
+      document.getElementById('gsStep3').style.display = 'block';
+      document.getElementById('gsPreviewHeadline').value = '';
+      document.getElementById('gsPreviewArticle').value = '';
+      document.getElementById('gsPreviewArticleDisplay').innerHTML = '<p style="margin: 0 0 1em 0; color: #888; font-style: italic;">Write your article here...</p>';
+      
+      // Populate quarter scores box
+      document.getElementById('gsPreviewAwayName').textContent = gsSelectedGame.away;
+      document.getElementById('gsPreviewHomeName').textContent = gsSelectedGame.home;
+      document.getElementById('gsPreviewAwayQ1').textContent = awayQuarters[0] || '-';
+      document.getElementById('gsPreviewAwayQ2').textContent = awayQuarters[1] || '-';
+      document.getElementById('gsPreviewAwayQ3').textContent = awayQuarters[2] || '-';
+      document.getElementById('gsPreviewAwayQ4').textContent = awayQuarters[3] || '-';
+      document.getElementById('gsPreviewHomeQ1').textContent = homeQuarters[0] || '-';
+      document.getElementById('gsPreviewHomeQ2').textContent = homeQuarters[1] || '-';
+      document.getElementById('gsPreviewHomeQ3').textContent = homeQuarters[2] || '-';
+      document.getElementById('gsPreviewHomeQ4').textContent = homeQuarters[3] || '-';
+      document.getElementById('gsPreviewAwayFinal').textContent = awayFinal;
+      document.getElementById('gsPreviewHomeFinal').textContent = homeFinal;
+      
+      // Handle OT columns
+      let otHeadersHtml = '';
+      let awayOTHtml = '';
+      let homeOTHtml = '';
+      for (let i = 4; i < awayQuarters.length; i++) {
+        const otNum = i - 3;
+        const otLabel = awayQuarters.length === 5 ? 'OT' : `OT${otNum}`;
+        otHeadersHtml += `<th style="padding: 8px 6px; font-weight: 500; color: #666;">${otLabel}</th>`;
+        awayOTHtml += `<td style="padding: 10px;">${awayQuarters[i] || '-'}</td>`;
+        homeOTHtml += `<td style="padding: 10px;">${homeQuarters[i] || '-'}</td>`;
+      }
+      document.getElementById('gsPreviewOTHeaders').innerHTML = otHeadersHtml;
+      document.getElementById('gsPreviewAwayOT').innerHTML = awayOTHtml;
+      document.getElementById('gsPreviewHomeOT').innerHTML = homeOTHtml;
+      
+      // Switch to edit mode immediately so user can start typing
+      toggleArticleEdit();
+      
+      showToast('Enter your headline and article, then generate social posts.', 'success');
     }
 
     // ==================== BOXSCORE STORY MODAL FUNCTIONS ====================
