@@ -6698,8 +6698,6 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     }
     
     async function saveSocialPosts() {
-      console.log('saveSocialPosts called, currentArticle:', currentArticle);
-      
       if (!currentArticle || !currentArticle.id) {
         showToast('No article to save to - please publish first', 'error');
         return;
@@ -6709,8 +6707,6 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const fbPost = document.getElementById('socialFacebookPost').value;
       const igPost = document.getElementById('socialInstagramPost').value;
       const twPost = document.getElementById('socialTwitterPost').value;
-      
-      console.log('Saving social posts for article:', currentArticle.id);
       
       // Update the generatedSocialPosts object
       generatedSocialPosts.facebookPost = fbPost;
@@ -6724,33 +6720,31 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         twitterPost: twPost || null
       };
       
-      try {
-        // Save to database
-        const { data, error } = await db
-          .from('articles')
-          .update({ 
-            social_posts: socialPosts,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', currentArticle.id)
-          .select();
-        
-        if (error) {
-          console.error('Error saving social posts:', error);
-          showToast('Error saving social posts: ' + error.message, 'error');
-          return;
-        }
-        
-        console.log('Save result:', data);
-        
-        // Update currentArticle
-        currentArticle.social_posts = socialPosts;
-        
-        showToast('Social posts saved!', 'success');
-      } catch (err) {
-        console.error('Exception saving social posts:', err);
-        showToast('Error saving: ' + err.message, 'error');
+      // Save to database - match pattern used in saveAndPreviewSocial
+      const result = await db
+        .from('articles')
+        .update({ 
+          social_posts: socialPosts,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', currentArticle.id)
+        .select();
+      
+      if (result.error) {
+        console.error('Error saving social posts:', result.error);
+        showToast('Error saving social posts', 'error');
+        return;
       }
+      
+      // Update currentArticle from result
+      if (result.data && result.data[0]) {
+        currentArticle = result.data[0];
+      }
+      
+      // Refresh articles list
+      loadArticles();
+      
+      showToast('Social posts saved!', 'success');
     }
     
     function updateCharCount(platform) {
