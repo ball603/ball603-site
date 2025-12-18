@@ -715,7 +715,7 @@ export const config = {
   // Times converted to UTC (EST + 5 hours)
   schedule: [
     "*/5 23 * 1,2,3,11,12 1-5",     // Every 5 min, 6-7 PM EST Mon-Fri
-    "*/5 0-3 * 1,2,3,11,12 2-6",    // Every 5 min, 7-11 PM EST Mon-Fri (next day UTC)
+    "*/5 0-4 * 1,2,3,11,12 2-6",    // Every 5 min, 7-11 PM EST Mon-Fri (next day UTC)
     "0 * * 1,2,3,11,12 *"           // Hourly all times (covers daytime + weekends)
   ]
 };
