@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ball in the 603 | Ball603</title>
+    
+    <link rel="icon" type="image/png" href="/logo.png">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary: #f5831f;
+            --bg-page: #f5f5f5;
+            --bg-card: #ffffff;
+            --bg-card-hover: #f8f8f8;
+            --bg-header: #ffffff;
+            --bg-input: #ffffff;
+            --text-primary: #1a1a1a;
+            --text-secondary: #666666;
+            --text-muted: #999999;
+            --border: #e0e0e0;
+            --border-light: #eeeeee;
+            --shadow: rgba(0,0,0,0.08);
+            --logo-bg: #f0f0f0;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-page);
+            color: var(--text-primary);
+        }
+
+        @media (max-width: 768px) {
+            :root {
+                --bg-page: #0a0a0a;
+                --bg-card: #141414;
+                --bg-card-hover: #1a1a1a;
+                --bg-header: #141414;
+                --bg-input: #1a1a1a;
+                --text-primary: #ffffff;
+                --text-secondary: #9ca3af;
+                --text-muted: #6b7280;
+                --border: #262626;
+                --border-light: #1e1e1e;
+                --shadow: rgba(0,0,0,0.3);
+                --logo-bg: #252525;
+            }
+        }
+
+        .tonight-page { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+        .tonight-header {
+            background: var(--bg-header);
+            border-bottom: 2px solid var(--primary);
+            padding: 0.5rem 1rem;
+            flex-shrink: 0;
+            box-shadow: 0 2px 8px var(--shadow);
+            z-index: 100;
+        }
+
+        .tonight-header-content {
+            max-width: 1600px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 0.6rem;
+        }
+
+        .tonight-brand { line-height: 1.1; }
+        .tonight-title { font-family: 'Bebas Neue', sans-serif; font-size: 2rem; letter-spacing: 0.05em; color: var(--text-primary); }
+        .tonight-title span { color: var(--primary); }
+        .tonight-subtitle { font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.15em; }
+
+        .tonight-controls { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+        .control-group { display: flex; align-items: center; gap: 0.25rem; }
+        .control-label { font-size: 0.6rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; }
+
+        .date-nav { display: flex; align-items: center; background: var(--bg-input); border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
+        .date-nav-btn { background: transparent; border: none; color: var(--text-secondary); padding: 0.35rem 0.4rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+        .date-nav-btn:hover { background: var(--bg-card-hover); color: var(--primary); }
+        .date-nav-btn svg { width: 14px; height: 14px; }
+        .date-display { padding: 0.35rem 0.5rem; font-size: 0.75rem; font-weight: 600; color: var(--text-primary); min-width: 100px; text-align: center; border-left: 1px solid var(--border); border-right: 1px solid var(--border); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.3rem; }
+        .date-display:hover { background: var(--bg-card-hover); }
+        .date-display svg { width: 12px; height: 12px; color: var(--text-muted); }
+        #dateInput { position: absolute; opacity: 0; width: 0; height: 0; }
+
+        select { background: var(--bg-input); border: 1px solid var(--border); color: var(--text-primary); padding: 0.35rem 0.5rem; border-radius: 4px; font-family: inherit; font-size: 0.75rem; cursor: pointer; min-width: 110px; }
+        select:focus { outline: none; border-color: var(--primary); }
+
+        .toggle-group { display: flex; background: var(--bg-input); border-radius: 4px; overflow: hidden; border: 1px solid var(--border); }
+        .toggle-btn { padding: 0.35rem 0.6rem; border: none; background: transparent; color: var(--text-secondary); font-family: inherit; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .toggle-btn.active { background: var(--primary); color: white; }
+
+        .location-btn { background: var(--bg-input); border: 1px solid var(--border); color: var(--text-primary); padding: 0.35rem 0.5rem; border-radius: 4px; font-family: inherit; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; gap: 0.25rem; }
+        .location-btn:hover { border-color: var(--primary); color: var(--primary); }
+        .location-btn svg { width: 12px; height: 12px; }
+
+        .tonight-main { display: grid; grid-template-columns: 1fr 380px; flex: 1; min-height: 0; overflow: hidden; }
+
+        @media (max-width: 900px) {
+            .tonight-main { grid-template-columns: 1fr; grid-template-rows: 50% 50%; }
+            .tonight-controls { justify-content: center; flex-wrap: wrap; }
+            .tonight-header-content { justify-content: center; }
+            .tonight-brand { text-align: center; }
+            .control-label { display: none; }
+            .tonight-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; width: 100%; max-width: 360px; }
+            .tonight-controls .control-group { justify-content: center; }
+            .tonight-controls .control-group:nth-child(1) { order: 1; }
+            .tonight-controls .control-group:nth-child(3) { order: 2; }
+            .tonight-controls .control-group:nth-child(2) { order: 3; }
+            .tonight-controls .location-btn { order: 4; justify-content: center; }
+        }
+
+        .map-wrapper { position: relative; width: 100%; height: 100%; background: var(--bg-page); }
+        #map { width: 100%; height: 100%; }
+
+        .region-badge { position: absolute; bottom: 12px; left: 12px; background: var(--bg-card); border: 2px solid var(--primary); padding: 0.3rem 0.6rem; border-radius: 4px; font-family: 'Bebas Neue', sans-serif; font-size: 0.8rem; color: var(--primary); z-index: 1000; display: none; }
+        .region-badge.visible { display: block; }
+
+        .tonight-sidebar { background: var(--bg-card); border-left: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+        @media (max-width: 900px) { .tonight-sidebar { border-left: none; border-top: 1px solid var(--border); } }
+
+        .sidebar-header { padding: 0.5rem 0.6rem; border-bottom: 1px solid var(--border); background: var(--bg-header); flex-shrink: 0; }
+        .sidebar-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem; color: var(--text-primary); }
+        .game-count { background: var(--primary); color: white; font-family: 'Source Sans 3', sans-serif; font-size: 0.65rem; font-weight: 700; padding: 0.1rem 0.4rem; border-radius: 20px; }
+
+        .games-list { flex: 1; overflow-y: auto; }
+
+        .game-card { background: var(--bg-card); border-bottom: 1px solid var(--border-light); padding: 0.35rem 0.5rem; cursor: pointer; transition: background 0.15s; }
+        .game-card:hover { background: var(--bg-card-hover); }
+        .game-card.active { background: rgba(245, 131, 31, 0.1); border-left: 3px solid var(--primary); padding-left: calc(0.5rem - 3px); }
+
+        .game-meta-row { display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.2rem; }
+        .game-type-badge { font-size: 0.6rem; font-weight: 700; text-transform: uppercase; padding: 0.1rem 0.3rem; border-radius: 2px; background: var(--primary); color: white; flex-shrink: 0; }
+        .game-type-badge.girls { background: #333; }
+        .game-time { font-weight: 700; color: var(--text-primary); font-size: 0.8rem; }
+        .game-location { margin-left: auto; display: flex; align-items: center; gap: 0.2rem; color: var(--text-muted); font-size: 0.75rem; }
+        .game-location svg { width: 11px; height: 11px; color: var(--primary); flex-shrink: 0; }
+        .distance-badge { background: var(--bg-page); padding: 0.05rem 0.2rem; border-radius: 2px; font-size: 0.65rem; font-weight: 600; color: var(--text-muted); margin-left: 0.2rem; }
+
+        .b603-team-row { display: flex !important; flex-direction: row !important; align-items: center !important; justify-content: flex-start !important; padding: 0.1rem 0; gap: 0.3rem; }
+        .b603-team-logo { width: 22px; height: 22px; border-radius: 3px; object-fit: contain; background: var(--logo-bg); flex-shrink: 0; }
+        .b603-team-name { font-weight: 600; font-size: 0.95rem; color: var(--text-primary); text-align: left !important; white-space: nowrap; overflow: visible; flex: 0 0 auto !important; }
+        .b603-home-badge { font-size: 0.5rem; font-weight: 700; color: var(--primary); text-transform: uppercase; background: rgba(245, 131, 31, 0.12); padding: 0.05rem 0.18rem; border-radius: 2px; flex-shrink: 0; margin-left: auto; }
+
+        .leaflet-popup-content-wrapper { background: var(--bg-card); color: var(--text-primary); border-radius: 6px; box-shadow: 0 4px 20px var(--shadow); border: 1px solid var(--border); }
+        .leaflet-popup-tip { background: var(--bg-card); }
+        .leaflet-popup-content { margin: 0; min-width: 180px; }
+        .popup-content { padding: 0.6rem; }
+        .popup-school { font-family: 'Bebas Neue', sans-serif; font-size: 0.95rem; margin-bottom: 0.4rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--border); color: var(--primary); }
+        .popup-game { padding: 0.3rem 0; border-bottom: 1px solid var(--border); }
+        .popup-game:last-child { border-bottom: none; }
+        .popup-game-time { font-size: 0.65rem; color: var(--primary); font-weight: 700; }
+        .popup-teams { font-size: 0.8rem; }
+        .popup-vs { color: var(--text-muted); margin: 0 0.15rem; }
+
+        .empty-state { padding: 1.5rem 1rem; text-align: center; color: var(--text-secondary); }
+        .empty-state svg { width: 32px; height: 32px; margin-bottom: 0.5rem; opacity: 0.5; color: var(--primary); }
+        .empty-state h3 { font-family: 'Bebas Neue', sans-serif; font-size: 1rem; margin-bottom: 0.3rem; }
+        .empty-state p { font-size: 0.75rem; }
+        
+        .loading-state { padding: 2rem 1rem; text-align: center; color: var(--text-secondary); }
+        .loading-spinner { width: 24px; height: 24px; border: 3px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 0.5rem; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .leaflet-control-zoom { border: none !important; margin: 10px !important; }
+        .leaflet-control-zoom a { background: var(--bg-card) !important; color: var(--text-primary) !important; border: 1px solid var(--border) !important; width: 26px !important; height: 26px !important; line-height: 24px !important; font-size: 13px !important; }
+        .leaflet-control-attribution { background: rgba(255,255,255,0.7) !important; font-size: 9px !important; padding: 1px 4px !important; }
+        @media (max-width: 768px) { .leaflet-control-attribution { background: rgba(0,0,0,0.5) !important; color: #888 !important; } }
+    </style>
+</head>
+<body>
+    <div id="site-header"></div>
+    <div id="mobile-menu"></div>
+    <script src="/includes/nav-loader.js"></script>
+    
+    <div class="tonight-page">
+        <header class="tonight-header">
+            <div class="tonight-header-content">
+                <div class="tonight-brand">
+                    <div class="tonight-title"><span>BALL</span> IN THE <span>603</span></div>
+                    <div class="tonight-subtitle">Interactive Game Finder</div>
+                </div>
+                
+                <div class="tonight-controls">
+                    <div class="control-group">
+                        <label class="control-label">Date</label>
+                        <div class="date-nav">
+                            <button class="date-nav-btn" id="prevDay"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
+                            <div class="date-display" id="dateDisplay">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                <span id="dateText">TODAY</span>
+                            </div>
+                            <button class="date-nav-btn" id="nextDay"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></button>
+                        </div>
+                        <input type="date" id="dateInput">
+                    </div>
+                    
+                    <div class="control-group">
+                        <label class="control-label">Region</label>
+                        <select id="regionFilter">
+                            <option value="all">All Regions</option>
+                            <option value="north-country">North Country</option>
+                            <option value="lakes-region">Lakes Region</option>
+                            <option value="capitol-region">Capitol Region</option>
+                            <option value="manchester">Manchester/Southern</option>
+                            <option value="nashua">Nashua/Merrimack Valley</option>
+                            <option value="seacoast">Seacoast</option>
+                            <option value="monadnock">Monadnock</option>
+                        </select>
+                    </div>
+                    
+                    <div class="control-group">
+                        <label class="control-label">Show</label>
+                        <div class="toggle-group">
+                            <button class="toggle-btn active" data-filter="all">All</button>
+                            <button class="toggle-btn" data-filter="boys">Boys</button>
+                            <button class="toggle-btn" data-filter="girls">Girls</button>
+                        </div>
+                    </div>
+                    
+                    <button class="location-btn" id="locationBtn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
+                        My Location
+                    </button>
+                </div>
+            </div>
+        </header>
+        
+        <main class="tonight-main">
+            <div class="map-wrapper">
+                <div id="map"></div>
+                <div class="region-badge" id="regionBadge"></div>
+            </div>
+            
+            <aside class="tonight-sidebar">
+                <div class="sidebar-header">
+                    <div class="sidebar-title">
+                        <span id="sidebarDateTitle">Today's Games</span>
+                        <span class="game-count" id="gameCount">0</span>
+                    </div>
+                </div>
+                <div class="games-list" id="gamesList">
+                    <div class="loading-state">
+                        <div class="loading-spinner"></div>
+                        <p>Loading games...</p>
+                    </div>
+                </div>
+            </aside>
+        </main>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="/app.js"></script>
+    
+    <script>
+        const nhBoundary={"type":"Feature","properties":{"name":"New Hampshire"},"geometry":{"type":"Polygon","coordinates":[[[-71.08183,45.303304],[-71.032537,44.657025],[-70.966814,43.34256],[-70.807983,43.227544],[-70.824413,43.128959],[-70.703921,43.057759],[-70.818936,42.871543],[-70.917521,42.887974],[-71.185891,42.789389],[-71.29543,42.696281],[-72.456542,42.729142],[-72.544173,42.80582],[-72.533219,42.953697],[-72.445588,43.008466],[-72.456542,43.150867],[-72.379864,43.572591],[-72.204602,43.769761],[-72.116971,43.994316],[-72.02934,44.07647],[-72.034817,44.322932],[-71.700724,44.41604],[-71.536416,44.585825],[-71.629524,44.750133],[-71.4926,44.914442],[-71.503554,45.013027],[-71.361154,45.270443],[-71.131122,45.243058],[-71.08183,45.303304]]]}};
+        const nhBounds=[[42.696281,-72.556542],[45.303304,-70.703921]];
+        
+        // School coordinates - keyed by normalized lowercase name
+        const schoolCoords = {
+            'alvirne': { name: 'Alvirne', town: 'Hudson', lat: 42.7641, lng: -71.4098, region: 'nashua' },
+            'bedford': { name: 'Bedford', town: 'Bedford', lat: 42.9465, lng: -71.5159, region: 'manchester' },
+            'belmont': { name: 'Belmont', town: 'Belmont', lat: 43.4454, lng: -71.4779, region: 'lakes-region' },
+            'berlin': { name: 'Berlin', town: 'Berlin', lat: 44.4687, lng: -71.1854, region: 'north-country' },
+            'bishop brady': { name: 'Bishop Brady', town: 'Concord', lat: 43.2081, lng: -71.5376, region: 'capitol-region' },
+            'bishop guertin': { name: 'Bishop Guertin', town: 'Nashua', lat: 42.7589, lng: -71.4668, region: 'nashua' },
+            'bow': { name: 'Bow', town: 'Bow', lat: 43.1320, lng: -71.5190, region: 'capitol-region' },
+            'campbell': { name: 'Campbell', town: 'Litchfield', lat: 42.8434, lng: -71.4676, region: 'nashua' },
+            'central': { name: 'Manchester Central', town: 'Manchester', lat: 42.9849, lng: -71.4640, region: 'manchester' },
+            'coe-brown': { name: 'Coe-Brown', town: 'Northwood', lat: 43.1939, lng: -71.1497, region: 'seacoast' },
+            'concord': { name: 'Concord', town: 'Concord', lat: 43.2070, lng: -71.5371, region: 'capitol-region' },
+            'concord christian': { name: 'Concord Christian', town: 'Concord', lat: 43.2300, lng: -71.5100, region: 'capitol-region' },
+            'conval': { name: 'ConVal', town: 'Peterborough', lat: 42.8743, lng: -71.9516, region: 'monadnock' },
+            'derryfield': { name: 'Derryfield', town: 'Manchester', lat: 43.0089, lng: -71.4372, region: 'manchester' },
+            'dover': { name: 'Dover', town: 'Dover', lat: 43.1979, lng: -70.8737, region: 'seacoast' },
+            'epping': { name: 'Epping', town: 'Epping', lat: 43.0334, lng: -71.0742, region: 'seacoast' },
+            'exeter': { name: 'Exeter', town: 'Exeter', lat: 42.9792, lng: -70.9508, region: 'seacoast' },
+            'fall mountain': { name: 'Fall Mountain', town: 'Langdon', lat: 43.1667, lng: -72.3856, region: 'monadnock' },
+            'farmington': { name: 'Farmington', town: 'Farmington', lat: 43.3898, lng: -71.0651, region: 'seacoast' },
+            'franklin': { name: 'Franklin', town: 'Franklin', lat: 43.4443, lng: -71.6473, region: 'lakes-region' },
+            'gilford': { name: 'Gilford', town: 'Gilford', lat: 43.5476, lng: -71.4068, region: 'lakes-region' },
+            'goffstown': { name: 'Goffstown', town: 'Goffstown', lat: 43.0203, lng: -71.6003, region: 'manchester' },
+            'hanover': { name: 'Hanover', town: 'Hanover', lat: 43.7022, lng: -72.2896, region: 'monadnock' },
+            'hillsboro-deering': { name: 'Hillsboro-Deering', town: 'Hillsboro', lat: 43.1148, lng: -71.8979, region: 'monadnock' },
+            'hollis-brookline': { name: 'Hollis-Brookline', town: 'Hollis', lat: 42.7431, lng: -71.5921, region: 'nashua' },
+            'hopkinton': { name: 'Hopkinton', town: 'Contoocook', lat: 43.2218, lng: -71.7134, region: 'capitol-region' },
+            'inter-lakes': { name: 'Inter-Lakes', town: 'Meredith', lat: 43.6572, lng: -71.5004, region: 'lakes-region' },
+            'john stark': { name: 'John Stark', town: 'Weare', lat: 43.0821, lng: -71.7275, region: 'capitol-region' },
+            'kearsarge': { name: 'Kearsarge', town: 'Sutton', lat: 43.3289, lng: -71.9467, region: 'capitol-region' },
+            'keene': { name: 'Keene', town: 'Keene', lat: 42.9348, lng: -72.2798, region: 'monadnock' },
+            'kennett': { name: 'Kennett', town: 'Conway', lat: 43.9787, lng: -71.1228, region: 'north-country' },
+            'kingswood': { name: 'Kingswood', town: 'Wolfeboro', lat: 43.5840, lng: -71.2076, region: 'lakes-region' },
+            'laconia': { name: 'Laconia', town: 'Laconia', lat: 43.5278, lng: -71.4693, region: 'lakes-region' },
+            'lebanon': { name: 'Lebanon', town: 'Lebanon', lat: 43.6423, lng: -72.2518, region: 'monadnock' },
+            'littleton': { name: 'Littleton', town: 'Littleton', lat: 44.3062, lng: -71.7700, region: 'north-country' },
+            'londonderry': { name: 'Londonderry', town: 'Londonderry', lat: 42.8651, lng: -71.3739, region: 'manchester' },
+            'manchester central': { name: 'Manchester Central', town: 'Manchester', lat: 42.9849, lng: -71.4640, region: 'manchester' },
+            'manchester memorial': { name: 'Manchester Memorial', town: 'Manchester', lat: 43.0012, lng: -71.4897, region: 'manchester' },
+            'manchester west': { name: 'Manchester West', town: 'Manchester', lat: 42.9701, lng: -71.4889, region: 'manchester' },
+            'mascenic': { name: 'Mascenic', town: 'New Ipswich', lat: 42.7487, lng: -71.8545, region: 'monadnock' },
+            'mascoma': { name: 'Mascoma', town: 'Canaan', lat: 43.6434, lng: -72.0092, region: 'monadnock' },
+            'memorial': { name: 'Manchester Memorial', town: 'Manchester', lat: 43.0012, lng: -71.4897, region: 'manchester' },
+            'merrimack': { name: 'Merrimack', town: 'Merrimack', lat: 42.8654, lng: -71.4934, region: 'nashua' },
+            'merrimack valley': { name: 'Merrimack Valley', town: 'Penacook', lat: 43.2847, lng: -71.5955, region: 'capitol-region' },
+            'milford': { name: 'Milford', town: 'Milford', lat: 42.8354, lng: -71.6489, region: 'nashua' },
+            'monadnock': { name: 'Monadnock', town: 'Swanzey', lat: 42.8697, lng: -72.2814, region: 'monadnock' },
+            'nashua north': { name: 'Nashua North', town: 'Nashua', lat: 42.7731, lng: -71.4913, region: 'nashua' },
+            'nashua south': { name: 'Nashua South', town: 'Nashua', lat: 42.7317, lng: -71.4674, region: 'nashua' },
+            'newfound': { name: 'Newfound', town: 'Bristol', lat: 43.5912, lng: -71.7365, region: 'lakes-region' },
+            'newmarket': { name: 'Newmarket', town: 'Newmarket', lat: 43.0770, lng: -70.9348, region: 'seacoast' },
+            'newport': { name: 'Newport', town: 'Newport', lat: 43.3651, lng: -72.1734, region: 'monadnock' },
+            'oyster river': { name: 'Oyster River', town: 'Durham', lat: 43.1341, lng: -70.9245, region: 'seacoast' },
+            'pelham': { name: 'Pelham', town: 'Pelham', lat: 42.7343, lng: -71.3245, region: 'nashua' },
+            'pembroke': { name: 'Pembroke', town: 'Pembroke', lat: 43.1456, lng: -71.4582, region: 'capitol-region' },
+            'pinkerton': { name: 'Pinkerton', town: 'Derry', lat: 42.8806, lng: -71.3078, region: 'manchester' },
+            'plymouth': { name: 'Plymouth', town: 'Plymouth', lat: 43.7570, lng: -71.6878, region: 'lakes-region' },
+            'portsmouth': { name: 'Portsmouth', town: 'Portsmouth', lat: 43.0574, lng: -70.7829, region: 'seacoast' },
+            'profile': { name: 'Profile', town: 'Bethlehem', lat: 44.2795, lng: -71.6879, region: 'north-country' },
+            'prospect mountain': { name: 'Prospect Mountain', town: 'Alton', lat: 43.4490, lng: -71.2398, region: 'lakes-region' },
+            'raymond': { name: 'Raymond', town: 'Raymond', lat: 43.0362, lng: -71.1834, region: 'seacoast' },
+            'salem': { name: 'Salem', town: 'Salem', lat: 42.7762, lng: -71.2201, region: 'seacoast' },
+            'sanborn': { name: 'Sanborn', town: 'Kingston', lat: 42.9365, lng: -71.0534, region: 'seacoast' },
+            'somersworth': { name: 'Somersworth', town: 'Somersworth', lat: 43.2618, lng: -70.8693, region: 'seacoast' },
+            'souhegan': { name: 'Souhegan', town: 'Amherst', lat: 42.8643, lng: -71.6128, region: 'nashua' },
+            'spaulding': { name: 'Spaulding', town: 'Rochester', lat: 43.3045, lng: -70.9754, region: 'seacoast' },
+            'st. thomas aquinas': { name: 'St. Thomas Aquinas', town: 'Dover', lat: 43.1876, lng: -70.8834, region: 'seacoast' },
+            'stevens': { name: 'Stevens', town: 'Claremont', lat: 43.3795, lng: -72.3468, region: 'monadnock' },
+            'timberlane': { name: 'Timberlane', town: 'Plaistow', lat: 42.8365, lng: -71.0948, region: 'seacoast' },
+            'trinity': { name: 'Trinity', town: 'Manchester', lat: 42.9956, lng: -71.4548, region: 'manchester' },
+            'west': { name: 'Manchester West', town: 'Manchester', lat: 42.9701, lng: -71.4889, region: 'manchester' },
+            'white mountains': { name: 'White Mountains', town: 'Whitefield', lat: 44.3729, lng: -71.6110, region: 'north-country' },
+            'wilton-lyndeborough': { name: 'Wilton-Lyndeborough', town: 'Wilton', lat: 42.8423, lng: -71.7356, region: 'nashua' },
+            'windham': { name: 'Windham', town: 'Windham', lat: 42.8048, lng: -71.3039, region: 'seacoast' },
+            'winnacunnet': { name: 'Winnacunnet', town: 'Hampton', lat: 42.9243, lng: -70.8421, region: 'seacoast' },
+            'winnisquam': { name: 'Winnisquam', town: 'Tilton', lat: 43.4426, lng: -71.5890, region: 'lakes-region' },
+            'woodsville': { name: 'Woodsville', town: 'Woodsville', lat: 44.1520, lng: -72.0373, region: 'north-country' }
+        };
+        
+        const regionBounds={'all':{center:[43.8,-71.5],zoom:7.8},'north-country':{center:[44.35,-71.5],zoom:9},'lakes-region':{center:[43.6,-71.5],zoom:9.5},'capitol-region':{center:[43.15,-71.55],zoom:10},'manchester':{center:[42.95,-71.45],zoom:10.5},'nashua':{center:[42.8,-71.5],zoom:10.5},'seacoast':{center:[43.05,-70.95],zoom:10},'monadnock':{center:[42.95,-72.15],zoom:10}};
+        const regionNames={'all':'All Regions','north-country':'North Country','lakes-region':'Lakes Region','capitol-region':'Capitol Region','manchester':'Manchester/Southern','nashua':'Nashua/Merrimack Valley','seacoast':'Seacoast','monadnock':'Monadnock'};
+
+        // Normalize team names from database
+        function normalizeTeamName(name) {
+            if (!name) return '';
+            const fullNames = {
+                'Alvirne High School': 'Alvirne', 'Bedford High School': 'Bedford', 'Belmont High School': 'Belmont',
+                'Bishop Brady High School': 'Bishop Brady', 'Bishop Guertin High School': 'Bishop Guertin',
+                'Bow High School': 'Bow', 'Campbell High School': 'Campbell', 'Coe-Brown Northwood Academy': 'Coe-Brown',
+                'Concord High School': 'Concord', 'Concord Christian Academy': 'Concord Christian',
+                'ConVal Regional High School': 'ConVal', 'Derryfield School': 'Derryfield', 'Dover High School': 'Dover',
+                'Exeter High School': 'Exeter', 'Farmington High School': 'Farmington', 'Gilford High School': 'Gilford',
+                'Goffstown High School': 'Goffstown', 'Hanover High School': 'Hanover',
+                'Hollis-Brookline High School': 'Hollis-Brookline', 'Keene High School': 'Keene',
+                'Kennett High School': 'Kennett', 'Kingswood Regional High School': 'Kingswood',
+                'Laconia High School': 'Laconia', 'Lebanon High School': 'Lebanon',
+                'Londonderry High School': 'Londonderry', 'Manchester Central High School': 'Manchester Central',
+                'Manchester Memorial High School': 'Manchester Memorial', 'Manchester West High School': 'Manchester West',
+                'Merrimack High School': 'Merrimack', 'Milford High School': 'Milford',
+                'Nashua High School North': 'Nashua North', 'Nashua High School South': 'Nashua South',
+                'Oyster River High School': 'Oyster River', 'Pelham High School': 'Pelham',
+                'Pembroke Academy': 'Pembroke', 'Pinkerton Academy': 'Pinkerton',
+                'Plymouth Regional High School': 'Plymouth', 'Portsmouth High School': 'Portsmouth',
+                'Salem High School': 'Salem', 'Souhegan High School': 'Souhegan', 'Spaulding High School': 'Spaulding',
+                'St. Thomas Aquinas High School': 'St. Thomas Aquinas', 'Timberlane Regional High School': 'Timberlane',
+                'Trinity High School': 'Trinity', 'Windham High School': 'Windham', 'Winnacunnet High School': 'Winnacunnet',
+                'Mascoma Valley': 'Mascoma'
+            };
+            return fullNames[name] || name;
+        }
+
+        function getSchoolKey(teamName) {
+            if (!teamName) return null;
+            const normalized = normalizeTeamName(teamName).toLowerCase().trim();
+            if (schoolCoords[normalized]) return normalized;
+            for (const key of Object.keys(schoolCoords)) {
+                if (normalized.includes(key) || key.includes(normalized)) return key;
+            }
+            return null;
+        }
+
+        function getLogoFilename(team) {
+            if (!team) return 'Ball603-white.png';
+            return team.replace(/[^a-zA-Z0-9]/g, '') + '.png';
+        }
+
+        function formatTime(timeStr) {
+            if (!timeStr) return 'TBD';
+            if (timeStr.toUpperCase() === 'FINAL') return 'FINAL';
+            return timeStr.replace(/^0(\d)/, '$1');
+        }
+
+        let map, markers = [], nhBorderLayer, userLocation = null, userMarker = null;
+        let currentFilter = 'all', currentRegion = 'all', activeGameId = null;
+        let currentDate = new Date(), allGames = [];
+
+        function getESTDate() { return new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })); }
+        function getToday() { const d = getESTDate(); d.setHours(0,0,0,0); return d; }
+        function getDateString(d) { return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+        function isSameDay(d1,d2) { return d1.getFullYear()===d2.getFullYear()&&d1.getMonth()===d2.getMonth()&&d1.getDate()===d2.getDate(); }
+        
+        function formatDateLabel(date) {
+            const today = getToday();
+            const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate()+1);
+            const yesterday = new Date(today); yesterday.setDate(yesterday.getDate()-1);
+            if (isSameDay(date, today)) return 'TODAY';
+            if (isSameDay(date, tomorrow)) return 'TOMORROW';
+            if (isSameDay(date, yesterday)) return 'YESTERDAY';
+            return date.toLocaleDateString('en-US', {month:'short', day:'numeric'}).toUpperCase();
+        }
+        
+        function formatSidebarTitle(date) {
+            const today = getToday();
+            if (isSameDay(date, today)) return "Today's Games";
+            const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate()+1);
+            if (isSameDay(date, tomorrow)) return "Tomorrow's Games";
+            return date.toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric'}) + " Games";
+        }
+        
+        function updateDateDisplay() {
+            document.getElementById('dateText').textContent = formatDateLabel(currentDate);
+            document.getElementById('sidebarDateTitle').textContent = formatSidebarTitle(currentDate);
+            document.getElementById('dateInput').value = currentDate.toISOString().split('T')[0];
+        }
+        
+        function changeDate(delta) {
+            currentDate.setDate(currentDate.getDate() + delta);
+            updateDateDisplay();
+            renderGames();
+        }
+
+        async function loadGames() {
+            try {
+                const response = await fetch('/.netlify/functions/get-games');
+                const data = await response.json();
+                allGames = (data.games || []).map(g => ({
+                    ...g,
+                    home: normalizeTeamName(g.home),
+                    away: normalizeTeamName(g.away)
+                }));
+                renderGames();
+            } catch (err) {
+                console.error('Error loading games:', err);
+                document.getElementById('gamesList').innerHTML = '<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><h3>Error Loading Games</h3><p>Please refresh the page.</p></div>';
+            }
+        }
+
+        function initMap() {
+            const isMobile = window.innerWidth <= 768;
+            map = L.map('map', { zoomControl: true, minZoom: 7, maxZoom: 14 });
+            L.tileLayer(isMobile ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: '&copy; CARTO', subdomains: 'abcd', maxZoom: 19 }).addTo(map);
+            nhBorderLayer = L.geoJSON(nhBoundary, { style: { color: '#f5831f', weight: 3, fillColor: 'transparent', fillOpacity: 0, opacity: 1 }, interactive: false }).addTo(map);
+            map.fitBounds(nhBounds, { padding: [15, 15] });
+            currentDate = getToday();
+            updateDateDisplay();
+            loadGames();
+        }
+
+        function renderGames() {
+            markers.forEach(m => map.removeLayer(m));
+            markers = [];
+            
+            const dateStr = getDateString(currentDate);
+            
+            let filteredGames = allGames.filter(game => {
+                if (game.date !== dateStr) return false;
+                if (game.level && !['Varsity', 'V', ''].includes(game.level)) return false;
+                if (currentFilter !== 'all') {
+                    const gender = (game.gender || '').toLowerCase();
+                    if (currentFilter === 'boys' && gender !== 'boys') return false;
+                    if (currentFilter === 'girls' && gender !== 'girls') return false;
+                }
+                if (currentRegion !== 'all') {
+                    const homeKey = getSchoolKey(game.home);
+                    if (!homeKey || !schoolCoords[homeKey] || schoolCoords[homeKey].region !== currentRegion) return false;
+                }
+                return true;
+            });
+            
+            if (userLocation) {
+                filteredGames.forEach(game => {
+                    const homeKey = getSchoolKey(game.home);
+                    if (homeKey && schoolCoords[homeKey]) {
+                        const school = schoolCoords[homeKey];
+                        game.distance = getDistance(userLocation.lat, userLocation.lng, school.lat, school.lng);
+                    }
+                });
+            }
+            
+            filteredGames.sort((a, b) => convertTo24Hour(a.time || 'TBD').localeCompare(convertTo24Hour(b.time || 'TBD')));
+            
+            const gamesByLocation = {};
+            filteredGames.forEach((game, idx) => {
+                game.id = idx;
+                const homeKey = getSchoolKey(game.home);
+                if (homeKey && schoolCoords[homeKey]) {
+                    if (!gamesByLocation[homeKey]) gamesByLocation[homeKey] = [];
+                    gamesByLocation[homeKey].push(game);
+                }
+            });
+            
+            Object.entries(gamesByLocation).forEach(([schoolKey, games]) => {
+                markers.push(createMarker(schoolCoords[schoolKey], games));
+            });
+            
+            updateGamesList(filteredGames);
+            document.getElementById('gameCount').textContent = filteredGames.length;
+            
+            const badge = document.getElementById('regionBadge');
+            if (currentRegion !== 'all') { badge.textContent = regionNames[currentRegion]; badge.classList.add('visible'); }
+            else { badge.classList.remove('visible'); }
+        }
+
+        function createMarker(school, games) {
+            const icon = L.divIcon({
+                className: 'custom-marker',
+                html: `<svg width="24" height="32" viewBox="0 0 24 36" style="filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3))"><path d="M12 0C5.373 0 0 5.373 0 12c0 9 12 24 12 24s12-15 12-24c0-6.627-5.373-12-12-12z" fill="#f5831f"/><circle cx="12" cy="12" r="5" fill="#fff"/><text x="12" y="15" text-anchor="middle" fill="#f5831f" font-size="8" font-weight="bold">${games.length}</text></svg>`,
+                iconSize: [24, 32], iconAnchor: [12, 32], popupAnchor: [0, -32]
+            });
+            
+            const marker = L.marker([school.lat, school.lng], { icon }).addTo(map);
+            
+            let popupContent = `<div class="popup-content"><div class="popup-school">${school.name}</div>`;
+            games.forEach(game => {
+                const genderLabel = (game.gender || 'TBD').charAt(0).toUpperCase() + (game.gender || '').slice(1);
+                popupContent += `<div class="popup-game"><div class="popup-game-time">${formatTime(game.time)} • ${genderLabel}</div><div class="popup-teams">${game.away}<span class="popup-vs">@</span>${game.home}</div></div>`;
+            });
+            popupContent += '</div>';
+            
+            marker.bindPopup(popupContent, { maxWidth: 240, closeButton: false });
+            marker.on('click', () => setActiveGame(games[0].id));
+            return marker;
+        }
+
+        function updateGamesList(games) {
+            const container = document.getElementById('gamesList');
+            
+            if (games.length === 0) {
+                container.innerHTML = `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg><h3>No Games Found</h3><p>Try a different date or adjust filters.</p></div>`;
+                return;
+            }
+            
+            container.innerHTML = games.map(game => {
+                const homeKey = getSchoolKey(game.home);
+                const school = homeKey ? schoolCoords[homeKey] : null;
+                const town = school ? school.town : '';
+                const distHtml = game.distance !== undefined ? `<span class="distance-badge">${game.distance.toFixed(1)} mi</span>` : '';
+                const genderClass = (game.gender || '').toLowerCase() === 'girls' ? 'girls' : '';
+                const genderLabel = (game.gender || 'TBD').toLowerCase();
+                
+                return `<div class="game-card ${activeGameId === game.id ? 'active' : ''}" data-game-id="${game.id}" data-school="${homeKey || ''}">
+                    <div class="game-meta-row">
+                        <span class="game-type-badge ${genderClass}">${genderLabel}</span>
+                        <span class="game-time">${formatTime(game.time)}</span>
+                        <span class="game-location"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>${town}${distHtml}</span>
+                    </div>
+                    <div class="b603-team-row">
+                        <img class="b603-team-logo" src="/logos/100px/${getLogoFilename(game.away)}" alt="" onerror="this.src='/logos/100px/Ball603-white.png'">
+                        <span class="b603-team-name">${game.away}</span>
+                    </div>
+                    <div class="b603-team-row">
+                        <img class="b603-team-logo" src="/logos/100px/${getLogoFilename(game.home)}" alt="" onerror="this.src='/logos/100px/Ball603-white.png'">
+                        <span class="b603-team-name">${game.home}</span>
+                        <span class="b603-home-badge">HOME</span>
+                    </div>
+                </div>`;
+            }).join('');
+            
+            container.querySelectorAll('.game-card').forEach(card => {
+                card.addEventListener('click', () => {
+                    setActiveGame(parseInt(card.dataset.gameId));
+                    if (card.dataset.school && schoolCoords[card.dataset.school]) flyToSchool(card.dataset.school);
+                });
+            });
+        }
+
+        function setActiveGame(gameId) {
+            activeGameId = gameId;
+            document.querySelectorAll('.game-card').forEach(card => {
+                card.classList.toggle('active', parseInt(card.dataset.gameId) === gameId);
+            });
+        }
+        
+        function flyToSchool(schoolKey) {
+            const school = schoolCoords[schoolKey];
+            if (!school) return;
+            map.flyTo([school.lat, school.lng], 11, { duration: 0.4 });
+            markers.forEach(marker => {
+                const pos = marker.getLatLng();
+                if (Math.abs(pos.lat - school.lat) < 0.001 && Math.abs(pos.lng - school.lng) < 0.001) marker.openPopup();
+            });
+        }
+        
+        function getDistance(lat1, lon1, lat2, lon2) {
+            const R = 3959, dLat = (lat2 - lat1) * Math.PI / 180, dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2)**2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2)**2;
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        }
+        
+        function convertTo24Hour(time12h) {
+            if (!time12h || time12h === 'TBD' || time12h === 'FINAL') return '99:99';
+            const match = time12h.match(/(\d{1,2}):?(\d{2})?\s*(AM|PM)?/i);
+            if (!match) return '99:99';
+            let h = parseInt(match[1]);
+            const m = match[2] || '00';
+            const period = (match[3] || 'PM').toUpperCase();
+            if (period === 'PM' && h !== 12) h += 12;
+            if (period === 'AM' && h === 12) h = 0;
+            return String(h).padStart(2, '0') + ':' + m;
+        }
+
+        document.getElementById('prevDay').addEventListener('click', () => changeDate(-1));
+        document.getElementById('nextDay').addEventListener('click', () => changeDate(1));
+        document.getElementById('dateDisplay').addEventListener('click', () => { document.getElementById('dateInput').showPicker(); });
+        document.getElementById('dateInput').addEventListener('change', (e) => { currentDate = new Date(e.target.value + 'T00:00:00'); updateDateDisplay(); renderGames(); });
+        document.querySelectorAll('.toggle-btn').forEach(btn => { btn.addEventListener('click', () => { document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); currentFilter = btn.dataset.filter; renderGames(); }); });
+        document.getElementById('regionFilter').addEventListener('change', (e) => { currentRegion = e.target.value; const bounds = regionBounds[currentRegion]; map.flyTo(bounds.center, bounds.zoom, { duration: 0.5 }); renderGames(); });
+        document.getElementById('locationBtn').addEventListener('click', () => { if (navigator.geolocation) { navigator.geolocation.getCurrentPosition((pos) => { userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude }; if (userMarker) map.removeLayer(userMarker); const icon = L.divIcon({ className: 'user-marker', html: `<div style="width:10px;height:10px;background:#22c55e;border:2px solid white;border-radius:50%;box-shadow:0 2px 4px rgba(0,0,0,0.4)"></div>`, iconSize: [10, 10], iconAnchor: [5, 5] }); userMarker = L.marker([userLocation.lat, userLocation.lng], { icon }).addTo(map); map.flyTo([userLocation.lat, userLocation.lng], 10, { duration: 0.4 }); renderGames(); }, () => alert('Unable to get location.')); } });
+
+        document.addEventListener('DOMContentLoaded', initMap);
+    </script>
+</body>
+</html>
