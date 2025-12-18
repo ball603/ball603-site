@@ -1,0 +1,1137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Tonight's Ball in the 603 - Interactive map of tonight's New Hampshire high school basketball games.">
+    <meta name="theme-color" content="#f57c00">
+    <title>Tonight's Ball in the 603 | Ball603</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="/logo.png">
+    <link rel="apple-touch-icon" href="/logo.png">
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- Shared Styles -->
+    <link rel="stylesheet" href="/styles.css">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary: #f5831f;
+            --primary-dark: #d96f0f;
+            --bg-dark: #0a0a0a;
+            --bg-card: #141414;
+            --bg-card-hover: #1e1e1e;
+            --text-primary: #ffffff;
+            --text-secondary: #9ca3af;
+            --text-muted: #6b7280;
+            --border: #262626;
+            --boys-color: #3b82f6;
+            --girls-color: #ec4899;
+        }
+
+        /* Page Layout */
+        .tonight-page {
+            background: var(--bg-dark);
+            min-height: 100vh;
+        }
+
+        /* Page Header */
+        .tonight-header {
+            background: linear-gradient(180deg, var(--bg-card) 0%, var(--bg-dark) 100%);
+            border-bottom: 2px solid var(--primary);
+            padding: 0.75rem 1.5rem;
+            position: sticky;
+            top: 60px; /* Account for main nav */
+            z-index: 900;
+        }
+
+        .tonight-header-content {
+            max-width: 1600px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .tonight-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .tonight-logo {
+            height: 40px;
+            width: auto;
+        }
+
+        .tonight-brand-text {
+            display: flex;
+            flex-direction: column;
+            line-height: 1.1;
+        }
+
+        .tonight-title {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.3rem;
+            letter-spacing: 0.05em;
+            color: var(--text-primary);
+        }
+
+        .tonight-title span {
+            color: var(--primary);
+        }
+
+        .tonight-subtitle {
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+        }
+
+        /* Controls */
+        .tonight-controls {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .control-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        input[type="date"], select {
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 0.5rem 0.75rem;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+
+        input[type="date"]:focus, select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        input[type="date"]:hover, select:hover {
+            border-color: var(--primary);
+        }
+
+        select {
+            min-width: 130px;
+        }
+
+        .toggle-group {
+            display: flex;
+            background: var(--bg-dark);
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+
+        .toggle-btn {
+            padding: 0.5rem 0.85rem;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            font-family: inherit;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .toggle-btn.active {
+            background: var(--primary);
+            color: var(--bg-dark);
+        }
+
+        .toggle-btn:hover:not(.active) {
+            background: var(--bg-card-hover);
+            color: var(--text-primary);
+        }
+
+        .location-btn {
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 0.5rem 0.75rem;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 0.85rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            transition: all 0.2s;
+        }
+
+        .location-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .location-btn svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        /* Main Layout */
+        .tonight-main {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            height: calc(100vh - 130px);
+        }
+
+        @media (max-width: 900px) {
+            .tonight-main {
+                grid-template-columns: 1fr;
+                grid-template-rows: 55vh 1fr;
+            }
+            
+            .tonight-controls {
+                justify-content: center;
+            }
+            
+            .tonight-header-content {
+                justify-content: center;
+            }
+            
+            .tonight-brand {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .tonight-header {
+                top: 0;
+            }
+        }
+
+        /* Map Container with NH Mask */
+        .map-wrapper {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: var(--bg-dark);
+            overflow: hidden;
+        }
+
+        .map-nh-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .map-masked {
+            position: relative;
+            width: 400px;
+            height: 500px;
+            max-width: 90%;
+            max-height: 90%;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            background: #1a1a1a;
+            -webkit-mask-image: url('nh-outline.png');
+            -webkit-mask-size: contain;
+            -webkit-mask-repeat: no-repeat;
+            -webkit-mask-position: center;
+            mask-image: url('nh-outline.png');
+            mask-size: contain;
+            mask-repeat: no-repeat;
+            mask-position: center;
+        }
+
+        /* NH Border Overlay */
+        .nh-border-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            background-image: url('nh-outline.png');
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            opacity: 0;
+            mix-blend-mode: normal;
+            filter: drop-shadow(0 0 3px var(--primary)) drop-shadow(0 0 6px var(--primary));
+        }
+
+        /* Region Badge */
+        .region-badge {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--primary);
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1rem;
+            letter-spacing: 0.05em;
+            color: var(--primary);
+            z-index: 1000;
+            display: none;
+        }
+
+        .region-badge.visible {
+            display: block;
+        }
+
+        /* Sidebar */
+        .tonight-sidebar {
+            background: var(--bg-card);
+            border-left: 1px solid var(--border);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        @media (max-width: 900px) {
+            .tonight-sidebar {
+                border-left: none;
+                border-top: 1px solid var(--border);
+            }
+        }
+
+        .sidebar-header {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-dark);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .sidebar-title {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.2rem;
+            letter-spacing: 0.05em;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: var(--text-primary);
+        }
+
+        .game-count {
+            background: var(--primary);
+            color: var(--bg-dark);
+            font-family: 'Source Sans 3', sans-serif;
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 0.2rem 0.6rem;
+            border-radius: 20px;
+        }
+
+        .games-list {
+            flex: 1;
+            padding: 0.5rem;
+        }
+
+        .game-card {
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .game-card:hover {
+            border-color: var(--primary);
+            transform: translateX(4px);
+        }
+
+        .game-card.active {
+            border-color: var(--primary);
+            background: rgba(245, 131, 31, 0.08);
+        }
+
+        .game-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+
+        .game-time {
+            font-weight: 700;
+            color: var(--primary);
+            font-size: 0.85rem;
+        }
+
+        .game-type {
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+        }
+
+        .game-type.boys {
+            background: rgba(59, 130, 246, 0.2);
+            color: var(--boys-color);
+        }
+
+        .game-type.girls {
+            background: rgba(236, 72, 153, 0.2);
+            color: var(--girls-color);
+        }
+
+        .game-matchup {
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+
+        .team-row {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .team-indicator {
+            width: 3px;
+            height: 20px;
+            border-radius: 2px;
+            background: var(--border);
+        }
+
+        .team-row.home .team-indicator {
+            background: var(--primary);
+        }
+
+        .team-name {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: var(--text-primary);
+        }
+
+        .team-record {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            margin-left: auto;
+        }
+
+        .team-label {
+            font-size: 0.65rem;
+            color: var(--primary);
+            text-transform: uppercase;
+            font-weight: 700;
+            margin-left: 0.25rem;
+        }
+
+        .game-location {
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid var(--border);
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+        }
+
+        .game-location svg {
+            width: 14px;
+            height: 14px;
+            flex-shrink: 0;
+            margin-top: 2px;
+            color: var(--primary);
+        }
+
+        .distance-badge {
+            margin-left: auto;
+            background: var(--bg-card);
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        /* Popup Styling */
+        .leaflet-popup-content-wrapper {
+            background: var(--bg-card);
+            color: var(--text-primary);
+            border-radius: 8px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+            border: 1px solid var(--border);
+        }
+
+        .leaflet-popup-tip {
+            background: var(--bg-card);
+        }
+
+        .leaflet-popup-content {
+            margin: 0;
+            min-width: 220px;
+        }
+
+        .popup-content {
+            padding: 1rem;
+        }
+
+        .popup-school {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.1rem;
+            letter-spacing: 0.03em;
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border);
+            color: var(--primary);
+        }
+
+        .popup-game {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .popup-game:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .popup-game-time {
+            font-size: 0.75rem;
+            color: var(--primary);
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+
+        .popup-teams {
+            font-size: 0.9rem;
+        }
+
+        .popup-vs {
+            color: var(--text-muted);
+            margin: 0 0.25rem;
+        }
+
+        /* Empty State */
+        .empty-state {
+            padding: 3rem 1.5rem;
+            text-align: center;
+            color: var(--text-secondary);
+        }
+
+        .empty-state svg {
+            width: 48px;
+            height: 48px;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+            color: var(--primary);
+        }
+
+        .empty-state h3 {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.25rem;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }
+
+        /* Leaflet overrides */
+        .leaflet-control-zoom {
+            border: none !important;
+            margin: 15px !important;
+        }
+
+        .leaflet-control-zoom a {
+            background: var(--bg-card) !important;
+            color: var(--text-primary) !important;
+            border: 1px solid var(--border) !important;
+            width: 32px !important;
+            height: 32px !important;
+            line-height: 30px !important;
+        }
+
+        .leaflet-control-zoom a:hover {
+            background: var(--bg-card-hover) !important;
+            color: var(--primary) !important;
+        }
+
+        .leaflet-control-attribution {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    
+    <!-- Navigation (loaded dynamically) -->
+    <div id="site-header"></div>
+    <div id="mobile-menu"></div>
+    <script src="/includes/nav-loader.js"></script>
+    
+    <div class="tonight-page">
+        <!-- Page Header -->
+        <header class="tonight-header">
+            <div class="tonight-header-content">
+                <div class="tonight-brand">
+                    <img src="/logo.png" alt="Ball603" class="tonight-logo">
+                    <div class="tonight-brand-text">
+                        <div class="tonight-title">TONIGHT'S <span>BALL</span> IN THE <span>603</span></div>
+                        <div class="tonight-subtitle">Interactive Game Finder</div>
+                    </div>
+                </div>
+                
+                <div class="tonight-controls">
+                    <div class="control-group">
+                        <label class="control-label">Date</label>
+                        <input type="date" id="dateFilter">
+                    </div>
+                    
+                    <div class="control-group">
+                        <label class="control-label">Region</label>
+                        <select id="regionFilter">
+                            <option value="all">All Regions</option>
+                            <option value="north-country">North Country</option>
+                            <option value="lakes-region">Lakes Region</option>
+                            <option value="capitol-region">Capitol Region</option>
+                            <option value="manchester">Manchester/Southern</option>
+                            <option value="nashua">Nashua/Merrimack Valley</option>
+                            <option value="seacoast">Seacoast</option>
+                            <option value="monadnock">Monadnock</option>
+                        </select>
+                    </div>
+                    
+                    <div class="control-group">
+                        <label class="control-label">Show</label>
+                        <div class="toggle-group">
+                            <button class="toggle-btn active" data-filter="all">All</button>
+                            <button class="toggle-btn" data-filter="boys">Boys</button>
+                            <button class="toggle-btn" data-filter="girls">Girls</button>
+                        </div>
+                    </div>
+                    
+                    <div class="control-group">
+                        <label class="control-label">Within</label>
+                        <select id="distanceFilter">
+                            <option value="0">Any Distance</option>
+                            <option value="10">10 miles</option>
+                            <option value="20">20 miles</option>
+                            <option value="30">30 miles</option>
+                            <option value="50">50 miles</option>
+                        </select>
+                    </div>
+                    
+                    <button class="location-btn" id="locationBtn">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"/>
+                            <circle cx="12" cy="12" r="3"/>
+                            <line x1="12" y1="2" x2="12" y2="4"/>
+                            <line x1="12" y1="20" x2="12" y2="22"/>
+                            <line x1="2" y1="12" x2="4" y2="12"/>
+                            <line x1="20" y1="12" x2="22" y2="12"/>
+                        </svg>
+                        My Location
+                    </button>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Main Content -->
+        <main class="tonight-main">
+            <div class="map-wrapper">
+                <div class="map-nh-container">
+                    <div class="map-masked">
+                        <div id="map"></div>
+                        <div class="nh-border-overlay"></div>
+                    </div>
+                </div>
+                <div class="region-badge" id="regionBadge"></div>
+            </div>
+            
+            <aside class="tonight-sidebar">
+                <div class="sidebar-header">
+                    <div class="sidebar-title">
+                        Games Today
+                        <span class="game-count" id="gameCount">0</span>
+                    </div>
+                </div>
+                <div class="games-list" id="gamesList">
+                    <!-- Games populated by JS -->
+                </div>
+            </aside>
+        </main>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Shared JS -->
+    <script src="/app.js"></script>
+    
+    <script>
+        // =============================================
+        // SAMPLE DATA - Replace with Supabase queries
+        // =============================================
+        
+        const schools = {
+            // North Country
+            'berlin': { name: 'Berlin', town: 'Berlin', lat: 44.4687, lng: -71.1854, address: '550 Willard St, Berlin', region: 'north-country' },
+            'littleton': { name: 'Littleton', town: 'Littleton', lat: 44.3062, lng: -71.7700, address: '159 Oak Hill Ave, Littleton', region: 'north-country' },
+            'profile': { name: 'Profile', town: 'Bethlehem', lat: 44.2795, lng: -71.6879, address: '660 Profile Rd, Bethlehem', region: 'north-country' },
+            'white-mountains': { name: 'White Mountains', town: 'Whitefield', lat: 44.3729, lng: -71.6110, address: '127 Regional Rd, Whitefield', region: 'north-country' },
+            
+            // Lakes Region
+            'plymouth': { name: 'Plymouth', town: 'Plymouth', lat: 43.7570, lng: -71.6878, address: '86 Old Ward Bridge Rd, Plymouth', region: 'lakes-region' },
+            'laconia': { name: 'Laconia', town: 'Laconia', lat: 43.5278, lng: -71.4693, address: '345 Union Ave, Laconia', region: 'lakes-region' },
+            'gilford': { name: 'Gilford', town: 'Gilford', lat: 43.5476, lng: -71.4068, address: '88 Alvah Wilson Rd, Gilford', region: 'lakes-region' },
+            'belmont': { name: 'Belmont', town: 'Belmont', lat: 43.4454, lng: -71.4779, address: '255 Seavey Rd, Belmont', region: 'lakes-region' },
+            'inter-lakes': { name: 'Inter-Lakes', town: 'Meredith', lat: 43.6572, lng: -71.5004, address: '1 Laker Ln, Meredith', region: 'lakes-region' },
+            
+            // Capitol Region
+            'bishop-brady': { name: 'Bishop Brady', town: 'Concord', lat: 43.2081, lng: -71.5376, address: '25 Columbus Ave, Concord', region: 'capitol-region' },
+            'concord': { name: 'Concord', town: 'Concord', lat: 43.2070, lng: -71.5371, address: '170 Warren St, Concord', region: 'capitol-region' },
+            'bow': { name: 'Bow', town: 'Bow', lat: 43.1320, lng: -71.5190, address: '55 Falcon Way, Bow', region: 'capitol-region' },
+            'pembroke': { name: 'Pembroke Academy', town: 'Pembroke', lat: 43.1456, lng: -71.4582, address: '209 Academy Rd, Pembroke', region: 'capitol-region' },
+            'merrimack-valley': { name: 'Merrimack Valley', town: 'Penacook', lat: 43.2847, lng: -71.5955, address: '106 Village St, Penacook', region: 'capitol-region' },
+            'john-stark': { name: 'John Stark', town: 'Weare', lat: 43.0821, lng: -71.7275, address: '618 N Stark Hwy, Weare', region: 'capitol-region' },
+            'hopkinton': { name: 'Hopkinton', town: 'Contoocook', lat: 43.2218, lng: -71.7134, address: '297 Park Ave, Contoocook', region: 'capitol-region' },
+            
+            // Manchester/Southern
+            'goffstown': { name: 'Goffstown', town: 'Goffstown', lat: 43.0203, lng: -71.6003, address: '27 Wallace Rd, Goffstown', region: 'manchester' },
+            'bedford': { name: 'Bedford', town: 'Bedford', lat: 42.9465, lng: -71.5159, address: '47 Nashua Rd, Bedford', region: 'manchester' },
+            'trinity': { name: 'Trinity', town: 'Manchester', lat: 42.9956, lng: -71.4548, address: '581 Bridge St, Manchester', region: 'manchester' },
+            'manchester-central': { name: 'Manchester Central', town: 'Manchester', lat: 42.9849, lng: -71.4640, address: '194 Beech St, Manchester', region: 'manchester' },
+            'manchester-memorial': { name: 'Manchester Memorial', town: 'Manchester', lat: 43.0012, lng: -71.4897, address: '1 Crusader Way, Manchester', region: 'manchester' },
+            'manchester-west': { name: 'Manchester West', town: 'Manchester', lat: 42.9701, lng: -71.4889, address: '9 Notre Dame Ave, Manchester', region: 'manchester' },
+            'derryfield': { name: 'Derryfield', town: 'Manchester', lat: 43.0089, lng: -71.4372, address: '2108 River Rd, Manchester', region: 'manchester' },
+            'londonderry': { name: 'Londonderry', town: 'Londonderry', lat: 42.8651, lng: -71.3739, address: '295 Mammoth Rd, Londonderry', region: 'manchester' },
+            'pinkerton': { name: 'Pinkerton Academy', town: 'Derry', lat: 42.8806, lng: -71.3078, address: '5 Pinkerton St, Derry', region: 'manchester' },
+            
+            // Nashua/Merrimack Valley
+            'nashua-north': { name: 'Nashua North', town: 'Nashua', lat: 42.7731, lng: -71.4913, address: '8 Titan Way, Nashua', region: 'nashua' },
+            'nashua-south': { name: 'Nashua South', town: 'Nashua', lat: 42.7317, lng: -71.4674, address: '36 Riverside Dr, Nashua', region: 'nashua' },
+            'bishop-guertin': { name: 'Bishop Guertin', town: 'Nashua', lat: 42.7589, lng: -71.4668, address: '194 Lund Rd, Nashua', region: 'nashua' },
+            'hollis-brookline': { name: 'Hollis-Brookline', town: 'Hollis', lat: 42.7431, lng: -71.5921, address: '24 Cavalier Ct, Hollis', region: 'nashua' },
+            'milford': { name: 'Milford', town: 'Milford', lat: 42.8354, lng: -71.6489, address: '100 West St, Milford', region: 'nashua' },
+            'souhegan': { name: 'Souhegan', town: 'Amherst', lat: 42.8643, lng: -71.6128, address: '412 Boston Post Rd, Amherst', region: 'nashua' },
+            'alvirne': { name: 'Alvirne', town: 'Hudson', lat: 42.7641, lng: -71.4098, address: '200 Derry Rd, Hudson', region: 'nashua' },
+            
+            // Seacoast
+            'exeter': { name: 'Exeter', town: 'Exeter', lat: 42.9792, lng: -70.9508, address: '1 Blue Hawk Dr, Exeter', region: 'seacoast' },
+            'portsmouth': { name: 'Portsmouth', town: 'Portsmouth', lat: 43.0574, lng: -70.7829, address: '50 Andrew Jarvis Dr, Portsmouth', region: 'seacoast' },
+            'winnacunnet': { name: 'Winnacunnet', town: 'Hampton', lat: 42.9243, lng: -70.8421, address: '1 Alumni Dr, Hampton', region: 'seacoast' },
+            'spaulding': { name: 'Spaulding', town: 'Rochester', lat: 43.3045, lng: -70.9754, address: '130 Wakefield St, Rochester', region: 'seacoast' },
+            'dover': { name: 'Dover', town: 'Dover', lat: 43.1979, lng: -70.8737, address: '25 Alumni Dr, Dover', region: 'seacoast' },
+            'somersworth': { name: 'Somersworth', town: 'Somersworth', lat: 43.2618, lng: -70.8693, address: '11 Memorial Dr, Somersworth', region: 'seacoast' },
+            'oyster-river': { name: 'Oyster River', town: 'Durham', lat: 43.1341, lng: -70.9245, address: '55 Coe Dr, Durham', region: 'seacoast' },
+            'windham': { name: 'Windham', town: 'Windham', lat: 42.8048, lng: -71.3039, address: '64 London Bridge Rd, Windham', region: 'seacoast' },
+            'salem': { name: 'Salem', town: 'Salem', lat: 42.7762, lng: -71.2201, address: '44 Geremonty Dr, Salem', region: 'seacoast' },
+            'timberlane': { name: 'Timberlane', town: 'Plaistow', lat: 42.8365, lng: -71.0948, address: '36 Greenough Rd, Plaistow', region: 'seacoast' },
+            
+            // Monadnock
+            'keene': { name: 'Keene', town: 'Keene', lat: 42.9348, lng: -72.2798, address: '43 Arch St, Keene', region: 'monadnock' },
+            'conval': { name: 'ConVal', town: 'Peterborough', lat: 42.8743, lng: -71.9516, address: '184 Hancock Rd, Peterborough', region: 'monadnock' },
+            'monadnock': { name: 'Monadnock', town: 'Swanzey', lat: 42.8697, lng: -72.2814, address: '580 Old Homestead Hwy, Swanzey', region: 'monadnock' },
+            'fall-mountain': { name: 'Fall Mountain', town: 'Langdon', lat: 43.1667, lng: -72.3856, address: '113 Route 123, Langdon', region: 'monadnock' }
+        };
+
+        // Sample games
+        const sampleGames = [
+            { id: 1, homeTeam: 'bishop-brady', awayTeam: 'bow', time: '6:00 PM', type: 'boys', homeRecord: '8-2', awayRecord: '6-4' },
+            { id: 2, homeTeam: 'bishop-brady', awayTeam: 'bow', time: '7:30 PM', type: 'girls', homeRecord: '7-3', awayRecord: '9-1' },
+            { id: 3, homeTeam: 'concord', awayTeam: 'pembroke', time: '6:30 PM', type: 'boys', homeRecord: '5-5', awayRecord: '7-3' },
+            { id: 4, homeTeam: 'bedford', awayTeam: 'goffstown', time: '7:00 PM', type: 'boys', homeRecord: '10-0', awayRecord: '4-6' },
+            { id: 5, homeTeam: 'bedford', awayTeam: 'goffstown', time: '5:30 PM', type: 'girls', homeRecord: '8-2', awayRecord: '5-5' },
+            { id: 6, homeTeam: 'pinkerton', awayTeam: 'londonderry', time: '7:00 PM', type: 'boys', homeRecord: '9-1', awayRecord: '8-2' },
+            { id: 7, homeTeam: 'pinkerton', awayTeam: 'londonderry', time: '5:30 PM', type: 'girls', homeRecord: '7-3', awayRecord: '6-4' },
+            { id: 8, homeTeam: 'exeter', awayTeam: 'portsmouth', time: '6:30 PM', type: 'boys', homeRecord: '6-4', awayRecord: '5-5' },
+            { id: 9, homeTeam: 'winnacunnet', awayTeam: 'dover', time: '7:00 PM', type: 'girls', homeRecord: '8-2', awayRecord: '7-3' },
+            { id: 10, homeTeam: 'keene', awayTeam: 'conval', time: '7:00 PM', type: 'boys', homeRecord: '4-6', awayRecord: '3-7' },
+            { id: 11, homeTeam: 'nashua-north', awayTeam: 'nashua-south', time: '7:00 PM', type: 'boys', homeRecord: '7-3', awayRecord: '6-4' },
+            { id: 12, homeTeam: 'nashua-north', awayTeam: 'nashua-south', time: '5:30 PM', type: 'girls', homeRecord: '5-5', awayRecord: '9-1' },
+            { id: 13, homeTeam: 'laconia', awayTeam: 'gilford', time: '6:30 PM', type: 'boys', homeRecord: '6-4', awayRecord: '8-2' },
+            { id: 14, homeTeam: 'laconia', awayTeam: 'gilford', time: '5:00 PM', type: 'girls', homeRecord: '7-3', awayRecord: '6-4' },
+            { id: 15, homeTeam: 'spaulding', awayTeam: 'somersworth', time: '6:00 PM', type: 'boys', homeRecord: '3-7', awayRecord: '4-6' },
+            { id: 16, homeTeam: 'trinity', awayTeam: 'derryfield', time: '6:30 PM', type: 'boys', homeRecord: '5-5', awayRecord: '7-3' },
+            { id: 17, homeTeam: 'souhegan', awayTeam: 'milford', time: '7:00 PM', type: 'girls', homeRecord: '8-2', awayRecord: '5-5' },
+            { id: 18, homeTeam: 'bishop-guertin', awayTeam: 'manchester-central', time: '7:00 PM', type: 'boys', homeRecord: '9-1', awayRecord: '6-4' },
+            { id: 19, homeTeam: 'berlin', awayTeam: 'littleton', time: '6:00 PM', type: 'boys', homeRecord: '5-5', awayRecord: '6-4' },
+            { id: 20, homeTeam: 'plymouth', awayTeam: 'inter-lakes', time: '6:30 PM', type: 'girls', homeRecord: '7-3', awayRecord: '4-6' }
+        ];
+
+        // Region bounds
+        const regionBounds = {
+            'all': { center: [43.85, -71.5], zoom: 7.5 },
+            'north-country': { center: [44.35, -71.5], zoom: 9 },
+            'lakes-region': { center: [43.6, -71.5], zoom: 9.5 },
+            'capitol-region': { center: [43.15, -71.55], zoom: 10 },
+            'manchester': { center: [42.95, -71.45], zoom: 10.5 },
+            'nashua': { center: [42.8, -71.5], zoom: 10.5 },
+            'seacoast': { center: [43.05, -70.95], zoom: 10 },
+            'monadnock': { center: [42.95, -72.15], zoom: 10 }
+        };
+
+        const regionNames = {
+            'all': 'All Regions',
+            'north-country': 'North Country',
+            'lakes-region': 'Lakes Region',
+            'capitol-region': 'Capitol Region',
+            'manchester': 'Manchester/Southern',
+            'nashua': 'Nashua/Merrimack Valley',
+            'seacoast': 'Seacoast',
+            'monadnock': 'Monadnock'
+        };
+
+        // =============================================
+        // APP STATE
+        // =============================================
+        let map;
+        let markers = [];
+        let userLocation = null;
+        let userMarker = null;
+        let currentFilter = 'all';
+        let currentRegion = 'all';
+        let currentDistance = 0;
+        let activeGameId = null;
+
+        // =============================================
+        // INITIALIZE MAP
+        // =============================================
+        function initMap() {
+            map = L.map('map', {
+                zoomControl: false,
+                attributionControl: false,
+                minZoom: 7,
+                maxZoom: 12
+            }).setView([43.85, -71.5], 7.5);
+
+            // Dark map tiles
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                subdomains: 'abcd',
+                maxZoom: 19
+            }).addTo(map);
+
+            // Set today's date
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('dateFilter').value = today;
+
+            // Initial render
+            renderGames();
+        }
+
+        // =============================================
+        // RENDER GAMES
+        // =============================================
+        function renderGames() {
+            markers.forEach(m => map.removeLayer(m));
+            markers = [];
+
+            let filteredGames = sampleGames.filter(game => {
+                if (currentFilter !== 'all' && game.type !== currentFilter) return false;
+                if (currentRegion !== 'all') {
+                    const school = schools[game.homeTeam];
+                    if (school.region !== currentRegion) return false;
+                }
+                return true;
+            });
+
+            if (userLocation && currentDistance > 0) {
+                filteredGames = filteredGames.filter(game => {
+                    const school = schools[game.homeTeam];
+                    const dist = getDistance(userLocation.lat, userLocation.lng, school.lat, school.lng);
+                    game.distance = dist;
+                    return dist <= currentDistance;
+                });
+            } else if (userLocation) {
+                filteredGames.forEach(game => {
+                    const school = schools[game.homeTeam];
+                    game.distance = getDistance(userLocation.lat, userLocation.lng, school.lat, school.lng);
+                });
+            }
+
+            filteredGames.sort((a, b) => {
+                const timeA = convertTo24Hour(a.time);
+                const timeB = convertTo24Hour(b.time);
+                return timeA.localeCompare(timeB);
+            });
+
+            const gamesByLocation = {};
+            filteredGames.forEach(game => {
+                if (!gamesByLocation[game.homeTeam]) {
+                    gamesByLocation[game.homeTeam] = [];
+                }
+                gamesByLocation[game.homeTeam].push(game);
+            });
+
+            Object.entries(gamesByLocation).forEach(([schoolId, games]) => {
+                const school = schools[schoolId];
+                const hasGirls = games.some(g => g.type === 'girls');
+                const hasBoys = games.some(g => g.type === 'boys');
+                
+                let markerType = 'both';
+                if (hasGirls && !hasBoys) markerType = 'girls';
+                if (hasBoys && !hasGirls) markerType = 'boys';
+
+                const marker = createMarker(school, games, markerType);
+                markers.push(marker);
+            });
+
+            updateGamesList(filteredGames);
+            document.getElementById('gameCount').textContent = filteredGames.length;
+
+            const badge = document.getElementById('regionBadge');
+            if (currentRegion !== 'all') {
+                badge.textContent = regionNames[currentRegion];
+                badge.classList.add('visible');
+            } else {
+                badge.classList.remove('visible');
+            }
+        }
+
+        // =============================================
+        // CREATE MARKER
+        // =============================================
+        function createMarker(school, games, type) {
+            const markerColor = type === 'boys' ? '#3b82f6' : type === 'girls' ? '#ec4899' : '#f5831f';
+            
+            const icon = L.divIcon({
+                className: 'custom-marker',
+                html: `
+                    <svg width="24" height="32" viewBox="0 0 24 36" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));">
+                        <path d="M12 0C5.373 0 0 5.373 0 12c0 9 12 24 12 24s12-15 12-24c0-6.627-5.373-12-12-12z" fill="${markerColor}"/>
+                        <circle cx="12" cy="12" r="5" fill="#0a0a0a"/>
+                        <text x="12" y="15" text-anchor="middle" fill="white" font-size="7" font-weight="bold" font-family="sans-serif">${games.length}</text>
+                    </svg>
+                `,
+                iconSize: [24, 32],
+                iconAnchor: [12, 32],
+                popupAnchor: [0, -32]
+            });
+
+            const marker = L.marker([school.lat, school.lng], { icon }).addTo(map);
+
+            let popupContent = `<div class="popup-content"><div class="popup-school">${school.name}</div>`;
+            games.forEach(game => {
+                const awaySchool = schools[game.awayTeam];
+                const typeLabel = game.type.charAt(0).toUpperCase() + game.type.slice(1);
+                popupContent += `
+                    <div class="popup-game">
+                        <div class="popup-game-time">${game.time} • ${typeLabel}</div>
+                        <div class="popup-teams">${awaySchool.name} <span class="popup-vs">@</span> ${school.name}</div>
+                    </div>
+                `;
+            });
+            popupContent += '</div>';
+
+            marker.bindPopup(popupContent, { maxWidth: 280, closeButton: false });
+            marker.on('click', () => setActiveGame(games[0].id));
+
+            return marker;
+        }
+
+        // =============================================
+        // UPDATE GAMES LIST
+        // =============================================
+        function updateGamesList(games) {
+            const container = document.getElementById('gamesList');
+            
+            if (games.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M12 6v6l4 2"/>
+                        </svg>
+                        <h3>No Games Found</h3>
+                        <p>Try adjusting your filters or selecting a different date.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = games.map(game => {
+                const homeSchool = schools[game.homeTeam];
+                const awaySchool = schools[game.awayTeam];
+                const distanceHtml = game.distance !== undefined 
+                    ? `<span class="distance-badge">${game.distance.toFixed(1)} mi</span>` 
+                    : '';
+
+                return `
+                    <div class="game-card ${activeGameId === game.id ? 'active' : ''}" data-game-id="${game.id}" data-school="${game.homeTeam}">
+                        <div class="game-meta">
+                            <span class="game-time">${game.time}</span>
+                            <span class="game-type ${game.type}">${game.type}</span>
+                        </div>
+                        <div class="game-matchup">
+                            <div class="team-row away">
+                                <span class="team-indicator"></span>
+                                <span class="team-name">${awaySchool.name}</span>
+                                <span class="team-record">${game.awayRecord}</span>
+                            </div>
+                            <div class="team-row home">
+                                <span class="team-indicator"></span>
+                                <span class="team-name">${homeSchool.name}</span>
+                                <span class="team-label">HOME</span>
+                                <span class="team-record">${game.homeRecord}</span>
+                            </div>
+                        </div>
+                        <div class="game-location">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                                <circle cx="12" cy="10" r="3"/>
+                            </svg>
+                            <span>${homeSchool.address}</span>
+                            ${distanceHtml}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            container.querySelectorAll('.game-card').forEach(card => {
+                card.addEventListener('click', () => {
+                    const gameId = parseInt(card.dataset.gameId);
+                    const schoolId = card.dataset.school;
+                    setActiveGame(gameId);
+                    flyToSchool(schoolId);
+                });
+            });
+        }
+
+        // =============================================
+        // INTERACTIONS
+        // =============================================
+        function setActiveGame(gameId) {
+            activeGameId = gameId;
+            document.querySelectorAll('.game-card').forEach(card => {
+                card.classList.toggle('active', parseInt(card.dataset.gameId) === gameId);
+            });
+        }
+
+        function flyToSchool(schoolId) {
+            const school = schools[schoolId];
+            map.flyTo([school.lat, school.lng], 10, { duration: 0.6 });
+            
+            markers.forEach(marker => {
+                const pos = marker.getLatLng();
+                if (Math.abs(pos.lat - school.lat) < 0.001 && Math.abs(pos.lng - school.lng) < 0.001) {
+                    marker.openPopup();
+                }
+            });
+        }
+
+        // =============================================
+        // UTILITIES
+        // =============================================
+        function getDistance(lat1, lon1, lat2, lon2) {
+            const R = 3959;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        function convertTo24Hour(time12h) {
+            const [time, modifier] = time12h.split(' ');
+            let [hours, minutes] = time.split(':');
+            if (hours === '12') hours = '00';
+            if (modifier === 'PM') hours = parseInt(hours, 10) + 12;
+            return `${hours}:${minutes}`;
+        }
+
+        // =============================================
+        // EVENT LISTENERS
+        // =============================================
+        document.querySelectorAll('.toggle-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentFilter = btn.dataset.filter;
+                renderGames();
+            });
+        });
+
+        document.getElementById('regionFilter').addEventListener('change', (e) => {
+            currentRegion = e.target.value;
+            const bounds = regionBounds[currentRegion];
+            map.flyTo(bounds.center, bounds.zoom, { duration: 0.8 });
+            renderGames();
+        });
+
+        document.getElementById('distanceFilter').addEventListener('change', (e) => {
+            currentDistance = parseInt(e.target.value);
+            if (currentDistance > 0 && !userLocation) {
+                document.getElementById('locationBtn').click();
+            } else {
+                renderGames();
+            }
+        });
+
+        document.getElementById('locationBtn').addEventListener('click', () => {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        userLocation = {
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude
+                        };
+                        
+                        if (userMarker) map.removeLayer(userMarker);
+                        
+                        const userIcon = L.divIcon({
+                            className: 'user-marker',
+                            html: `<div style="width: 14px; height: 14px; background: #22c55e; border: 3px solid white; border-radius: 50%; box-shadow: 0 2px 8px rgba(0,0,0,0.4);"></div>`,
+                            iconSize: [14, 14],
+                            iconAnchor: [7, 7]
+                        });
+                        userMarker = L.marker([userLocation.lat, userLocation.lng], { icon: userIcon }).addTo(map);
+                        
+                        map.flyTo([userLocation.lat, userLocation.lng], 10, { duration: 0.6 });
+                        renderGames();
+                    },
+                    (error) => {
+                        alert('Unable to get your location. Please enable location services.');
+                    }
+                );
+            }
+        });
+
+        // =============================================
+        // INIT
+        // =============================================
+        document.addEventListener('DOMContentLoaded', initMap);
+    </script>
+</body>
+</html>
