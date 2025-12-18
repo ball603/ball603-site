@@ -121,7 +121,72 @@
             text-transform: uppercase;
         }
 
-        input[type="date"], select {
+        /* Date Navigator */
+        .date-nav {
+            display: flex;
+            align-items: center;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .date-nav-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            padding: 0.35rem 0.4rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+        }
+
+        .date-nav-btn:hover {
+            background: var(--bg-card-hover);
+            color: var(--primary);
+        }
+
+        .date-nav-btn svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        .date-display {
+            padding: 0.35rem 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            min-width: 80px;
+            text-align: center;
+            border-left: 1px solid var(--border);
+            border-right: 1px solid var(--border);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.3rem;
+        }
+
+        .date-display:hover {
+            background: var(--bg-card-hover);
+        }
+
+        .date-display svg {
+            width: 12px;
+            height: 12px;
+            color: var(--text-muted);
+        }
+
+        #dateInput {
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        select {
             background: var(--bg-input);
             border: 1px solid var(--border);
             color: var(--text-primary);
@@ -132,7 +197,7 @@
             cursor: pointer;
         }
 
-        input[type="date"]:focus, select:focus {
+        select:focus {
             outline: none;
             border-color: var(--primary);
         }
@@ -293,7 +358,7 @@
             padding-left: calc(0.5rem - 3px);
         }
 
-        /* Single meta line: [BADGE] [TIME] ... [PIN TOWN] */
+        /* Single meta line */
         .game-meta-row {
             display: flex;
             align-items: center;
@@ -346,7 +411,7 @@
             margin-left: 0.2rem;
         }
 
-        /* Team rows - tight */
+        /* Team rows - LEFT ALIGNED */
         .ticker-team {
             display: flex;
             align-items: center;
@@ -364,6 +429,7 @@
         }
 
         .ticker-team-name {
+            flex: 1;
             font-weight: 600;
             font-size: 0.95rem;
             color: var(--text-primary);
@@ -378,7 +444,7 @@
             background: rgba(245, 131, 31, 0.12);
             padding: 0.05rem 0.18rem;
             border-radius: 2px;
-            margin-left: 0.25rem;
+            flex-shrink: 0;
         }
 
         /* Popup */
@@ -484,7 +550,19 @@
                 <div class="tonight-controls">
                     <div class="control-group">
                         <label class="control-label">Date</label>
-                        <input type="date" id="dateFilter">
+                        <div class="date-nav">
+                            <button class="date-nav-btn" id="prevDay" title="Previous day">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+                            </button>
+                            <div class="date-display" id="dateDisplay" title="Click to pick date">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                <span id="dateText">TODAY</span>
+                            </div>
+                            <button class="date-nav-btn" id="nextDay" title="Next day">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+                            </button>
+                        </div>
+                        <input type="date" id="dateInput">
                     </div>
                     
                     <div class="control-group">
@@ -525,7 +603,7 @@
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/>
                         </svg>
-                        Location
+                        My Location
                     </button>
                 </div>
             </div>
@@ -540,7 +618,7 @@
             <aside class="tonight-sidebar">
                 <div class="sidebar-header">
                     <div class="sidebar-title">
-                        Today's Games
+                        <span id="sidebarDateTitle">Today's Games</span>
                         <span class="game-count" id="gameCount">0</span>
                     </div>
                 </div>
@@ -672,6 +750,57 @@
 
         let map, markers = [], nhBorderLayer, userLocation = null, userMarker = null;
         let currentFilter = 'all', currentRegion = 'all', currentDistance = 0, activeGameId = null;
+        let currentDate = new Date();
+
+        // Date helpers
+        function getToday() {
+            const d = new Date();
+            d.setHours(0, 0, 0, 0);
+            return d;
+        }
+
+        function isSameDay(d1, d2) {
+            return d1.getFullYear() === d2.getFullYear() &&
+                   d1.getMonth() === d2.getMonth() &&
+                   d1.getDate() === d2.getDate();
+        }
+
+        function formatDateLabel(date) {
+            const today = getToday();
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+
+            if (isSameDay(date, today)) return 'TODAY';
+            if (isSameDay(date, tomorrow)) return 'TOMORROW';
+            if (isSameDay(date, yesterday)) return 'YESTERDAY';
+            
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase();
+        }
+
+        function formatSidebarTitle(date) {
+            const today = getToday();
+            if (isSameDay(date, today)) return "Today's Games";
+            
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            if (isSameDay(date, tomorrow)) return "Tomorrow's Games";
+            
+            return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) + " Games";
+        }
+
+        function updateDateDisplay() {
+            document.getElementById('dateText').textContent = formatDateLabel(currentDate);
+            document.getElementById('sidebarDateTitle').textContent = formatSidebarTitle(currentDate);
+            document.getElementById('dateInput').value = currentDate.toISOString().split('T')[0];
+        }
+
+        function changeDate(delta) {
+            currentDate.setDate(currentDate.getDate() + delta);
+            updateDateDisplay();
+            renderGames();
+        }
 
         function initMap() {
             const isMobile = window.innerWidth <= 768;
@@ -690,7 +819,8 @@
 
             map.fitBounds(nhBounds, { padding: [15, 15] });
 
-            document.getElementById('dateFilter').value = new Date().toISOString().split('T')[0];
+            currentDate = getToday();
+            updateDateDisplay();
             renderGames();
         }
 
@@ -828,6 +958,20 @@
             if (mod === 'PM') h = parseInt(h) + 12;
             return `${h}:${m}`;
         }
+
+        // Event Listeners
+        document.getElementById('prevDay').addEventListener('click', () => changeDate(-1));
+        document.getElementById('nextDay').addEventListener('click', () => changeDate(1));
+
+        document.getElementById('dateDisplay').addEventListener('click', () => {
+            document.getElementById('dateInput').showPicker();
+        });
+
+        document.getElementById('dateInput').addEventListener('change', (e) => {
+            currentDate = new Date(e.target.value + 'T00:00:00');
+            updateDateDisplay();
+            renderGames();
+        });
 
         document.querySelectorAll('.toggle-btn').forEach(btn => {
             btn.addEventListener('click', () => {
