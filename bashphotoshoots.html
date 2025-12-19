@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#1a1a1a">
-  <title>Tournament Schedule | Ball603</title>
+  <title>Bash Photo Shoot Schedule | Ball603</title>
   <link rel="icon" type="image/png" href="/logo.png">
   <link rel="apple-touch-icon" href="/logo.png">
   <style>
@@ -166,12 +166,7 @@
 <body>
   <div class="container">
     <img src="/logo.png" alt="Ball603" class="logo">
-    <h1 class="page-title">Bash Tournament Schedule</h1>
-    
-    <div class="gender-tabs">
-      <button class="gender-tab active" id="boysTab" onclick="selectGender('Boys')">Boys</button>
-      <button class="gender-tab" id="girlsTab" onclick="selectGender('Girls')">Girls</button>
-    </div>
+    <h1 class="page-title">Bash Photo Shoot Schedule</h1>
     
     <div class="slots-container" id="slotsContainer">
       <div class="loading">Loading schedule...</div>
@@ -186,7 +181,6 @@
       { date: '2025-12-27', display: 'December 27' }
     ];
     
-    let selectedGender = 'Boys';
     let allSlots = [];
     
     // Helper to get logo filename
@@ -195,26 +189,17 @@
       return team.replace(/[^a-zA-Z0-9]/g, '') + '.png';
     }
     
-    // Select gender
-    async function selectGender(gender) {
-      selectedGender = gender;
-      
-      document.getElementById('boysTab').classList.toggle('active', gender === 'Boys');
-      document.getElementById('girlsTab').classList.toggle('active', gender === 'Girls');
-      
-      await loadSlots();
-      renderSlots();
-    }
-    
-    // Load slots from Netlify function
+    // Load slots from Netlify function (all genders)
     async function loadSlots() {
       try {
-        const response = await fetch(`/.netlify/functions/get-timeslots?gender=${selectedGender}`);
+        const response = await fetch('/.netlify/functions/get-timeslots');
         const data = await response.json();
         allSlots = data.slots || [];
+        renderSlots();
       } catch (err) {
         console.error('Error loading slots:', err);
         allSlots = [];
+        renderSlots();
       }
     }
     
@@ -248,11 +233,12 @@
           `;
           
           if (bookedSlot) {
+            const displayName = `${bookedSlot.team} ${bookedSlot.gender}`;
             html += `
               <div class="slot-content">
                 <img class="slot-logo" src="/logos/100px/${getLogoFilename(bookedSlot.team)}" 
                      onerror="this.src='/logos/100px/Ball603-white.png'" alt="">
-                <span class="slot-team-name">${bookedSlot.team}</span>
+                <span class="slot-team-name">${displayName}</span>
               </div>
             `;
           } else {
@@ -276,7 +262,7 @@
     }
     
     // Load on page load
-    selectGender('Boys');
+    loadSlots();
   </script>
 </body>
 </html>
