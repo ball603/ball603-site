@@ -689,6 +689,141 @@ async function updateSupabase(games) {
   return { rowCount: totalUpserted, changesDetected };
 }
 
+// Sync database with NHIAA - remove games not in scrape, transfer coverage for rescheduled games
+async function syncWithNHIAA(scrapedGames) {
+  try {
+    // Safeguard: if scrape returned too few games, NHIAA might be down
+    if (scrapedGames.length < 1000) {
+      console.log(`  Scrape only returned ${scrapedGames.length} games - skipping sync to avoid accidental deletion`);
+      return { orphansRemoved: 0, coverageTransferred: 0 };
+    }
+    
+    // Build set of scraped game_ids for fast lookup
+    const scrapedGameIds = new Set(scrapedGames.map(g => g.game_id));
+    
+    // Fetch all NHIAA games from database
+    const dbResponse = await fetch(
+      `${SUPABASE_URL}/rest/v1/games?level=eq.NHIAA&select=game_id,date,home_team,away_team,gender,photog1,photog2,videog,writer`,
+      {
+        headers: {
+          'apikey': SUPABASE_SERVICE_KEY,
+          'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+          'Range': '0-9999'
+        }
+      }
+    );
+    
+    if (!dbResponse.ok) {
+      console.error('Failed to fetch DB games for sync:', dbResponse.status);
+      return { orphansRemoved: 0, coverageTransferred: 0 };
+    }
+    
+    const dbGames = await dbResponse.json();
+    
+    // Find orphaned games (in DB but not in scrape)
+    const orphanedGames = dbGames.filter(g => !scrapedGameIds.has(g.game_id));
+    
+    if (orphanedGames.length === 0) {
+      console.log('  No orphaned games found - DB in sync with NHIAA');
+      return { orphansRemoved: 0, coverageTransferred: 0 };
+    }
+    
+    console.log(`  Found ${orphanedGames.length} orphaned games not in NHIAA scrape`);
+    
+    // Build lookup for scraped games by team matchup (for finding rescheduled games)
+    const scrapedByMatchup = new Map();
+    for (const game of scrapedGames) {
+      const teams = [teamSlug(game.home_team), teamSlug(game.away_team)].sort();
+      const key = `${teams[0]}_${teams[1]}_${game.gender}`;
+      if (!scrapedByMatchup.has(key)) {
+        scrapedByMatchup.set(key, []);
+      }
+      scrapedByMatchup.get(key).push(game);
+    }
+    
+    let coverageTransferred = 0;
+    
+    // Process orphaned games - transfer coverage if they have assignments
+    for (const orphan of orphanedGames) {
+      const hasCoverage = orphan.photog1 || orphan.photog2 || orphan.videog || orphan.writer;
+      
+      if (hasCoverage) {
+        // Look for matching rescheduled game
+        const teams = [teamSlug(orphan.home_team), teamSlug(orphan.away_team)].sort();
+        const matchupKey = `${teams[0]}_${teams[1]}_${orphan.gender}`;
+        const matchingGames = scrapedByMatchup.get(matchupKey) || [];
+        
+        // Find a game with different date (the rescheduled game)
+        const rescheduledGame = matchingGames.find(g => g.date !== orphan.date);
+        
+        if (rescheduledGame) {
+          console.log(`  📅 Rescheduled: ${orphan.away_team} @ ${orphan.home_team} moved from ${orphan.date} to ${rescheduledGame.date}`);
+          console.log(`     Transferring coverage: photog1=${orphan.photog1 || '-'}, photog2=${orphan.photog2 || '-'}, videog=${orphan.videog || '-'}, writer=${orphan.writer || '-'}`);
+          
+          // Transfer coverage to rescheduled game
+          const transferResponse = await fetch(
+            `${SUPABASE_URL}/rest/v1/games?game_id=eq.${encodeURIComponent(rescheduledGame.game_id)}`,
+            {
+              method: 'PATCH',
+              headers: {
+                'apikey': SUPABASE_SERVICE_KEY,
+                'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+                'Content-Type': 'application/json',
+                'Prefer': 'return=minimal'
+              },
+              body: JSON.stringify({
+                photog1: orphan.photog1 || null,
+                photog2: orphan.photog2 || null,
+                videog: orphan.videog || null,
+                writer: orphan.writer || null,
+                schedule_changed: true,
+                original_date: orphan.date
+              })
+            }
+          );
+          
+          if (transferResponse.ok) {
+            coverageTransferred++;
+          } else {
+            console.error(`  Failed to transfer coverage for ${orphan.game_id}`);
+          }
+        } else {
+          console.log(`  ⚠️ Orphaned with coverage but no reschedule found: ${orphan.away_team} @ ${orphan.home_team} on ${orphan.date}`);
+        }
+      } else {
+        console.log(`  🗑️ Removing: ${orphan.away_team} @ ${orphan.home_team} on ${orphan.date}`);
+      }
+    }
+    
+    // Delete all orphaned games
+    const orphanIds = orphanedGames.map(g => g.game_id);
+    
+    const deleteResponse = await fetch(
+      `${SUPABASE_URL}/rest/v1/games?game_id=in.(${orphanIds.map(id => `"${id}"`).join(',')})`,
+      {
+        method: 'DELETE',
+        headers: {
+          'apikey': SUPABASE_SERVICE_KEY,
+          'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+          'Prefer': 'return=minimal'
+        }
+      }
+    );
+    
+    if (!deleteResponse.ok) {
+      console.error('Failed to delete orphaned games:', await deleteResponse.text());
+      return { orphansRemoved: 0, coverageTransferred };
+    }
+    
+    console.log(`  ✅ Removed ${orphanedGames.length} orphaned games, transferred ${coverageTransferred} coverage assignments`);
+    return { orphansRemoved: orphanedGames.length, coverageTransferred };
+    
+  } catch (error) {
+    console.error('Error syncing with NHIAA:', error.message);
+    return { orphansRemoved: 0, coverageTransferred: 0 };
+  }
+}
+
 export default async (request) => {
   console.log('Ball603 Schedule Scraper - Starting...');
   
@@ -710,12 +845,16 @@ export default async (request) => {
       console.log(`  Found ${games.length} game entries`);
     }
     
-    // Step 3: Deduplicate scraped data
+    // Step 3: Deduplicate scraped data (prefer home team's schedule)
     const dedupedGames = deduplicateGames(allGames);
     console.log(`Total unique games from scrape: ${dedupedGames.length}`);
     
-    // Step 4: Upsert to database
-    console.log('Step 4: Upserting to Supabase...');
+    // Step 4: Sync with NHIAA - remove orphans, transfer coverage for rescheduled games
+    console.log('Step 4: Syncing database with NHIAA...');
+    const { orphansRemoved, coverageTransferred } = await syncWithNHIAA(dedupedGames);
+    
+    // Step 5: Upsert to database
+    console.log('Step 5: Upserting to Supabase...');
     const { rowCount, changesDetected } = await updateSupabase(dedupedGames);
     
     return new Response(JSON.stringify({
@@ -724,6 +863,8 @@ export default async (request) => {
       gamesUpserted: rowCount,
       duplicatesRemoved: duplicatesRemoved,
       gameIdsMigrated: gameIdsMigrated || 0,
+      orphansRemoved: orphansRemoved,
+      coverageTransferred: coverageTransferred || 0,
       scheduleChanges: changesDetected,
       timestamp: new Date().toISOString()
     }), { 
