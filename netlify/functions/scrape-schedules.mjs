@@ -331,35 +331,83 @@ function parseSchedulePage(html, gender, division) {
 }
 
 function deduplicateGames(games) {
-  const seen = new Map();
+  // Step 1: Group all games by matchup (sorted teams + gender)
+  const matchupGroups = new Map();
   
   for (const game of games) {
-    // Create canonical key by sorting team slugs (handles inconsistent home/away)
     const teams = [teamSlug(game.home_team), teamSlug(game.away_team)].sort();
-    const canonicalKey = `${game.date}_${teams[0]}_${teams[1]}_${game.gender}`;
+    const matchupKey = `${teams[0]}_${teams[1]}_${game.gender}`;
     
-    if (!seen.has(canonicalKey)) {
-      seen.set(canonicalKey, game);
-    } else {
-      // Prefer data from home team's schedule (they have authoritative info)
-      // Also prefer games with scores over those without
-      const existing = seen.get(canonicalKey);
+    if (!matchupGroups.has(matchupKey)) {
+      matchupGroups.set(matchupKey, []);
+    }
+    matchupGroups.get(matchupKey).push(game);
+  }
+  
+  const finalGames = [];
+  
+  // Step 2: For each matchup, cluster by date proximity (within 7 days = same game)
+  for (const [matchupKey, matchupGames] of matchupGroups) {
+    // Sort by date
+    matchupGames.sort((a, b) => a.date.localeCompare(b.date));
+    
+    // Cluster games within 7 days of each other
+    const clusters = [];
+    let currentCluster = [matchupGames[0]];
+    
+    for (let i = 1; i < matchupGames.length; i++) {
+      const prevDate = new Date(currentCluster[currentCluster.length - 1].date);
+      const currDate = new Date(matchupGames[i].date);
+      const daysDiff = Math.abs((currDate - prevDate) / (1000 * 60 * 60 * 24));
       
-      // If new game is from home team's schedule and existing isn't, use new
-      if (game.isFromHomeTeam && !existing.isFromHomeTeam) {
-        seen.set(canonicalKey, game);
+      if (daysDiff <= 7) {
+        // Same game, add to cluster
+        currentCluster.push(matchupGames[i]);
+      } else {
+        // New game, start new cluster
+        clusters.push(currentCluster);
+        currentCluster = [matchupGames[i]];
       }
-      // If both are from same source type, prefer the one with scores
-      else if (game.isFromHomeTeam === existing.isFromHomeTeam) {
-        if (game.home_score && !existing.home_score) {
-          seen.set(canonicalKey, game);
+    }
+    clusters.push(currentCluster);
+    
+    // Step 3: For each cluster, pick the best record
+    for (const cluster of clusters) {
+      let bestGame = null;
+      
+      // Look for record from home team's schedule
+      const homeRecord = cluster.find(g => g.isFromHomeTeam);
+      
+      if (homeRecord) {
+        bestGame = homeRecord;
+      } else {
+        // Both away or both home - use alphabetically first team's record
+        // Sort by the team whose schedule this came from
+        cluster.sort((a, b) => {
+          // The team whose schedule this came from is the one that's NOT marked as away
+          // If isFromHomeTeam is false, this record came from the away team's schedule
+          // We need to identify which team's schedule each record came from
+          const teamA = a.isFromHomeTeam ? a.home_team : a.away_team;
+          const teamB = b.isFromHomeTeam ? b.home_team : b.away_team;
+          return teamA.localeCompare(teamB);
+        });
+        bestGame = cluster[0];
+      }
+      
+      // If multiple home records exist (shouldn't happen often), prefer one with scores
+      if (homeRecord) {
+        const homeRecords = cluster.filter(g => g.isFromHomeTeam);
+        if (homeRecords.length > 1) {
+          const withScore = homeRecords.find(g => g.home_score !== null);
+          if (withScore) bestGame = withScore;
         }
       }
-      // If existing is from home team and new isn't, keep existing (do nothing)
+      
+      finalGames.push(bestGame);
     }
   }
   
-  return Array.from(seen.values());
+  return finalGames;
 }
 
 async function cleanupDuplicates() {
