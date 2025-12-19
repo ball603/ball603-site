@@ -1,10 +1,3 @@
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
-);
-
 export const handler = async (event) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -36,37 +29,52 @@ export const handler = async (event) => {
       };
     }
     
-    let result;
+    const supabaseHeaders = {
+      'apikey': process.env.SUPABASE_SERVICE_KEY,
+      'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=representation'
+    };
+    
+    let response;
     
     if (id) {
       // Update existing slot
-      const { data, error } = await supabase
-        .from('tournament_timeslots')
-        .update({
-          slot_date,
-          slot_time,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', id)
-        .select();
-      
-      if (error) throw error;
-      result = data;
+      response = await fetch(
+        `${process.env.SUPABASE_URL}/rest/v1/tournament_timeslots?id=eq.${id}`,
+        {
+          method: 'PATCH',
+          headers: supabaseHeaders,
+          body: JSON.stringify({
+            slot_date,
+            slot_time,
+            updated_at: new Date().toISOString()
+          })
+        }
+      );
     } else {
       // Insert new slot
-      const { data, error } = await supabase
-        .from('tournament_timeslots')
-        .insert({
-          team,
-          gender,
-          slot_date,
-          slot_time
-        })
-        .select();
-      
-      if (error) throw error;
-      result = data;
+      response = await fetch(
+        `${process.env.SUPABASE_URL}/rest/v1/tournament_timeslots`,
+        {
+          method: 'POST',
+          headers: supabaseHeaders,
+          body: JSON.stringify({
+            team,
+            gender,
+            slot_date,
+            slot_time
+          })
+        }
+      );
     }
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Supabase error: ${response.status} - ${errorText}`);
+    }
+    
+    const result = await response.json();
     
     return {
       statusCode: 200,

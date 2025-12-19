@@ -1,10 +1,3 @@
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
-);
-
 export const handler = async (event) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -20,15 +13,24 @@ export const handler = async (event) => {
   try {
     const gender = event.queryStringParameters?.gender;
     
-    let query = supabase.from('tournament_timeslots').select('*');
+    let url = `${process.env.SUPABASE_URL}/rest/v1/tournament_timeslots?select=*`;
     
     if (gender) {
-      query = query.eq('gender', gender);
+      url += `&gender=eq.${encodeURIComponent(gender)}`;
     }
     
-    const { data, error } = await query;
+    const response = await fetch(url, {
+      headers: {
+        'apikey': process.env.SUPABASE_SERVICE_KEY,
+        'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_KEY}`
+      }
+    });
     
-    if (error) throw error;
+    if (!response.ok) {
+      throw new Error(`Supabase error: ${response.status}`);
+    }
+    
+    const data = await response.json();
     
     return {
       statusCode: 200,
