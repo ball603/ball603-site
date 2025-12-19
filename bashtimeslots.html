@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1a1a1a">
+  <title>Tournament Time Slots | Ball603</title>
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="apple-touch-icon" href="/logo.png">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a1a;
+      color: #fff;
+      min-height: 100vh;
+      min-height: -webkit-fill-available;
+    }
+    
+    .container {
+      max-width: 500px;
+      margin: 0 auto;
+      padding: 20px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .logo {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 20px;
+      display: block;
+    }
+    
+    .page {
+      display: none;
+      flex-direction: column;
+      flex: 1;
+    }
+    
+    .page.active {
+      display: flex;
+    }
+    
+    .page-title {
+      font-size: 24px;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 20px;
+      color: #fff;
+    }
+    
+    .page-subtitle {
+      font-size: 16px;
+      text-align: center;
+      color: #999;
+      margin-bottom: 30px;
+    }
+    
+    /* Login */
+    .login-input {
+      width: 100%;
+      padding: 16px 20px;
+      font-size: 18px;
+      border: 2px solid #333;
+      border-radius: 12px;
+      background: #222;
+      color: #fff;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    
+    .login-input:focus {
+      outline: none;
+      border-color: #f57c00;
+    }
+    
+    .login-input::placeholder {
+      color: #666;
+    }
+    
+    .login-error {
+      color: #ff5252;
+      text-align: center;
+      margin-bottom: 15px;
+      font-size: 14px;
+    }
+    
+    /* Buttons */
+    .btn {
+      width: 100%;
+      padding: 18px 24px;
+      font-size: 18px;
+      font-weight: 600;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: transform 0.1s, opacity 0.2s;
+    }
+    
+    .btn:active {
+      transform: scale(0.98);
+    }
+    
+    .btn-primary {
+      background: #f57c00;
+      color: #fff;
+    }
+    
+    .btn-primary:hover {
+      background: #e66a00;
+    }
+    
+    .btn-secondary {
+      background: #333;
+      color: #fff;
+      margin-top: 12px;
+    }
+    
+    .btn-secondary:hover {
+      background: #444;
+    }
+    
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    /* Gender Selection */
+    .gender-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin-top: auto;
+      margin-bottom: auto;
+    }
+    
+    .gender-btn {
+      padding: 24px;
+      font-size: 22px;
+      font-weight: 700;
+      border: 2px solid #333;
+      border-radius: 16px;
+      background: #222;
+      color: #fff;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .gender-btn:hover {
+      border-color: #f57c00;
+      background: #2a2a2a;
+    }
+    
+    .gender-btn:active {
+      transform: scale(0.98);
+    }
+    
+    /* Team Selection */
+    .team-select {
+      width: 100%;
+      padding: 16px 20px;
+      font-size: 18px;
+      border: 2px solid #333;
+      border-radius: 12px;
+      background: #222;
+      color: #fff;
+      cursor: pointer;
+      margin-bottom: 20px;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2'%3E%3Cpolyline points='6,9 12,15 18,9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 16px center;
+      background-size: 20px;
+    }
+    
+    .team-select:focus {
+      outline: none;
+      border-color: #f57c00;
+    }
+    
+    .selected-team-display {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      background: #222;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+    
+    .selected-team-logo {
+      width: 48px;
+      height: 48px;
+      object-fit: contain;
+    }
+    
+    .selected-team-name {
+      font-size: 20px;
+      font-weight: 600;
+    }
+    
+    /* Time Slots Grid */
+    .slots-container {
+      flex: 1;
+      overflow-y: auto;
+      padding-bottom: 20px;
+    }
+    
+    .day-section {
+      margin-bottom: 32px;
+    }
+    
+    .day-header {
+      font-size: 18px;
+      font-weight: 700;
+      text-align: center;
+      color: #f57c00;
+      margin-bottom: 16px;
+      padding: 12px;
+      background: #222;
+      border-radius: 8px;
+    }
+    
+    .slots-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0 8px;
+    }
+    
+    .slots-table th {
+      background: #333;
+      color: #999;
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      padding: 14px 12px;
+      text-align: left;
+    }
+    
+    .slots-table td {
+      padding: 0;
+    }
+    
+    .slot-time {
+      font-size: 15px;
+      font-weight: 600;
+      color: #fff;
+      padding: 18px 14px;
+      width: 95px;
+      background: #222;
+      border-radius: 8px 0 0 8px;
+    }
+    
+    .slot-cell {
+      padding: 14px 16px;
+      min-height: 68px;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: #1e1e1e;
+      border-radius: 0 8px 8px 0;
+    }
+    
+    .slot-cell:hover:not(.taken) {
+      background: #2a2a2a;
+    }
+    
+    .slot-cell.taken {
+      cursor: default;
+      background: #1e1e1e;
+    }
+    
+    .slot-cell.my-slot {
+      background: rgba(245, 124, 0, 0.2);
+      box-shadow: inset 0 0 0 2px #f57c00;
+    }
+    
+    .slot-content {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .slot-logo {
+      width: 36px;
+      height: 36px;
+      object-fit: contain;
+    }
+    
+    .slot-team-name {
+      font-size: 14px;
+      font-weight: 500;
+      color: #fff;
+    }
+    
+    .slot-empty {
+      color: #555;
+      font-size: 14px;
+      font-style: italic;
+    }
+    
+    /* Confirmation */
+    .confirm-box {
+      background: #222;
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 30px;
+      text-align: center;
+    }
+    
+    .confirm-team-display {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    
+    .confirm-logo {
+      width: 56px;
+      height: 56px;
+      object-fit: contain;
+    }
+    
+    .confirm-team-name {
+      font-size: 22px;
+      font-weight: 700;
+    }
+    
+    .confirm-slot-info {
+      font-size: 18px;
+      color: #f57c00;
+      font-weight: 600;
+    }
+    
+    /* Thanks */
+    .thanks-icon {
+      font-size: 64px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    
+    .thanks-message {
+      font-size: 28px;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    
+    .thanks-detail {
+      font-size: 16px;
+      text-align: center;
+      color: #999;
+      margin-bottom: 40px;
+    }
+    
+    /* Back button */
+    .back-btn {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      padding: 8px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      background: #333;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      z-index: 100;
+    }
+    
+    .back-btn:hover {
+      background: #444;
+    }
+    
+    /* Loading */
+    .loading {
+      text-align: center;
+      color: #999;
+      padding: 40px;
+    }
+    
+    /* Already booked notice */
+    .already-booked {
+      background: rgba(245, 124, 0, 0.15);
+      border: 2px solid #f57c00;
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    
+    .already-booked-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #f57c00;
+      margin-bottom: 8px;
+    }
+    
+    .already-booked-detail {
+      font-size: 14px;
+      color: #ccc;
+    }
+    
+    /* Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.8);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    .modal-overlay.active {
+      display: flex;
+    }
+    
+    .modal {
+      background: #222;
+      border-radius: 16px;
+      padding: 24px;
+      max-width: 350px;
+      width: 100%;
+      text-align: center;
+    }
+    
+    .modal-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+    
+    .modal-message {
+      font-size: 16px;
+      color: #ccc;
+      margin-bottom: 24px;
+    }
+    
+    .modal-buttons {
+      display: flex;
+      gap: 12px;
+    }
+    
+    .modal-buttons .btn {
+      flex: 1;
+      padding: 14px;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    
+    <!-- Login Page -->
+    <div class="page active" id="loginPage">
+      <img src="/logo.png" alt="Ball603" class="logo">
+      <h1 class="page-title">Tournament Time Slots</h1>
+      <p class="page-subtitle">Enter password to continue</p>
+      <div id="loginError" class="login-error" style="display: none;"></div>
+      <input type="password" id="passwordInput" class="login-input" placeholder="Password" autocomplete="off">
+      <button class="btn btn-primary" onclick="checkPassword()">Enter</button>
+    </div>
+    
+    <!-- Gender Selection Page -->
+    <div class="page" id="genderPage">
+      <img src="/logo.png" alt="Ball603" class="logo">
+      <h1 class="page-title">Select Gender</h1>
+      <div class="gender-buttons">
+        <button class="gender-btn" onclick="selectGender('Boys')">&#127936; Boys</button>
+        <button class="gender-btn" onclick="selectGender('Girls')">&#127936; Girls</button>
+      </div>
+    </div>
+    
+    <!-- Team Selection Page -->
+    <div class="page" id="teamPage">
+      <button class="back-btn" onclick="goToGender()">&#8592; Back</button>
+      <img src="/logo.png" alt="Ball603" class="logo">
+      <h1 class="page-title">Select Your Team</h1>
+      <p class="page-subtitle" id="teamSubtitle">Choose your school</p>
+      <select id="teamSelect" class="team-select" onchange="updateTeamPreview()">
+        <option value="">-- Select Team --</option>
+      </select>
+      <div id="teamPreview" class="selected-team-display" style="display: none;">
+        <img id="previewLogo" class="selected-team-logo" src="/logo.png" alt="">
+        <span id="previewName" class="selected-team-name">Team Name</span>
+      </div>
+      <button class="btn btn-primary" id="continueBtn" onclick="goToSlots()" disabled>Continue</button>
+    </div>
+    
+    <!-- Time Slots Page -->
+    <div class="page" id="slotsPage">
+      <button class="back-btn" onclick="goToTeam()">&#8592; Back</button>
+      <h1 class="page-title">Pick Your Time Slot</h1>
+      <div class="selected-team-display">
+        <img id="slotsTeamLogo" class="selected-team-logo" src="/logo.png" alt="">
+        <span id="slotsTeamName" class="selected-team-name">Team Name</span>
+      </div>
+      <div id="alreadyBookedNotice" class="already-booked" style="display: none;">
+        <div class="already-booked-title">You already have a slot!</div>
+        <div class="already-booked-detail" id="alreadyBookedDetail"></div>
+      </div>
+      <div class="slots-container" id="slotsContainer">
+        <div class="loading">Loading time slots...</div>
+      </div>
+    </div>
+    
+    <!-- Confirmation Page -->
+    <div class="page" id="confirmPage">
+      <button class="back-btn" onclick="goToSlots()">&#8592; Back</button>
+      <h1 class="page-title">Confirm Your Slot</h1>
+      <div class="confirm-box">
+        <div class="confirm-team-display">
+          <img id="confirmLogo" class="confirm-logo" src="/logo.png" alt="">
+          <span id="confirmTeamName" class="confirm-team-name">Team Name</span>
+        </div>
+        <div id="confirmSlotInfo" class="confirm-slot-info">December 26 @ 2:00 PM</div>
+      </div>
+      <button class="btn btn-primary" onclick="confirmSlot()">Confirm This Slot</button>
+      <button class="btn btn-secondary" onclick="goToSlots()">Go Back & Change</button>
+    </div>
+    
+    <!-- Thanks Page -->
+    <div class="page" id="thanksPage">
+      <div style="margin: auto;">
+        <img src="/logo.png" alt="Ball603" class="logo" style="width: 120px; height: 120px;">
+        <div class="thanks-message">You're all set!</div>
+        <div class="thanks-detail" id="thanksDetail">Your time slot has been reserved.</div>
+        <button class="btn btn-primary" onclick="startOver()">Book Another Team</button>
+      </div>
+    </div>
+    
+  </div>
+  
+  <!-- Confirmation Modal -->
+  <div class="modal-overlay" id="confirmModal">
+    <div class="modal">
+      <div class="modal-title">Confirm Selection</div>
+      <div class="modal-message" id="modalMessage">Are you sure you want to select this time slot?</div>
+      <div class="modal-buttons">
+        <button class="btn btn-secondary" onclick="cancelModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="proceedToConfirm()">Yes</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const PASSWORD = 'bash';
+    
+    // Team lists by gender
+    const TEAMS = {
+      Girls: ['Belmont', 'Coe-Brown', 'Epping', 'Farmington', 'Franklin', 'Kennett', 'Kingswood', 'Nute', 'Portsmouth Christian', 'Prospect Mountain', 'Raymond', 'Souhegan'],
+      Boys: ['Belmont', 'Coe-Brown', 'Concord Christian', 'Derryfield', 'Epping', 'Farmington', 'Franklin', 'Holy Family', 'Inter-Lakes', 'Kennett', 'Kingswood', 'Nute', 'Portsmouth Christian', 'Profile', 'Prospect Mountain', 'Raymond']
+    };
+    
+    // Time slots
+    const TIME_SLOTS = ['10:00 AM', '11:00 AM', '12:00 PM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM'];
+    const DATES = [
+      { date: '2025-12-26', display: 'December 26' },
+      { date: '2025-12-27', display: 'December 27' }
+    ];
+    
+    // State
+    let selectedGender = null;
+    let selectedTeam = null;
+    let selectedSlot = null; // { date, time }
+    let allSlots = []; // Booked slots from database
+    
+    // Helper to get logo filename
+    function getLogoFilename(team) {
+      if (!team) return 'Ball603-white.png';
+      return team.replace(/[^a-zA-Z0-9]/g, '') + '.png';
+    }
+    
+    // Show page
+    function showPage(pageId) {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.getElementById(pageId).classList.add('active');
+    }
+    
+    // Check password
+    function checkPassword() {
+      const input = document.getElementById('passwordInput').value;
+      const errorEl = document.getElementById('loginError');
+      
+      if (input.toLowerCase() === PASSWORD) {
+        errorEl.style.display = 'none';
+        showPage('genderPage');
+      } else {
+        errorEl.textContent = 'Incorrect password';
+        errorEl.style.display = 'block';
+      }
+    }
+    
+    // Handle enter key on password
+    document.getElementById('passwordInput').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') checkPassword();
+    });
+    
+    // Select gender
+    function selectGender(gender) {
+      selectedGender = gender;
+      populateTeams();
+      showPage('teamPage');
+    }
+    
+    // Populate teams dropdown
+    function populateTeams() {
+      const select = document.getElementById('teamSelect');
+      const teams = TEAMS[selectedGender];
+      
+      document.getElementById('teamSubtitle').textContent = `${selectedGender} Teams`;
+      
+      select.innerHTML = '<option value="">-- Select Team --</option>';
+      teams.forEach(team => {
+        const opt = document.createElement('option');
+        opt.value = team;
+        opt.textContent = team;
+        select.appendChild(opt);
+      });
+      
+      document.getElementById('teamPreview').style.display = 'none';
+      document.getElementById('continueBtn').disabled = true;
+    }
+    
+    // Update team preview
+    function updateTeamPreview() {
+      const select = document.getElementById('teamSelect');
+      const team = select.value;
+      
+      if (team) {
+        selectedTeam = team;
+        document.getElementById('previewLogo').src = `/logos/100px/${getLogoFilename(team)}`;
+        document.getElementById('previewLogo').onerror = function() { this.src = '/logos/100px/Ball603-white.png'; };
+        document.getElementById('previewName').textContent = team;
+        document.getElementById('teamPreview').style.display = 'flex';
+        document.getElementById('continueBtn').disabled = false;
+      } else {
+        selectedTeam = null;
+        document.getElementById('teamPreview').style.display = 'none';
+        document.getElementById('continueBtn').disabled = true;
+      }
+    }
+    
+    // Go to slots page
+    async function goToSlots() {
+      document.getElementById('slotsTeamLogo').src = `/logos/100px/${getLogoFilename(selectedTeam)}`;
+      document.getElementById('slotsTeamLogo').onerror = function() { this.src = '/logos/100px/Ball603-white.png'; };
+      document.getElementById('slotsTeamName').textContent = selectedTeam;
+      
+      showPage('slotsPage');
+      await loadSlots();
+      renderSlots();
+    }
+    
+    // Load slots from Netlify function
+    async function loadSlots() {
+      try {
+        const response = await fetch(`/.netlify/functions/get-timeslots?gender=${selectedGender}`);
+        const data = await response.json();
+        allSlots = data.slots || [];
+      } catch (err) {
+        console.error('Error loading slots:', err);
+        allSlots = [];
+      }
+    }
+    
+    // Check if team already has a slot
+    function getTeamExistingSlot() {
+      return allSlots.find(s => s.team === selectedTeam);
+    }
+    
+    // Render time slots
+    function renderSlots() {
+      const container = document.getElementById('slotsContainer');
+      const existingSlot = getTeamExistingSlot();
+      
+      // Show/hide already booked notice
+      const notice = document.getElementById('alreadyBookedNotice');
+      if (existingSlot) {
+        const dateObj = DATES.find(d => d.date === existingSlot.slot_date);
+        notice.style.display = 'block';
+        document.getElementById('alreadyBookedDetail').textContent = 
+          `${dateObj ? dateObj.display : existingSlot.slot_date} @ ${existingSlot.slot_time}`;
+      } else {
+        notice.style.display = 'none';
+      }
+      
+      let html = '';
+      
+      DATES.forEach(dateInfo => {
+        html += `
+          <div class="day-section">
+            <div class="day-header">${dateInfo.display}</div>
+            <table class="slots-table">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>School</th>
+                </tr>
+              </thead>
+              <tbody>
+        `;
+        
+        TIME_SLOTS.forEach(time => {
+          const bookedSlot = allSlots.find(s => s.slot_date === dateInfo.date && s.slot_time === time);
+          const isMySlot = bookedSlot && bookedSlot.team === selectedTeam;
+          const isTaken = bookedSlot && !isMySlot;
+          
+          html += `
+            <tr>
+              <td class="slot-time">${time}</td>
+              <td class="slot-cell ${isTaken ? 'taken' : ''} ${isMySlot ? 'my-slot' : ''}" 
+                  onclick="${isTaken ? '' : `selectSlot('${dateInfo.date}', '${time}')`}">
+          `;
+          
+          if (bookedSlot) {
+            html += `
+              <div class="slot-content">
+                <img class="slot-logo" src="/logos/100px/${getLogoFilename(bookedSlot.team)}" 
+                     onerror="this.src='/logos/100px/Ball603-white.png'" alt="">
+                <span class="slot-team-name">${bookedSlot.team}</span>
+              </div>
+            `;
+          } else {
+            html += `<span class="slot-empty">Tap to select</span>`;
+          }
+          
+          html += `
+              </td>
+            </tr>
+          `;
+        });
+        
+        html += `
+              </tbody>
+            </table>
+          </div>
+        `;
+      });
+      
+      container.innerHTML = html;
+    }
+    
+    // Select a time slot
+    function selectSlot(date, time) {
+      selectedSlot = { date, time };
+      
+      const dateObj = DATES.find(d => d.date === date);
+      const existingSlot = getTeamExistingSlot();
+      
+      if (existingSlot) {
+        // Team already has a slot - confirm they want to change
+        document.getElementById('modalMessage').innerHTML = 
+          `You already have a slot booked.<br><br>Do you want to change to <strong>${dateObj.display} @ ${time}</strong>?`;
+      } else {
+        document.getElementById('modalMessage').innerHTML = 
+          `Book <strong>${dateObj.display} @ ${time}</strong>?`;
+      }
+      
+      document.getElementById('confirmModal').classList.add('active');
+    }
+    
+    // Close modal
+    function closeModal() {
+      document.getElementById('confirmModal').classList.remove('active');
+    }
+    
+    // Cancel modal - clears selection
+    function cancelModal() {
+      document.getElementById('confirmModal').classList.remove('active');
+      selectedSlot = null;
+    }
+    
+    // Proceed to confirmation page
+    function proceedToConfirm() {
+      closeModal();
+      
+      document.getElementById('confirmLogo').src = `/logos/100px/${getLogoFilename(selectedTeam)}`;
+      document.getElementById('confirmLogo').onerror = function() { this.src = '/logos/100px/Ball603-white.png'; };
+      document.getElementById('confirmTeamName').textContent = selectedTeam;
+      
+      const dateObj = DATES.find(d => d.date === selectedSlot.date);
+      document.getElementById('confirmSlotInfo').textContent = `${dateObj.display} @ ${selectedSlot.time}`;
+      
+      showPage('confirmPage');
+    }
+    
+    // Confirm and save slot
+    async function confirmSlot() {
+      try {
+        const existingSlot = getTeamExistingSlot();
+        
+        const response = await fetch('/.netlify/functions/save-timeslot', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: existingSlot ? existingSlot.id : null,
+            team: selectedTeam,
+            gender: selectedGender,
+            slot_date: selectedSlot.date,
+            slot_time: selectedSlot.time
+          })
+        });
+        
+        const result = await response.json();
+        
+        if (!response.ok || !result.success) {
+          throw new Error(result.error || 'Failed to save');
+        }
+        
+        const dateObj = DATES.find(d => d.date === selectedSlot.date);
+        document.getElementById('thanksDetail').textContent = 
+          `${selectedTeam} is booked for ${dateObj.display} @ ${selectedSlot.time}`;
+        
+        showPage('thanksPage');
+        
+      } catch (err) {
+        console.error('Error saving slot:', err);
+        alert('Error saving your time slot: ' + (err.message || 'Please try again.'));
+      }
+    }
+    
+    // Navigation
+    function goToGender() {
+      showPage('genderPage');
+    }
+    
+    function goToTeam() {
+      showPage('teamPage');
+    }
+    
+    function startOver() {
+      selectedGender = null;
+      selectedTeam = null;
+      selectedSlot = null;
+      allSlots = [];
+      document.getElementById('teamSelect').value = '';
+      document.getElementById('teamPreview').style.display = 'none';
+      document.getElementById('continueBtn').disabled = true;
+      showPage('genderPage');
+    }
+  </script>
+</body>
+</html>
