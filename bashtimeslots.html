@@ -654,17 +654,17 @@
     async function goToSlots() {
       document.getElementById('slotsTeamLogo').src = `/logos/100px/${getLogoFilename(selectedTeam)}`;
       document.getElementById('slotsTeamLogo').onerror = function() { this.src = '/logos/100px/Ball603-white.png'; };
-      document.getElementById('slotsTeamName').textContent = selectedTeam;
+      document.getElementById('slotsTeamName').textContent = `${selectedTeam} ${selectedGender}`;
       
       showPage('slotsPage');
       await loadSlots();
       renderSlots();
     }
     
-    // Load slots from Netlify function
+    // Load slots from Netlify function (all slots)
     async function loadSlots() {
       try {
-        const response = await fetch(`/.netlify/functions/get-timeslots?gender=${selectedGender}`);
+        const response = await fetch('/.netlify/functions/get-timeslots');
         const data = await response.json();
         allSlots = data.slots || [];
       } catch (err) {
@@ -673,9 +673,9 @@
       }
     }
     
-    // Check if team already has a slot
+    // Check if team already has a slot (matching team AND gender)
     function getTeamExistingSlot() {
-      return allSlots.find(s => s.team === selectedTeam);
+      return allSlots.find(s => s.team === selectedTeam && s.gender === selectedGender);
     }
     
     // Render time slots
@@ -712,7 +712,7 @@
         
         TIME_SLOTS.forEach(time => {
           const bookedSlot = allSlots.find(s => s.slot_date === dateInfo.date && s.slot_time === time);
-          const isMySlot = bookedSlot && bookedSlot.team === selectedTeam;
+          const isMySlot = bookedSlot && bookedSlot.team === selectedTeam && bookedSlot.gender === selectedGender;
           const isTaken = bookedSlot && !isMySlot;
           
           html += `
@@ -723,11 +723,12 @@
           `;
           
           if (bookedSlot) {
+            const displayName = `${bookedSlot.team} ${bookedSlot.gender}`;
             html += `
               <div class="slot-content">
                 <img class="slot-logo" src="/logos/100px/${getLogoFilename(bookedSlot.team)}" 
                      onerror="this.src='/logos/100px/Ball603-white.png'" alt="">
-                <span class="slot-team-name">${bookedSlot.team}</span>
+                <span class="slot-team-name">${displayName}</span>
               </div>
             `;
           } else {
@@ -786,7 +787,7 @@
       
       document.getElementById('confirmLogo').src = `/logos/100px/${getLogoFilename(selectedTeam)}`;
       document.getElementById('confirmLogo').onerror = function() { this.src = '/logos/100px/Ball603-white.png'; };
-      document.getElementById('confirmTeamName').textContent = selectedTeam;
+      document.getElementById('confirmTeamName').textContent = `${selectedTeam} ${selectedGender}`;
       
       const dateObj = DATES.find(d => d.date === selectedSlot.date);
       document.getElementById('confirmSlotInfo').textContent = `${dateObj.display} @ ${selectedSlot.time}`;
@@ -819,7 +820,7 @@
         
         const dateObj = DATES.find(d => d.date === selectedSlot.date);
         document.getElementById('thanksDetail').textContent = 
-          `${selectedTeam} is booked for ${dateObj.display} @ ${selectedSlot.time}`;
+          `${selectedTeam} ${selectedGender} is booked for ${dateObj.display} @ ${selectedSlot.time}`;
         
         // Reload slots and show on thanks page
         await loadSlots();
@@ -855,7 +856,7 @@
         
         TIME_SLOTS.forEach(time => {
           const bookedSlot = allSlots.find(s => s.slot_date === dateInfo.date && s.slot_time === time);
-          const isMySlot = bookedSlot && bookedSlot.team === selectedTeam;
+          const isMySlot = bookedSlot && bookedSlot.team === selectedTeam && bookedSlot.gender === selectedGender;
           
           html += `
             <tr>
@@ -864,11 +865,12 @@
           `;
           
           if (bookedSlot) {
+            const displayName = `${bookedSlot.team} ${bookedSlot.gender}`;
             html += `
               <div class="slot-content">
                 <img class="slot-logo" src="/logos/100px/${getLogoFilename(bookedSlot.team)}" 
                      onerror="this.src='/logos/100px/Ball603-white.png'" alt="">
-                <span class="slot-team-name">${bookedSlot.team}</span>
+                <span class="slot-team-name">${displayName}</span>
               </div>
             `;
           } else {
