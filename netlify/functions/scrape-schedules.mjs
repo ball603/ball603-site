@@ -321,7 +321,8 @@ function parseSchedulePage(html, gender, division) {
         gender: gender,
         level: 'NHIAA',
         division: division,
-        status: time === 'FINAL' ? 'final' : 'scheduled'
+        status: time === 'FINAL' ? 'final' : 'scheduled',
+        isFromHomeTeam: !isAway  // true if this data came from the home team's schedule
       });
     }
   }
@@ -340,11 +341,21 @@ function deduplicateGames(games) {
     if (!seen.has(canonicalKey)) {
       seen.set(canonicalKey, game);
     } else {
-      // If we already have this game, prefer the one with scores
+      // Prefer data from home team's schedule (they have authoritative info)
+      // Also prefer games with scores over those without
       const existing = seen.get(canonicalKey);
-      if (game.home_score && !existing.home_score) {
+      
+      // If new game is from home team's schedule and existing isn't, use new
+      if (game.isFromHomeTeam && !existing.isFromHomeTeam) {
         seen.set(canonicalKey, game);
       }
+      // If both are from same source type, prefer the one with scores
+      else if (game.isFromHomeTeam === existing.isFromHomeTeam) {
+        if (game.home_score && !existing.home_score) {
+          seen.set(canonicalKey, game);
+        }
+      }
+      // If existing is from home team and new isn't, keep existing (do nothing)
     }
   }
   
