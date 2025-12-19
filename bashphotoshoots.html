@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1a1a1a">
+  <title>Tournament Schedule | Ball603</title>
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="apple-touch-icon" href="/logo.png">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a1a;
+      color: #fff;
+      min-height: 100vh;
+      min-height: -webkit-fill-available;
+    }
+    
+    .container {
+      max-width: 500px;
+      margin: 0 auto;
+      padding: 20px;
+      min-height: 100vh;
+    }
+    
+    .logo {
+      width: 60px;
+      height: 60px;
+      margin: 0 auto 16px;
+      display: block;
+    }
+    
+    .page-title {
+      font-size: 22px;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 20px;
+      color: #fff;
+    }
+    
+    /* Gender Tabs */
+    .gender-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    
+    .gender-tab {
+      flex: 1;
+      padding: 14px;
+      font-size: 16px;
+      font-weight: 600;
+      border: 2px solid #333;
+      border-radius: 10px;
+      background: #222;
+      color: #999;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+    }
+    
+    .gender-tab:hover {
+      border-color: #444;
+      background: #2a2a2a;
+    }
+    
+    .gender-tab.active {
+      border-color: #f57c00;
+      background: rgba(245, 124, 0, 0.15);
+      color: #f57c00;
+    }
+    
+    /* Time Slots Grid */
+    .slots-container {
+      flex: 1;
+      overflow-y: auto;
+      padding-bottom: 20px;
+    }
+    
+    .day-section {
+      margin-bottom: 32px;
+    }
+    
+    .day-header {
+      font-size: 18px;
+      font-weight: 700;
+      text-align: center;
+      color: #f57c00;
+      margin-bottom: 16px;
+      padding: 12px;
+      background: #222;
+      border-radius: 8px;
+    }
+    
+    .slots-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0 8px;
+    }
+    
+    .slots-table th {
+      background: #333;
+      color: #999;
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      padding: 14px 12px;
+      text-align: left;
+    }
+    
+    .slots-table td {
+      padding: 0;
+    }
+    
+    .slot-time {
+      font-size: 15px;
+      font-weight: 600;
+      color: #fff;
+      padding: 18px 14px;
+      width: 95px;
+      background: #222;
+      border-radius: 8px 0 0 8px;
+    }
+    
+    .slot-cell {
+      padding: 14px 16px;
+      min-height: 68px;
+      background: #1e1e1e;
+      border-radius: 0 8px 8px 0;
+    }
+    
+    .slot-content {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .slot-logo {
+      width: 36px;
+      height: 36px;
+      object-fit: contain;
+    }
+    
+    .slot-team-name {
+      font-size: 14px;
+      font-weight: 500;
+      color: #fff;
+    }
+    
+    .slot-empty {
+      color: #555;
+      font-size: 14px;
+      font-style: italic;
+    }
+    
+    /* Loading */
+    .loading {
+      text-align: center;
+      color: #999;
+      padding: 40px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <img src="/logo.png" alt="Ball603" class="logo">
+    <h1 class="page-title">Bash Tournament Schedule</h1>
+    
+    <div class="gender-tabs">
+      <button class="gender-tab active" id="boysTab" onclick="selectGender('Boys')">Boys</button>
+      <button class="gender-tab" id="girlsTab" onclick="selectGender('Girls')">Girls</button>
+    </div>
+    
+    <div class="slots-container" id="slotsContainer">
+      <div class="loading">Loading schedule...</div>
+    </div>
+  </div>
+
+  <script>
+    // Time slots
+    const TIME_SLOTS = ['10:00 AM', '11:00 AM', '12:00 PM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM'];
+    const DATES = [
+      { date: '2025-12-26', display: 'December 26' },
+      { date: '2025-12-27', display: 'December 27' }
+    ];
+    
+    let selectedGender = 'Boys';
+    let allSlots = [];
+    
+    // Helper to get logo filename
+    function getLogoFilename(team) {
+      if (!team) return 'Ball603-white.png';
+      return team.replace(/[^a-zA-Z0-9]/g, '') + '.png';
+    }
+    
+    // Select gender
+    async function selectGender(gender) {
+      selectedGender = gender;
+      
+      document.getElementById('boysTab').classList.toggle('active', gender === 'Boys');
+      document.getElementById('girlsTab').classList.toggle('active', gender === 'Girls');
+      
+      await loadSlots();
+      renderSlots();
+    }
+    
+    // Load slots from Netlify function
+    async function loadSlots() {
+      try {
+        const response = await fetch(`/.netlify/functions/get-timeslots?gender=${selectedGender}`);
+        const data = await response.json();
+        allSlots = data.slots || [];
+      } catch (err) {
+        console.error('Error loading slots:', err);
+        allSlots = [];
+      }
+    }
+    
+    // Render slots
+    function renderSlots() {
+      const container = document.getElementById('slotsContainer');
+      
+      let html = '';
+      
+      DATES.forEach(dateInfo => {
+        html += `
+          <div class="day-section">
+            <div class="day-header">${dateInfo.display}</div>
+            <table class="slots-table">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>School</th>
+                </tr>
+              </thead>
+              <tbody>
+        `;
+        
+        TIME_SLOTS.forEach(time => {
+          const bookedSlot = allSlots.find(s => s.slot_date === dateInfo.date && s.slot_time === time);
+          
+          html += `
+            <tr>
+              <td class="slot-time">${time}</td>
+              <td class="slot-cell">
+          `;
+          
+          if (bookedSlot) {
+            html += `
+              <div class="slot-content">
+                <img class="slot-logo" src="/logos/100px/${getLogoFilename(bookedSlot.team)}" 
+                     onerror="this.src='/logos/100px/Ball603-white.png'" alt="">
+                <span class="slot-team-name">${bookedSlot.team}</span>
+              </div>
+            `;
+          } else {
+            html += `<span class="slot-empty">Available</span>`;
+          }
+          
+          html += `
+              </td>
+            </tr>
+          `;
+        });
+        
+        html += `
+              </tbody>
+            </table>
+          </div>
+        `;
+      });
+      
+      container.innerHTML = html;
+    }
+    
+    // Load on page load
+    selectGender('Boys');
+  </script>
+</body>
+</html>
