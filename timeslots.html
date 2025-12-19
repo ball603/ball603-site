@@ -7,7 +7,6 @@
   <title>Tournament Time Slots | Ball603</title>
   <link rel="icon" type="image/png" href="/logo.png">
   <link rel="apple-touch-icon" href="/logo.png">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     
@@ -555,11 +554,6 @@
   </div>
 
   <script>
-    // Supabase setup
-    const SUPABASE_URL = 'https://suncdkxfqkwwnmhosxcf.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN1bmNka3hmcWt3d25taG9zeGNmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzMwODI0MjAsImV4cCI6MjA0ODY1ODQyMH0.yMDgMF7UNKkaF4FpJHUDBPNVgSfGST4Ilrp7hhZ1rLE';
-    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    
     const PASSWORD = 'timeslot';
     
     // Team lists by gender
@@ -668,16 +662,12 @@
       renderSlots();
     }
     
-    // Load slots from Supabase
+    // Load slots from Netlify function
     async function loadSlots() {
       try {
-        const { data, error } = await db
-          .from('tournament_timeslots')
-          .select('*')
-          .eq('gender', selectedGender);
-        
-        if (error) throw error;
-        allSlots = data || [];
+        const response = await fetch(`/.netlify/functions/get-timeslots?gender=${selectedGender}`);
+        const data = await response.json();
+        allSlots = data.slots || [];
       } catch (err) {
         console.error('Error loading slots:', err);
         allSlots = [];
@@ -810,30 +800,22 @@
       try {
         const existingSlot = getTeamExistingSlot();
         
-        if (existingSlot) {
-          // Update existing slot
-          const { error } = await db
-            .from('tournament_timeslots')
-            .update({
-              slot_date: selectedSlot.date,
-              slot_time: selectedSlot.time,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', existingSlot.id);
-          
-          if (error) throw error;
-        } else {
-          // Insert new slot
-          const { error } = await db
-            .from('tournament_timeslots')
-            .insert({
-              team: selectedTeam,
-              gender: selectedGender,
-              slot_date: selectedSlot.date,
-              slot_time: selectedSlot.time
-            });
-          
-          if (error) throw error;
+        const response = await fetch('/.netlify/functions/save-timeslot', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: existingSlot ? existingSlot.id : null,
+            team: selectedTeam,
+            gender: selectedGender,
+            slot_date: selectedSlot.date,
+            slot_time: selectedSlot.time
+          })
+        });
+        
+        const result = await response.json();
+        
+        if (!response.ok || !result.success) {
+          throw new Error(result.error || 'Failed to save');
         }
         
         const dateObj = DATES.find(d => d.date === selectedSlot.date);
@@ -844,7 +826,7 @@
         
       } catch (err) {
         console.error('Error saving slot:', err);
-        alert('Error saving your time slot: ' + (err.message || err.details || JSON.stringify(err)));
+        alert('Error saving your time slot: ' + (err.message || 'Please try again.'));
       }
     }
     
