@@ -531,12 +531,11 @@
     
     <!-- Thanks Page -->
     <div class="page" id="thanksPage">
-      <div style="margin: auto;">
-        <img src="/logo.png" alt="Ball603" class="logo" style="width: 120px; height: 120px;">
-        <div class="thanks-message">You're all set!</div>
-        <div class="thanks-detail" id="thanksDetail">Your time slot has been reserved.</div>
-        <button class="btn btn-primary" onclick="startOver()">Book Another Team</button>
+      <div class="confirm-box" style="margin-bottom: 20px;">
+        <div style="font-size: 24px; margin-bottom: 8px;">✓ You're all set!</div>
+        <div class="thanks-detail" id="thanksDetail" style="color: #f57c00; font-weight: 600;"></div>
       </div>
+      <div class="slots-container" id="thanksSlotsContainer"></div>
     </div>
     
   </div>
@@ -822,12 +821,74 @@
         document.getElementById('thanksDetail').textContent = 
           `${selectedTeam} is booked for ${dateObj.display} @ ${selectedSlot.time}`;
         
+        // Reload slots and show on thanks page
+        await loadSlots();
+        renderThanksSlots();
+        
         showPage('thanksPage');
         
       } catch (err) {
         console.error('Error saving slot:', err);
         alert('Error saving your time slot: ' + (err.message || 'Please try again.'));
       }
+    }
+    
+    // Render read-only slots for thanks page
+    function renderThanksSlots() {
+      const container = document.getElementById('thanksSlotsContainer');
+      
+      let html = '';
+      
+      DATES.forEach(dateInfo => {
+        html += `
+          <div class="day-section">
+            <div class="day-header">${dateInfo.display}</div>
+            <table class="slots-table">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>School</th>
+                </tr>
+              </thead>
+              <tbody>
+        `;
+        
+        TIME_SLOTS.forEach(time => {
+          const bookedSlot = allSlots.find(s => s.slot_date === dateInfo.date && s.slot_time === time);
+          const isMySlot = bookedSlot && bookedSlot.team === selectedTeam;
+          
+          html += `
+            <tr>
+              <td class="slot-time">${time}</td>
+              <td class="slot-cell ${isMySlot ? 'my-slot' : ''}" style="cursor: default;">
+          `;
+          
+          if (bookedSlot) {
+            html += `
+              <div class="slot-content">
+                <img class="slot-logo" src="/logos/100px/${getLogoFilename(bookedSlot.team)}" 
+                     onerror="this.src='/logos/100px/Ball603-white.png'" alt="">
+                <span class="slot-team-name">${bookedSlot.team}</span>
+              </div>
+            `;
+          } else {
+            html += `<span class="slot-empty">Available</span>`;
+          }
+          
+          html += `
+              </td>
+            </tr>
+          `;
+        });
+        
+        html += `
+              </tbody>
+            </table>
+          </div>
+        `;
+      });
+      
+      container.innerHTML = html;
     }
     
     // Navigation
