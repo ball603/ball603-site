@@ -577,7 +577,7 @@
   
   <script>
     // Version marker for debugging deployment issues
-    console.log('Contributor Portal v234 loaded');
+    console.log('Contributor Portal v235 loaded');
     
     // Supabase setup
     const SUPABASE_URL = 'https://suncdkxfqkwwnmhosxcf.supabase.co';
@@ -591,7 +591,8 @@
     let currentUploadType = null;
     let portfolioExpanded = false;
     let scheduleInstance = null;
-    let isLoadingProfile = false; // Prevent double-loading
+    let isLoadingProfile = false;
+    let loginTimeout = null;
     
     const NHIAA_SCHOOLS = [
       'Alvirne', 'Bedford', 'Belmont', 'Berlin', 'Bishop Brady', 'Bishop Guertin', 'Bow',
@@ -638,6 +639,26 @@
             document.querySelector('input[name="computerPref"][value="Other"]').checked ? 'block' : 'none';
         });
       });
+      
+      // Validate existing session on page load
+      // This clears stale sessions that cause the "Signing in..." hang
+      try {
+        const { data: { session }, error } = await db.auth.getSession();
+        if (session) {
+          console.log('Found existing session, validating...');
+          // Test if the session is still valid by making a simple request
+          const { error: testError } = await db.from('contributors').select('id').limit(1);
+          if (testError) {
+            console.log('Session invalid, clearing:', testError.message);
+            await db.auth.signOut();
+          } else {
+            console.log('Session is valid');
+          }
+        }
+      } catch (err) {
+        console.log('Session validation error, clearing session:', err);
+        await db.auth.signOut().catch(() => {});
+      }
       
       // Set up auth state listener
       db.auth.onAuthStateChange(async (event, session) => {
@@ -811,14 +832,35 @@
         return;
       }
       
+      // Clear any previous timeout
+      if (loginTimeout) {
+        clearTimeout(loginTimeout);
+        loginTimeout = null;
+      }
+      
+      // Reset loading state in case previous attempt got stuck
+      isLoadingProfile = false;
+      
       loginBtn.disabled = true;
       loginBtn.textContent = 'Signing in...';
       errorEl.textContent = '';
+      
+      // Set a timeout to reset the button if login takes too long
+      loginTimeout = setTimeout(() => {
+        console.log('Login timeout - resetting state');
+        isLoadingProfile = false;
+        resetLoginButton();
+        errorEl.textContent = 'Login timed out. Please try again.';
+        // Clear any stale session
+        db.auth.signOut().catch(() => {});
+      }, 15000); // 15 second timeout
       
       try {
         console.log('Attempting sign in for:', email);
         const { data, error } = await db.auth.signInWithPassword({ email, password });
         if (error) {
+          clearTimeout(loginTimeout);
+          loginTimeout = null;
           console.log('Sign in error:', error);
           errorEl.textContent = error.message.includes('Invalid') ? 'Invalid email or password' : error.message;
           loginBtn.disabled = false;
@@ -830,6 +872,8 @@
         // Don't call loadContributorProfile here - let onAuthStateChange handle it
         // This prevents double loading
       } catch (err) {
+        clearTimeout(loginTimeout);
+        loginTimeout = null;
         console.error('Login catch error:', err);
         errorEl.textContent = 'Login failed. Please try again.';
         loginBtn.disabled = false;
@@ -890,6 +934,10 @@
     
     async function handleLogout() {
       try {
+        if (loginTimeout) {
+          clearTimeout(loginTimeout);
+          loginTimeout = null;
+        }
         await db.auth.signOut();
         currentUser = null;
         currentContributor = null;
@@ -952,6 +1000,12 @@
           await db.from('contributors').update({ auth_user_id: currentUser.id }).eq('id', contributor.id);
         }
         
+        // Clear login timeout - we succeeded
+        if (loginTimeout) {
+          clearTimeout(loginTimeout);
+          loginTimeout = null;
+        }
+        
         console.log('Setting currentContributor and showing main screen');
         currentContributor = contributor;
         populateForm(contributor);
@@ -972,6 +1026,10 @@
     }
     
     function resetLoginButton() {
+      if (loginTimeout) {
+        clearTimeout(loginTimeout);
+        loginTimeout = null;
+      }
       const loginBtn = document.querySelector('#loginForm button');
       if (loginBtn) {
         loginBtn.disabled = false;
