@@ -1549,6 +1549,7 @@
   <nav class="quick-nav">
     <div class="quick-nav-inner">
       <a href="/jamsession" class="quick-nav-item"><span>&#9997;&#127996;</span> Jam Session</a>
+      <a href="/ballinthe603" class="quick-nav-item"><span>&#128506;</span> Interactive Game Finder</a>
       <a href="/1Kinthe603" class="quick-nav-item"><span>&#127919;</span> 1K in the 603</a>
       <a href="/603intheNCAA" class="quick-nav-item"><span>&#127891;</span> 603 in the NCAA</a>
       <a href="/NHIAAhistory" class="quick-nav-item"><span>&#127942;</span> NHIAA History</a>
@@ -1646,7 +1647,7 @@
         </div>
         
         <!-- Sponsor CTA -->
-        <a href="/cdn-cgi/l/email-protection#402b2a0022212c2c7670736e232f2d" class="sidebar-card sponsor-card">
+        <a href="/cdn-cgi/l/email-protection#cda6a78dafaca1a1fbfdfee3aea2a0" class="sidebar-card sponsor-card">
           <img src="/logos/400px/Ball603-BasketballintheGraniteState-400px.png" alt="Ball603" class="sponsor-logo">
           <p class="sponsor-headline">Enjoying our coverage of Basketball in the Granite State?</p>
           <p class="sponsor-cta">Click to inquire about more details on our sponsorship offerings</p>
@@ -1813,6 +1814,28 @@
       return days[date.getDay()];
     }
     
+    // Get ticker abbreviation for a team
+    function getTickerAbbrev(teamName) {
+      if (!teamName) return '';
+      const abbrevs = {
+        'Concord Christian': 'CCA',
+        'Hillsboro-Deering': 'H-D',
+        'Hollis-Brookline': 'H-B',
+        'Inter-Lakes': 'Inter-Lakes',
+        'Merrimack Valley': 'MV',
+        'Moultonborough': 'Moultonboro',
+        'Nashua North': 'North',
+        'Nashua South': 'South',
+        'Portsmouth Christian': 'PCA',
+        'Prospect Mountain': 'Prospect',
+        'St. Thomas Aquinas': 'St. Thomas',
+        'White Mountains': 'White Mtns',
+        'Wilton-Lyndeborough': 'Wilton-Lynde',
+        'Mascoma Valley': 'Mascoma'
+      };
+      return abbrevs[teamName] || Ball603.getShortName(teamName);
+    }
+    
     // Check if a game has an article
     function hasArticle(game) {
       return game.recap_url && game.recap_url.trim() !== '';
@@ -1829,9 +1852,13 @@
     // Refresh just the game data for ticker
     async function refreshTickerData() {
       try {
-        await Ball603.fetchGames();
-        renderTicker();
-        console.log('[Ticker] Refreshed at', new Date().toLocaleTimeString());
+        const response = await fetch('/.netlify/functions/get-games');
+        const data = await response.json();
+        if (data.games) {
+          Ball603.state.games = data.games;
+          renderTicker();
+          console.log('[Ticker] Refreshed at', new Date().toLocaleTimeString());
+        }
       } catch (err) {
         console.error('[Ticker] Refresh failed:', err);
       }
@@ -2035,12 +2062,12 @@
             <div class="ticker-teams">
               <div class="ticker-team">
                 <img class="ticker-logo" src="${Ball603.getLogoUrl(game.away)}" alt="" onerror="this.style.display='none'">
-                <span class="ticker-name">${(Ball603.getTickerName || Ball603.getShortName)(game.away)}</span>
+                <span class="ticker-name">${getTickerAbbrev(game.away)}</span>
                 <span class="ticker-score ${awayWins ? 'winner' : ''}">${hasScore ? awayScore : ''}</span>
               </div>
               <div class="ticker-team">
                 <img class="ticker-logo" src="${Ball603.getLogoUrl(game.home)}" alt="" onerror="this.style.display='none'">
-                <span class="ticker-name">${(Ball603.getTickerName || Ball603.getShortName)(game.home)}</span>
+                <span class="ticker-name">${getTickerAbbrev(game.home)}</span>
                 <span class="ticker-score ${homeWins ? 'winner' : ''}">${hasScore ? homeScore : ''}</span>
               </div>
             </div>
