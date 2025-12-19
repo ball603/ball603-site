@@ -41,8 +41,26 @@
     <p class="team-page-subtitle">The photographers, videographers, and writers bringing you New Hampshire basketball</p>
   </div>
 
+  <!-- Featured Section -->
+  <div class="team-featured" id="featuredSection" style="display: none;">
+    <div class="team-featured-inner">
+      <div class="team-featured-card">
+        <img class="team-featured-photo" id="featuredPhoto" src="" alt="">
+        <h2 class="team-featured-name" id="featuredName"></h2>
+        <p class="team-featured-title">Founder &#38; Operator</p>
+      </div>
+      <div class="team-featured-message">
+        <h2>A Note of Thanks</h2>
+        <p>Ball 603 wouldn&#39;t exist without the incredible dedication of our contributors. From the photographers capturing the action courtside, to the videographers bringing games to life, to the writers sharing the stories behind the scores &#8212; each one plays a vital role in our mission to cover New Hampshire basketball.</p>
+        <p>Many of our contributors are volunteers who give their time simply because they love the game and want to support student-athletes in the Granite State. Their passion and commitment inspire us every day.</p>
+        <p>To our entire team: thank you for making Ball 603 what it is. We couldn&#39;t do this without you.</p>
+      </div>
+    </div>
+  </div>
+
   <!-- Contributors Grid -->
   <div class="contributors-container">
+    <div class="contributors-section-title" id="sectionTitle" style="display: none;">Our Contributors</div>
     <div class="contributors-grid" id="contributorsGrid">
       <div class="contributors-loading">Loading team...</div>
     </div>
@@ -84,7 +102,17 @@
     
     var db;
     var contributors = [];
+    var featuredContributor = null;
     var portfolioData = {};
+    
+    // Season order for sorting (earlier = more experience)
+    var SEASON_ORDER = {
+      '2021-22': 1,
+      '2022-23': 2,
+      '2023-24': 3,
+      '2024-25': 4,
+      '2025-26': 5
+    };
     
     // Role config
     var ROLES = {
@@ -131,6 +159,9 @@
     
     function openModal(id) {
       var c = contributors.find(function(x) { return x.id === id; });
+      if (!c && featuredContributor && featuredContributor.id === id) {
+        c = featuredContributor;
+      }
       if (!c) return;
       
       var overlay = document.getElementById('modalOverlay');
@@ -152,12 +183,40 @@
         var result = await db
           .from('contributors')
           .select('*')
-          .eq('active', true)
-          .order('name');
+          .eq('active', true);
         
         if (result.error) throw result.error;
-        contributors = result.data || [];
+        var allContributors = result.data || [];
         
+        // Find KJ Cardinal for featured section
+        var kjIndex = -1;
+        for (var i = 0; i < allContributors.length; i++) {
+          if (allContributors[i].name === 'KJ Cardinal') {
+            kjIndex = i;
+            break;
+          }
+        }
+        
+        if (kjIndex >= 0) {
+          featuredContributor = allContributors.splice(kjIndex, 1)[0];
+        }
+        
+        // Sort remaining by experience (first_season), then alphabetically
+        allContributors.sort(function(a, b) {
+          var seasonA = SEASON_ORDER[a.first_season] || 99;
+          var seasonB = SEASON_ORDER[b.first_season] || 99;
+          
+          if (seasonA !== seasonB) {
+            return seasonA - seasonB; // Earlier season = more experience = comes first
+          }
+          
+          // Same experience level, sort alphabetically
+          return (a.name || '').localeCompare(b.name || '');
+        });
+        
+        contributors = allContributors;
+        
+        // Fetch portfolio links
         var portfolioResult = await db
           .from('contributor_portfolio')
           .select('*');
@@ -171,7 +230,7 @@
           });
         }
         
-        renderContributors();
+        renderPage();
         
       } catch (err) {
         console.error('Error loading contributors:', err);
@@ -179,13 +238,42 @@
       }
     }
     
+    function renderPage() {
+      // Render featured section
+      if (featuredContributor) {
+        var featuredSection = document.getElementById('featuredSection');
+        var featuredPhoto = document.getElementById('featuredPhoto');
+        var featuredName = document.getElementById('featuredName');
+        
+        if (featuredContributor.headshot_url) {
+          featuredPhoto.src = featuredContributor.headshot_url;
+          featuredPhoto.alt = featuredContributor.name;
+        }
+        featuredName.textContent = featuredContributor.name;
+        featuredSection.style.display = 'block';
+        
+        // Make featured card clickable
+        var featuredCard = document.querySelector('.team-featured-card');
+        featuredCard.style.cursor = 'pointer';
+        featuredCard.addEventListener('click', function() {
+          openModal(featuredContributor.id);
+        });
+      }
+      
+      // Render contributors grid
+      renderContributors();
+    }
+    
     function renderContributors() {
       var grid = document.getElementById('contributorsGrid');
+      var sectionTitle = document.getElementById('sectionTitle');
       
       if (contributors.length === 0) {
         grid.innerHTML = '<div class="contributors-loading">No team members found</div>';
         return;
       }
+      
+      sectionTitle.style.display = 'block';
       
       var html = '';
       contributors.forEach(function(c) {
@@ -198,7 +286,6 @@
       var cards = document.querySelectorAll('.contributor-card');
       cards.forEach(function(card) {
         card.addEventListener('click', function(e) {
-          // Don't open modal if clicking social links
           if (e.target.closest('.contributor-social a')) return;
           var id = parseInt(card.dataset.id, 10);
           openModal(id);
@@ -250,8 +337,8 @@
         html += '<div class="contributor-social">' + social + '</div>';
       }
       
-      html += '</div>'; // end info
-      html += '</div>'; // end card
+      html += '</div>';
+      html += '</div>';
       
       return html;
     }
@@ -287,9 +374,17 @@
       html += '<div class="modal-body">';
       
       // Meta info
-      var hasMeta = c.hs_alma_mater || c.primary_area;
+      var hasMeta = c.hs_alma_mater || c.primary_area || c.first_season;
       if (hasMeta) {
         html += '<div class="modal-meta">';
+        if (c.first_season) {
+          var seasonNum = 6 - (SEASON_ORDER[c.first_season] || 5);
+          var suffix = seasonNum === 1 ? 'st' : seasonNum === 2 ? 'nd' : seasonNum === 3 ? 'rd' : 'th';
+          html += '<div class="modal-meta-item">';
+          html += '<span class="modal-meta-icon">&#127942;</span>';
+          html += '<span>' + seasonNum + suffix + ' Season</span>';
+          html += '</div>';
+        }
         if (c.hs_alma_mater) {
           var logo = getSchoolLogo(c.hs_alma_mater);
           html += '<div class="modal-meta-item">';
@@ -338,7 +433,7 @@
         html += '</div>';
       }
       
-      html += '</div>'; // end body
+      html += '</div>';
       
       return html;
     }
