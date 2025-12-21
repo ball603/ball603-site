@@ -6,6 +6,7 @@
   <meta name="description" content="The Bash - New Hampshire's Largest Holiday Basketball Tournament featuring 28 teams and 50 games">
   <meta name="theme-color" content="#1a1a2e">
   <title>The Bash 2025 | Ball603</title>
+  <script>window.BASH_PAGE_VERSION = '2024.12.21.v1';</script>
   
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="/logos/TheBash.png">
@@ -61,6 +62,27 @@
       text-align: center;
       padding: 40px;
       color: #888;
+    }
+    /* Bracket winner/loser styling */
+    .bracket-team.winner {
+      background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%) !important;
+    }
+    .bracket-team.winner .bracket-team-name {
+      font-weight: 700;
+    }
+    .bracket-team.winner .bracket-team-score {
+      font-weight: 700;
+      color: #fff;
+    }
+    .bracket-team.loser {
+      opacity: 0.6;
+    }
+    .bracket-team-score {
+      margin-left: auto;
+      font-size: 14px;
+      font-weight: 600;
+      min-width: 24px;
+      text-align: right;
     }
   </style>
   
@@ -751,10 +773,179 @@
   <script src="/the-bash-data.js"></script>
 
   <script>
-    // Supabase client for loading stories
+    // Supabase client for loading data
     const SUPABASE_URL = 'https://suncdkxfqkwwnmhosxcf.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_hHSpgZPD327r11GaQG9iHw_uZbuaWmF';
     const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    
+    // Dynamic schedule data from database
+    let liveSchedule = [];
+    
+    // Load schedule from database
+    async function loadLiveSchedule() {
+      try {
+        const { data, error } = await db
+          .from('bash_schedule')
+          .select('*')
+          .eq('year', 2025)
+          .order('date')
+          .order('time');
+        
+        if (error) throw error;
+        
+        liveSchedule = (data || []).map(g => ({
+          ...g,
+          awayScore: g.away_score,
+          homeScore: g.home_score
+        }));
+        
+        console.log('Loaded', liveSchedule.length, 'games from database');
+        return liveSchedule;
+      } catch (err) {
+        console.error('Error loading schedule:', err);
+        // Fall back to static data
+        liveSchedule = BASH_DATA?.schedule || [];
+        return liveSchedule;
+      }
+    }
+    
+    // Get winner of a specific game by game number and division
+    function getGameWinner(gameNumber, division) {
+      const game = liveSchedule.find(g => 
+        g.game_number === gameNumber && 
+        g.division === division &&
+        g.away_score !== null && 
+        g.home_score !== null
+      );
+      
+      if (!game) return null;
+      
+      return {
+        team: game.away_score > game.home_score ? game.away : game.home,
+        awayScore: game.away_score,
+        homeScore: game.home_score,
+        away: game.away,
+        home: game.home
+      };
+    }
+    
+    // Boys bracket advancement mapping
+    const BOYS_ADVANCEMENT = {
+      // Quarterfinals (Games 9-12) receive winners from First Round (Games 1-8)
+      9: { top: 1, bottom: 2 },
+      10: { top: 3, bottom: 4 },
+      11: { top: 5, bottom: 6 },
+      12: { top: 7, bottom: 8 },
+      // Semifinals (Games 13-14) receive winners from Quarterfinals
+      13: { top: 9, bottom: 10 },
+      14: { top: 11, bottom: 12 },
+      // Championship (Game 15) receives winners from Semifinals
+      15: { top: 13, bottom: 14 }
+    };
+    
+    // Girls bracket advancement mapping (12 teams, 4 byes)
+    const GIRLS_ADVANCEMENT = {
+      // Quarterfinals (Games 5-8) - Winner from first round vs Bye team
+      5: { top: 1, bottom: null }, // Winner 1 vs Franklin (bye - already in HTML)
+      6: { top: 2, bottom: null }, // Winner 2 vs Coe-Brown (bye)
+      7: { top: 3, bottom: null }, // Winner 3 vs Portsmouth Christian (bye)
+      8: { top: 4, bottom: null }, // Winner 4 vs Farmington (bye)
+      // Semifinals (Games 9-10) receive winners from Quarterfinals
+      9: { top: 5, bottom: 6 },
+      10: { top: 7, bottom: 8 },
+      // Championship (Game 11) receives winners from Semifinals
+      11: { top: 9, bottom: 10 }
+    };
+    
+    // Update bracket with scores and advancement
+    function updateBrackets() {
+      updateBracket('boysBracket', 'Boys', BOYS_ADVANCEMENT);
+      updateBracket('girlsBracket', 'Girls', GIRLS_ADVANCEMENT);
+    }
+    
+    function updateBracket(bracketId, division, advancementMap) {
+      const bracket = document.getElementById(bracketId);
+      if (!bracket) return;
+      
+      // First, update scores for all completed games
+      bracket.querySelectorAll('.bracket-game').forEach(gameEl => {
+        const gameNum = parseInt(gameEl.dataset.game);
+        const game = liveSchedule.find(g => 
+          g.game_number === gameNum && 
+          g.division === division
+        );
+        
+        if (game && game.away_score !== null && game.home_score !== null) {
+          const topTeam = gameEl.querySelector('.bracket-team.top');
+          const bottomTeam = gameEl.querySelector('.bracket-team.bottom');
+          
+          if (topTeam && bottomTeam) {
+            const topScore = topTeam.querySelector('.bracket-team-score');
+            const bottomScore = bottomTeam.querySelector('.bracket-team-score');
+            
+            // Set scores
+            if (topScore) topScore.textContent = game.away_score;
+            if (bottomScore) bottomScore.textContent = game.home_score;
+            
+            // Highlight winner
+            topTeam.classList.remove('winner', 'loser');
+            bottomTeam.classList.remove('winner', 'loser');
+            
+            if (game.away_score > game.home_score) {
+              topTeam.classList.add('winner');
+              bottomTeam.classList.add('loser');
+            } else {
+              bottomTeam.classList.add('winner');
+              topTeam.classList.add('loser');
+            }
+          }
+        }
+      });
+      
+      // Then, advance winners to next rounds
+      Object.keys(advancementMap).forEach(targetGame => {
+        const sources = advancementMap[targetGame];
+        const targetGameEl = bracket.querySelector(`.bracket-game[data-game="${targetGame}"]`);
+        if (!targetGameEl) return;
+        
+        const topTeamEl = targetGameEl.querySelector('.bracket-team.top');
+        const bottomTeamEl = targetGameEl.querySelector('.bracket-team.bottom');
+        
+        // Advance top team (winner from sources.top)
+        if (sources.top && topTeamEl) {
+          const winner = getGameWinner(sources.top, division);
+          if (winner) {
+            updateTeamSlot(topTeamEl, winner.team);
+          }
+        }
+        
+        // Advance bottom team (winner from sources.bottom)
+        if (sources.bottom && bottomTeamEl) {
+          const winner = getGameWinner(sources.bottom, division);
+          if (winner) {
+            updateTeamSlot(bottomTeamEl, winner.team);
+          }
+        }
+      });
+    }
+    
+    function updateTeamSlot(teamEl, teamName) {
+      if (!teamEl || !teamName) return;
+      
+      const nameSpan = teamEl.querySelector('.bracket-team-name');
+      const logoImg = teamEl.querySelector('.bracket-team-logo');
+      
+      if (nameSpan) {
+        nameSpan.textContent = teamName;
+      }
+      if (logoImg) {
+        logoImg.src = getTeamLogo(teamName);
+        logoImg.onerror = function() { this.src = '/logos/100px/Ball603-white.png'; };
+      }
+      
+      // Remove pending class since team is now known
+      teamEl.classList.remove('pending');
+    }
     
     // Load Bash stories from articles table
     async function loadBashStories() {
@@ -903,7 +1094,9 @@
       
       document.getElementById('todayTitle').textContent = `Day ${dayInfo.day}: ${dayInfo.date}`;
       
-      const games = BASH_DATA.schedule.filter(g => g.date && g.date.includes(dayInfo.dateKey));
+      // Use liveSchedule from database, fall back to BASH_DATA
+      const allGames = liveSchedule.length > 0 ? liveSchedule : (BASH_DATA?.schedule || []);
+      const games = allGames.filter(g => g.date && g.date.includes(dayInfo.dateKey));
       renderDayGames(games);
     }
 
@@ -985,7 +1178,6 @@
 
     // Schedule initialization with new column layout
     function initSchedule() {
-      if (typeof BASH_DATA === 'undefined') return;
       renderSchedule();
 
       document.getElementById('divisionFilter').addEventListener('change', renderSchedule);
@@ -1001,7 +1193,9 @@
       const divFilter = document.getElementById('divisionFilter').value;
       const dayFilter = document.getElementById('dayFilter').value;
 
-      let games = BASH_DATA.schedule.filter(g => !g.special);
+      // Use liveSchedule from database, fall back to BASH_DATA
+      let allGames = liveSchedule.length > 0 ? liveSchedule : (BASH_DATA?.schedule || []);
+      let games = allGames.filter(g => !g.special);
       if (divFilter) games = games.filter(g => g.division === divFilter);
       if (dayFilter) games = games.filter(g => g.date === dayFilter);
 
@@ -1165,15 +1359,21 @@
     document.addEventListener('DOMContentLoaded', async () => {
       createSnow();
       initTabs();
-      initSchedule();
       initHistory();
       
       // Load stories
       loadBashStories();
       
-      // Load teams and render day games
+      // Load teams lookup
       await loadTeamsLookup();
+      
+      // Load live schedule from database, then initialize schedule display
+      await loadLiveSchedule();
+      initSchedule();
       initDayGames();
+      
+      // Update brackets with live scores and advancement
+      updateBrackets();
       updateBracketLogos();
       
       // Check banner dismissal
