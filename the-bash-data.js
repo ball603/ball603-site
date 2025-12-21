@@ -481,7 +481,7 @@ const BASH_DATA = {
     { year: 2010, gender: 'Girls', award: 'All-Tournament', name: 'Angie Michalski', school: 'Inter-Lakes' },
     { year: 2010, gender: 'Girls', award: 'All-Tournament', name: 'Jamie Bisson', school: 'Gorham' },
     { year: 2010, gender: 'Girls', award: 'All-Tournament', name: 'Marissa Moro', school: 'Sanborn' },
-    { year: 2010, gender: 'Girls', award: 'All-Tournament', name: 'Mikaela O'Neil', school: 'Inter-Lakes' },
+    { year: 2010, gender: 'Girls', award: 'All-Tournament', name: 'Mikaela O\'Neil', school: 'Inter-Lakes' },
     { year: 2010, gender: 'Girls', award: 'All-Tournament', name: 'Sam Meader', school: 'Kennett' },
     { year: 2010, gender: 'Girls', award: 'All-Tournament', name: 'Shelby Clement', school: 'Farmington' },
     { year: 2010, gender: 'Girls', award: 'All-Tournament', name: 'Taylor Fiore', school: 'Epping' },
@@ -684,7 +684,7 @@ const BASH_DATA = {
     { year: 1999, gender: 'Girls', award: 'All-Tournament', name: 'Jill Walker', school: 'Newfound' },
     { year: 1999, gender: 'Girls', award: 'All-Tournament', name: 'Lyndsey Maycock', school: 'Kennett' },
     { year: 1999, gender: 'Girls', award: 'All-Tournament', name: 'Sarah Roberts', school: 'Kennett' },
-    { year: 1999, gender: 'Girls', award: 'Sportsmanship', name: 'Kate O'Connor', school: 'Belmont' },
+    { year: 1999, gender: 'Girls', award: 'Sportsmanship', name: 'Kate O\'Connor', school: 'Belmont' },
     { year: 1999, gender: 'Girls', award: 'Team Sportsmanship', name: '', school: 'Thayer' },
 
     // 1998
@@ -699,7 +699,7 @@ const BASH_DATA = {
     { year: 1998, gender: 'Girls', award: 'All-Tournament', name: 'Jill Roberts', school: 'Belmont' },
     { year: 1998, gender: 'Girls', award: 'All-Tournament', name: 'Jill Walker', school: 'Newfound' },
     { year: 1998, gender: 'Girls', award: 'All-Tournament', name: 'Kara Ouellette', school: 'Inter-Lakes' },
-    { year: 1998, gender: 'Girls', award: 'All-Tournament', name: 'Kate O'Connor', school: 'Belmont' },
+    { year: 1998, gender: 'Girls', award: 'All-Tournament', name: 'Kate O\'Connor', school: 'Belmont' },
     { year: 1998, gender: 'Girls', award: 'All-Tournament', name: 'Kristen Umlah', school: 'Kennett' },
     { year: 1998, gender: 'Girls', award: 'Sportsmanship', name: 'Jen Tremblay', school: 'Nute' },
     { year: 1998, gender: 'Girls', award: 'Team Sportsmanship', name: '', school: 'Kennett' },
@@ -942,7 +942,7 @@ const BASH_DATA = {
     { year: 1983, gender: 'Girls', award: 'All-Tournament', name: 'Sherri Goodwin', school: 'Farmington' },
 
     // 1982
-    { year: 1982, gender: 'Boys', award: 'All-Tournament', name: 'Brian O'Conner', school: 'Oyster River' },
+    { year: 1982, gender: 'Boys', award: 'All-Tournament', name: 'Brian O\'Conner', school: 'Oyster River' },
     { year: 1982, gender: 'Boys', award: 'All-Tournament', name: 'Casey Howard', school: 'Farmington' },
     { year: 1982, gender: 'Boys', award: 'All-Tournament', name: 'Chris Franklin', school: 'Oyster River' },
     { year: 1982, gender: 'Boys', award: 'All-Tournament', name: 'Scott Sleeper', school: 'Winnisquam' },
