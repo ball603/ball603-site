@@ -463,6 +463,94 @@
       color: rgba(255,255,255,0.6);
     }
     
+    /* Featured Video Styles */
+    .hero-featured.has-video {
+      cursor: default;
+    }
+    
+    .hero-featured .video-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+    
+    .hero-featured .video-container iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+    
+    .hero-featured .video-thumbnail {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+    }
+    
+    .hero-featured .video-thumbnail img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    
+    .hero-featured .video-play-btn {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 80px;
+      height: 80px;
+      background: rgba(0,0,0,0.7);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s;
+      cursor: pointer;
+    }
+    
+    .hero-featured .video-play-btn:hover {
+      background: var(--accent);
+      transform: translate(-50%, -50%) scale(1.1);
+    }
+    
+    .hero-featured .video-play-btn svg {
+      width: 32px;
+      height: 32px;
+      fill: white;
+      margin-left: 4px;
+    }
+    
+    .hero-featured .video-hover-overlay {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 60px 24px 24px;
+      background: linear-gradient(transparent, rgba(0,0,0,0.9));
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+    }
+    
+    .hero-featured.has-video:hover .video-hover-overlay {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    
+    .hero-featured .video-hover-overlay a {
+      color: white;
+      text-decoration: none;
+    }
+    
+    .hero-featured .video-hover-overlay a:hover .hero-title {
+      color: var(--accent);
+    }
+    
     .hero-sidebar {
       display: flex;
       flex-direction: column;
@@ -2094,6 +2182,43 @@
     });
     
     /**
+     * Extract YouTube video ID from URL
+     */
+    function getYouTubeId(url) {
+      if (!url) return null;
+      const patterns = [
+        /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/)([a-zA-Z0-9_-]{11})/,
+        /youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/
+      ];
+      for (const pattern of patterns) {
+        const match = url.match(pattern);
+        if (match) return match[1];
+      }
+      // If it's already just an ID
+      if (/^[a-zA-Z0-9_-]{11}$/.test(url)) return url;
+      return null;
+    }
+    
+    /**
+     * Start playing video (replaces thumbnail with iframe)
+     */
+    function playFeaturedVideo(videoId) {
+      const container = document.getElementById('heroFeatured');
+      const thumbnail = container.querySelector('.video-thumbnail');
+      if (thumbnail) {
+        thumbnail.innerHTML = `
+          <iframe 
+            src="https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0" 
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+            allowfullscreen>
+          </iframe>
+        `;
+        thumbnail.classList.remove('video-thumbnail');
+        thumbnail.classList.add('video-container');
+      }
+    }
+    
+    /**
      * Render hero section
      */
     function renderHero(articles) {
@@ -2106,16 +2231,73 @@
         const photographer = featured.photographer || featured.game_data?.photographerName || '';
         const showAuthor = featured.author && featured.author !== 'Ball603 Staff';
         const displayDate = featured.article_date || featured.published_at?.split('T')[0] || '';
-        heroFeatured.innerHTML = `
-          <img src="${featured.featured_image_url || PLACEHOLDER_IMG}" alt="${featured.title}">
-          ${photographer ? `<div class="photo-credit">&#128247; ${photographer}</div>` : ''}
-          <div class="hero-overlay">
-            <span class="hero-tag">${featured.youtube_url ? '&#127916; Video' : getTag(featured)}</span>
-            <h2 class="hero-title">${featured.title}</h2>
-            <p class="hero-meta">${Ball603.formatDate(displayDate, 'short')}${showAuthor ? ` &#8226; ${featured.author}` : ''}</p>
-          </div>
-        `;
-        heroFeatured.onclick = () => Ball603.goToArticle(featured.slug);
+        
+        // Check if this is a video feature
+        const videoId = getYouTubeId(featured.youtube_url);
+        
+        if (videoId) {
+          // Video mode
+          const autoplay = featured.video_autoplay;
+          const standalone = featured.video_standalone;
+          
+          heroFeatured.classList.add('has-video');
+          heroFeatured.onclick = null; // Remove default click handler
+          
+          if (autoplay) {
+            // Autoplay: embed iframe immediately
+            heroFeatured.innerHTML = `
+              <div class="video-container">
+                <iframe 
+                  src="https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&rel=0" 
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                  allowfullscreen>
+                </iframe>
+              </div>
+              ${!standalone ? `
+                <div class="video-hover-overlay">
+                  <a href="/article/${featured.slug}">
+                    <span class="hero-tag">&#127916; Video</span>
+                    <h2 class="hero-title">${featured.title}</h2>
+                    <p class="hero-meta">${Ball603.formatDate(displayDate, 'short')}${showAuthor ? ` &#8226; ${featured.author}` : ''}</p>
+                  </a>
+                </div>
+              ` : ''}
+            `;
+          } else {
+            // Click to play: show thumbnail with play button
+            const thumbUrl = featured.featured_image_url || `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+            heroFeatured.innerHTML = `
+              <div class="video-thumbnail" onclick="playFeaturedVideo('${videoId}')">
+                <img src="${thumbUrl}" alt="${featured.title}" onerror="this.src='https://img.youtube.com/vi/${videoId}/hqdefault.jpg'">
+                <div class="video-play-btn">
+                  <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                </div>
+              </div>
+              ${!standalone ? `
+                <div class="video-hover-overlay">
+                  <a href="/article/${featured.slug}">
+                    <span class="hero-tag">&#127916; Video</span>
+                    <h2 class="hero-title">${featured.title}</h2>
+                    <p class="hero-meta">${Ball603.formatDate(displayDate, 'short')}${showAuthor ? ` &#8226; ${featured.author}` : ''}</p>
+                  </a>
+                </div>
+              ` : ''}
+            `;
+          }
+        } else {
+          // Standard image mode (no video)
+          heroFeatured.classList.remove('has-video');
+          heroFeatured.innerHTML = `
+            <img src="${featured.featured_image_url || PLACEHOLDER_IMG}" alt="${featured.title}">
+            ${photographer ? `<div class="photo-credit">&#128247; ${photographer}</div>` : ''}
+            <div class="hero-overlay">
+              <span class="hero-tag">${getTag(featured)}</span>
+              <h2 class="hero-title">${featured.title}</h2>
+              <p class="hero-meta">${Ball603.formatDate(displayDate, 'short')}${showAuthor ? ` &#8226; ${featured.author}` : ''}</p>
+            </div>
+          `;
+          heroFeatured.onclick = () => Ball603.goToArticle(featured.slug);
+        }
       }
       
       // Secondary articles
