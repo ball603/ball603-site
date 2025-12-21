@@ -2622,10 +2622,15 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
                   </div>
                 </div>
                 
-                <!-- Save & Generate Social Button -->
-                <button onclick="saveBashAndGenerateSocial()" id="bashSBSaveBtn" style="width: 100%; background: #2e7d32; color: white; border: none; padding: 15px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;">
-                  ✔ Save & Generate Social Media Posts
-                </button>
+                <!-- Publish Buttons -->
+                <div style="display: flex; gap: 10px;">
+                  <button onclick="saveBashAndGenerateSocial()" id="bashSBSaveBtn" style="flex: 1; background: #2e7d32; color: white; border: none; padding: 15px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;">
+                    ✔ Save & Generate Social
+                  </button>
+                  <button onclick="publishBashDirect()" id="bashSBPublishDirectBtn" style="flex: 1; background: #1565c0; color: white; border: none; padding: 15px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;">
+                    📰 Publish Without Social
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -11591,7 +11596,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       if (!editedArticle || editedArticle.trim() === '') {
         showToast('Article text is empty', 'error');
         btn.disabled = false;
-        btn.textContent = '✔ Save & Generate Social Media Posts';
+        btn.textContent = '✔ Save & Generate Social';
         return;
       }
       
@@ -11683,7 +11688,73 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       }
       
       btn.disabled = false;
-      btn.textContent = '✔ Save & Generate Social Media Posts';
+      btn.textContent = '✔ Save & Generate Social';
+    }
+    
+    async function publishBashDirect() {
+      const btn = document.getElementById('bashSBPublishDirectBtn');
+      btn.disabled = true;
+      btn.textContent = '⏳ Publishing...';
+      
+      const headline = document.getElementById('bashSBHeadline').value;
+      const articleText = document.getElementById('bashSBArticle').value;
+      
+      if (!headline || !articleText.trim()) {
+        showToast('Please enter a headline and article', 'error');
+        btn.disabled = false;
+        btn.textContent = '📰 Publish Without Social';
+        return;
+      }
+      
+      const awayFinal = parseInt(document.getElementById('bashSBAwayFinal').value) || 0;
+      const homeFinal = parseInt(document.getElementById('bashSBHomeFinal').value) || 0;
+      
+      // Generate slug
+      const slug = headline.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') + '-' + Date.now();
+      
+      // Convert to HTML
+      const articleHtml = articleText.split('\n\n').map(p => '<p>' + p.trim() + '</p>').join('');
+      
+      // Create article with bash-game tag
+      const articleData = {
+        title: headline,
+        slug: slug,
+        content: articleHtml,
+        excerpt: articleText.split('.').slice(0, 2).join('.') + '.',
+        author: 'KJ Cardinal',
+        status: 'published',
+        tags: ['The Bash', bashSBSelectedGame.division || 'Boys', bashSBSelectedGame.away, bashSBSelectedGame.home],
+        published_at: new Date().toISOString()
+      };
+      
+      try {
+        const { data, error } = await db.from('articles').insert([articleData]).select();
+        if (error) throw error;
+        
+        // Update game score in bash_schedule
+        await db.from('bash_schedule').update({
+          away_score: awayFinal,
+          home_score: homeFinal,
+          overtime: bashSBOTCount > 0,
+          recap: '/article/' + slug
+        }).eq('id', bashSBSelectedGame.id);
+        
+        showToast('Story published to The Bash!', 'success');
+        
+        // Reset and refresh
+        closeBashSBEntry();
+        document.getElementById('bashSBPreviewPanel').style.display = 'none';
+        document.getElementById('bashSBEmptyState').style.display = 'block';
+        await loadBashSchedule();
+        filterBashSBGames();
+        
+      } catch (err) {
+        console.error('Publish error:', err);
+        showToast('Error publishing: ' + err.message, 'error');
+      }
+      
+      btn.disabled = false;
+      btn.textContent = '📰 Publish Without Social';
     }
     
     async function publishBashStory() {
