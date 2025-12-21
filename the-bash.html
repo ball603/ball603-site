@@ -6,7 +6,7 @@
   <meta name="description" content="The Bash - New Hampshire's Largest Holiday Basketball Tournament featuring 28 teams and 50 games">
   <meta name="theme-color" content="#1a1a2e">
   <title>The Bash 2025 | Ball603</title>
-  <script>window.BASH_PAGE_VERSION = '2024.12.21.v2';</script>
+  <script>window.BASH_PAGE_VERSION = '2024.12.21.v3';</script>
   
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="/logos/TheBash.png">
@@ -83,6 +83,142 @@
       font-weight: 600;
       min-width: 24px;
       text-align: right;
+    }
+    
+    /* Awards view styles */
+    .awards-controls {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 20px;
+    }
+    .awards-view-toggle {
+      display: flex;
+      gap: 8px;
+      background: #f5f5f5;
+      padding: 4px;
+      border-radius: 8px;
+    }
+    .awards-view-btn {
+      padding: 8px 16px;
+      border: none;
+      background: transparent;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      color: #666;
+      transition: all 0.2s;
+    }
+    .awards-view-btn:hover {
+      background: #e0e0e0;
+    }
+    .awards-view-btn.active {
+      background: #f57c00;
+      color: white;
+    }
+    .awards-year-section {
+      margin-bottom: 30px;
+    }
+    .awards-year-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: #1a1a2e;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 3px solid #f57c00;
+    }
+    .awards-year-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 768px) {
+      .awards-year-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    .awards-gender-card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .awards-gender-card.boys {
+      border-top: 4px solid #1565c0;
+    }
+    .awards-gender-card.girls {
+      border-top: 4px solid #f57c00;
+    }
+    .awards-gender-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #333;
+      margin: 0 0 16px 0;
+    }
+    .awards-item {
+      padding: 12px 0;
+      border-bottom: 1px solid #eee;
+    }
+    .awards-item:last-child {
+      border-bottom: none;
+    }
+    .awards-item-award {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: #f57c00;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+    .awards-item-recipient {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .awards-item-logo {
+      width: 36px;
+      height: 36px;
+      object-fit: contain;
+    }
+    .awards-item-info {
+      display: flex;
+      flex-direction: column;
+    }
+    .awards-item-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: #1a1a2e;
+    }
+    .awards-item-school {
+      font-size: 12px;
+      color: #666;
+    }
+    .awards-empty {
+      color: #999;
+      font-size: 13px;
+      font-style: italic;
+    }
+    .awards-search-box {
+      margin-bottom: 16px;
+    }
+    .awards-search-box input {
+      width: 100%;
+      max-width: 300px;
+      padding: 10px 14px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+    .awards-search-box input:focus {
+      outline: none;
+      border-color: #f57c00;
+    }
+    .sortable-table th.sortable {
+      cursor: pointer;
+      user-select: none;
+    }
+    .sortable-table th.sortable:hover {
+      background: #f5f5f5;
     }
   </style>
   
@@ -1268,6 +1404,11 @@
     }
 
     // History
+    let awardsViewMode = 'capsules'; // 'capsules' or 'list'
+    let awardsSortColumn = 'year';
+    let awardsSortDir = 'desc';
+    let awardsSearchTerm = '';
+    
     function initHistory() {
       if (typeof BASH_DATA === 'undefined') return;
 
@@ -1322,20 +1463,133 @@
           </table>
         `;
       } else {
-        const awards = BASH_DATA.awards || [];
-        container.innerHTML = `
-          <table class="bash-history-table">
+        renderAwards();
+      }
+    }
+    
+    function renderAwards() {
+      const container = document.getElementById('historyContent');
+      const awards = BASH_DATA.awards || [];
+      
+      // View toggle buttons
+      const viewToggle = `
+        <div class="awards-controls">
+          <div class="awards-view-toggle">
+            <button class="awards-view-btn ${awardsViewMode === 'capsules' ? 'active' : ''}" onclick="setAwardsView('capsules')">
+              <span>📊</span> Year View
+            </button>
+            <button class="awards-view-btn ${awardsViewMode === 'list' ? 'active' : ''}" onclick="setAwardsView('list')">
+              <span>📋</span> List View
+            </button>
+          </div>
+        </div>
+      `;
+      
+      if (awardsViewMode === 'capsules') {
+        // Group by year
+        const years = [...new Set(awards.map(a => a.year))].sort((a, b) => b - a);
+        
+        const capsulesHtml = years.map(year => {
+          const yearAwards = awards.filter(a => a.year === year);
+          const boysAwards = yearAwards.filter(a => a.gender === 'Boys');
+          const girlsAwards = yearAwards.filter(a => a.gender === 'Girls');
+          
+          return `
+            <div class="awards-year-section">
+              <h3 class="awards-year-title">${year}</h3>
+              <div class="awards-year-grid">
+                <div class="awards-gender-card boys">
+                  <h4 class="awards-gender-title">Boys</h4>
+                  ${boysAwards.length > 0 ? boysAwards.map(a => `
+                    <div class="awards-item">
+                      <span class="awards-item-award">${a.award}</span>
+                      <div class="awards-item-recipient">
+                        <img class="awards-item-logo" src="${getTeamLogo(a.school)}" onerror="this.src='/logos/100px/Ball603-white.png'" alt="">
+                        <div class="awards-item-info">
+                          <span class="awards-item-name">${a.name || '(Team)'}</span>
+                          <span class="awards-item-school">${a.school}</span>
+                        </div>
+                      </div>
+                    </div>
+                  `).join('') : '<div class="awards-empty">No awards</div>'}
+                </div>
+                <div class="awards-gender-card girls">
+                  <h4 class="awards-gender-title">Girls</h4>
+                  ${girlsAwards.length > 0 ? girlsAwards.map(a => `
+                    <div class="awards-item">
+                      <span class="awards-item-award">${a.award}</span>
+                      <div class="awards-item-recipient">
+                        <img class="awards-item-logo" src="${getTeamLogo(a.school)}" onerror="this.src='/logos/100px/Ball603-white.png'" alt="">
+                        <div class="awards-item-info">
+                          <span class="awards-item-name">${a.name || '(Team)'}</span>
+                          <span class="awards-item-school">${a.school}</span>
+                        </div>
+                      </div>
+                    </div>
+                  `).join('') : '<div class="awards-empty">No awards</div>'}
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+        
+        container.innerHTML = viewToggle + capsulesHtml;
+      } else {
+        // List view with search and sorting
+        const searchBox = `
+          <div class="awards-search-box">
+            <input type="text" id="awardsSearch" placeholder="Search by name or school..." value="${awardsSearchTerm}" oninput="filterAwards(this.value)">
+          </div>
+        `;
+        
+        // Filter awards
+        let filtered = awards;
+        if (awardsSearchTerm) {
+          const term = awardsSearchTerm.toLowerCase();
+          filtered = awards.filter(a => 
+            (a.name && a.name.toLowerCase().includes(term)) ||
+            (a.school && a.school.toLowerCase().includes(term))
+          );
+        }
+        
+        // Sort awards
+        filtered.sort((a, b) => {
+          let valA = a[awardsSortColumn];
+          let valB = b[awardsSortColumn];
+          
+          if (awardsSortColumn === 'year') {
+            valA = parseInt(valA) || 0;
+            valB = parseInt(valB) || 0;
+          } else {
+            valA = (valA || '').toString().toLowerCase();
+            valB = (valB || '').toString().toLowerCase();
+          }
+          
+          if (awardsSortDir === 'asc') {
+            return valA > valB ? 1 : valA < valB ? -1 : 0;
+          } else {
+            return valA < valB ? 1 : valA > valB ? -1 : 0;
+          }
+        });
+        
+        const sortIcon = (col) => {
+          if (awardsSortColumn !== col) return '';
+          return awardsSortDir === 'asc' ? ' ▲' : ' ▼';
+        };
+        
+        container.innerHTML = viewToggle + searchBox + `
+          <table class="bash-history-table sortable-table">
             <thead>
               <tr>
-                <th>Year</th>
-                <th>Division</th>
-                <th>Award</th>
-                <th>Recipient</th>
-                <th>School</th>
+                <th class="sortable" onclick="sortAwards('year')">Year${sortIcon('year')}</th>
+                <th class="sortable" onclick="sortAwards('gender')">Division${sortIcon('gender')}</th>
+                <th class="sortable" onclick="sortAwards('award')">Award${sortIcon('award')}</th>
+                <th class="sortable" onclick="sortAwards('name')">Recipient${sortIcon('name')}</th>
+                <th class="sortable" onclick="sortAwards('school')">School${sortIcon('school')}</th>
               </tr>
             </thead>
             <tbody>
-              ${awards.map(a => `
+              ${filtered.length > 0 ? filtered.map(a => `
                 <tr>
                   <td>${a.year}</td>
                   <td>${a.gender}</td>
@@ -1348,11 +1602,31 @@
                     </div>
                   </td>
                 </tr>
-              `).join('')}
+              `).join('') : '<tr><td colspan="5" style="text-align:center;padding:20px;color:#888;">No awards match your search</td></tr>'}
             </tbody>
           </table>
         `;
       }
+    }
+    
+    function setAwardsView(mode) {
+      awardsViewMode = mode;
+      renderAwards();
+    }
+    
+    function sortAwards(column) {
+      if (awardsSortColumn === column) {
+        awardsSortDir = awardsSortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        awardsSortColumn = column;
+        awardsSortDir = column === 'year' ? 'desc' : 'asc';
+      }
+      renderAwards();
+    }
+    
+    function filterAwards(term) {
+      awardsSearchTerm = term;
+      renderAwards();
     }
 
     // Initialize on load
