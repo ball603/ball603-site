@@ -533,6 +533,12 @@
       padding: 60px 24px 24px;
       background: linear-gradient(transparent, rgba(0,0,0,0.9));
       pointer-events: none;
+      transition: opacity 0.3s;
+    }
+    
+    .hero-featured .video-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
     }
     
     .hero-featured .video-overlay a {
@@ -2194,23 +2200,109 @@
       return null;
     }
     
+    // Store featured video data for restoration
+    let featuredVideoData = null;
+    let featuredYTPlayer = null;
+    
+    // Load YouTube IFrame API
+    function loadYouTubeAPI() {
+      if (window.YT && window.YT.Player) return Promise.resolve();
+      return new Promise((resolve) => {
+        if (document.querySelector('script[src*="youtube.com/iframe_api"]')) {
+          // Script already loading, wait for it
+          const checkYT = setInterval(() => {
+            if (window.YT && window.YT.Player) {
+              clearInterval(checkYT);
+              resolve();
+            }
+          }, 100);
+          return;
+        }
+        const tag = document.createElement('script');
+        tag.src = 'https://www.youtube.com/iframe_api';
+        const firstScript = document.getElementsByTagName('script')[0];
+        firstScript.parentNode.insertBefore(tag, firstScript);
+        window.onYouTubeIframeAPIReady = () => resolve();
+      });
+    }
+    
     /**
-     * Start playing video (replaces thumbnail with iframe)
+     * Start playing video using YouTube API
      */
-    function playFeaturedVideo(videoId) {
+    async function playFeaturedVideo(videoId) {
       const container = document.getElementById('heroFeatured');
       const thumbnail = container.querySelector('.video-thumbnail');
-      if (thumbnail) {
-        thumbnail.innerHTML = `
-          <iframe 
-            src="https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0" 
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-            allowfullscreen>
-          </iframe>
-        `;
-        thumbnail.classList.remove('video-thumbnail');
-        thumbnail.classList.add('video-container');
+      const overlay = container.querySelector('.video-overlay');
+      
+      if (!thumbnail) return;
+      
+      // Hide the overlay
+      if (overlay) overlay.classList.add('hidden');
+      
+      // Load YouTube API if needed
+      await loadYouTubeAPI();
+      
+      // Replace thumbnail with player div
+      thumbnail.innerHTML = '<div id="featuredYTPlayer"></div>';
+      thumbnail.classList.remove('video-thumbnail');
+      thumbnail.classList.add('video-container');
+      
+      // Create YouTube player
+      featuredYTPlayer = new YT.Player('featuredYTPlayer', {
+        videoId: videoId,
+        width: '100%',
+        height: '100%',
+        playerVars: {
+          autoplay: 1,
+          rel: 0,
+          modestbranding: 1
+        },
+        events: {
+          onStateChange: onFeaturedPlayerStateChange
+        }
+      });
+    }
+    
+    /**
+     * Handle YouTube player state changes
+     */
+    function onFeaturedPlayerStateChange(event) {
+      // State 0 = ended
+      if (event.data === 0 && featuredVideoData) {
+        restoreFeaturedThumbnail();
       }
+    }
+    
+    /**
+     * Restore the thumbnail after video ends
+     */
+    function restoreFeaturedThumbnail() {
+      if (!featuredVideoData) return;
+      
+      const container = document.getElementById('heroFeatured');
+      const videoContainer = container.querySelector('.video-container');
+      const overlay = container.querySelector('.video-overlay');
+      
+      // Destroy player
+      if (featuredYTPlayer) {
+        featuredYTPlayer.destroy();
+        featuredYTPlayer = null;
+      }
+      
+      // Restore thumbnail
+      if (videoContainer) {
+        videoContainer.innerHTML = `
+          <img src="${featuredVideoData.thumbUrl}" alt="${featuredVideoData.title}" onerror="this.src='https://img.youtube.com/vi/${featuredVideoData.videoId}/hqdefault.jpg'">
+          <div class="video-play-btn" onclick="playFeaturedVideo('${featuredVideoData.videoId}')">
+            <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          </div>
+        `;
+        videoContainer.classList.remove('video-container');
+        videoContainer.classList.add('video-thumbnail');
+      }
+      
+      // Show overlay again
+      if (overlay) overlay.classList.remove('hidden');
     }
     
     /**
@@ -2234,19 +2326,28 @@
           // Video mode
           const autoplay = featured.video_autoplay;
           const standalone = featured.video_standalone;
+          const thumbUrl = featured.featured_image_url || `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+          
+          // Store video data for restoration after playback
+          featuredVideoData = {
+            videoId: videoId,
+            thumbUrl: thumbUrl,
+            title: featured.title,
+            slug: featured.slug,
+            displayDate: displayDate,
+            showAuthor: showAuthor,
+            author: featured.author,
+            standalone: standalone
+          };
           
           heroFeatured.classList.add('has-video');
           heroFeatured.onclick = null; // Remove default click handler
           
           if (autoplay) {
-            // Autoplay: embed iframe immediately
+            // Autoplay: use YouTube API for end detection
             heroFeatured.innerHTML = `
               <div class="video-container">
-                <iframe 
-                  src="https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&rel=0" 
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                  allowfullscreen>
-                </iframe>
+                <div id="featuredYTPlayer"></div>
               </div>
               ${!standalone ? `
                 <div class="video-overlay">
@@ -2258,9 +2359,26 @@
                 </div>
               ` : ''}
             `;
+            
+            // Initialize YouTube player after DOM is ready
+            loadYouTubeAPI().then(() => {
+              featuredYTPlayer = new YT.Player('featuredYTPlayer', {
+                videoId: videoId,
+                width: '100%',
+                height: '100%',
+                playerVars: {
+                  autoplay: 1,
+                  mute: 1,
+                  rel: 0,
+                  modestbranding: 1
+                },
+                events: {
+                  onStateChange: onFeaturedPlayerStateChange
+                }
+              });
+            });
           } else {
             // Click to play: show thumbnail with play button
-            const thumbUrl = featured.featured_image_url || `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
             heroFeatured.innerHTML = `
               <div class="video-thumbnail">
                 <img src="${thumbUrl}" alt="${featured.title}" onerror="this.src='https://img.youtube.com/vi/${videoId}/hqdefault.jpg'">
@@ -2444,14 +2562,17 @@
       // Sort by power rating (descending)
       const sorted = filtered.sort((a, b) => (b.power_rating || 0) - (a.power_rating || 0));
       
-      const standingsHtml = sorted.map((s, i) => `
+      const standingsHtml = sorted.map((s, i) => {
+        // Convert school name to URL slug (lowercase, no spaces/hyphens)
+        const slug = (s.school || '').toLowerCase().replace(/[\s\-]+/g, '');
+        return `
         <div class="standings-row">
           <span class="standings-rank">${i + 1}</span>
           <img class="standings-logo" src="${Ball603.getLogoUrl(s.school)}" alt="" onerror="this.src='/logos/100px/Ball603-white.png'">
-          <a href="/team/${Ball603.getTeamSlug ? Ball603.getTeamSlug(s.school, standingsGender) : ''}" class="standings-team-link">${Ball603.getShortName(s.school)}</a>
+          <a href="/${slug}" class="standings-team-link">${Ball603.getShortName(s.school)}</a>
           <span class="standings-record">${s.wins || 0}-${s.losses || 0}</span>
         </div>
-      `).join('');
+      `}).join('');
       
       container.innerHTML = standingsHtml;
       if (mobileContainer) mobileContainer.innerHTML = standingsHtml;
