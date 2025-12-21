@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Ball603 CMS</title>
+  <script>window.BALL603_CMS_VERSION = '2024.12.21.v2';</script>
   <!-- Google Analytics -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-S4BN80729K"></script>
   <script>
@@ -10481,10 +10482,17 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     
     // ===== BASH CONTENT MANAGEMENT =====
     let bashContent = [];
+    let bashArticles = [];
     
     async function loadBashContent() {
-      const { data, error } = await db.from('bash_content').select('*').order('pinned', { ascending: false }).order('published_at', { ascending: false });
-      bashContent = error ? [] : (data || []);
+      // Load from bash_content table (legacy)
+      const { data: content, error: contentError } = await db.from('bash_content').select('*').order('pinned', { ascending: false }).order('published_at', { ascending: false });
+      bashContent = contentError ? [] : (content || []);
+      
+      // Also load from articles table where tags contain 'The Bash'
+      const { data: articles, error: articlesError } = await db.from('articles').select('*').contains('tags', ['The Bash']).order('published_at', { ascending: false });
+      bashArticles = articlesError ? [] : (articles || []);
+      
       renderBashContent();
     }
     
@@ -10492,7 +10500,25 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const tbody = document.getElementById('bashContentBody');
       if (!tbody) return;
       const typeFilter = document.getElementById('bashContentTypeFilter')?.value || '';
-      let filtered = bashContent.filter(c => !typeFilter || c.content_type === typeFilter);
+      
+      // Convert articles to bash_content format for unified display
+      const articlesAsContent = bashArticles.map(a => ({
+        id: a.id,
+        title: a.title,
+        content_type: 'story',
+        published: a.status === 'published',
+        published_at: a.published_at,
+        teams: a.tags?.filter(t => t !== 'The Bash' && t !== 'Boys' && t !== 'Girls') || [],
+        pinned: false,
+        isArticle: true,
+        slug: a.slug
+      }));
+      
+      // Combine both sources, avoiding duplicates by title
+      const existingTitles = new Set(bashContent.map(c => c.title));
+      const combined = [...bashContent, ...articlesAsContent.filter(a => !existingTitles.has(a.title))];
+      
+      let filtered = combined.filter(c => !typeFilter || c.content_type === typeFilter);
       document.getElementById('bashContentCount').textContent = filtered.length + ' items';
       
       if (filtered.length === 0) {
@@ -10506,17 +10532,17 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       tbody.innerHTML = filtered.map(c => `
         <tr>
           <td style="text-align: center;">
-            <button onclick="toggleBashContentPin('${c.id}')" style="background: none; border: none; cursor: pointer; font-size: 16px; opacity: ${c.pinned ? '1' : '0.3'};">📌</button>
+            ${c.isArticle ? '<span style="color: #888;">-</span>' : `<button onclick="toggleBashContentPin('${c.id}')" style="background: none; border: none; cursor: pointer; font-size: 16px; opacity: ${c.pinned ? '1' : '0.3'};">📌</button>`}
           </td>
           <td><strong>${c.title || 'Untitled'}</strong></td>
-          <td><span style="padding: 3px 8px; border-radius: 10px; font-size: 11px; background: ${typeColors[c.content_type] || '#f5f5f5'};">${typeLabels[c.content_type] || c.content_type}</span></td>
+          <td><span style="padding: 3px 8px; border-radius: 10px; font-size: 11px; background: ${typeColors[c.content_type] || '#f5f5f5'};">${typeLabels[c.content_type] || c.content_type}${c.isArticle ? ' (Article)' : ''}</span></td>
           <td>${c.day ? 'Day ' + c.day : '-'}</td>
           <td style="font-size: 11px; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${(c.teams || []).join(', ') || '-'}</td>
-          <td style="text-align: center;">${c.show_on_main_site ? '✍️…' : '-'}</td>
+          <td style="text-align: center;">${c.isArticle ? '<a href="/article/' + c.slug + '" target="_blank" style="font-size: 11px;">View</a>' : (c.show_on_main_site ? '✍️…' : '-')}</td>
           <td><span style="padding: 3px 8px; border-radius: 10px; font-size: 11px; background: ${c.published ? '#e8f5e9' : '#ffebee'}; color: ${c.published ? '#2e7d32' : '#c62828'};">${c.published ? 'Published' : 'Draft'}</span></td>
           <td>
-            ${c.content_type === 'story' ? `<button onclick="editBashStory('${c.id}')" style="background: none; border: none; color: #1976d2; cursor: pointer; font-size: 12px;">Edit</button>` : ''}
-            <button onclick="deleteBashContent('${c.id}')" style="background: none; border: none; color: #d32f2f; cursor: pointer; font-size: 12px;">Delete</button>
+            ${c.isArticle ? `<button onclick="editArticle('${c.id}')" style="background: none; border: none; color: #1976d2; cursor: pointer; font-size: 12px;">Edit</button>` : (c.content_type === 'story' ? `<button onclick="editBashStory('${c.id}')" style="background: none; border: none; color: #1976d2; cursor: pointer; font-size: 12px;">Edit</button>` : '')}
+            <button onclick="${c.isArticle ? `deleteArticle('${c.id}')` : `deleteBashContent('${c.id}')`}" style="background: none; border: none; color: #d32f2f; cursor: pointer; font-size: 12px;">Delete</button>
           </td>
         </tr>
       `).join('');
@@ -11692,30 +11718,60 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     }
     
     async function publishBashDirect() {
+      console.log('=== publishBashDirect START ===');
+      
       const btn = document.getElementById('bashSBPublishDirectBtn');
+      if (!btn) {
+        console.error('Button not found!');
+        alert('ERROR: Publish button not found. You may be running old code. Please refresh the page.');
+        return;
+      }
+      
       btn.disabled = true;
       btn.textContent = '⏳ Publishing...';
       
-      const headline = document.getElementById('bashSBHeadline').value;
-      const articleText = document.getElementById('bashSBArticle').value;
+      const headline = document.getElementById('bashSBHeadline')?.value || '';
+      const articleText = document.getElementById('bashSBArticle')?.value || '';
       
-      if (!headline || !articleText.trim()) {
-        showToast('Please enter a headline and article', 'error');
+      console.log('Headline:', headline);
+      console.log('Article length:', articleText.length);
+      console.log('Article preview:', articleText.substring(0, 100));
+      console.log('bashSBSelectedGame:', bashSBSelectedGame);
+      
+      if (!headline) {
+        showToast('Please enter a headline', 'error');
         btn.disabled = false;
         btn.textContent = '📰 Publish Without Social';
         return;
       }
       
-      const awayFinal = parseInt(document.getElementById('bashSBAwayFinal').value) || 0;
-      const homeFinal = parseInt(document.getElementById('bashSBHomeFinal').value) || 0;
+      if (!articleText.trim()) {
+        showToast('Article text is empty. Make sure to click "Edit Text" and enter content.', 'error');
+        btn.disabled = false;
+        btn.textContent = '📰 Publish Without Social';
+        return;
+      }
+      
+      if (!bashSBSelectedGame) {
+        showToast('No game selected. Please go back and select a game.', 'error');
+        btn.disabled = false;
+        btn.textContent = '📰 Publish Without Social';
+        return;
+      }
+      
+      const awayFinal = parseInt(document.getElementById('bashSBAwayFinal')?.value) || 0;
+      const homeFinal = parseInt(document.getElementById('bashSBHomeFinal')?.value) || 0;
+      
+      console.log('Scores:', awayFinal, '-', homeFinal);
       
       // Generate slug
       const slug = headline.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') + '-' + Date.now();
+      console.log('Generated slug:', slug);
       
       // Convert to HTML
       const articleHtml = articleText.split('\n\n').map(p => '<p>' + p.trim() + '</p>').join('');
       
-      // Create article with bash-game tag
+      // Create article data
       const articleData = {
         title: headline,
         slug: slug,
@@ -11727,19 +11783,41 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         published_at: new Date().toISOString()
       };
       
+      console.log('Article data to insert:', articleData);
+      
       try {
-        const { data, error } = await db.from('articles').insert([articleData]).select();
-        if (error) throw error;
+        console.log('Inserting into articles table...');
+        const { data: insertedArticle, error: insertError } = await db.from('articles').insert([articleData]).select();
+        
+        console.log('Insert result:', insertedArticle);
+        console.log('Insert error:', insertError);
+        
+        if (insertError) {
+          console.error('Article insert failed:', insertError);
+          throw insertError;
+        }
+        
+        console.log('Article inserted successfully! ID:', insertedArticle?.[0]?.id);
         
         // Update game score in bash_schedule
-        await db.from('bash_schedule').update({
+        console.log('Updating bash_schedule for game:', bashSBSelectedGame.id);
+        const { data: updateData, error: updateError } = await db.from('bash_schedule').update({
           away_score: awayFinal,
           home_score: homeFinal,
           overtime: bashSBOTCount > 0,
           recap: '/article/' + slug
-        }).eq('id', bashSBSelectedGame.id);
+        }).eq('id', bashSBSelectedGame.id).select();
         
-        showToast('Story published to The Bash!', 'success');
+        console.log('Update result:', updateData);
+        console.log('Update error:', updateError);
+        
+        if (updateError) {
+          console.error('Schedule update failed:', updateError);
+          // Don't throw - article is already created
+          showToast('Article published but score update failed: ' + updateError.message, 'error');
+        } else {
+          showToast('Story published to The Bash!', 'success');
+        }
         
         // Reset and refresh
         closeBashSBEntry();
@@ -11747,10 +11825,14 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         document.getElementById('bashSBEmptyState').style.display = 'block';
         await loadBashSchedule();
         filterBashSBGames();
+        await loadBashContent();
+        
+        console.log('=== publishBashDirect SUCCESS ===');
         
       } catch (err) {
-        console.error('Publish error:', err);
-        showToast('Error publishing: ' + err.message, 'error');
+        console.error('=== publishBashDirect ERROR ===');
+        console.error('Full error:', err);
+        showToast('Error publishing: ' + (err.message || JSON.stringify(err)), 'error');
       }
       
       btn.disabled = false;
