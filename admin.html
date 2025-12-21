@@ -2523,7 +2523,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
                   <div>
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                       <label style="font-size: 12px; font-weight: 600;" id="bashSBAwayLabel">Away Scorers</label>
-                      <span style="font-size: 11px; color: #888;">Total: <strong id="bashSBAwayTotal">0</strong></span>
+                      <span style="font-size: 11px; color: #888;">Total: <strong id="bashSBAwayTotal">0</strong> <span id="bashSBAwayMatch"></span></span>
                     </div>
                     <div id="bashSBAwayScorers" class="bash-roster-container">
                       <!-- Populated by JS -->
@@ -2533,7 +2533,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
                   <div>
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                       <label style="font-size: 12px; font-weight: 600;" id="bashSBHomeLabel">Home Scorers</label>
-                      <span style="font-size: 11px; color: #888;">Total: <strong id="bashSBHomeTotal">0</strong></span>
+                      <span style="font-size: 11px; color: #888;">Total: <strong id="bashSBHomeTotal">0</strong> <span id="bashSBHomeMatch"></span></span>
                     </div>
                     <div id="bashSBHomeScorers" class="bash-roster-container">
                       <!-- Populated by JS -->
@@ -2548,38 +2548,87 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
                   <textarea id="bashSBNotes" style="width: 100%; min-height: 60px; padding: 8px; border: 1px solid #ddd; border-radius: 5px; font-size: 12px;" placeholder="Key plays, storylines, milestones..."></textarea>
                 </div>
                 
-                <!-- Generate Button -->
-                <button onclick="generateBashStory()" id="bashSBGenerateBtn" style="width: 100%; background: #f57c00; color: white; border: none; padding: 12px; border-radius: 5px; font-size: 14px; font-weight: 600; cursor: pointer;">
-                  ✨ Generate Story
-                </button>
+                <!-- Generate Buttons -->
+                <div style="display: flex; gap: 8px;">
+                  <button onclick="generateBashStory()" id="bashSBGenerateBtn" style="flex: 1; background: #f57c00; color: white; border: none; padding: 12px; border-radius: 5px; font-size: 14px; font-weight: 600; cursor: pointer;">
+                    ✨ Generate Story
+                  </button>
+                  <button onclick="writeBashOwn()" id="bashSBWriteOwnBtn" style="flex: 1; background: #1a73e8; color: white; border: none; padding: 12px; border-radius: 5px; font-size: 14px; font-weight: 600; cursor: pointer;">
+                    ✍️ Write Your Own
+                  </button>
+                </div>
               </div>
             </div>
             
             <!-- Story Preview Panel -->
             <div id="bashSBPreviewPanel" style="display: none; background: #fff; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
               <div style="background: #2e7d32; color: white; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center;">
-                <h3 style="margin: 0; font-size: 14px;">Review & Publish</h3>
-                <button onclick="backToBashSBEntry()" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;">← Back</button>
+                <h3 style="margin: 0; font-size: 14px;">Review & Edit Story</h3>
+                <button onclick="backToBashSBEntry()" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;">← Back</button>
               </div>
               <div style="padding: 16px;">
+                
+                <!-- Quarter Scores Display Box -->
+                <div style="background: #f9f9f9; border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+                  <table style="width: 100%; border-collapse: collapse; font-size: 13px; text-align: center;">
+                    <thead>
+                      <tr style="border-bottom: 2px solid #ddd;">
+                        <th style="text-align: left; padding: 8px 10px; font-weight: 600;">Team</th>
+                        <th style="padding: 8px 6px; font-weight: 500; color: #666;">Q1</th>
+                        <th style="padding: 8px 6px; font-weight: 500; color: #666;">Q2</th>
+                        <th style="padding: 8px 6px; font-weight: 500; color: #666;">Q3</th>
+                        <th style="padding: 8px 6px; font-weight: 500; color: #666;">Q4</th>
+                        <th id="bashSBPreviewOTHeaders"></th>
+                        <th style="padding: 8px 10px; font-weight: 600;">Final</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td id="bashSBPreviewAwayName" style="text-align: left; padding: 10px; font-weight: 600;"></td>
+                        <td id="bashSBPreviewAwayQ1" style="padding: 10px;"></td>
+                        <td id="bashSBPreviewAwayQ2" style="padding: 10px;"></td>
+                        <td id="bashSBPreviewAwayQ3" style="padding: 10px;"></td>
+                        <td id="bashSBPreviewAwayQ4" style="padding: 10px;"></td>
+                        <td id="bashSBPreviewAwayOT"></td>
+                        <td id="bashSBPreviewAwayFinal" style="padding: 10px; font-weight: 700; font-size: 15px;"></td>
+                      </tr>
+                      <tr style="border-top: 1px solid #eee;">
+                        <td id="bashSBPreviewHomeName" style="text-align: left; padding: 10px; font-weight: 600;"></td>
+                        <td id="bashSBPreviewHomeQ1" style="padding: 10px;"></td>
+                        <td id="bashSBPreviewHomeQ2" style="padding: 10px;"></td>
+                        <td id="bashSBPreviewHomeQ3" style="padding: 10px;"></td>
+                        <td id="bashSBPreviewHomeQ4" style="padding: 10px;"></td>
+                        <td id="bashSBPreviewHomeOT"></td>
+                        <td id="bashSBPreviewHomeFinal" style="padding: 10px; font-weight: 700; font-size: 15px;"></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                
                 <!-- Headline -->
                 <div style="margin-bottom: 12px;">
-                  <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 6px;">Headline</label>
-                  <input type="text" id="bashSBHeadline" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; font-weight: 600;">
+                  <label style="font-size: 12px; font-weight: 600; color: #333; display: block; margin-bottom: 5px;">Headline</label>
+                  <input type="text" id="bashSBHeadline" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; font-weight: 600;">
                 </div>
                 
-                <!-- Article Body -->
+                <!-- Article Body - WYSIWYG style preview -->
                 <div style="margin-bottom: 12px;">
-                  <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 6px;">Article</label>
-                  <textarea id="bashSBArticle" style="width: 100%; min-height: 200px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px; line-height: 1.6;"></textarea>
+                  <label style="font-size: 12px; font-weight: 600; color: #333; display: block; margin-bottom: 5px;">Article</label>
+                  <div id="bashSBPreviewArticleDisplay" style="background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 15px; font-size: 14px; line-height: 1.8; font-family: Georgia, serif; min-height: 200px; max-height: 350px; overflow-y: auto;"></div>
+                  <textarea id="bashSBArticle" style="display: none;"></textarea>
+                  <div style="margin-top: 8px; display: flex; gap: 8px;">
+                    <button onclick="toggleBashArticleEdit()" id="bashSBEditToggleBtn" style="background: #f0f0f0; border: 1px solid #ccc; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">✍️ Edit Text</button>
+                    <small style="color: #888; font-size: 11px; line-height: 28px;">Click to edit. Social media posts will be generated from this text.</small>
+                  </div>
                 </div>
                 
-                <!-- Publish Button -->
-                <button onclick="publishBashStory()" id="bashSBPublishBtn" style="width: 100%; background: #2e7d32; color: white; border: none; padding: 12px; border-radius: 5px; font-size: 14px; font-weight: 600; cursor: pointer;">
-                  Publish to The Bash
+                <!-- Save & Generate Social Button -->
+                <button onclick="saveBashAndGenerateSocial()" id="bashSBSaveBtn" style="width: 100%; background: #2e7d32; color: white; border: none; padding: 15px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;">
+                  ✔ Save & Generate Social Media Posts
                 </button>
               </div>
             </div>
+
             
             <!-- Empty State -->
             <div id="bashSBEmptyState" style="background: #f9f9f9; border: 2px dashed #ddd; border-radius: 8px; padding: 60px 20px; text-align: center;">
@@ -11107,6 +11156,24 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         total += parseInt(input.value) || 0;
       });
       document.getElementById('bashSB' + team.charAt(0).toUpperCase() + team.slice(1) + 'Total').textContent = total;
+      
+      // Update match indicator
+      const prefix = 'bashSB' + team.charAt(0).toUpperCase() + team.slice(1);
+      const final = parseInt(document.getElementById(prefix + 'Final').value) || 0;
+      const matchSpan = document.getElementById(prefix + 'Match');
+      
+      if (matchSpan) {
+        if (!final) {
+          matchSpan.textContent = '✔';
+          matchSpan.style.color = '#888';
+        } else if (total === final) {
+          matchSpan.textContent = '✔';
+          matchSpan.style.color = '#2e7d32';
+        } else {
+          matchSpan.textContent = '(off by ' + Math.abs(final - total) + ')';
+          matchSpan.style.color = '#c62828';
+        }
+      }
     }
     
     function closeBashSBEntry() {
@@ -11128,6 +11195,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         total += otVal;
       }
       document.getElementById(prefix + 'Final').value = total || '';
+      // Update match indicator
+      updateBashPointsTotal(team);
     }
     
     function addBashSBOT() {
@@ -11170,17 +11239,11 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     async function generateBashStory() {
       if (!bashSBSelectedGame) return;
       
-      const btn = document.getElementById('bashSBGenerateBtn');
-      btn.disabled = true;
-      btn.textContent = '⏳ Writing story...';
-      
       const awayFinal = parseInt(document.getElementById('bashSBAwayFinal').value) || 0;
       const homeFinal = parseInt(document.getElementById('bashSBHomeFinal').value) || 0;
       
-      if (!awayFinal || !homeFinal) {
-        showToast('Please enter scores', 'error');
-        btn.disabled = false;
-        btn.textContent = '✨ Generate Story';
+      if (!awayFinal && !homeFinal) {
+        showToast('Please enter quarter scores first', 'error');
         return;
       }
       
@@ -11206,24 +11269,41 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         homeQuarters.push(homeOT);
       }
       
-      // Collect scorers (convert to API format)
+      // Collect scorers
       const awayScorersRaw = collectBashSBScorers('away');
       const homeScorersRaw = collectBashSBScorers('home');
       
-      // Convert to API format: { name, points, threes }
-      const awayScorers = awayScorersRaw.map(s => ({ name: s.name, points: s.pts, threes: s.fg3 || 0 }));
-      const homeScorers = homeScorersRaw.map(s => ({ name: s.name, points: s.pts, threes: s.fg3 || 0 }));
+      // Convert to API format
+      const awayScorers = awayScorersRaw.map(s => ({ name: s.name, points: s.pts, threePointers: s.fg3 || 0 }));
+      const homeScorers = homeScorersRaw.map(s => ({ name: s.name, points: s.pts, threePointers: s.fg3 || 0 }));
+      
+      // Validate scorer points match final
+      const awayPtsTotal = awayScorers.reduce((sum, s) => sum + s.points, 0);
+      const homePtsTotal = homeScorers.reduce((sum, s) => sum + s.points, 0);
+      
+      if (awayPtsTotal !== awayFinal) {
+        showToast(bashSBSelectedGame.away + ' points (' + awayPtsTotal + ') don\'t match final (' + awayFinal + ')', 'error');
+        return;
+      }
+      if (homePtsTotal !== homeFinal) {
+        showToast(bashSBSelectedGame.home + ' points (' + homePtsTotal + ') don\'t match final (' + homeFinal + ')', 'error');
+        return;
+      }
+      
+      const btn = document.getElementById('bashSBGenerateBtn');
+      btn.disabled = true;
+      btn.textContent = '⏳ Writing story...';
       
       const notes = document.getElementById('bashSBNotes').value.trim();
       
       // Get rosters
-      const rosters = getBashTeamRosters();
+      const rosters = await getBashTeamRosters();
       
       // Get school info
       const awaySchoolInfo = getSchoolInfo(bashSBSelectedGame.away);
       const homeSchoolInfo = getSchoolInfo(bashSBSelectedGame.home);
       
-      // Build proofData - no records for exhibition games
+      // Build proofData - no records for tournament games
       const proofData = {
         awayTeam: bashSBSelectedGame.away,
         homeTeam: bashSBSelectedGame.home,
@@ -11269,16 +11349,69 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           bashSBGeneratedData = {
             headline: data.headline || '',
             article: data.article || '',
-            proofData: proofData
+            excerpt: data.excerpt || '',
+            proofData: proofData,
+            rosters: rosters,
+            schoolData: {
+              away: awaySchoolInfo,
+              home: homeSchoolInfo
+            }
           };
           
-          // Show preview
+          // Show preview panel
           document.getElementById('bashSBEntryPanel').style.display = 'none';
           document.getElementById('bashSBPreviewPanel').style.display = 'block';
           document.getElementById('bashSBHeadline').value = data.headline || '';
           document.getElementById('bashSBArticle').value = data.article || '';
           
-          showToast('Story generated!', 'success');
+          // Format article with paragraphs for display
+          const articleHtml = (data.article || '').split('\n\n').map(p => '<p style="margin: 0 0 1em 0;">' + p + '</p>').join('');
+          document.getElementById('bashSBPreviewArticleDisplay').innerHTML = articleHtml;
+          
+          // Populate quarter scores box
+          document.getElementById('bashSBPreviewAwayName').textContent = bashSBSelectedGame.away;
+          document.getElementById('bashSBPreviewHomeName').textContent = bashSBSelectedGame.home;
+          document.getElementById('bashSBPreviewAwayQ1').textContent = awayQuarters[0] || '-';
+          document.getElementById('bashSBPreviewAwayQ2').textContent = awayQuarters[1] || '-';
+          document.getElementById('bashSBPreviewAwayQ3').textContent = awayQuarters[2] || '-';
+          document.getElementById('bashSBPreviewAwayQ4').textContent = awayQuarters[3] || '-';
+          document.getElementById('bashSBPreviewHomeQ1').textContent = homeQuarters[0] || '-';
+          document.getElementById('bashSBPreviewHomeQ2').textContent = homeQuarters[1] || '-';
+          document.getElementById('bashSBPreviewHomeQ3').textContent = homeQuarters[2] || '-';
+          document.getElementById('bashSBPreviewHomeQ4').textContent = homeQuarters[3] || '-';
+          document.getElementById('bashSBPreviewAwayFinal').textContent = awayFinal;
+          document.getElementById('bashSBPreviewHomeFinal').textContent = homeFinal;
+          
+          // Handle OT columns
+          let otHeadersHtml = '';
+          let awayOTHtml = '';
+          let homeOTHtml = '';
+          for (let i = 4; i < awayQuarters.length; i++) {
+            const otNum = i - 3;
+            const otLabel = awayQuarters.length === 5 ? 'OT' : 'OT' + otNum;
+            otHeadersHtml += '<th style="padding: 8px 6px; font-weight: 500; color: #666;">' + otLabel + '</th>';
+            awayOTHtml += '<td style="padding: 10px;">' + (awayQuarters[i] || '-') + '</td>';
+            homeOTHtml += '<td style="padding: 10px;">' + (homeQuarters[i] || '-') + '</td>';
+          }
+          document.getElementById('bashSBPreviewOTHeaders').innerHTML = otHeadersHtml;
+          document.getElementById('bashSBPreviewAwayOT').innerHTML = awayOTHtml;
+          document.getElementById('bashSBPreviewHomeOT').innerHTML = homeOTHtml;
+          
+          // Highlight winner
+          if (awayFinal > homeFinal) {
+            document.getElementById('bashSBPreviewAwayFinal').style.color = '#2e7d32';
+            document.getElementById('bashSBPreviewHomeFinal').style.color = '#333';
+          } else {
+            document.getElementById('bashSBPreviewHomeFinal').style.color = '#2e7d32';
+            document.getElementById('bashSBPreviewAwayFinal').style.color = '#333';
+          }
+          
+          // Reset edit mode
+          document.getElementById('bashSBPreviewArticleDisplay').style.display = 'block';
+          document.getElementById('bashSBArticle').style.display = 'none';
+          document.getElementById('bashSBEditToggleBtn').textContent = '✍️ Edit Text';
+          
+          showToast('Story generated! Review and edit before generating social posts.', 'success');
         } else {
           showToast(data.error || 'Failed to generate story', 'error');
         }
@@ -11296,6 +11429,261 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     function backToBashSBEntry() {
       document.getElementById('bashSBPreviewPanel').style.display = 'none';
       document.getElementById('bashSBEntryPanel').style.display = 'block';
+    }
+    
+    function toggleBashArticleEdit() {
+      const display = document.getElementById('bashSBPreviewArticleDisplay');
+      const textarea = document.getElementById('bashSBArticle');
+      const btn = document.getElementById('bashSBEditToggleBtn');
+      
+      if (textarea.style.display === 'none') {
+        // Switch to edit mode
+        textarea.style.display = 'block';
+        textarea.style.width = '100%';
+        textarea.style.minHeight = '300px';
+        textarea.style.padding = '12px';
+        textarea.style.border = '1px solid #ddd';
+        textarea.style.borderRadius = '6px';
+        textarea.style.fontSize = '14px';
+        textarea.style.lineHeight = '1.6';
+        textarea.style.fontFamily = 'Georgia, serif';
+        textarea.style.resize = 'vertical';
+        display.style.display = 'none';
+        btn.textContent = '👍 Preview';
+        textarea.focus();
+      } else {
+        // Switch to preview mode
+        const articleHtml = textarea.value.split('\n\n').map(p => '<p style="margin: 0 0 1em 0;">' + p + '</p>').join('');
+        display.innerHTML = articleHtml;
+        display.style.display = 'block';
+        textarea.style.display = 'none';
+        btn.textContent = '✍️ Edit Text';
+      }
+    }
+    
+    // Write Your Own - skip AI, go straight to edit
+    function writeBashOwn() {
+      const awayFinal = parseInt(document.getElementById('bashSBAwayFinal').value) || 0;
+      const homeFinal = parseInt(document.getElementById('bashSBHomeFinal').value) || 0;
+      
+      if (!awayFinal && !homeFinal) {
+        showToast('Please enter quarter scores first', 'error');
+        return;
+      }
+      
+      // Collect quarter scores
+      const awayQuarters = [
+        parseInt(document.getElementById('bashSBAwayQ1').value) || 0,
+        parseInt(document.getElementById('bashSBAwayQ2').value) || 0,
+        parseInt(document.getElementById('bashSBAwayQ3').value) || 0,
+        parseInt(document.getElementById('bashSBAwayQ4').value) || 0
+      ];
+      const homeQuarters = [
+        parseInt(document.getElementById('bashSBHomeQ1').value) || 0,
+        parseInt(document.getElementById('bashSBHomeQ2').value) || 0,
+        parseInt(document.getElementById('bashSBHomeQ3').value) || 0,
+        parseInt(document.getElementById('bashSBHomeQ4').value) || 0
+      ];
+      
+      // Add OT if any
+      for (let ot = 1; ot <= bashSBOTCount; ot++) {
+        awayQuarters.push(parseInt(document.getElementById('bashSBAwayOT' + ot)?.value) || 0);
+        homeQuarters.push(parseInt(document.getElementById('bashSBHomeOT' + ot)?.value) || 0);
+      }
+      
+      const awayScorersRaw = collectBashSBScorers('away');
+      const homeScorersRaw = collectBashSBScorers('home');
+      const awayScorers = awayScorersRaw.map(s => ({ name: s.name, points: s.pts, threePointers: s.fg3 || 0 }));
+      const homeScorers = homeScorersRaw.map(s => ({ name: s.name, points: s.pts, threePointers: s.fg3 || 0 }));
+      
+      const awaySchoolInfo = getSchoolInfo(bashSBSelectedGame.away);
+      const homeSchoolInfo = getSchoolInfo(bashSBSelectedGame.home);
+      
+      // Store data for social post generation
+      bashSBGeneratedData = {
+        headline: '',
+        article: '',
+        excerpt: '',
+        proofData: {
+          awayTeam: bashSBSelectedGame.away,
+          homeTeam: bashSBSelectedGame.home,
+          awayQuarters,
+          homeQuarters,
+          awayFinal,
+          homeFinal,
+          awayScorers,
+          homeScorers,
+          gender: bashSBSelectedGame.division || 'Boys',
+          division: '',
+          date: bashSBSelectedGame.date || '',
+          hasOT: bashSBOTCount > 0,
+          isTournament: true,
+          tournamentName: 'The Bash'
+        },
+        schoolData: {
+          away: awaySchoolInfo,
+          home: homeSchoolInfo
+        }
+      };
+      
+      // Show preview panel with empty article
+      document.getElementById('bashSBEntryPanel').style.display = 'none';
+      document.getElementById('bashSBPreviewPanel').style.display = 'block';
+      document.getElementById('bashSBHeadline').value = '';
+      document.getElementById('bashSBArticle').value = '';
+      document.getElementById('bashSBPreviewArticleDisplay').innerHTML = '<p style="color: #888; font-style: italic;">Write your article here...</p>';
+      
+      // Populate quarter scores box
+      document.getElementById('bashSBPreviewAwayName').textContent = bashSBSelectedGame.away;
+      document.getElementById('bashSBPreviewHomeName').textContent = bashSBSelectedGame.home;
+      document.getElementById('bashSBPreviewAwayQ1').textContent = awayQuarters[0] || '-';
+      document.getElementById('bashSBPreviewAwayQ2').textContent = awayQuarters[1] || '-';
+      document.getElementById('bashSBPreviewAwayQ3').textContent = awayQuarters[2] || '-';
+      document.getElementById('bashSBPreviewAwayQ4').textContent = awayQuarters[3] || '-';
+      document.getElementById('bashSBPreviewHomeQ1').textContent = homeQuarters[0] || '-';
+      document.getElementById('bashSBPreviewHomeQ2').textContent = homeQuarters[1] || '-';
+      document.getElementById('bashSBPreviewHomeQ3').textContent = homeQuarters[2] || '-';
+      document.getElementById('bashSBPreviewHomeQ4').textContent = homeQuarters[3] || '-';
+      document.getElementById('bashSBPreviewAwayFinal').textContent = awayFinal;
+      document.getElementById('bashSBPreviewHomeFinal').textContent = homeFinal;
+      
+      // Handle OT
+      let otHeadersHtml = '';
+      let awayOTHtml = '';
+      let homeOTHtml = '';
+      for (let i = 4; i < awayQuarters.length; i++) {
+        const otNum = i - 3;
+        const otLabel = awayQuarters.length === 5 ? 'OT' : 'OT' + otNum;
+        otHeadersHtml += '<th style="padding: 8px 6px; font-weight: 500; color: #666;">' + otLabel + '</th>';
+        awayOTHtml += '<td style="padding: 10px;">' + (awayQuarters[i] || '-') + '</td>';
+        homeOTHtml += '<td style="padding: 10px;">' + (homeQuarters[i] || '-') + '</td>';
+      }
+      document.getElementById('bashSBPreviewOTHeaders').innerHTML = otHeadersHtml;
+      document.getElementById('bashSBPreviewAwayOT').innerHTML = awayOTHtml;
+      document.getElementById('bashSBPreviewHomeOT').innerHTML = homeOTHtml;
+      
+      // Highlight winner
+      if (awayFinal > homeFinal) {
+        document.getElementById('bashSBPreviewAwayFinal').style.color = '#2e7d32';
+        document.getElementById('bashSBPreviewHomeFinal').style.color = '#333';
+      } else {
+        document.getElementById('bashSBPreviewHomeFinal').style.color = '#2e7d32';
+        document.getElementById('bashSBPreviewAwayFinal').style.color = '#333';
+      }
+      
+      // Start in edit mode
+      toggleBashArticleEdit();
+    }
+    
+    async function saveBashAndGenerateSocial() {
+      if (!bashSBGeneratedData) {
+        showToast('No article data found', 'error');
+        return;
+      }
+      
+      const btn = document.getElementById('bashSBSaveBtn');
+      btn.disabled = true;
+      btn.textContent = '⏳ Generating social posts...';
+      
+      const editedHeadline = document.getElementById('bashSBHeadline').value;
+      const editedArticle = document.getElementById('bashSBArticle').value;
+      
+      if (!editedArticle || editedArticle.trim() === '') {
+        showToast('Article text is empty', 'error');
+        btn.disabled = false;
+        btn.textContent = '✔ Save & Generate Social Media Posts';
+        return;
+      }
+      
+      const excerpt = editedArticle.split('.').slice(0, 2).join('.').trim() + '.';
+      
+      try {
+        // Call API to generate social posts
+        const response = await fetch('/.netlify/functions/generate-article', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mode: 'social',
+            article: editedArticle,
+            headline: editedHeadline,
+            proofData: bashSBGeneratedData.proofData,
+            schoolData: bashSBGeneratedData.schoolData,
+            photographerName: null,
+            galleryUrl: null
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          // Close Bash scorebook panel and open article editor
+          document.getElementById('bashSBPreviewPanel').style.display = 'none';
+          document.getElementById('bashSBEmptyState').style.display = 'block';
+          
+          // Store generated social posts
+          generatedSocialPosts = {
+            facebookPost: data.facebookPost || null,
+            instagramPost: data.instagramPost || null,
+            twitterPost: data.twitterPost || null
+          };
+          
+          // Store game data for saving with article
+          currentGameData = {
+            awayTeam: bashSBGeneratedData.proofData.awayTeam,
+            homeTeam: bashSBGeneratedData.proofData.homeTeam,
+            awayQuarters: bashSBGeneratedData.proofData.awayQuarters,
+            homeQuarters: bashSBGeneratedData.proofData.homeQuarters,
+            awayFinal: bashSBGeneratedData.proofData.awayFinal,
+            homeFinal: bashSBGeneratedData.proofData.homeFinal,
+            awayScorers: bashSBGeneratedData.proofData.awayScorers,
+            homeScorers: bashSBGeneratedData.proofData.homeScorers,
+            gender: bashSBGeneratedData.proofData.gender,
+            division: bashSBGeneratedData.proofData.division,
+            isBashGame: true,
+            bashGameId: bashSBSelectedGame.id
+          };
+          
+          // Set up article editor
+          currentArticle = null;
+          document.getElementById('editorTitle').textContent = 'New Bash Article';
+          document.getElementById('articleTitle').value = editedHeadline;
+          const articleHtml = editedArticle.split('\n\n').map(p => '<p>' + p.trim() + '</p>').join('');
+          setEditorContent(articleHtml);
+          document.getElementById('articleExcerpt').value = excerpt;
+          document.getElementById('selectedGameId').value = '';
+          selectedGame = null;
+          document.getElementById('smugmugUrl').value = '';
+          document.getElementById('smugmugThumbUrl').value = '';
+          setPhotographerValue('');
+          document.getElementById('youtubeUrl').value = '';
+          setAuthorValue('KJ Cardinal');
+          document.getElementById('articleDate').value = getTodayEST();
+          isScheduled = false;
+          scheduledTime = null;
+          document.getElementById('scheduledDateTime').value = '';
+          updateScheduleButton();
+          document.getElementById('socialPostsCard').style.display = 'block';
+          
+          // Auto-generate tags for Bash game
+          currentTags = ['The Bash', bashSBGeneratedData.proofData.gender, bashSBSelectedGame.away, bashSBSelectedGame.home];
+          renderTags();
+          
+          // Switch to editor panel
+          showTab('articles');
+          document.getElementById('articlesPanel').style.display = 'none';
+          document.getElementById('editorPanel').style.display = 'block';
+          
+          showToast('Social posts generated! Ready to publish.', 'success');
+        } else {
+          showToast(data.error || 'Failed to generate social posts', 'error');
+        }
+      } catch (err) {
+        console.error('Social generation error:', err);
+        showToast('Failed to generate social posts', 'error');
+      }
+      
+      btn.disabled = false;
+      btn.textContent = '✔ Save & Generate Social Media Posts';
     }
     
     async function publishBashStory() {
