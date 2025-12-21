@@ -6,7 +6,7 @@
   <meta name="description" content="The Bash - New Hampshire's Largest Holiday Basketball Tournament featuring 28 teams and 50 games">
   <meta name="theme-color" content="#1a1a2e">
   <title>The Bash 2025 | Ball603</title>
-  <script>window.BASH_PAGE_VERSION = '2024.12.21.v3';</script>
+  <script>window.BASH_PAGE_VERSION = '2024.12.21.v4';</script>
   
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="/logos/TheBash.png">
@@ -88,8 +88,11 @@
     /* Awards view styles */
     .awards-controls {
       display: flex;
-      justify-content: flex-end;
-      margin-bottom: 20px;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      gap: 12px;
     }
     .awards-view-toggle {
       display: flex;
@@ -115,87 +118,123 @@
       background: #f57c00;
       color: white;
     }
+    .awards-year-jump {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .awards-year-jump label {
+      font-size: 13px;
+      color: #666;
+    }
+    .awards-year-jump select {
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .awards-year-jump select:focus {
+      outline: none;
+      border-color: #f57c00;
+    }
     .awards-year-section {
-      margin-bottom: 30px;
+      margin-bottom: 24px;
+      scroll-margin-top: 20px;
     }
     .awards-year-title {
-      font-size: 24px;
+      font-size: 20px;
       font-weight: 700;
       color: #1a1a2e;
-      margin-bottom: 16px;
-      padding-bottom: 8px;
+      margin-bottom: 12px;
+      padding-bottom: 6px;
       border-bottom: 3px solid #f57c00;
     }
     .awards-year-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 20px;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
     }
-    @media (max-width: 768px) {
+    @media (max-width: 1200px) {
+      .awards-year-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    @media (max-width: 600px) {
       .awards-year-grid {
         grid-template-columns: 1fr;
       }
     }
     .awards-gender-card {
       background: white;
-      border-radius: 12px;
-      padding: 20px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      border-radius: 8px;
+      padding: 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
     }
     .awards-gender-card.boys {
-      border-top: 4px solid #1565c0;
+      border-top: 3px solid #1a1a2e;
     }
     .awards-gender-card.girls {
-      border-top: 4px solid #f57c00;
+      border-top: 3px solid #f57c00;
     }
     .awards-gender-title {
-      font-size: 16px;
+      font-size: 13px;
       font-weight: 600;
       color: #333;
-      margin: 0 0 16px 0;
+      margin: 0 0 10px 0;
     }
     .awards-item {
-      padding: 12px 0;
+      padding: 8px 0;
       border-bottom: 1px solid #eee;
     }
     .awards-item:last-child {
       border-bottom: none;
+      padding-bottom: 0;
     }
     .awards-item-award {
       display: block;
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 600;
       color: #f57c00;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      margin-bottom: 6px;
+      margin-bottom: 4px;
     }
     .awards-item-recipient {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 8px;
     }
     .awards-item-logo {
-      width: 36px;
-      height: 36px;
+      width: 28px;
+      height: 28px;
       object-fit: contain;
     }
     .awards-item-info {
       display: flex;
       flex-direction: column;
+      min-width: 0;
     }
     .awards-item-name {
-      font-size: 14px;
+      font-size: 12px;
       font-weight: 600;
       color: #1a1a2e;
+      line-height: 1.2;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .awards-item-school {
-      font-size: 12px;
+      font-size: 11px;
       color: #666;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .awards-empty {
       color: #999;
-      font-size: 13px;
+      font-size: 12px;
       font-style: italic;
     }
     .awards-search-box {
@@ -1471,6 +1510,22 @@
       const container = document.getElementById('historyContent');
       const awards = BASH_DATA.awards || [];
       
+      // Award order priority
+      const awardOrder = ['MVP', 'All-Tourney Team', 'Team Sportsmanship', 'Sportsmanship', '3-Point', 'Skills', 'Dunk'];
+      
+      function sortAwardsByOrder(awardsList) {
+        return awardsList.sort((a, b) => {
+          const aIdx = awardOrder.findIndex(o => a.award && a.award.toLowerCase().includes(o.toLowerCase()));
+          const bIdx = awardOrder.findIndex(o => b.award && b.award.toLowerCase().includes(o.toLowerCase()));
+          const aOrder = aIdx === -1 ? 999 : aIdx;
+          const bOrder = bIdx === -1 ? 999 : bIdx;
+          return aOrder - bOrder;
+        });
+      }
+      
+      // Get unique years
+      const years = [...new Set(awards.map(a => a.year))].sort((a, b) => b - a);
+      
       // View toggle buttons
       const viewToggle = `
         <div class="awards-controls">
@@ -1486,16 +1541,24 @@
       `;
       
       if (awardsViewMode === 'capsules') {
-        // Group by year
-        const years = [...new Set(awards.map(a => a.year))].sort((a, b) => b - a);
+        // Year jump dropdown
+        const yearDropdown = `
+          <div class="awards-year-jump">
+            <label>Jump to year:</label>
+            <select onchange="scrollToAwardsYear(this.value)">
+              <option value="">Select year...</option>
+              ${years.map(y => `<option value="${y}">${y}</option>`).join('')}
+            </select>
+          </div>
+        `;
         
         const capsulesHtml = years.map(year => {
           const yearAwards = awards.filter(a => a.year === year);
-          const boysAwards = yearAwards.filter(a => a.gender === 'Boys');
-          const girlsAwards = yearAwards.filter(a => a.gender === 'Girls');
+          const boysAwards = sortAwardsByOrder(yearAwards.filter(a => a.gender === 'Boys'));
+          const girlsAwards = sortAwardsByOrder(yearAwards.filter(a => a.gender === 'Girls'));
           
           return `
-            <div class="awards-year-section">
+            <div class="awards-year-section" id="awards-year-${year}">
               <h3 class="awards-year-title">${year}</h3>
               <div class="awards-year-grid">
                 <div class="awards-gender-card boys">
@@ -1533,7 +1596,7 @@
           `;
         }).join('');
         
-        container.innerHTML = viewToggle + capsulesHtml;
+        container.innerHTML = viewToggle + yearDropdown + capsulesHtml;
       } else {
         // List view with search and sorting
         const searchBox = `
@@ -1627,6 +1690,14 @@
     function filterAwards(term) {
       awardsSearchTerm = term;
       renderAwards();
+    }
+    
+    function scrollToAwardsYear(year) {
+      if (!year) return;
+      const el = document.getElementById('awards-year-' + year);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     }
 
     // Initialize on load
