@@ -138,6 +138,59 @@
       border: none;
     }
     
+    /* Video Thumbnail with Play Button */
+    .article-featured .video-thumbnail {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      cursor: pointer;
+    }
+    
+    .article-featured .video-thumbnail img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    
+    .article-featured .video-play-btn {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 80px;
+      height: 80px;
+      background: rgba(0,0,0,0.7);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s;
+      cursor: pointer;
+    }
+    
+    .article-featured .video-play-btn:hover {
+      background: var(--accent);
+      transform: translate(-50%, -50%) scale(1.1);
+    }
+    
+    .article-featured .video-play-btn svg {
+      width: 32px;
+      height: 32px;
+      fill: white;
+      margin-left: 4px;
+    }
+    
+    .article-featured .video-container {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+    }
+    
+    .article-featured .video-container iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+    
     /* Photo Credit Overlay */
     .photo-credit {
       position: absolute;
@@ -1198,6 +1251,8 @@
     let linkedGame = null;
     let galleryPhotos = [];
     let articleSponsors = [];
+    let articleVideoData = null;
+    let articleYTPlayer = null;
     
     /**
      * Convert team name to URL slug (lowercase, no spaces/hyphens)
@@ -1547,13 +1602,21 @@
       if (article.youtube_url) {
         const videoId = extractYouTubeId(article.youtube_url);
         if (videoId) {
+          // Store video data for restoration after playback ends
+          articleVideoData = {
+            videoId: videoId,
+            thumbUrl: article.featured_image_url || `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
+            title: article.title
+          };
+          
           featuredHtml = `
             <div class="article-featured">
-              <iframe 
-                src="https://www.youtube.com/embed/${videoId}" 
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                allowfullscreen>
-              </iframe>
+              <div class="video-thumbnail" onclick="playArticleVideo('${videoId}')">
+                <img src="${articleVideoData.thumbUrl}" alt="${article.title}" onerror="this.src='https://img.youtube.com/vi/${videoId}/hqdefault.jpg'">
+                <div class="video-play-btn">
+                  <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                </div>
+              </div>
             </div>
           `;
         }
@@ -1812,6 +1875,101 @@
       if (!url) return null;
       const match = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
       return match ? match[1] : null;
+    }
+    
+    /**
+     * Load YouTube IFrame API
+     */
+    function loadYouTubeAPI() {
+      if (window.YT && window.YT.Player) return Promise.resolve();
+      return new Promise((resolve) => {
+        if (document.querySelector('script[src*="youtube.com/iframe_api"]')) {
+          // Script already loading, wait for it
+          const checkYT = setInterval(() => {
+            if (window.YT && window.YT.Player) {
+              clearInterval(checkYT);
+              resolve();
+            }
+          }, 100);
+          return;
+        }
+        const tag = document.createElement('script');
+        tag.src = 'https://www.youtube.com/iframe_api';
+        const firstScript = document.getElementsByTagName('script')[0];
+        firstScript.parentNode.insertBefore(tag, firstScript);
+        window.onYouTubeIframeAPIReady = () => resolve();
+      });
+    }
+    
+    /**
+     * Play article video using YouTube API
+     */
+    async function playArticleVideo(videoId) {
+      const container = document.querySelector('.article-featured');
+      const thumbnail = container?.querySelector('.video-thumbnail');
+      
+      if (!thumbnail) return;
+      
+      // Load YouTube API if needed
+      await loadYouTubeAPI();
+      
+      // Replace thumbnail with player div
+      thumbnail.innerHTML = '<div id="articleYTPlayer"></div>';
+      thumbnail.classList.remove('video-thumbnail');
+      thumbnail.classList.add('video-container');
+      
+      // Create YouTube player
+      articleYTPlayer = new YT.Player('articleYTPlayer', {
+        videoId: videoId,
+        width: '100%',
+        height: '100%',
+        playerVars: {
+          autoplay: 1,
+          rel: 0,
+          modestbranding: 1
+        },
+        events: {
+          onStateChange: onArticlePlayerStateChange
+        }
+      });
+    }
+    
+    /**
+     * Handle YouTube player state changes
+     */
+    function onArticlePlayerStateChange(event) {
+      // State 0 = ended
+      if (event.data === 0 && articleVideoData) {
+        restoreArticleThumbnail();
+      }
+    }
+    
+    /**
+     * Restore the thumbnail after video ends
+     */
+    function restoreArticleThumbnail() {
+      if (!articleVideoData) return;
+      
+      const container = document.querySelector('.article-featured');
+      const videoContainer = container?.querySelector('.video-container');
+      
+      // Destroy player
+      if (articleYTPlayer) {
+        articleYTPlayer.destroy();
+        articleYTPlayer = null;
+      }
+      
+      // Restore thumbnail
+      if (videoContainer) {
+        videoContainer.innerHTML = `
+          <img src="${articleVideoData.thumbUrl}" alt="${articleVideoData.title}" onerror="this.src='https://img.youtube.com/vi/${articleVideoData.videoId}/hqdefault.jpg'">
+          <div class="video-play-btn" onclick="playArticleVideo('${articleVideoData.videoId}')">
+            <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          </div>
+        `;
+        videoContainer.classList.remove('video-container');
+        videoContainer.classList.add('video-thumbnail');
+      }
     }
     
     /**
