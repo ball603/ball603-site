@@ -601,6 +601,7 @@
     
   </div>
 
+  <script src="/the-bash-data.js"></script>
   <script>
     // Supabase setup
     const SUPABASE_URL = 'https://suncdkxfqkwwnmhosxcf.supabase.co';
@@ -707,14 +708,36 @@
         
         if (error) throw error;
         
-        allGames = data || [];
-        console.log('Loaded', allGames.length, 'Bash games');
+        if (data && data.length > 0) {
+          allGames = data;
+          console.log('Loaded', allGames.length, 'Bash games from database');
+        } else {
+          // Fall back to static data
+          console.log('No database games, using BASH_DATA');
+          allGames = (BASH_DATA?.schedule || []).map((g, i) => ({
+            id: i + 1,
+            ...g,
+            away_score: g.awayScore,
+            home_score: g.homeScore,
+            game_number: g.game
+          }));
+          console.log('Loaded', allGames.length, 'games from BASH_DATA');
+        }
+        
         if (allGames.length > 0) {
           console.log('Sample game:', allGames[0]);
         }
       } catch (err) {
         console.error('Error loading games:', err);
-        allGames = [];
+        // Fall back to static data
+        allGames = (BASH_DATA?.schedule || []).map((g, i) => ({
+          id: i + 1,
+          ...g,
+          away_score: g.awayScore,
+          home_score: g.homeScore,
+          game_number: g.game
+        }));
+        console.log('Fallback: Loaded', allGames.length, 'games from BASH_DATA');
       }
     }
     
