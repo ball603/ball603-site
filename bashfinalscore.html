@@ -668,16 +668,24 @@
     }
     
     // Check password
-    function checkPassword() {
+    async function checkPassword() {
       const input = document.getElementById('passwordInput').value;
       const errorEl = document.getElementById('loginError');
       
       if (input.toLowerCase() === PASSWORD) {
         errorEl.style.display = 'none';
+        errorEl.textContent = 'Loading games...';
+        errorEl.style.display = 'block';
+        errorEl.style.color = '#999';
+        
+        // Load games first, then show gender page
+        await loadGames();
+        
+        errorEl.style.display = 'none';
         showPage('genderPage');
-        loadGames();
       } else {
         errorEl.textContent = 'Incorrect password';
+        errorEl.style.color = '#ff5252';
         errorEl.style.display = 'block';
       }
     }
@@ -701,6 +709,9 @@
         
         allGames = data || [];
         console.log('Loaded', allGames.length, 'Bash games');
+        if (allGames.length > 0) {
+          console.log('Sample game:', allGames[0]);
+        }
       } catch (err) {
         console.error('Error loading games:', err);
         allGames = [];
@@ -723,7 +734,7 @@
       container.innerHTML = TOURNAMENT_DAYS.map(d => {
         const isToday = d.day === currentDay;
         const gamesForDay = allGames.filter(g => 
-          g.date === d.dateKey && g.division === selectedGender
+          g.date && g.date.includes(d.dateKey) && g.division === selectedGender
         );
         const completedGames = gamesForDay.filter(g => 
           g.away_score !== null && g.home_score !== null
@@ -751,7 +762,7 @@
       
       // Filter games for selected gender and day
       let games = allGames.filter(g => 
-        g.date === selectedDay && 
+        g.date && g.date.includes(selectedDay) && 
         g.division === selectedGender
       );
       
