@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1a1a2e">
+  <title>The Bash | Score Entry</title>
+  <link rel="icon" type="image/png" href="/the-bash-logo.png">
+  <link rel="apple-touch-icon" href="/the-bash-logo.png">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a2e;
+      color: #fff;
+      min-height: 100vh;
+      min-height: -webkit-fill-available;
+    }
+    
+    .container {
+      max-width: 500px;
+      margin: 0 auto;
+      padding: 20px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .logo {
+      width: 100px;
+      height: 100px;
+      margin: 0 auto 20px;
+      display: block;
+      border-radius: 12px;
+    }
+    
+    .page {
+      display: none;
+      flex-direction: column;
+      flex: 1;
+    }
+    
+    .page.active {
+      display: flex;
+    }
+    
+    .page-title {
+      font-size: 24px;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 30px;
+      color: #fff;
+    }
+    
+    .page-subtitle {
+      font-size: 16px;
+      text-align: center;
+      color: #999;
+      margin-bottom: 30px;
+    }
+    
+    .bash-badge {
+      display: inline-block;
+      background: #f57c00;
+      color: white;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 20px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 10px;
+    }
+    
+    /* Login */
+    .login-input {
+      width: 100%;
+      padding: 16px 20px;
+      font-size: 18px;
+      border: 2px solid #3d3d5c;
+      border-radius: 12px;
+      background: #2d2d44;
+      color: #fff;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    
+    .login-input:focus {
+      outline: none;
+      border-color: #f57c00;
+    }
+    
+    .login-input::placeholder {
+      color: #666;
+    }
+    
+    .login-error {
+      color: #ff5252;
+      text-align: center;
+      margin-bottom: 15px;
+      font-size: 14px;
+    }
+    
+    /* Buttons */
+    .btn {
+      width: 100%;
+      padding: 18px 24px;
+      font-size: 18px;
+      font-weight: 600;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: transform 0.1s, opacity 0.2s;
+    }
+    
+    .btn:active {
+      transform: scale(0.98);
+    }
+    
+    .btn-primary {
+      background: #f57c00;
+      color: #fff;
+    }
+    
+    .btn-primary:hover {
+      background: #e66a00;
+    }
+    
+    .btn-secondary {
+      background: #3d3d5c;
+      color: #fff;
+      margin-top: 12px;
+    }
+    
+    .btn-secondary:hover {
+      background: #4d4d6c;
+    }
+    
+    /* Gender Selection */
+    .gender-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin-top: auto;
+      margin-bottom: auto;
+    }
+    
+    .gender-btn {
+      padding: 24px;
+      font-size: 22px;
+      font-weight: 700;
+      border: 2px solid #3d3d5c;
+      border-radius: 16px;
+      background: #2d2d44;
+      color: #fff;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .gender-btn:hover {
+      border-color: #f57c00;
+      background: #3d3d5c;
+    }
+    
+    .gender-btn:active {
+      transform: scale(0.98);
+    }
+    
+    /* Day Selection */
+    .day-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 20px;
+    }
+    
+    .day-btn {
+      padding: 18px 20px;
+      font-size: 16px;
+      font-weight: 600;
+      border: 2px solid #3d3d5c;
+      border-radius: 12px;
+      background: #2d2d44;
+      color: #fff;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .day-btn:hover {
+      border-color: #f57c00;
+      background: #3d3d5c;
+    }
+    
+    .day-btn.today {
+      border-color: #f57c00;
+      background: linear-gradient(135deg, #f57c00 0%, #ff9800 100%);
+    }
+    
+    .day-btn-date {
+      font-size: 14px;
+      opacity: 0.7;
+    }
+    
+    .day-btn.today .day-btn-date {
+      opacity: 1;
+    }
+    
+    /* Games List */
+    .games-header {
+      font-size: 18px;
+      font-weight: 600;
+      color: #f57c00;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+    
+    .games-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      flex: 1;
+      overflow-y: auto;
+      padding-bottom: 80px;
+    }
+    
+    .game-pill {
+      display: flex;
+      align-items: center;
+      padding: 14px 16px;
+      background: #2d2d44;
+      border: 2px solid #3d3d5c;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .game-pill:hover {
+      border-color: #f57c00;
+      background: #3d3d5c;
+    }
+    
+    .game-pill:active {
+      transform: scale(0.98);
+    }
+    
+    .game-pill.final {
+      opacity: 0.5;
+      cursor: default;
+    }
+    
+    .game-pill.final:hover {
+      border-color: #3d3d5c;
+      background: #2d2d44;
+    }
+    
+    .game-pill-content {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    
+    .game-pill-logo {
+      width: 28px;
+      height: 28px;
+      object-fit: contain;
+    }
+    
+    .game-pill-at {
+      color: #666;
+      font-size: 12px;
+    }
+    
+    .game-pill-time {
+      font-size: 11px;
+      color: #999;
+      margin-right: 8px;
+    }
+    
+    .game-pill-score {
+      font-size: 13px;
+      color: #f57c00;
+      margin-left: auto;
+      white-space: nowrap;
+    }
+    
+    .edit-btn {
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      background: #f57c00;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-left: 10px;
+    }
+    
+    .edit-btn:hover {
+      background: #e66a00;
+    }
+    
+    /* Score Entry */
+    .score-entry {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .team-score-row {
+      display: flex;
+      align-items: center;
+      padding: 20px;
+      background: #2d2d44;
+      border-radius: 12px;
+      margin-bottom: 12px;
+    }
+    
+    .team-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+    }
+    
+    .team-logo {
+      width: 48px;
+      height: 48px;
+      object-fit: contain;
+    }
+    
+    .team-name {
+      font-size: 16px;
+      font-weight: 600;
+    }
+    
+    .score-input {
+      width: 80px;
+      padding: 12px;
+      font-size: 28px;
+      font-weight: 700;
+      text-align: center;
+      border: 2px solid #3d3d5c;
+      border-radius: 10px;
+      background: #1a1a2e;
+      color: #fff;
+    }
+    
+    .score-input:focus {
+      outline: none;
+      border-color: #f57c00;
+    }
+    
+    .status-select {
+      width: 100%;
+      padding: 16px 20px;
+      font-size: 16px;
+      border: 2px solid #3d3d5c;
+      border-radius: 12px;
+      background: #2d2d44;
+      color: #fff;
+      margin-top: 20px;
+      cursor: pointer;
+    }
+    
+    .status-select:focus {
+      outline: none;
+      border-color: #f57c00;
+    }
+    
+    .submit-section {
+      margin-top: auto;
+      padding-top: 20px;
+    }
+    
+    /* Confirmation */
+    .confirm-box {
+      background: #2d2d44;
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 30px;
+    }
+    
+    .confirm-matchup {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    
+    .confirm-team {
+      text-align: center;
+      flex: 1;
+    }
+    
+    .confirm-logo {
+      width: 56px;
+      height: 56px;
+      object-fit: contain;
+      margin-bottom: 8px;
+    }
+    
+    .confirm-name {
+      font-size: 14px;
+      font-weight: 500;
+      color: #ccc;
+      margin-bottom: 8px;
+    }
+    
+    .confirm-score {
+      font-size: 36px;
+      font-weight: 700;
+      color: #fff;
+    }
+    
+    .confirm-score.winner {
+      color: #f57c00;
+    }
+    
+    .confirm-vs {
+      font-size: 14px;
+      color: #666;
+      padding: 0 10px;
+    }
+    
+    .confirm-status {
+      text-align: center;
+      font-size: 14px;
+      font-weight: 600;
+      color: #f57c00;
+      text-transform: uppercase;
+    }
+    
+    /* Thanks */
+    .thanks-icon {
+      font-size: 64px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    
+    .thanks-message {
+      font-size: 28px;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    
+    /* Back button */
+    .back-btn {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      padding: 8px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      background: #3d3d5c;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      z-index: 100;
+    }
+    
+    .back-btn:hover {
+      background: #4d4d6c;
+    }
+    
+    /* Loading */
+    .loading {
+      text-align: center;
+      color: #999;
+      padding: 40px;
+    }
+    
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      color: #666;
+      padding: 40px;
+    }
+    
+    .empty-state-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    
+    <!-- Login Page -->
+    <div class="page active" id="loginPage">
+      <img src="/the-bash-logo.png" alt="The Bash" class="logo" onerror="this.src='/logo.png'">
+      <div style="text-align: center;"><span class="bash-badge">The Bash 2025</span></div>
+      <h1 class="page-title">Score Entry</h1>
+      <p class="page-subtitle">Enter password to continue</p>
+      <div id="loginError" class="login-error" style="display: none;"></div>
+      <input type="password" id="passwordInput" class="login-input" placeholder="Password" autocomplete="off">
+      <button class="btn btn-primary" onclick="checkPassword()">Enter</button>
+    </div>
+    
+    <!-- Gender Selection Page -->
+    <div class="page" id="genderPage">
+      <img src="/the-bash-logo.png" alt="The Bash" class="logo" onerror="this.src='/logo.png'">
+      <h1 class="page-title">Select Division</h1>
+      <div class="gender-buttons">
+        <button class="gender-btn" onclick="selectGender('Boys')">&#127936; Boys</button>
+        <button class="gender-btn" onclick="selectGender('Girls')">&#127936; Girls</button>
+      </div>
+    </div>
+    
+    <!-- Day Selection Page -->
+    <div class="page" id="dayPage">
+      <button class="back-btn" onclick="goToGender()">&#8592; Back</button>
+      <h1 class="page-title" id="dayPageTitle">Boys Games</h1>
+      <p class="page-subtitle">Select a tournament day</p>
+      <div class="day-buttons" id="dayButtons">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+    
+    <!-- Games List Page -->
+    <div class="page" id="gamesPage">
+      <button class="back-btn" onclick="goToDays()">&#8592; Back</button>
+      <h2 class="games-header" id="gamesHeader">Boys: Dec 27</h2>
+      <div class="games-list" id="gamesList">
+        <div class="loading">Loading games...</div>
+      </div>
+    </div>
+    
+    <!-- Score Entry Page -->
+    <div class="page" id="scorePage">
+      <button class="back-btn" onclick="goToGames()">&#8592; Back</button>
+      <h1 class="page-title">Enter Score</h1>
+      <div class="score-entry">
+        <div class="team-score-row">
+          <div class="team-info">
+            <img id="awayLogo" class="team-logo" src="/logo.png" alt="">
+            <span id="awayName" class="team-name">Away Team</span>
+          </div>
+          <input type="number" id="awayScore" class="score-input" value="0" min="0" inputmode="numeric" pattern="[0-9]*">
+        </div>
+        <div class="team-score-row">
+          <div class="team-info">
+            <img id="homeLogo" class="team-logo" src="/logo.png" alt="">
+            <span id="homeName" class="team-name">Home Team</span>
+          </div>
+          <input type="number" id="homeScore" class="score-input" value="0" min="0" inputmode="numeric" pattern="[0-9]*">
+        </div>
+        <select id="gameStatus" class="status-select">
+          <option value="FINAL">Final</option>
+          <option value="FINAL (OT)">Final (OT)</option>
+          <option value="FINAL (2OT)">Final (2OT)</option>
+          <option value="FINAL (3OT)">Final (3OT)</option>
+        </select>
+        <div class="submit-section">
+          <button class="btn btn-primary" onclick="submitScore()">Submit Score</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Confirmation Page -->
+    <div class="page" id="confirmPage">
+      <button class="back-btn" onclick="goToScore()">&#8592; Back</button>
+      <h1 class="page-title">Confirm Score</h1>
+      <div class="confirm-box">
+        <div class="confirm-matchup">
+          <div class="confirm-team">
+            <img id="confirmAwayLogo" class="confirm-logo" src="/logo.png" alt="">
+            <div id="confirmAwayName" class="confirm-name">Away</div>
+            <div id="confirmAwayScore" class="confirm-score">0</div>
+          </div>
+          <div class="confirm-vs">@</div>
+          <div class="confirm-team">
+            <img id="confirmHomeLogo" class="confirm-logo" src="/logo.png" alt="">
+            <div id="confirmHomeName" class="confirm-name">Home</div>
+            <div id="confirmHomeScore" class="confirm-score">0</div>
+          </div>
+        </div>
+        <div id="confirmStatus" class="confirm-status">FINAL</div>
+      </div>
+      <button class="btn btn-primary" onclick="confirmScore()">Click to Confirm</button>
+      <button class="btn btn-secondary" onclick="goToScore()">Go Back & Edit</button>
+    </div>
+    
+    <!-- Thanks Page -->
+    <div class="page" id="thanksPage">
+      <div style="margin: auto;">
+        <img src="/the-bash-logo.png" alt="The Bash" class="logo" style="width: 120px; height: 120px;" onerror="this.src='/logo.png'">
+        <div class="thanks-message">Score Submitted!</div>
+        <button class="btn btn-primary" onclick="startOver()">Enter Another Score</button>
+      </div>
+    </div>
+    
+  </div>
+
+  <script>
+    // Supabase setup
+    const SUPABASE_URL = 'https://suncdkxfqkwwnmhosxcf.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN1bmNka3hmcWt3d25taG9zeGNmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzMwODI0MjAsImV4cCI6MjA0ODY1ODQyMH0.yMDgMF7UNKkaF4FpJHUDBPNVgSfGST4Ilrp7hhZ1rLE';
+    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    
+    const PASSWORD = 'assist';
+    let allGames = [];
+    let selectedGender = null;
+    let selectedDay = null;
+    let selectedGame = null;
+    
+    // Tournament days
+    const TOURNAMENT_DAYS = [
+      { day: 1, date: 'Dec 26', dateKey: 'Dec 26', label: 'Day 1 - Play-In Games' },
+      { day: 2, date: 'Dec 27', dateKey: 'Dec 27', label: 'Day 2 - First Round' },
+      { day: 3, date: 'Dec 28', dateKey: 'Dec 28', label: 'Day 3 - Quarterfinals' },
+      { day: 4, date: 'Dec 29', dateKey: 'Dec 29', label: 'Day 4 - Semifinals' },
+      { day: 5, date: 'Dec 30', dateKey: 'Dec 30', label: 'Day 5 - Championship' }
+    ];
+    
+    // Helper to get logo filename
+    function getLogoFilename(team) {
+      if (!team) return 'Ball603-white.png';
+      return team.replace(/[^a-zA-Z0-9]/g, '') + '.png';
+    }
+    
+    // Helper to get current date in EST
+    function getESTDate() {
+      return new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+    }
+    
+    // Get current tournament day number (1-5)
+    function getCurrentTournamentDay() {
+      const est = getESTDate();
+      const month = est.getMonth();
+      const day = est.getDate();
+      
+      if (month === 11 && day >= 26 && day <= 30) {
+        return day - 25;
+      }
+      return 1;
+    }
+    
+    // Convert time string to minutes for sorting
+    function timeToMinutes(timeStr) {
+      if (!timeStr) return 9999;
+      const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)?/i);
+      if (!match) return 9999;
+      
+      let hours = parseInt(match[1]);
+      const mins = parseInt(match[2]);
+      const period = (match[3] || 'AM').toUpperCase();
+      
+      if (period === 'PM' && hours !== 12) hours += 12;
+      if (period === 'AM' && hours === 12) hours = 0;
+      
+      return hours * 60 + mins;
+    }
+    
+    // Show page
+    function showPage(pageId) {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.getElementById(pageId).classList.add('active');
+    }
+    
+    // Check password
+    function checkPassword() {
+      const input = document.getElementById('passwordInput').value;
+      const errorEl = document.getElementById('loginError');
+      
+      if (input.toLowerCase() === PASSWORD) {
+        errorEl.style.display = 'none';
+        showPage('genderPage');
+        loadGames();
+      } else {
+        errorEl.textContent = 'Incorrect password';
+        errorEl.style.display = 'block';
+      }
+    }
+    
+    // Handle enter key on password
+    document.getElementById('passwordInput').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') checkPassword();
+    });
+    
+    // Load games from bash_schedule
+    async function loadGames() {
+      try {
+        const { data, error } = await db
+          .from('bash_schedule')
+          .select('*')
+          .eq('year', 2025)
+          .order('date')
+          .order('time');
+        
+        if (error) throw error;
+        
+        allGames = data || [];
+        console.log('Loaded', allGames.length, 'Bash games');
+      } catch (err) {
+        console.error('Error loading games:', err);
+        allGames = [];
+      }
+    }
+    
+    // Select gender
+    function selectGender(gender) {
+      selectedGender = gender;
+      document.getElementById('dayPageTitle').textContent = `${gender} Games`;
+      renderDayButtons();
+      showPage('dayPage');
+    }
+    
+    // Render day selection buttons
+    function renderDayButtons() {
+      const currentDay = getCurrentTournamentDay();
+      const container = document.getElementById('dayButtons');
+      
+      container.innerHTML = TOURNAMENT_DAYS.map(d => {
+        const isToday = d.day === currentDay;
+        const gamesForDay = allGames.filter(g => 
+          g.date === d.dateKey && g.division === selectedGender
+        );
+        const completedGames = gamesForDay.filter(g => 
+          g.away_score !== null && g.home_score !== null
+        ).length;
+        
+        return `
+          <button class="day-btn ${isToday ? 'today' : ''}" onclick="selectDay('${d.dateKey}')">
+            <span>${d.label}</span>
+            <span class="day-btn-date">${completedGames}/${gamesForDay.length} done</span>
+          </button>
+        `;
+      }).join('');
+    }
+    
+    // Select day
+    function selectDay(dateKey) {
+      selectedDay = dateKey;
+      renderGames();
+      showPage('gamesPage');
+    }
+    
+    // Render games list
+    function renderGames() {
+      document.getElementById('gamesHeader').textContent = `${selectedGender}: ${selectedDay}`;
+      
+      // Filter games for selected gender and day
+      let games = allGames.filter(g => 
+        g.date === selectedDay && 
+        g.division === selectedGender
+      );
+      
+      // Sort by time
+      games.sort((a, b) => timeToMinutes(a.time) - timeToMinutes(b.time));
+      
+      const listEl = document.getElementById('gamesList');
+      
+      if (games.length === 0) {
+        listEl.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">&#127936;</div>
+            <div>No ${selectedGender.toLowerCase()} games on ${selectedDay}</div>
+          </div>
+        `;
+        return;
+      }
+      
+      listEl.innerHTML = games.map(game => {
+        const isFinal = game.away_score !== null && game.home_score !== null;
+        const scoreText = isFinal ? `${game.away_score}-${game.home_score}` : '';
+        
+        return `
+          <div class="game-pill ${isFinal ? 'final' : ''}" onclick="${isFinal ? '' : `selectGame(${game.id})`}">
+            <span class="game-pill-time">${game.time || ''}</span>
+            <div class="game-pill-content">
+              <img class="game-pill-logo" src="/logos/100px/${getLogoFilename(game.away)}" onerror="this.src='/logos/100px/Ball603-white.png'" alt="">
+              <span>${game.away || 'TBD'}</span>
+              <span class="game-pill-at">@</span>
+              <img class="game-pill-logo" src="/logos/100px/${getLogoFilename(game.home)}" onerror="this.src='/logos/100px/Ball603-white.png'" alt="">
+              <span>${game.home || 'TBD'}</span>
+            </div>
+            ${isFinal ? `
+              <span class="game-pill-score">${scoreText}</span>
+              <button class="edit-btn" onclick="event.stopPropagation(); editGame(${game.id})">EDIT</button>
+            ` : ''}
+          </div>
+        `;
+      }).join('');
+    }
+    
+    // Select game for score entry
+    function selectGame(gameId) {
+      selectedGame = allGames.find(g => g.id === gameId);
+      if (!selectedGame) return;
+      
+      // Don't allow entry if teams are TBD
+      if (!selectedGame.away || !selectedGame.home || 
+          selectedGame.away === 'TBD' || selectedGame.home === 'TBD') {
+        alert('Cannot enter score - teams not yet determined');
+        return;
+      }
+      
+      document.getElementById('awayLogo').src = `/logos/100px/${getLogoFilename(selectedGame.away)}`;
+      document.getElementById('awayName').textContent = selectedGame.away;
+      document.getElementById('homeLogo').src = `/logos/100px/${getLogoFilename(selectedGame.home)}`;
+      document.getElementById('homeName').textContent = selectedGame.home;
+      document.getElementById('awayScore').value = '0';
+      document.getElementById('homeScore').value = '0';
+      document.getElementById('gameStatus').value = 'FINAL';
+      
+      showPage('scorePage');
+    }
+    
+    // Edit existing game
+    function editGame(gameId) {
+      selectedGame = allGames.find(g => g.id === gameId);
+      if (!selectedGame) return;
+      
+      document.getElementById('awayLogo').src = `/logos/100px/${getLogoFilename(selectedGame.away)}`;
+      document.getElementById('awayName').textContent = selectedGame.away;
+      document.getElementById('homeLogo').src = `/logos/100px/${getLogoFilename(selectedGame.home)}`;
+      document.getElementById('homeName').textContent = selectedGame.home;
+      document.getElementById('awayScore').value = selectedGame.away_score || '0';
+      document.getElementById('homeScore').value = selectedGame.home_score || '0';
+      document.getElementById('gameStatus').value = selectedGame.overtime ? 'FINAL (OT)' : 'FINAL';
+      
+      showPage('scorePage');
+    }
+    
+    // Submit score (go to confirmation)
+    function submitScore() {
+      const awayScore = parseInt(document.getElementById('awayScore').value) || 0;
+      const homeScore = parseInt(document.getElementById('homeScore').value) || 0;
+      const status = document.getElementById('gameStatus').value;
+      
+      // Set confirmation page
+      document.getElementById('confirmAwayLogo').src = `/logos/100px/${getLogoFilename(selectedGame.away)}`;
+      document.getElementById('confirmAwayName').textContent = selectedGame.away;
+      document.getElementById('confirmAwayScore').textContent = awayScore;
+      document.getElementById('confirmAwayScore').className = 'confirm-score' + (awayScore > homeScore ? ' winner' : '');
+      
+      document.getElementById('confirmHomeLogo').src = `/logos/100px/${getLogoFilename(selectedGame.home)}`;
+      document.getElementById('confirmHomeName').textContent = selectedGame.home;
+      document.getElementById('confirmHomeScore').textContent = homeScore;
+      document.getElementById('confirmHomeScore').className = 'confirm-score' + (homeScore > awayScore ? ' winner' : '');
+      
+      document.getElementById('confirmStatus').textContent = status;
+      
+      showPage('confirmPage');
+    }
+    
+    // Confirm and save score
+    async function confirmScore() {
+      const awayScore = parseInt(document.getElementById('awayScore').value) || 0;
+      const homeScore = parseInt(document.getElementById('homeScore').value) || 0;
+      const status = document.getElementById('gameStatus').value;
+      const isOvertime = status.includes('OT');
+      
+      try {
+        // Update bash_schedule directly
+        const updateData = {
+          away_score: awayScore === 0 && homeScore === 0 ? null : awayScore,
+          home_score: awayScore === 0 && homeScore === 0 ? null : homeScore,
+          overtime: isOvertime
+        };
+        
+        const { error } = await db
+          .from('bash_schedule')
+          .update(updateData)
+          .eq('id', selectedGame.id);
+        
+        if (error) throw error;
+        
+        // Update local data
+        const gameIndex = allGames.findIndex(g => g.id === selectedGame.id);
+        if (gameIndex !== -1) {
+          allGames[gameIndex].away_score = updateData.away_score;
+          allGames[gameIndex].home_score = updateData.home_score;
+          allGames[gameIndex].overtime = updateData.overtime;
+        }
+        
+        showPage('thanksPage');
+      } catch (err) {
+        console.error('Error saving score:', err);
+        alert('Error saving score. Please try again.');
+      }
+    }
+    
+    // Navigation
+    function goToGender() {
+      showPage('genderPage');
+    }
+    
+    function goToDays() {
+      renderDayButtons();
+      showPage('dayPage');
+    }
+    
+    function goToGames() {
+      renderGames();
+      showPage('gamesPage');
+    }
+    
+    function goToScore() {
+      showPage('scorePage');
+    }
+    
+    function startOver() {
+      selectedGame = null;
+      selectedDay = null;
+      showPage('genderPage');
+    }
+  </script>
+</body>
+</html>
