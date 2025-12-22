@@ -588,7 +588,7 @@
   
   <script>
     // Version marker for debugging deployment issues
-    console.log('Contributor Portal v236 loaded');
+    console.log('Contributor Portal v244 loaded');
     
     // Supabase setup
     const SUPABASE_URL = 'https://suncdkxfqkwwnmhosxcf.supabase.co';
@@ -652,23 +652,30 @@
       });
       
       // Validate existing session on page load
-      // This clears stale sessions that cause the "Signing in..." hang
-      try {
-        const { data: { session }, error } = await db.auth.getSession();
-        if (session) {
-          console.log('Found existing session, validating...');
-          // Test if the session is still valid by making a simple request
-          const { error: testError } = await db.from('contributors').select('id').limit(1);
-          if (testError) {
-            console.log('Session invalid, clearing:', testError.message);
-            await db.auth.signOut();
-          } else {
-            console.log('Session is valid');
+      // Clear stale sessions aggressively - but only if no auth tokens in URL
+      const hasAuthTokens = window.location.hash && (
+        window.location.hash.includes('access_token') || 
+        window.location.hash.includes('error=')
+      );
+      
+      if (!hasAuthTokens) {
+        try {
+          const { data: { session } } = await db.auth.getSession();
+          if (session) {
+            console.log('Found existing session, validating...');
+            // Test if the session is still valid by making a simple request
+            const { data: testData, error: testError } = await db.from('contributors').select('id').limit(1);
+            if (testError) {
+              console.log('Session invalid, clearing:', testError.message);
+              await db.auth.signOut();
+            } else {
+              console.log('Session is valid');
+            }
           }
+        } catch (err) {
+          console.log('Session validation error, clearing session:', err);
+          await db.auth.signOut().catch(() => {});
         }
-      } catch (err) {
-        console.log('Session validation error, clearing session:', err);
-        await db.auth.signOut().catch(() => {});
       }
       
       // Set up auth state listener
@@ -849,12 +856,21 @@
         loginTimeout = null;
       }
       
-      // Reset loading state in case previous attempt got stuck
+      // Reset all state
       isLoadingProfile = false;
+      currentUser = null;
+      currentContributor = null;
       
       loginBtn.disabled = true;
       loginBtn.textContent = 'Signing in...';
       errorEl.textContent = '';
+      
+      // ALWAYS sign out first to clear any stale session
+      try {
+        await db.auth.signOut();
+      } catch (e) {
+        // Ignore signout errors
+      }
       
       // Set a timeout to reset the button if login takes too long
       loginTimeout = setTimeout(() => {
@@ -862,9 +878,8 @@
         isLoadingProfile = false;
         resetLoginButton();
         errorEl.textContent = 'Login timed out. Please try again.';
-        // Clear any stale session
         db.auth.signOut().catch(() => {});
-      }, 15000); // 15 second timeout
+      }, 15000);
       
       try {
         console.log('Attempting sign in for:', email);
@@ -1272,7 +1287,10 @@
       };
       
       try {
-        const { error } = await db.from('contributors').update(updates).eq('id', currentContributor.id);
+        console.log('Saving profile for contributor ID:', currentContributor.id);
+        console.log('Updates:', updates);
+        const { data, error } = await db.from('contributors').update(updates).eq('id', currentContributor.id).select();
+        console.log('Save result:', { data, error });
         if (error) throw error;
         
         currentContributor = { ...currentContributor, ...updates };
@@ -1286,7 +1304,8 @@
         
         showToast('Profile saved!', 'success');
       } catch (err) {
-        showToast('Error saving profile', 'error');
+        console.error('Save profile error:', err);
+        showToast('Error saving profile: ' + (err.message || 'Unknown error'), 'error');
       } finally {
         btns.forEach(btn => { btn.disabled = false; btn.textContent = 'Save Changes'; });
       }
