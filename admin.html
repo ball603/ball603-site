@@ -2652,6 +2652,20 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
                   </div>
                 </div>
                 
+                <!-- Sponsor Controls -->
+                <div style="background: #f9f9f9; border: 1px solid #eee; border-radius: 6px; padding: 12px; margin-bottom: 12px;">
+                  <div style="font-size: 12px; font-weight: 600; margin-bottom: 8px;">💼 Sponsors</div>
+                  <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 12px;">
+                      <input type="checkbox" id="bashSBShowSponsors" checked style="width: 16px; height: 16px;">
+                      Show sponsors
+                    </label>
+                    <select id="bashSBManualSponsor" style="flex: 1; min-width: 180px; padding: 6px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 11px;">
+                      <option value="">Auto-detect from teams</option>
+                    </select>
+                  </div>
+                </div>
+                
                 <!-- Publish Buttons -->
                 <div style="display: flex; gap: 10px;">
                   <button onclick="saveBashAndGenerateSocial()" id="bashSBSaveBtn" style="flex: 1; background: #2e7d32; color: white; border: none; padding: 15px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;">
@@ -3113,6 +3127,20 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
               <input type="checkbox" id="bashStoryPublished" checked style="width: 18px; height: 18px;">
               <span>Published</span>
             </label>
+          </div>
+          
+          <!-- Sponsor Controls -->
+          <div style="background: #f9f9f9; border: 1px solid #eee; border-radius: 6px; padding: 12px; margin-bottom: 15px;">
+            <div style="font-size: 12px; font-weight: 600; margin-bottom: 10px;">💼 Sponsors</div>
+            <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px;">
+                <input type="checkbox" id="bashStoryShowSponsors" checked style="width: 16px; height: 16px;">
+                Show sponsors
+              </label>
+              <select id="bashStoryManualSponsor" style="flex: 1; min-width: 200px; padding: 6px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px;">
+                <option value="">Auto-detect from teams</option>
+              </select>
+            </div>
           </div>
           
           <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee;">
@@ -10635,6 +10663,9 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('bashStoryModalTitle').textContent = id ? 'Edit Story' : 'New Story';
       document.getElementById('bashStoryId').value = id || '';
       
+      // Populate sponsor dropdown
+      populateBashSponsorDropdown('bashStoryManualSponsor');
+      
       if (id) {
         const s = bashContent.find(x => x.id === id);
         if (s) {
@@ -10647,6 +10678,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           document.getElementById('bashStoryContent').value = s.content || '';
           document.getElementById('bashStoryPinned').checked = s.pinned || false;
           document.getElementById('bashStoryPublished').checked = s.published !== false;
+          document.getElementById('bashStoryShowSponsors').checked = s.show_sponsors !== false;
+          document.getElementById('bashStoryManualSponsor').value = s.manual_sponsor_id || '';
         }
       } else {
         document.getElementById('bashStoryTitle').value = '';
@@ -10658,6 +10691,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         document.getElementById('bashStoryContent').value = '';
         document.getElementById('bashStoryPinned').checked = false;
         document.getElementById('bashStoryPublished').checked = true;
+        document.getElementById('bashStoryShowSponsors').checked = true;
+        document.getElementById('bashStoryManualSponsor').value = '';
       }
       document.getElementById('bashStoryModal').style.display = 'block';
     }
@@ -10681,7 +10716,9 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         content: document.getElementById('bashStoryContent').value || null,
         pinned: document.getElementById('bashStoryPinned').checked,
         published: document.getElementById('bashStoryPublished').checked,
-        show_on_main_site: false
+        show_on_main_site: false,
+        show_sponsors: document.getElementById('bashStoryShowSponsors').checked,
+        manual_sponsor_id: document.getElementById('bashStoryManualSponsor').value || null
       };
       
       if (!id) {
@@ -11129,6 +11166,15 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('bashSBHomeTotal').textContent = '0';
       
       document.getElementById('bashSBNotes').value = '';
+      
+      // Reset sponsor controls
+      populateBashSponsorDropdown('bashSBManualSponsor');
+      if (document.getElementById('bashSBShowSponsors')) {
+        document.getElementById('bashSBShowSponsors').checked = true;
+      }
+      if (document.getElementById('bashSBManualSponsor')) {
+        document.getElementById('bashSBManualSponsor').value = '';
+      }
     }
     
     async function getBashTeamRosters() {
@@ -11776,6 +11822,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           updateScheduleButton();
           document.getElementById('socialPostsCard').style.display = 'block';
           
+          // Transfer sponsor settings from Bash panel to article editor
+          document.getElementById('showSponsors').checked = document.getElementById('bashSBShowSponsors')?.checked !== false;
+          document.getElementById('manualSponsorId').value = document.getElementById('bashSBManualSponsor')?.value || '';
+          
           // Auto-generate tags for Bash game
           currentTags = ['The Bash', bashSBGeneratedData.proofData.gender, bashSBSelectedGame.away, bashSBSelectedGame.home];
           renderTags();
@@ -11861,7 +11911,9 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         author: 'KJ Cardinal',
         status: 'published',
         tags: ['The Bash', bashSBSelectedGame.division || 'Boys', bashSBSelectedGame.away, bashSBSelectedGame.home],
-        published_at: new Date().toISOString()
+        published_at: new Date().toISOString(),
+        show_sponsors: document.getElementById('bashSBShowSponsors')?.checked !== false,
+        manual_sponsor_id: document.getElementById('bashSBManualSponsor')?.value || null
       };
       
       console.log('Article data to insert:', articleData);
@@ -11945,7 +11997,9 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         author: 'Ball603 Staff',
         status: 'published',
         tags: ['bash-game', bashSBSelectedGame.division || 'Boys', 'The Bash'],
-        published_at: new Date().toISOString()
+        published_at: new Date().toISOString(),
+        show_sponsors: document.getElementById('bashSBShowSponsors')?.checked !== false,
+        manual_sponsor_id: document.getElementById('bashSBManualSponsor')?.value || null
       };
       
       try {
@@ -14706,6 +14760,15 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     
     function populateArticleSponsorDropdown() {
       const dropdown = document.getElementById('manualSponsorId');
+      if (!dropdown) return;
+      
+      const activeSponsors = allSponsors.filter(s => s.active);
+      dropdown.innerHTML = '<option value="">Auto-detect from teams</option>' + 
+        activeSponsors.map(s => `<option value="${s.id}">${s.name} (${s.team_shortname})</option>`).join('');
+    }
+    
+    function populateBashSponsorDropdown(dropdownId) {
+      const dropdown = document.getElementById(dropdownId);
       if (!dropdown) return;
       
       const activeSponsors = allSponsors.filter(s => s.active);
