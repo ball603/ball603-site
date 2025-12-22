@@ -803,6 +803,10 @@
             <option value="Dec 29">Dec 29</option>
             <option value="Dec 30">Dec 30</option>
           </select>
+          <div class="bash-team-search-wrap">
+            <input type="text" class="bash-team-search" id="teamSearch" placeholder="Search team..." autocomplete="off">
+            <div class="bash-team-suggestions" id="teamSuggestions"></div>
+          </div>
         </div>
         <div class="bash-schedule-table-wrap" id="scheduleTable">
           <div class="bash-loading">Loading schedule...</div>
@@ -1636,16 +1640,31 @@
       return teamName.toLowerCase().replace(/[\s\-]+/g, '');
     }
     
-    // Get current tournament day
+    // Get current tournament day (EST timezone)
     function getCurrentTournamentDay() {
-      const today = new Date();
-      const month = today.getMonth();
-      const day = today.getDate();
+      // Force EST timezone
+      const now = new Date();
+      const estOptions = { timeZone: 'America/New_York' };
+      const estString = now.toLocaleString('en-US', estOptions);
+      const estDate = new Date(estString);
+      
+      const month = estDate.getMonth();
+      const day = estDate.getDate();
       
       if (month === 11 && day >= 26 && day <= 30) {
         return day - 25;
       }
       return 1;
+    }
+    
+    // Get current EST date string for comparisons
+    function getESTDateString() {
+      const now = new Date();
+      return now.toLocaleDateString('en-US', { 
+        timeZone: 'America/New_York',
+        month: 'short',
+        day: 'numeric'
+      }).replace(',', '');
     }
 
     // Snow effect
@@ -1695,8 +1714,11 @@
         container.innerHTML = '<div class="bash-no-games">No games scheduled</div>';
         return;
       }
+      
+      // Sort games by time
+      const sortedGames = [...games].sort((a, b) => timeToMinutes(a.time) - timeToMinutes(b.time));
 
-      container.innerHTML = games.map(g => {
+      container.innerHTML = sortedGames.map(g => {
         const hasScore = g.awayScore !== null && g.homeScore !== null;
         return `
           <div class="bash-today-game">
@@ -1772,19 +1794,100 @@
       document.querySelector('.bash-filter-btn[data-filter="all"]').addEventListener('click', () => {
         document.getElementById('divisionFilter').value = '';
         document.getElementById('dayFilter').value = '';
+        document.getElementById('teamSearch').value = '';
+        document.getElementById('teamSuggestions').innerHTML = '';
         renderSchedule();
       });
+      
+      // Team search with autocomplete
+      const teamSearchInput = document.getElementById('teamSearch');
+      const suggestionsContainer = document.getElementById('teamSuggestions');
+      
+      teamSearchInput.addEventListener('input', (e) => {
+        const term = e.target.value.trim().toLowerCase();
+        
+        if (term.length < 2) {
+          suggestionsContainer.innerHTML = '';
+          suggestionsContainer.style.display = 'none';
+          renderSchedule();
+          return;
+        }
+        
+        // Get unique teams from schedule
+        const allGames = liveSchedule.length > 0 ? liveSchedule : (BASH_DATA?.schedule || []);
+        const teams = new Set();
+        allGames.forEach(g => {
+          if (g.away) teams.add(g.away);
+          if (g.home) teams.add(g.home);
+        });
+        
+        // Filter matching teams
+        const matches = [...teams].filter(t => t.toLowerCase().includes(term)).sort();
+        
+        if (matches.length > 0) {
+          suggestionsContainer.innerHTML = matches.slice(0, 8).map(t => 
+            `<div class="bash-team-suggestion" data-team="${t}">${t}</div>`
+          ).join('');
+          suggestionsContainer.style.display = 'block';
+        } else {
+          suggestionsContainer.innerHTML = '';
+          suggestionsContainer.style.display = 'none';
+        }
+        
+        renderSchedule();
+      });
+      
+      // Handle suggestion click
+      suggestionsContainer.addEventListener('click', (e) => {
+        if (e.target.classList.contains('bash-team-suggestion')) {
+          teamSearchInput.value = e.target.dataset.team;
+          suggestionsContainer.innerHTML = '';
+          suggestionsContainer.style.display = 'none';
+          renderSchedule();
+        }
+      });
+      
+      // Hide suggestions when clicking outside
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('.bash-team-search-wrap')) {
+          suggestionsContainer.style.display = 'none';
+        }
+      });
+    }
+    
+    // Convert time string to minutes for sorting (handles AM/PM)
+    function timeToMinutes(timeStr) {
+      if (!timeStr) return 9999;
+      const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)?/i);
+      if (!match) return 9999;
+      
+      let hours = parseInt(match[1]);
+      const mins = parseInt(match[2]);
+      const period = (match[3] || 'AM').toUpperCase();
+      
+      // Convert to 24-hour
+      if (period === 'PM' && hours !== 12) hours += 12;
+      if (period === 'AM' && hours === 12) hours = 0;
+      
+      return hours * 60 + mins;
     }
 
     function renderSchedule() {
       const divFilter = document.getElementById('divisionFilter').value;
       const dayFilter = document.getElementById('dayFilter').value;
+      const teamFilter = (document.getElementById('teamSearch').value || '').trim().toLowerCase();
 
       // Use liveSchedule from database, fall back to BASH_DATA
       let allGames = liveSchedule.length > 0 ? liveSchedule : (BASH_DATA?.schedule || []);
       let games = allGames.filter(g => !g.special);
       if (divFilter) games = games.filter(g => g.division === divFilter);
       if (dayFilter) games = games.filter(g => g.date === dayFilter);
+      if (teamFilter) {
+        games = games.filter(g => 
+          (g.away && g.away.toLowerCase().includes(teamFilter)) || 
+          (g.home && g.home.toLowerCase().includes(teamFilter))
+        );
+      }
 
       const container = document.getElementById('scheduleTable');
       
@@ -1798,6 +1901,11 @@
       games.forEach(g => {
         if (!byDate[g.date]) byDate[g.date] = [];
         byDate[g.date].push(g);
+      });
+      
+      // Sort games within each date by time
+      Object.keys(byDate).forEach(date => {
+        byDate[date].sort((a, b) => timeToMinutes(a.time) - timeToMinutes(b.time));
       });
 
       let html = `
