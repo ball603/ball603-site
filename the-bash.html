@@ -1628,6 +1628,14 @@
       return `/logos/100px/${logoName}.png`;
     }
     
+    // Convert team name to URL slug
+    function getTeamSlug(teamName) {
+      if (!teamName || teamName.includes('Winner') || teamName.includes('Loser') || teamName === 'TBD') {
+        return '#';
+      }
+      return teamName.toLowerCase().replace(/[\s\-]+/g, '');
+    }
+    
     // Get current tournament day
     function getCurrentTournamentDay() {
       const today = new Date();
@@ -1695,17 +1703,17 @@
             <div class="bash-today-time">${g.time}</div>
             <div class="bash-today-teams">
               <div class="bash-today-team ${hasScore && g.awayScore > g.homeScore ? 'winner' : ''}">
-                <div class="bash-today-team-info">
+                <a href="/${getTeamSlug(g.away)}" class="bash-today-team-info team-link">
                   <img class="bash-today-logo" src="${getTeamLogo(g.away)}" onerror="this.src='/logos/100px/Ball603-white.png'" alt="">
                   <span class="team-name">${g.away}</span>
-                </div>
+                </a>
                 ${hasScore ? `<span class="team-score">${g.awayScore}</span>` : ''}
               </div>
               <div class="bash-today-team ${hasScore && g.homeScore > g.awayScore ? 'winner' : ''}">
-                <div class="bash-today-team-info">
+                <a href="/${getTeamSlug(g.home)}" class="bash-today-team-info team-link">
                   <img class="bash-today-logo" src="${getTeamLogo(g.home)}" onerror="this.src='/logos/100px/Ball603-white.png'" alt="">
                   <span class="team-name">${g.home}</span>
-                </div>
+                </a>
                 ${hasScore ? `<span class="team-score">${g.homeScore}</span>` : ''}
               </div>
             </div>
@@ -1821,17 +1829,17 @@
               <td class="col-gender">${g.division}</td>
               <td class="col-site">${g.site}</td>
               <td class="col-away">
-                <div class="team-cell away">
+                <a href="/${getTeamSlug(g.away)}" class="team-cell away team-link">
                   <span class="team-name-text ${awayWinner ? 'winner' : ''}">${g.away}</span>
                   <img class="team-logo-small" src="${getTeamLogo(g.away)}" onerror="this.src='/logos/100px/Ball603-white.png'" alt="">
-                </div>
+                </a>
               </td>
               <td class="col-score">${hasScore ? `${g.awayScore} - ${g.homeScore}` : 'vs'}</td>
               <td class="col-home">
-                <div class="team-cell home">
+                <a href="/${getTeamSlug(g.home)}" class="team-cell home team-link">
                   <img class="team-logo-small" src="${getTeamLogo(g.home)}" onerror="this.src='/logos/100px/Ball603-white.png'" alt="">
                   <span class="team-name-text ${homeWinner ? 'winner' : ''}">${g.home}</span>
-                </div>
+                </a>
               </td>
               <td class="col-coverage">
                 ${g.recap ? `<a href="${g.recap}" class="coverage-link">Recap</a>` : ''}
@@ -1888,17 +1896,17 @@
                   <td>${c.year}</td>
                   <td>${c.gender}</td>
                   <td>
-                    <div class="team-cell">
+                    <a href="/${getTeamSlug(c.champion)}" class="team-cell team-link">
                       <img class="team-logo-small" src="${getTeamLogo(c.champion)}" onerror="this.src='/logos/100px/Ball603-white.png'" alt="">
                       <span class="team-name-text">${c.champion}</span>
-                    </div>
+                    </a>
                   </td>
                   <td>${c.championScore}-${c.runnerUpScore}${c.overtime ? ' OT' : ''}</td>
                   <td>
-                    <div class="team-cell">
+                    <a href="/${getTeamSlug(c.runnerUp)}" class="team-cell team-link">
                       <img class="team-logo-small" src="${getTeamLogo(c.runnerUp)}" onerror="this.src='/logos/100px/Ball603-white.png'" alt="">
                       <span class="team-name-text">${c.runnerUp}</span>
-                    </div>
+                    </a>
                   </td>
                 </tr>
               `).join('')}
@@ -1970,13 +1978,13 @@
                   ${boysAwards.length > 0 ? boysAwards.map(a => `
                     <div class="awards-item">
                       <span class="awards-item-award">${a.award}</span>
-                      <div class="awards-item-recipient">
+                      <a href="/${getTeamSlug(a.school)}" class="awards-item-recipient team-link">
                         <img class="awards-item-logo" src="${getTeamLogo(a.school)}" onerror="this.src='/logos/100px/Ball603-white.png'" alt="">
                         <div class="awards-item-info">
                           <span class="awards-item-name">${a.name || '(Team)'}</span>
                           <span class="awards-item-school">${a.school}</span>
                         </div>
-                      </div>
+                      </a>
                     </div>
                   `).join('') : '<div class="awards-empty">No awards</div>'}
                 </div>
@@ -1985,13 +1993,13 @@
                   ${girlsAwards.length > 0 ? girlsAwards.map(a => `
                     <div class="awards-item">
                       <span class="awards-item-award">${a.award}</span>
-                      <div class="awards-item-recipient">
+                      <a href="/${getTeamSlug(a.school)}" class="awards-item-recipient team-link">
                         <img class="awards-item-logo" src="${getTeamLogo(a.school)}" onerror="this.src='/logos/100px/Ball603-white.png'" alt="">
                         <div class="awards-item-info">
                           <span class="awards-item-name">${a.name || '(Team)'}</span>
                           <span class="awards-item-school">${a.school}</span>
                         </div>
-                      </div>
+                      </a>
                     </div>
                   `).join('') : '<div class="awards-empty">No awards</div>'}
                 </div>
@@ -2063,10 +2071,10 @@
                   <td>${a.award}</td>
                   <td>${a.name || '(Team)'}</td>
                   <td>
-                    <div class="team-cell">
+                    <a href="/${getTeamSlug(a.school)}" class="team-cell team-link">
                       <img class="team-logo-small" src="${getTeamLogo(a.school)}" onerror="this.src='/logos/100px/Ball603-white.png'" alt="">
                       <span class="team-name-text">${a.school}</span>
-                    </div>
+                    </a>
                   </td>
                 </tr>
               `).join('') : '<tr><td colspan="5" style="text-align:center;padding:20px;color:#888;">No awards match your search</td></tr>'}
@@ -2125,11 +2133,31 @@
       updateBrackets();
       updateBracketLogos();
       
+      // Make bracket teams clickable
+      initBracketLinks();
+      
       // Check banner dismissal
       if (localStorage.getItem('bashBannerDismissed') === 'true') {
         document.getElementById('continueBanner').style.display = 'none';
       }
     });
+    
+    // Make bracket teams link to team pages
+    function initBracketLinks() {
+      document.querySelectorAll('.bracket-team').forEach(team => {
+        const nameEl = team.querySelector('.bracket-team-name');
+        if (nameEl) {
+          const teamName = nameEl.textContent.trim();
+          const slug = getTeamSlug(teamName);
+          if (slug && slug !== '#') {
+            team.style.cursor = 'pointer';
+            team.addEventListener('click', () => {
+              window.location.href = '/' + slug;
+            });
+          }
+        }
+      });
+    }
   </script>
 </body>
 </html>
