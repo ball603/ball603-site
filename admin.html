@@ -1700,6 +1700,23 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             </div>
           </div>
           
+          <div class="sidebar-card">
+            <h4>&#128188; Sponsors</h4>
+            <div class="form-group" style="margin-bottom: 12px;">
+              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="checkbox" id="showSponsors" checked style="width: 16px; height: 16px;">
+                Show sponsors on this article
+              </label>
+            </div>
+            <div class="form-group">
+              <label>Manual Sponsor Override</label>
+              <select id="manualSponsorId" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                <option value="">Auto-detect from teams</option>
+              </select>
+              <small>Leave as auto to show sponsors for teams in this story</small>
+            </div>
+          </div>
+          
           <div class="sidebar-card" id="socialPostsCard" style="display: none;">
             <h4> Social Posts</h4>
             <button onclick="viewSocialPosts()" style="width: 100%; padding: 10px; background: #9c27b0; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 13px;">
@@ -4761,6 +4778,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       loadArticles();
       loadGamesForStory();
       populatePhotographerDropdown();
+      loadSponsors(); // Load sponsors for article dropdown
       
       // Initialize Quill editor
       setTimeout(() => {
@@ -6598,6 +6616,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('youtubeUrl').value = '';
       document.getElementById('videoAutoplay').checked = false;
       document.getElementById('videoStandalone').checked = false;
+      document.getElementById('showSponsors').checked = true;
+      document.getElementById('manualSponsorId').value = '';
       setAuthorValue('KJ Cardinal');
       setPhotographerValue('');
       document.getElementById('articleDate').value = getTodayEST();
@@ -6652,6 +6672,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('youtubeUrl').value = article.youtube_url || '';
       document.getElementById('videoAutoplay').checked = article.video_autoplay || false;
       document.getElementById('videoStandalone').checked = article.video_standalone || false;
+      document.getElementById('showSponsors').checked = article.show_sponsors !== false;
+      document.getElementById('manualSponsorId').value = article.manual_sponsor_id || '';
       setAuthorValue(article.author || 'KJ Cardinal');
       setPhotographerValue(article.photographer || article.game_data?.photographerName || '');
       
@@ -6887,6 +6909,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         youtube_url: document.getElementById('youtubeUrl').value || null,
         video_autoplay: document.getElementById('videoAutoplay').checked,
         video_standalone: document.getElementById('videoStandalone').checked,
+        show_sponsors: document.getElementById('showSponsors').checked,
+        manual_sponsor_id: document.getElementById('manualSponsorId').value || null,
         featured_image_url: document.getElementById('featuredImageUrl').value || null,
         featured_image_caption: document.getElementById('featuredImageCaptionField').value || null,
         author: getAuthorValue(),
@@ -6967,6 +6991,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         youtube_url: document.getElementById('youtubeUrl').value || null,
         video_autoplay: document.getElementById('videoAutoplay').checked,
         video_standalone: document.getElementById('videoStandalone').checked,
+        show_sponsors: document.getElementById('showSponsors').checked,
+        manual_sponsor_id: document.getElementById('manualSponsorId').value || null,
         featured_image_url: document.getElementById('featuredImageUrl').value || null,
         featured_image_caption: document.getElementById('featuredImageCaptionField').value || null,
         author: getAuthorValue(),
@@ -7060,6 +7086,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         youtube_url: youtubeUrl,
         video_autoplay: document.getElementById('videoAutoplay').checked,
         video_standalone: document.getElementById('videoStandalone').checked,
+        show_sponsors: document.getElementById('showSponsors').checked,
+        manual_sponsor_id: document.getElementById('manualSponsorId').value || null,
         featured_image_url: document.getElementById('featuredImageUrl').value || null,
         featured_image_caption: document.getElementById('featuredImageCaptionField').value || null,
         author: getAuthorValue(),
@@ -14640,6 +14668,18 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       // Team select in modal
       teamSelect.innerHTML = '<option value="">Select team...</option>' + 
         SPONSOR_TEAMS.map(t => `<option value="${t}">${t}</option>`).join('');
+      
+      // Article sponsor dropdown
+      populateArticleSponsorDropdown();
+    }
+    
+    function populateArticleSponsorDropdown() {
+      const dropdown = document.getElementById('manualSponsorId');
+      if (!dropdown) return;
+      
+      const activeSponsors = allSponsors.filter(s => s.active);
+      dropdown.innerHTML = '<option value="">Auto-detect from teams</option>' + 
+        activeSponsors.map(s => `<option value="${s.id}">${s.name} (${s.team_shortname})</option>`).join('');
     }
     
     function filterSponsors() {

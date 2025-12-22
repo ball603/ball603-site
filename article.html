@@ -348,6 +348,123 @@
       border-top: none;
     }
     
+    /* Team Links (invisible styling) */
+    .team-link {
+      color: inherit;
+      text-decoration: none;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+    
+    .team-link:hover {
+      color: inherit;
+    }
+    
+    .quarter-scores-table .team-name-link {
+      color: inherit;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    
+    .quarter-scores-table .team-name-link:hover {
+      color: var(--accent);
+    }
+    
+    /* Sponsor Box - Desktop (fixed right sidebar) */
+    .sponsor-sidebar {
+      position: fixed;
+      right: 20px;
+      top: 120px;
+      width: 180px;
+      background: #fff;
+      border-radius: var(--radius-lg);
+      box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+      padding: 16px;
+      z-index: 100;
+      display: none;
+    }
+    
+    .sponsor-sidebar.visible {
+      display: block;
+    }
+    
+    .sponsor-sidebar-title {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: center;
+      margin-bottom: 12px;
+      line-height: 1.4;
+    }
+    
+    .sponsor-sidebar-logos {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 12px;
+    }
+    
+    .sponsor-logo-link {
+      display: block;
+    }
+    
+    .sponsor-logo-link img {
+      max-width: 70px;
+      max-height: 40px;
+      object-fit: contain;
+    }
+    
+    /* Hide desktop sponsor on smaller screens */
+    @media (max-width: 1200px) {
+      .sponsor-sidebar {
+        display: none !important;
+      }
+    }
+    
+    /* Sponsor Box - Mobile (bottom bar) */
+    .sponsor-bar {
+      background: #f9f9f9;
+      border-top: 1px solid var(--border-color);
+      border-bottom: 1px solid var(--border-color);
+      padding: 16px;
+      margin: var(--space-xl) 0;
+      text-align: center;
+      display: none;
+    }
+    
+    .sponsor-bar.visible {
+      display: block;
+    }
+    
+    .sponsor-bar-title {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+    
+    .sponsor-bar-logos {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    
+    .sponsor-bar-logos .sponsor-logo-link img {
+      max-width: 80px;
+      max-height: 45px;
+      object-fit: contain;
+    }
+    
+    /* Show mobile sponsor bar only on smaller screens */
+    @media (min-width: 1201px) {
+      .sponsor-bar {
+        display: none !important;
+      }
+    }
+
     /* Article Content */
     .article-content {
       font-size: var(--font-size-md);
@@ -998,6 +1115,12 @@
   <div id="mobile-menu"></div>
   <script src="/includes/nav-loader.js"></script>
 
+  <!-- Sponsor Sidebar (Desktop) -->
+  <aside class="sponsor-sidebar" id="sponsorSidebar">
+    <div class="sponsor-sidebar-title">Thanks to our coverage sponsors</div>
+    <div class="sponsor-sidebar-logos"></div>
+  </aside>
+
   <!-- Article Container -->
   <article class="article-container" id="articleContainer">
     <!-- Loading State -->
@@ -1074,6 +1197,105 @@
     let currentArticle = null;
     let linkedGame = null;
     let galleryPhotos = [];
+    let articleSponsors = [];
+    
+    /**
+     * Convert team name to URL slug (lowercase, no spaces/hyphens)
+     */
+    function getTeamSlug(teamName) {
+      if (!teamName) return '';
+      return teamName.toLowerCase().replace(/[\s\-]+/g, '');
+    }
+    
+    /**
+     * Load sponsors for the article based on teams or manual override
+     */
+    async function loadSponsors(article) {
+      // Check if sponsors should be shown
+      if (article.show_sponsors === false) {
+        return [];
+      }
+      
+      try {
+        // If manual sponsor is set, load just that one
+        if (article.manual_sponsor_id) {
+          const { data: sponsor, error } = await supabaseClient
+            .from('sponsors')
+            .select('*')
+            .eq('id', article.manual_sponsor_id)
+            .eq('active', true)
+            .single();
+          
+          if (!error && sponsor) {
+            return [sponsor];
+          }
+          return [];
+        }
+        
+        // Auto-detect teams from article
+        const teams = [];
+        
+        // From linked game
+        if (linkedGame) {
+          if (linkedGame.away) teams.push(linkedGame.away);
+          if (linkedGame.home) teams.push(linkedGame.home);
+        }
+        
+        // From game_data
+        if (article.game_data) {
+          if (article.game_data.awayTeam) teams.push(article.game_data.awayTeam);
+          if (article.game_data.homeTeam) teams.push(article.game_data.homeTeam);
+        }
+        
+        if (teams.length === 0) {
+          return [];
+        }
+        
+        // Query sponsors for these teams
+        const { data: sponsors, error } = await supabaseClient
+          .from('sponsors')
+          .select('*')
+          .in('team_shortname', teams)
+          .eq('active', true);
+        
+        if (error) {
+          console.error('Error loading sponsors:', error);
+          return [];
+        }
+        
+        return sponsors || [];
+      } catch (err) {
+        console.error('Error loading sponsors:', err);
+        return [];
+      }
+    }
+    
+    /**
+     * Render sponsor boxes (desktop sidebar and mobile bar)
+     */
+    function renderSponsors(sponsors) {
+      if (!sponsors || sponsors.length === 0) return;
+      
+      const logosHtml = sponsors.map(s => `
+        <a href="${s.url || '#'}" target="_blank" rel="noopener" class="sponsor-logo-link" title="${s.name}">
+          <img src="${s.logo_url}" alt="${s.name}" onerror="this.parentElement.style.display='none'">
+        </a>
+      `).join('');
+      
+      // Desktop sidebar
+      const sidebar = document.getElementById('sponsorSidebar');
+      if (sidebar) {
+        sidebar.querySelector('.sponsor-sidebar-logos').innerHTML = logosHtml;
+        sidebar.classList.add('visible');
+      }
+      
+      // Mobile bar
+      const bar = document.getElementById('sponsorBar');
+      if (bar) {
+        bar.querySelector('.sponsor-bar-logos').innerHTML = logosHtml;
+        bar.classList.add('visible');
+      }
+    }
     
     // Initialize on app ready
     document.addEventListener('ball603:ready', async () => {
@@ -1135,6 +1357,10 @@
         // Load related articles
         await loadRelatedArticles(article);
         
+        // Load and render sponsors
+        const sponsors = await loadSponsors(article);
+        renderSponsors(sponsors);
+        
       } catch (err) {
         console.error('Error loading article:', err);
         showError('Error loading article');
@@ -1192,8 +1418,8 @@
           
           // Build header row with quarters
           let headerCells = '<th>Team</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th>';
-          let awayCells = `<td>${gd.awayTeam}</td><td>${gd.awayQuarters[0] || '-'}</td><td>${gd.awayQuarters[1] || '-'}</td><td>${gd.awayQuarters[2] || '-'}</td><td>${gd.awayQuarters[3] || '-'}</td>`;
-          let homeCells = `<td>${gd.homeTeam}</td><td>${gd.homeQuarters[0] || '-'}</td><td>${gd.homeQuarters[1] || '-'}</td><td>${gd.homeQuarters[2] || '-'}</td><td>${gd.homeQuarters[3] || '-'}</td>`;
+          let awayCells = `<td><a href="/${getTeamSlug(gd.awayTeam)}" class="team-name-link">${gd.awayTeam}</a></td><td>${gd.awayQuarters[0] || '-'}</td><td>${gd.awayQuarters[1] || '-'}</td><td>${gd.awayQuarters[2] || '-'}</td><td>${gd.awayQuarters[3] || '-'}</td>`;
+          let homeCells = `<td><a href="/${getTeamSlug(gd.homeTeam)}" class="team-name-link">${gd.homeTeam}</a></td><td>${gd.homeQuarters[0] || '-'}</td><td>${gd.homeQuarters[1] || '-'}</td><td>${gd.homeQuarters[2] || '-'}</td><td>${gd.homeQuarters[3] || '-'}</td>`;
           
           // Add OT columns if present
           for (let i = 4; i < gd.awayQuarters.length; i++) {
@@ -1228,10 +1454,10 @@
           <div class="game-box">
             <div class="game-box-header">${Ball603.formatDivision(linkedGame)}</div>
             <div class="game-matchup">
-              <div class="game-team">
+              <a href="/${getTeamSlug(linkedGame.away)}" class="team-link">
                 <img class="game-team-logo" src="${Ball603.getLogoUrl(linkedGame.away)}" alt="${linkedGame.away}" onerror="this.src='/logos/100px/Ball603-white.png'">
                 <div class="game-team-name">${linkedGame.away}</div>
-              </div>
+              </a>
               <div class="game-score-center">
                 <div class="game-scores">
                   <span class="game-score ${awayWins ? 'winner' : ''}">${awayScore || '-'}</span>
@@ -1240,15 +1466,15 @@
                 </div>
                 ${hasScore ? '<div class="game-status">Final</div>' : ''}
               </div>
-              <div class="game-team">
+              <a href="/${getTeamSlug(linkedGame.home)}" class="team-link">
                 <img class="game-team-logo" src="${Ball603.getLogoUrl(linkedGame.home)}" alt="${linkedGame.home}" onerror="this.src='/logos/100px/Ball603-white.png'">
                 <div class="game-team-name">${linkedGame.home}</div>
-              </div>
+              </a>
             </div>
             ${quarterScoresSection}
             <div class="game-details">
-              <div class="game-detail">📅 ${Ball603.formatDate(linkedGame.date, 'medium')}</div>
-              ${linkedGame.location ? `<div class="game-detail">📍 ${linkedGame.location}</div>` : ''}
+              <div class="game-detail">&#128197; ${Ball603.formatDate(linkedGame.date, 'medium')}</div>
+              ${linkedGame.location ? `<div class="game-detail">&#128205; ${linkedGame.location}</div>` : ''}
             </div>
           </div>
         `;
@@ -1263,8 +1489,8 @@
         
         // Build header row with quarters
         let headerCells = '<th>Team</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th>';
-        let awayCells = `<td>${gd.awayTeam}</td><td>${gd.awayQuarters[0] || '-'}</td><td>${gd.awayQuarters[1] || '-'}</td><td>${gd.awayQuarters[2] || '-'}</td><td>${gd.awayQuarters[3] || '-'}</td>`;
-        let homeCells = `<td>${gd.homeTeam}</td><td>${gd.homeQuarters[0] || '-'}</td><td>${gd.homeQuarters[1] || '-'}</td><td>${gd.homeQuarters[2] || '-'}</td><td>${gd.homeQuarters[3] || '-'}</td>`;
+        let awayCells = `<td><a href="/${getTeamSlug(gd.awayTeam)}" class="team-name-link">${gd.awayTeam}</a></td><td>${gd.awayQuarters[0] || '-'}</td><td>${gd.awayQuarters[1] || '-'}</td><td>${gd.awayQuarters[2] || '-'}</td><td>${gd.awayQuarters[3] || '-'}</td>`;
+        let homeCells = `<td><a href="/${getTeamSlug(gd.homeTeam)}" class="team-name-link">${gd.homeTeam}</a></td><td>${gd.homeQuarters[0] || '-'}</td><td>${gd.homeQuarters[1] || '-'}</td><td>${gd.homeQuarters[2] || '-'}</td><td>${gd.homeQuarters[3] || '-'}</td>`;
         
         // Add OT columns if present
         for (let i = 4; i < gd.awayQuarters.length; i++) {
@@ -1420,6 +1646,12 @@
         </section>
         
         ${tagsHtml}
+        
+        <!-- Sponsor Bar (Mobile) -->
+        <div class="sponsor-bar" id="sponsorBar">
+          <div class="sponsor-bar-title">Thanks to our coverage sponsors</div>
+          <div class="sponsor-bar-logos"></div>
+        </div>
         
         <section class="related-section" id="relatedSection" style="display: none;">
           <h2 class="related-title">More Stories</h2>
