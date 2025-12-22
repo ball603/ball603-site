@@ -72,10 +72,12 @@ async function fetchArticles(limit = 20) {
     if (!client) return [];
     
     // Fetch more than we need, then sort client-side
+    // Exclude articles where show_on_homepage is explicitly false
     const { data, error } = await client
       .from('articles')
       .select('*')
       .eq('status', 'published')
+      .neq('show_on_homepage', false)
       .order('created_at', { ascending: false })
       .limit(100);
     
