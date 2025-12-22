@@ -6592,9 +6592,40 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     function getSchoolInfo(schoolName) {
       if (typeof ROSTERS_DATA === 'undefined' || !ROSTERS_DATA.schools) return null;
       
-      // Try exact match first
+      // Try exact match on shortname first (most reliable)
       for (const [fullName, info] of Object.entries(ROSTERS_DATA.schools)) {
-        if (info.shortname === schoolName || fullName === schoolName || fullName.includes(schoolName)) {
+        if (info.shortname === schoolName) {
+          return info;
+        }
+      }
+      
+      // Try exact match on fullName
+      for (const [fullName, info] of Object.entries(ROSTERS_DATA.schools)) {
+        if (fullName === schoolName) {
+          return info;
+        }
+      }
+      
+      // Fallback: partial match, but ONLY if the schoolName is not a substring of another school
+      // This prevents "Portsmouth" from matching "Portsmouth Christian"
+      const confusableSchools = [
+        ['Portsmouth', 'Portsmouth Christian'],
+        ['Concord', 'Concord Christian'],
+        ['Manchester Central', 'Manchester Memorial', 'Manchester West'],
+        ['Bishop Brady', 'Bishop Guertin']
+      ];
+      
+      // Check if this school name could be confused with another
+      for (const group of confusableSchools) {
+        if (group.includes(schoolName)) {
+          // For confusable names, require exact match only
+          return null;
+        }
+      }
+      
+      // Only use partial matching for non-confusable names
+      for (const [fullName, info] of Object.entries(ROSTERS_DATA.schools)) {
+        if (fullName.includes(schoolName)) {
           return info;
         }
       }

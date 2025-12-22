@@ -1213,14 +1213,12 @@
     async function loadSponsors(article) {
       // Check if sponsors should be shown
       if (article.show_sponsors === false) {
-        console.log('Sponsors disabled for this article');
         return [];
       }
       
       try {
         // If manual sponsor is set, load just that one
         if (article.manual_sponsor_id) {
-          console.log('Loading manual sponsor:', article.manual_sponsor_id);
           const { data: sponsor, error } = await supabaseClient
             .from('sponsors')
             .select('*')
@@ -1249,10 +1247,7 @@
           if (article.game_data.homeTeam) teams.push(article.game_data.homeTeam);
         }
         
-        console.log('Teams detected for sponsors:', teams);
-        
         if (teams.length === 0) {
-          console.log('No teams found for sponsor lookup');
           return [];
         }
         
@@ -1268,7 +1263,6 @@
           return [];
         }
         
-        console.log('Sponsors found:', sponsors);
         return sponsors || [];
       } catch (err) {
         console.error('Error loading sponsors:', err);
@@ -1280,11 +1274,7 @@
      * Render sponsor boxes (desktop sidebar and mobile bar)
      */
     function renderSponsors(sponsors) {
-      console.log('renderSponsors called with:', sponsors);
-      if (!sponsors || sponsors.length === 0) {
-        console.log('No sponsors to render');
-        return;
-      }
+      if (!sponsors || sponsors.length === 0) return;
       
       const logosHtml = sponsors.map(s => `
         <a href="${s.url || '#'}" target="_blank" rel="noopener" class="sponsor-logo-link" title="${s.name}">
@@ -1299,7 +1289,6 @@
       
       // Desktop sidebar
       const sidebar = document.getElementById('sponsorSidebar');
-      console.log('Desktop sidebar element:', sidebar);
       if (sidebar) {
         sidebar.querySelector('.sponsor-sidebar-title').textContent = titleText;
         sidebar.querySelector('.sponsor-sidebar-logos').innerHTML = logosHtml;
@@ -1308,14 +1297,10 @@
       
       // Mobile bar
       const bar = document.getElementById('sponsorBar');
-      console.log('Mobile bar element:', bar);
       if (bar) {
         bar.querySelector('.sponsor-bar-title').textContent = titleText;
         bar.querySelector('.sponsor-bar-logos').innerHTML = logosHtml;
         bar.classList.add('visible');
-        console.log('Mobile bar classes after adding visible:', bar.className);
-      } else {
-        console.log('Mobile bar NOT FOUND');
       }
     }
     
