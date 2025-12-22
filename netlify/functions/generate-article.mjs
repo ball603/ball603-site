@@ -503,6 +503,18 @@ async function handleWrite(body, headers) {
 
   const prompt = `You are a factual sports reporter for Ball603.com, covering New Hampshire high school basketball. Write a straightforward game recap based ONLY on the facts provided.
 
+=== CRITICAL: TEAM NICKNAME DISAMBIGUATION ===
+Use ONLY the mascot provided in parentheses for each team. Common confusions to avoid:
+- Portsmouth = Clippers (NOT Eagles - that's Portsmouth Christian)
+- Portsmouth Christian = Eagles
+- Concord = Crimson Tide (NOT Crusaders - that's Concord Christian)
+- Concord Christian = Crusaders
+- Manchester Central = Little Green
+- Manchester Memorial = Crusaders
+- Manchester West = Blue Knights
+- Bishop Brady = Giants
+- Bishop Guertin = Cardinals
+
 GAME RESULT: ${winner} ${winnerScore}, ${loser} ${loserScore}${hasOT ? ' (OT)' : ''}
 LOCATION: ${gameTown}, N.H.
 DATE: ${gameDay}
