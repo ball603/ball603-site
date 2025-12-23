@@ -7002,13 +7002,13 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       currentArticle = null;
     }
     
-    function showSocialPublishing(article) {
+    async function showSocialPublishing(article) {
       // Hide editor, show social publishing panel
       document.getElementById('editorPanel').style.display = 'none';
       document.getElementById('socialPublishingPanel').style.display = 'block';
       
       // Initialize social publishing panel (images, contributors, etc.)
-      initSocialPublishingPanel();
+      await initSocialPublishingPanel();
       
       // Populate the textareas
       const fbPost = generatedSocialPosts.facebookPost || '';
@@ -7267,8 +7267,34 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     }
     
     // ============ CONTRIBUTOR SELECTION ============
-    function populateSocialContributorDropdown() {
+    async function populateSocialContributorDropdown() {
       const select = document.getElementById('socialContributorSelect');
+      select.innerHTML = '<option value="">Loading contributors...</option>';
+      
+      // If contributors haven't loaded yet, fetch them directly
+      if (allContributors.length === 0) {
+        console.log('Social dropdown: Contributors not loaded yet, fetching...');
+        try {
+          const { data, error } = await db
+            .from('contributors')
+            .select('*')
+            .order('name');
+          
+          if (error) {
+            console.error('Error loading contributors for social dropdown:', error);
+            select.innerHTML = '<option value="">Error loading contributors</option>';
+            return;
+          }
+          
+          allContributors = data || [];
+          console.log('Social dropdown: Fetched', allContributors.length, 'contributors');
+        } catch (err) {
+          console.error('Failed to fetch contributors:', err);
+          select.innerHTML = '<option value="">Error loading contributors</option>';
+          return;
+        }
+      }
+      
       select.innerHTML = '<option value="">+ Add contributor...</option>';
       
       // Show all active contributors, not just those with social IDs
@@ -7281,7 +7307,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
                   'With social IDs:', contribs.filter(c => c.instagram_user_id || c.facebook_page_id).length);
       
       if (contribs.length === 0 && allContributors.length > 0) {
-        console.warn('RLS issue? Contributors loaded but none are active or accessible:', allContributors[0]);
+        console.warn('No active contributors found. Check if contributors have active=true');
       }
       
       contribs.forEach(c => {
@@ -7562,10 +7588,14 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     }
     
     // Initialize social panel when opened
-    function initSocialPublishingPanel() {
+    async function initSocialPublishingPanel() {
       socialImages = [];
       socialContributors = [];
-      populateSocialContributorDropdown();
+      
+      // Load contributors first (fetches if not already loaded)
+      await populateSocialContributorDropdown();
+      
+      // Then auto-add photographer (needs allContributors to be populated)
       autoAddPhotographerFromArticle();
       renderSocialImages();
       
