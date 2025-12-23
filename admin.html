@@ -2039,6 +2039,30 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             </div>
           </div>
           
+          <!-- Social Media -->
+          <div style="background: #e3f2fd; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+            <label style="font-size: 13px; font-weight: 600; color: #1565c0; display: block; margin-bottom: 10px;">📱 Social Media (for tagging/collaborations)</label>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+              <div class="form-group">
+                <label>Instagram URL</label>
+                <input type="url" id="contribInstagramUrl" placeholder="https://instagram.com/username">
+              </div>
+              <div class="form-group">
+                <label>Instagram User ID <a href="https://www.instagram.com/accounts/badge/" target="_blank" style="font-size: 10px; color: #1565c0;">(how to find)</a></label>
+                <input type="text" id="contribInstagramUserId" placeholder="17841450712579843">
+              </div>
+              <div class="form-group">
+                <label>Facebook URL</label>
+                <input type="url" id="contribFacebookUrl" placeholder="https://facebook.com/page">
+              </div>
+              <div class="form-group">
+                <label>Facebook Page ID <a href="#" onclick="event.preventDefault(); alert('Go to the Facebook Page → About → Page Transparency → Page ID')" style="font-size: 10px; color: #1565c0;">(how to find)</a></label>
+                <input type="text" id="contribFacebookPageId" placeholder="104289287659890">
+              </div>
+            </div>
+            <p style="margin: 10px 0 0; font-size: 11px; color: #666;">ℹ️ Instagram User ID required for collaborator invites. Facebook Page ID required for tagging (personal profiles can't be tagged).</p>
+          </div>
+          
           <!-- Admin Settings -->
           <div style="background: #fff3e0; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
             <label style="font-size: 13px; font-weight: 600; color: #e65100; display: block; margin-bottom: 10px;">Admin Settings</label>
@@ -2283,7 +2307,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     <!-- Social Publishing Panel -->
     <div class="panel" id="socialPublishingPanel" style="display: none;">
       <div class="editor-header">
-        <h2> Social Media Posts</h2>
+        <h2>📱 Social Media Posts</h2>
         <div class="editor-actions">
           <button class="btn-save" onclick="sendToSocials()" style="background: linear-gradient(135deg, #1877f2 0%, #e1306c 100%); color: white;">📤 Send to Socials</button>
           <button class="btn-save" onclick="saveSocialPosts()" style="background: #2e7d32;">💾 Save All</button>
@@ -2291,26 +2315,96 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         </div>
       </div>
       
-      <p style="color: #666; margin-bottom: 20px;">Your article has been published! Edit and copy these posts for social media.</p>
+      <p style="color: #666; margin-bottom: 20px;">Your article has been published! Edit posts, add images, select collaborators, and send to socials.</p>
       
-      <!-- Image URL for Social Posts -->
+      <!-- Image Upload Zone -->
       <div style="margin-bottom: 20px; padding: 15px; background: #f0f7ff; border-radius: 8px; border: 1px solid #1877f2;">
-        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #1877f2;">📷 Image URL for Facebook & Instagram</label>
-        <input type="text" id="socialImageUrl" placeholder="https://... (paste your image URL here)" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;">
-        <p style="margin: 8px 0 0; font-size: 11px; color: #666;">Required for Instagram. Use a publicly accessible image URL (e.g., from SmugMug or your website).</p>
+        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #1877f2;">📷 Images for Facebook & Instagram (up to 10)</label>
+        
+        <!-- Drop Zone -->
+        <div id="socialImageDropZone" 
+             ondragover="handleSocialDragOver(event)" 
+             ondragleave="handleSocialDragLeave(event)" 
+             ondrop="handleSocialDrop(event)"
+             onclick="document.getElementById('socialImageInput').click()"
+             style="border: 2px dashed #1877f2; border-radius: 8px; padding: 30px; text-align: center; cursor: pointer; background: #fff; transition: all 0.2s;">
+          <div style="font-size: 32px; margin-bottom: 8px;">📁</div>
+          <div style="color: #1877f2; font-weight: 500;">Drag & drop images here</div>
+          <div style="color: #888; font-size: 12px; margin-top: 4px;">or click to browse</div>
+        </div>
+        <input type="file" id="socialImageInput" accept="image/*" multiple style="display: none;" onchange="handleSocialFileSelect(event)">
+        
+        <!-- Image Preview Grid -->
+        <div id="socialImagePreview" style="display: none; margin-top: 15px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <span style="font-size: 13px; color: #666;"><span id="socialImageCount">0</span>/10 images</span>
+            <button onclick="clearSocialImages()" style="background: #ffebee; color: #c62828; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">Clear All</button>
+          </div>
+          <div id="socialImageGrid" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;"></div>
+          <p style="margin: 10px 0 0; font-size: 11px; color: #666;">💡 Drag to reorder. First image is the cover. Click × to remove.</p>
+        </div>
+        
+        <!-- Upload Progress -->
+        <div id="socialUploadProgress" style="display: none; margin-top: 10px;">
+          <div style="background: #e3f2fd; border-radius: 4px; height: 8px; overflow: hidden;">
+            <div id="socialUploadBar" style="background: #1877f2; height: 100%; width: 0%; transition: width 0.3s;"></div>
+          </div>
+          <div id="socialUploadText" style="font-size: 11px; color: #666; margin-top: 4px;">Uploading...</div>
+        </div>
+      </div>
+      
+      <!-- Contributors to Tag -->
+      <div style="margin-bottom: 20px; padding: 15px; background: #f3e5f5; border-radius: 8px; border: 1px solid #9c27b0;">
+        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #7b1fa2;">👥 Contributors (IG Collaborator + FB Tag)</label>
+        
+        <!-- Selected Contributors -->
+        <div id="socialContributorsList" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; min-height: 36px;">
+          <span style="color: #888; font-size: 13px; padding: 8px;" id="noContributorsMsg">No contributors selected</span>
+        </div>
+        
+        <!-- Add Contributor Dropdown -->
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <select id="socialContributorSelect" style="flex: 1; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;">
+            <option value="">+ Add contributor...</option>
+          </select>
+          <button onclick="addSocialContributor()" style="background: #9c27b0; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px;">Add</button>
+        </div>
+        
+        <p style="margin: 10px 0 0; font-size: 11px; color: #666;">ℹ️ Photographer from article auto-added. Contributors need IG User ID for collaborator invite, FB Page ID for tagging.</p>
+      </div>
+      
+      <!-- Scheduling -->
+      <div style="margin-bottom: 20px; padding: 15px; background: #e8f5e9; border-radius: 8px; border: 1px solid #4caf50;">
+        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2e7d32;">🕐 When to Post</label>
+        
+        <div style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap;">
+          <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+            <input type="radio" name="socialSchedule" value="now" checked onchange="toggleSchedulePicker()">
+            <span>Post Now</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+            <input type="radio" name="socialSchedule" value="scheduled" onchange="toggleSchedulePicker()">
+            <span>Schedule for Later</span>
+          </label>
+          
+          <div id="schedulePicker" style="display: none; margin-left: auto;">
+            <input type="datetime-local" id="socialScheduleTime" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;">
+          </div>
+        </div>
       </div>
       
       <!-- Send Status -->
       <div id="socialSendStatus" style="display: none; margin-bottom: 15px; padding: 12px; border-radius: 8px;"></div>
       
+      <!-- Post Content Grid -->
       <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
         <!-- Facebook -->
         <div class="sidebar-card" style="background: #fff; border: 2px solid #1877f2;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-            <h4 style="color: #1877f2; margin: 0;">🔘 Facebook</h4>
+            <h4 style="color: #1877f2; margin: 0;">🔵 Facebook</h4>
             <button onclick="copySocialPost('facebook')" style="background: #1877f2; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">Copy</button>
           </div>
-          <textarea id="socialFacebookPost" style="width: 100%; min-height: 300px; border: 1px solid #ddd; border-radius: 6px; padding: 10px; font-size: 13px; line-height: 1.5; resize: vertical; font-family: inherit;"></textarea>
+          <textarea id="socialFacebookPost" style="width: 100%; min-height: 300px; border: 1px solid #ddd; border-radius: 6px; padding: 10px; font-size: 13px; line-height: 1.5; resize: vertical; font-family: inherit;" oninput="updateCharCount('facebook')"></textarea>
           <div style="margin-top: 8px; font-size: 11px; color: #888;">
             <span id="fbCharCount">0</span> characters
           </div>
@@ -2322,7 +2416,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             <h4 style="color: #e1306c; margin: 0;">📸 Instagram</h4>
             <button onclick="copySocialPost('instagram')" style="background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); color: #fff; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">Copy</button>
           </div>
-          <textarea id="socialInstagramPost" style="width: 100%; min-height: 300px; border: 1px solid #ddd; border-radius: 6px; padding: 10px; font-size: 13px; line-height: 1.5; resize: vertical; font-family: inherit;"></textarea>
+          <textarea id="socialInstagramPost" style="width: 100%; min-height: 300px; border: 1px solid #ddd; border-radius: 6px; padding: 10px; font-size: 13px; line-height: 1.5; resize: vertical; font-family: inherit;" oninput="updateCharCount('instagram')"></textarea>
           <div style="margin-top: 8px; font-size: 11px; color: #888;">
             <span id="igCharCount">0</span> / 2,200 characters
           </div>
@@ -2334,7 +2428,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             <h4 style="color: #000; margin: 0;">𝕏 Twitter</h4>
             <button onclick="copySocialPost('twitter')" style="background: #000; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">Copy</button>
           </div>
-          <textarea id="socialTwitterPost" style="width: 100%; min-height: 300px; border: 1px solid #ddd; border-radius: 6px; padding: 10px; font-size: 13px; line-height: 1.5; resize: vertical; font-family: inherit;"></textarea>
+          <textarea id="socialTwitterPost" style="width: 100%; min-height: 300px; border: 1px solid #ddd; border-radius: 6px; padding: 10px; font-size: 13px; line-height: 1.5; resize: vertical; font-family: inherit;" oninput="updateCharCount('twitter')"></textarea>
           <div style="margin-top: 8px; font-size: 11px;">
             <span id="twCharCount" style="color: #888;">0</span><span style="color: #888;"> / 280 characters</span>
           </div>
@@ -2343,10 +2437,11 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       
       <div style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px;">
         <p style="margin: 0; font-size: 13px; color: #666;">
-          💡 <strong>Tips:</strong><br>
-          • <strong>Send to Socials:</strong> Posts directly to Facebook & Instagram (requires image URL for Instagram)<br>
+          💡 <strong>How it works:</strong><br>
+          • <strong>Instagram:</strong> Creates carousel post + sends collaborator invites (contributors must accept in IG app)<br>
+          • <strong>Facebook:</strong> Creates multi-photo post + tags contributor Pages<br>
           • <strong>Twitter/X:</strong> Copy and paste manually (API costs $100+/month)<br>
-          • Images must be publicly accessible URLs (SmugMug, your website, etc.)
+          • Contributors need IG User ID and FB Page ID set in their profile to be tagged/invited
         </p>
       </div>
     </div>
@@ -6912,6 +7007,9 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('editorPanel').style.display = 'none';
       document.getElementById('socialPublishingPanel').style.display = 'block';
       
+      // Initialize social publishing panel (images, contributors, etc.)
+      initSocialPublishingPanel();
+      
       // Populate the textareas
       const fbPost = generatedSocialPosts.facebookPost || '';
       const igPost = generatedSocialPosts.instagramPost || '';
@@ -7018,9 +7116,246 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       });
     }
     
+    // ============ SOCIAL MEDIA IMAGE HANDLING ============
+    let socialImages = []; // Array of {file, preview, url} objects
+    let socialContributors = []; // Array of contributor objects to tag
+    
+    function handleSocialDragOver(e) {
+      e.preventDefault();
+      e.currentTarget.style.background = '#e3f2fd';
+      e.currentTarget.style.borderColor = '#1565c0';
+    }
+    
+    function handleSocialDragLeave(e) {
+      e.preventDefault();
+      e.currentTarget.style.background = '#fff';
+      e.currentTarget.style.borderColor = '#1877f2';
+    }
+    
+    async function handleSocialDrop(e) {
+      e.preventDefault();
+      e.currentTarget.style.background = '#fff';
+      e.currentTarget.style.borderColor = '#1877f2';
+      
+      const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+      if (files.length) {
+        await addSocialImages(files);
+      }
+    }
+    
+    async function handleSocialFileSelect(e) {
+      const files = Array.from(e.target.files);
+      if (files.length) {
+        await addSocialImages(files);
+      }
+      e.target.value = ''; // Reset so same file can be selected again
+    }
+    
+    async function addSocialImages(files) {
+      const remaining = 10 - socialImages.length;
+      const toAdd = files.slice(0, remaining);
+      
+      if (toAdd.length < files.length) {
+        showToast(`Only added ${toAdd.length} images (max 10)`, 'warning');
+      }
+      
+      // Show progress
+      const progressDiv = document.getElementById('socialUploadProgress');
+      const progressBar = document.getElementById('socialUploadBar');
+      const progressText = document.getElementById('socialUploadText');
+      progressDiv.style.display = 'block';
+      
+      for (let i = 0; i < toAdd.length; i++) {
+        const file = toAdd[i];
+        const progress = Math.round(((i + 1) / toAdd.length) * 100);
+        progressBar.style.width = progress + '%';
+        progressText.textContent = `Uploading ${i + 1}/${toAdd.length}...`;
+        
+        try {
+          // Create preview
+          const preview = URL.createObjectURL(file);
+          
+          // Upload to Supabase Storage
+          const fileName = `social/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+          const { data, error } = await db.storage
+            .from('images')
+            .upload(fileName, file, { contentType: file.type });
+          
+          if (error) throw error;
+          
+          // Get public URL
+          const { data: urlData } = db.storage.from('images').getPublicUrl(fileName);
+          
+          socialImages.push({
+            file,
+            preview,
+            url: urlData.publicUrl,
+            path: fileName
+          });
+        } catch (err) {
+          console.error('Upload error:', err);
+          showToast(`Failed to upload ${file.name}`, 'error');
+        }
+      }
+      
+      progressDiv.style.display = 'none';
+      renderSocialImages();
+    }
+    
+    function renderSocialImages() {
+      const previewDiv = document.getElementById('socialImagePreview');
+      const grid = document.getElementById('socialImageGrid');
+      const countSpan = document.getElementById('socialImageCount');
+      
+      if (socialImages.length === 0) {
+        previewDiv.style.display = 'none';
+        return;
+      }
+      
+      previewDiv.style.display = 'block';
+      countSpan.textContent = socialImages.length;
+      
+      grid.innerHTML = socialImages.map((img, i) => `
+        <div class="social-image-item" draggable="true" data-index="${i}" 
+             ondragstart="handleImageDragStart(event)" 
+             ondragover="handleImageDragOver(event)" 
+             ondrop="handleImageDrop(event)"
+             style="position: relative; aspect-ratio: 1; border-radius: 8px; overflow: hidden; cursor: move; border: ${i === 0 ? '3px solid #1877f2' : '1px solid #ddd'};">
+          <img src="${img.preview}" style="width: 100%; height: 100%; object-fit: cover;">
+          ${i === 0 ? '<div style="position: absolute; top: 4px; left: 4px; background: #1877f2; color: white; font-size: 9px; padding: 2px 6px; border-radius: 4px;">Cover</div>' : ''}
+          <button onclick="removeSocialImage(${i})" style="position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,0.6); color: white; border: none; width: 20px; height: 20px; border-radius: 50%; cursor: pointer; font-size: 12px; line-height: 1;">×</button>
+        </div>
+      `).join('');
+    }
+    
+    function removeSocialImage(index) {
+      // Revoke preview URL
+      URL.revokeObjectURL(socialImages[index].preview);
+      socialImages.splice(index, 1);
+      renderSocialImages();
+    }
+    
+    function clearSocialImages() {
+      socialImages.forEach(img => URL.revokeObjectURL(img.preview));
+      socialImages = [];
+      renderSocialImages();
+    }
+    
+    // Image reordering via drag
+    let draggedImageIndex = null;
+    
+    function handleImageDragStart(e) {
+      draggedImageIndex = parseInt(e.currentTarget.dataset.index);
+      e.dataTransfer.effectAllowed = 'move';
+    }
+    
+    function handleImageDragOver(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+    }
+    
+    function handleImageDrop(e) {
+      e.preventDefault();
+      const dropIndex = parseInt(e.currentTarget.dataset.index);
+      
+      if (draggedImageIndex !== null && draggedImageIndex !== dropIndex) {
+        const [moved] = socialImages.splice(draggedImageIndex, 1);
+        socialImages.splice(dropIndex, 0, moved);
+        renderSocialImages();
+      }
+      draggedImageIndex = null;
+    }
+    
+    // ============ CONTRIBUTOR SELECTION ============
+    function populateSocialContributorDropdown() {
+      const select = document.getElementById('socialContributorSelect');
+      select.innerHTML = '<option value="">+ Add contributor...</option>';
+      
+      // Get contributors with social IDs
+      const contribs = allContributors.filter(c => c.active && (c.instagram_user_id || c.facebook_page_id));
+      contribs.forEach(c => {
+        const hasIG = c.instagram_user_id ? '📸' : '';
+        const hasFB = c.facebook_page_id ? '🔵' : '';
+        select.innerHTML += `<option value="${c.id}">${c.name} ${hasIG}${hasFB}</option>`;
+      });
+    }
+    
+    function addSocialContributor() {
+      const select = document.getElementById('socialContributorSelect');
+      const contribId = parseInt(select.value);
+      if (!contribId) return;
+      
+      // Check if already added
+      if (socialContributors.find(c => c.id === contribId)) {
+        showToast('Contributor already added', 'warning');
+        return;
+      }
+      
+      const contrib = allContributors.find(c => c.id === contribId);
+      if (contrib) {
+        socialContributors.push(contrib);
+        renderSocialContributors();
+      }
+      
+      select.value = '';
+    }
+    
+    function removeSocialContributor(id) {
+      socialContributors = socialContributors.filter(c => c.id !== id);
+      renderSocialContributors();
+    }
+    
+    function renderSocialContributors() {
+      const listDiv = document.getElementById('socialContributorsList');
+      const noMsg = document.getElementById('noContributorsMsg');
+      
+      if (socialContributors.length === 0) {
+        listDiv.innerHTML = '<span style="color: #888; font-size: 13px; padding: 8px;" id="noContributorsMsg">No contributors selected</span>';
+        return;
+      }
+      
+      listDiv.innerHTML = socialContributors.map(c => {
+        const hasIG = c.instagram_user_id ? '<span title="IG Collaborator" style="color: #e1306c;">📸</span>' : '<span title="No IG ID" style="opacity: 0.3;">📸</span>';
+        const hasFB = c.facebook_page_id ? '<span title="FB Tag" style="color: #1877f2;">🔵</span>' : '<span title="No FB ID" style="opacity: 0.3;">🔵</span>';
+        return `
+          <div style="display: inline-flex; align-items: center; gap: 6px; background: #f3e5f5; padding: 6px 10px; border-radius: 20px; font-size: 13px;">
+            <span>${c.name}</span>
+            ${hasIG} ${hasFB}
+            <button onclick="removeSocialContributor(${c.id})" style="background: none; border: none; color: #9c27b0; cursor: pointer; font-size: 14px; padding: 0; line-height: 1;">×</button>
+          </div>
+        `;
+      }).join('');
+    }
+    
+    function autoAddPhotographerFromArticle() {
+      // If article has a photographer, auto-add them
+      if (currentArticle && currentArticle.photographer_id) {
+        const photog = allContributors.find(c => c.id === currentArticle.photographer_id);
+        if (photog && !socialContributors.find(c => c.id === photog.id)) {
+          socialContributors.push(photog);
+        }
+      }
+      renderSocialContributors();
+    }
+    
+    // ============ SCHEDULING ============
+    function toggleSchedulePicker() {
+      const scheduled = document.querySelector('input[name="socialSchedule"]:checked').value === 'scheduled';
+      const picker = document.getElementById('schedulePicker');
+      picker.style.display = scheduled ? 'block' : 'none';
+      
+      if (scheduled && !document.getElementById('socialScheduleTime').value) {
+        // Default to 1 hour from now
+        const now = new Date();
+        now.setHours(now.getHours() + 1);
+        now.setMinutes(0);
+        document.getElementById('socialScheduleTime').value = now.toISOString().slice(0, 16);
+      }
+    }
+    
+    // ============ SEND TO SOCIALS ============
     async function sendToSocials() {
       const statusDiv = document.getElementById('socialSendStatus');
-      const imageUrl = document.getElementById('socialImageUrl').value.trim();
       const fbPost = document.getElementById('socialFacebookPost').value.trim();
       const igPost = document.getElementById('socialInstagramPost').value.trim();
       
@@ -7028,6 +7363,36 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         showToast('Please enter at least one post to send', 'error');
         return;
       }
+      
+      if (socialImages.length === 0) {
+        showToast('Please add at least one image', 'error');
+        return;
+      }
+      
+      // Get scheduling info
+      const isScheduled = document.querySelector('input[name="socialSchedule"]:checked').value === 'scheduled';
+      let scheduledTime = null;
+      
+      if (isScheduled) {
+        const timeInput = document.getElementById('socialScheduleTime').value;
+        if (!timeInput) {
+          showToast('Please select a scheduled time', 'error');
+          return;
+        }
+        scheduledTime = new Date(timeInput).toISOString();
+      }
+      
+      // Get image URLs
+      const imageUrls = socialImages.map(img => img.url);
+      
+      // Get collaborators/tags
+      const igCollaborators = socialContributors
+        .filter(c => c.instagram_user_id)
+        .map(c => c.instagram_user_id);
+      
+      const fbTags = socialContributors
+        .filter(c => c.facebook_page_id)
+        .map(c => c.facebook_page_id);
       
       // Show status
       statusDiv.style.display = 'block';
@@ -7037,7 +7402,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       
       const results = { facebook: null, instagram: null };
       
-      // Send to Facebook (text or with image)
+      // Send to Facebook
       if (fbPost) {
         try {
           const fbResponse = await fetch('/.netlify/functions/social-post', {
@@ -7046,7 +7411,9 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             body: JSON.stringify({
               platform: 'facebook',
               message: fbPost,
-              imageUrl: imageUrl || null
+              imageUrls: imageUrls,
+              tags: fbTags,
+              scheduledTime: scheduledTime
             })
           });
           const fbData = await fbResponse.json();
@@ -7056,26 +7423,24 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         }
       }
       
-      // Send to Instagram (requires image)
+      // Send to Instagram
       if (igPost) {
-        if (!imageUrl) {
-          results.instagram = { success: false, error: 'Image URL required for Instagram' };
-        } else {
-          try {
-            const igResponse = await fetch('/.netlify/functions/social-post', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                platform: 'instagram',
-                message: igPost,
-                imageUrl: imageUrl
-              })
-            });
-            const igData = await igResponse.json();
-            results.instagram = igData.results?.instagram || igData;
-          } catch (err) {
-            results.instagram = { success: false, error: err.message };
-          }
+        try {
+          const igResponse = await fetch('/.netlify/functions/social-post', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              platform: 'instagram',
+              message: igPost,
+              imageUrls: imageUrls,
+              collaborators: igCollaborators,
+              scheduledTime: scheduledTime
+            })
+          });
+          const igData = await igResponse.json();
+          results.instagram = igData.results?.instagram || igData;
+        } catch (err) {
+          results.instagram = { success: false, error: err.message };
         }
       }
       
@@ -7086,7 +7451,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       
       if (results.facebook) {
         if (results.facebook.success) {
-          statusMessages.push('✅ Facebook: Posted successfully');
+          const schedText = scheduledTime ? ' (scheduled)' : '';
+          statusMessages.push(`✅ Facebook: Posted successfully${schedText}`);
           hasSuccess = true;
         } else {
           statusMessages.push(`❌ Facebook: ${results.facebook.error || 'Failed'}`);
@@ -7096,7 +7462,9 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       
       if (results.instagram) {
         if (results.instagram.success) {
-          statusMessages.push('✅ Instagram: Posted successfully');
+          const schedText = scheduledTime ? ' (scheduled)' : '';
+          const collabText = igCollaborators.length ? ` + ${igCollaborators.length} collaborator invite(s)` : '';
+          statusMessages.push(`✅ Instagram: Posted successfully${schedText}${collabText}`);
           hasSuccess = true;
         } else {
           statusMessages.push(`❌ Instagram: ${results.instagram.error || 'Failed'}`);
@@ -7122,6 +7490,20 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       if (hasSuccess) {
         await saveSocialPosts();
       }
+    }
+    
+    // Initialize social panel when opened
+    function initSocialPublishingPanel() {
+      socialImages = [];
+      socialContributors = [];
+      populateSocialContributorDropdown();
+      autoAddPhotographerFromArticle();
+      renderSocialImages();
+      
+      // Reset scheduling
+      document.querySelector('input[name="socialSchedule"][value="now"]').checked = true;
+      document.getElementById('schedulePicker').style.display = 'none';
+      document.getElementById('socialSendStatus').style.display = 'none';
     }
     
     function generateSlug(title) {
@@ -8856,6 +9238,12 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('contribTop10Url').value = contrib.top10_dropbox_url || '';
       document.getElementById('contribActive').checked = contrib.active !== false;
       
+      // Social media fields
+      document.getElementById('contribInstagramUrl').value = contrib.instagram_url || '';
+      document.getElementById('contribInstagramUserId').value = contrib.instagram_user_id || '';
+      document.getElementById('contribFacebookUrl').value = contrib.facebook_url || '';
+      document.getElementById('contribFacebookPageId').value = contrib.facebook_page_id || '';
+      
       // Show auth status if they have an auth account
       document.getElementById('contribAuthStatus').style.display = contrib.auth_user_id ? 'block' : 'none';
     }
@@ -8884,6 +9272,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         is_administrative: document.getElementById('contribIsAdministrative').checked,
         top10_dropbox_url: document.getElementById('contribTop10Url').value.trim() || null,
         active: document.getElementById('contribActive').checked,
+        instagram_url: document.getElementById('contribInstagramUrl').value.trim() || null,
+        instagram_user_id: document.getElementById('contribInstagramUserId').value.trim() || null,
+        facebook_url: document.getElementById('contribFacebookUrl').value.trim() || null,
+        facebook_page_id: document.getElementById('contribFacebookPageId').value.trim() || null,
         updated_at: new Date().toISOString()
       };
       
