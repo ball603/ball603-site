@@ -2,7 +2,7 @@
 // Returns standings data from Supabase via REST API
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
 export default async (request) => {
   const headers = {
@@ -35,7 +35,7 @@ export default async (request) => {
   } catch (error) {
     console.error('Get standings error:', error);
     return new Response(JSON.stringify({ error: error.message, standings: [] }), {
-      status: 200, // Return 200 with empty standings instead of 500
+      status: 200,
       headers
     });
   }
