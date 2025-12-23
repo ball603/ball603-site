@@ -7416,8 +7416,18 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
               scheduledTime: scheduledTime
             })
           });
-          const fbData = await fbResponse.json();
-          results.facebook = fbData.results?.facebook || fbData;
+          
+          // Check response type before parsing
+          const contentType = fbResponse.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const fbData = await fbResponse.json();
+            results.facebook = fbData.results?.facebook || fbData;
+          } else if (fbResponse.ok) {
+            // Response OK but not JSON - assume success
+            results.facebook = { success: true, note: 'Posted (non-JSON response)' };
+          } else {
+            results.facebook = { success: false, error: `HTTP ${fbResponse.status}` };
+          }
         } catch (err) {
           results.facebook = { success: false, error: err.message };
         }
@@ -7437,8 +7447,18 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
               scheduledTime: scheduledTime
             })
           });
-          const igData = await igResponse.json();
-          results.instagram = igData.results?.instagram || igData;
+          
+          // Check response type before parsing
+          const contentType = igResponse.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const igData = await igResponse.json();
+            results.instagram = igData.results?.instagram || igData;
+          } else if (igResponse.ok) {
+            // Response OK but not JSON - assume success
+            results.instagram = { success: true, note: 'Posted (non-JSON response)' };
+          } else {
+            results.instagram = { success: false, error: `HTTP ${igResponse.status}` };
+          }
         } catch (err) {
           results.instagram = { success: false, error: err.message };
         }
