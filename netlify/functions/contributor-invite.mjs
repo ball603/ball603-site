@@ -25,6 +25,10 @@ export async function handler(event) {
     switch (action) {
       case 'create-account':
         return await createAccount(data, headers);
+      case 'create-login':
+        return await createLoginForExisting(data, headers);
+      case 'set-password':
+        return await setPassword(data, headers);
       case 'delete':
         return await deleteContributor(data, headers);
       case 'bulk-create':
@@ -154,6 +158,96 @@ async function createAccount(data, headers) {
     statusCode: 200, 
     headers, 
     body: JSON.stringify({ success: true, message: `Account created for ${email}`, contributor: contributor?.[0] }) 
+  };
+}
+
+// Create login account for an EXISTING contributor (no auth account yet)
+async function createLoginForExisting(data, headers) {
+  const { contributorId, email, name, password } = data;
+
+  if (!contributorId || !email || !password) {
+    return { statusCode: 400, headers, body: JSON.stringify({ error: 'contributorId, email, and password are required' }) };
+  }
+
+  // Verify contributor exists and doesn't have auth account
+  const { data: existing } = await supabaseRest(
+    `contributors?id=eq.${contributorId}&select=id,auth_user_id,email`
+  );
+
+  if (!existing || existing.length === 0) {
+    return { statusCode: 404, headers, body: JSON.stringify({ error: 'Contributor not found' }) };
+  }
+
+  if (existing[0].auth_user_id) {
+    return { statusCode: 400, headers, body: JSON.stringify({ error: 'Contributor already has a login account' }) };
+  }
+
+  // Create Supabase Auth user with password
+  const { data: authUser, error: authError } = await supabaseAuthAdmin('users', 'POST', {
+    email: email,
+    password: password,
+    email_confirm: true,
+    user_metadata: { name: name || email }
+  });
+
+  if (authError || !authUser) {
+    console.error('Auth create error:', authError);
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to create login: ' + (authError?.message || 'Unknown error') }) };
+  }
+
+  const userId = authUser.id || authUser.user?.id;
+
+  if (!userId) {
+    console.error('No user ID in response:', authUser);
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to get user ID from response' }) };
+  }
+
+  // Link auth user to existing contributor
+  const { error: linkError } = await supabaseRest(`contributors?id=eq.${contributorId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ auth_user_id: userId })
+  });
+
+  if (linkError) {
+    console.error('Link error:', linkError);
+    // Try to clean up the auth user we just created
+    await supabaseAuthAdmin(`users/${userId}`, 'DELETE');
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to link account to contributor' }) };
+  }
+
+  return { 
+    statusCode: 200, 
+    headers, 
+    body: JSON.stringify({ success: true, message: `Login created for ${email}`, authUserId: userId }) 
+  };
+}
+
+// Set/reset password for existing auth user
+async function setPassword(data, headers) {
+  const { authUserId, password } = data;
+
+  if (!authUserId || !password) {
+    return { statusCode: 400, headers, body: JSON.stringify({ error: 'authUserId and password are required' }) };
+  }
+
+  if (password.length < 6) {
+    return { statusCode: 400, headers, body: JSON.stringify({ error: 'Password must be at least 6 characters' }) };
+  }
+
+  // Update user password via Admin API
+  const { data: updatedUser, error: updateError } = await supabaseAuthAdmin(`users/${authUserId}`, 'PUT', {
+    password: password
+  });
+
+  if (updateError) {
+    console.error('Password update error:', updateError);
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to set password: ' + (updateError?.message || 'Unknown error') }) };
+  }
+
+  return { 
+    statusCode: 200, 
+    headers, 
+    body: JSON.stringify({ success: true, message: 'Password updated successfully' }) 
   };
 }
 
