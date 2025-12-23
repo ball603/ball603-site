@@ -27,6 +27,8 @@ exports.handler = async (event, context) => {
     const body = JSON.parse(event.body);
     const { platform, message, imageUrls, tags, collaborators, scheduledTime } = body;
 
+    console.log('Social post request:', { platform, imageCount: imageUrls?.length, hasMessage: !!message });
+
     const results = {};
 
     // Post to Facebook
@@ -65,8 +67,11 @@ async function postToFacebook(message, imageUrls, tags, scheduledTime) {
     return { success: false, error: 'Facebook credentials not configured' };
   }
 
+  const API_VERSION = 'v19.0';
+
   try {
     let response;
+    let data;
 
     if (imageUrls.length === 0) {
       // Text-only post
@@ -81,10 +86,11 @@ async function postToFacebook(message, imageUrls, tags, scheduledTime) {
         params.append('published', 'false');
       }
       
-      response = await fetch(`https://graph.facebook.com/v24.0/${pageId}/feed`, {
+      response = await fetch(`https://graph.facebook.com/${API_VERSION}/${pageId}/feed`, {
         method: 'POST',
         body: params
       });
+      data = await response.json();
       
     } else if (imageUrls.length === 1) {
       // Single photo post
@@ -100,15 +106,19 @@ async function postToFacebook(message, imageUrls, tags, scheduledTime) {
         photoParams.append('scheduled_publish_time', unixTime);
         photoParams.append('published', 'false');
       }
-      response = await fetch(`https://graph.facebook.com/v24.0/${pageId}/photos`, {
+      
+      response = await fetch(`https://graph.facebook.com/${API_VERSION}/${pageId}/photos`, {
         method: 'POST',
         body: photoParams
       });
+      data = await response.json();
       
     } else {
-      // Multi-photo post (upload photos, then create post with attached_media)
+      // Multi-photo post
       const photoIds = [];
+      let lastError = null;
       
+      // Step 1: Upload each photo as unpublished
       for (const url of imageUrls) {
         const photoParams = new URLSearchParams({
           url: url,
@@ -116,14 +126,19 @@ async function postToFacebook(message, imageUrls, tags, scheduledTime) {
           access_token: accessToken
         });
         
+        console.log('Uploading FB photo:', url.substring(0, 50) + '...');
+        
         const photoResponse = await fetch(
-          `https://graph.facebook.com/v24.0/${pageId}/photos`,
+          `https://graph.facebook.com/${API_VERSION}/${pageId}/photos`,
           { method: 'POST', body: photoParams }
         );
         const photoData = await photoResponse.json();
         
+        console.log('FB photo response:', JSON.stringify(photoData));
+        
         if (photoData.error) {
           console.error('Photo upload error:', photoData.error);
+          lastError = photoData.error.message;
           continue;
         }
         
@@ -131,10 +146,12 @@ async function postToFacebook(message, imageUrls, tags, scheduledTime) {
       }
       
       if (photoIds.length === 0) {
-        return { success: false, error: 'Failed to upload photos' };
+        return { success: false, error: lastError || 'Failed to upload any photos to Facebook' };
       }
       
-      // Create post with attached media
+      console.log('Uploaded photo IDs:', photoIds);
+      
+      // Step 2: Create post with attached media
       const postParams = new URLSearchParams({
         access_token: accessToken
       });
@@ -146,18 +163,21 @@ async function postToFacebook(message, imageUrls, tags, scheduledTime) {
         postParams.append('published', 'false');
       }
       
-      // Add attached_media
+      // Add attached_media - each as separate parameter
       photoIds.forEach((id, i) => {
         postParams.append(`attached_media[${i}]`, JSON.stringify({ media_fbid: id }));
       });
       
+      console.log('Creating FB post with attached media...');
+      
       response = await fetch(
-        `https://graph.facebook.com/v24.0/${pageId}/feed`,
+        `https://graph.facebook.com/${API_VERSION}/${pageId}/feed`,
         { method: 'POST', body: postParams }
       );
+      data = await response.json();
     }
 
-    const data = await response.json();
+    console.log('FB final response:', JSON.stringify(data));
 
     if (data.error) {
       return { success: false, error: data.error.message };
@@ -166,6 +186,7 @@ async function postToFacebook(message, imageUrls, tags, scheduledTime) {
     return { success: true, postId: data.id || data.post_id };
 
   } catch (error) {
+    console.error('Facebook error:', error);
     return { success: false, error: error.message };
   }
 }
@@ -182,6 +203,8 @@ async function postToInstagram(message, imageUrls, collaborators, scheduledTime)
     return { success: false, error: 'Instagram requires at least one image' };
   }
 
+  const API_VERSION = 'v19.0';
+
   try {
     let creationId;
     
@@ -193,17 +216,20 @@ async function postToInstagram(message, imageUrls, collaborators, scheduledTime)
         access_token: accessToken
       });
       
-      // Add collaborators
+      // Collaborators for single image
       if (collaborators && collaborators.length > 0) {
-        params.append('collaborators', JSON.stringify(collaborators));
+        params.append('collaborators', collaborators.join(','));
       }
       
+      console.log('Creating single IG media...');
+      
       const createResponse = await fetch(
-        `https://graph.instagram.com/v24.0/${userId}/media`,
+        `https://graph.facebook.com/${API_VERSION}/${userId}/media`,
         { method: 'POST', body: params }
       );
       
       const createData = await createResponse.json();
+      console.log('IG create response:', JSON.stringify(createData));
       
       if (createData.error) {
         return { success: false, error: createData.error.message };
@@ -214,6 +240,7 @@ async function postToInstagram(message, imageUrls, collaborators, scheduledTime)
     } else {
       // Carousel post (multiple images)
       const childIds = [];
+      let lastError = null;
       
       // Step 1: Create media containers for each image
       for (const url of imageUrls) {
@@ -223,15 +250,19 @@ async function postToInstagram(message, imageUrls, collaborators, scheduledTime)
           access_token: accessToken
         });
         
+        console.log('Creating IG carousel item:', url.substring(0, 50) + '...');
+        
         const itemResponse = await fetch(
-          `https://graph.instagram.com/v24.0/${userId}/media`,
+          `https://graph.facebook.com/${API_VERSION}/${userId}/media`,
           { method: 'POST', body: itemParams }
         );
         
         const itemData = await itemResponse.json();
+        console.log('IG carousel item response:', JSON.stringify(itemData));
         
         if (itemData.error) {
           console.error('Carousel item error:', itemData.error);
+          lastError = itemData.error.message;
           continue;
         }
         
@@ -239,8 +270,10 @@ async function postToInstagram(message, imageUrls, collaborators, scheduledTime)
       }
       
       if (childIds.length < 2) {
-        return { success: false, error: 'Carousel requires at least 2 images' };
+        return { success: false, error: lastError || 'Carousel requires at least 2 successfully processed images' };
       }
+      
+      console.log('Created carousel item IDs:', childIds);
       
       // Step 2: Create carousel container
       const carouselParams = new URLSearchParams({
@@ -250,17 +283,20 @@ async function postToInstagram(message, imageUrls, collaborators, scheduledTime)
         access_token: accessToken
       });
       
-      // Add collaborators
+      // Collaborators for carousel
       if (collaborators && collaborators.length > 0) {
-        carouselParams.append('collaborators', JSON.stringify(collaborators));
+        carouselParams.append('collaborators', collaborators.join(','));
       }
       
+      console.log('Creating IG carousel container...');
+      
       const carouselResponse = await fetch(
-        `https://graph.instagram.com/v24.0/${userId}/media`,
+        `https://graph.facebook.com/${API_VERSION}/${userId}/media`,
         { method: 'POST', body: carouselParams }
       );
       
       const carouselData = await carouselResponse.json();
+      console.log('IG carousel response:', JSON.stringify(carouselData));
       
       if (carouselData.error) {
         return { success: false, error: carouselData.error.message };
@@ -270,17 +306,23 @@ async function postToInstagram(message, imageUrls, collaborators, scheduledTime)
     }
     
     // Step 3: Publish the media
+    // Wait a moment for Instagram to process the media
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    
     const publishParams = new URLSearchParams({
       creation_id: creationId,
       access_token: accessToken
     });
     
+    console.log('Publishing IG media:', creationId);
+    
     const publishResponse = await fetch(
-      `https://graph.instagram.com/v24.0/${userId}/media_publish`,
+      `https://graph.facebook.com/${API_VERSION}/${userId}/media_publish`,
       { method: 'POST', body: publishParams }
     );
     
     const publishData = await publishResponse.json();
+    console.log('IG publish response:', JSON.stringify(publishData));
     
     if (publishData.error) {
       return { success: false, error: publishData.error.message };
@@ -293,6 +335,7 @@ async function postToInstagram(message, imageUrls, collaborators, scheduledTime)
     };
 
   } catch (error) {
+    console.error('Instagram error:', error);
     return { success: false, error: error.message };
   }
 }
