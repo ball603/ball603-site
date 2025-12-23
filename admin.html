@@ -7271,12 +7271,24 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const select = document.getElementById('socialContributorSelect');
       select.innerHTML = '<option value="">+ Add contributor...</option>';
       
-      // Get contributors with social IDs
-      const contribs = allContributors.filter(c => c.active && (c.instagram_user_id || c.facebook_page_id));
+      // Show all active contributors, not just those with social IDs
+      // Visual indicators show who has IG/FB integration
+      const contribs = allContributors.filter(c => c.active);
+      
+      // Debug logging
+      console.log('Social dropdown: Total contributors:', allContributors.length, 
+                  'Active:', contribs.length,
+                  'With social IDs:', contribs.filter(c => c.instagram_user_id || c.facebook_page_id).length);
+      
+      if (contribs.length === 0 && allContributors.length > 0) {
+        console.warn('RLS issue? Contributors loaded but none are active or accessible:', allContributors[0]);
+      }
+      
       contribs.forEach(c => {
         const hasIG = c.instagram_user_id ? '📸' : '';
         const hasFB = c.facebook_page_id ? '🔵' : '';
-        select.innerHTML += `<option value="${c.id}">${c.name} ${hasIG}${hasFB}</option>`;
+        const badges = (hasIG || hasFB) ? ` ${hasIG}${hasFB}` : '';
+        select.innerHTML += `<option value="${c.id}">${c.name}${badges}</option>`;
       });
     }
     
@@ -7315,10 +7327,12 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       }
       
       listDiv.innerHTML = socialContributors.map(c => {
-        const hasIG = c.instagram_user_id ? '<span title="IG Collaborator" style="color: #e1306c;">📸</span>' : '<span title="No IG ID" style="opacity: 0.3;">📸</span>';
-        const hasFB = c.facebook_page_id ? '<span title="FB Tag" style="color: #1877f2;">🔵</span>' : '<span title="No FB ID" style="opacity: 0.3;">🔵</span>';
+        const hasIG = c.instagram_user_id ? '<span title="IG Collaborator Invite" style="color: #e1306c;">📸</span>' : '<span title="No IG User ID - set in Contributor Manager" style="opacity: 0.3; cursor: help;">📸</span>';
+        const hasFB = c.facebook_page_id ? '<span title="FB Page Tag" style="color: #1877f2;">🔵</span>' : '<span title="No FB Page ID - set in Contributor Manager" style="opacity: 0.3; cursor: help;">🔵</span>';
+        const noSocialIds = !c.instagram_user_id && !c.facebook_page_id;
+        const chipStyle = noSocialIds ? 'background: #fff3e0; border: 1px dashed #f57c00;' : 'background: #f3e5f5;';
         return `
-          <div style="display: inline-flex; align-items: center; gap: 6px; background: #f3e5f5; padding: 6px 10px; border-radius: 20px; font-size: 13px;">
+          <div style="display: inline-flex; align-items: center; gap: 6px; ${chipStyle} padding: 6px 10px; border-radius: 20px; font-size: 13px;" ${noSocialIds ? 'title="Add IG/FB IDs in Contributor Manager for social integration"' : ''}>
             <span>${c.name}</span>
             ${hasIG} ${hasFB}
             <button onclick="removeSocialContributor(${c.id})" style="background: none; border: none; color: #9c27b0; cursor: pointer; font-size: 14px; padding: 0; line-height: 1;">×</button>
@@ -7329,12 +7343,29 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     
     function autoAddPhotographerFromArticle() {
       // If article has a photographer, auto-add them
-      if (currentArticle && currentArticle.photographer_id) {
-        const photog = allContributors.find(c => c.id === currentArticle.photographer_id);
+      // Check both photographer_id (FK) and photographer (name) fields
+      let photog = null;
+      
+      if (currentArticle) {
+        // First try photographer_id if it exists
+        if (currentArticle.photographer_id) {
+          photog = allContributors.find(c => c.id === currentArticle.photographer_id);
+        }
+        
+        // Fall back to matching by name (current implementation stores name in 'photographer' field)
+        if (!photog && currentArticle.photographer) {
+          photog = allContributors.find(c => 
+            c.name && c.name.toLowerCase().trim() === currentArticle.photographer.toLowerCase().trim()
+          );
+        }
+        
+        // Add if found and not already in list
         if (photog && !socialContributors.find(c => c.id === photog.id)) {
           socialContributors.push(photog);
+          console.log('Auto-added photographer:', photog.name);
         }
       }
+      
       renderSocialContributors();
     }
     
@@ -7342,14 +7373,22 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     function toggleSchedulePicker() {
       const scheduled = document.querySelector('input[name="socialSchedule"]:checked').value === 'scheduled';
       const picker = document.getElementById('schedulePicker');
+      const timeInput = document.getElementById('socialScheduleTime');
       picker.style.display = scheduled ? 'block' : 'none';
       
-      if (scheduled && !document.getElementById('socialScheduleTime').value) {
-        // Default to 1 hour from now
-        const now = new Date();
-        now.setHours(now.getHours() + 1);
-        now.setMinutes(0);
-        document.getElementById('socialScheduleTime').value = now.toISOString().slice(0, 16);
+      if (scheduled) {
+        // Set minimum to 10 minutes from now (API requirement)
+        const minTime = new Date();
+        minTime.setMinutes(minTime.getMinutes() + 10);
+        timeInput.min = minTime.toISOString().slice(0, 16);
+        
+        // Default to 1 hour from now if no value set
+        if (!timeInput.value) {
+          const defaultTime = new Date();
+          defaultTime.setHours(defaultTime.getHours() + 1);
+          defaultTime.setMinutes(0);
+          timeInput.value = defaultTime.toISOString().slice(0, 16);
+        }
       }
     }
     
@@ -7379,7 +7418,17 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           showToast('Please select a scheduled time', 'error');
           return;
         }
-        scheduledTime = new Date(timeInput).toISOString();
+        
+        const selectedTime = new Date(timeInput);
+        const minTime = new Date();
+        minTime.setMinutes(minTime.getMinutes() + 10); // APIs require 10+ min in future
+        
+        if (selectedTime < minTime) {
+          showToast('Scheduled time must be at least 10 minutes in the future', 'error');
+          return;
+        }
+        
+        scheduledTime = selectedTime.toISOString();
       }
       
       // Get image URLs
