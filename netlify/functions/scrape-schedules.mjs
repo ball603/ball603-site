@@ -331,80 +331,52 @@ function parseSchedulePage(html, gender, division) {
 }
 
 function deduplicateGames(games) {
-  // Step 1: Group all games by matchup (sorted teams + gender)
-  const matchupGroups = new Map();
+  // Step 1: Group games by game_id (exact duplicates from both teams' schedules)
+  const gameById = new Map();
   
   for (const game of games) {
-    const teams = [teamSlug(game.home_team), teamSlug(game.away_team)].sort();
-    const matchupKey = `${teams[0]}_${teams[1]}_${game.gender}`;
-    
-    if (!matchupGroups.has(matchupKey)) {
-      matchupGroups.set(matchupKey, []);
+    if (!gameById.has(game.game_id)) {
+      gameById.set(game.game_id, []);
     }
-    matchupGroups.get(matchupKey).push(game);
+    gameById.get(game.game_id).push(game);
   }
   
   const finalGames = [];
   
-  // Step 2: For each matchup, cluster by date proximity (within 7 days = same game)
-  for (const [matchupKey, matchupGames] of matchupGroups) {
-    // Sort by date
-    matchupGames.sort((a, b) => a.date.localeCompare(b.date));
+  // Step 2: For each game_id group, pick the best record
+  for (const [gameId, duplicates] of gameById) {
+    let bestGame = null;
     
-    // Cluster games within 7 days of each other
-    const clusters = [];
-    let currentCluster = [matchupGames[0]];
+    // Prefer record from home team's schedule (more accurate for time/location)
+    const homeRecord = duplicates.find(g => g.isFromHomeTeam);
     
-    for (let i = 1; i < matchupGames.length; i++) {
-      const prevDate = new Date(currentCluster[currentCluster.length - 1].date);
-      const currDate = new Date(matchupGames[i].date);
-      const daysDiff = Math.abs((currDate - prevDate) / (1000 * 60 * 60 * 24));
+    if (homeRecord) {
+      bestGame = homeRecord;
       
-      if (daysDiff <= 7) {
-        // Same game, add to cluster
-        currentCluster.push(matchupGames[i]);
-      } else {
-        // New game, start new cluster
-        clusters.push(currentCluster);
-        currentCluster = [matchupGames[i]];
+      // If multiple home records (shouldn't happen), prefer one with scores
+      const homeRecords = duplicates.filter(g => g.isFromHomeTeam);
+      if (homeRecords.length > 1) {
+        const withScores = homeRecords.find(g => g.home_score !== null);
+        if (withScores) bestGame = withScores;
+      }
+    } else {
+      // No home record - use first one, prefer with scores
+      const withScores = duplicates.find(g => g.home_score !== null);
+      bestGame = withScores || duplicates[0];
+    }
+    
+    // Merge scores if we have them from any record
+    if (bestGame.home_score === null) {
+      const withScores = duplicates.find(g => g.home_score !== null);
+      if (withScores) {
+        bestGame.home_score = withScores.home_score;
+        bestGame.away_score = withScores.away_score;
+        bestGame.status = withScores.status;
+        bestGame.time = withScores.time;
       }
     }
-    clusters.push(currentCluster);
     
-    // Step 3: For each cluster, pick the best record
-    for (const cluster of clusters) {
-      let bestGame = null;
-      
-      // Look for record from home team's schedule
-      const homeRecord = cluster.find(g => g.isFromHomeTeam);
-      
-      if (homeRecord) {
-        bestGame = homeRecord;
-      } else {
-        // Both away or both home - use alphabetically first team's record
-        // Sort by the team whose schedule this came from
-        cluster.sort((a, b) => {
-          // The team whose schedule this came from is the one that's NOT marked as away
-          // If isFromHomeTeam is false, this record came from the away team's schedule
-          // We need to identify which team's schedule each record came from
-          const teamA = a.isFromHomeTeam ? a.home_team : a.away_team;
-          const teamB = b.isFromHomeTeam ? b.home_team : b.away_team;
-          return teamA.localeCompare(teamB);
-        });
-        bestGame = cluster[0];
-      }
-      
-      // If multiple home records exist (shouldn't happen often), prefer one with scores
-      if (homeRecord) {
-        const homeRecords = cluster.filter(g => g.isFromHomeTeam);
-        if (homeRecords.length > 1) {
-          const withScore = homeRecords.find(g => g.home_score !== null);
-          if (withScore) bestGame = withScore;
-        }
-      }
-      
-      finalGames.push(bestGame);
-    }
+    finalGames.push(bestGame);
   }
   
   return finalGames;
