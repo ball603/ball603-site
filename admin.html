@@ -7268,47 +7268,50 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     
     // ============ CONTRIBUTOR SELECTION ============
     async function populateSocialContributorDropdown() {
+      console.log('=== populateSocialContributorDropdown START ===');
       const select = document.getElementById('socialContributorSelect');
       select.innerHTML = '<option value="">Loading contributors...</option>';
       
-      // If contributors haven't loaded yet, fetch them directly
-      if (allContributors.length === 0) {
-        console.log('Social dropdown: Contributors not loaded yet, fetching...');
-        try {
-          const { data, error } = await db
-            .from('contributors')
-            .select('*')
-            .order('name');
-          
-          if (error) {
-            console.error('Error loading contributors for social dropdown:', error);
-            select.innerHTML = '<option value="">Error loading contributors</option>';
-            return;
-          }
-          
-          allContributors = data || [];
-          console.log('Social dropdown: Fetched', allContributors.length, 'contributors');
-        } catch (err) {
-          console.error('Failed to fetch contributors:', err);
-          select.innerHTML = '<option value="">Error loading contributors</option>';
+      console.log('Current allContributors length:', allContributors.length);
+      
+      // Always fetch fresh for social panel to ensure we have latest data
+      console.log('Fetching contributors from Supabase...');
+      try {
+        const { data, error } = await db
+          .from('contributors')
+          .select('*')
+          .order('name');
+        
+        console.log('Supabase response - data:', data, 'error:', error);
+        
+        if (error) {
+          console.error('Supabase error loading contributors:', error);
+          select.innerHTML = '<option value="">Error: ' + error.message + '</option>';
           return;
         }
+        
+        if (!data || data.length === 0) {
+          console.warn('No contributors returned from Supabase - check RLS policies');
+          select.innerHTML = '<option value="">No contributors found</option>';
+          return;
+        }
+        
+        allContributors = data;
+        console.log('Loaded', allContributors.length, 'contributors. First one:', allContributors[0]);
+      } catch (err) {
+        console.error('Exception fetching contributors:', err);
+        select.innerHTML = '<option value="">Error loading</option>';
+        return;
       }
       
       select.innerHTML = '<option value="">+ Add contributor...</option>';
       
-      // Show all active contributors, not just those with social IDs
-      // Visual indicators show who has IG/FB integration
+      // Show all active contributors
       const contribs = allContributors.filter(c => c.active);
       
-      // Debug logging
-      console.log('Social dropdown: Total contributors:', allContributors.length, 
+      console.log('Social dropdown: Total:', allContributors.length, 
                   'Active:', contribs.length,
                   'With social IDs:', contribs.filter(c => c.instagram_user_id || c.facebook_page_id).length);
-      
-      if (contribs.length === 0 && allContributors.length > 0) {
-        console.warn('No active contributors found. Check if contributors have active=true');
-      }
       
       contribs.forEach(c => {
         const hasIG = c.instagram_user_id ? '📸' : '';
@@ -7316,6 +7319,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         const badges = (hasIG || hasFB) ? ` ${hasIG}${hasFB}` : '';
         select.innerHTML += `<option value="${c.id}">${c.name}${badges}</option>`;
       });
+      
+      console.log('=== populateSocialContributorDropdown END ===');
     }
     
     function addSocialContributor() {
