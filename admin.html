@@ -2057,41 +2057,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             </div>
           </div>
           
-          <!-- Account Management -->
-          <div id="contribAccountSection" style="background: #f5f5f5; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
-            <label style="font-size: 13px; font-weight: 600; color: #333; display: block; margin-bottom: 10px;">&#128274; Login Account</label>
-            
-            <!-- No Account State -->
-            <div id="contribNoAccount" style="display: none;">
-              <p style="font-size: 12px; color: #c62828; margin: 0 0 12px 0; display: flex; align-items: center; gap: 6px;">
-                <span style="font-size: 16px;">&#10060;</span> No login account exists for this contributor.
-              </p>
-              <div style="display: flex; gap: 10px; align-items: flex-end;">
-                <div class="form-group" style="flex: 1; margin: 0;">
-                  <label style="font-size: 11px; color: #666;">Password</label>
-                  <input type="text" id="contribNewPassword" value="Gr@niteSt@teHoops" style="font-size: 13px;">
-                </div>
-                <button type="button" onclick="createContributorLogin()" style="background: #4caf50; color: white; border: none; padding: 10px 16px; border-radius: 5px; cursor: pointer; font-size: 13px; font-weight: 500; white-space: nowrap;">
-                  &#128273; Create Login
-                </button>
-              </div>
-            </div>
-            
-            <!-- Has Account State -->
-            <div id="contribHasAccount" style="display: none;">
-              <p style="font-size: 12px; color: #2e7d32; margin: 0 0 12px 0; display: flex; align-items: center; gap: 6px;">
-                <span style="font-size: 16px;">&#9989;</span> Login account exists.
-              </p>
-              <div style="display: flex; gap: 10px; align-items: flex-end;">
-                <div class="form-group" style="flex: 1; margin: 0;">
-                  <label style="font-size: 11px; color: #666;">New Password</label>
-                  <input type="text" id="contribResetPassword" placeholder="Enter new password..." style="font-size: 13px;">
-                </div>
-                <button type="button" onclick="setContributorPassword()" style="background: #ff9800; color: white; border: none; padding: 10px 16px; border-radius: 5px; cursor: pointer; font-size: 13px; font-weight: 500; white-space: nowrap;">
-                  &#128275; Set Password
-                </button>
-              </div>
-            </div>
+          <!-- Auth Status -->
+          <div id="contribAuthStatus" style="background: #e8f5e9; border-radius: 8px; padding: 15px; margin-bottom: 15px; display: none;">
+            <label style="font-size: 13px; font-weight: 600; color: #2e7d32; display: block; margin-bottom: 5px;">✔ Account Created</label>
+            <p style="font-size: 12px; color: #666; margin: 0;">This contributor has a login account.</p>
           </div>
           
           <!-- Save -->
@@ -2316,12 +2285,23 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       <div class="editor-header">
         <h2> Social Media Posts</h2>
         <div class="editor-actions">
+          <button class="btn-save" onclick="sendToSocials()" style="background: linear-gradient(135deg, #1877f2 0%, #e1306c 100%); color: white;">📤 Send to Socials</button>
           <button class="btn-save" onclick="saveSocialPosts()" style="background: #2e7d32;">💾 Save All</button>
           <button class="btn-back" onclick="closeSocialPublishing()">← Done</button>
         </div>
       </div>
       
       <p style="color: #666; margin-bottom: 20px;">Your article has been published! Edit and copy these posts for social media.</p>
+      
+      <!-- Image URL for Social Posts -->
+      <div style="margin-bottom: 20px; padding: 15px; background: #f0f7ff; border-radius: 8px; border: 1px solid #1877f2;">
+        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #1877f2;">📷 Image URL for Facebook & Instagram</label>
+        <input type="text" id="socialImageUrl" placeholder="https://... (paste your image URL here)" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;">
+        <p style="margin: 8px 0 0; font-size: 11px; color: #666;">Required for Instagram. Use a publicly accessible image URL (e.g., from SmugMug or your website).</p>
+      </div>
+      
+      <!-- Send Status -->
+      <div id="socialSendStatus" style="display: none; margin-bottom: 15px; padding: 12px; border-radius: 8px;"></div>
       
       <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
         <!-- Facebook -->
@@ -2363,7 +2343,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       
       <div style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px;">
         <p style="margin: 0; font-size: 13px; color: #666;">
-          💡 <strong>Tip:</strong> Copy each post, then paste into Hootsuite. Select your images from your photo gallery and schedule or post.
+          💡 <strong>Tips:</strong><br>
+          • <strong>Send to Socials:</strong> Posts directly to Facebook & Instagram (requires image URL for Instagram)<br>
+          • <strong>Twitter/X:</strong> Copy and paste manually (API costs $100+/month)<br>
+          • Images must be publicly accessible URLs (SmugMug, your website, etc.)
         </p>
       </div>
     </div>
@@ -4281,7 +4264,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
   <script>
     // Supabase config
     const SUPABASE_URL = 'https://suncdkxfqkwwnmhosxcf.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN1bmNka3hmcWt3d25taG9zeGNmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwNTk4MzIsImV4cCI6MjA4MDYzNTgzMn0.aT6V8Zx_YozqOh1ZnC6x-czI9vo-QhHKmP69PgY-8xw';
+    const SUPABASE_ANON_KEY = 'sb_publishable_hHSpgZPD327r11GaQG9iHw_uZbuaWmF';
     const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     
     // CMS Password
@@ -7035,6 +7018,112 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       });
     }
     
+    async function sendToSocials() {
+      const statusDiv = document.getElementById('socialSendStatus');
+      const imageUrl = document.getElementById('socialImageUrl').value.trim();
+      const fbPost = document.getElementById('socialFacebookPost').value.trim();
+      const igPost = document.getElementById('socialInstagramPost').value.trim();
+      
+      if (!fbPost && !igPost) {
+        showToast('Please enter at least one post to send', 'error');
+        return;
+      }
+      
+      // Show status
+      statusDiv.style.display = 'block';
+      statusDiv.style.background = '#e3f2fd';
+      statusDiv.style.border = '1px solid #1976d2';
+      statusDiv.innerHTML = '⏳ Sending to social platforms...';
+      
+      const results = { facebook: null, instagram: null };
+      
+      // Send to Facebook (text or with image)
+      if (fbPost) {
+        try {
+          const fbResponse = await fetch('/.netlify/functions/social-post', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              platform: 'facebook',
+              message: fbPost,
+              imageUrl: imageUrl || null
+            })
+          });
+          const fbData = await fbResponse.json();
+          results.facebook = fbData.results?.facebook || fbData;
+        } catch (err) {
+          results.facebook = { success: false, error: err.message };
+        }
+      }
+      
+      // Send to Instagram (requires image)
+      if (igPost) {
+        if (!imageUrl) {
+          results.instagram = { success: false, error: 'Image URL required for Instagram' };
+        } else {
+          try {
+            const igResponse = await fetch('/.netlify/functions/social-post', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                platform: 'instagram',
+                message: igPost,
+                imageUrl: imageUrl
+              })
+            });
+            const igData = await igResponse.json();
+            results.instagram = igData.results?.instagram || igData;
+          } catch (err) {
+            results.instagram = { success: false, error: err.message };
+          }
+        }
+      }
+      
+      // Build status message
+      let statusMessages = [];
+      let hasSuccess = false;
+      let hasError = false;
+      
+      if (results.facebook) {
+        if (results.facebook.success) {
+          statusMessages.push('✅ Facebook: Posted successfully');
+          hasSuccess = true;
+        } else {
+          statusMessages.push(`❌ Facebook: ${results.facebook.error || 'Failed'}`);
+          hasError = true;
+        }
+      }
+      
+      if (results.instagram) {
+        if (results.instagram.success) {
+          statusMessages.push('✅ Instagram: Posted successfully');
+          hasSuccess = true;
+        } else {
+          statusMessages.push(`❌ Instagram: ${results.instagram.error || 'Failed'}`);
+          hasError = true;
+        }
+      }
+      
+      // Update status display
+      if (hasError && !hasSuccess) {
+        statusDiv.style.background = '#ffebee';
+        statusDiv.style.border = '1px solid #c62828';
+      } else if (hasSuccess && !hasError) {
+        statusDiv.style.background = '#e8f5e9';
+        statusDiv.style.border = '1px solid #2e7d32';
+      } else {
+        statusDiv.style.background = '#fff3e0';
+        statusDiv.style.border = '1px solid #ef6c00';
+      }
+      
+      statusDiv.innerHTML = statusMessages.join('<br>');
+      
+      // Also save the posts to the database
+      if (hasSuccess) {
+        await saveSocialPosts();
+      }
+    }
+    
     function generateSlug(title) {
       return title
         .toLowerCase()
@@ -8767,116 +8856,13 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('contribTop10Url').value = contrib.top10_dropbox_url || '';
       document.getElementById('contribActive').checked = contrib.active !== false;
       
-      // Show account management section based on auth status
-      const hasAccount = !!contrib.auth_user_id;
-      document.getElementById('contribNoAccount').style.display = hasAccount ? 'none' : 'block';
-      document.getElementById('contribHasAccount').style.display = hasAccount ? 'block' : 'none';
-      document.getElementById('contribResetPassword').value = '';
-      
-      // Store auth_user_id for password reset
-      document.getElementById('contributorModal').dataset.authUserId = contrib.auth_user_id || '';
+      // Show auth status if they have an auth account
+      document.getElementById('contribAuthStatus').style.display = contrib.auth_user_id ? 'block' : 'none';
     }
     
     function closeContributorModal() {
       document.getElementById('contributorModal').style.display = 'none';
       document.body.style.overflow = 'auto';
-    }
-    
-    // Create login account for existing contributor
-    async function createContributorLogin() {
-      const contributorId = document.getElementById('contributorId').value;
-      const email = document.getElementById('contribEmail').value.trim();
-      const name = document.getElementById('contribName').value.trim();
-      const password = document.getElementById('contribNewPassword').value;
-      
-      if (!password) {
-        showToast('Password is required', 'error');
-        return;
-      }
-      
-      if (!email) {
-        showToast('Email is required', 'error');
-        return;
-      }
-      
-      try {
-        showToast('Creating login account...', 'success');
-        
-        const response = await fetch('/.netlify/functions/contributor-invite', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'create-login',
-            contributorId,
-            email,
-            name,
-            password
-          })
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-          showToast('Login account created!', 'success');
-          // Update UI to show "has account" state
-          document.getElementById('contribNoAccount').style.display = 'none';
-          document.getElementById('contribHasAccount').style.display = 'block';
-          document.getElementById('contributorModal').dataset.authUserId = result.authUserId || '';
-          loadContributors();
-        } else {
-          showToast('Error: ' + (result.error || 'Unknown error'), 'error');
-        }
-      } catch (err) {
-        console.error('Create login error:', err);
-        showToast('Error creating login account', 'error');
-      }
-    }
-    
-    // Set password for existing auth account
-    async function setContributorPassword() {
-      const authUserId = document.getElementById('contributorModal').dataset.authUserId;
-      const password = document.getElementById('contribResetPassword').value;
-      
-      if (!authUserId) {
-        showToast('No auth account found', 'error');
-        return;
-      }
-      
-      if (!password) {
-        showToast('Please enter a new password', 'error');
-        return;
-      }
-      
-      if (password.length < 6) {
-        showToast('Password must be at least 6 characters', 'error');
-        return;
-      }
-      
-      try {
-        showToast('Setting password...', 'success');
-        
-        const response = await fetch('/.netlify/functions/contributor-invite', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'set-password',
-            authUserId,
-            password
-          })
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-          showToast('Password updated!', 'success');
-          document.getElementById('contribResetPassword').value = '';
-        } else {
-          showToast('Error: ' + (result.error || 'Unknown error'), 'error');
-        }
-      } catch (err) {
-        console.error('Set password error:', err);
-        showToast('Error setting password', 'error');
-      }
     }
     
     async function saveContributor() {
