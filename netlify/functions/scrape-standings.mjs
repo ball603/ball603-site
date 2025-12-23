@@ -184,6 +184,106 @@ async function updateSupabase(standings) {
   return updatedCount + insertedCount;
 }
 
+// Calculate W-L-T records from games table and update standings
+async function updateRecordsFromGames() {
+  console.log('Calculating W-L records from games table...');
+  
+  // Fetch all completed NHIAA games
+  const gamesResponse = await fetch(
+    `${SUPABASE_URL}/rest/v1/games?level=eq.NHIAA&select=home_team,away_team,home_score,away_score,gender,division&or=(home_score.not.is.null,away_score.not.is.null)`,
+    {
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Range': '0-9999'
+      }
+    }
+  );
+  
+  if (!gamesResponse.ok) {
+    console.error('Failed to fetch games for W-L calculation');
+    return 0;
+  }
+  
+  const games = await gamesResponse.json();
+  console.log(`  Found ${games.length} completed games`);
+  
+  // Calculate records for each team
+  const teamRecords = new Map();
+  
+  for (const game of games) {
+    if (game.home_score === null || game.away_score === null) continue;
+    
+    const homeTeam = game.home_team;
+    const awayTeam = game.away_team;
+    const homeScore = parseInt(game.home_score);
+    const awayScore = parseInt(game.away_score);
+    const gender = game.gender;
+    const division = game.division;
+    
+    const homeKey = `${homeTeam}_${gender}_${division}`;
+    const awayKey = `${awayTeam}_${gender}_${division}`;
+    
+    if (!teamRecords.has(homeKey)) {
+      teamRecords.set(homeKey, { school: homeTeam, gender, division, wins: 0, losses: 0, ties: 0 });
+    }
+    if (!teamRecords.has(awayKey)) {
+      teamRecords.set(awayKey, { school: awayTeam, gender, division, wins: 0, losses: 0, ties: 0 });
+    }
+    
+    const homeRecord = teamRecords.get(homeKey);
+    const awayRecord = teamRecords.get(awayKey);
+    
+    if (homeScore > awayScore) {
+      homeRecord.wins++;
+      awayRecord.losses++;
+    } else if (awayScore > homeScore) {
+      awayRecord.wins++;
+      homeRecord.losses++;
+    } else {
+      homeRecord.ties++;
+      awayRecord.ties++;
+    }
+  }
+  
+  console.log(`  Calculated records for ${teamRecords.size} teams`);
+  
+  // Update standings with calculated records
+  const now = new Date().toISOString();
+  let updatedCount = 0;
+  
+  for (const [key, record] of teamRecords) {
+    const gamesPlayed = record.wins + record.losses + record.ties;
+    const winPct = gamesPlayed > 0 ? (record.wins / gamesPlayed).toFixed(3) : '0.000';
+    
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/standings?school=eq.${encodeURIComponent(record.school)}&gender=eq.${encodeURIComponent(record.gender)}&division=eq.${encodeURIComponent(record.division)}`,
+      {
+        method: 'PATCH',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify({
+          wins: record.wins,
+          losses: record.losses,
+          ties: record.ties,
+          games_played: gamesPlayed,
+          win_pct: winPct,
+          updated_at: now
+        })
+      }
+    );
+    
+    if (response.ok) updatedCount++;
+  }
+  
+  console.log(`  Updated ${updatedCount} team W-L records`);
+  return updatedCount;
+}
+
 export default async (request) => {
   console.log('Ball603 Standings Scraper - Starting...');
   
@@ -204,9 +304,14 @@ export default async (request) => {
     
     const rowCount = await updateSupabase(allStandings);
     
+    // Now update W-L records from our games table
+    console.log('Step 2: Updating W-L records from games...');
+    const recordsUpdated = await updateRecordsFromGames();
+    
     return new Response(JSON.stringify({
       success: true,
       teamsScraped: allStandings.length,
+      recordsUpdated: recordsUpdated,
       timestamp: new Date().toISOString()
     }), { status: 200 });
     
