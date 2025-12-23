@@ -2057,10 +2057,41 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             </div>
           </div>
           
-          <!-- Auth Status -->
-          <div id="contribAuthStatus" style="background: #e8f5e9; border-radius: 8px; padding: 15px; margin-bottom: 15px; display: none;">
-            <label style="font-size: 13px; font-weight: 600; color: #2e7d32; display: block; margin-bottom: 5px;">✔ Account Created</label>
-            <p style="font-size: 12px; color: #666; margin: 0;">This contributor has a login account.</p>
+          <!-- Account Management -->
+          <div id="contribAccountSection" style="background: #f5f5f5; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+            <label style="font-size: 13px; font-weight: 600; color: #333; display: block; margin-bottom: 10px;">&#128274; Login Account</label>
+            
+            <!-- No Account State -->
+            <div id="contribNoAccount" style="display: none;">
+              <p style="font-size: 12px; color: #c62828; margin: 0 0 12px 0; display: flex; align-items: center; gap: 6px;">
+                <span style="font-size: 16px;">&#10060;</span> No login account exists for this contributor.
+              </p>
+              <div style="display: flex; gap: 10px; align-items: flex-end;">
+                <div class="form-group" style="flex: 1; margin: 0;">
+                  <label style="font-size: 11px; color: #666;">Password</label>
+                  <input type="text" id="contribNewPassword" value="Gr@niteSt@teHoops" style="font-size: 13px;">
+                </div>
+                <button type="button" onclick="createContributorLogin()" style="background: #4caf50; color: white; border: none; padding: 10px 16px; border-radius: 5px; cursor: pointer; font-size: 13px; font-weight: 500; white-space: nowrap;">
+                  &#128273; Create Login
+                </button>
+              </div>
+            </div>
+            
+            <!-- Has Account State -->
+            <div id="contribHasAccount" style="display: none;">
+              <p style="font-size: 12px; color: #2e7d32; margin: 0 0 12px 0; display: flex; align-items: center; gap: 6px;">
+                <span style="font-size: 16px;">&#9989;</span> Login account exists.
+              </p>
+              <div style="display: flex; gap: 10px; align-items: flex-end;">
+                <div class="form-group" style="flex: 1; margin: 0;">
+                  <label style="font-size: 11px; color: #666;">New Password</label>
+                  <input type="text" id="contribResetPassword" placeholder="Enter new password..." style="font-size: 13px;">
+                </div>
+                <button type="button" onclick="setContributorPassword()" style="background: #ff9800; color: white; border: none; padding: 10px 16px; border-radius: 5px; cursor: pointer; font-size: 13px; font-weight: 500; white-space: nowrap;">
+                  &#128275; Set Password
+                </button>
+              </div>
+            </div>
           </div>
           
           <!-- Save -->
@@ -8736,13 +8767,116 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('contribTop10Url').value = contrib.top10_dropbox_url || '';
       document.getElementById('contribActive').checked = contrib.active !== false;
       
-      // Show auth status if they have an auth account
-      document.getElementById('contribAuthStatus').style.display = contrib.auth_user_id ? 'block' : 'none';
+      // Show account management section based on auth status
+      const hasAccount = !!contrib.auth_user_id;
+      document.getElementById('contribNoAccount').style.display = hasAccount ? 'none' : 'block';
+      document.getElementById('contribHasAccount').style.display = hasAccount ? 'block' : 'none';
+      document.getElementById('contribResetPassword').value = '';
+      
+      // Store auth_user_id for password reset
+      document.getElementById('contributorModal').dataset.authUserId = contrib.auth_user_id || '';
     }
     
     function closeContributorModal() {
       document.getElementById('contributorModal').style.display = 'none';
       document.body.style.overflow = 'auto';
+    }
+    
+    // Create login account for existing contributor
+    async function createContributorLogin() {
+      const contributorId = document.getElementById('contributorId').value;
+      const email = document.getElementById('contribEmail').value.trim();
+      const name = document.getElementById('contribName').value.trim();
+      const password = document.getElementById('contribNewPassword').value;
+      
+      if (!password) {
+        showToast('Password is required', 'error');
+        return;
+      }
+      
+      if (!email) {
+        showToast('Email is required', 'error');
+        return;
+      }
+      
+      try {
+        showToast('Creating login account...', 'success');
+        
+        const response = await fetch('/.netlify/functions/contributor-invite', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'create-login',
+            contributorId,
+            email,
+            name,
+            password
+          })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          showToast('Login account created!', 'success');
+          // Update UI to show "has account" state
+          document.getElementById('contribNoAccount').style.display = 'none';
+          document.getElementById('contribHasAccount').style.display = 'block';
+          document.getElementById('contributorModal').dataset.authUserId = result.authUserId || '';
+          loadContributors();
+        } else {
+          showToast('Error: ' + (result.error || 'Unknown error'), 'error');
+        }
+      } catch (err) {
+        console.error('Create login error:', err);
+        showToast('Error creating login account', 'error');
+      }
+    }
+    
+    // Set password for existing auth account
+    async function setContributorPassword() {
+      const authUserId = document.getElementById('contributorModal').dataset.authUserId;
+      const password = document.getElementById('contribResetPassword').value;
+      
+      if (!authUserId) {
+        showToast('No auth account found', 'error');
+        return;
+      }
+      
+      if (!password) {
+        showToast('Please enter a new password', 'error');
+        return;
+      }
+      
+      if (password.length < 6) {
+        showToast('Password must be at least 6 characters', 'error');
+        return;
+      }
+      
+      try {
+        showToast('Setting password...', 'success');
+        
+        const response = await fetch('/.netlify/functions/contributor-invite', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'set-password',
+            authUserId,
+            password
+          })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          showToast('Password updated!', 'success');
+          document.getElementById('contribResetPassword').value = '';
+        } else {
+          showToast('Error: ' + (result.error || 'Unknown error'), 'error');
+        }
+      } catch (err) {
+        console.error('Set password error:', err);
+        showToast('Error setting password', 'error');
+      }
     }
     
     async function saveContributor() {
