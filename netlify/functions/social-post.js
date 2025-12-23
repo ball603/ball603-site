@@ -114,35 +114,34 @@ async function postToFacebook(message, imageUrls, tags, scheduledTime) {
       data = await response.json();
       
     } else {
-      // Multi-photo post
-      const photoIds = [];
-      let lastError = null;
+      // Multi-photo post - upload in parallel for speed
+      console.log('Uploading', imageUrls.length, 'photos to Facebook in parallel...');
       
-      // Step 1: Upload each photo as unpublished
-      for (const url of imageUrls) {
+      const uploadPromises = imageUrls.map(async (url) => {
         const photoParams = new URLSearchParams({
           url: url,
           published: 'false',
           access_token: accessToken
         });
         
-        console.log('Uploading FB photo:', url.substring(0, 50) + '...');
-        
         const photoResponse = await fetch(
           `https://graph.facebook.com/${API_VERSION}/${pageId}/photos`,
           { method: 'POST', body: photoParams }
         );
-        const photoData = await photoResponse.json();
-        
-        console.log('FB photo response:', JSON.stringify(photoData));
-        
+        return photoResponse.json();
+      });
+      
+      const photoResults = await Promise.all(uploadPromises);
+      const photoIds = [];
+      let lastError = null;
+      
+      for (const photoData of photoResults) {
         if (photoData.error) {
           console.error('Photo upload error:', photoData.error);
           lastError = photoData.error.message;
-          continue;
+        } else if (photoData.id) {
+          photoIds.push(photoData.id);
         }
-        
-        photoIds.push(photoData.id);
       }
       
       if (photoIds.length === 0) {
@@ -238,35 +237,34 @@ async function postToInstagram(message, imageUrls, collaborators, scheduledTime)
       creationId = createData.id;
       
     } else {
-      // Carousel post (multiple images)
-      const childIds = [];
-      let lastError = null;
+      // Carousel post - upload items in parallel for speed
+      console.log('Creating', imageUrls.length, 'Instagram carousel items in parallel...');
       
-      // Step 1: Create media containers for each image
-      for (const url of imageUrls) {
+      const itemPromises = imageUrls.map(async (url) => {
         const itemParams = new URLSearchParams({
           image_url: url,
           is_carousel_item: 'true',
           access_token: accessToken
         });
         
-        console.log('Creating IG carousel item:', url.substring(0, 50) + '...');
-        
         const itemResponse = await fetch(
           `https://graph.facebook.com/${API_VERSION}/${userId}/media`,
           { method: 'POST', body: itemParams }
         );
-        
-        const itemData = await itemResponse.json();
-        console.log('IG carousel item response:', JSON.stringify(itemData));
-        
+        return itemResponse.json();
+      });
+      
+      const itemResults = await Promise.all(itemPromises);
+      const childIds = [];
+      let lastError = null;
+      
+      for (const itemData of itemResults) {
         if (itemData.error) {
           console.error('Carousel item error:', itemData.error);
           lastError = itemData.error.message;
-          continue;
+        } else if (itemData.id) {
+          childIds.push(itemData.id);
         }
-        
-        childIds.push(itemData.id);
       }
       
       if (childIds.length < 2) {
@@ -306,8 +304,8 @@ async function postToInstagram(message, imageUrls, collaborators, scheduledTime)
     }
     
     // Step 3: Publish the media
-    // Wait a moment for Instagram to process the media
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    // Brief delay for Instagram to process
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
     const publishParams = new URLSearchParams({
       creation_id: creationId,
