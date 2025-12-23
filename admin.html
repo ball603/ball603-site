@@ -10029,6 +10029,16 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           showToast(gameId ? 'Game updated!' : 'Game created!', 'success');
           closeGameModal();
           loadGames();
+          
+          // If game has scores and is NHIAA, update standings
+          if (gameData.home_score !== null && gameData.away_score !== null && gameData.level === 'NHIAA') {
+            try {
+              await fetch('/.netlify/functions/update-standings', { method: 'POST' });
+              console.log('Standings updated after score entry');
+            } catch (e) {
+              console.error('Failed to update standings:', e);
+            }
+          }
         } else {
           const err = await response.json();
           showToast(err.error || 'Failed to save game', 'error');
