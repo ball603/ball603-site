@@ -1,10 +1,8 @@
 // Ball603 NHIAA Standings Scraper
 // Runs 3x daily via Netlify scheduled functions
 
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const STANDINGS_URLS = [
   { url: 'https://www.nhiaa.org/sports/standings/boys-basketball/division-1', gender: 'Boys', division: 'D-I' },
@@ -94,7 +92,6 @@ function calculatePlayoffPicture(standings) {
 }
 
 async function updateSupabase(standings) {
-  const supabase = createClient(supabaseUrl, supabaseKey);
   const now = new Date().toISOString();
   
   // Prepare data with timestamps
@@ -116,17 +113,25 @@ async function updateSupabase(standings) {
     updated_at: now
   }));
   
-  // Upsert all standings (insert or update based on school+gender+division)
-  const { data, error } = await supabase
-    .from('standings')
-    .upsert(rows, { 
-      onConflict: 'school,gender,division',
-      ignoreDuplicates: false 
-    });
+  // Upsert all standings via REST API
+  const response = await fetch(
+    `${SUPABASE_URL}/rest/v1/standings?on_conflict=school,gender,division`,
+    {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates'
+      },
+      body: JSON.stringify(rows)
+    }
+  );
   
-  if (error) {
+  if (!response.ok) {
+    const error = await response.text();
     console.error('Supabase upsert error:', error);
-    throw error;
+    throw new Error(`Supabase error: ${response.status} - ${error}`);
   }
   
   return rows.length;

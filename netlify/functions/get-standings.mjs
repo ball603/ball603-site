@@ -1,10 +1,8 @@
 // Ball603 Get Standings API
-// Returns standings data from Supabase
+// Returns standings data from Supabase via REST API
 
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 export default async (request) => {
   const headers = {
@@ -13,17 +11,21 @@ export default async (request) => {
   };
   
   try {
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/standings?select=*&order=rating.desc`,
+      {
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`
+        }
+      }
+    );
     
-    const { data: standings, error } = await supabase
-      .from('standings')
-      .select('*')
-      .order('rating', { ascending: false });
-    
-    if (error) {
-      console.error('Supabase error:', error);
-      throw error;
+    if (!response.ok) {
+      throw new Error(`Supabase error: ${response.status}`);
     }
+    
+    const standings = await response.json();
     
     return new Response(JSON.stringify({ standings: standings || [] }), {
       status: 200,
