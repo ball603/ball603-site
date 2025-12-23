@@ -182,7 +182,7 @@ async function createLoginForExisting(data, headers) {
     return { statusCode: 400, headers, body: JSON.stringify({ error: 'Contributor already has a login account' }) };
   }
 
-  // Create Supabase Auth user with password
+  // Try to create Supabase Auth user with password
   const { data: authUser, error: authError } = await supabaseAuthAdmin('users', 'POST', {
     email: email,
     password: password,
@@ -190,16 +190,46 @@ async function createLoginForExisting(data, headers) {
     user_metadata: { name: name || email }
   });
 
-  if (authError || !authUser) {
-    console.error('Auth create error:', authError);
-    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to create login: ' + (authError?.message || 'Unknown error') }) };
+  let userId = null;
+
+  if (authError) {
+    // Check if user already exists - if so, find them and link
+    if (authError.message && authError.message.includes('already been registered')) {
+      console.log('User already exists, attempting to find and link...');
+      
+      // List users and find by email
+      const { data: userList, error: listError } = await supabaseAuthAdmin('users', 'GET');
+      
+      if (listError || !userList) {
+        console.error('Failed to list users:', listError);
+        return { statusCode: 500, headers, body: JSON.stringify({ error: 'User exists but could not be found. Try deleting from Supabase Auth first.' }) };
+      }
+      
+      // Find user by email (userList might be an object with users array)
+      const users = userList.users || userList;
+      const existingUser = Array.isArray(users) ? users.find(u => u.email?.toLowerCase() === email.toLowerCase()) : null;
+      
+      if (!existingUser) {
+        console.error('Could not find existing user by email');
+        return { statusCode: 500, headers, body: JSON.stringify({ error: 'User exists but could not be found by email. Try deleting from Supabase Auth first.' }) };
+      }
+      
+      userId = existingUser.id;
+      
+      // Update their password while we're at it
+      await supabaseAuthAdmin(`users/${userId}`, 'PUT', { password: password });
+      
+    } else {
+      console.error('Auth create error:', authError);
+      return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to create login: ' + (authError?.message || 'Unknown error') }) };
+    }
+  } else {
+    userId = authUser.id || authUser.user?.id;
   }
 
-  const userId = authUser.id || authUser.user?.id;
-
   if (!userId) {
-    console.error('No user ID in response:', authUser);
-    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to get user ID from response' }) };
+    console.error('No user ID found');
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to get user ID' }) };
   }
 
   // Link auth user to existing contributor
@@ -210,15 +240,13 @@ async function createLoginForExisting(data, headers) {
 
   if (linkError) {
     console.error('Link error:', linkError);
-    // Try to clean up the auth user we just created
-    await supabaseAuthAdmin(`users/${userId}`, 'DELETE');
     return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to link account to contributor' }) };
   }
 
   return { 
     statusCode: 200, 
     headers, 
-    body: JSON.stringify({ success: true, message: `Login created for ${email}`, authUserId: userId }) 
+    body: JSON.stringify({ success: true, message: `Login linked for ${email}`, authUserId: userId }) 
   };
 }
 
