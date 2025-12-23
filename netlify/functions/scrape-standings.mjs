@@ -1,6 +1,11 @@
 // Ball603 NHIAA Standings Scraper
 // Runs 3x daily via Netlify scheduled functions
 
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
 const STANDINGS_URLS = [
   { url: 'https://www.nhiaa.org/sports/standings/boys-basketball/division-1', gender: 'Boys', division: 'D-I' },
   { url: 'https://www.nhiaa.org/sports/standings/boys-basketball/division-2', gender: 'Boys', division: 'D-II' },
@@ -18,7 +23,6 @@ function parseStandingsPage(html, gender, division) {
   // Find the standings table - look for rows with School | W | L | T | Points | Rating
   const rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
   let rowMatch;
-  let isFirstRow = true;
   
   while ((rowMatch = rowRegex.exec(html)) !== null) {
     const rowContent = rowMatch[1];
@@ -89,85 +93,43 @@ function calculatePlayoffPicture(standings) {
   return standings;
 }
 
-async function updateGoogleSheets(standings) {
-  const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
-  const spreadsheetId = process.env.GOOGLE_SHEETS_STANDINGS_ID;
+async function updateSupabase(standings) {
+  const supabase = createClient(supabaseUrl, supabaseKey);
+  const now = new Date().toISOString();
   
-  // Get access token
-  const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-      assertion: await createJWT(credentials)
-    })
-  });
+  // Prepare data with timestamps
+  const rows = standings.map(s => ({
+    school: s.school,
+    gender: s.gender,
+    division: s.division,
+    wins: s.wins,
+    losses: s.losses,
+    ties: s.ties,
+    points: s.points,
+    rating: s.rating,
+    games_played: s.games_played,
+    win_pct: s.win_pct,
+    seed: s.seed || null,
+    qualifies: s.qualifies || false,
+    tournament_spots: s.tournament_spots || null,
+    scraped_at: now,
+    updated_at: now
+  }));
   
-  const { access_token } = await tokenResponse.json();
+  // Upsert all standings (insert or update based on school+gender+division)
+  const { data, error } = await supabase
+    .from('standings')
+    .upsert(rows, { 
+      onConflict: 'school,gender,division',
+      ignoreDuplicates: false 
+    });
   
-  // Prepare data
-  const header = ['school', 'gender', 'division', 'wins', 'losses', 'ties', 'points', 'rating', 'games_played', 'win_pct', 'seed', 'qualifies', 'tournament_spots', 'scraped_at'];
-  const rows = standings.map(s => [
-    s.school, s.gender, s.division, s.wins, s.losses, s.ties,
-    s.points, s.rating, s.games_played, s.win_pct, s.seed || '',
-    s.qualifies ? 'Yes' : 'No', s.tournament_spots || '', new Date().toISOString()
-  ]);
-  
-  // Clear and update sheet
-  await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Standings!A:N:clear`, {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${access_token}` }
-  });
-  
-  await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Standings!A1?valueInputOption=RAW`, {
-    method: 'PUT',
-    headers: {
-      'Authorization': `Bearer ${access_token}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ values: [header, ...rows] })
-  });
+  if (error) {
+    console.error('Supabase upsert error:', error);
+    throw error;
+  }
   
   return rows.length;
-}
-
-async function createJWT(credentials) {
-  const header = { alg: 'RS256', typ: 'JWT' };
-  const now = Math.floor(Date.now() / 1000);
-  const payload = {
-    iss: credentials.client_email,
-    scope: 'https://www.googleapis.com/auth/spreadsheets',
-    aud: 'https://oauth2.googleapis.com/token',
-    iat: now,
-    exp: now + 3600
-  };
-  
-  const encoder = new TextEncoder();
-  const headerB64 = btoa(JSON.stringify(header)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-  const payloadB64 = btoa(JSON.stringify(payload)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-  const unsignedToken = `${headerB64}.${payloadB64}`;
-  
-  const pemContents = credentials.private_key.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\n/g, '');
-  const binaryKey = Uint8Array.from(atob(pemContents), c => c.charCodeAt(0));
-  
-  const cryptoKey = await crypto.subtle.importKey(
-    'pkcs8',
-    binaryKey,
-    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
-  
-  const signature = await crypto.subtle.sign(
-    'RSASSA-PKCS1-v1_5',
-    cryptoKey,
-    encoder.encode(unsignedToken)
-  );
-  
-  const signatureB64 = btoa(String.fromCharCode(...new Uint8Array(signature)))
-    .replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-  
-  return `${unsignedToken}.${signatureB64}`;
 }
 
 export default async (request) => {
@@ -188,7 +150,7 @@ export default async (request) => {
     allStandings = calculatePlayoffPicture(allStandings);
     console.log(`Total teams: ${allStandings.length}`);
     
-    const rowCount = await updateGoogleSheets(allStandings);
+    const rowCount = await updateSupabase(allStandings);
     
     return new Response(JSON.stringify({
       success: true,
