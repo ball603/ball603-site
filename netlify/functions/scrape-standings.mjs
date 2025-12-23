@@ -93,48 +93,95 @@ function calculatePlayoffPicture(standings) {
 
 async function updateSupabase(standings) {
   const now = new Date().toISOString();
+  let updatedCount = 0;
+  let insertedCount = 0;
   
-  // Prepare data with timestamps
-  const rows = standings.map(s => ({
-    school: s.school,
-    gender: s.gender,
-    division: s.division,
-    wins: s.wins,
-    losses: s.losses,
-    ties: s.ties,
-    points: s.points,
-    rating: s.rating,
-    games_played: s.games_played,
-    win_pct: s.win_pct,
-    seed: s.seed || null,
-    qualifies: s.qualifies || false,
-    tournament_spots: s.tournament_spots || null,
-    scraped_at: now,
-    updated_at: now
-  }));
-  
-  // Upsert all standings via REST API
-  const response = await fetch(
-    `${SUPABASE_URL}/rest/v1/standings?on_conflict=school,gender,division`,
+  // First, get existing teams to know which are new vs existing
+  const existingResponse = await fetch(
+    `${SUPABASE_URL}/rest/v1/standings?select=school,gender,division`,
     {
-      method: 'POST',
       headers: {
         'apikey': SUPABASE_KEY,
         'Authorization': `Bearer ${SUPABASE_KEY}`,
-        'Content-Type': 'application/json',
-        'Prefer': 'resolution=merge-duplicates'
-      },
-      body: JSON.stringify(rows)
+        'Range': '0-9999'
+      }
     }
   );
   
-  if (!response.ok) {
-    const error = await response.text();
-    console.error('Supabase upsert error:', error);
-    throw new Error(`Supabase error: ${response.status} - ${error}`);
+  const existingTeams = new Set();
+  if (existingResponse.ok) {
+    const existing = await existingResponse.json();
+    for (const team of existing) {
+      existingTeams.add(`${team.school}_${team.gender}_${team.division}`);
+    }
   }
   
-  return rows.length;
+  // Process each team
+  for (const s of standings) {
+    const teamKey = `${s.school}_${s.gender}_${s.division}`;
+    
+    if (existingTeams.has(teamKey)) {
+      // Existing team: Only update rating/points/seed/qualifies (NOT W-L)
+      const response = await fetch(
+        `${SUPABASE_URL}/rest/v1/standings?school=eq.${encodeURIComponent(s.school)}&gender=eq.${encodeURIComponent(s.gender)}&division=eq.${encodeURIComponent(s.division)}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal'
+          },
+          body: JSON.stringify({
+            points: s.points,
+            rating: s.rating,
+            seed: s.seed || null,
+            qualifies: s.qualifies || false,
+            tournament_spots: s.tournament_spots || null,
+            scraped_at: now
+          })
+        }
+      );
+      
+      if (response.ok) updatedCount++;
+    } else {
+      // New team: Insert full record with W-L from NHIAA (will be recalculated by update-standings)
+      const response = await fetch(
+        `${SUPABASE_URL}/rest/v1/standings`,
+        {
+          method: 'POST',
+          headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal'
+          },
+          body: JSON.stringify({
+            school: s.school,
+            gender: s.gender,
+            division: s.division,
+            wins: s.wins,
+            losses: s.losses,
+            ties: s.ties,
+            points: s.points,
+            rating: s.rating,
+            games_played: s.games_played,
+            win_pct: s.win_pct,
+            seed: s.seed || null,
+            qualifies: s.qualifies || false,
+            tournament_spots: s.tournament_spots || null,
+            scraped_at: now,
+            updated_at: now
+          })
+        }
+      );
+      
+      if (response.ok) insertedCount++;
+    }
+  }
+  
+  console.log(`  Updated ${updatedCount} existing teams (ratings only), inserted ${insertedCount} new teams`);
+  return updatedCount + insertedCount;
 }
 
 export default async (request) => {
