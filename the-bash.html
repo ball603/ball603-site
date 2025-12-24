@@ -2216,15 +2216,27 @@
 
       // Use liveSchedule from database, fall back to BASH_DATA
       let allGames = liveSchedule.length > 0 ? liveSchedule : (BASH_DATA?.schedule || []);
+      
+      // Separate special events and regular games
+      let specialEvents = allGames.filter(g => g.special);
       let games = allGames.filter(g => !g.special);
+      
+      // Apply filters to regular games only
       if (divFilter) games = games.filter(g => g.division === divFilter);
-      if (dayFilter) games = games.filter(g => g.date === dayFilter);
+      if (dayFilter) {
+        games = games.filter(g => g.date === dayFilter);
+        specialEvents = specialEvents.filter(g => g.date === dayFilter);
+      }
       if (teamFilter) {
         games = games.filter(g => 
           (g.away && g.away.toLowerCase().includes(teamFilter)) || 
           (g.home && g.home.toLowerCase().includes(teamFilter))
         );
+        specialEvents = []; // Hide special events when searching for teams
       }
+      
+      // Merge special events back in
+      games = [...games, ...specialEvents];
 
       const container = document.getElementById('scheduleTable');
       
@@ -2264,6 +2276,17 @@
       Object.keys(byDate).forEach(date => {
         html += `<tr class="date-row"><td colspan="7">${date}</td></tr>`;
         byDate[date].forEach(g => {
+          // Handle special events differently
+          if (g.special) {
+            html += `
+              <tr class="game-row special-event-row">
+                <td class="col-time">${g.time}</td>
+                <td colspan="6" class="special-event-cell">${g.away}</td>
+              </tr>
+            `;
+            return;
+          }
+          
           const hasScore = g.awayScore !== null && g.homeScore !== null;
           const awayWinner = hasScore && g.awayScore > g.homeScore;
           const homeWinner = hasScore && g.homeScore > g.awayScore;
