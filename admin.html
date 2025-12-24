@@ -276,6 +276,16 @@
     .bash-roster-row input[type="text"] { flex: 1; padding: 3px 4px; border: 1px solid #ddd; border-radius: 3px; font-size: 11px; min-width: 0; }
     .bash-roster-row .input-label { font-size: 9px; color: #999; text-align: center; display: block; }
     
+    /* Streams Toggle Switch */
+    .stream-toggle input:checked + span { background-color: #4caf50; }
+    .stream-toggle input:checked + span + .stream-toggle-slider { transform: translateX(22px); }
+    .stream-status-live { background: #e8f5e9; color: #2e7d32; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+    .stream-status-off { background: #f5f5f5; color: #888; padding: 4px 10px; border-radius: 12px; font-size: 11px; }
+    .stream-make-live-btn { background: #4caf50; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 11px; cursor: pointer; }
+    .stream-make-live-btn:hover { background: #43a047; }
+    .stream-turn-off-btn { background: #ff5722; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 11px; cursor: pointer; }
+    .stream-turn-off-btn:hover { background: #e64a19; }
+    
     /* Graphics Creator Styles */
     .gc-sidebar-card { background: #fff; border: 1px solid #e5e5e5; border-radius: 8px; overflow: hidden; }
     .gc-card-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: #f8f8f8; border-bottom: 1px solid #e5e5e5; cursor: pointer; font-size: 13px; font-weight: 600; color: #444; }
@@ -2467,6 +2477,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         <button class="bash-admin-tab" onclick="showBashTab('scorebook')">Scorebook</button>
         <button class="bash-admin-tab" onclick="showBashTab('stories')">📰 Stories</button>
         <button class="bash-admin-tab" onclick="showBashTab('recap')">Nightly Recap</button>
+        <button class="bash-admin-tab" onclick="showBashTab('streams')">&#128249; Streams</button>
         <button class="bash-admin-tab" onclick="showBashTab('settings')">Settings</button>
       </div>
       
@@ -2904,6 +2915,80 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           <small style="display: block; margin-top: 10px; color: #888; text-align: center;">
             Nightly recaps appear on both The Bash landing page AND the main Ball603 homepage.
           </small>
+        </div>
+      </div>
+      
+      <!-- Streams Sub-Panel -->
+      <div class="bash-sub-panel" id="bashStreamsPanel">
+        <div style="max-width: 800px;">
+          <h3 style="margin-bottom: 20px;">Watch Live Streams</h3>
+          
+          <!-- Master Toggle -->
+          <div style="background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+              <div>
+                <h4 style="margin: 0 0 4px; font-size: 14px;">Enable Watch Live Section</h4>
+                <p style="margin: 0; font-size: 12px; color: #888;">When enabled, the Watch Live section appears on The Bash page</p>
+              </div>
+              <label style="position: relative; display: inline-block; width: 50px; height: 28px;">
+                <input type="checkbox" id="bashStreamEnabled" onchange="toggleBashStreamSection()" style="opacity: 0; width: 0; height: 0;">
+                <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; border-radius: 28px; transition: 0.3s;"></span>
+                <span class="stream-toggle-slider" style="position: absolute; content: ''; height: 22px; width: 22px; left: 3px; bottom: 3px; background-color: white; border-radius: 50%; transition: 0.3s;"></span>
+              </label>
+            </div>
+          </div>
+          
+          <!-- Pre-Tournament Message -->
+          <div style="background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+            <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 6px;">Pre-Tournament Message</label>
+            <input type="text" id="bashStreamMessage" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;" placeholder="Live streams begin December 26th">
+            <small style="display: block; margin-top: 6px; color: #888;">Shown when section is enabled but no stream is marked as live</small>
+          </div>
+          
+          <!-- Stream URLs -->
+          <div style="background: #fff; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; margin-bottom: 20px;">
+            <div style="background: #f57c00; color: white; padding: 12px 16px;">
+              <h4 style="margin: 0; font-size: 14px;">Tournament Streams (Hudl)</h4>
+            </div>
+            <div style="padding: 16px;">
+              <table class="bash-table" id="bashStreamsTable" style="margin: 0;">
+                <thead>
+                  <tr>
+                    <th style="width: 120px;">Day</th>
+                    <th>Embed URL</th>
+                    <th style="width: 80px;">Status</th>
+                    <th style="width: 100px;">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="bashStreamsBody">
+                  <tr><td colspan="4" class="loading">Loading streams...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+          <!-- Farmington Link -->
+          <div style="background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+              <span style="font-size: 20px;">&#127968;</span>
+              <div>
+                <h4 style="margin: 0 0 2px; font-size: 14px;">Farmington Games</h4>
+                <p style="margin: 0; font-size: 12px; color: #888;">All Farmington boys and girls games stream separately on Hudl Fan</p>
+              </div>
+            </div>
+            <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 6px;">Farmington Hudl Fan URL</label>
+            <input type="text" id="bashFarmingtonUrl" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;" placeholder="https://fan.hudl.com/...">
+          </div>
+          
+          <!-- Save Button -->
+          <div style="display: flex; gap: 10px;">
+            <button onclick="saveBashStreams()" style="background: #f57c00; color: white; border: none; padding: 12px 24px; border-radius: 5px; cursor: pointer; font-weight: 600;">
+              Save Stream Settings
+            </button>
+            <button onclick="loadBashStreams()" style="background: #e0e0e0; color: #333; border: none; padding: 12px 24px; border-radius: 5px; cursor: pointer; font-weight: 500;">
+              Reload
+            </button>
+          </div>
         </div>
       </div>
       
@@ -11279,6 +11364,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       if (tab === 'stories') {
         loadBashContent();
       }
+      // Load streams when streams tab is shown
+      if (tab === 'streams') {
+        loadBashStreams();
+      }
     }
     
     async function loadBashData() {
@@ -11926,6 +12015,191 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       a.download = 'the-bash-data.js';
       a.click();
       showToast('Generated', 'success');
+    }
+    
+    // ===== BASH STREAMS MANAGEMENT =====
+    let bashStreams = [];
+    let bashStreamConfig = { section_enabled: false, farmington_url: '', pre_tournament_message: 'Live streams begin December 26th' };
+    
+    async function loadBashStreams() {
+      try {
+        // Load streams
+        const { data: streams, error: streamsError } = await db
+          .from('bash_streams')
+          .select('*')
+          .order('day_number');
+        
+        if (streamsError) {
+          console.error('Error loading streams:', streamsError);
+          showToast('Error loading streams', 'error');
+          return;
+        }
+        bashStreams = streams || [];
+        
+        // Load config
+        const { data: config, error: configError } = await db
+          .from('bash_stream_config')
+          .select('*')
+          .eq('id', 1)
+          .single();
+        
+        if (!configError && config) {
+          bashStreamConfig = config;
+        }
+        
+        renderBashStreams();
+      } catch (err) {
+        console.error('Error loading bash streams:', err);
+        showToast('Error loading streams', 'error');
+      }
+    }
+    
+    function renderBashStreams() {
+      const tbody = document.getElementById('bashStreamsBody');
+      if (!tbody) return;
+      
+      // Update toggle
+      const enabledCheckbox = document.getElementById('bashStreamEnabled');
+      if (enabledCheckbox) {
+        enabledCheckbox.checked = bashStreamConfig.section_enabled;
+        updateToggleVisual(enabledCheckbox);
+      }
+      
+      // Update message
+      const messageInput = document.getElementById('bashStreamMessage');
+      if (messageInput) {
+        messageInput.value = bashStreamConfig.pre_tournament_message || '';
+      }
+      
+      // Update Farmington URL
+      const farmingtonInput = document.getElementById('bashFarmingtonUrl');
+      if (farmingtonInput) {
+        farmingtonInput.value = bashStreamConfig.farmington_url || '';
+      }
+      
+      if (bashStreams.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #888;">No streams configured</td></tr>';
+        return;
+      }
+      
+      tbody.innerHTML = bashStreams.map(stream => {
+        const isLive = stream.is_active;
+        const statusClass = isLive ? 'stream-status-live' : 'stream-status-off';
+        const statusText = isLive ? '&#9679; LIVE' : 'Off';
+        const actionBtn = isLive 
+          ? `<button class="stream-turn-off-btn" onclick="setBashStreamActive(${stream.id}, false)">Turn Off</button>`
+          : `<button class="stream-make-live-btn" onclick="setBashStreamActive(${stream.id}, true)">Make Live</button>`;
+        
+        return `
+          <tr>
+            <td><strong>${stream.label}</strong></td>
+            <td>
+              <input type="text" 
+                value="${stream.embed_url || ''}" 
+                onchange="updateBashStreamUrl(${stream.id}, this.value)"
+                style="width: 100%; padding: 6px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px;"
+                placeholder="https://vcloud.hudl.com/broadcast/embed/...">
+            </td>
+            <td><span class="${statusClass}">${statusText}</span></td>
+            <td>${actionBtn}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+    
+    function updateToggleVisual(checkbox) {
+      const slider = checkbox.parentElement.querySelector('.stream-toggle-slider');
+      const bg = checkbox.parentElement.querySelector('span:not(.stream-toggle-slider)');
+      if (checkbox.checked) {
+        if (bg) bg.style.backgroundColor = '#4caf50';
+        if (slider) slider.style.transform = 'translateX(22px)';
+      } else {
+        if (bg) bg.style.backgroundColor = '#ccc';
+        if (slider) slider.style.transform = 'translateX(0)';
+      }
+    }
+    
+    function toggleBashStreamSection() {
+      const checkbox = document.getElementById('bashStreamEnabled');
+      updateToggleVisual(checkbox);
+    }
+    
+    async function setBashStreamActive(streamId, isActive) {
+      try {
+        if (isActive) {
+          // First, turn off all other streams
+          await db.from('bash_streams').update({ is_active: false }).neq('id', streamId);
+        }
+        
+        // Then set this stream's status
+        const { error } = await db
+          .from('bash_streams')
+          .update({ is_active: isActive, updated_at: new Date().toISOString() })
+          .eq('id', streamId);
+        
+        if (error) {
+          showToast('Error updating stream: ' + error.message, 'error');
+          return;
+        }
+        
+        showToast(isActive ? 'Stream is now LIVE' : 'Stream turned off', 'success');
+        loadBashStreams();
+      } catch (err) {
+        console.error('Error setting stream active:', err);
+        showToast('Error updating stream', 'error');
+      }
+    }
+    
+    async function updateBashStreamUrl(streamId, url) {
+      try {
+        const { error } = await db
+          .from('bash_streams')
+          .update({ embed_url: url, updated_at: new Date().toISOString() })
+          .eq('id', streamId);
+        
+        if (error) {
+          showToast('Error updating URL: ' + error.message, 'error');
+          return;
+        }
+        
+        // Update local state
+        const stream = bashStreams.find(s => s.id === streamId);
+        if (stream) stream.embed_url = url;
+        
+        showToast('URL updated', 'success');
+      } catch (err) {
+        console.error('Error updating stream URL:', err);
+        showToast('Error updating URL', 'error');
+      }
+    }
+    
+    async function saveBashStreams() {
+      try {
+        const section_enabled = document.getElementById('bashStreamEnabled').checked;
+        const pre_tournament_message = document.getElementById('bashStreamMessage').value;
+        const farmington_url = document.getElementById('bashFarmingtonUrl').value;
+        
+        const { error } = await db
+          .from('bash_stream_config')
+          .update({ 
+            section_enabled, 
+            pre_tournament_message, 
+            farmington_url,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', 1);
+        
+        if (error) {
+          showToast('Error saving settings: ' + error.message, 'error');
+          return;
+        }
+        
+        bashStreamConfig = { section_enabled, pre_tournament_message, farmington_url };
+        showToast('Stream settings saved', 'success');
+      } catch (err) {
+        console.error('Error saving stream settings:', err);
+        showToast('Error saving settings', 'error');
+      }
     }
     
     // ===== BASH SCOREBOOK =====
