@@ -2126,12 +2126,15 @@
         link.addEventListener('click', (e) => {
           const href = link.getAttribute('href');
           
-          // Map nav links to tabs
+          // Map nav links to tabs (for tabbed sections)
           const navToTab = {
             '#schedule': 'schedule',
             '#brackets': 'boys-bracket',  // Brackets defaults to Boys Bracket
             '#history': 'history'
           };
+          
+          // Sections that just need scroll offset (no tab switch)
+          const scrollOnlySections = ['#watchLiveSection', '#stories'];
           
           const tabName = navToTab[href];
           if (tabName) {
@@ -2145,6 +2148,22 @@
             if (tabsSection) {
               const headerOffset = 70;
               const elementPosition = tabsSection.getBoundingClientRect().top;
+              const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+              
+              window.scrollTo({
+                top: offsetPosition,
+                behavior: 'smooth'
+              });
+            }
+          } else if (scrollOnlySections.includes(href)) {
+            e.preventDefault();
+            
+            // Just scroll to the section with offset
+            const sectionId = href.replace('#', '');
+            const section = document.getElementById(sectionId);
+            if (section) {
+              const headerOffset = 70;
+              const elementPosition = section.getBoundingClientRect().top;
               const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
               
               window.scrollTo({
@@ -2187,6 +2206,18 @@
           if (tabsSection) {
             const headerOffset = 70;
             const elementPosition = tabsSection.getBoundingClientRect().top;
+            const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+            window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
+          }
+        }, 100);
+      } else if (hash === '#stories' || hash === '#watchLiveSection') {
+        // Scroll-only sections (no tab switch needed)
+        setTimeout(() => {
+          const sectionId = hash.replace('#', '');
+          const section = document.getElementById(sectionId);
+          if (section) {
+            const headerOffset = 70;
+            const elementPosition = section.getBoundingClientRect().top;
             const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
             window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
           }
