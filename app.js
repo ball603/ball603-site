@@ -204,7 +204,17 @@ function getTodayString() {
  * Format date for display
  */
 function formatDate(dateStr, format = 'long') {
-  const d = new Date(dateStr + 'T00:00:00');
+  if (!dateStr) return '';
+  
+  // Handle YYYY-MM-DD format - treat as local date
+  let d;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    d = new Date(year, month - 1, day);
+  } else {
+    // Full ISO timestamp or other format
+    d = new Date(dateStr);
+  }
   
   switch (format) {
     case 'short':
