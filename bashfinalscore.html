@@ -741,6 +741,126 @@
       }
     }
     
+    // Bracket advancement mapping
+    const BOYS_BRACKET_ADVANCEMENT = {
+      1: { 
+        winner: { field: 'away', game_number: 9 }, 
+        loser: { field: 'away', date: 'Dec 28', time: '8:00 AM', site: 'FHS' } 
+      },
+      2: { 
+        winner: { field: 'home', game_number: 9 }, 
+        loser: { field: 'home', date: 'Dec 28', time: '8:00 AM', site: 'FHS' } 
+      },
+      3: { 
+        winner: { field: 'away', game_number: 10 }, 
+        loser: { field: 'away', date: 'Dec 28', time: '9:15 AM', site: 'FHS' } 
+      },
+      4: { 
+        winner: { field: 'home', game_number: 10 }, 
+        loser: { field: 'home', date: 'Dec 28', time: '9:15 AM', site: 'FHS' } 
+      },
+      5: { 
+        winner: { field: 'away', game_number: 11 }, 
+        loser: { field: 'away', date: 'Dec 28', time: '10:30 AM', site: 'HWMS' } 
+      },
+      6: { 
+        winner: { field: 'home', game_number: 11 }, 
+        loser: { field: 'home', date: 'Dec 28', time: '10:30 AM', site: 'HWMS' } 
+      },
+      7: { 
+        winner: { field: 'away', game_number: 12 }, 
+        loser: { field: 'away', date: 'Dec 28', time: '11:45 AM', site: 'HWMS' } 
+      },
+      8: { 
+        winner: { field: 'home', game_number: 12 }, 
+        loser: { field: 'home', date: 'Dec 28', time: '11:45 AM', site: 'HWMS' } 
+      },
+      9: { winner: { field: 'away', game_number: 13 }, loser: null },
+      10: { winner: { field: 'home', game_number: 13 }, loser: null },
+      11: { winner: { field: 'away', game_number: 14 }, loser: null },
+      12: { winner: { field: 'home', game_number: 14 }, loser: null },
+      13: { winner: { field: 'away', game_number: 15 }, loser: null },
+      14: { winner: { field: 'home', game_number: 15 }, loser: null }
+    };
+    
+    const GIRLS_BRACKET_ADVANCEMENT = {
+      1: { 
+        winner: { field: 'away', game_number: 5 }, 
+        loser: { field: 'away', date: 'Dec 28', time: '8:00 AM', site: 'HWMS' } 
+      },
+      2: { 
+        winner: { field: 'away', game_number: 6 }, 
+        loser: { field: 'away', date: 'Dec 28', time: '9:15 AM', site: 'HWMS' } 
+      },
+      3: { 
+        winner: { field: 'away', game_number: 7 }, 
+        loser: { field: 'home', date: 'Dec 28', time: '9:15 AM', site: 'HWMS' } 
+      },
+      4: { 
+        winner: { field: 'away', game_number: 8 }, 
+        loser: { field: 'home', date: 'Dec 28', time: '8:00 AM', site: 'HWMS' } 
+      },
+      5: { winner: { field: 'away', game_number: 9 }, loser: null },
+      6: { winner: { field: 'home', game_number: 9 }, loser: null },
+      7: { winner: { field: 'away', game_number: 10 }, loser: null },
+      8: { winner: { field: 'home', game_number: 10 }, loser: null },
+      9: { winner: { field: 'away', game_number: 11 }, loser: null },
+      10: { winner: { field: 'home', game_number: 11 }, loser: null }
+    };
+    
+    // Advance bracket teams after a game is completed
+    async function advanceBashBracket(gameNumber, division, awayScore, homeScore, awayTeam, homeTeam) {
+      if (!gameNumber || awayScore === null || homeScore === null) return;
+      
+      const winner = awayScore > homeScore ? awayTeam : homeTeam;
+      const loser = awayScore > homeScore ? homeTeam : awayTeam;
+      
+      const advancementMap = division === 'Boys' ? BOYS_BRACKET_ADVANCEMENT : GIRLS_BRACKET_ADVANCEMENT;
+      const advancement = advancementMap[gameNumber];
+      
+      if (!advancement) {
+        console.log('No advancement mapping for', division, 'game', gameNumber);
+        return;
+      }
+      
+      console.log('Advancing bracket:', division, 'Game', gameNumber, '- Winner:', winner, '- Loser:', loser);
+      
+      // Advance winner
+      if (advancement.winner) {
+        const dest = advancement.winner;
+        if (dest.game_number) {
+          const updateField = dest.field === 'away' ? { away: winner } : { home: winner };
+          const { error } = await db.from('bash_schedule')
+            .update(updateField)
+            .eq('game_number', dest.game_number)
+            .eq('division', division);
+          if (error) {
+            console.error('Failed to advance winner to game', dest.game_number, error);
+          } else {
+            console.log('Advanced winner', winner, 'to Game', dest.game_number, dest.field);
+          }
+        }
+      }
+      
+      // Advance loser (consolation games)
+      if (advancement.loser) {
+        const dest = advancement.loser;
+        const updateField = dest.field === 'away' ? { away: loser } : { home: loser };
+        const { error } = await db.from('bash_schedule')
+          .update(updateField)
+          .eq('date', dest.date)
+          .eq('time', dest.time)
+          .eq('site', dest.site)
+          .eq('division', division)
+          .is('game_number', null);
+        if (error) {
+          console.error('Failed to advance loser to consolation', error);
+        } else {
+          console.log('Advanced loser', loser, 'to', dest.date, dest.time, dest.site, dest.field);
+        }
+      }
+    }
+    
     // Select gender
     function selectGender(gender) {
       selectedGender = gender;
@@ -909,6 +1029,18 @@
           .eq('id', selectedGame.id);
         
         if (error) throw error;
+        
+        // Advance bracket if this is a bracket game with valid scores
+        if (selectedGame.game_number && updateData.away_score !== null && updateData.home_score !== null) {
+          await advanceBashBracket(
+            selectedGame.game_number,
+            selectedGame.division,
+            updateData.away_score,
+            updateData.home_score,
+            selectedGame.away,
+            selectedGame.home
+          );
+        }
         
         // Update local data
         const gameIndex = allGames.findIndex(g => g.id === selectedGame.id);

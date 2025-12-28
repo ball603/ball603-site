@@ -2487,6 +2487,9 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           <button class="btn-new" onclick="openBashGameModal()">
             <span>+</span> Add Game
           </button>
+          <button class="btn-new" onclick="recalculateAllBrackets()" style="background: #fff3e0; color: #e65100; margin-left: 10px;">
+            &#128260; Recalculate Brackets
+          </button>
           <select id="bashYearFilter" onchange="filterBashSchedule()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px; margin-left: 10px;">
             <option value="2025">2025</option>
             <option value="2024">2024</option>
@@ -11359,6 +11362,176 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       venue: 'Farmington High School'
     };
     
+    // Bracket advancement: when a game completes, update future games with winner/loser
+    // Format: completedGame -> { winner: { field: 'away'|'home', game: X } or { field, date, time, site }, loser: same }
+    const BOYS_BRACKET_ADVANCEMENT = {
+      1: { 
+        winner: { field: 'away', game_number: 9 }, 
+        loser: { field: 'away', date: 'Dec 28', time: '8:00 AM', site: 'FHS' } 
+      },
+      2: { 
+        winner: { field: 'home', game_number: 9 }, 
+        loser: { field: 'home', date: 'Dec 28', time: '8:00 AM', site: 'FHS' } 
+      },
+      3: { 
+        winner: { field: 'away', game_number: 10 }, 
+        loser: { field: 'away', date: 'Dec 28', time: '9:15 AM', site: 'FHS' } 
+      },
+      4: { 
+        winner: { field: 'home', game_number: 10 }, 
+        loser: { field: 'home', date: 'Dec 28', time: '9:15 AM', site: 'FHS' } 
+      },
+      5: { 
+        winner: { field: 'away', game_number: 11 }, 
+        loser: { field: 'away', date: 'Dec 28', time: '10:30 AM', site: 'HWMS' } 
+      },
+      6: { 
+        winner: { field: 'home', game_number: 11 }, 
+        loser: { field: 'home', date: 'Dec 28', time: '10:30 AM', site: 'HWMS' } 
+      },
+      7: { 
+        winner: { field: 'away', game_number: 12 }, 
+        loser: { field: 'away', date: 'Dec 28', time: '11:45 AM', site: 'HWMS' } 
+      },
+      8: { 
+        winner: { field: 'home', game_number: 12 }, 
+        loser: { field: 'home', date: 'Dec 28', time: '11:45 AM', site: 'HWMS' } 
+      },
+      9: { winner: { field: 'away', game_number: 13 }, loser: null },
+      10: { winner: { field: 'home', game_number: 13 }, loser: null },
+      11: { winner: { field: 'away', game_number: 14 }, loser: null },
+      12: { winner: { field: 'home', game_number: 14 }, loser: null },
+      13: { winner: { field: 'away', game_number: 15 }, loser: null },
+      14: { winner: { field: 'home', game_number: 15 }, loser: null }
+    };
+    
+    const GIRLS_BRACKET_ADVANCEMENT = {
+      1: { 
+        winner: { field: 'away', game_number: 5 }, 
+        loser: { field: 'away', date: 'Dec 28', time: '8:00 AM', site: 'HWMS' } 
+      },
+      2: { 
+        winner: { field: 'away', game_number: 6 }, 
+        loser: { field: 'away', date: 'Dec 28', time: '9:15 AM', site: 'HWMS' } 
+      },
+      3: { 
+        winner: { field: 'away', game_number: 7 }, 
+        loser: { field: 'home', date: 'Dec 28', time: '9:15 AM', site: 'HWMS' } 
+      },
+      4: { 
+        winner: { field: 'away', game_number: 8 }, 
+        loser: { field: 'home', date: 'Dec 28', time: '8:00 AM', site: 'HWMS' } 
+      },
+      5: { winner: { field: 'away', game_number: 9 }, loser: null },
+      6: { winner: { field: 'home', game_number: 9 }, loser: null },
+      7: { winner: { field: 'away', game_number: 10 }, loser: null },
+      8: { winner: { field: 'home', game_number: 10 }, loser: null },
+      9: { winner: { field: 'away', game_number: 11 }, loser: null },
+      10: { winner: { field: 'home', game_number: 11 }, loser: null }
+    };
+    
+    // Advance bracket teams after a game is completed
+    async function advanceBashBracket(gameNumber, division, awayScore, homeScore, awayTeam, homeTeam) {
+      if (!gameNumber || awayScore === null || homeScore === null) return;
+      
+      const winner = awayScore > homeScore ? awayTeam : homeTeam;
+      const loser = awayScore > homeScore ? homeTeam : awayTeam;
+      
+      const advancementMap = division === 'Boys' ? BOYS_BRACKET_ADVANCEMENT : GIRLS_BRACKET_ADVANCEMENT;
+      const advancement = advancementMap[gameNumber];
+      
+      if (!advancement) {
+        console.log('No advancement mapping for', division, 'game', gameNumber);
+        return;
+      }
+      
+      console.log('Advancing bracket:', division, 'Game', gameNumber, '- Winner:', winner, '- Loser:', loser);
+      
+      // Advance winner
+      if (advancement.winner) {
+        const dest = advancement.winner;
+        if (dest.game_number) {
+          // Find by game_number and division
+          const updateField = dest.field === 'away' ? { away: winner } : { home: winner };
+          const { error } = await db.from('bash_schedule')
+            .update(updateField)
+            .eq('game_number', dest.game_number)
+            .eq('division', division);
+          if (error) {
+            console.error('Failed to advance winner to game', dest.game_number, error);
+          } else {
+            console.log('Advanced winner', winner, 'to Game', dest.game_number, dest.field);
+          }
+        }
+      }
+      
+      // Advance loser (consolation games)
+      if (advancement.loser) {
+        const dest = advancement.loser;
+        // Find consolation game by date, time, site, division (no game_number)
+        const updateField = dest.field === 'away' ? { away: loser } : { home: loser };
+        const { error } = await db.from('bash_schedule')
+          .update(updateField)
+          .eq('date', dest.date)
+          .eq('time', dest.time)
+          .eq('site', dest.site)
+          .eq('division', division)
+          .is('game_number', null);
+        if (error) {
+          console.error('Failed to advance loser to consolation', error);
+        } else {
+          console.log('Advanced loser', loser, 'to', dest.date, dest.time, dest.site, dest.field);
+        }
+      }
+    }
+    
+    // Recalculate all bracket advancements from completed games
+    async function recalculateAllBrackets() {
+      const btn = event?.target;
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Recalculating...';
+      }
+      
+      try {
+        // Get all completed bracket games (has game_number and both scores)
+        const completedGames = bashSchedule.filter(g => 
+          g.game_number && 
+          g.away_score !== null && 
+          g.home_score !== null &&
+          (g.division === 'Boys' || g.division === 'Girls')
+        );
+        
+        // Sort by game_number to process in order
+        completedGames.sort((a, b) => a.game_number - b.game_number);
+        
+        console.log('Recalculating brackets for', completedGames.length, 'completed games');
+        
+        for (const game of completedGames) {
+          await advanceBashBracket(
+            game.game_number, 
+            game.division, 
+            game.away_score, 
+            game.home_score, 
+            game.away, 
+            game.home
+          );
+        }
+        
+        // Reload schedule to show updates
+        await loadBashSchedule();
+        showToast('Brackets recalculated!', 'success');
+      } catch (err) {
+        console.error('Recalculate error:', err);
+        showToast('Error recalculating brackets', 'error');
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = 'Recalculate Brackets';
+        }
+      }
+    }
+    
     function showBashTab(tab) {
       document.querySelectorAll('.bash-admin-tab').forEach(t => t.classList.remove('active'));
       event.target.classList.add('active');
@@ -11843,6 +12016,12 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       try {
         const { error } = id ? await db.from('bash_schedule').update(data).eq('id', id) : await db.from('bash_schedule').insert([data]);
         if (error) throw error;
+        
+        // If this is a bracket game with scores, advance the bracket
+        if (data.game_number && data.away_score !== null && data.home_score !== null) {
+          await advanceBashBracket(data.game_number, data.division, data.away_score, data.home_score, data.away, data.home);
+        }
+        
         showToast('Game saved', 'success');
         closeBashGameModal();
         await loadBashSchedule();
@@ -12940,6 +13119,18 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         if (updateError) {
           console.error('Schedule update failed:', updateError);
           // Don't throw - article is already created
+        } else {
+          // Advance bracket if this is a bracket game
+          if (bashSBSelectedGame.game_number) {
+            await advanceBashBracket(
+              bashSBSelectedGame.game_number,
+              bashSBSelectedGame.division,
+              awayFinal,
+              homeFinal,
+              bashSBSelectedGame.away,
+              bashSBSelectedGame.home
+            );
+          }
         }
         
         // STEP 3: Generate social posts
@@ -13157,6 +13348,18 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           // Don't throw - article is already created
           showToast('Article published but score update failed: ' + updateError.message, 'error');
         } else {
+          // Advance bracket if this is a bracket game
+          if (bashSBSelectedGame.game_number) {
+            await advanceBashBracket(
+              bashSBSelectedGame.game_number,
+              bashSBSelectedGame.division,
+              awayFinal,
+              homeFinal,
+              bashSBSelectedGame.away,
+              bashSBSelectedGame.home
+            );
+          }
+          
           const successMsg = showOnHomepage ? 
             'Story published to The Bash and main homepage!' : 
             'Story published to The Bash!';
