@@ -12575,6 +12575,13 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const awaySchoolInfo = getSchoolInfo(bashSBSelectedGame.away);
       const homeSchoolInfo = getSchoolInfo(bashSBSelectedGame.home);
       
+      // Convert Bash date format (e.g. "Dec 27") to full date with day of week
+      const bashDateStr = bashSBSelectedGame.date || 'Dec 27';
+      const bashYear = 2024; // The Bash 2024
+      const bashFullDate = new Date(bashDateStr + ', ' + bashYear);
+      const dayOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][bashFullDate.getDay()];
+      const fullDateStr = dayOfWeek + ', ' + bashDateStr + ', ' + bashYear;
+      
       // Build proofData - no records for tournament games
       const proofData = {
         awayTeam: bashSBSelectedGame.away,
@@ -12587,13 +12594,14 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         homeScorers,
         gender: bashSBSelectedGame.division || 'Boys',
         division: '',
-        date: bashSBSelectedGame.date || '',
-        notes: notes + (notes ? '\n' : '') + 'This is a Bash holiday tournament game at Farmington High School. Do not mention team records - this is exhibition play.',
+        date: fullDateStr,
+        notes: notes + (notes ? '\n' : '') + 'This is a Bash holiday tournament game played at Farmington High School in Farmington, N.H. Do not mention team records - this is exhibition tournament play. The game was played on ' + fullDateStr + '.',
         hasOT: bashSBOTCount > 0,
         awayRecord: null,
         homeRecord: null,
         isTournament: true,
-        tournamentName: 'The Bash'
+        tournamentName: 'The Bash',
+        location: 'Farmington High School, Farmington, N.H.'
       };
       
       try {
@@ -12609,7 +12617,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
               away: awaySchoolInfo,
               home: homeSchoolInfo
             },
-            photographerName: null,
+            photographerName: 'KJ Cardinal',
             galleryUrl: null
           })
         });
@@ -12627,7 +12635,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             schoolData: {
               away: awaySchoolInfo,
               home: homeSchoolInfo
-            }
+            },
+            photographerName: 'KJ Cardinal'
           };
           
           // Show preview panel
@@ -12894,6 +12903,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         content: articleHtml,
         excerpt: excerpt,
         author: 'KJ Cardinal',
+        photographer: 'KJ Cardinal',
         status: 'published',
         tags: ['The Bash', bashSBSelectedGame.division || 'Boys', bashSBSelectedGame.away, bashSBSelectedGame.home],
         published_at: new Date().toISOString(),
@@ -12960,7 +12970,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             headline: editedHeadline,
             proofData: proofData,
             schoolData: schoolData,
-            photographerName: null,
+            photographerName: bashSBGeneratedData?.photographerName || 'KJ Cardinal',
             galleryUrl: null
           })
         });
@@ -13104,6 +13114,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         content: articleHtml,
         excerpt: articleText.split('.').slice(0, 2).join('.') + '.',
         author: 'KJ Cardinal',
+        photographer: 'KJ Cardinal',
         status: 'published',
         tags: ['The Bash', bashSBSelectedGame.division || 'Boys', bashSBSelectedGame.away, bashSBSelectedGame.home],
         published_at: new Date().toISOString(),
