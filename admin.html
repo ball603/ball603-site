@@ -1161,7 +1161,7 @@
                   <!-- Gender Selection -->
                   <div style="margin-bottom: 10px;">
                     <label style="font-size: 11px; color: #666; display: block; margin-bottom: 4px;">Gender</label>
-                    <select id="gsManualGender" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px;">
+                    <select id="gsManualGender" onchange="populateManualTeamDropdowns()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px;">
                       <option value="Boys">Boys</option>
                       <option value="Girls">Girls</option>
                     </select>
@@ -5907,38 +5907,54 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       panel.style.display = 'block';
       btn.style.display = 'none';
       
-      // Load teams if not already loaded
-      if (allTeams.length === 0) {
-        try {
-          const response = await fetch('/.netlify/functions/teams');
-          const data = await response.json();
-          if (data.success) {
-            allTeams = data.teams || [];
-          }
-        } catch (err) {
-          console.error('Error loading teams:', err);
-        }
-      }
-      
-      // Populate team dropdowns
+      // Populate team dropdowns (fetches from roster_submissions)
       populateManualTeamDropdowns();
     }
     
-    function populateManualTeamDropdowns() {
+    async function populateManualTeamDropdowns() {
       const awaySelect = document.getElementById('gsManualAwaySelect');
       const homeSelect = document.getElementById('gsManualHomeSelect');
+      const gender = document.getElementById('gsManualGender').value;
       
-      // Get sorted teams
-      const sortedTeams = [...allTeams].sort((a, b) => 
-        (a.shortname || '').localeCompare(b.shortname || '')
-      );
+      // Show loading state
+      awaySelect.innerHTML = '<option value="">Loading teams...</option>';
+      homeSelect.innerHTML = '<option value="">Loading teams...</option>';
       
-      const optionsHtml = sortedTeams.map(t => 
-        `<option value="${t.shortname}">${t.shortname}</option>`
-      ).join('');
+      // Reset custom inputs
+      document.getElementById('gsManualAwayCustom').style.display = 'none';
+      document.getElementById('gsManualHomeCustom').style.display = 'none';
       
-      awaySelect.innerHTML = `<option value="">-- Select Team --</option>${optionsHtml}<option value="__other__">Other (Custom)</option>`;
-      homeSelect.innerHTML = `<option value="">-- Select Team --</option>${optionsHtml}<option value="__other__">Other (Custom)</option>`;
+      try {
+        // Fetch teams with rosters for this gender from roster_submissions
+        const { data: rosters, error } = await db
+          .from('roster_submissions')
+          .select('school')
+          .eq('gender', gender);
+        
+        if (error) {
+          console.error('Error fetching rosters:', error);
+          awaySelect.innerHTML = '<option value="">-- Select Team --</option><option value="__other__">Other (Custom)</option>';
+          homeSelect.innerHTML = '<option value="">-- Select Team --</option><option value="__other__">Other (Custom)</option>';
+          return;
+        }
+        
+        // Get unique school names and sort
+        const schools = [...new Set(rosters.map(r => r.school))].sort((a, b) => 
+          (a || '').localeCompare(b || '')
+        );
+        
+        const optionsHtml = schools.map(school => 
+          `<option value="${school}">${school}</option>`
+        ).join('');
+        
+        awaySelect.innerHTML = `<option value="">-- Select Team --</option>${optionsHtml}<option value="__other__">Other (Custom)</option>`;
+        homeSelect.innerHTML = `<option value="">-- Select Team --</option>${optionsHtml}<option value="__other__">Other (Custom)</option>`;
+        
+      } catch (err) {
+        console.error('Error loading roster teams:', err);
+        awaySelect.innerHTML = '<option value="">-- Select Team --</option><option value="__other__">Other (Custom)</option>';
+        homeSelect.innerHTML = '<option value="">-- Select Team --</option><option value="__other__">Other (Custom)</option>';
+      }
     }
     
     function handleManualTeamSelect(side) {
