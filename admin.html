@@ -2966,16 +2966,20 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
               <table class="bash-table" id="bashStreamsTable" style="margin: 0;">
                 <thead>
                   <tr>
-                    <th style="width: 120px;">Day</th>
+                    <th style="width: 150px;">Day</th>
                     <th>Embed URL</th>
                     <th style="width: 80px;">Status</th>
                     <th style="width: 100px;">Action</th>
+                    <th style="width: 40px;"></th>
                   </tr>
                 </thead>
                 <tbody id="bashStreamsBody">
-                  <tr><td colspan="4" class="loading">Loading streams...</td></tr>
+                  <tr><td colspan="5" class="loading">Loading streams...</td></tr>
                 </tbody>
               </table>
+              <button onclick="addBashStreamDay()" style="margin-top: 10px; background: #4caf50; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                + Add Stream Day
+              </button>
             </div>
           </div>
           
@@ -12266,7 +12270,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       }
       
       if (bashStreams.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #888;">No streams configured</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #888;">No streams configured</td></tr>';
         return;
       }
       
@@ -12280,7 +12284,13 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         
         return `
           <tr>
-            <td><strong>${stream.label}</strong></td>
+            <td>
+              <input type="text" 
+                value="${stream.label || ''}" 
+                onchange="updateBashStreamLabel(${stream.id}, this.value)"
+                style="width: 100%; padding: 6px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; font-weight: 600;"
+                placeholder="Day 1 - Dec 26">
+            </td>
             <td>
               <input type="text" 
                 value="${stream.embed_url || ''}" 
@@ -12290,6 +12300,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             </td>
             <td><span class="${statusClass}">${statusText}</span></td>
             <td>${actionBtn}</td>
+            <td><button onclick="deleteBashStreamDay(${stream.id})" style="background: none; border: none; color: #999; cursor: pointer; font-size: 16px;" title="Delete">&#128465;</button></td>
           </tr>
         `;
       }).join('');
@@ -12358,6 +12369,82 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       } catch (err) {
         console.error('Error updating stream URL:', err);
         showToast('Error updating URL', 'error');
+      }
+    }
+    
+    async function updateBashStreamLabel(streamId, label) {
+      try {
+        const { error } = await db
+          .from('bash_streams')
+          .update({ label: label })
+          .eq('id', streamId);
+        
+        if (error) {
+          showToast('Error updating label: ' + error.message, 'error');
+          return;
+        }
+        
+        // Update local state
+        const stream = bashStreams.find(s => s.id === streamId);
+        if (stream) stream.label = label;
+        
+        showToast('Day/Date updated', 'success');
+      } catch (err) {
+        console.error('Error updating stream label:', err);
+        showToast('Error updating label', 'error');
+      }
+    }
+    
+    async function addBashStreamDay() {
+      try {
+        // Find the next day number
+        const maxDay = bashStreams.length > 0 
+          ? Math.max(...bashStreams.map(s => s.day_number || 0)) 
+          : 0;
+        const nextDay = maxDay + 1;
+        
+        const { data, error } = await db
+          .from('bash_streams')
+          .insert({ 
+            label: `Day ${nextDay} - Dec ${25 + nextDay}`,
+            day_number: nextDay,
+            embed_url: '',
+            is_active: false
+          })
+          .select();
+        
+        if (error) {
+          showToast('Error adding stream day: ' + error.message, 'error');
+          return;
+        }
+        
+        showToast('Stream day added', 'success');
+        loadBashStreams();
+      } catch (err) {
+        console.error('Error adding stream day:', err);
+        showToast('Error adding stream day', 'error');
+      }
+    }
+    
+    async function deleteBashStreamDay(streamId) {
+      if (!confirm('Delete this stream day?')) return;
+      
+      try {
+        const { error } = await db
+          .from('bash_streams')
+          .delete()
+          .eq('id', streamId);
+        
+        if (error) {
+          showToast('Error deleting stream: ' + error.message, 'error');
+          return;
+        }
+        
+        showToast('Stream day deleted', 'success');
+        loadBashStreams();
+      } catch (err) {
+        console.error('Error deleting stream:', err);
+        showToast('Error deleting stream', 'error');
       }
     }
     
