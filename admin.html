@@ -1148,6 +1148,49 @@
                 <div id="gsGameList" style="max-height: 400px; overflow-y: auto; border: 1px solid #eee; border-radius: 5px;">
                   <div style="padding: 20px; text-align: center; color: #888;">Loading games...</div>
                 </div>
+                
+                <!-- Manual Entry Button -->
+                <button onclick="showManualEntryPanel()" id="gsManualEntryBtn" style="width: 100%; margin-top: 10px; background: #e3f2fd; border: 1px dashed #1976d2; color: #1976d2; padding: 10px; border-radius: 5px; font-size: 12px; font-weight: 600; cursor: pointer;">
+                  + Manual Entry
+                </button>
+                
+                <!-- Manual Entry Panel (hidden by default) -->
+                <div id="gsManualEntryPanel" style="display: none; margin-top: 10px; padding: 12px; background: #f5f5f5; border-radius: 5px; border: 1px solid #ddd;">
+                  <div style="font-size: 12px; font-weight: 600; margin-bottom: 10px; color: #333;">Manual Game Entry</div>
+                  
+                  <!-- Gender Selection -->
+                  <div style="margin-bottom: 10px;">
+                    <label style="font-size: 11px; color: #666; display: block; margin-bottom: 4px;">Gender</label>
+                    <select id="gsManualGender" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px;">
+                      <option value="Boys">Boys</option>
+                      <option value="Girls">Girls</option>
+                    </select>
+                  </div>
+                  
+                  <!-- Away Team -->
+                  <div style="margin-bottom: 10px;">
+                    <label style="font-size: 11px; color: #666; display: block; margin-bottom: 4px;">Away Team</label>
+                    <select id="gsManualAwaySelect" onchange="handleManualTeamSelect('away')" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px;">
+                      <option value="">-- Select Team --</option>
+                    </select>
+                    <input type="text" id="gsManualAwayCustom" placeholder="Enter team name..." style="display: none; width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; margin-top: 6px; box-sizing: border-box;">
+                  </div>
+                  
+                  <!-- Home Team -->
+                  <div style="margin-bottom: 10px;">
+                    <label style="font-size: 11px; color: #666; display: block; margin-bottom: 4px;">Home Team</label>
+                    <select id="gsManualHomeSelect" onchange="handleManualTeamSelect('home')" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px;">
+                      <option value="">-- Select Team --</option>
+                    </select>
+                    <input type="text" id="gsManualHomeCustom" placeholder="Enter team name..." style="display: none; width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; margin-top: 6px; box-sizing: border-box;">
+                  </div>
+                  
+                  <!-- Buttons -->
+                  <div style="display: flex; gap: 8px;">
+                    <button onclick="cancelManualEntry()" style="flex: 1; background: #e0e0e0; border: none; padding: 8px; border-radius: 4px; font-size: 12px; cursor: pointer;">Cancel</button>
+                    <button onclick="confirmManualEntry()" style="flex: 1; background: #1976d2; color: white; border: none; padding: 8px; border-radius: 4px; font-size: 12px; font-weight: 600; cursor: pointer;">Continue</button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -5856,6 +5899,151 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       updateGSPointsTotal('home');
     }
     
+    // Manual Entry Functions
+    async function showManualEntryPanel() {
+      const panel = document.getElementById('gsManualEntryPanel');
+      const btn = document.getElementById('gsManualEntryBtn');
+      
+      panel.style.display = 'block';
+      btn.style.display = 'none';
+      
+      // Load teams if not already loaded
+      if (allTeams.length === 0) {
+        try {
+          const response = await fetch('/.netlify/functions/teams');
+          const data = await response.json();
+          if (data.success) {
+            allTeams = data.teams || [];
+          }
+        } catch (err) {
+          console.error('Error loading teams:', err);
+        }
+      }
+      
+      // Populate team dropdowns
+      populateManualTeamDropdowns();
+    }
+    
+    function populateManualTeamDropdowns() {
+      const awaySelect = document.getElementById('gsManualAwaySelect');
+      const homeSelect = document.getElementById('gsManualHomeSelect');
+      
+      // Get sorted teams
+      const sortedTeams = [...allTeams].sort((a, b) => 
+        (a.shortname || '').localeCompare(b.shortname || '')
+      );
+      
+      const optionsHtml = sortedTeams.map(t => 
+        `<option value="${t.shortname}">${t.shortname}</option>`
+      ).join('');
+      
+      awaySelect.innerHTML = `<option value="">-- Select Team --</option>${optionsHtml}<option value="__other__">Other (Custom)</option>`;
+      homeSelect.innerHTML = `<option value="">-- Select Team --</option>${optionsHtml}<option value="__other__">Other (Custom)</option>`;
+    }
+    
+    function handleManualTeamSelect(side) {
+      const select = document.getElementById(side === 'away' ? 'gsManualAwaySelect' : 'gsManualHomeSelect');
+      const customInput = document.getElementById(side === 'away' ? 'gsManualAwayCustom' : 'gsManualHomeCustom');
+      
+      if (select.value === '__other__') {
+        customInput.style.display = 'block';
+        customInput.focus();
+      } else {
+        customInput.style.display = 'none';
+        customInput.value = '';
+      }
+    }
+    
+    function cancelManualEntry() {
+      document.getElementById('gsManualEntryPanel').style.display = 'none';
+      document.getElementById('gsManualEntryBtn').style.display = 'block';
+      
+      // Reset fields
+      document.getElementById('gsManualAwaySelect').value = '';
+      document.getElementById('gsManualHomeSelect').value = '';
+      document.getElementById('gsManualAwayCustom').value = '';
+      document.getElementById('gsManualHomeCustom').value = '';
+      document.getElementById('gsManualAwayCustom').style.display = 'none';
+      document.getElementById('gsManualHomeCustom').style.display = 'none';
+    }
+    
+    async function confirmManualEntry() {
+      const awaySelect = document.getElementById('gsManualAwaySelect');
+      const homeSelect = document.getElementById('gsManualHomeSelect');
+      const awayCustom = document.getElementById('gsManualAwayCustom');
+      const homeCustom = document.getElementById('gsManualHomeCustom');
+      const gender = document.getElementById('gsManualGender').value;
+      
+      // Get team names
+      let awayTeam = awaySelect.value === '__other__' ? awayCustom.value.trim() : awaySelect.value;
+      let homeTeam = homeSelect.value === '__other__' ? homeCustom.value.trim() : homeSelect.value;
+      
+      if (!awayTeam || !homeTeam) {
+        showToast('Please select both teams', 'error');
+        return;
+      }
+      
+      if (awayTeam === homeTeam) {
+        showToast('Away and Home teams cannot be the same', 'error');
+        return;
+      }
+      
+      // Create a manual game object
+      gsSelectedGame = {
+        game_id: 'manual_' + Date.now(),
+        away: awayTeam,
+        home: homeTeam,
+        gender: gender,
+        date: new Date().toISOString().split('T')[0],
+        time: '',
+        site: '',
+        isManualEntry: true
+      };
+      
+      // Hide manual entry panel
+      cancelManualEntry();
+      
+      // Show entry panel, hide empty state
+      document.getElementById('gsEmptyState').style.display = 'none';
+      document.getElementById('gsEntryPanel').style.display = 'block';
+      
+      // Set matchup title
+      document.getElementById('gsMatchupTitle').textContent = `${gsSelectedGame.away} @ ${gsSelectedGame.home}`;
+      document.getElementById('gsAwayName').textContent = gsSelectedGame.away;
+      document.getElementById('gsHomeName').textContent = gsSelectedGame.home;
+      document.getElementById('gsAwayLabel').textContent = gsSelectedGame.away;
+      document.getElementById('gsHomeLabel').textContent = gsSelectedGame.home;
+      
+      // Clear quarter scores
+      ['gsAwayQ1', 'gsAwayQ2', 'gsAwayQ3', 'gsAwayQ4', 'gsAwayFinal', 
+       'gsHomeQ1', 'gsHomeQ2', 'gsHomeQ3', 'gsHomeQ4', 'gsHomeFinal'].forEach(id => {
+        document.getElementById(id).value = '';
+      });
+      
+      // Clear OT
+      otCount = 0;
+      document.getElementById('otHeaders').innerHTML = '';
+      document.getElementById('gsAwayOT').innerHTML = '';
+      document.getElementById('gsHomeOT').innerHTML = '';
+      
+      // Populate rosters
+      const rosters = await getTeamRosters();
+      populateGSRoster('away', rosters.away, gsSelectedGame.away);
+      populateGSRoster('home', rosters.home, gsSelectedGame.home);
+      
+      // Clear notes
+      document.getElementById('gsNotes').value = '';
+      
+      // Hide photographers section for manual entry (no assignments)
+      document.getElementById('gsPhotographers').style.display = 'none';
+      
+      // Reset totals
+      updateGSPointsTotal('away');
+      updateGSPointsTotal('home');
+      
+      showToast(`Manual entry: ${awayTeam} @ ${homeTeam}`, 'success');
+    }
+    
     async function getTeamRosters() {
       // Works for both game story modal and regular article editor
       const game = gsSelectedGame || selectedGame;
@@ -7985,8 +8173,9 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       
       currentArticle = result.data[0];
       
-      // Update game record with URLs if we have a game linked (and not scheduled)
-      if (gameId && selectedGame && !isScheduled) {
+      // Update game record with URLs if we have a game linked (and not scheduled or manual entry)
+      const isManualEntry = gameId && gameId.startsWith('manual_');
+      if (gameId && selectedGame && !isScheduled && !isManualEntry) {
         const gameUpdate = {};
         const articleUrl = `https://ball603.com/article/${slug}`;
         const smugmugThumbUrl = document.getElementById('smugmugThumbUrl').value || null;
