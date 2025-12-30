@@ -1709,6 +1709,27 @@
     // Dynamic schedule data from database
     let liveSchedule = [];
     let bashRecords = [];
+    let bashAwards = [];
+    
+    // Load awards from database
+    async function loadBashAwards() {
+      try {
+        const { data, error } = await db
+          .from('bash_awards')
+          .select('*')
+          .order('year', { ascending: false })
+          .order('gender');
+        
+        if (error) throw error;
+        bashAwards = data || [];
+        console.log('Loaded', bashAwards.length, 'awards from database');
+        return bashAwards;
+      } catch (err) {
+        console.error('Error loading awards:', err);
+        bashAwards = [];
+        return bashAwards;
+      }
+    }
     
     // Load records from database
     async function loadBashRecords() {
@@ -2632,9 +2653,16 @@
       `;
     }
     
-    function renderAwards() {
+    async function renderAwards() {
       const container = document.getElementById('historyContent');
-      const awards = BASH_DATA.awards || [];
+      
+      // Load awards if not already loaded
+      if (bashAwards.length === 0) {
+        container.innerHTML = '<div style="text-align: center; padding: 20px;">Loading awards...</div>';
+        await loadBashAwards();
+      }
+      
+      const awards = bashAwards;
       
       // Award order priority
       const awardOrder = ['MVP', 'All-Tourney Team', 'Team Sportsmanship', 'Sportsmanship', '3-Point', 'Skills', 'Dunk'];
