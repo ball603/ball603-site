@@ -352,6 +352,17 @@
       return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
     }
 
+    function getContrastTextColor(hex) {
+      if (!hex || hex === 'TBD') return '#333';
+      hex = hex.replace('#', '');
+      const r = parseInt(hex.substr(0, 2), 16);
+      const g = parseInt(hex.substr(2, 2), 16);
+      const b = parseInt(hex.substr(4, 2), 16);
+      // Calculate relative luminance (WCAG formula)
+      const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+      return luminance > 0.5 ? '#333' : '#fff';
+    }
+
     // ===== INITIALIZATION =====
     document.addEventListener('DOMContentLoaded', async () => {
       const path = window.location.pathname;
@@ -509,6 +520,7 @@
           --team-primary: ${colors.primary};
           --team-secondary: ${colors.secondary};
           --team-accent: ${colors.accent};
+          --team-accent-text: ${getContrastTextColor(colors.accent)};
         }
       `;
 
