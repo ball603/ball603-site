@@ -1708,6 +1708,28 @@
     
     // Dynamic schedule data from database
     let liveSchedule = [];
+    let bashRecords = [];
+    
+    // Load records from database
+    async function loadBashRecords() {
+      try {
+        const { data, error } = await db
+          .from('bash_records')
+          .select('*')
+          .order('gender')
+          .order('category')
+          .order('rank');
+        
+        if (error) throw error;
+        bashRecords = data || [];
+        console.log('Loaded', bashRecords.length, 'records from database');
+        return bashRecords;
+      } catch (err) {
+        console.error('Error loading records:', err);
+        bashRecords = [];
+        return bashRecords;
+      }
+    }
     
     // Load schedule from database
     async function loadLiveSchedule() {
@@ -2510,68 +2532,73 @@
       }
     }
     
-    function renderRecords() {
+    async function renderRecords() {
       const container = document.getElementById('historyContent');
       
-      const boysRecords = {
-        'Individual Single-Game Scoring': [
-          { record: '52', holder: 'Josh Robie, Profile', details: 'vs. Nute (2022)' },
-          { record: '49', holder: 'Brandon Harrington, Lin-Wood', details: 'vs. Nute (2017)' },
-          { record: '46', holder: 'Jayden Torres, Franklin', details: 'vs. Nute (2017)' },
-          { record: '45', holder: 'Tim Lee, Farmington', details: 'vs. Inter-Lakes (1997)' },
-          { record: '45', holder: 'Dave Burroughs, Nute', details: 'vs. Farmington (1988)' }
-        ],
-        'Individual Tournament Scoring': [
-          { record: '131', holder: 'Josh Robie, Profile', details: '5 games (2023)' },
-          { record: '123', holder: 'Josh Robie, Profile', details: '4 games (2022)' },
-          { record: '105', holder: 'Tim Lee, Farmington', details: '4 games (1997)' }
-        ],
-        'Individual Single-Game 3-Point FGs': [
-          { record: '11', holder: 'Josh Robie, Profile', details: 'vs. Holy Family (2021)' },
-          { record: '10', holder: 'Josh Robie, Profile', details: 'vs. Nute (2022)' }
-        ],
-        'Team Single-Game Scoring': [
-          { record: '117', holder: 'Inter-Lakes', details: 'vs. Tri-City (2001)' }
-        ],
-        'Team Combined Single-Game Scoring': [
-          { record: '170', holder: 'Prospect Mtn. (101) vs. Nute (69)', details: '2006' }
-        ],
-        'Team Single-Game 3-Point FGs': [
-          { record: '15', holder: 'Profile', details: 'vs. Holy Family (2021)' }
-        ],
-        'Team Combined Single-Game 3-Point FGs': [
-          { record: '21', holder: 'Profile (13) vs. Nute (8)', details: '2022' },
-          { record: '17', holder: 'Nute (9) vs. Farmington (8)', details: '1996' }
-        ]
-      };
+      // Load records if not already loaded
+      if (bashRecords.length === 0) {
+        container.innerHTML = '<div class="records-container"><p style="text-align: center; padding: 20px;">Loading records...</p></div>';
+        await loadBashRecords();
+      }
       
-      const girlsRecords = {
-        'Individual Single-Game Scoring': [
-          { record: '37', holder: 'Julie Donlon, Nute', details: 'vs. Coe-Brown (1982)' }
-        ],
-        'Individual Tournament Scoring': [
-          { record: '111', holder: 'Shannon St. Lawrence, Nute', details: '4 games (2016)' },
-          { record: '82', holder: 'Allie Wagner, Kennett', details: '3 games (2010)' }
-        ],
-        'Individual Single-Game 3-Point FGs': [
-          { record: '7', holder: 'Tiffany Boilard, Raymond', details: '2007' },
-          { record: '7', holder: 'Shannon St. Lawrence, Nute', details: '2015' }
-        ],
-        'Team Single-Game Scoring': [
-          { record: '101', holder: 'Coffee County TN', details: 'vs. Noble ME (2022)' },
-          { record: '95', holder: 'Farmington', details: 'vs. Hillsboro (1995)' }
-        ],
-        'Team Combined Single-Game Scoring': [
-          { record: '140', holder: 'Farmington (95) vs. Hillsboro (45)', details: '1995' }
-        ]
-      };
+      // Group records by gender and category
+      const boysRecords = {};
+      const girlsRecords = {};
+      
+      bashRecords.forEach(r => {
+        const targetObj = r.gender === 'Boys' ? boysRecords : girlsRecords;
+        if (!targetObj[r.category]) {
+          targetObj[r.category] = [];
+        }
+        targetObj[r.category].push({
+          record: r.record_value,
+          holder: r.holder,
+          details: r.details
+        });
+      });
+      
+      // Sort each category by rank (already sorted from DB, but ensure order)
+      Object.keys(boysRecords).forEach(cat => {
+        boysRecords[cat].sort((a, b) => parseInt(b.record) - parseInt(a.record));
+      });
+      Object.keys(girlsRecords).forEach(cat => {
+        girlsRecords[cat].sort((a, b) => parseInt(b.record) - parseInt(a.record));
+      });
+      
+      // Define category order for consistent display
+      const categoryOrder = [
+        'Individual Single-Game Scoring',
+        'Individual Tournament Scoring',
+        'Individual Single-Game 3-Point FGs',
+        'Team Single-Game Scoring',
+        'Team Combined Single-Game Scoring',
+        'Team Single-Game 3-Point FGs',
+        'Team Combined Single-Game 3-Point FGs'
+      ];
+      
+      // Sort records object by category order
+      function sortRecordsByCategory(records) {
+        const sorted = {};
+        categoryOrder.forEach(cat => {
+          if (records[cat]) sorted[cat] = records[cat];
+        });
+        // Add any categories not in the order
+        Object.keys(records).forEach(cat => {
+          if (!sorted[cat]) sorted[cat] = records[cat];
+        });
+        return sorted;
+      }
       
       function renderRecordSection(title, records) {
+        const sortedRecords = sortRecordsByCategory(records);
+        if (Object.keys(sortedRecords).length === 0) {
+          return `<div class="records-section"><h3 class="records-section-title">${title}</h3><p style="padding: 10px; color: #888;">No records yet.</p></div>`;
+        }
         return `
           <div class="records-section">
             <h3 class="records-section-title">${title}</h3>
             <div class="records-categories">
-              ${Object.entries(records).map(([category, entries]) => `
+              ${Object.entries(sortedRecords).map(([category, entries]) => `
                 <div class="records-category">
                   <h4 class="records-category-title">${category}</h4>
                   <div class="records-list">

@@ -2517,6 +2517,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         <button class="bash-admin-tab active" onclick="showBashTab('schedule')">Schedule</button>
         <button class="bash-admin-tab" onclick="showBashTab('champions')">Champions</button>
         <button class="bash-admin-tab" onclick="showBashTab('awards')">Awards</button>
+        <button class="bash-admin-tab" onclick="showBashTab('records')">Records</button>
         <button class="bash-admin-tab" onclick="showBashTab('scorebook')">Scorebook</button>
         <button class="bash-admin-tab" onclick="showBashTab('stories')">&#128240; Stories</button>
         <button class="bash-admin-tab" onclick="showBashTab('recap')">Nightly Recap</button>
@@ -2638,6 +2639,50 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             </thead>
             <tbody id="bashAwardsBody">
               <tr><td colspan="6" class="loading">Loading awards...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      <!-- Records Sub-Panel -->
+      <div class="bash-sub-panel" id="bashRecordsPanel">
+        <div class="toolbar" style="margin-bottom: 15px;">
+          <button class="btn-new" onclick="openBashRecordModal()">
+            <span>+</span> Add Record
+          </button>
+          <select id="bashRecordGenderFilter" onchange="filterBashRecords()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px; margin-left: 10px;">
+            <option value="">All Divisions</option>
+            <option value="Boys">Boys</option>
+            <option value="Girls">Girls</option>
+          </select>
+          <select id="bashRecordCategoryFilter" onchange="filterBashRecords()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px; margin-left: 10px;">
+            <option value="">All Categories</option>
+            <option value="Individual Single-Game Scoring">Individual Single-Game Scoring</option>
+            <option value="Individual Tournament Scoring">Individual Tournament Scoring</option>
+            <option value="Individual Single-Game 3-Point FGs">Individual Single-Game 3-Point FGs</option>
+            <option value="Team Single-Game Scoring">Team Single-Game Scoring</option>
+            <option value="Team Combined Single-Game Scoring">Team Combined Single-Game Scoring</option>
+            <option value="Team Single-Game 3-Point FGs">Team Single-Game 3-Point FGs</option>
+            <option value="Team Combined Single-Game 3-Point FGs">Team Combined Single-Game 3-Point FGs</option>
+          </select>
+          <span id="bashRecordCount" style="margin-left: auto; font-size: 13px; color: #666;">0 records</span>
+        </div>
+        
+        <div style="overflow-x: auto;">
+          <table class="bash-table" id="bashRecordsTable">
+            <thead>
+              <tr>
+                <th>Division</th>
+                <th>Category</th>
+                <th>Record</th>
+                <th>Holder</th>
+                <th>Details</th>
+                <th>Rank</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="bashRecordsBody">
+              <tr><td colspan="7" class="loading">Loading records...</td></tr>
             </tbody>
           </table>
         </div>
@@ -3322,6 +3367,71 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee;">
             <button onclick="closeBashAwardModal()" style="padding: 10px 20px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 5px; cursor: pointer;">Cancel</button>
             <button onclick="saveBashAward()" style="padding: 10px 20px; background: #f57c00; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500;">Save Award</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Bash Record Modal -->
+    <div id="bashRecordModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 2000; overflow-y: auto;">
+      <div style="max-width: 500px; margin: 30px auto; background: #fff; border-radius: 10px; overflow: hidden;">
+        <div style="background: #f57c00; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
+          <h2 style="margin: 0; font-size: 16px;" id="bashRecordModalTitle">Add Record</h2>
+          <button onclick="closeBashRecordModal()" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer;">&times;</button>
+        </div>
+        
+        <div style="padding: 20px;">
+          <input type="hidden" id="bashRecordId">
+          
+          <div class="bash-form-row cols-2">
+            <div class="form-group">
+              <label>Division *</label>
+              <select id="bashRecordGender">
+                <option value="Boys">Boys</option>
+                <option value="Girls">Girls</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Rank</label>
+              <input type="number" id="bashRecordRank" placeholder="1" min="1" max="10" value="1">
+            </div>
+          </div>
+          
+          <div class="form-group" style="margin-bottom: 15px;">
+            <label>Category *</label>
+            <select id="bashRecordCategory">
+              <option value="">Select category...</option>
+              <option value="Individual Single-Game Scoring">Individual Single-Game Scoring</option>
+              <option value="Individual Tournament Scoring">Individual Tournament Scoring</option>
+              <option value="Individual Single-Game 3-Point FGs">Individual Single-Game 3-Point FGs</option>
+              <option value="Team Single-Game Scoring">Team Single-Game Scoring</option>
+              <option value="Team Combined Single-Game Scoring">Team Combined Single-Game Scoring</option>
+              <option value="Team Single-Game 3-Point FGs">Team Single-Game 3-Point FGs</option>
+              <option value="Team Combined Single-Game 3-Point FGs">Team Combined Single-Game 3-Point FGs</option>
+            </select>
+          </div>
+          
+          <div class="form-group" style="margin-bottom: 15px;">
+            <label>Record Value * <span style="font-weight: normal; color: #888;">(e.g., 52, 131, 117)</span></label>
+            <input type="text" id="bashRecordValue" placeholder="52">
+          </div>
+          
+          <div class="form-group" style="margin-bottom: 15px;">
+            <label>Holder * <span style="font-weight: normal; color: #888;">(e.g., Josh Robie, Profile)</span></label>
+            <input type="text" id="bashRecordHolder" placeholder="Player Name, School or Team Name">
+          </div>
+          
+          <div class="form-group" style="margin-bottom: 15px;">
+            <label>Details <span style="font-weight: normal; color: #888;">(e.g., vs. Nute (2022))</span></label>
+            <input type="text" id="bashRecordDetails" placeholder="vs. Opponent (Year) or 5 games (2023)">
+          </div>
+          
+          <div style="display: flex; justify-content: space-between; gap: 10px; margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee;">
+            <button id="bashRecordDeleteBtn" onclick="deleteBashRecord(document.getElementById('bashRecordId').value)" style="padding: 10px 20px; background: #ffebee; color: #c62828; border: none; border-radius: 5px; cursor: pointer; display: none;">Delete</button>
+            <div style="margin-left: auto; display: flex; gap: 10px;">
+              <button onclick="closeBashRecordModal()" style="padding: 10px 20px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 5px; cursor: pointer;">Cancel</button>
+              <button onclick="saveBashRecord()" style="padding: 10px 20px; background: #f57c00; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500;">Save Record</button>
+            </div>
           </div>
         </div>
       </div>
@@ -11564,6 +11674,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     let bashSchedule = [];
     let bashChampions = [];
     let bashAwards = [];
+    let bashRecords = [];
     let bashSettings = {
       year: 2025,
       startDate: '2025-12-26',
@@ -11762,7 +11873,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     }
     
     async function loadBashData() {
-      await Promise.all([loadBashSchedule(), loadBashChampions(), loadBashAwards(), loadBashContent()]);
+      await Promise.all([loadBashSchedule(), loadBashChampions(), loadBashAwards(), loadBashRecords(), loadBashContent()]);
       populateBashAwardYearFilter();
     }
     
@@ -11782,6 +11893,126 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const { data, error } = await db.from('bash_awards').select('*').order('year', { ascending: false }).order('gender');
       bashAwards = error ? [] : (data || []);
       renderBashAwards();
+    }
+    
+    // ===== BASH RECORDS MANAGEMENT =====
+    async function loadBashRecords() {
+      const { data, error } = await db.from('bash_records').select('*').order('gender').order('category').order('rank');
+      bashRecords = error ? [] : (data || []);
+      renderBashRecords();
+    }
+    
+    function renderBashRecords() {
+      const tbody = document.getElementById('bashRecordsBody');
+      if (!tbody) return;
+      
+      const genderFilter = document.getElementById('bashRecordGenderFilter')?.value || '';
+      const categoryFilter = document.getElementById('bashRecordCategoryFilter')?.value || '';
+      
+      let filtered = bashRecords.filter(r => 
+        (!genderFilter || r.gender === genderFilter) && 
+        (!categoryFilter || r.category === categoryFilter)
+      );
+      
+      document.getElementById('bashRecordCount').textContent = filtered.length + ' records';
+      
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: #888;">No records found.</td></tr>';
+        return;
+      }
+      
+      tbody.innerHTML = filtered.map(r => `
+        <tr>
+          <td>${r.gender || ''}</td>
+          <td style="font-size: 11px;">${r.category || ''}</td>
+          <td><strong>${r.record_value || ''}</strong></td>
+          <td>${r.holder || ''}</td>
+          <td style="font-size: 11px;">${r.details || ''}</td>
+          <td style="text-align: center;">${r.rank || ''}</td>
+          <td>
+            <button onclick="openBashRecordModal('${r.id}')" style="background: none; border: none; color: #1976d2; cursor: pointer; font-size: 12px;">Edit</button>
+            <button onclick="deleteBashRecord('${r.id}')" style="background: none; border: none; color: #d32f2f; cursor: pointer; font-size: 12px;">Delete</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+    
+    function filterBashRecords() { renderBashRecords(); }
+    
+    function openBashRecordModal(id) {
+      document.getElementById('bashRecordModalTitle').textContent = id ? 'Edit Record' : 'Add Record';
+      document.getElementById('bashRecordId').value = id || '';
+      
+      if (id) {
+        const r = bashRecords.find(x => x.id === id);
+        if (r) {
+          document.getElementById('bashRecordGender').value = r.gender || 'Boys';
+          document.getElementById('bashRecordCategory').value = r.category || '';
+          document.getElementById('bashRecordValue').value = r.record_value || '';
+          document.getElementById('bashRecordHolder').value = r.holder || '';
+          document.getElementById('bashRecordDetails').value = r.details || '';
+          document.getElementById('bashRecordRank').value = r.rank || 1;
+          document.getElementById('bashRecordDeleteBtn').style.display = 'inline-block';
+        }
+      } else {
+        document.getElementById('bashRecordGender').value = 'Boys';
+        document.getElementById('bashRecordCategory').value = '';
+        document.getElementById('bashRecordValue').value = '';
+        document.getElementById('bashRecordHolder').value = '';
+        document.getElementById('bashRecordDetails').value = '';
+        document.getElementById('bashRecordRank').value = 1;
+        document.getElementById('bashRecordDeleteBtn').style.display = 'none';
+      }
+      
+      document.getElementById('bashRecordModal').style.display = 'flex';
+    }
+    
+    function closeBashRecordModal() {
+      document.getElementById('bashRecordModal').style.display = 'none';
+    }
+    
+    async function saveBashRecord() {
+      const id = document.getElementById('bashRecordId').value;
+      const data = {
+        gender: document.getElementById('bashRecordGender').value,
+        category: document.getElementById('bashRecordCategory').value,
+        record_value: document.getElementById('bashRecordValue').value,
+        holder: document.getElementById('bashRecordHolder').value,
+        details: document.getElementById('bashRecordDetails').value,
+        rank: parseInt(document.getElementById('bashRecordRank').value) || 1
+      };
+      
+      if (!data.category || !data.record_value || !data.holder) {
+        showToast('Please fill in category, record value, and holder', 'error');
+        return;
+      }
+      
+      const { error } = id 
+        ? await db.from('bash_records').update(data).eq('id', id)
+        : await db.from('bash_records').insert([data]);
+      
+      if (error) {
+        showToast('Error saving record', 'error');
+        console.error(error);
+        return;
+      }
+      
+      showToast('Record saved!', 'success');
+      closeBashRecordModal();
+      loadBashRecords();
+    }
+    
+    async function deleteBashRecord(id) {
+      if (!confirm('Delete this record?')) return;
+      
+      const { error } = await db.from('bash_records').delete().eq('id', id);
+      if (error) {
+        showToast('Error deleting record', 'error');
+        return;
+      }
+      showToast('Record deleted', 'success');
+      closeBashRecordModal();
+      loadBashRecords();
     }
     
     // ===== BASH CONTENT MANAGEMENT =====
