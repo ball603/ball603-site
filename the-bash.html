@@ -1710,6 +1710,27 @@
     let liveSchedule = [];
     let bashRecords = [];
     let bashAwards = [];
+    let bashChampions = [];
+    
+    // Load champions from database
+    async function loadBashChampions() {
+      try {
+        const { data, error } = await db
+          .from('bash_champions')
+          .select('*')
+          .order('year', { ascending: false })
+          .order('gender');
+        
+        if (error) throw error;
+        bashChampions = data || [];
+        console.log('Loaded', bashChampions.length, 'champions from database');
+        return bashChampions;
+      } catch (err) {
+        console.error('Error loading champions:', err);
+        bashChampions = [];
+        return bashChampions;
+      }
+    }
     
     // Load awards from database
     async function loadBashAwards() {
@@ -2512,11 +2533,17 @@
       renderHistory('champions');
     }
 
-    function renderHistory(type) {
+    async function renderHistory(type) {
       const container = document.getElementById('historyContent');
       
       if (type === 'champions') {
-        const champs = BASH_DATA.champions || [];
+        // Load champions if not already loaded
+        if (bashChampions.length === 0) {
+          container.innerHTML = '<div style="text-align: center; padding: 20px;">Loading champions...</div>';
+          await loadBashChampions();
+        }
+        
+        const champs = bashChampions;
         container.innerHTML = `
           <table class="bash-history-table">
             <thead>
@@ -2539,11 +2566,11 @@
                       <span class="team-name-text">${c.champion}</span>
                     </a>
                   </td>
-                  <td>${c.championScore}-${c.runnerUpScore}${c.overtime ? ' OT' : ''}</td>
+                  <td>${c.champion_score}-${c.runner_up_score}${c.overtime ? ' OT' : ''}</td>
                   <td>
-                    <a href="/${getTeamSlug(c.runnerUp)}" class="team-cell team-link">
-                      <img class="team-logo-small" src="${getTeamLogo(c.runnerUp)}" onerror="this.src='/logos/100px/Ball603-white.png'" alt="">
-                      <span class="team-name-text">${c.runnerUp}</span>
+                    <a href="/${getTeamSlug(c.runner_up)}" class="team-cell team-link">
+                      <img class="team-logo-small" src="${getTeamLogo(c.runner_up)}" onerror="this.src='/logos/100px/Ball603-white.png'" alt="">
+                      <span class="team-name-text">${c.runner_up}</span>
                     </a>
                   </td>
                 </tr>
