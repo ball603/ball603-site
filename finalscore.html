@@ -779,17 +779,15 @@
           }
         }
         
-        // Update standings if score was entered (not reset)
-        if (awayScore > 0 || homeScore > 0) {
-          try {
-            await fetch('/.netlify/functions/update-standings', { method: 'POST' });
-            console.log('Standings updated');
-          } catch (e) {
-            console.error('Failed to update standings:', e);
-          }
-        }
-        
+        // Show thanks page immediately
         showPage('thanksPage');
+        
+        // Update standings in background (don't wait)
+        if (awayScore > 0 || homeScore > 0) {
+          fetch('/.netlify/functions/update-standings', { method: 'POST' })
+            .then(() => console.log('Standings updated'))
+            .catch(e => console.error('Failed to update standings:', e));
+        }
       } catch (err) {
         console.error('Error:', err);
         alert('Error saving score. Please try again.');
