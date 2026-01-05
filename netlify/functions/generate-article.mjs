@@ -693,12 +693,12 @@ async function handleBoxscore(body, headers) {
   
   const awaySchoolInfo = schoolData?.away || {};
   const homeSchoolInfo = schoolData?.home || {};
-  const gameTown = homeSchoolInfo.town || gameInfo.homeTeam;
+  const gameTown = homeSchoolInfo.town || gameInfo.homeTeam || 'New Hampshire';
   
   function formatGameDate(dateStr) {
     if (!dateStr) return 'Saturday night';
     try {
-      const date = new Date(dateStr);
+      const date = new Date(dateStr + 'T12:00:00');
       const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
       return days[date.getDay()] + ' night';
     } catch { return 'Saturday night'; }
@@ -706,195 +706,124 @@ async function handleBoxscore(body, headers) {
   
   const gameDay = formatGameDate(gameInfo.date);
   
-  // First, have Claude parse the boxscore to extract structured data
-  const parsePrompt = `Parse this basketball boxscore and extract the data. Return ONLY valid JSON.
+  // SINGLE API CALL: Parse boxscore AND write article together
+  const combinedPrompt = `You are a sports data analyst AND reporter for Ball603.com. Do TWO tasks from this boxscore:
 
-BOXSCORE:
+BOXSCORE DATA:
 ${boxscoreText}
 
 EXPECTED TEAMS: ${gameInfo.awayTeam} (away) vs ${gameInfo.homeTeam} (home)
+LOCATION: ${gameTown}
+DATE: ${gameDay}
+GENDER: ${gameInfo.gender || 'Men'}
+${notes ? `ADDITIONAL NOTES: ${notes}` : ''}
 
-Return JSON in this exact format:
+===== TASK 1: EXTRACT DATA =====
+Parse the boxscore into structured JSON.
+
+===== TASK 2: WRITE ARTICLE =====
+Write a factual game recap. Rules:
+- Start with dateline: "${gameTown.toUpperCase()} – "
+- First paragraph: winner, score, location, date, any 20+ point scorers
+- Keep it concise and factual
+- Use neutral verbs: "scored," "led," "added," "finished with"
+- NO speculation, NO dramatic language, NO exclamation points
+- Include key stats (rebounds, assists, shooting %)
+
+===== RESPONSE FORMAT =====
+Return ONLY this JSON structure:
 {
   "awayTeam": "Team Name",
   "homeTeam": "Team Name",
   "awayScore": number,
   "homeScore": number,
-  "periodScores": {
-    "away": [array of period scores],
-    "home": [array of period scores]
-  },
-  "awayPlayers": [
-    {"name": "Full Name", "minutes": 0, "points": 0, "rebounds": 0, "assists": 0, "steals": 0, "blocks": 0, "turnovers": 0, "fgMade": 0, "fgAttempted": 0, "threeMade": 0, "threeAttempted": 0, "ftMade": 0, "ftAttempted": 0}
-  ],
-  "homePlayers": [same format],
-  "teamStats": {
-    "away": {"totalRebounds": 0, "teamAssists": 0, "teamSteals": 0, "teamBlocks": 0, "teamTurnovers": 0, "fgPercent": "0%", "threePercent": "0%", "ftPercent": "0%"},
-    "home": {same format}
-  }
+  "awayPlayers": [{"name": "Full Name", "points": 0, "rebounds": 0, "assists": 0}],
+  "homePlayers": [{"name": "Full Name", "points": 0, "rebounds": 0, "assists": 0}],
+  "article": "DATELINE – Full article text here..."
 }
 
-Include all available stats. Use 0 for any stats not provided. Include all players who played.`;
+Include points/rebounds/assists for each player. The article should be 3-5 paragraphs.`;
 
-  const parseResponse = await fetch('https://api.anthropic.com/v1/messages', {
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 3000, messages: [{ role: 'user', content: parsePrompt }] })
+    body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 3000, messages: [{ role: 'user', content: combinedPrompt }] })
   });
   
-  if (!parseResponse.ok) {
-    const errorText = await parseResponse.text();
-    return { statusCode: parseResponse.status, headers, body: JSON.stringify({ error: 'Failed to parse boxscore', details: errorText }) };
+  if (!response.ok) {
+    const errorText = await response.text();
+    return { statusCode: response.status, headers, body: JSON.stringify({ error: 'Failed to generate story', details: errorText }) };
   }
   
-  const parseData = await parseResponse.json();
-  const parseText = parseData.content?.[0]?.text || '';
+  const data = await response.json();
+  const rawText = data.content?.[0]?.text || '';
   
-  let boxData;
+  let result;
   try {
-    const jsonMatch = parseText.match(/\{[\s\S]*\}/);
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
-      boxData = JSON.parse(jsonMatch[0]);
+      result = JSON.parse(jsonMatch[0]);
     } else {
       throw new Error('No JSON found');
     }
   } catch (e) {
-    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to parse boxscore data', raw: parseText }) };
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to parse response', raw: rawText }) };
   }
   
-  // Determine winner/loser
-  const awayScore = boxData.awayScore || 0;
-  const homeScore = boxData.homeScore || 0;
+  // Extract data from combined response
+  const awayScore = result.awayScore || 0;
+  const homeScore = result.homeScore || 0;
   const awayWon = awayScore > homeScore;
-  const winner = awayWon ? boxData.awayTeam : boxData.homeTeam;
-  const loser = awayWon ? boxData.homeTeam : boxData.awayTeam;
+  const winner = awayWon ? result.awayTeam : result.homeTeam;
+  const loser = awayWon ? result.homeTeam : result.awayTeam;
   const winnerScore = Math.max(awayScore, homeScore);
   const loserScore = Math.min(awayScore, homeScore);
-  const winnerPlayers = awayWon ? boxData.awayPlayers : boxData.homePlayers;
-  const loserPlayers = awayWon ? boxData.homePlayers : boxData.awayPlayers;
+  const winnerPlayers = awayWon ? result.awayPlayers : result.homePlayers;
+  const loserPlayers = awayWon ? result.homePlayers : result.awayPlayers;
+  const article = result.article || '';
   
-  // Format player stats for the prompt
-  function formatPlayerStats(players) {
-    return players.map(p => {
-      let line = `${p.name}: ${p.points} pts`;
-      if (p.rebounds) line += `, ${p.rebounds} reb`;
-      if (p.assists) line += `, ${p.assists} ast`;
-      if (p.steals) line += `, ${p.steals} stl`;
-      if (p.blocks) line += `, ${p.blocks} blk`;
-      if (p.threeMade) line += ` (${p.threeMade}-${p.threeAttempted} 3PT)`;
-      return line;
-    }).join('\n');
+  // Generate headline programmatically
+  const margin = winnerScore - loserScore;
+  let verb = 'Tops';
+  if (margin >= 20) verb = 'Routs';
+  else if (margin >= 15) verb = 'Cruises Past';
+  else if (margin >= 10) verb = 'Beats';
+  else if (margin <= 3) verb = 'Edges';
+  else if (margin <= 5) verb = 'Holds Off';
+  
+  let headline = `${winner} ${verb} ${loser}`;
+  if (headline.length > 45) {
+    headline = `${winner} Tops ${loser}`;
+    if (headline.length > 45) {
+      headline = headline.substring(0, 42) + '...';
+    }
   }
   
-  // Build article prompt
-  const articlePrompt = `You are a factual sports reporter for Ball603.com. Write a straightforward game recap for this collegiate basketball game based ONLY on the facts provided.
-
-GAME RESULT: ${winner} ${winnerScore}, ${loser} ${loserScore}
-LOCATION: ${gameTown}
-DATE: ${gameDay}
-GENDER: ${gameInfo.gender || 'Men'}
-
-${boxData.awayTeam} PLAYERS:
-${formatPlayerStats(boxData.awayPlayers || [])}
-
-${boxData.homeTeam} PLAYERS:
-${formatPlayerStats(boxData.homePlayers || [])}
-
-TEAM STATS:
-${boxData.awayTeam}: FG ${boxData.teamStats?.away?.fgPercent || 'N/A'}, 3PT ${boxData.teamStats?.away?.threePercent || 'N/A'}, FT ${boxData.teamStats?.away?.ftPercent || 'N/A'}
-${boxData.homeTeam}: FG ${boxData.teamStats?.home?.fgPercent || 'N/A'}, 3PT ${boxData.teamStats?.home?.threePercent || 'N/A'}, FT ${boxData.teamStats?.home?.ftPercent || 'N/A'}
-
-${notes ? `ADDITIONAL NOTES: ${notes}` : ''}
-
-MANDATORY STYLE GUIDELINES:
-1. DATELINE: Start with "${gameTown.toUpperCase()} – " and then begin the story
-2. FIRST PARAGRAPH: State who won, final score, location, and date. Include any 20+ point scorers.
-3. BODY: Report the facts. Include relevant stats like rebounds, assists, shooting percentages.
-4. SCORING/STATS PARAGRAPH: List key performers with their stat lines.
-5. LENGTH: Keep it concise. Only include pertinent information.
-6. TONE: Factual and straightforward. Report what happened.
-
-STRICT RULES - DO NOT:
-- Speculate about player emotions, motivations, or thoughts
-- Use dramatic words like "dominated," "exploded," "heroic," "clutch," "electric"
-- Invent narrative drama or momentum shifts you can't prove from the stats
-- Add commentary about the "meaning" of the game
-- Use exclamation points
-
-DO:
-- State facts from the boxscore
-- Use neutral verbs: "scored," "led," "added," "contributed," "finished with"
-- Let the numbers speak for themselves
-- Keep sentences short and direct
-
-DO NOT include a headline - just the article body starting with the dateline.`;
-
-  const articleResponse = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1500, messages: [{ role: 'user', content: articlePrompt }] })
-  });
-  
-  if (!articleResponse.ok) {
-    const errorText = await articleResponse.text();
-    return { statusCode: articleResponse.status, headers, body: JSON.stringify({ error: 'Failed to generate article', details: errorText }) };
-  }
-  
-  const articleData = await articleResponse.json();
-  const article = articleData.content?.[0]?.text || '';
-  
-  // Generate headline
-  const headlineResponse = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 50,
-      messages: [{ role: 'user', content: `Write a headline under 45 characters for this game. Use school name not mascot. No score. Just the headline.\n\nGame: ${winner} defeated ${loser} ${winnerScore}-${loserScore}` }]
-    })
-  });
-  
-  let headline = `${winner} Tops ${loser}`;
-  if (headlineResponse.ok) {
-    const hd = await headlineResponse.json();
-    let gen = hd.content?.[0]?.text?.trim().replace(/^["']|["']$/g, '') || headline;
-    if (gen.length > 45) gen = gen.substring(0, 42) + '...';
-    headline = gen;
-  }
-  
-  const excerpt = ''; // Leave excerpt empty for manual entry
+  const excerpt = '';
   
   // Generate social posts
   const winnerSchoolInfo = awayWon ? awaySchoolInfo : homeSchoolInfo;
   const winnerMascot = winnerSchoolInfo.mascot || '';
   const winnerEmoji = winnerSchoolInfo.emoji || MASCOT_EMOJIS[winnerMascot] || '🏀';
-  const winnerAbbrev = SCHOOL_ABBREVIATIONS[winner] || winner.substring(0, 3).toUpperCase();
-  const loserAbbrev = SCHOOL_ABBREVIATIONS[loser] || loser.substring(0, 3).toUpperCase();
   
-  // Sort players by points (highest first)
-  const sortedWinnerPlayers = [...(winnerPlayers || [])].sort((a, b) => b.points - a.points);
-  const sortedLoserPlayers = [...(loserPlayers || [])].sort((a, b) => b.points - a.points);
+  const sortedWinnerPlayers = [...(winnerPlayers || [])].sort((a, b) => (b.points || 0) - (a.points || 0));
+  const sortedLoserPlayers = [...(loserPlayers || [])].sort((a, b) => (b.points || 0) - (a.points || 0));
   
-  // Format scorers for Instagram: "Watson (11), Moulton (10)"
   function formatIgScorers(players) {
-    const top = (players || []).filter(p => p.points >= 10);
+    const top = (players || []).filter(p => (p.points || 0) >= 10);
     const list = top.length > 0 ? top : [players[0]].filter(Boolean);
-    return list.map(p => `${p.name.split(' ').pop()} (${p.points})`).join(', ');
+    return list.map(p => `${(p.name || '').split(' ').pop()} (${p.points || 0})`).join(', ') || 'N/A';
   }
   
-  // Format scorers for Twitter: "Watson-11, Moulton-10"
   function formatTwitterScorers(players) {
-    const top = (players || []).filter(p => p.points >= 10);
+    const top = (players || []).filter(p => (p.points || 0) >= 10);
     const list = top.length > 0 ? top : [players[0]].filter(Boolean);
-    return list.map(p => `${p.name.split(' ').pop()}-${p.points}`).join(', ');
+    return list.map(p => `${(p.name || '').split(' ').pop()}-${p.points || 0}`).join(', ') || 'N/A';
   }
   
   const igHeader = `${winnerEmoji} 🏀 ${winner} ${winnerScore}, ${loser} ${loserScore} 🏀`;
-  
   const articleSentences = article.replace(/^[A-Z]+\s*[–-]\s*/, '').split(/(?<=[.!?])\s+/);
   const igLede = articleSentences.slice(0, 2).join(' ');
-  
-  // Use photographer name if provided, otherwise use placeholder
   const photogDisplay = photographerName || 'PHOTOGNAME';
   
   let facebookPost = article;
@@ -919,7 +848,7 @@ DO NOT include a headline - just the article body starting with the dateline.`;
       twitterPost,
       winnerEmoji,
       gameTown,
-      parsedData: boxData // Include parsed data for debugging
+      parsedData: result
     })
   };
 }
