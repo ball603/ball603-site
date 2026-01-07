@@ -341,7 +341,7 @@ function deduplicateGames(games) {
     gameById.get(game.game_id).push(game);
   }
   
-  const finalGames = [];
+  const intermediateGames = [];
   
   // Step 2: For each game_id group, pick the best record
   for (const [gameId, duplicates] of gameById) {
@@ -376,7 +376,101 @@ function deduplicateGames(games) {
       }
     }
     
-    finalGames.push(bestGame);
+    intermediateGames.push(bestGame);
+  }
+  
+  // Step 3: Handle back-to-back date conflicts (NHIAA sometimes shows different dates for same game)
+  // Group by matchup (teams + gender), ignoring date
+  const gamesByMatchup = new Map();
+  
+  for (const game of intermediateGames) {
+    const team1 = teamSlug(game.home_team);
+    const team2 = teamSlug(game.away_team);
+    const sortedTeams = [team1, team2].sort();
+    const genderCode = game.gender.toLowerCase().charAt(0);
+    const matchupKey = `${sortedTeams[0]}_${sortedTeams[1]}_${genderCode}`;
+    
+    if (!gamesByMatchup.has(matchupKey)) {
+      gamesByMatchup.set(matchupKey, []);
+    }
+    gamesByMatchup.get(matchupKey).push(game);
+  }
+  
+  const finalGames = [];
+  
+  for (const [matchupKey, matchupGames] of gamesByMatchup) {
+    if (matchupGames.length === 1) {
+      // Only one game for this matchup - keep it
+      finalGames.push(matchupGames[0]);
+      continue;
+    }
+    
+    // Sort by date to find consecutive games
+    matchupGames.sort((a, b) => a.date.localeCompare(b.date));
+    
+    // Track which games to skip (duplicates on consecutive dates)
+    const skipIndices = new Set();
+    
+    for (let i = 0; i < matchupGames.length - 1; i++) {
+      if (skipIndices.has(i)) continue;
+      
+      const game1 = matchupGames[i];
+      const game2 = matchupGames[i + 1];
+      
+      // Check if dates are consecutive (back-to-back)
+      const date1 = new Date(game1.date + 'T12:00:00');
+      const date2 = new Date(game2.date + 'T12:00:00');
+      const diffDays = (date2 - date1) / (1000 * 60 * 60 * 24);
+      
+      if (diffDays === 1) {
+        // Back-to-back dates found - keep only the home team's version
+        console.log(`  ⚠️ Back-to-back conflict: ${game1.away_team} @ ${game1.home_team} on ${game1.date} vs ${game2.date}`);
+        
+        // Prefer home team's record, or if both/neither are home, prefer the one with scores
+        let keeper, discard;
+        
+        if (game1.isFromHomeTeam && !game2.isFromHomeTeam) {
+          keeper = game1;
+          discard = game2;
+        } else if (game2.isFromHomeTeam && !game1.isFromHomeTeam) {
+          keeper = game2;
+          discard = game1;
+        } else {
+          // Both or neither from home - prefer one with scores, otherwise later date
+          if (game1.home_score !== null && game2.home_score === null) {
+            keeper = game1;
+            discard = game2;
+          } else if (game2.home_score !== null && game1.home_score === null) {
+            keeper = game2;
+            discard = game1;
+          } else {
+            // Default to later date (usually more accurate)
+            keeper = game2;
+            discard = game1;
+          }
+        }
+        
+        console.log(`    Keeping ${keeper.date} (isFromHomeTeam: ${keeper.isFromHomeTeam}), discarding ${discard.date}`);
+        
+        // Mark the discarded game to skip
+        skipIndices.add(matchupGames.indexOf(discard));
+        
+        // Merge scores if keeper doesn't have them but discard does
+        if (keeper.home_score === null && discard.home_score !== null) {
+          keeper.home_score = discard.home_score;
+          keeper.away_score = discard.away_score;
+          keeper.status = discard.status;
+          keeper.time = discard.time;
+        }
+      }
+    }
+    
+    // Add all non-skipped games
+    for (let i = 0; i < matchupGames.length; i++) {
+      if (!skipIndices.has(i)) {
+        finalGames.push(matchupGames[i]);
+      }
+    }
   }
   
   return finalGames;
