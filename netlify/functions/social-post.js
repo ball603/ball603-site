@@ -30,18 +30,26 @@ exports.handler = async (event, context) => {
     console.log('Social post request:', { platform, imageCount: imageUrls?.length, hasMessage: !!message });
 
     const results = {};
+    const promises = [];
 
     // Post to Facebook
     if (platform === 'facebook' || platform === 'all') {
-      const fbResult = await postToFacebook(message, imageUrls || [], tags || [], scheduledTime);
-      results.facebook = fbResult;
+      promises.push(
+        postToFacebook(message, imageUrls || [], tags || [], scheduledTime)
+          .then(result => { results.facebook = result; })
+      );
     }
 
     // Post to Instagram
     if (platform === 'instagram' || platform === 'all') {
-      const igResult = await postToInstagram(message, imageUrls || [], collaborators || [], scheduledTime);
-      results.instagram = igResult;
+      promises.push(
+        postToInstagram(message, imageUrls || [], collaborators || [], scheduledTime)
+          .then(result => { results.instagram = result; })
+      );
     }
+
+    // Run both in parallel
+    await Promise.all(promises);
 
     return {
       statusCode: 200,
@@ -203,26 +211,6 @@ async function postToInstagram(message, imageUrls, collaborators, scheduledTime)
   }
 
   const API_VERSION = 'v19.0';
-  
-  // Helper function to check media container status (only used for final container)
-  async function waitForMediaReady(mediaId, maxAttempts = 5) {
-    for (let i = 0; i < maxAttempts; i++) {
-      const statusResponse = await fetch(
-        `https://graph.facebook.com/${API_VERSION}/${mediaId}?fields=status_code&access_token=${accessToken}`
-      );
-      const statusData = await statusResponse.json();
-      console.log(`Media ${mediaId} status check ${i + 1}: ${statusData.status_code}`);
-      
-      if (statusData.status_code === 'FINISHED') {
-        return { ready: true };
-      } else if (statusData.status_code === 'ERROR') {
-        return { ready: false, error: 'Media processing failed' };
-      }
-      // Wait 1 second before checking again
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    }
-    return { ready: false, error: 'Media processing timeout' };
-  }
 
   try {
     let creationId;
@@ -257,39 +245,30 @@ async function postToInstagram(message, imageUrls, collaborators, scheduledTime)
       creationId = createData.id;
       
     } else {
-      // Carousel post - upload items sequentially with minimal delay
-      console.log('Creating', imageUrls.length, 'Instagram carousel items...');
+      // Carousel post - upload items in PARALLEL (like FB does)
+      console.log('Creating', imageUrls.length, 'Instagram carousel items in parallel...');
       
-      for (let i = 0; i < imageUrls.length; i++) {
-        const url = imageUrls[i];
+      const itemPromises = imageUrls.map(async (url, i) => {
+        const itemParams = new URLSearchParams({
+          image_url: url,
+          is_carousel_item: 'true',
+          access_token: accessToken
+        });
         
-        try {
-          const itemParams = new URLSearchParams({
-            image_url: url,
-            is_carousel_item: 'true',
-            access_token: accessToken
-          });
-          
-          const itemResponse = await fetch(
-            `https://graph.facebook.com/${API_VERSION}/${userId}/media`,
-            { method: 'POST', body: itemParams }
-          );
-          
-          const itemData = await itemResponse.json();
-          
-          if (itemData.error) {
-            console.error(`Item ${i + 1} error:`, itemData.error.message);
-          } else if (itemData.id) {
-            childIds.push(itemData.id);
-            console.log(`Item ${i + 1}/${imageUrls.length} created: ${itemData.id}`);
-          }
-        } catch (err) {
-          console.error(`Item ${i + 1} exception:`, err.message);
-        }
-        
-        // Small delay between uploads (200ms)
-        if (i < imageUrls.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 200));
+        const itemResponse = await fetch(
+          `https://graph.facebook.com/${API_VERSION}/${userId}/media`,
+          { method: 'POST', body: itemParams }
+        );
+        const data = await itemResponse.json();
+        console.log(`Item ${i + 1} response:`, data.id || data.error?.message);
+        return data;
+      });
+      
+      const itemResults = await Promise.all(itemPromises);
+      
+      for (const itemData of itemResults) {
+        if (itemData.id) {
+          childIds.push(itemData.id);
         }
       }
       
@@ -299,8 +278,10 @@ async function postToInstagram(message, imageUrls, collaborators, scheduledTime)
         return { success: false, error: `Only ${childIds.length} images uploaded - carousel needs at least 2` };
       }
       
-      // Brief pause before creating container
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Wait for Instagram to process the uploaded items before creating container
+      // This is crucial - items need to be processed before they can be combined
+      console.log('Waiting for carousel items to process...');
+      await new Promise(resolve => setTimeout(resolve, 10000));
       
       // Create carousel container
       const carouselParams = new URLSearchParams({
@@ -331,10 +312,32 @@ async function postToInstagram(message, imageUrls, collaborators, scheduledTime)
       creationId = carouselData.id;
     }
     
-    // Wait for container to be ready before publishing
-    const status = await waitForMediaReady(creationId);
-    if (!status.ready) {
-      return { success: false, error: status.error };
+    // Wait for container to process, then publish
+    // Since we waited 10 seconds for items, container should process quickly
+    console.log('Waiting for carousel container to be ready...');
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    let ready = false;
+    for (let i = 0; i < 6; i++) {
+      const statusResponse = await fetch(
+        `https://graph.facebook.com/${API_VERSION}/${creationId}?fields=status_code&access_token=${accessToken}`
+      );
+      const statusData = await statusResponse.json();
+      console.log(`Status check ${i + 1}: ${statusData.status_code}`);
+      
+      if (statusData.status_code === 'FINISHED') {
+        ready = true;
+        break;
+      } else if (statusData.status_code === 'ERROR') {
+        return { success: false, error: 'Instagram media processing failed' };
+      }
+      
+      // Wait 2 seconds before next check
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+    
+    if (!ready) {
+      return { success: false, error: 'Instagram media processing timeout - try with fewer images' };
     }
     
     // Publish
