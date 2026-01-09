@@ -2362,7 +2362,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       <div class="editor-header">
         <h2>📱 Social Media Posts</h2>
         <div class="editor-actions">
-          <button class="btn-save" onclick="sendToSocials()" style="background: linear-gradient(135deg, #1877f2 0%, #e1306c 100%); color: white;">📤 Send to Socials</button>
+          <button class="btn-save" onclick="sendToFacebookOnly()" style="background: #1877f2; color: white;">📘 Send to Facebook</button>
+          <button class="btn-save" onclick="sendToInstagramOnly()" style="background: linear-gradient(135deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); color: white;">📸 Send to Instagram</button>
           <button class="btn-save" onclick="saveSocialPosts()" style="background: #2e7d32;">💾 Save All</button>
           <button class="btn-back" onclick="closeSocialPublishing()">← Done</button>
         </div>
@@ -8063,6 +8064,177 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       // Also save the posts to the database
       if (hasSuccess) {
         await saveSocialPosts();
+      }
+    }
+    
+    // Send to Facebook only
+    async function sendToFacebookOnly() {
+      const statusDiv = document.getElementById('socialSendStatus');
+      const fbPost = document.getElementById('socialFacebookPost').value.trim();
+      
+      if (!fbPost) {
+        showToast('Please enter a Facebook post', 'error');
+        return;
+      }
+      
+      if (socialImages.length === 0) {
+        showToast('Please add at least one image', 'error');
+        return;
+      }
+      
+      // Get scheduling info
+      const isScheduled = document.querySelector('input[name="socialSchedule"]:checked').value === 'scheduled';
+      let scheduledTime = null;
+      
+      if (isScheduled) {
+        const timeInput = document.getElementById('socialScheduleTime').value;
+        if (!timeInput) {
+          showToast('Please select a scheduled time', 'error');
+          return;
+        }
+        const selectedTime = new Date(timeInput);
+        const minTime = new Date();
+        minTime.setMinutes(minTime.getMinutes() + 10);
+        if (selectedTime < minTime) {
+          showToast('Scheduled time must be at least 10 minutes in the future', 'error');
+          return;
+        }
+        scheduledTime = selectedTime.toISOString();
+      }
+      
+      const imageUrls = socialImages.map(img => img.url);
+      const fbTags = socialContributors.filter(c => c.facebook_page_id).map(c => c.facebook_page_id);
+      
+      statusDiv.style.display = 'block';
+      statusDiv.style.background = '#e3f2fd';
+      statusDiv.style.border = '1px solid #1877f2';
+      statusDiv.innerHTML = '⏳ Sending to Facebook...';
+      
+      try {
+        const response = await fetch('/.netlify/functions/social-post', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            platform: 'facebook',
+            message: fbPost,
+            imageUrls: imageUrls,
+            tags: fbTags,
+            scheduledTime: scheduledTime
+          })
+        });
+        
+        const contentType = response.headers.get('content-type');
+        let result;
+        if (contentType && contentType.includes('application/json')) {
+          const data = await response.json();
+          result = data.results?.facebook || data;
+        } else if (response.ok) {
+          result = { success: true };
+        } else {
+          result = { success: false, error: `HTTP ${response.status}` };
+        }
+        
+        if (result.success) {
+          const schedText = scheduledTime ? ' (scheduled)' : '';
+          statusDiv.style.background = '#e8f5e9';
+          statusDiv.style.border = '1px solid #2e7d32';
+          statusDiv.innerHTML = `✅ Facebook: Posted successfully${schedText}`;
+          await saveSocialPosts();
+        } else {
+          statusDiv.style.background = '#ffebee';
+          statusDiv.style.border = '1px solid #c62828';
+          statusDiv.innerHTML = `❌ Facebook: ${result.error || 'Failed'}`;
+        }
+      } catch (err) {
+        statusDiv.style.background = '#ffebee';
+        statusDiv.style.border = '1px solid #c62828';
+        statusDiv.innerHTML = `❌ Facebook: ${err.message}`;
+      }
+    }
+    
+    // Send to Instagram only
+    async function sendToInstagramOnly() {
+      const statusDiv = document.getElementById('socialSendStatus');
+      const igPost = document.getElementById('socialInstagramPost').value.trim();
+      
+      if (!igPost) {
+        showToast('Please enter an Instagram post', 'error');
+        return;
+      }
+      
+      if (socialImages.length === 0) {
+        showToast('Please add at least one image', 'error');
+        return;
+      }
+      
+      // Get scheduling info
+      const isScheduled = document.querySelector('input[name="socialSchedule"]:checked').value === 'scheduled';
+      let scheduledTime = null;
+      
+      if (isScheduled) {
+        const timeInput = document.getElementById('socialScheduleTime').value;
+        if (!timeInput) {
+          showToast('Please select a scheduled time', 'error');
+          return;
+        }
+        const selectedTime = new Date(timeInput);
+        const minTime = new Date();
+        minTime.setMinutes(minTime.getMinutes() + 10);
+        if (selectedTime < minTime) {
+          showToast('Scheduled time must be at least 10 minutes in the future', 'error');
+          return;
+        }
+        scheduledTime = selectedTime.toISOString();
+      }
+      
+      const imageUrls = socialImages.map(img => img.url);
+      const igCollaborators = socialContributors.filter(c => c.instagram_user_id).map(c => c.instagram_user_id);
+      
+      statusDiv.style.display = 'block';
+      statusDiv.style.background = '#fff3e0';
+      statusDiv.style.border = '1px solid #e1306c';
+      statusDiv.innerHTML = '⏳ Sending to Instagram...';
+      
+      try {
+        const response = await fetch('/.netlify/functions/social-post', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            platform: 'instagram',
+            message: igPost,
+            imageUrls: imageUrls,
+            collaborators: igCollaborators,
+            scheduledTime: scheduledTime
+          })
+        });
+        
+        const contentType = response.headers.get('content-type');
+        let result;
+        if (contentType && contentType.includes('application/json')) {
+          const data = await response.json();
+          result = data.results?.instagram || data;
+        } else if (response.ok) {
+          result = { success: true };
+        } else {
+          result = { success: false, error: `HTTP ${response.status}` };
+        }
+        
+        if (result.success) {
+          const schedText = scheduledTime ? ' (scheduled)' : '';
+          const collabText = igCollaborators.length ? ` + ${igCollaborators.length} collaborator invite(s)` : '';
+          statusDiv.style.background = '#e8f5e9';
+          statusDiv.style.border = '1px solid #2e7d32';
+          statusDiv.innerHTML = `✅ Instagram: Posted successfully${schedText}${collabText}`;
+          await saveSocialPosts();
+        } else {
+          statusDiv.style.background = '#ffebee';
+          statusDiv.style.border = '1px solid #c62828';
+          statusDiv.innerHTML = `❌ Instagram: ${result.error || 'Failed'}`;
+        }
+      } catch (err) {
+        statusDiv.style.background = '#ffebee';
+        statusDiv.style.border = '1px solid #c62828';
+        statusDiv.innerHTML = `❌ Instagram: ${err.message}`;
       }
     }
     
