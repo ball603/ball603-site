@@ -206,6 +206,7 @@ async function postToInstagram(message, imageUrls, collaborators, scheduledTime)
 
   try {
     let creationId;
+    let childIds = [];
     
     if (imageUrls.length === 1) {
       // Single image post
@@ -237,39 +238,54 @@ async function postToInstagram(message, imageUrls, collaborators, scheduledTime)
       creationId = createData.id;
       
     } else {
-      // Carousel post - upload items in parallel for speed
-      console.log('Creating', imageUrls.length, 'Instagram carousel items in parallel...');
+      // Carousel post - upload items SEQUENTIALLY to avoid rate limiting
+      console.log('Creating', imageUrls.length, 'Instagram carousel items sequentially...');
       
-      const itemPromises = imageUrls.map(async (url) => {
+      let lastError = null;
+      
+      for (let i = 0; i < imageUrls.length; i++) {
+        const url = imageUrls[i];
+        console.log(`Uploading carousel item ${i + 1}/${imageUrls.length}...`);
+        
         const itemParams = new URLSearchParams({
           image_url: url,
           is_carousel_item: 'true',
           access_token: accessToken
         });
         
-        const itemResponse = await fetch(
-          `https://graph.facebook.com/${API_VERSION}/${userId}/media`,
-          { method: 'POST', body: itemParams }
-        );
-        return itemResponse.json();
-      });
-      
-      const itemResults = await Promise.all(itemPromises);
-      const childIds = [];
-      let lastError = null;
-      
-      for (const itemData of itemResults) {
-        if (itemData.error) {
-          console.error('Carousel item error:', itemData.error);
-          lastError = itemData.error.message;
-        } else if (itemData.id) {
-          childIds.push(itemData.id);
+        try {
+          const itemResponse = await fetch(
+            `https://graph.facebook.com/${API_VERSION}/${userId}/media`,
+            { method: 'POST', body: itemParams }
+          );
+          const itemData = await itemResponse.json();
+          
+          if (itemData.error) {
+            console.error(`Carousel item ${i + 1} error:`, itemData.error);
+            lastError = itemData.error.message;
+          } else if (itemData.id) {
+            childIds.push(itemData.id);
+            console.log(`Carousel item ${i + 1} success: ${itemData.id}`);
+          }
+        } catch (err) {
+          console.error(`Carousel item ${i + 1} fetch error:`, err);
+          lastError = err.message;
+        }
+        
+        // Wait 300ms between uploads to avoid rate limiting
+        if (i < imageUrls.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 300));
         }
       }
+      
+      console.log(`Successfully uploaded ${childIds.length}/${imageUrls.length} carousel items`);
       
       if (childIds.length < 2) {
         return { success: false, error: lastError || 'Carousel requires at least 2 successfully processed images' };
       }
+      
+      // Wait for Instagram to process uploads before creating container
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
       console.log('Created carousel item IDs:', childIds);
       
@@ -304,8 +320,8 @@ async function postToInstagram(message, imageUrls, collaborators, scheduledTime)
     }
     
     // Step 3: Publish the media
-    // Brief delay for Instagram to process
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Wait for Instagram to process all images
+    await new Promise(resolve => setTimeout(resolve, 3000));
     
     const publishParams = new URLSearchParams({
       creation_id: creationId,
@@ -329,7 +345,8 @@ async function postToInstagram(message, imageUrls, collaborators, scheduledTime)
     return { 
       success: true, 
       postId: publishData.id,
-      collaboratorInvites: collaborators?.length || 0
+      collaboratorInvites: collaborators?.length || 0,
+      imagesPosted: creationId ? (imageUrls.length === 1 ? 1 : childIds.length) : 0
     };
 
   } catch (error) {
