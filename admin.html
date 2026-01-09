@@ -7955,11 +7955,12 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       statusDiv.innerHTML = '⏳ Sending to social platforms...';
       
       const results = { facebook: null, instagram: null };
+      const socialPromises = [];
       
-      // Send to Facebook
+      // Send to Facebook (start immediately)
       if (fbPost) {
-        try {
-          const fbResponse = await fetch('/.netlify/functions/social-post', {
+        socialPromises.push(
+          fetch('/.netlify/functions/social-post', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -7969,28 +7970,26 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
               tags: fbTags,
               scheduledTime: scheduledTime
             })
-          });
-          
-          // Check response type before parsing
-          const contentType = fbResponse.headers.get('content-type');
-          if (contentType && contentType.includes('application/json')) {
-            const fbData = await fbResponse.json();
-            results.facebook = fbData.results?.facebook || fbData;
-          } else if (fbResponse.ok) {
-            // Response OK but not JSON - assume success
-            results.facebook = { success: true, note: 'Posted (non-JSON response)' };
-          } else {
-            results.facebook = { success: false, error: `HTTP ${fbResponse.status}` };
-          }
-        } catch (err) {
-          results.facebook = { success: false, error: err.message };
-        }
+          }).then(async (fbResponse) => {
+            const contentType = fbResponse.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+              const fbData = await fbResponse.json();
+              results.facebook = fbData.results?.facebook || fbData;
+            } else if (fbResponse.ok) {
+              results.facebook = { success: true, note: 'Posted (non-JSON response)' };
+            } else {
+              results.facebook = { success: false, error: `HTTP ${fbResponse.status}` };
+            }
+          }).catch(err => {
+            results.facebook = { success: false, error: err.message };
+          })
+        );
       }
       
-      // Send to Instagram
+      // Send to Instagram (start immediately, in parallel with FB)
       if (igPost) {
-        try {
-          const igResponse = await fetch('/.netlify/functions/social-post', {
+        socialPromises.push(
+          fetch('/.netlify/functions/social-post', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -8000,23 +7999,24 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
               collaborators: igCollaborators,
               scheduledTime: scheduledTime
             })
-          });
-          
-          // Check response type before parsing
-          const contentType = igResponse.headers.get('content-type');
-          if (contentType && contentType.includes('application/json')) {
-            const igData = await igResponse.json();
-            results.instagram = igData.results?.instagram || igData;
-          } else if (igResponse.ok) {
-            // Response OK but not JSON - assume success
-            results.instagram = { success: true, note: 'Posted (non-JSON response)' };
-          } else {
-            results.instagram = { success: false, error: `HTTP ${igResponse.status}` };
-          }
-        } catch (err) {
-          results.instagram = { success: false, error: err.message };
-        }
+          }).then(async (igResponse) => {
+            const contentType = igResponse.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+              const igData = await igResponse.json();
+              results.instagram = igData.results?.instagram || igData;
+            } else if (igResponse.ok) {
+              results.instagram = { success: true, note: 'Posted (non-JSON response)' };
+            } else {
+              results.instagram = { success: false, error: `HTTP ${igResponse.status}` };
+            }
+          }).catch(err => {
+            results.instagram = { success: false, error: err.message };
+          })
+        );
       }
+      
+      // Wait for both to complete
+      await Promise.all(socialPromises);
       
       // Build status message
       let statusMessages = [];
