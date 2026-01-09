@@ -888,13 +888,25 @@
     }
 
     // ===== LOAD GALLERIES =====
+    // Helper function to check if album title matches team name with word boundaries
+    function albumMatchesTeam(albumTitle, teamVariation) {
+      if (!albumTitle || !teamVariation) return false;
+      const title = albumTitle.toLowerCase();
+      const variation = teamVariation.toLowerCase();
+      // Create regex with word boundaries to avoid partial matches (e.g., "Con" matching "Concord")
+      // Escape special regex characters in the team name
+      const escaped = variation.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`(^|[^a-z])${escaped}([^a-z]|$)`, 'i');
+      return regex.test(title);
+    }
+
     async function loadGalleries() {
       if (!TEAM_CONFIG) return;
       try {
         const { data: albums, error } = await db.from('smugmug_albums').select('album_key, name, url, image_count, album_date, thumbnail_url').order('album_date', { ascending: false });
         if (error) throw error;
         if (!albums || albums.length === 0) { await loadGalleriesFromSmugMug(); return; }
-        const matchingAlbums = albums.filter(a => { const title = (a.name || '').toLowerCase(); return TEAM_CONFIG.nameVariations.some(v => v && title.includes(v.toLowerCase())); });
+        const matchingAlbums = albums.filter(a => { const title = a.name || ''; return TEAM_CONFIG.nameVariations.some(v => v && albumMatchesTeam(title, v)); });
         const { data: manualGalleries } = await db.from('team_galleries').select('album_key').eq('team_slug', TEAM_CONFIG.slug);
         const manualKeys = new Set((manualGalleries || []).map(g => g.album_key));
         const manualAlbums = albums.filter(a => manualKeys.has(a.album_key) && !matchingAlbums.find(m => m.album_key === a.album_key));
@@ -910,7 +922,7 @@
         const response = await fetch('/.netlify/functions/smugmug?action=albums');
         const data = await response.json();
         if (data.success && data.albums) {
-          const matching = data.albums.filter(a => { const title = (a.name || '').toLowerCase(); return TEAM_CONFIG.nameVariations.some(v => v && title.includes(v.toLowerCase())); });
+          const matching = data.albums.filter(a => { const title = a.name || ''; return TEAM_CONFIG.nameVariations.some(v => v && albumMatchesTeam(title, v)); });
           teamData.galleries = matching.map(a => ({ id: a.key, title: a.name, thumbnail: null, url: a.url, date: a.date, photoCount: a.imageCount }));
           renderGalleries();
           await Promise.all(teamData.galleries.slice(0, 20).map(async g => {
