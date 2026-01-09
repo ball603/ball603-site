@@ -238,11 +238,13 @@ async function postToInstagram(message, imageUrls, collaborators, scheduledTime)
       creationId = createData.id;
       
     } else {
-      // Carousel post - upload items in PARALLEL for speed
-      // Note: Instagram may rate-limit, so some images might not process
-      console.log('Creating', imageUrls.length, 'Instagram carousel items in parallel...');
+      // Carousel post - upload items with staggered start to avoid rate limits
+      console.log('Creating', imageUrls.length, 'Instagram carousel items (staggered parallel)...');
       
-      const uploadPromises = imageUrls.map(async (url) => {
+      const uploadPromises = imageUrls.map(async (url, index) => {
+        // Stagger each request by 100ms to avoid burst rate limiting
+        await new Promise(resolve => setTimeout(resolve, index * 100));
+        
         const itemParams = new URLSearchParams({
           image_url: url,
           is_carousel_item: 'true',
