@@ -75,7 +75,7 @@ async function postToFacebook(message, imageUrls, tags, scheduledTime) {
     return { success: false, error: 'Facebook credentials not configured' };
   }
 
-  const API_VERSION = 'v19.0';
+  const API_VERSION = 'v21.0';
 
   try {
     let response;
@@ -202,6 +202,14 @@ async function postToInstagram(message, imageUrls, collaborators, scheduledTime)
   const userId = process.env.INSTAGRAM_USER_ID;
   const accessToken = process.env.INSTAGRAM_ACCESS_TOKEN;
 
+  console.log('IG credentials check:', { 
+    hasUserId: !!userId, 
+    userIdLength: userId?.length,
+    userIdPreview: userId?.substring(0, 8) + '...',
+    hasToken: !!accessToken,
+    tokenLength: accessToken?.length
+  });
+
   if (!userId || !accessToken) {
     return { success: false, error: 'Instagram credentials not configured' };
   }
@@ -210,7 +218,7 @@ async function postToInstagram(message, imageUrls, collaborators, scheduledTime)
     return { success: false, error: 'Instagram requires at least one image' };
   }
 
-  const API_VERSION = 'v19.0';
+  const API_VERSION = 'v21.0';
 
   try {
     let creationId;
