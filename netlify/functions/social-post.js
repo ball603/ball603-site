@@ -203,6 +203,29 @@ async function postToInstagram(message, imageUrls, collaborators, scheduledTime)
   }
 
   const API_VERSION = 'v19.0';
+  
+  // Helper function to check media container status
+  async function checkMediaStatus(mediaId, maxAttempts = 10) {
+    for (let i = 0; i < maxAttempts; i++) {
+      const statusResponse = await fetch(
+        `https://graph.facebook.com/${API_VERSION}/${mediaId}?fields=status_code,status&access_token=${accessToken}`
+      );
+      const statusData = await statusResponse.json();
+      console.log(`Media ${mediaId} status (attempt ${i + 1}):`, statusData.status_code);
+      
+      if (statusData.status_code === 'FINISHED') {
+        return { ready: true };
+      } else if (statusData.status_code === 'ERROR') {
+        return { ready: false, error: statusData.status || 'Media processing failed' };
+      }
+      // Wait 2 seconds before checking again
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+    return { ready: false, error: 'Media processing timeout' };
+  }
+  
+  // Helper to delay between API calls
+  const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
   try {
     let creationId;
@@ -236,42 +259,80 @@ async function postToInstagram(message, imageUrls, collaborators, scheduledTime)
       
       creationId = createData.id;
       
+      // Wait for media to be ready
+      const status = await checkMediaStatus(creationId);
+      if (!status.ready) {
+        return { success: false, error: status.error };
+      }
+      
     } else {
-      // Carousel post - upload items in parallel for speed
-      console.log('Creating', imageUrls.length, 'Instagram carousel items in parallel...');
+      // Carousel post - upload items SEQUENTIALLY with delays to avoid rate limits
+      console.log('Creating', imageUrls.length, 'Instagram carousel items sequentially...');
       
-      const itemPromises = imageUrls.map(async (url) => {
-        const itemParams = new URLSearchParams({
-          image_url: url,
-          is_carousel_item: 'true',
-          access_token: accessToken
-        });
-        
-        const itemResponse = await fetch(
-          `https://graph.facebook.com/${API_VERSION}/${userId}/media`,
-          { method: 'POST', body: itemParams }
-        );
-        return itemResponse.json();
-      });
-      
-      const itemResults = await Promise.all(itemPromises);
       const childIds = [];
-      let lastError = null;
+      const failedItems = [];
       
-      for (const itemData of itemResults) {
-        if (itemData.error) {
-          console.error('Carousel item error:', itemData.error);
-          lastError = itemData.error.message;
-        } else if (itemData.id) {
-          childIds.push(itemData.id);
+      for (let i = 0; i < imageUrls.length; i++) {
+        const url = imageUrls[i];
+        console.log(`Uploading carousel item ${i + 1}/${imageUrls.length}...`);
+        
+        try {
+          const itemParams = new URLSearchParams({
+            image_url: url,
+            is_carousel_item: 'true',
+            access_token: accessToken
+          });
+          
+          const itemResponse = await fetch(
+            `https://graph.facebook.com/${API_VERSION}/${userId}/media`,
+            { method: 'POST', body: itemParams }
+          );
+          
+          const itemData = await itemResponse.json();
+          
+          if (itemData.error) {
+            console.error(`Carousel item ${i + 1} error:`, itemData.error);
+            failedItems.push({ index: i + 1, error: itemData.error.message });
+          } else if (itemData.id) {
+            // Check if this item is ready
+            const status = await checkMediaStatus(itemData.id, 5);
+            if (status.ready) {
+              childIds.push(itemData.id);
+              console.log(`Carousel item ${i + 1} ready: ${itemData.id}`);
+            } else {
+              console.error(`Carousel item ${i + 1} failed processing:`, status.error);
+              failedItems.push({ index: i + 1, error: status.error });
+            }
+          }
+        } catch (err) {
+          console.error(`Carousel item ${i + 1} exception:`, err.message);
+          failedItems.push({ index: i + 1, error: err.message });
+        }
+        
+        // Delay between uploads to avoid rate limiting (500ms between items)
+        if (i < imageUrls.length - 1) {
+          await delay(500);
         }
       }
       
+      console.log(`Carousel upload complete: ${childIds.length} succeeded, ${failedItems.length} failed`);
+      
       if (childIds.length < 2) {
-        return { success: false, error: lastError || 'Carousel requires at least 2 successfully processed images' };
+        const errorMsg = failedItems.length > 0 
+          ? `Only ${childIds.length} images processed. Failures: ${failedItems.map(f => `#${f.index}: ${f.error}`).join('; ')}`
+          : 'Carousel requires at least 2 successfully processed images';
+        return { success: false, error: errorMsg };
+      }
+      
+      // Log if some images failed but we can still proceed
+      if (failedItems.length > 0) {
+        console.log(`Proceeding with ${childIds.length}/${imageUrls.length} images. Failed: ${failedItems.map(f => `#${f.index}`).join(', ')}`);
       }
       
       console.log('Created carousel item IDs:', childIds);
+      
+      // Brief delay before creating container
+      await delay(1000);
       
       // Step 2: Create carousel container
       const carouselParams = new URLSearchParams({
@@ -301,18 +362,21 @@ async function postToInstagram(message, imageUrls, collaborators, scheduledTime)
       }
       
       creationId = carouselData.id;
+      
+      // Wait for carousel container to be ready
+      const carouselStatus = await checkMediaStatus(creationId);
+      if (!carouselStatus.ready) {
+        return { success: false, error: carouselStatus.error };
+      }
     }
     
     // Step 3: Publish the media
-    // Brief delay for Instagram to process
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    console.log('Publishing IG media:', creationId);
     
     const publishParams = new URLSearchParams({
       creation_id: creationId,
       access_token: accessToken
     });
-    
-    console.log('Publishing IG media:', creationId);
     
     const publishResponse = await fetch(
       `https://graph.facebook.com/${API_VERSION}/${userId}/media_publish`,
@@ -329,7 +393,9 @@ async function postToInstagram(message, imageUrls, collaborators, scheduledTime)
     return { 
       success: true, 
       postId: publishData.id,
-      collaboratorInvites: collaborators?.length || 0
+      collaboratorInvites: collaborators?.length || 0,
+      imagesPosted: imageUrls.length === 1 ? 1 : childIds.length,
+      imagesRequested: imageUrls.length
     };
 
   } catch (error) {
