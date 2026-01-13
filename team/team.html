@@ -616,7 +616,18 @@
           ...g, home: normalizeTeamName(g.home || g.home_team), away: normalizeTeamName(g.away || g.away_team)
         }));
         const teamNames = TEAM_CONFIG.nameVariations;
-        const teamGames = allGames.filter(g => teamNames.some(n => n && (g.home?.includes(n) || g.away?.includes(n))));
+        
+        // Word-boundary matching to avoid Portsmouth matching Portsmouth Christian, etc.
+        function matchesTeamName(teamField, variations) {
+          if (!teamField) return false;
+          return variations.some(variation => {
+            if (!variation) return false;
+            const regex = new RegExp(`(^|\\s|-)${variation.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|\\s|-)`, 'i');
+            return regex.test(teamField);
+          });
+        }
+        
+        const teamGames = allGames.filter(g => matchesTeamName(g.home, teamNames) || matchesTeamName(g.away, teamNames));
         
         // Normalize opponent name for deduplication - strip common suffixes and punctuation
         function normalizeForDedupe(name) {
@@ -631,7 +642,7 @@
         function dedupeGames(games) {
           const seen = new Set();
           return games.filter(g => {
-            const isHome = teamNames.some(n => n && g.home?.includes(n));
+            const isHome = matchesTeamName(g.home, teamNames);
             const opponent = isHome ? g.away : g.home;
             const normalizedOpp = normalizeForDedupe(opponent);
             // Create unique key: date + normalized opponent only
