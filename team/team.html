@@ -598,7 +598,7 @@
         'Merrimack High School': 'Merrimack', 'Milford High School': 'Milford', 'Nashua High School North': 'Nashua North',
         'Nashua High School South': 'Nashua South', 'Oyster River High School': 'Oyster River', 'Pelham High School': 'Pelham',
         'Pembroke Academy': 'Pembroke', 'Pinkerton Academy': 'Pinkerton', 'Plymouth Regional High School': 'Plymouth',
-        'Portsmouth High School': 'Portsmouth', 'Salem High School': 'Salem', 'Souhegan High School': 'Souhegan',
+        'Portsmouth High School': 'Portsmouth', 'Portsmouth Christian Academy': 'Portsmouth Christian', 'Salem High School': 'Salem', 'Souhegan High School': 'Souhegan',
         'Spaulding High School': 'Spaulding', 'St. Thomas Aquinas High School': 'St. Thomas Aquinas',
         'Timberlane Regional High School': 'Timberlane', 'Trinity High School': 'Trinity', 'Windham High School': 'Windham',
         'Winnacunnet High School': 'Winnacunnet'
@@ -617,14 +617,11 @@
         }));
         const teamNames = TEAM_CONFIG.nameVariations;
         
-        // Word-boundary matching to avoid Portsmouth matching Portsmouth Christian, etc.
+        // Exact match (case-insensitive) to avoid Portsmouth matching Portsmouth Christian, etc.
         function matchesTeamName(teamField, variations) {
           if (!teamField) return false;
-          return variations.some(variation => {
-            if (!variation) return false;
-            const regex = new RegExp(`(^|\\s|-)${variation.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|\\s|-)`, 'i');
-            return regex.test(teamField);
-          });
+          const normalized = teamField.trim().toLowerCase();
+          return variations.some(v => v && v.trim().toLowerCase() === normalized);
         }
         
         const teamGames = allGames.filter(g => matchesTeamName(g.home, teamNames) || matchesTeamName(g.away, teamNames));
