@@ -283,8 +283,14 @@ function parseSchedulePage(html, gender, division) {
       let homeScore = '';
       let awayScore = '';
       
+      // SAFEGUARD: Don't accept scores for future dates (NHIAA data entry errors)
+      // Compare using EST timezone
+      const gameDate = new Date(isoDate + 'T23:59:59-05:00'); // End of game day in EST
+      const nowEST = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+      const isFutureGame = gameDate > nowEST;
+      
       // Check if completed game (8 cells) or upcoming (5 cells with time)
-      if (cells.length >= 8 && (cells[4] === 'W' || cells[4] === 'L')) {
+      if (cells.length >= 8 && (cells[4] === 'W' || cells[4] === 'L') && !isFutureGame) {
         // Completed game: cells[4]=W/L, cells[5]=teamScore, cells[6]="-", cells[7]=oppScore
         const teamScore = cells[5];
         const oppScore = cells[7];
@@ -297,6 +303,14 @@ function parseSchedulePage(html, gender, division) {
           awayScore = oppScore;
         }
         time = 'FINAL';
+      } else if (cells.length >= 8 && (cells[4] === 'W' || cells[4] === 'L') && isFutureGame) {
+        // NHIAA has scores for a future game - ignore them and use time if available
+        console.log(`  WARNING: Ignoring scores for future game: ${awayTeam} @ ${homeTeam} on ${isoDate}`);
+        time = cells.length >= 5 ? cells[4] : '';
+        // If the "time" we got is actually W/L, try to find real time or leave blank
+        if (time === 'W' || time === 'L') {
+          time = '';
+        }
       } else if (cells.length >= 5) {
         // Upcoming game: cells[4] is the time
         time = cells[4];
