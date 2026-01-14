@@ -824,6 +824,15 @@
       
       const years = Object.keys(byYear).sort((a, b) => b - a);
       
+      // Helper to display score - return empty string for null, undefined, or "null"/"Null" strings
+      const displayScore = (score) => {
+        if (score === null || score === undefined || score === '' || 
+            score === 'null' || score === 'Null' || score === 'NULL') {
+          return '';
+        }
+        return score;
+      };
+      
       container.innerHTML = years.map(year => `
         <div class="championship-year">
           <div class="championship-year-header">${year}</div>
@@ -831,6 +840,9 @@
             ${byYear[year].map(c => {
               // Use same getDivNum logic for CSS ordering
               const divNum = getDivNum(c.division);
+              const champScore = displayScore(c.champion_score);
+              const runnerScore = displayScore(c.runner_up_score);
+              const showScores = champScore && runnerScore;
               
               return `
               <div class="championship-card ${c.notes ? 'has-notes' : ''}" data-gender="${c.gender}" data-div="${divNum}">
@@ -842,11 +854,11 @@
                          class="team-logo-small"
                          onerror="this.src='/logos/100px/Ball603-white.png'; this.style.opacity='0.5';">
                     <span class="team-name">${c.champion}</span>
-                    <span class="team-score">${c.champion_score || ''}</span>
+                    ${showScores ? `<span class="team-score">${champScore}</span>` : ''}
                   </div>
                   <div class="championship-vs">vs</div>
                   <div class="championship-team loser">
-                    <span class="team-score">${c.runner_up_score || ''}</span>
+                    ${showScores ? `<span class="team-score">${runnerScore}</span>` : ''}
                     <span class="team-name">${c.runner_up}</span>
                     <img src="/logos/100px/${c.runner_up.replace(/\s+/g, '')}.png" 
                          alt="${c.runner_up}" 
