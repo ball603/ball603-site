@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Ball603 Team Page v252 - Updated 2026-01-14 11:15 -->
+<!-- Ball603 Team Page v253 - Updated 2026-01-14 11:30 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -721,7 +721,10 @@
         const isHome = isThisTeam(g.home);
         const hs = String(g.home_score || '').trim(), as = String(g.away_score || '').trim();
         const hasScore = hs !== '' && as !== '';
-        if (hasScore) {
+        const isScheduled = g.status && g.status.toLowerCase() === 'scheduled';
+        
+        // Treat as completed if has score AND not explicitly marked as scheduled
+        if (hasScore && !isScheduled) {
           const homeScore = parseInt(hs), awayScore = parseInt(as);
           const teamScore = isHome ? homeScore : awayScore, oppScore = isHome ? awayScore : homeScore;
           const won = teamScore > oppScore;
@@ -762,8 +765,24 @@
       container.innerHTML = allGames.map(g => {
         const opp = g.isHome ? g.away : g.home;
         const oppSlug = getTeamSlug(opp);
-        let resultClass = 'upcoming', resultText = formatTime(g.time);
-        if (g.hasScore) { resultClass = g.won ? 'win' : 'loss'; resultText = `${g.won ? 'W' : 'L'} ${g.teamScore}-${g.oppScore}`; }
+        const isScheduled = g.status && g.status.toLowerCase() === 'scheduled';
+        let resultClass = 'upcoming', resultText;
+        
+        // Determine what to show - status takes priority
+        if (isScheduled) {
+          // Explicitly scheduled - show time, not score
+          const timeToShow = g.original_time || g.time;
+          resultText = (timeToShow && timeToShow.toUpperCase() !== 'FINAL') ? formatTime(timeToShow) : 'TBD';
+        } else if (g.hasScore) {
+          // Has score and not scheduled - show result
+          resultClass = g.won ? 'win' : 'loss';
+          resultText = `${g.won ? 'W' : 'L'} ${g.teamScore}-${g.oppScore}`;
+        } else {
+          // No score, show time
+          const timeToShow = g.original_time || g.time;
+          resultText = (timeToShow && timeToShow.toUpperCase() !== 'FINAL') ? formatTime(timeToShow) : 'TBD';
+        }
+        
         return `
           <div class="schedule-game-item">
             <div class="schedule-game-date">${formatShortDate(g.date)}</div>
