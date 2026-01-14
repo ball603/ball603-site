@@ -271,6 +271,9 @@ function getLogoFilename(teamName) {
   
   // Fallback: Handle special cases for teams not in database (e.g., colleges)
   const specialCases = {
+    'Man. Central-Man. West': 'CentralWest.png',
+    'Manchester Central-West': 'CentralWest.png',
+    'Central-West': 'CentralWest.png',
     'UNH': 'UNH.png',
     'University of New Hampshire': 'UNH.png',
     'SNHU': 'SouthernNewHampshire.png',
