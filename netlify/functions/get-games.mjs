@@ -94,6 +94,8 @@ export default async (request) => {
       game_id: game.game_id || '',
       date: game.date || '',
       time: game.time || '',
+      status: game.status || '',
+      original_time: game.original_time || '',
       away: game.away_team || '',
       away_abbrev: teamsMap[game.away_team] || (game.away_team || '').substring(0, 3).toUpperCase(),
       away_score: game.away_score ?? '',
