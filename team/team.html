@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Ball603 Team Page v247 - Updated 2026-01-14 09:10 -->
+<!-- Ball603 Team Page v248 - Updated 2026-01-14 09:25 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -615,6 +615,8 @@
       try {
         const response = await fetch('/.netlify/functions/get-games');
         const data = await response.json();
+        console.log('Got', (data.games || []).length, 'total games from API');
+        
         const allGames = (data.games || []).map(g => ({
           ...g, home: normalizeTeamName(g.home || g.home_team), away: normalizeTeamName(g.away || g.away_team)
         }));
@@ -625,6 +627,7 @@
         // Add special variations for combined teams that might not be in config
         if (TEAM_CONFIG.slug === 'centralwest' || TEAM_CONFIG.shortname === 'Central-West') {
           teamNames.push('Man. Central-Man. West', 'Man Central Man West', 'Manchester Central-West');
+          console.log('Added Central-West variations');
         }
         
         // Exact match (case-insensitive) to avoid Portsmouth matching Portsmouth Christian, etc.
@@ -634,8 +637,23 @@
           return variations.some(v => v && v.trim().toLowerCase() === normalized);
         }
         
-        const teamGames = allGames.filter(g => matchesTeamName(g.home, teamNames) || matchesTeamName(g.away, teamNames));
-        console.log('Schedule matching for', TEAM_CONFIG.slug, '- teamNames:', teamNames, '- found games:', teamGames.length);
+        // Special direct check for Central-West - looks for the exact NHIAA name pattern
+        function isCentralWestGame(game) {
+          if (TEAM_CONFIG.slug !== 'centralwest') return false;
+          const home = (game.home || '').toLowerCase();
+          const away = (game.away || '').toLowerCase();
+          // Match the exact NHIAA name: "man. central-man. west"
+          return home.includes('man. central-man. west') || away.includes('man. central-man. west') ||
+                 home.includes('central-west') || away.includes('central-west');
+        }
+        
+        const teamGames = allGames.filter(g => {
+          const normalMatch = matchesTeamName(g.home, teamNames) || matchesTeamName(g.away, teamNames);
+          const cwMatch = isCentralWestGame(g);
+          if (cwMatch) console.log('Central-West game found:', g.date, g.home, 'vs', g.away);
+          return normalMatch || cwMatch;
+        });
+        console.log('Schedule matching for', TEAM_CONFIG.slug, '- found games:', teamGames.length);
         
         // Normalize opponent name for deduplication - strip common suffixes and punctuation
         function normalizeForDedupe(name) {
@@ -918,10 +936,20 @@
     async function loadRosters() {
       if (!TEAM_CONFIG) return;
       try {
-        const response = await fetch(`/.netlify/functions/get-rosters?school=${encodeURIComponent(TEAM_CONFIG.name)}`);
-        const data = await response.json();
-        if (data.success && data.rosters) {
-          data.rosters.forEach(r => { if (r.gender === 'Boys') teamData.rosters.boys = r; else if (r.gender === 'Girls') teamData.rosters.girls = r; });
+        // For Central-West, try multiple possible school names
+        let schoolNames = [TEAM_CONFIG.name];
+        if (TEAM_CONFIG.slug === 'centralwest' || TEAM_CONFIG.shortname === 'Central-West') {
+          schoolNames = ['Central-West', 'Manchester Central-West', 'Man. Central-Man. West'];
+        }
+        
+        for (const schoolName of schoolNames) {
+          const response = await fetch(`/.netlify/functions/get-rosters?school=${encodeURIComponent(schoolName)}`);
+          const data = await response.json();
+          if (data.success && data.rosters && data.rosters.length > 0) {
+            console.log('Found roster for', schoolName);
+            data.rosters.forEach(r => { if (r.gender === 'Boys') teamData.rosters.boys = r; else if (r.gender === 'Girls') teamData.rosters.girls = r; });
+            break;
+          }
         }
       } catch (err) { console.error('Error loading rosters:', err); }
       renderRosters();
