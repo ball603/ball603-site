@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Ball603 Team Page v248 - Updated 2026-01-14 09:25 -->
+<!-- Ball603 Team Page v249 - Updated 2026-01-14 09:45 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -867,11 +867,20 @@
         // Normalize team slug for comparison (strip all non-alphanumeric)
         const teamTagNormalized = TEAM_CONFIG.slug.toLowerCase().replace(/[^a-z0-9]/g, '');
         
+        // Build list of normalized tag variations to match
+        let tagVariations = [teamTagNormalized];
+        if (TEAM_CONFIG.slug === 'centralwest' || TEAM_CONFIG.shortname === 'Central-West') {
+          tagVariations.push('mancentralmanwest', 'manchestercentralwest', 'centralwest');
+        }
+        
         // Filter articles by team tag
         const teamArticles = (articles || []).filter(a => {
           if (!a.tags) return false;
           const tagArray = Array.isArray(a.tags) ? a.tags : JSON.parse(a.tags || '[]');
-          return tagArray.some(tag => tag.toLowerCase().replace(/[^a-z0-9]/g, '') === teamTagNormalized);
+          return tagArray.some(tag => {
+            const normalizedTag = tag.toLowerCase().replace(/[^a-z0-9]/g, '');
+            return tagVariations.includes(normalizedTag);
+          });
         });
         
         // Sort by article_date (Publication Date), falling back to published_at
