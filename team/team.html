@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Ball603 Team Page v246 - Updated 2026-01-14 08:55 -->
+<!-- Ball603 Team Page v247 - Updated 2026-01-14 09:10 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -618,7 +618,14 @@
         const allGames = (data.games || []).map(g => ({
           ...g, home: normalizeTeamName(g.home || g.home_team), away: normalizeTeamName(g.away || g.away_team)
         }));
-        const teamNames = TEAM_CONFIG.nameVariations;
+        
+        // Build team names for matching - start with config variations
+        let teamNames = [...TEAM_CONFIG.nameVariations];
+        
+        // Add special variations for combined teams that might not be in config
+        if (TEAM_CONFIG.slug === 'centralwest' || TEAM_CONFIG.shortname === 'Central-West') {
+          teamNames.push('Man. Central-Man. West', 'Man Central Man West', 'Manchester Central-West');
+        }
         
         // Exact match (case-insensitive) to avoid Portsmouth matching Portsmouth Christian, etc.
         function matchesTeamName(teamField, variations) {
@@ -628,6 +635,7 @@
         }
         
         const teamGames = allGames.filter(g => matchesTeamName(g.home, teamNames) || matchesTeamName(g.away, teamNames));
+        console.log('Schedule matching for', TEAM_CONFIG.slug, '- teamNames:', teamNames, '- found games:', teamGames.length);
         
         // Normalize opponent name for deduplication - strip common suffixes and punctuation
         function normalizeForDedupe(name) {
