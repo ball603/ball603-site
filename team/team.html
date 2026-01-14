@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Ball603 Team Page v245 - Updated 2026-01-14 -->
+<!-- Ball603 Team Page v246 - Updated 2026-01-14 08:55 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -412,7 +412,7 @@
         // Determine which genders are available
         const hasBoys = matchingTeams.some(t => t.gender === 'Boys');
         const hasGirls = matchingTeams.some(t => t.gender === 'Girls');
-        const isCombinedTeam = team.combined_team === true;
+        const isCombinedTeam = team.combined_team === true || team.combined_team === 'true';
 
         // Use logo_filename from database if set, otherwise fall back to generated filename
         const logoFilename = team.logo_filename 
@@ -430,9 +430,11 @@
           team.mascot ? `${team.abbrev} ${team.mascot}` : null
         ].filter(Boolean);
         
-        // Add special variations for combined teams
-        if (isCombinedTeam && team.shortname === 'Central-West') {
-          nameVariations.push('Manchester Central-West', 'Central West', 'CentralWest', 'Man. Central-Man. West');
+        // Add special variations for combined teams - Central-West needs to match "Man. Central-Man. West" in games
+        console.log('Combined team check:', team.shortname, 'isCombinedTeam:', isCombinedTeam, 'combined_team raw:', team.combined_team);
+        if (team.shortname === 'Central-West') {
+          nameVariations.push('Central West', 'CentralWest', 'Man. Central-Man. West');
+          console.log('Added Central-West variations including Man. Central-Man. West');
         }
 
         TEAM_CONFIG = {
@@ -440,7 +442,7 @@
           name: team.shortname,
           shortname: team.shortname,
           mascot: team.mascot || '',
-          fullName: team.mascot ? `${team.shortname} ${team.mascot}` : team.shortname,
+          fullName: team.full_name || team.shortname,
           town: team.location || '',
           state: 'NH',
           colors: {
