@@ -732,14 +732,17 @@
       
       container.innerHTML = allGames.map(g => {
         const opp = g.isHome ? g.away : g.home;
+        const oppSlug = getTeamSlug(opp);
         let resultClass = 'upcoming', resultText = formatTime(g.time);
         if (g.hasScore) { resultClass = g.won ? 'win' : 'loss'; resultText = `${g.won ? 'W' : 'L'} ${g.teamScore}-${g.oppScore}`; }
         return `
           <div class="schedule-game-item">
             <div class="schedule-game-date">${formatShortDate(g.date)}</div>
             <div class="schedule-game-opponent">
-              <img src="/logos/100px/${getLogoFilename(opp)}" onerror="this.style.display='none'" class="schedule-game-logo" alt="">
-              <span>${g.isHome ? 'vs' : '@'} ${opp}</span>
+              <a href="/${oppSlug}" class="schedule-opponent-link">
+                <img src="/logos/100px/${getLogoFilename(opp)}" onerror="this.style.display='none'" class="schedule-game-logo" alt="">
+                <span>${g.isHome ? 'vs' : '@'} ${opp}</span>
+              </a>
             </div>
             <div class="schedule-game-result ${resultClass}">${resultText}</div>
           </div>
@@ -764,6 +767,44 @@
       const lower = teamName.toLowerCase().trim();
       if (specialCases[lower]) return specialCases[lower] + '.png';
       return teamName.split(/[\s-]+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join('') + '.png';
+    }
+
+    function getTeamSlug(teamName) {
+      if (!teamName) return '';
+      const slugMap = {
+        'alvirne': 'alvirne', 'bedford': 'bedford', 'belmont': 'belmont', 'berlin': 'berlin',
+        'bishop brady': 'bishopbrady', 'bishop guertin': 'bishopguertin', 'bow': 'bow', 'campbell': 'campbell',
+        'coe-brown': 'coebrown', 'colebrook': 'colebrook', 'conval': 'conval', 'con-val': 'conval',
+        'conant': 'conant', 'concord christian': 'concordchristian', 'concord': 'concord',
+        'derryfield': 'derryfield', 'dover': 'dover', 'epping': 'epping', 'exeter': 'exeter',
+        'fall mountain': 'fallmountain', 'farmington': 'farmington', 'franklin': 'franklin',
+        'gilford': 'gilford', 'goffstown': 'goffstown', 'gorham': 'gorham', 'groveton': 'groveton',
+        'hanover': 'hanover', 'hillsboro-deering': 'hillsborodeering', 'hinsdale': 'hinsdale',
+        'hollis-brookline': 'hollisbrookline', 'holy family': 'holyfamily', 'hopkinton': 'hopkinton',
+        'inter-lakes': 'interlakes', 'john stark': 'johnstark', 'kearsarge': 'kearsarge',
+        'keene': 'keene', 'kennett': 'kennett', 'kingswood': 'kingswood', 'laconia': 'laconia',
+        'lebanon': 'lebanon', 'lin-wood': 'linwood', 'lisbon': 'lisbon', 'littleton': 'littleton',
+        'londonderry': 'londonderry', 'manchester central': 'manchestercentral',
+        'manchester memorial': 'manchestermemorial', 'manchester west': 'manchesterwest',
+        'mascenic': 'mascenic', 'mascoma valley': 'mascoma', 'mascoma': 'mascoma',
+        'merrimack valley': 'merrimackvalley', 'merrimack': 'merrimack', 'milford': 'milford',
+        'monadnock': 'monadnock', 'moultonborough': 'moultonborough', 'mount royal': 'mountroyal',
+        'nashua north': 'nashuanorth', 'nashua south': 'nashuasouth', 'newfound': 'newfound',
+        'newmarket': 'newmarket', 'newport': 'newport', 'nute': 'nute', 'oyster river': 'oysterriver',
+        'pelham': 'pelham', 'pembroke': 'pembroke', 'pinkerton': 'pinkerton',
+        'pittsburg-canaan': 'pittsburgcanaan', 'pittsburg': 'pittsburg', 'pittsfield': 'pittsfield',
+        'plymouth': 'plymouth', 'portsmouth christian': 'portsmouthchristian', 'portsmouth': 'portsmouth',
+        'profile': 'profile', 'prospect mountain': 'prospectmountain', 'raymond': 'raymond',
+        'st. thomas aquinas': 'stthomasaquinas', 'st thomas aquinas': 'stthomasaquinas',
+        'salem': 'salem', 'sanborn': 'sanborn', 'somersworth': 'somersworth', 'souhegan': 'souhegan',
+        'spaulding': 'spaulding', 'stevens': 'stevens', 'sunapee': 'sunapee', 'timberlane': 'timberlane',
+        'trinity': 'trinity', 'white mountains': 'whitemountains', 'wilton-lyndeborough': 'wiltonlyndeborough',
+        'windham': 'windham', 'winnacunnet': 'winnacunnet', 'winnisquam': 'winnisquam', 'woodsville': 'woodsville'
+      };
+      const lower = teamName.toLowerCase().trim();
+      if (slugMap[lower]) return slugMap[lower];
+      // Fallback: lowercase, remove non-alphanumeric
+      return lower.replace(/[^a-z0-9]/g, '');
     }
 
     function renderScheduleError() {
