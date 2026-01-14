@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Ball603 Team Page v249 - Updated 2026-01-14 09:45 -->
+<!-- Ball603 Team Page v251 - Updated 2026-01-14 11:10 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -1196,13 +1196,25 @@
       const container = document.getElementById('historyContent'), champs = teamData.championships;
       let allGames = [...(champs.boys || []), ...(champs.girls || [])].sort((a, b) => b.year - a.year);
       if (allGames.length === 0) { container.innerHTML = '<div class="empty-state"><p>No championship game appearances on record.</p></div>'; return; }
+      
+      // Helper to display score - hide if null/undefined
+      const displayScore = (s) => (s === null || s === undefined || s === '' || s === 'null' || s === 'Null') ? '' : s;
+      const formatScore = (s1, s2, ot) => {
+        const score1 = displayScore(s1), score2 = displayScore(s2);
+        if (!score1 || !score2) return '';
+        return `${score1} - ${score2}${ot ? ' OT' : ''}`;
+      };
+      
       const wins = allGames.filter(g => g.result === 'champion');
       container.innerHTML = `
-        ${wins.length > 0 ? `<div class="championship-cards-row">${wins.slice(0, 6).map(g => `<div class="championship-card"><div class="champ-year">${g.year}</div><div class="champ-trophy">&#127942;</div><div class="champ-gender">${g.gender || ''}</div><div class="champ-division">${g.division}</div><div class="champ-score-box"><span class="champ-score">${g.champion_score} - ${g.runner_up_score}${g.overtime ? ' OT' : ''}</span></div><div class="champ-opponent">vs ${g.runner_up}</div></div>`).join('')}</div>` : ''}
+        ${wins.length > 0 ? `<div class="championship-cards-row">${wins.slice(0, 6).map(g => {
+          const scoreText = formatScore(g.champion_score, g.runner_up_score, g.overtime);
+          return `<div class="championship-card"><div class="champ-year">${g.year}</div><div class="champ-trophy">&#127942;</div><div class="champ-gender">${g.gender || ''}</div><div class="champ-division">${g.division}</div>${scoreText ? `<div class="champ-score-box"><span class="champ-score">${scoreText}</span></div>` : ''}<div class="champ-opponent">vs ${g.runner_up}</div></div>`;
+        }).join('')}</div>` : ''}
         <div class="history-timeline"><h3>All Title Game Appearances</h3><div class="timeline-list">${allGames.map(g => {
           const isChamp = g.result === 'champion', opp = isChamp ? g.runner_up : g.champion;
-          const score = isChamp ? `${g.champion_score} - ${g.runner_up_score}` : `${g.runner_up_score} - ${g.champion_score}`;
-          return `<div class="timeline-item ${isChamp ? 'champion' : 'runner-up'}"><span class="timeline-year">${g.year}</span><span class="timeline-gender">${g.gender || ''}</span><span class="timeline-result">${isChamp ? '&#127942; Champion' : '&#129352; Runner-Up'}</span><span class="timeline-score">${score}${g.overtime ? ' OT' : ''}</span><span class="timeline-opponent">vs ${opp}</span></div>`;
+          const scoreText = isChamp ? formatScore(g.champion_score, g.runner_up_score, g.overtime) : formatScore(g.runner_up_score, g.champion_score, g.overtime);
+          return `<div class="timeline-item ${isChamp ? 'champion' : 'runner-up'}"><span class="timeline-year">${g.year}</span><span class="timeline-gender">${g.gender || ''}</span><span class="timeline-result">${isChamp ? '&#127942; Champion' : '&#129352; Runner-Up'}</span>${scoreText ? `<span class="timeline-score">${scoreText}</span>` : ''}<span class="timeline-opponent">vs ${opp}</span></div>`;
         }).join('')}</div></div>`;
     }
 
