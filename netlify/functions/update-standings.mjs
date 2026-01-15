@@ -5,6 +5,16 @@
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
+// Map game team names to standings team names (where they differ)
+const TEAM_NAME_MAP = {
+  'Coe-Brown': 'Coe-Brown Northwood'
+};
+
+function normalizeTeamName(name) {
+  if (!name) return name;
+  return TEAM_NAME_MAP[name] || name;
+}
+
 export default async (request) => {
   const headers = {
     'Content-Type': 'application/json',
@@ -18,7 +28,28 @@ export default async (request) => {
   console.log('Update Standings - Calculating from games table...');
   
   try {
-    // Step 1: Fetch all completed NHIAA games
+    // Step 1: Fetch existing standings to get each team's actual division
+    const standingsResponse = await fetch(
+      `${SUPABASE_URL}/rest/v1/standings?select=school,gender,division`,
+      {
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Range': '0-9999'
+        }
+      }
+    );
+    
+    const existingStandings = standingsResponse.ok ? await standingsResponse.json() : [];
+    
+    // Build lookup map: "TeamName_Gender" -> actual division
+    const teamDivisionMap = new Map();
+    for (const s of existingStandings) {
+      teamDivisionMap.set(`${s.school}_${s.gender}`, s.division);
+    }
+    console.log(`  Loaded ${teamDivisionMap.size} team divisions from standings`);
+    
+    // Step 2: Fetch all completed NHIAA games
     const gamesResponse = await fetch(
       `${SUPABASE_URL}/rest/v1/games?level=eq.NHIAA&select=home_team,away_team,home_score,away_score,gender,division,date&or=(home_score.not.is.null,away_score.not.is.null)`,
       {
@@ -37,29 +68,33 @@ export default async (request) => {
     const games = await gamesResponse.json();
     console.log(`  Found ${games.length} completed games`);
     
-    // Step 2: Calculate records for each team
+    // Step 3: Calculate records for each team
     const teamRecords = new Map();
     
     for (const game of games) {
       // Skip games without scores
       if (game.home_score === null || game.away_score === null) continue;
       
-      const homeTeam = game.home_team;
-      const awayTeam = game.away_team;
+      // Normalize team names to match standings table
+      const homeTeam = normalizeTeamName(game.home_team);
+      const awayTeam = normalizeTeamName(game.away_team);
       const homeScore = parseInt(game.home_score);
       const awayScore = parseInt(game.away_score);
       const gender = game.gender;
-      const division = game.division;
       
-      // Initialize team records if needed
-      const homeKey = `${homeTeam}_${gender}_${division}`;
-      const awayKey = `${awayTeam}_${gender}_${division}`;
+      // Look up each team's actual division from standings (fall back to game division)
+      const homeDivision = teamDivisionMap.get(`${homeTeam}_${gender}`) || game.division;
+      const awayDivision = teamDivisionMap.get(`${awayTeam}_${gender}`) || game.division;
+      
+      // Initialize team records if needed - using their ACTUAL division
+      const homeKey = `${homeTeam}_${gender}_${homeDivision}`;
+      const awayKey = `${awayTeam}_${gender}_${awayDivision}`;
       
       if (!teamRecords.has(homeKey)) {
         teamRecords.set(homeKey, {
           school: homeTeam,
           gender: gender,
-          division: division,
+          division: homeDivision,
           wins: 0,
           losses: 0,
           ties: 0
@@ -70,7 +105,7 @@ export default async (request) => {
         teamRecords.set(awayKey, {
           school: awayTeam,
           gender: gender,
-          division: division,
+          division: awayDivision,
           wins: 0,
           losses: 0,
           ties: 0
@@ -98,7 +133,7 @@ export default async (request) => {
     
     console.log(`  Calculated records for ${teamRecords.size} teams`);
     
-    // Step 3: Update standings table with calculated records
+    // Step 4: Update standings table with calculated records
     const now = new Date().toISOString();
     let updatedCount = 0;
     
