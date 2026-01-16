@@ -316,17 +316,38 @@ function parseSchedulePage(html, gender, division) {
         time = cells[4];
       }
       
+      // Check if this game has been rescheduled (time field contains "Rescheduled to [date]")
+      let actualDate = isoDate;
+      let wasRescheduled = false;
+      if (time && time.toLowerCase().includes('reschedul')) {
+        // Parse new date from "Rescheduled to 1/20" or similar
+        const dateMatch = time.match(/(\d{1,2})\/(\d{1,2})/);
+        if (dateMatch) {
+          const newMonth = dateMatch[1].padStart(2, '0');
+          const newDay = dateMatch[2].padStart(2, '0');
+          // Determine year - if new month is less than original month, it's next year
+          let newYear = fullYear;
+          if (parseInt(newMonth) < parseInt(month)) {
+            newYear = String(parseInt(fullYear) + 1);
+          }
+          actualDate = `${newYear}-${newMonth}-${newDay}`;
+          wasRescheduled = true;
+          console.log(`  📅 Rescheduled game detected: ${awayTeam} @ ${homeTeam} moved from ${isoDate} to ${actualDate}`);
+          time = ''; // Clear the time - new time TBD
+        }
+      }
+      
       // Game ID uses sorted team slugs for consistency (handles inconsistent home/away on NHIAA)
       const team1 = teamSlug(homeTeam);
       const team2 = teamSlug(awayTeam);
       const sortedTeams = [team1, team2].sort();
       const genderCode = gender === 'Boys' ? 'b' : 'g';
-      const dateStr = isoDate.replace(/-/g, '');
+      const dateStr = actualDate.replace(/-/g, '');
       const gameId = `nhiaa_${sortedTeams[0]}_${genderCode}_${dateStr}_${sortedTeams[1]}`;
       
       games.push({
         game_id: gameId,
-        date: isoDate,
+        date: actualDate,
         time: time,
         away_team: awayTeam,
         home_team: homeTeam,
@@ -336,7 +357,9 @@ function parseSchedulePage(html, gender, division) {
         level: 'NHIAA',
         division: division,
         status: time === 'FINAL' ? 'final' : 'scheduled',
-        isFromHomeTeam: !isAway  // true if this data came from the home team's schedule
+        isFromHomeTeam: !isAway,  // true if this data came from the home team's schedule
+        original_date: wasRescheduled ? isoDate : null,
+        schedule_changed: wasRescheduled
       });
     }
   }
@@ -387,6 +410,15 @@ function deduplicateGames(games) {
         bestGame.away_score = withScores.away_score;
         bestGame.status = withScores.status;
         bestGame.time = withScores.time;
+      }
+    }
+    
+    // Merge schedule change info if present on any record
+    if (!bestGame.schedule_changed) {
+      const withReschedule = duplicates.find(g => g.schedule_changed);
+      if (withReschedule) {
+        bestGame.schedule_changed = true;
+        bestGame.original_date = withReschedule.original_date;
       }
     }
     
@@ -722,8 +754,8 @@ async function updateSupabase(games) {
     const hasAssignment = existing.photog1 || existing.photog2 || existing.videog || existing.writer;
     
     // Detect schedule change
-    let originalDate = existing.original_date || null;
-    let scheduleChanged = existing.schedule_changed || false;
+    let originalDate = existing.original_date || g.original_date || null;
+    let scheduleChanged = existing.schedule_changed || g.schedule_changed || false;
     
     if (hasAssignment && existing.date && existing.date !== g.date) {
       // Date changed for a claimed game!
@@ -731,6 +763,12 @@ async function updateSupabase(games) {
       scheduleChanged = true;
       changesDetected++;
       console.log(`  ⚠️ Schedule change detected: ${g.home_team} vs ${g.away_team} moved from ${existing.date} to ${g.date}`);
+    }
+    
+    // If scraper detected a reschedule, use that info
+    if (g.schedule_changed && g.original_date) {
+      originalDate = originalDate || g.original_date;
+      scheduleChanged = true;
     }
     
     // If game was claimed but no original_date set yet, set it now
