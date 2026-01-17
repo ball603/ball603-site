@@ -284,10 +284,11 @@ function parseSchedulePage(html, gender, division) {
       let awayScore = '';
       
       // SAFEGUARD: Don't accept scores for future dates (NHIAA data entry errors)
-      // Compare using EST timezone
-      const gameDate = new Date(isoDate + 'T23:59:59-05:00'); // End of game day in EST
-      const nowEST = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
-      const isFutureGame = gameDate > nowEST;
+      // Compare dates only (ignore time) - a game is "future" only if it's AFTER today
+      const today = new Date();
+      const todayEST = new Date(today.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+      const todayDateStr = `${todayEST.getFullYear()}-${String(todayEST.getMonth() + 1).padStart(2, '0')}-${String(todayEST.getDate()).padStart(2, '0')}`;
+      const isFutureGame = isoDate > todayDateStr; // String comparison works for YYYY-MM-DD format
       
       // Check if completed game (8 cells) or upcoming (5 cells with time)
       if (cells.length >= 8 && (cells[4] === 'W' || cells[4] === 'L') && !isFutureGame) {
@@ -317,11 +318,10 @@ function parseSchedulePage(html, gender, division) {
       }
       
       // Check if this game has been postponed/rescheduled
-      // Skip these games - they'll appear on their new date when NHIAA updates
-      // The sync phase will delete the orphaned original-date entry
+      let isPostponed = false;
       if (time && (time.toLowerCase().includes('reschedul') || time.toLowerCase().includes('postpon'))) {
-        console.log(`  ⏭️ Skipping postponed/rescheduled game: ${awayTeam} @ ${homeTeam} on ${isoDate} (${time})`);
-        continue;
+        console.log(`  ⏭️ Postponed/rescheduled game detected: ${awayTeam} @ ${homeTeam} on ${isoDate} (${time})`);
+        isPostponed = true;
       }
       
       // Game ID uses sorted team slugs for consistency (handles inconsistent home/away on NHIAA)
@@ -344,7 +344,8 @@ function parseSchedulePage(html, gender, division) {
         level: 'NHIAA',
         division: division,
         status: time === 'FINAL' ? 'final' : 'scheduled',
-        isFromHomeTeam: !isAway  // true if this data came from the home team's schedule
+        isFromHomeTeam: !isAway,  // true if this data came from the home team's schedule
+        isPostponed: isPostponed
       });
     }
   }
@@ -396,6 +397,11 @@ function deduplicateGames(games) {
         bestGame.status = withScores.status;
         bestGame.time = withScores.time;
       }
+    }
+    
+    // If ANY version of this game is marked postponed, mark the final result as postponed
+    if (duplicates.some(g => g.isPostponed)) {
+      bestGame.isPostponed = true;
     }
     
     intermediateGames.push(bestGame);
