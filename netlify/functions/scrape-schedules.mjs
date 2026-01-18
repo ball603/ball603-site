@@ -991,17 +991,27 @@ export default async (request) => {
     const dedupedGames = deduplicateGames(allGames);
     console.log(`Total unique games from scrape: ${dedupedGames.length}`);
     
+    // Step 3b: Filter out postponed/rescheduled games
+    // These will become orphans and get deleted in sync phase
+    const postponedGames = dedupedGames.filter(g => g.isPostponed);
+    const activeGames = dedupedGames.filter(g => !g.isPostponed);
+    if (postponedGames.length > 0) {
+      console.log(`Filtered out ${postponedGames.length} postponed/rescheduled games:`);
+      postponedGames.forEach(g => console.log(`  - ${g.away_team} @ ${g.home_team} on ${g.date}`));
+    }
+    
     // Step 4: Sync with NHIAA - remove orphans, transfer coverage for rescheduled games
     console.log('Step 4: Syncing database with NHIAA...');
-    const { orphansRemoved, coverageTransferred } = await syncWithNHIAA(dedupedGames);
+    const { orphansRemoved, coverageTransferred } = await syncWithNHIAA(activeGames);
     
     // Step 5: Upsert to database
     console.log('Step 5: Upserting to Supabase...');
-    const { rowCount, changesDetected } = await updateSupabase(dedupedGames);
+    const { rowCount, changesDetected } = await updateSupabase(activeGames);
     
     return new Response(JSON.stringify({
       success: true,
-      gamesScraped: dedupedGames.length,
+      gamesScraped: activeGames.length,
+      postponedGames: postponedGames.length,
       gamesUpserted: rowCount,
       duplicatesRemoved: duplicatesRemoved,
       gameIdsMigrated: gameIdsMigrated || 0,
