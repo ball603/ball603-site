@@ -19166,43 +19166,6 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       return `${n}${suffixes[n % 10]}`;
     }
     
-    function generateGotnBlurb(matchup) {
-      const away = matchup.awayDisplay;
-      const home = matchup.homeDisplay;
-      const awayStats = matchup.awayStats;
-      const homeStats = matchup.homeStats;
-      
-      let blurb = '';
-      if (awayStats.losses === 0 && homeStats.losses === 0) {
-        blurb = `An undefeated showdown in ${matchup.division}. `;
-      }
-      blurb += `${home.name} (${home.record}, ${home.rank}) hosts ${away.name} (${away.record}, ${away.rank}). `;
-      if (homeStats.ppg > 60) {
-        blurb += `The ${home.name.split(' ').pop()} are averaging ${homeStats.ppg} PPG. `;
-      }
-      if (homeStats.ppgAllowed < 35) {
-        blurb += `${home.name}'s defense has been stingy, allowing just ${homeStats.ppgAllowed} PPG. `;
-      }
-      if (matchup.previousMatchup) {
-        const prev = matchup.previousMatchup;
-        blurb += `\n\nEarlier this season: ${prev.winner} ${prev.winnerScore}, ${prev.loser} ${prev.loserScore} (${prev.dateFormatted})`;
-      }
-      return blurb.trim();
-    }
-    
-    function generateDontMissBlurb(matchup) {
-      const away = matchup.awayDisplay;
-      const home = matchup.homeDisplay;
-      let blurb = `${away.name} travels to ${home.name}`;
-      if (matchup.previousMatchup) {
-        const prev = matchup.previousMatchup;
-        blurb += `. ${prev.winner} won the first meeting ${prev.winnerScore}-${prev.loserScore}.`;
-      } else {
-        blurb += '.';
-      }
-      return blurb;
-    }
-    
     function openMarqueeModal() {
       marqueeState = {
         date: null,
@@ -19257,13 +19220,18 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         marqueeState.gameOfTheNight = data.gameOfTheNight;
         marqueeState.dontMiss = [...data.dontMiss];
         
-        if (data.gameOfTheNight) {
-          marqueeState.blurbs.gotn = generateGotnBlurb(data.gameOfTheNight);
+        // Use blurbs from API (already generated server-side with better logic)
+        if (data.blurbs) {
+          marqueeState.blurbs = data.blurbs;
+        } else {
+          // Fallback to simple blurbs if API doesn't return them
+          if (data.gameOfTheNight) {
+            marqueeState.blurbs.gotn = `${data.gameOfTheNight.awayTeam} travels to ${data.gameOfTheNight.homeTeam} in a top-10 matchup.`;
+          }
+          for (const matchup of data.dontMiss) {
+            marqueeState.blurbs.dontMiss[matchup.gameId] = `${matchup.awayTeam} at ${matchup.homeTeam}.`;
+          }
         }
-        for (const matchup of data.dontMiss) {
-          marqueeState.blurbs.dontMiss[matchup.gameId] = generateDontMissBlurb(matchup);
-        }
-        marqueeState.articleFields.title = `Marquee Matchups: ${data.dayOfWeek}, ${data.dateFormatted}`;
         
         if (data.warnings && data.warnings.length > 0) {
           document.getElementById('marqueeWarnings').innerHTML = `<ul>${data.warnings.map(w => `<li>${w}</li>`).join('')}</ul>`;
@@ -19286,11 +19254,11 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const data = marqueeState.data;
       if (!data) return;
       
-      let html = renderGotnSection() + renderDontMissSection() + renderFullSlateSection() + renderArticleFieldsSection();
+      let html = renderGotnSection() + renderDontMissSection() + renderFullSlateSection();
       html += `
         <div class="marquee-actions">
-          <button class="marquee-preview-btn" onclick="previewMarqueeArticle()">Preview on Site</button>
-          <button class="marquee-publish-btn" onclick="publishMarqueeArticle()">Publish Article</button>
+          <button class="marquee-preview-btn" onclick="closeMarqueeModal()">Cancel</button>
+          <button class="marquee-publish-btn" onclick="openMarqueeInEditor()">✨ Open in Article Editor</button>
         </div>
       `;
       document.getElementById('marqueePreviewArea').innerHTML = html;
@@ -19532,8 +19500,15 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     function changeGameOfTheNight(gameId) {
       const matchup = marqueeState.data.allTopMatchups.find(m => m.gameId === gameId);
       if (matchup) {
+        // Move current GOTN blurb to dontMiss if needed
+        if (marqueeState.gameOfTheNight && !marqueeState.blurbs.dontMiss[marqueeState.gameOfTheNight.gameId]) {
+          marqueeState.blurbs.dontMiss[marqueeState.gameOfTheNight.gameId] = marqueeState.blurbs.gotn;
+        }
+        
         marqueeState.gameOfTheNight = matchup;
-        marqueeState.blurbs.gotn = generateGotnBlurb(matchup);
+        // Use the blurb from API (stored in dontMiss blurbs for all matchups)
+        marqueeState.blurbs.gotn = marqueeState.data.blurbs?.dontMiss?.[gameId] || 
+          `${matchup.awayTeam} travels to ${matchup.homeTeam} in a top-10 ${matchup.division} matchup.`;
         marqueeState.dontMiss = marqueeState.dontMiss.filter(m => m.gameId !== gameId);
         renderMarqueePreview();
       }
@@ -19547,8 +19522,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       if (checked) {
         if (!marqueeState.dontMiss.find(m => m.gameId === gameId)) {
           marqueeState.dontMiss.push(matchup);
+          // Use blurb from API if available
           if (!marqueeState.blurbs.dontMiss[gameId]) {
-            marqueeState.blurbs.dontMiss[gameId] = generateDontMissBlurb(matchup);
+            marqueeState.blurbs.dontMiss[gameId] = marqueeState.data.blurbs?.dontMiss?.[gameId] || 
+              `${matchup.awayTeam} at ${matchup.homeTeam}.`;
           }
         }
       } else {
@@ -19668,58 +19645,156 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       `;
     }
     
-    async function previewMarqueeArticle() {
-      const content = generateArticleContent();
-      const title = marqueeState.articleFields.title;
-      sessionStorage.setItem('marqueePreview', JSON.stringify({ title, content, date: marqueeState.date }));
-      window.open('/article-preview?type=marquee', '_blank');
-      showToast('Preview opened in new tab', 'success');
+    async function openMarqueeInEditor() {
+      const data = marqueeState.data;
+      const gotn = marqueeState.gameOfTheNight;
+      const dontMiss = marqueeState.dontMiss;
+      
+      // Generate the article HTML content
+      const content = generateMarqueeArticleHTML();
+      const title = `Marquee Matchups: ${data.dayOfWeek}, ${data.dateFormatted}`;
+      const excerpt = `Top matchups and tonight's full schedule for ${data.dayOfWeek}, ${data.dateFormatted}.`;
+      
+      // Close the modal
+      closeMarqueeModal();
+      
+      // Set up the article editor (like Scorebook Story does)
+      currentArticle = null;
+      document.getElementById('editorTitle').textContent = 'New Article';
+      document.getElementById('articleTitle').value = title;
+      setEditorContent(content);
+      document.getElementById('articleExcerpt').value = excerpt;
+      document.getElementById('selectedGameId').value = '';
+      selectedGame = null;
+      document.getElementById('smugmugUrl').value = '';
+      document.getElementById('smugmugThumbUrl').value = '';
+      setPhotographerValue('');
+      document.getElementById('youtubeUrl').value = '';
+      setAuthorValue('KJ Cardinal');
+      document.getElementById('articleDate').value = getTodayEST();
+      isScheduled = false;
+      scheduledTime = null;
+      document.getElementById('scheduledDateTime').value = '';
+      updateScheduleButton();
+      document.getElementById('socialPostsCard').style.display = 'none';
+      
+      // Set tags
+      currentTags = ['marquee-matchups', data.dayOfWeek.toLowerCase()];
+      renderTags();
+      
+      // Show editor
+      document.getElementById('articlesPanel').style.display = 'none';
+      document.getElementById('editorPanel').style.display = 'block';
+      
+      showToast('Marquee Matchups loaded into editor. Add featured image and publish when ready!', 'success');
     }
     
-    async function publishMarqueeArticle() {
-      const fields = marqueeState.articleFields;
-      if (!fields.title) {
-        showToast('Please enter a title', 'error');
-        return;
-      }
+    function generateMarqueeArticleHTML() {
+      const data = marqueeState.data;
+      const gotn = marqueeState.gameOfTheNight;
+      const dontMiss = marqueeState.dontMiss;
+      const fullSlate = data.fullSlate;
       
-      const content = generateArticleContent();
-      const slug = `marquee-matchups-${marqueeState.date}`;
-      const matchupData = {
-        date: marqueeState.date,
-        gameOfTheNight: marqueeState.gameOfTheNight,
-        dontMiss: marqueeState.dontMiss,
-        blurbs: marqueeState.blurbs,
-        generatedAt: new Date().toISOString()
-      };
+      let html = '';
       
-      const articleData = {
-        title: fields.title,
-        slug: slug,
-        content: content,
-        excerpt: `Top matchups and full schedule for ${marqueeState.data.dayOfWeek}, ${marqueeState.data.dateFormatted}`,
-        featured_image: fields.featuredImage || null,
-        gallery: fields.gallery || null,
-        video: fields.video || null,
-        author: fields.author || null,
-        photographer: fields.photographer || null,
-        tags: JSON.stringify(fields.tags),
-        article_date: fields.publicationDate,
-        status: 'published',
-        published_at: new Date().toISOString()
-      };
-      
-      try {
-        const { error } = await supabase.from('articles').upsert(articleData, { onConflict: 'slug' });
-        if (error) throw error;
+      // Game of the Night Section
+      if (gotn) {
+        const awayStats = gotn.awayStats;
+        const homeStats = gotn.homeStats;
+        const blurb = marqueeState.blurbs.gotn || '';
         
-        showToast('Marquee Matchups article published!', 'success');
-        closeMarqueeModal();
-        loadArticles();
-      } catch (error) {
-        console.error('Error publishing article:', error);
-        showToast('Failed to publish article: ' + error.message, 'error');
+        // Header line
+        const headerLine = `${gotn.gender} ${gotn.division}: ${gotn.awayTeam} (${gotn.awayDisplay.record}, ${gotn.awayDisplay.rank}) at ${gotn.homeTeam} (${gotn.homeDisplay.record}, ${gotn.homeDisplay.rank}) — ${gotn.time}`;
+        
+        // Previous matchup footer
+        let previousLine = '';
+        if (gotn.previousMatchup) {
+          const prev = gotn.previousMatchup;
+          previousLine = `Earlier this season: ${prev.winner} ${prev.winnerScore}, ${prev.loser} ${prev.loserScore} (${prev.dateFormatted})`;
+        }
+        
+        html += `
+          <div class="article-gotn">
+            <div class="article-gotn-header">
+              <h3>🔥 GAME OF THE NIGHT</h3>
+              <p class="article-gotn-title">${headerLine}</p>
+            </div>
+            <div class="article-gotn-content">
+              <div class="article-gotn-blurb">
+                <p>${blurb}</p>
+                ${previousLine ? `<p class="previous-matchup"><em>${previousLine}</em></p>` : ''}
+              </div>
+              <div class="article-gotn-sidebar">
+                ${generateArticleSidebar(gotn)}
+              </div>
+            </div>
+          </div>
+        `;
       }
+      
+      // Don't Miss Section
+      if (dontMiss.length > 0) {
+        html += `<div class="article-dontmiss"><h3>🏀 DON'T MISS</h3>`;
+        
+        for (const matchup of dontMiss) {
+          const awayStats = matchup.awayStats;
+          const homeStats = matchup.homeStats;
+          const blurb = marqueeState.blurbs.dontMiss[matchup.gameId] || '';
+          
+          // Header line for each game
+          const headerLine = `${matchup.gender} ${matchup.division}: ${matchup.awayTeam} (${matchup.awayDisplay.record}, ${matchup.awayDisplay.rank}) at ${matchup.homeTeam} (${matchup.homeDisplay.record}, ${matchup.homeDisplay.rank}) — ${matchup.time}`;
+          
+          html += `
+            <div class="dontmiss-game">
+              <p class="dontmiss-header"><strong>${headerLine}</strong></p>
+              <p>${blurb}</p>
+            </div>
+          `;
+        }
+        
+        html += `</div>`;
+      }
+      
+      // Full Slate Section
+      html += `<div class="article-fullslate"><h3>📋 TONIGHT'S FULL SLATE</h3>`;
+      const divisions = ['D-I', 'D-II', 'D-III', 'D-IV'];
+      
+      for (const div of divisions) {
+        const divGames = fullSlate[div];
+        if (!divGames) continue;
+        
+        const girlsGames = divGames['Girls'] || [];
+        const boysGames = divGames['Boys'] || [];
+        
+        if (girlsGames.length === 0 && boysGames.length === 0) continue;
+        
+        html += `<div class="fullslate-section"><h4>${div}</h4>`;
+        html += `<table class="fullslate-table"><thead><tr><th>Time</th><th>Matchup</th><th>PPG</th></tr></thead><tbody>`;
+        
+        // Girls games first
+        for (const game of girlsGames) {
+          html += `<tr>
+            <td class="time-col">${game.time}</td>
+            <td class="teams-col">👧 ${game.awayDisplay.display} at ${game.homeDisplay.display}</td>
+            <td class="stats-col">${game.awayStats.ppg} / ${game.homeStats.ppg}</td>
+          </tr>`;
+        }
+        
+        // Then boys games
+        for (const game of boysGames) {
+          html += `<tr>
+            <td class="time-col">${game.time}</td>
+            <td class="teams-col">👦 ${game.awayDisplay.display} at ${game.homeDisplay.display}</td>
+            <td class="stats-col">${game.awayStats.ppg} / ${game.homeStats.ppg}</td>
+          </tr>`;
+        }
+        
+        html += `</tbody></table></div>`;
+      }
+      
+      html += `</div>`;
+      
+      return html;
     }
   </script>
   
