@@ -19708,12 +19708,18 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const dontMiss = marqueeState.dontMiss;
       const fullSlate = data.fullSlate;
       
+      // Helper to format time (remove leading zero)
+      function formatTime(time) {
+        if (!time || time === 'TBD') return 'TBD';
+        return time.replace(/^0/, '');
+      }
+      
       let html = '';
       
-      // Game of the Night Section
+      // Game of the Night Section with sidebar
       if (gotn) {
         const blurb = marqueeState.blurbs.gotn || '';
-        const headerLine = `${gotn.gender} ${gotn.division}: ${gotn.awayTeam} (${gotn.awayDisplay.record}, ${gotn.awayDisplay.rank}) at ${gotn.homeTeam} (${gotn.homeDisplay.record}, ${gotn.homeDisplay.rank}) — ${gotn.time}`;
+        const headerLine = `${gotn.gender} ${gotn.division}: ${gotn.awayTeam} (${gotn.awayDisplay.record}, ${gotn.awayDisplay.rank}) at ${gotn.homeTeam} (${gotn.homeDisplay.record}, ${gotn.homeDisplay.rank}) — ${formatTime(gotn.time)}`;
         
         let previousLine = '';
         if (gotn.previousMatchup) {
@@ -19721,32 +19727,93 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           previousLine = `Earlier this season: ${prev.winner} ${prev.winnerScore}, ${prev.loser} ${prev.loserScore} (${prev.dateFormatted})`;
         }
         
-        html += `<h3>🔥 GAME OF THE NIGHT</h3>`;
-        html += `<p><strong>${headerLine}</strong></p>`;
-        html += `<p>${blurb}</p>`;
-        if (previousLine) {
-          html += `<p><em>${previousLine}</em></p>`;
-        }
-        html += `<br>`;
+        const awayStats = gotn.awayStats;
+        const homeStats = gotn.homeStats;
+        
+        html += `<div class="article-gotn">
+          <div class="article-gotn-header">
+            <h3>🔥 GAME OF THE NIGHT</h3>
+            <p class="article-gotn-title">${headerLine}</p>
+          </div>
+          <div class="article-gotn-content">
+            <div class="article-gotn-blurb">
+              <p>${blurb}</p>
+              ${previousLine ? `<p class="previous-matchup"><em>${previousLine}</em></p>` : ''}
+            </div>
+            <div class="article-gotn-sidebar">
+              <table class="sidebar-comparison">
+                <tr>
+                  <th></th>
+                  <th class="team-header">
+                    <img src="/logos/100px/${toLogoFilename(gotn.awayTeam)}" class="team-logo" onerror="this.src='/logo.png'"><br>
+                    <span class="team-name">${gotn.awayTeam}</span>
+                  </th>
+                  <th class="team-header">
+                    <img src="/logos/100px/${toLogoFilename(gotn.homeTeam)}" class="team-logo" onerror="this.src='/logo.png'"><br>
+                    <span class="team-name">${gotn.homeTeam}</span>
+                  </th>
+                </tr>
+                <tr><td class="stat-label">Record</td><td>${gotn.awayDisplay.record}</td><td>${gotn.homeDisplay.record}</td></tr>
+                <tr><td class="stat-label">Rank</td><td>${gotn.awayDisplay.rank}</td><td>${gotn.homeDisplay.rank}</td></tr>
+                <tr><td class="stat-label">Streak</td><td>${awayStats.streak}</td><td>${homeStats.streak}</td></tr>
+                <tr><td class="stat-label">PPG</td><td>${awayStats.ppg}</td><td>${homeStats.ppg}</td></tr>
+                <tr><td class="stat-label">PPG Allowed</td><td>${awayStats.ppgAllowed}</td><td>${homeStats.ppgAllowed}</td></tr>
+                <tr><td class="stat-label">vs Top 10</td><td>${gotn.awayVsTop10 ? `${gotn.awayVsTop10.wins}-${gotn.awayVsTop10.losses}` : 'N/A'}</td><td>${gotn.homeVsTop10 ? `${gotn.homeVsTop10.wins}-${gotn.homeVsTop10.losses}` : 'N/A'}</td></tr>
+              </table>
+            </div>
+          </div>
+        </div>`;
       }
       
-      // Don't Miss Section
+      // Don't Miss Section with capsule cards
       if (dontMiss && dontMiss.length > 0) {
-        html += `<h3>🏀 DON'T MISS</h3>`;
+        html += `<div class="article-dontmiss"><h3>🏀 DON'T MISS</h3><div class="dontmiss-cards">`;
         
         for (const matchup of dontMiss) {
           const blurb = marqueeState.blurbs.dontMiss[matchup.gameId] || '';
-          const headerLine = `${matchup.gender} ${matchup.division}: ${matchup.awayTeam} (${matchup.awayDisplay.record}, ${matchup.awayDisplay.rank}) at ${matchup.homeTeam} (${matchup.homeDisplay.record}, ${matchup.homeDisplay.rank}) — ${matchup.time}`;
+          const awayStats = matchup.awayStats;
+          const homeStats = matchup.homeStats;
           
-          html += `<p><strong>${headerLine}</strong></p>`;
-          html += `<p>${blurb}</p>`;
-          html += `<br>`;
+          let previousHtml = '';
+          if (matchup.previousMatchup) {
+            const prev = matchup.previousMatchup;
+            previousHtml = `<div class="dontmiss-card-previous">Earlier: ${prev.winner} ${prev.winnerScore}-${prev.loserScore}</div>`;
+          }
+          
+          html += `<div class="dontmiss-card">
+            <div class="dontmiss-card-header">
+              <span class="dontmiss-card-division">${matchup.gender} ${matchup.division}</span>
+              <span>${formatTime(matchup.time)}</span>
+            </div>
+            <div class="dontmiss-card-teams">
+              <div class="dontmiss-card-team">
+                <img src="/logos/100px/${toLogoFilename(matchup.awayTeam)}" onerror="this.src='/logo.png'">
+                <div class="team-name">${matchup.awayTeam}</div>
+                <div class="team-record">${matchup.awayDisplay.record}, ${matchup.awayDisplay.rank}</div>
+              </div>
+              <div class="dontmiss-card-vs">at</div>
+              <div class="dontmiss-card-team">
+                <img src="/logos/100px/${toLogoFilename(matchup.homeTeam)}" onerror="this.src='/logo.png'">
+                <div class="team-name">${matchup.homeTeam}</div>
+                <div class="team-record">${matchup.homeDisplay.record}, ${matchup.homeDisplay.rank}</div>
+              </div>
+            </div>
+            <div class="dontmiss-card-stats">
+              <div class="dontmiss-card-stat">PPG<span>${awayStats.ppg} / ${homeStats.ppg}</span></div>
+              <div class="dontmiss-card-stat">Allowed<span>${awayStats.ppgAllowed} / ${homeStats.ppgAllowed}</span></div>
+              <div class="dontmiss-card-stat">Streak<span>${awayStats.streak} / ${homeStats.streak}</span></div>
+            </div>
+            ${blurb ? `<div class="dontmiss-card-blurb">${blurb}</div>` : ''}
+            ${previousHtml}
+          </div>`;
         }
+        
+        html += `</div></div>`;
       }
       
-      // Full Slate Section
+      // Full Slate Section - separate Boys/Girls sections
       if (fullSlate) {
-        html += `<h3>📋 TONIGHT'S FULL SLATE</h3>`;
+        html += `<div class="article-fullslate"><h3>📋 TONIGHT'S FULL SLATE</h3>`;
         const divisions = ['D-I', 'D-II', 'D-III', 'D-IV'];
         
         for (const div of divisions) {
@@ -19758,20 +19825,36 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           
           if (girlsGames.length === 0 && boysGames.length === 0) continue;
           
-          html += `<p><strong>${div}</strong></p>`;
+          html += `<div class="fullslate-section"><h4>${div}</h4>`;
           
-          // Girls games
-          for (const game of girlsGames) {
-            html += `<p>👧 ${game.time} — ${game.awayDisplay.display} at ${game.homeDisplay.display}</p>`;
+          // Girls section
+          if (girlsGames.length > 0) {
+            html += `<div class="fullslate-gender"><h5>Girls</h5>`;
+            for (const game of girlsGames) {
+              html += `<div class="fullslate-game">
+                <span class="fullslate-time">${formatTime(game.time)}</span>
+                <span class="fullslate-teams">${game.awayDisplay.display} at ${game.homeDisplay.display}</span>
+              </div>`;
+            }
+            html += `</div>`;
           }
           
-          // Boys games
-          for (const game of boysGames) {
-            html += `<p>👦 ${game.time} — ${game.awayDisplay.display} at ${game.homeDisplay.display}</p>`;
+          // Boys section
+          if (boysGames.length > 0) {
+            html += `<div class="fullslate-gender"><h5>Boys</h5>`;
+            for (const game of boysGames) {
+              html += `<div class="fullslate-game">
+                <span class="fullslate-time">${formatTime(game.time)}</span>
+                <span class="fullslate-teams">${game.awayDisplay.display} at ${game.homeDisplay.display}</span>
+              </div>`;
+            }
+            html += `</div>`;
           }
           
-          html += `<br>`;
+          html += `</div>`;
         }
+        
+        html += `</div>`;
       }
       
       return html;
