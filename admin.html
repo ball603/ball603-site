@@ -19657,12 +19657,25 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         }
         
         // Generate the article HTML content
-        const content = generateMarqueeArticleHTML();
+        let content = '';
+        try {
+          content = generateMarqueeArticleHTML();
+        } catch (genError) {
+          console.error('Content generation error:', genError);
+          showToast('Error generating content: ' + genError.message, 'error');
+          return;
+        }
+        
         const title = `Marquee Matchups: ${data.dayOfWeek}, ${data.dateFormatted}`;
         const excerpt = `Top matchups and tonight's full schedule for ${data.dayOfWeek}, ${data.dateFormatted}.`;
         
         console.log('Generated content length:', content.length);
-        console.log('Content preview:', content.substring(0, 500));
+        console.log('Content:', content);
+        
+        if (!content || content.length === 0) {
+          showToast('No content generated', 'error');
+          return;
+        }
         
         // Close the modal
         closeMarqueeModal();
@@ -19671,7 +19684,12 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         currentArticle = null;
         document.getElementById('editorTitle').textContent = 'New Article';
         document.getElementById('articleTitle').value = title;
-        setEditorContent(content);
+        
+        // Set content directly to Quill
+        if (quillEditor) {
+          quillEditor.clipboard.dangerouslyPasteHTML(content);
+        }
+        
         document.getElementById('articleExcerpt').value = excerpt;
         document.getElementById('selectedGameId').value = '';
         selectedGame = null;
@@ -19716,104 +19734,54 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       
       let html = '';
       
-      // Game of the Night Section with sidebar
+      // Game of the Night Section
       if (gotn) {
         const blurb = marqueeState.blurbs.gotn || '';
         const headerLine = `${gotn.gender} ${gotn.division}: ${gotn.awayTeam} (${gotn.awayDisplay.record}, ${gotn.awayDisplay.rank}) at ${gotn.homeTeam} (${gotn.homeDisplay.record}, ${gotn.homeDisplay.rank}) — ${formatTime(gotn.time)}`;
         
-        let previousLine = '';
-        if (gotn.previousMatchup) {
-          const prev = gotn.previousMatchup;
-          previousLine = `Earlier this season: ${prev.winner} ${prev.winnerScore}, ${prev.loser} ${prev.loserScore} (${prev.dateFormatted})`;
-        }
-        
         const awayStats = gotn.awayStats;
         const homeStats = gotn.homeStats;
         
-        html += `<div class="article-gotn">
-          <div class="article-gotn-header">
-            <h3>🔥 GAME OF THE NIGHT</h3>
-            <p class="article-gotn-title">${headerLine}</p>
-          </div>
-          <div class="article-gotn-content">
-            <div class="article-gotn-blurb">
-              <p>${blurb}</p>
-              ${previousLine ? `<p class="previous-matchup"><em>${previousLine}</em></p>` : ''}
-            </div>
-            <div class="article-gotn-sidebar">
-              <table class="sidebar-comparison">
-                <tr>
-                  <th></th>
-                  <th class="team-header">
-                    <img src="/logos/100px/${toLogoFilename(gotn.awayTeam)}" class="team-logo" onerror="this.src='/logo.png'"><br>
-                    <span class="team-name">${gotn.awayTeam}</span>
-                  </th>
-                  <th class="team-header">
-                    <img src="/logos/100px/${toLogoFilename(gotn.homeTeam)}" class="team-logo" onerror="this.src='/logo.png'"><br>
-                    <span class="team-name">${gotn.homeTeam}</span>
-                  </th>
-                </tr>
-                <tr><td class="stat-label">Record</td><td>${gotn.awayDisplay.record}</td><td>${gotn.homeDisplay.record}</td></tr>
-                <tr><td class="stat-label">Rank</td><td>${gotn.awayDisplay.rank}</td><td>${gotn.homeDisplay.rank}</td></tr>
-                <tr><td class="stat-label">Streak</td><td>${awayStats.streak}</td><td>${homeStats.streak}</td></tr>
-                <tr><td class="stat-label">PPG</td><td>${awayStats.ppg}</td><td>${homeStats.ppg}</td></tr>
-                <tr><td class="stat-label">PPG Allowed</td><td>${awayStats.ppgAllowed}</td><td>${homeStats.ppgAllowed}</td></tr>
-                <tr><td class="stat-label">vs Top 10</td><td>${gotn.awayVsTop10 ? `${gotn.awayVsTop10.wins}-${gotn.awayVsTop10.losses}` : 'N/A'}</td><td>${gotn.homeVsTop10 ? `${gotn.homeVsTop10.wins}-${gotn.homeVsTop10.losses}` : 'N/A'}</td></tr>
-              </table>
-            </div>
-          </div>
-        </div>`;
+        html += `<h3>🔥 GAME OF THE NIGHT</h3>`;
+        html += `<p><strong>${headerLine}</strong></p>`;
+        html += `<p>${blurb}</p>`;
+        
+        if (gotn.previousMatchup) {
+          const prev = gotn.previousMatchup;
+          html += `<p><em>Earlier this season: ${prev.winner} ${prev.winnerScore}, ${prev.loser} ${prev.loserScore} (${prev.dateFormatted})</em></p>`;
+        }
+        
+        // Sidebar stats as simple text comparison
+        html += `<p><strong>Tale of the Tape</strong></p>`;
+        html += `<p>${gotn.awayTeam}: ${gotn.awayDisplay.record}, ${gotn.awayDisplay.rank} | ${awayStats.ppg} PPG, ${awayStats.ppgAllowed} allowed | Streak: ${awayStats.streak}</p>`;
+        html += `<p>${gotn.homeTeam}: ${gotn.homeDisplay.record}, ${gotn.homeDisplay.rank} | ${homeStats.ppg} PPG, ${homeStats.ppgAllowed} allowed | Streak: ${homeStats.streak}</p>`;
+        html += `<br>`;
       }
       
-      // Don't Miss Section with capsule cards
+      // Don't Miss Section
       if (dontMiss && dontMiss.length > 0) {
-        html += `<div class="article-dontmiss"><h3>🏀 DON'T MISS</h3><div class="dontmiss-cards">`;
+        html += `<h3>🏀 DON'T MISS</h3>`;
         
         for (const matchup of dontMiss) {
           const blurb = marqueeState.blurbs.dontMiss[matchup.gameId] || '';
           const awayStats = matchup.awayStats;
           const homeStats = matchup.homeStats;
+          const headerLine = `${matchup.gender} ${matchup.division}: ${matchup.awayTeam} (${matchup.awayDisplay.record}, ${matchup.awayDisplay.rank}) at ${matchup.homeTeam} (${matchup.homeDisplay.record}, ${matchup.homeDisplay.rank}) — ${formatTime(matchup.time)}`;
           
-          let previousHtml = '';
+          html += `<p><strong>${headerLine}</strong></p>`;
+          html += `<p>${blurb}</p>`;
+          
           if (matchup.previousMatchup) {
             const prev = matchup.previousMatchup;
-            previousHtml = `<div class="dontmiss-card-previous">Earlier: ${prev.winner} ${prev.winnerScore}-${prev.loserScore}</div>`;
+            html += `<p><em>Earlier: ${prev.winner} ${prev.winnerScore}-${prev.loserScore}</em></p>`;
           }
-          
-          html += `<div class="dontmiss-card">
-            <div class="dontmiss-card-header">
-              <span class="dontmiss-card-division">${matchup.gender} ${matchup.division}</span>
-              <span>${formatTime(matchup.time)}</span>
-            </div>
-            <div class="dontmiss-card-teams">
-              <div class="dontmiss-card-team">
-                <img src="/logos/100px/${toLogoFilename(matchup.awayTeam)}" onerror="this.src='/logo.png'">
-                <div class="team-name">${matchup.awayTeam}</div>
-                <div class="team-record">${matchup.awayDisplay.record}, ${matchup.awayDisplay.rank}</div>
-              </div>
-              <div class="dontmiss-card-vs">at</div>
-              <div class="dontmiss-card-team">
-                <img src="/logos/100px/${toLogoFilename(matchup.homeTeam)}" onerror="this.src='/logo.png'">
-                <div class="team-name">${matchup.homeTeam}</div>
-                <div class="team-record">${matchup.homeDisplay.record}, ${matchup.homeDisplay.rank}</div>
-              </div>
-            </div>
-            <div class="dontmiss-card-stats">
-              <div class="dontmiss-card-stat">PPG<span>${awayStats.ppg} / ${homeStats.ppg}</span></div>
-              <div class="dontmiss-card-stat">Allowed<span>${awayStats.ppgAllowed} / ${homeStats.ppgAllowed}</span></div>
-              <div class="dontmiss-card-stat">Streak<span>${awayStats.streak} / ${homeStats.streak}</span></div>
-            </div>
-            ${blurb ? `<div class="dontmiss-card-blurb">${blurb}</div>` : ''}
-            ${previousHtml}
-          </div>`;
+          html += `<br>`;
         }
-        
-        html += `</div></div>`;
       }
       
-      // Full Slate Section - separate Boys/Girls sections
+      // Full Slate Section
       if (fullSlate) {
-        html += `<div class="article-fullslate"><h3>📋 TONIGHT'S FULL SLATE</h3>`;
+        html += `<h3>📋 TONIGHT'S FULL SLATE</h3>`;
         const divisions = ['D-I', 'D-II', 'D-III', 'D-IV'];
         
         for (const div of divisions) {
@@ -19825,36 +19793,25 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           
           if (girlsGames.length === 0 && boysGames.length === 0) continue;
           
-          html += `<div class="fullslate-section"><h4>${div}</h4>`;
+          html += `<p><strong>${div}</strong></p>`;
           
           // Girls section
           if (girlsGames.length > 0) {
-            html += `<div class="fullslate-gender"><h5>Girls</h5>`;
+            html += `<p><em>Girls</em></p>`;
             for (const game of girlsGames) {
-              html += `<div class="fullslate-game">
-                <span class="fullslate-time">${formatTime(game.time)}</span>
-                <span class="fullslate-teams">${game.awayDisplay.display} at ${game.homeDisplay.display}</span>
-              </div>`;
+              html += `<p>${formatTime(game.time)} — ${game.awayDisplay.display} at ${game.homeDisplay.display}</p>`;
             }
-            html += `</div>`;
           }
           
           // Boys section
           if (boysGames.length > 0) {
-            html += `<div class="fullslate-gender"><h5>Boys</h5>`;
+            html += `<p><em>Boys</em></p>`;
             for (const game of boysGames) {
-              html += `<div class="fullslate-game">
-                <span class="fullslate-time">${formatTime(game.time)}</span>
-                <span class="fullslate-teams">${game.awayDisplay.display} at ${game.homeDisplay.display}</span>
-              </div>`;
+              html += `<p>${formatTime(game.time)} — ${game.awayDisplay.display} at ${game.homeDisplay.display}</p>`;
             }
-            html += `</div>`;
           }
-          
-          html += `</div>`;
+          html += `<br>`;
         }
-        
-        html += `</div>`;
       }
       
       return html;
