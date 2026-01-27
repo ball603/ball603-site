@@ -16,12 +16,18 @@
  *   - warnings: Any issues (e.g., few top-10 matchups)
  */
 
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://suncdkxfqkwwnmhosxcf.supabase.co';
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
 // Helper: Make Supabase request
 async function supabaseQuery(table, query = '') {
+  if (!SUPABASE_URL || !SUPABASE_KEY) {
+    throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_KEY environment variables');
+  }
+  
   const url = `${SUPABASE_URL}/rest/v1/${table}${query}`;
+  console.log(`Querying: ${table}${query}`);
+  
   const response = await fetch(url, {
     headers: {
       'apikey': SUPABASE_KEY,
@@ -29,9 +35,13 @@ async function supabaseQuery(table, query = '') {
       'Range': '0-9999'
     }
   });
+  
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`Supabase error for ${table}: ${response.status} - ${errorText}`);
     throw new Error(`Supabase query failed: ${response.status} ${response.statusText}`);
   }
+  
   return response.json();
 }
 
@@ -387,6 +397,18 @@ function formatTeamDisplay(team, gender, division, rankings) {
 
 // Main handler
 export default async (request) => {
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Content-Type': 'application/json'
+  };
+
+  // Handle CORS preflight
+  if (request.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
+
   try {
     // Get date from query params
     const url = new URL(request.url);
@@ -395,7 +417,7 @@ export default async (request) => {
     if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       return new Response(JSON.stringify({ 
         error: 'Missing or invalid date parameter. Use YYYY-MM-DD format.' 
-      }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+      }), { status: 400, headers: corsHeaders });
     }
 
     console.log(`Generating marquee matchups for ${date}`);
@@ -569,10 +591,7 @@ export default async (request) => {
 
     return new Response(JSON.stringify(response, null, 2), {
       status: 200,
-      headers: { 
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
-      }
+      headers: corsHeaders
     });
 
   } catch (error) {
@@ -582,7 +601,7 @@ export default async (request) => {
       details: error.message 
     }), { 
       status: 500, 
-      headers: { 'Content-Type': 'application/json' } 
+      headers: corsHeaders 
     });
   }
 };
