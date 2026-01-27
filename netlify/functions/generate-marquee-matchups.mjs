@@ -52,6 +52,234 @@ function ordinal(n) {
   return `${n}${suffixes[n % 10]}`;
 }
 
+// Team nicknames for narrative writing
+const TEAM_NICKNAMES = {
+  'Alvirne': 'Broncos', 'Bedford': 'Bulldogs', 'Belmont': 'Red Raiders', 'Berlin': 'Mountaineers',
+  'Bishop Brady': 'Giants', 'Bishop Guertin': 'Cardinals', 'Bow': 'Falcons', 'Campbell': 'Cougars',
+  'Coe-Brown': 'Bears', 'Colebrook': 'Mohawks', 'ConVal': 'Cougars', 'Conant': 'Orioles',
+  'Concord': 'Crimson Tide', 'Concord Christian': 'Kingsmen', 'Derryfield': 'Cougars',
+  'Dover': 'Green Wave', 'Epping': 'Blue Devils', 'Exeter': 'Blue Hawks', 'Fall Mountain': 'Wildcats',
+  'Farmington': 'Tigers', 'Franklin': 'Tornadoes', 'Gilford': 'Golden Eagles', 'Goffstown': 'Grizzlies',
+  'Gorham': 'Huskies', 'Groveton': 'Eagles', 'Hanover': 'Marauders', 'Hillsboro-Deering': 'Hillcats',
+  'Hinsdale': 'Pacers', 'Hollis-Brookline': 'Cavaliers', 'Holy Family': 'Cardinals',
+  'Hopkinton': 'Hawks', 'Inter-Lakes': 'Lakers', 'John Stark': 'Generals', 'Kearsarge': 'Cougars',
+  'Keene': 'Blackbirds', 'Kennett': 'Eagles', 'Kingswood': 'Knights', 'Laconia': 'Sachems',
+  'Lebanon': 'Raiders', 'Lin-Wood': 'Lumberjacks', 'Lisbon': 'Panthers', 'Littleton': 'Crusaders',
+  'Londonderry': 'Lancers', 'Manchester Central': 'Little Green', 'Manchester Memorial': 'Crusaders',
+  'Manchester West': 'Blue Knights', 'Mascenic': 'Vikings', 'Mascoma Valley': 'Royals',
+  'Merrimack': 'Tomahawks', 'Merrimack Valley': 'Pride', 'Milford': 'Spartans', 'Monadnock': 'Huskies',
+  'Moultonborough': 'Panthers', 'Mount Royal': 'Crusaders', 'Nashua North': 'Titans',
+  'Nashua South': 'Purple Panthers', 'Newfound': 'Bears', 'Newmarket': 'Mules', 'Newport': 'Tigers',
+  'Nute': 'Rams', 'Oyster River': 'Bobcats', 'Pelham': 'Pythons', 'Pembroke': 'Spartans',
+  'Pinkerton': 'Astros', 'Pittsburg-Canaan': 'Panthers', 'Pittsfield': 'Panthers',
+  'Plymouth': 'Bobcats', 'Portsmouth': 'Clippers', 'Portsmouth Christian': 'Eagles',
+  'Profile': 'Patriots', 'Prospect Mountain': 'Timber Wolves', 'Raymond': 'Rams',
+  'Salem': 'Blue Devils', 'Sanborn': 'Indians', 'Somersworth': 'Hilltoppers', 'Souhegan': 'Sabers',
+  'Spaulding': 'Red Raiders', 'St. Thomas Aquinas': 'Saints', 'Stevens': 'Cardinals',
+  'Sunapee': 'Lakers', 'Timberlane': 'Owls', 'Trinity': 'Pioneers', 'White Mountains': 'Spartans',
+  'Wilton-Lyndeborough': 'Warriors', 'Windham': 'Jaguars', 'Winnacunnet': 'Warriors',
+  'Winnisquam': 'Bears', 'Woodsville': 'Engineers'
+};
+
+// Helper: Get team nickname
+function getNickname(team) {
+  return TEAM_NICKNAMES[team] || team.split(' ').pop();
+}
+
+// Team locations for narrative context
+const TEAM_LOCATIONS = {
+  'Alvirne': 'Hudson', 'Bedford': 'Bedford', 'Belmont': 'Belmont', 'Berlin': 'Berlin',
+  'Bishop Brady': 'Concord', 'Bishop Guertin': 'Nashua', 'Bow': 'Bow', 'Campbell': 'Litchfield',
+  'Coe-Brown': 'Northwood', 'Colebrook': 'Colebrook', 'ConVal': 'Peterborough', 'Conant': 'Jaffrey',
+  'Concord': 'Concord', 'Concord Christian': 'Concord', 'Derryfield': 'Manchester',
+  'Dover': 'Dover', 'Epping': 'Epping', 'Exeter': 'Exeter', 'Fall Mountain': 'Langdon',
+  'Farmington': 'Farmington', 'Franklin': 'Franklin', 'Gilford': 'Gilford', 'Goffstown': 'Goffstown',
+  'Gorham': 'Gorham', 'Groveton': 'Groveton', 'Hanover': 'Hanover', 'Hillsboro-Deering': 'Hillsboro',
+  'Hinsdale': 'Hinsdale', 'Hollis-Brookline': 'Hollis', 'Holy Family': 'Manchester',
+  'Hopkinton': 'Hopkinton', 'Inter-Lakes': 'Meredith', 'John Stark': 'Weare', 'Kearsarge': 'Sutton',
+  'Keene': 'Keene', 'Kennett': 'Conway', 'Kingswood': 'Wolfeboro', 'Laconia': 'Laconia',
+  'Lebanon': 'Lebanon', 'Lin-Wood': 'Lincoln', 'Lisbon': 'Lisbon', 'Littleton': 'Littleton',
+  'Londonderry': 'Londonderry', 'Manchester Central': 'Manchester', 'Manchester Memorial': 'Manchester',
+  'Manchester West': 'Manchester', 'Mascenic': 'New Ipswich', 'Mascoma Valley': 'Enfield',
+  'Merrimack': 'Merrimack', 'Merrimack Valley': 'Penacook', 'Milford': 'Milford', 'Monadnock': 'Swanzey',
+  'Moultonborough': 'Moultonborough', 'Mount Royal': 'Sunapee', 'Nashua North': 'Nashua',
+  'Nashua South': 'Nashua', 'Newfound': 'Bristol', 'Newmarket': 'Newmarket', 'Newport': 'Newport',
+  'Nute': 'Milton', 'Oyster River': 'Durham', 'Pelham': 'Pelham', 'Pembroke': 'Pembroke',
+  'Pinkerton': 'Derry', 'Pittsburg-Canaan': 'Pittsburg', 'Pittsfield': 'Pittsfield',
+  'Plymouth': 'Plymouth', 'Portsmouth': 'Portsmouth', 'Portsmouth Christian': 'Dover',
+  'Profile': 'Bethlehem', 'Prospect Mountain': 'Alton', 'Raymond': 'Raymond',
+  'Salem': 'Salem', 'Sanborn': 'Kingston', 'Somersworth': 'Somersworth', 'Souhegan': 'Amherst',
+  'Spaulding': 'Rochester', 'St. Thomas Aquinas': 'Dover', 'Stevens': 'Claremont',
+  'Sunapee': 'Sunapee', 'Timberlane': 'Plaistow', 'Trinity': 'Manchester', 'White Mountains': 'Whitefield',
+  'Wilton-Lyndeborough': 'Wilton', 'Windham': 'Windham', 'Winnacunnet': 'Hampton',
+  'Winnisquam': 'Tilton', 'Woodsville': 'Woodsville'
+};
+
+function getLocation(team) {
+  return TEAM_LOCATIONS[team] || '';
+}
+
+// Generate full narrative blurb for Game of the Night
+function generateGotnBlurb(matchup, allMatchups) {
+  const awayStats = matchup.awayStats;
+  const homeStats = matchup.homeStats;
+  const awayNick = getNickname(matchup.awayTeam);
+  const homeNick = getNickname(matchup.homeTeam);
+  const homeLocation = getLocation(matchup.homeTeam);
+  
+  let blurb = '';
+  
+  const isBattleOfUnbeatens = awayStats.losses === 0 && homeStats.losses === 0;
+  const isRematch = matchup.previousMatchup !== null;
+  const homeUnbeaten = homeStats.losses === 0;
+  const awayUnbeaten = awayStats.losses === 0;
+  
+  // Opening hook
+  if (isBattleOfUnbeatens) {
+    blurb = `A battle of unbeatens. `;
+  } else if (isRematch) {
+    const prev = matchup.previousMatchup;
+    const margin = prev.winnerScore - prev.loserScore;
+    blurb = margin <= 5 ? `The rematch. ` : `Round two. `;
+  }
+  
+  // Previous matchup narrative
+  if (isRematch) {
+    const prev = matchup.previousMatchup;
+    blurb += `${prev.winner} took the first meeting ${prev.winnerScore}-${prev.loserScore} on ${prev.dateFormatted}`;
+    
+    // Add streak context if winner hasn't lost since
+    if (prev.winner === matchup.homeTeam && homeStats.streak.startsWith('W')) {
+      const streakNum = parseInt(homeStats.streak.replace('W', ''));
+      if (streakNum >= 3) {
+        blurb += `, and the ${homeNick} haven't lost since — now riding a ${streakNum}-game winning streak. `;
+      } else {
+        blurb += `. `;
+      }
+    } else if (prev.winner === matchup.awayTeam && awayStats.streak.startsWith('W')) {
+      const streakNum = parseInt(awayStats.streak.replace('W', ''));
+      if (streakNum >= 3) {
+        blurb += `, and the ${awayNick} haven't lost since — riding a ${streakNum}-game winning streak. `;
+      } else {
+        blurb += `. ${matchup.awayTeam} looks to make it 2-0 on the season series. `;
+      }
+    } else {
+      blurb += `. `;
+    }
+  }
+  
+  // Defense narrative - check if one team has elite defense
+  const homeDefenseElite = homeStats.ppgAllowed <= 35;
+  const awayDefenseElite = awayStats.ppgAllowed <= 35;
+  
+  // Find best defense among tonight's games for context
+  let bestDefense = null;
+  let bestDefensePPG = 100;
+  for (const m of allMatchups) {
+    if (m.homeStats.ppgAllowed < bestDefensePPG) {
+      bestDefensePPG = m.homeStats.ppgAllowed;
+      bestDefense = m.homeTeam;
+    }
+    if (m.awayStats.ppgAllowed < bestDefensePPG) {
+      bestDefensePPG = m.awayStats.ppgAllowed;
+      bestDefense = m.awayTeam;
+    }
+  }
+  
+  if (homeDefenseElite) {
+    if (bestDefense === matchup.homeTeam) {
+      blurb += `Their defense has been the story: ${homeStats.ppgAllowed} PPG allowed, best among tonight's participants. `;
+    } else {
+      blurb += `The ${homeNick}' defense (${homeStats.ppgAllowed} PPG allowed) has been stingy. `;
+    }
+  } else if (awayDefenseElite) {
+    blurb += `The ${awayNick} bring a suffocating defense (${awayStats.ppgAllowed} PPG allowed) into ${homeLocation}. `;
+  }
+  
+  // Offense/challenge narrative
+  blurb += `${matchup.awayTeam} (${awayStats.ppg} PPG scored, ${awayStats.ppgAllowed} PPG allowed) `;
+  if (homeDefenseElite) {
+    blurb += `will need to find a way to crack it this time around.`;
+  } else if (homeUnbeaten) {
+    blurb += `will try to hand ${matchup.homeTeam} their first loss.`;
+  } else {
+    blurb += `faces a tough road test.`;
+  }
+  
+  return blurb.trim();
+}
+
+// Generate narrative blurb for Don't Miss games
+function generateDontMissBlurb(matchup, allMatchups) {
+  const awayStats = matchup.awayStats;
+  const homeStats = matchup.homeStats;
+  const awayNick = getNickname(matchup.awayTeam);
+  const homeNick = getNickname(matchup.homeTeam);
+  const homeLocation = getLocation(matchup.homeTeam);
+  
+  let blurb = '';
+  
+  const isBattleOfUnbeatens = awayStats.losses === 0 && homeStats.losses === 0;
+  const isRematch = matchup.previousMatchup !== null;
+  const awayUnbeaten = awayStats.losses === 0;
+  const homeUnbeaten = homeStats.losses === 0;
+  
+  // Find highest PPG among tonight's games
+  let highestPPG = 0;
+  let highestPPGTeam = null;
+  for (const m of allMatchups) {
+    if (m.homeStats.ppg > highestPPG) {
+      highestPPG = m.homeStats.ppg;
+      highestPPGTeam = m.homeTeam;
+    }
+    if (m.awayStats.ppg > highestPPG) {
+      highestPPG = m.awayStats.ppg;
+      highestPPGTeam = m.awayTeam;
+    }
+  }
+  
+  if (isBattleOfUnbeatens) {
+    blurb = `Two unbeatens collide. ${matchup.awayTeam} (${awayStats.ppg} PPG) travels to ${homeLocation} to face ${matchup.homeTeam} (${homeStats.ppg} PPG). Something's gotta give.`;
+  } else if (highestPPGTeam === matchup.homeTeam || highestPPGTeam === matchup.awayTeam) {
+    // Feature the highest-scoring team
+    const isHome = highestPPGTeam === matchup.homeTeam;
+    const featuredTeam = isHome ? matchup.homeTeam : matchup.awayTeam;
+    const featuredNick = isHome ? homeNick : awayNick;
+    const featuredStats = isHome ? homeStats : awayStats;
+    const otherTeam = isHome ? matchup.awayTeam : matchup.homeTeam;
+    const otherStats = isHome ? awayStats : homeStats;
+    
+    blurb = `The ${awayNick} travel to ${homeLocation} to face a ${matchup.homeTeam} team averaging ${homeStats.ppg} PPG`;
+    if (highestPPGTeam === matchup.homeTeam) {
+      blurb += ` — the highest of any team playing tonight`;
+    }
+    blurb += `. The ${homeNick}' defense (${homeStats.ppgAllowed} PPG allowed) has been `;
+    if (homeStats.ppgAllowed <= 35) {
+      blurb += `just as impressive, giving them a +${homeStats.margin.toFixed(1)} scoring margin. `;
+    } else {
+      blurb += `solid as well. `;
+    }
+    blurb += `${matchup.awayTeam} (${awayStats.ppg} PPG scored, ${awayStats.ppgAllowed} PPG allowed) will have their hands full.`;
+  } else if (homeUnbeaten) {
+    blurb = `${matchup.homeTeam}'s perfect season faces a test${homeLocation ? ` in ${homeLocation}` : ''}. The ${homeNick} are averaging ${homeStats.ppg} PPG while allowing just ${homeStats.ppgAllowed} PPG (+${homeStats.margin.toFixed(1)} margin). ${matchup.awayTeam} (${awayStats.ppg} PPG scored, ${awayStats.ppgAllowed} PPG allowed) will look to play spoiler${isRematch ? ' after dropping the first meeting' : ''}.`;
+  } else if (awayUnbeaten) {
+    blurb = `Unbeaten ${matchup.awayTeam} hits the road to ${homeLocation}. The ${awayNick} (${awayStats.ppg} PPG, ${awayStats.ppgAllowed} allowed) have been dominant with a +${awayStats.margin.toFixed(1)} margin. ${matchup.homeTeam} will try to hand them their first loss.`;
+  } else if (isRematch) {
+    const prev = matchup.previousMatchup;
+    blurb = `${prev.winner} won the first meeting ${prev.winnerScore}-${prev.loserScore}. `;
+    if (prev.winner === matchup.awayTeam) {
+      blurb += `Can ${matchup.homeTeam} even the series at home? The ${homeNick} (${homeStats.ppg} PPG, ${homeStats.ppgAllowed} allowed) will need a better effort.`;
+    } else {
+      blurb += `${matchup.awayTeam} (${awayStats.ppg} PPG, ${awayStats.ppgAllowed} allowed) looks for revenge on the road.`;
+    }
+  } else {
+    // Generic but still informative
+    blurb = `${matchup.awayTeam} travels to ${matchup.homeTeam} in a ${matchup.division} showdown. The ${awayNick} (${awayStats.ppg} PPG, ${awayStats.ppgAllowed} allowed) face a ${homeNick} squad averaging ${homeStats.ppg} PPG.`;
+  }
+  
+  return blurb;
+}
+
 // Helper: Format date for display (Jan. 27)
 function formatDateShort(dateStr) {
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -538,6 +766,23 @@ export default async (request) => {
     // Sort Don't Miss by score
     dontMiss.sort((a, b) => b.score - a.score);
 
+    // Generate blurbs for Game of the Night and Don't Miss
+    const blurbs = {
+      gotn: gameOfTheNight ? generateGotnBlurb(gameOfTheNight, topMatchups) : '',
+      dontMiss: {}
+    };
+    
+    for (const matchup of dontMiss) {
+      blurbs.dontMiss[matchup.gameId] = generateDontMissBlurb(matchup, topMatchups);
+    }
+    
+    // Also generate blurbs for all top matchups (in case user swaps selections)
+    for (const matchup of topMatchups) {
+      if (!blurbs.dontMiss[matchup.gameId] && matchup !== gameOfTheNight) {
+        blurbs.dontMiss[matchup.gameId] = generateDontMissBlurb(matchup, topMatchups);
+      }
+    }
+
     // Organize full slate by division and gender
     const fullSlate = {};
     const divisions = ['D-I', 'D-II', 'D-III', 'D-IV'];
@@ -584,6 +829,7 @@ export default async (request) => {
       gameOfTheNight,
       dontMiss,
       allTopMatchups: topMatchups, // All top-10 matchups for manual selection
+      blurbs, // Pre-generated narrative blurbs
       fullSlate,
       warnings,
       generatedAt: new Date().toISOString()
