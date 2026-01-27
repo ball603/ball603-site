@@ -19742,6 +19742,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         const awayStats = gotn.awayStats;
         const homeStats = gotn.homeStats;
         
+        // Generate team slugs for links
+        const awaySlug = gotn.awayTeam.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+        const homeSlug = gotn.homeTeam.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+        
         let previousLine = '';
         if (gotn.previousMatchup) {
           const prev = gotn.previousMatchup;
@@ -19765,11 +19769,11 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
                     <tr>
                       <th></th>
                       <th class="team-col">
-                        <img src="/logos/100px/${toLogoFilename(gotn.awayTeam)}" alt="${gotn.awayTeam}" onerror="this.style.display='none'">
+                        <a href="/${awaySlug}"><img src="/logos/100px/${toLogoFilename(gotn.awayTeam)}" alt="${gotn.awayTeam}" onerror="this.style.display='none'"></a>
                         <span>${gotn.awayTeam}</span>
                       </th>
                       <th class="team-col">
-                        <img src="/logos/100px/${toLogoFilename(gotn.homeTeam)}" alt="${gotn.homeTeam}" onerror="this.style.display='none'">
+                        <a href="/${homeSlug}"><img src="/logos/100px/${toLogoFilename(gotn.homeTeam)}" alt="${gotn.homeTeam}" onerror="this.style.display='none'"></a>
                         <span>${gotn.homeTeam}</span>
                       </th>
                     </tr>
@@ -19804,6 +19808,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             previousHtml = `<div class="capsule-previous">Earlier: ${prev.winner} ${prev.winnerScore}-${prev.loserScore}</div>`;
           }
           
+          // Generate team slugs for links
+          const awaySlug = matchup.awayTeam.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+          const homeSlug = matchup.homeTeam.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+          
           html += `
             <div class="marquee-capsule">
               <div class="capsule-header">
@@ -19812,21 +19820,33 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
               </div>
               <div class="capsule-teams">
                 <div class="capsule-team">
-                  <img src="/logos/100px/${toLogoFilename(matchup.awayTeam)}" alt="${matchup.awayTeam}" onerror="this.style.display='none'">
+                  <a href="/${awaySlug}"><img src="/logos/100px/${toLogoFilename(matchup.awayTeam)}" alt="${matchup.awayTeam}" onerror="this.style.display='none'"></a>
                   <div class="capsule-team-name">${matchup.awayTeam}</div>
                   <div class="capsule-team-record">${matchup.awayDisplay.record}, ${matchup.awayDisplay.rank}</div>
                 </div>
                 <div class="capsule-at">at</div>
                 <div class="capsule-team">
-                  <img src="/logos/100px/${toLogoFilename(matchup.homeTeam)}" alt="${matchup.homeTeam}" onerror="this.style.display='none'">
+                  <a href="/${homeSlug}"><img src="/logos/100px/${toLogoFilename(matchup.homeTeam)}" alt="${matchup.homeTeam}" onerror="this.style.display='none'"></a>
                   <div class="capsule-team-name">${matchup.homeTeam}</div>
                   <div class="capsule-team-record">${matchup.homeDisplay.record}, ${matchup.homeDisplay.rank}</div>
                 </div>
               </div>
-              <div class="capsule-stats">
-                <div class="capsule-stat"><span class="stat-label">PPG</span><span class="stat-value">${awayStats.ppg} / ${homeStats.ppg}</span></div>
-                <div class="capsule-stat"><span class="stat-label">Allowed</span><span class="stat-value">${awayStats.ppgAllowed} / ${homeStats.ppgAllowed}</span></div>
-                <div class="capsule-stat"><span class="stat-label">Streak</span><span class="stat-value">${awayStats.streak} / ${homeStats.streak}</span></div>
+              <div class="capsule-stats-table">
+                <div class="capsule-stat-row">
+                  <span class="stat-away">${awayStats.ppg}</span>
+                  <span class="stat-category">PPG</span>
+                  <span class="stat-home">${homeStats.ppg}</span>
+                </div>
+                <div class="capsule-stat-row">
+                  <span class="stat-away">${awayStats.ppgAllowed}</span>
+                  <span class="stat-category">ALLOWED</span>
+                  <span class="stat-home">${homeStats.ppgAllowed}</span>
+                </div>
+                <div class="capsule-stat-row">
+                  <span class="stat-away">${awayStats.streak}</span>
+                  <span class="stat-category">STREAK</span>
+                  <span class="stat-home">${homeStats.streak}</span>
+                </div>
               </div>
               ${blurb ? `<div class="capsule-blurb">${blurb}</div>` : ''}
               ${previousHtml}
