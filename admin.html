@@ -4949,6 +4949,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     let games = [];
     let currentArticle = null;
     let selectedGame = null;
+    let pendingMarqueeContent = null; // Stores rich HTML from Marquee Matchups generator
     
     // Game data for articles (quarter scores, player stats)
     let currentGameData = null;
@@ -7536,6 +7537,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     function newArticle() {
       currentArticle = null;
       currentGameData = null;
+      pendingMarqueeContent = null; // Clear any pending marquee content
       document.getElementById('editorTitle').textContent = 'New Article';
       document.getElementById('articleTitle').value = '';
       setEditorContent(''); // Clear Quill editor
@@ -7658,6 +7660,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       if (!article) return;
       
       currentArticle = article;
+      pendingMarqueeContent = null; // Clear any pending marquee content
       document.getElementById('editorTitle').textContent = 'Edit Article';
       document.getElementById('articleTitle').value = article.title || '';
       setEditorContent(article.content || ''); // Load into Quill editor
@@ -8747,7 +8750,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const articleData = {
         title,
         slug,
-        content: getEditorContent(), // Get from Quill
+        content: pendingMarqueeContent || getEditorContent(), // Use marquee content if available
         excerpt: document.getElementById('articleExcerpt').value,
         game_id: gameId,
         smugmug_gallery_url: smugmugUrl,
@@ -8826,6 +8829,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         closeEditor();
       } else {
         showToast('Article published!', 'success');
+        pendingMarqueeContent = null; // Clear marquee content after publishing
         loadArticles();
         
         // Show social publishing page if we have generated posts
@@ -19256,16 +19260,9 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       
       let html = renderGotnSection() + renderDontMissSection() + renderFullSlateSection();
       html += `
-        <div class="marquee-article-fields">
-          <h4>Article Settings</h4>
-          <div class="marquee-field">
-            <label>Featured Image URL:</label>
-            <input type="text" id="marqueeFeaturedImage" placeholder="https://photos.smugmug.com/..." value="${marqueeState.articleFields.featuredImage || ''}">
-          </div>
-        </div>
         <div class="marquee-actions">
           <button class="marquee-preview-btn" onclick="closeMarqueeModal()">Cancel</button>
-          <button class="marquee-publish-btn" onclick="publishMarqueeArticle()">✨ Publish Article</button>
+          <button class="marquee-publish-btn" onclick="openMarqueeInEditor()">✨ Open in Article Editor</button>
         </div>
       `;
       document.getElementById('marqueePreviewArea').innerHTML = html;
@@ -19652,7 +19649,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       `;
     }
     
-    async function publishMarqueeArticle() {
+    async function openMarqueeInEditor() {
       try {
         const data = marqueeState.data;
         const gotn = marqueeState.gameOfTheNight;
@@ -19663,46 +19660,65 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           return;
         }
         
-        const featuredImage = document.getElementById('marqueeFeaturedImage')?.value || '';
+        // Generate and store the rich HTML content
+        pendingMarqueeContent = generateRichMarqueeHTML();
         
-        // Generate the rich HTML content with sidebar and capsules
-        const content = generateRichMarqueeHTML();
         const title = `Marquee Matchups: ${data.dayOfWeek}, ${data.dateFormatted}`;
         const excerpt = `Top matchups and tonight's full schedule for ${data.dayOfWeek}, ${data.dateFormatted}.`;
-        const slug = `marquee-matchups-${marqueeState.date}`;
         
-        // Store matchup data for potential re-rendering
-        const matchupData = {
-          date: marqueeState.date,
-          gameOfTheNight: gotn,
-          dontMiss: dontMiss,
-          blurbs: marqueeState.blurbs,
-          generatedAt: new Date().toISOString()
-        };
-        
-        const articleData = {
-          title: title,
-          slug: slug,
-          content: content,
-          excerpt: excerpt,
-          featured_image: featuredImage || null,
-          author: 'KJ Cardinal',
-          tags: JSON.stringify(['marquee-matchups', data.dayOfWeek.toLowerCase()]),
-          article_date: marqueeState.date,
-          status: 'published',
-          published_at: new Date().toISOString(),
-          matchup_data: JSON.stringify(matchupData)
-        };
-        
-        const { error } = await supabase.from('articles').upsert(articleData, { onConflict: 'slug' });
-        if (error) throw error;
-        
-        showToast('Marquee Matchups article published!', 'success');
+        // Close the modal
         closeMarqueeModal();
-        loadArticles();
+        
+        // Set up the article editor
+        currentArticle = null;
+        document.getElementById('editorTitle').textContent = 'New Article';
+        document.getElementById('articleTitle').value = title;
+        
+        // Show a preview summary in Quill (the actual rich HTML will be used on publish)
+        const previewHtml = `
+          <p><strong>🔥 GAME OF THE NIGHT</strong></p>
+          <p>${gotn ? `${gotn.gender} ${gotn.division}: ${gotn.awayTeam} at ${gotn.homeTeam}` : 'None selected'}</p>
+          <p><em>${marqueeState.blurbs.gotn || ''}</em></p>
+          <br>
+          <p><strong>🏀 DON'T MISS</strong></p>
+          ${dontMiss.map(m => `<p>${m.gender} ${m.division}: ${m.awayTeam} at ${m.homeTeam}</p>`).join('')}
+          <br>
+          <p><strong>📋 FULL SLATE</strong></p>
+          <p><em>${data.totalGames} games across all divisions</em></p>
+          <br>
+          <p style="color: #f57c00; background: #333; padding: 12px; border-radius: 6px;">
+            ⚡ This article includes rich formatting (sidebar stats, team logos, capsule cards) that will appear when published.
+          </p>
+        `;
+        setEditorContent(previewHtml);
+        
+        document.getElementById('articleExcerpt').value = excerpt;
+        document.getElementById('selectedGameId').value = '';
+        selectedGame = null;
+        document.getElementById('smugmugUrl').value = '';
+        document.getElementById('smugmugThumbUrl').value = '';
+        setPhotographerValue('');
+        document.getElementById('youtubeUrl').value = '';
+        setAuthorValue('KJ Cardinal');
+        document.getElementById('articleDate').value = marqueeState.date;
+        isScheduled = false;
+        scheduledTime = null;
+        document.getElementById('scheduledDateTime').value = '';
+        updateScheduleButton();
+        document.getElementById('socialPostsCard').style.display = 'none';
+        
+        // Set tags
+        currentTags = ['marquee-matchups', data.dayOfWeek.toLowerCase()];
+        renderTags();
+        
+        // Show editor
+        document.getElementById('articlesPanel').style.display = 'none';
+        document.getElementById('editorPanel').style.display = 'block';
+        
+        showToast('Marquee Matchups ready! Add featured image and publish.', 'success');
       } catch (error) {
-        console.error('Error publishing article:', error);
-        showToast('Failed to publish: ' + error.message, 'error');
+        console.error('Error opening in editor:', error);
+        showToast('Error: ' + error.message, 'error');
       }
     }
     
