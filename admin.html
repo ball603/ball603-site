@@ -8747,10 +8747,25 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         twitterPost: generatedSocialPosts.twitterPost || null
       } : null;
       
+      // Determine content to save
+      let contentToSave;
+      if (pendingMarqueeContent) {
+        // New marquee article from generator
+        contentToSave = pendingMarqueeContent;
+      } else if (currentArticle && currentArticle.tags && 
+                 (Array.isArray(currentArticle.tags) ? currentArticle.tags.includes('marquee-matchups') : 
+                  (typeof currentArticle.tags === 'string' && currentArticle.tags.includes('marquee-matchups')))) {
+        // Editing existing marquee article - preserve original rich HTML content
+        contentToSave = currentArticle.content;
+      } else {
+        // Regular article - use Quill editor content
+        contentToSave = getEditorContent();
+      }
+      
       const articleData = {
         title,
         slug,
-        content: pendingMarqueeContent || getEditorContent(), // Use marquee content if available
+        content: contentToSave,
         excerpt: document.getElementById('articleExcerpt').value,
         game_id: gameId,
         smugmug_gallery_url: smugmugUrl,
