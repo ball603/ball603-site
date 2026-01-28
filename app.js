@@ -71,6 +71,22 @@ async function fetchArticles(limit = 20) {
     const client = initSupabase();
     if (!client) return [];
     
+    // First, load pinned article IDs from site_settings
+    let pinnedIds = [];
+    try {
+      const { data: settingsData } = await client
+        .from('site_settings')
+        .select('value')
+        .eq('key', 'pinned_articles')
+        .single();
+      
+      if (settingsData && settingsData.value && Array.isArray(settingsData.value)) {
+        pinnedIds = settingsData.value;
+      }
+    } catch (e) {
+      // No pinned articles setting found, continue with empty array
+    }
+    
     // Fetch more than we need, then sort client-side
     // Exclude articles where show_on_homepage is explicitly false
     const { data, error } = await client
@@ -94,14 +110,23 @@ async function fetchArticles(limit = 20) {
       return '1970-01-01';
     }
     
-    // Sort: pinned first, then by date (newest first)
-    // For same date, use published_at time as tiebreaker
+    // Sort: pinned first (in pin order), then by date (newest first)
     const articles = (data || []).sort((a, b) => {
-      // Pinned articles first
-      if (a.pinned && !b.pinned) return -1;
-      if (!a.pinned && b.pinned) return 1;
+      const aPinIndex = pinnedIds.indexOf(a.id);
+      const bPinIndex = pinnedIds.indexOf(b.id);
       
-      // Compare by date string (YYYY-MM-DD sorts correctly as string)
+      // Both pinned - sort by pin order
+      if (aPinIndex !== -1 && bPinIndex !== -1) {
+        return aPinIndex - bPinIndex;
+      }
+      
+      // Only a is pinned - a comes first
+      if (aPinIndex !== -1) return -1;
+      
+      // Only b is pinned - b comes first
+      if (bPinIndex !== -1) return 1;
+      
+      // Neither pinned - sort by date (newest first)
       const dateA = getDateString(a);
       const dateB = getDateString(b);
       
