@@ -19841,8 +19841,17 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         `;
         setEditorContent(previewHtml);
         
-        // Set tags
-        currentTags = ['marquee-matchups', data.dayOfWeek.toLowerCase()];
+        // Set tags - include all teams from GOTN and Don't Miss
+        const teamTags = new Set();
+        if (gotn) {
+          teamTags.add(getTeamSlug(gotn.awayTeam));
+          teamTags.add(getTeamSlug(gotn.homeTeam));
+        }
+        for (const m of dontMiss) {
+          teamTags.add(getTeamSlug(m.awayTeam));
+          teamTags.add(getTeamSlug(m.homeTeam));
+        }
+        currentTags = ['marquee-matchups', data.dayOfWeek.toLowerCase(), ...teamTags];
         renderTags();
         
         // Show editor
@@ -19930,6 +19939,20 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         return time.replace(/^0/, '');
       }
       
+      // Convert newlines in blurbs to HTML paragraphs
+      function formatBlurb(text) {
+        if (!text) return '';
+        // Split by double newlines for paragraphs, or single newlines
+        const paragraphs = text.split(/\n\n+/).map(p => p.trim()).filter(p => p);
+        if (paragraphs.length === 0) return '';
+        if (paragraphs.length === 1) {
+          // Single paragraph - convert single newlines to <br>
+          return paragraphs[0].replace(/\n/g, '<br>');
+        }
+        // Multiple paragraphs
+        return paragraphs.map(p => p.replace(/\n/g, '<br>')).join('</p><p>');
+      }
+      
       let html = '';
       
       // ===== GAME OF THE NIGHT with Sidebar =====
@@ -19966,7 +19989,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             </div>
             <div class="marquee-gotn-body">
               <div class="marquee-gotn-blurb">
-                <p>${blurb}</p>
+                <p>${formatBlurb(blurb)}</p>
                 ${previousLine}
               </div>
               <div class="marquee-gotn-sidebar">
@@ -20060,7 +20083,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
                   <span class="stat-home">${homeStats.streak}</span>
                 </div>
               </div>
-              ${blurb ? `<div class="capsule-blurb">${blurb}</div>` : ''}
+              ${blurb ? `<div class="capsule-blurb"><p>${formatBlurb(blurb)}</p></div>` : ''}
               ${previousHtml}
             </div>
           `;
