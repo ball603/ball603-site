@@ -777,7 +777,9 @@ async function updateSupabase(games) {
       gender: g.gender,
       level: g.level,
       division: g.division,
-      status: g.status,
+      // Set status based on whether we have scores (manual or scraped)
+      // This prevents the scraper from reverting manually-entered scores to 'scheduled'
+      status: time === 'FINAL' ? 'final' : 'scheduled',
       // Preserve existing coverage data
       photog1: existing.photog1 || null,
       photog2: existing.photog2 || null,
