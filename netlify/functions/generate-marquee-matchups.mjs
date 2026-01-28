@@ -530,23 +530,28 @@ function buildRankings(standings) {
 
     top10Teams[key] = new Set();
     let prevRating = null;
+    let prevWins = null;
     let prevRank = 0;
 
     for (let i = 0; i < sorted.length; i++) {
       const team = sorted[i];
       let rank, isTied = false;
 
-      if (team.rating === prevRating) {
+      // Only tied if BOTH rating AND wins are the same
+      if (team.rating === prevRating && team.wins === prevWins) {
         rank = prevRank;
         isTied = true;
       } else {
         rank = i + 1;
         prevRank = rank;
         prevRating = team.rating;
+        prevWins = team.wins;
       }
 
-      // Check if next team has same rating (for tie indicator)
-      const nextTied = i + 1 < sorted.length && sorted[i + 1].rating === team.rating;
+      // Check if next team has same rating AND wins (for tie indicator)
+      const nextTied = i + 1 < sorted.length && 
+                       sorted[i + 1].rating === team.rating && 
+                       sorted[i + 1].wins === team.wins;
 
       const teamKey = `${team.school}_${team.gender}_${team.division}`;
       rankings[teamKey] = {
