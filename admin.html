@@ -459,6 +459,41 @@
       border-radius: 6px;
       font-size: 14px;
     }
+    .gotn-watch-url, .dontmiss-watch-url {
+      margin-bottom: 12px;
+    }
+    .gotn-watch-url label, .dontmiss-watch-url label {
+      display: block;
+      color: #999;
+      font-size: 12px;
+      margin-bottom: 4px;
+    }
+    .gotn-watch-url input, .dontmiss-watch-url input {
+      width: 100%;
+      background: #333;
+      border: 1px solid #444;
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      box-sizing: border-box;
+    }
+    .gotn-watch-url input:focus, .dontmiss-watch-url input:focus {
+      border-color: #f57c00;
+      outline: none;
+    }
+    .dontmiss-fields {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .dontmiss-blurb label {
+      display: block;
+      color: #999;
+      font-size: 12px;
+      margin-bottom: 4px;
+    }
     .gotn-preview { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
     .gotn-sidebar-preview {
       background: #1a1a1a;
@@ -512,7 +547,7 @@
     .dontmiss-item.excluded { opacity: 0.5; }
     .dontmiss-checkbox { margin-top: 4px; }
     .dontmiss-capsule { flex: 1; }
-    .dontmiss-blurb { width: 300px; }
+    .dontmiss-fields { width: 320px; }
     .dontmiss-blurb textarea {
       width: 100%;
       min-height: 80px;
@@ -523,6 +558,7 @@
       border-radius: 4px;
       font-size: 13px;
       resize: vertical;
+      box-sizing: border-box;
     }
     .matchup-capsule { background: #252525; border-radius: 8px; padding: 12px; }
     .capsule-teams { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
@@ -7538,6 +7574,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       currentArticle = null;
       currentGameData = null;
       pendingMarqueeContent = null; // Clear any pending marquee content
+      pendingMarqueeData = null; // Clear any pending marquee data
       document.getElementById('editorTitle').textContent = 'New Article';
       document.getElementById('articleTitle').value = '';
       setEditorContent(''); // Clear Quill editor
@@ -7659,8 +7696,23 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const article = articles.find(a => a.id === id);
       if (!article) return;
       
+      // Check if this is a marquee article with saved matchup data
+      const isMarquee = article.tags && 
+        (Array.isArray(article.tags) ? article.tags.includes('marquee-matchups') : 
+         (typeof article.tags === 'string' && article.tags.includes('marquee-matchups')));
+      
+      if (isMarquee && article.matchup_data) {
+        // Open the Marquee Modal with the saved data for editing
+        currentArticle = article; // Set this so we know we're editing
+        pendingMarqueeData = null;
+        pendingMarqueeContent = null;
+        openMarqueeModal(article.matchup_data);
+        return;
+      }
+      
       currentArticle = article;
       pendingMarqueeContent = null; // Clear any pending marquee content
+      pendingMarqueeData = null; // Clear any pending marquee data
       document.getElementById('editorTitle').textContent = 'Edit Article';
       document.getElementById('articleTitle').value = article.title || '';
       setEditorContent(article.content || ''); // Load into Quill editor
@@ -8596,6 +8648,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         scheduled_at: scheduledAt,
         social_posts: socialPosts,
         game_data: currentGameData || null,
+        matchup_data: pendingMarqueeData || currentArticle?.matchup_data || null,
         status: 'draft',
         published_at: null, // Clear published_at when saving as draft
         updated_at: new Date().toISOString()
@@ -8789,6 +8842,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         article_date: document.getElementById('articleDate').value || null,
         social_posts: socialPosts,
         game_data: currentGameData || currentArticle?.game_data || null,
+        matchup_data: pendingMarqueeData || currentArticle?.matchup_data || null,
         scheduled_at: scheduledAt,
         status: isScheduled ? 'scheduled' : 'published',
         published_at: isScheduled ? null : new Date().toISOString(),
@@ -8845,6 +8899,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       } else {
         showToast('Article published!', 'success');
         pendingMarqueeContent = null; // Clear marquee content after publishing
+        pendingMarqueeData = null; // Clear marquee data after publishing
         loadArticles();
         
         // Show social publishing page if we have generated posts
@@ -19162,6 +19217,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       gameOfTheNight: null,
       dontMiss: [],
       blurbs: { gotn: '', dontMiss: {} },
+      watchLinks: { gotn: '', dontMiss: {} },
       articleFields: {
         title: '',
         featuredImage: '',
@@ -19185,13 +19241,14 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       return `${n}${suffixes[n % 10]}`;
     }
     
-    function openMarqueeModal() {
+    function openMarqueeModal(editData = null) {
       marqueeState = {
         date: null,
         data: null,
         gameOfTheNight: null,
         dontMiss: [],
         blurbs: { gotn: '', dontMiss: {} },
+        watchLinks: { gotn: '', dontMiss: {} },
         articleFields: {
           title: '',
           featuredImage: '',
@@ -19204,6 +19261,22 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           tags: ['marquee-matchups']
         }
       };
+      
+      // If editing existing article, load the saved data
+      if (editData) {
+        marqueeState.date = editData.date;
+        marqueeState.data = editData.data || { dayOfWeek: '', dateFormatted: '', totalGames: 0, fullSlate: editData.fullSlate || {} };
+        marqueeState.gameOfTheNight = editData.gameOfTheNight;
+        marqueeState.dontMiss = editData.dontMiss || [];
+        marqueeState.blurbs = editData.blurbs || { gotn: '', dontMiss: {} };
+        marqueeState.watchLinks = editData.watchLinks || { gotn: '', dontMiss: {} };
+        
+        document.getElementById('marqueeDate').value = editData.date || '';
+        document.getElementById('marqueeModal').classList.add('active');
+        renderMarqueePreview();
+        return;
+      }
+      
       const today = new Date().toISOString().split('T')[0];
       document.getElementById('marqueeDate').value = today;
       document.getElementById('marqueePreviewArea').innerHTML = '';
@@ -19312,6 +19385,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             <label>Select Game:</label>
             <select onchange="changeGameOfTheNight(this.value)">${options}</select>
           </div>
+          <div class="gotn-watch-url">
+            <label>📺 Watch Live URL (optional):</label>
+            <input type="text" id="gotnWatchUrl" placeholder="https://..." value="${marqueeState.watchLinks.gotn || ''}" onchange="updateGotnWatchLink(this.value)">
+          </div>
           <div class="gotn-preview">
             <div class="gotn-blurb-section">
               <label>Blurb (editable):</label>
@@ -19326,6 +19403,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       `;
     }
     
+    function updateGotnWatchLink(url) {
+      marqueeState.watchLinks.gotn = url;
+    }
+    
     function renderSidebarTable(matchup) {
       const away = matchup.awayDisplay;
       const home = matchup.homeDisplay;
@@ -19337,7 +19418,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       let previousHtml = '';
       if (matchup.previousMatchup) {
         const prev = matchup.previousMatchup;
-        previousHtml = `<div class="sidebar-previous">Earlier: ${prev.winner} ${prev.winnerScore}, ${prev.loser} ${prev.loserScore} (${prev.dateFormatted})</div>`;
+        previousHtml = `<div class="sidebar-previous">Earlier this season: ${prev.winner} ${prev.winnerScore}, ${prev.loser} ${prev.loserScore} (${prev.dateFormatted})</div>`;
       }
       
       return `
@@ -19364,19 +19445,27 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const allMatchups = data.allTopMatchups.filter(m => !marqueeState.gameOfTheNight || m.gameId !== marqueeState.gameOfTheNight.gameId);
       
       if (allMatchups.length === 0) {
-        return `<div class="marquee-section"><h3>🏀 Don't Miss</h3><p style="color: #999;">No additional top-10 matchups available.</p></div>`;
+        return `<div class="marquee-section"><h3>🏀 Don't Miss Games</h3><p style="color: #999;">No additional top-10 matchups available.</p></div>`;
       }
       
       const selectedIds = new Set(marqueeState.dontMiss.map(m => m.gameId));
       const itemsHtml = allMatchups.map(matchup => {
         const isSelected = selectedIds.has(matchup.gameId);
         const blurb = marqueeState.blurbs.dontMiss[matchup.gameId] || '';
+        const watchLink = marqueeState.watchLinks.dontMiss[matchup.gameId] || '';
         return `
           <div class="dontmiss-item ${isSelected ? '' : 'excluded'}">
             <input type="checkbox" class="dontmiss-checkbox" ${isSelected ? 'checked' : ''} onchange="toggleDontMiss('${matchup.gameId}', this.checked)">
             <div class="dontmiss-capsule">${renderMatchupCapsule(matchup)}</div>
-            <div class="dontmiss-blurb">
-              <textarea id="dontmissBlurb_${matchup.gameId}" placeholder="Brief blurb..." onchange="updateDontMissBlurb('${matchup.gameId}', this.value)" ${isSelected ? '' : 'disabled'}>${blurb}</textarea>
+            <div class="dontmiss-fields">
+              <div class="dontmiss-watch-url">
+                <label>📺 Watch Live URL:</label>
+                <input type="text" placeholder="https://..." value="${watchLink}" onchange="updateDontMissWatchLink('${matchup.gameId}', this.value)" ${isSelected ? '' : 'disabled'}>
+              </div>
+              <div class="dontmiss-blurb">
+                <label>Blurb:</label>
+                <textarea id="dontmissBlurb_${matchup.gameId}" placeholder="Brief blurb..." onchange="updateDontMissBlurb('${matchup.gameId}', this.value)" ${isSelected ? '' : 'disabled'}>${blurb}</textarea>
+              </div>
             </div>
           </div>
         `;
@@ -19385,12 +19474,16 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       return `
         <div class="marquee-section">
           <div class="marquee-section-header">
-            <h3>🏀 Don't Miss</h3>
+            <h3>🏀 Don't Miss Games</h3>
             <span style="color: #999; font-size: 12px;">Check/uncheck to include games</span>
           </div>
           <div class="dontmiss-list">${itemsHtml}</div>
         </div>
       `;
+    }
+    
+    function updateDontMissWatchLink(gameId, url) {
+      marqueeState.watchLinks.dontMiss[gameId] = url;
     }
     
     function renderMatchupCapsule(matchup) {
@@ -19399,7 +19492,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       let previousHtml = '';
       if (matchup.previousMatchup) {
         const prev = matchup.previousMatchup;
-        previousHtml = `<div class="capsule-previous">Earlier: ${prev.winner} ${prev.winnerScore}-${prev.loserScore}</div>`;
+        previousHtml = `<div class="capsule-previous">Earlier this season: ${prev.winner} ${prev.winnerScore}, ${prev.loser} ${prev.loserScore} (${prev.dateFormatted})</div>`;
       }
       return `
         <div class="matchup-capsule">
@@ -19620,7 +19713,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       let previousHtml = '';
       if (matchup.previousMatchup) {
         const prev = matchup.previousMatchup;
-        previousHtml = `<div class="sidebar-previous">Earlier: ${prev.winner} ${prev.winnerScore}, ${prev.loser} ${prev.loserScore} (${prev.dateFormatted})</div>`;
+        previousHtml = `<div class="sidebar-previous">Earlier this season: ${prev.winner} ${prev.winnerScore}, ${prev.loser} ${prev.loserScore} (${prev.dateFormatted})</div>`;
       }
       return `
         <table class="sidebar-comparison">
@@ -19643,7 +19736,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       let previousHtml = '';
       if (matchup.previousMatchup) {
         const prev = matchup.previousMatchup;
-        previousHtml = `<div class="dontmiss-card-previous">Earlier: ${prev.winner} ${prev.winnerScore}-${prev.loserScore}</div>`;
+        previousHtml = `<div class="dontmiss-card-previous">Earlier this season: ${prev.winner} ${prev.winnerScore}, ${prev.loser} ${prev.loserScore} (${prev.dateFormatted})</div>`;
       }
       return `
         <div class="dontmiss-card">
@@ -19664,6 +19757,9 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       `;
     }
     
+    // Store matchup data for saving with article (allows re-editing)
+    let pendingMarqueeData = null;
+    
     async function openMarqueeInEditor() {
       try {
         const data = marqueeState.data;
@@ -19675,8 +19771,22 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           return;
         }
         
+        // Check if we're editing an existing article
+        const isEditing = currentArticle && currentArticle.id;
+        
         // Generate and store the rich HTML content
         pendingMarqueeContent = generateRichMarqueeHTML();
+        
+        // Store matchup data for re-editing later
+        pendingMarqueeData = {
+          date: marqueeState.date,
+          data: data,
+          gameOfTheNight: gotn,
+          dontMiss: dontMiss,
+          blurbs: JSON.parse(JSON.stringify(marqueeState.blurbs)),
+          watchLinks: JSON.parse(JSON.stringify(marqueeState.watchLinks)),
+          fullSlate: data.fullSlate
+        };
         
         const title = `Marquee Matchups: ${data.dayOfWeek}, ${data.dateFormatted}`;
         const excerpt = `Top matchups and tonight's full schedule for ${data.dayOfWeek}, ${data.dateFormatted}.`;
@@ -19685,18 +19795,41 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         closeMarqueeModal();
         
         // Set up the article editor
-        currentArticle = null;
-        currentGameData = null; // Clear any previous game score box data
-        document.getElementById('editorTitle').textContent = 'New Article';
-        document.getElementById('articleTitle').value = title;
+        if (!isEditing) {
+          // New article
+          currentArticle = null;
+          currentGameData = null;
+          document.getElementById('editorTitle').textContent = 'New Article';
+          document.getElementById('articleTitle').value = title;
+          document.getElementById('articleExcerpt').value = excerpt;
+          document.getElementById('selectedGameId').value = '';
+          selectedGame = null;
+          document.getElementById('smugmugUrl').value = '';
+          document.getElementById('smugmugThumbUrl').value = '';
+          setPhotographerValue('');
+          document.getElementById('youtubeUrl').value = '';
+          setAuthorValue('KJ Cardinal');
+          document.getElementById('articleDate').value = marqueeState.date;
+          isScheduled = false;
+          scheduledTime = null;
+          document.getElementById('scheduledDateTime').value = '';
+          updateScheduleButton();
+          document.getElementById('socialPostsCard').style.display = 'none';
+          removeFeaturedImage();
+        } else {
+          // Editing existing article - preserve metadata
+          document.getElementById('editorTitle').textContent = 'Edit Article';
+          // Keep featured image, author, photographer, etc. from currentArticle
+        }
         
         // Show a preview summary in Quill (the actual rich HTML will be used on publish)
         const previewHtml = `
           <p><strong>🔥 GAME OF THE NIGHT</strong></p>
           <p>${gotn ? `${gotn.gender} ${gotn.division}: ${gotn.awayTeam} at ${gotn.homeTeam}` : 'None selected'}</p>
           <p><em>${marqueeState.blurbs.gotn || ''}</em></p>
+          ${marqueeState.watchLinks.gotn ? `<p>📺 Watch Live: ${marqueeState.watchLinks.gotn}</p>` : ''}
           <br>
-          <p><strong>🏀 DON'T MISS</strong></p>
+          <p><strong>🏀 DON'T MISS GAMES</strong></p>
           ${dontMiss.map(m => `<p>${m.gender} ${m.division}: ${m.awayTeam} at ${m.homeTeam}</p>`).join('')}
           <br>
           <p><strong>📋 FULL SLATE</strong></p>
@@ -19708,21 +19841,6 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         `;
         setEditorContent(previewHtml);
         
-        document.getElementById('articleExcerpt').value = excerpt;
-        document.getElementById('selectedGameId').value = '';
-        selectedGame = null;
-        document.getElementById('smugmugUrl').value = '';
-        document.getElementById('smugmugThumbUrl').value = '';
-        setPhotographerValue('');
-        document.getElementById('youtubeUrl').value = '';
-        setAuthorValue('KJ Cardinal');
-        document.getElementById('articleDate').value = marqueeState.date;
-        isScheduled = false;
-        scheduledTime = null;
-        document.getElementById('scheduledDateTime').value = '';
-        updateScheduleButton();
-        document.getElementById('socialPostsCard').style.display = 'none';
-        
         // Set tags
         currentTags = ['marquee-matchups', data.dayOfWeek.toLowerCase()];
         renderTags();
@@ -19731,7 +19849,11 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         document.getElementById('articlesPanel').style.display = 'none';
         document.getElementById('editorPanel').style.display = 'block';
         
-        showToast('Marquee Matchups ready! Add featured image and publish.', 'success');
+        if (isEditing) {
+          showToast('Marquee Matchups updated! Review and publish.', 'success');
+        } else {
+          showToast('Marquee Matchups ready! Add featured image and publish.', 'success');
+        }
       } catch (error) {
         console.error('Error opening in editor:', error);
         showToast('Error: ' + error.message, 'error');
@@ -19813,13 +19935,21 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       // ===== GAME OF THE NIGHT with Sidebar =====
       if (gotn) {
         const blurb = marqueeState.blurbs.gotn || '';
-        const headerLine = `${gotn.gender} ${gotn.division}: ${gotn.awayTeam} (${gotn.awayDisplay.record}, ${gotn.awayDisplay.rank}) at ${gotn.homeTeam} (${gotn.homeDisplay.record}, ${gotn.homeDisplay.rank}) — ${formatTime(gotn.time)}`;
+        const watchLink = marqueeState.watchLinks.gotn || '';
         const awayStats = gotn.awayStats;
         const homeStats = gotn.homeStats;
         
         // Generate team slugs for links
         const awaySlug = getTeamSlug(gotn.awayTeam);
         const homeSlug = getTeamSlug(gotn.homeTeam);
+        
+        // Division line with optional watch link
+        const divisionLine = watchLink 
+          ? `${gotn.gender} ${gotn.division} – <a href="${watchLink}" target="_blank" class="watch-live-link">📺 Watch Live</a>`
+          : `${gotn.gender} ${gotn.division}`;
+        
+        // Teams and time line
+        const teamsLine = `${gotn.awayTeam} (${gotn.awayDisplay.record}, ${gotn.awayDisplay.rank}) at ${gotn.homeTeam} (${gotn.homeDisplay.record}, ${gotn.homeDisplay.rank}) — ${formatTime(gotn.time)}`;
         
         let previousLine = '';
         if (gotn.previousMatchup) {
@@ -19831,7 +19961,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           <div class="marquee-gotn">
             <div class="marquee-gotn-header">
               <h2>🔥 GAME OF THE NIGHT</h2>
-              <p class="marquee-gotn-title">${headerLine}</p>
+              <p class="marquee-gotn-division">${divisionLine}</p>
+              <p class="marquee-gotn-title">${teamsLine}</p>
             </div>
             <div class="marquee-gotn-body">
               <div class="marquee-gotn-blurb">
@@ -19868,29 +19999,35 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         `;
       }
       
-      // ===== DON'T MISS with Capsule Cards =====
+      // ===== DON'T MISS GAMES with Capsule Cards =====
       if (dontMiss && dontMiss.length > 0) {
-        html += `<div class="marquee-dontmiss"><h2>🏀 DON'T MISS</h2><div class="marquee-dontmiss-grid">`;
+        html += `<div class="marquee-dontmiss"><h2>🏀 DON'T MISS GAMES</h2><div class="marquee-dontmiss-grid">`;
         
         for (const matchup of dontMiss) {
           const blurb = marqueeState.blurbs.dontMiss[matchup.gameId] || '';
+          const watchLink = marqueeState.watchLinks.dontMiss[matchup.gameId] || '';
           const awayStats = matchup.awayStats;
           const homeStats = matchup.homeStats;
           
           let previousHtml = '';
           if (matchup.previousMatchup) {
             const prev = matchup.previousMatchup;
-            previousHtml = `<div class="capsule-previous">Earlier: ${prev.winner} ${prev.winnerScore}-${prev.loserScore}</div>`;
+            previousHtml = `<div class="capsule-previous">Earlier this season: ${prev.winner} ${prev.winnerScore}, ${prev.loser} ${prev.loserScore} (${prev.dateFormatted})</div>`;
           }
           
           // Generate team slugs for links
           const awaySlug = getTeamSlug(matchup.awayTeam);
           const homeSlug = getTeamSlug(matchup.homeTeam);
           
+          // Division with optional watch link
+          const divisionHtml = watchLink
+            ? `<span class="capsule-division">${matchup.gender} ${matchup.division} – <a href="${watchLink}" target="_blank" class="watch-live-link">📺 Watch Live</a></span>`
+            : `<span class="capsule-division">${matchup.gender} ${matchup.division}</span>`;
+          
           html += `
             <div class="marquee-capsule">
               <div class="capsule-header">
-                <span class="capsule-division">${matchup.gender} ${matchup.division}</span>
+                ${divisionHtml}
                 <span class="capsule-time">${formatTime(matchup.time)}</span>
               </div>
               <div class="capsule-teams">
