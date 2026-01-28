@@ -137,6 +137,22 @@
       overflow: hidden;
     }
     
+    .pinned-badge {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(245, 124, 0, 0.95);
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      z-index: 1;
+    }
+    
+    .article-card.pinned {
+      border: 2px solid #f57c00;
+    }
+    
     .article-thumbnail img {
       position: absolute;
       top: 0;
@@ -414,6 +430,25 @@
     // ===== STATE =====
     let allArticles = [];
     let filteredArticles = [];
+    let pinnedArticleIds = [];
+    
+    // Load pinned articles from site settings
+    async function loadPinnedArticles() {
+      try {
+        const { data, error } = await db
+          .from('site_settings')
+          .select('value')
+          .eq('key', 'pinned_articles')
+          .single();
+        
+        if (data && data.value && Array.isArray(data.value)) {
+          pinnedArticleIds = data.value;
+        }
+      } catch (err) {
+        console.log('No pinned articles found');
+        pinnedArticleIds = [];
+      }
+    }
     let currentPage = 1;
     const articlesPerPage = 100;
 
@@ -470,6 +505,9 @@
     async function loadArticles() {
       console.log('loadArticles called');
       try {
+        // Load pinned article IDs first
+        await loadPinnedArticles();
+        
         const { data: articles, error } = await db
           .from('articles')
           .select('*')
@@ -538,8 +576,23 @@
         return matchesTitle || matchesContent || matchesTags;
       });
       
-      // Sort by date (newest first)
+      // Sort: pinned articles first (in pin order), then by date (newest first)
       filteredArticles.sort((a, b) => {
+        const aPinIndex = pinnedArticleIds.indexOf(a.id);
+        const bPinIndex = pinnedArticleIds.indexOf(b.id);
+        
+        // Both pinned - sort by pin order
+        if (aPinIndex !== -1 && bPinIndex !== -1) {
+          return aPinIndex - bPinIndex;
+        }
+        
+        // Only a is pinned - a comes first
+        if (aPinIndex !== -1) return -1;
+        
+        // Only b is pinned - b comes first
+        if (bPinIndex !== -1) return 1;
+        
+        // Neither pinned - sort by date (newest first)
         const dateA = getArticleDateString(a);
         const dateB = getArticleDateString(b);
         
@@ -595,6 +648,7 @@
     function renderArticleCard(article) {
       const image = article.featured_image_url || '/logo.png';
       const url = `/article/${article.slug}`;
+      const isPinned = pinnedArticleIds.includes(article.id);
       
       // Get photographer - check top-level first, then game_data
       const photographer = article.photographer || article.game_data?.photographerName || '';
@@ -617,9 +671,10 @@
       }
 
       return `
-        <a href="${url}" class="article-card">
+        <a href="${url}" class="article-card${isPinned ? ' pinned' : ''}">
           <div class="article-thumbnail">
             <img src="${image}" alt="${escapeHtml(article.title)}" onerror="this.src='/logo.png'; this.style.objectFit='contain'; this.style.padding='20px'; this.style.background='#f5f5f5';">
+            ${isPinned ? '<span class="pinned-badge">📌</span>' : ''}
           </div>
           <div class="article-info">
             <h3 class="article-title">${escapeHtml(article.title)}</h3>

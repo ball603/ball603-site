@@ -5535,10 +5535,11 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       location.reload();
     }
     
-    function showApp() {
+    async function showApp() {
       document.getElementById('loginScreen').style.display = 'none';
       document.getElementById('mainHeader').style.display = 'block';
       document.getElementById('mainContainer').style.display = 'block';
+      await loadPinnedArticles(); // Load pinned articles from Supabase first
       loadArticles();
       loadGamesForStory();
       populatePhotographerDropdown();
@@ -5835,10 +5836,44 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     }
     
     // Pinned articles state
-    let pinnedArticles = JSON.parse(localStorage.getItem('ball603_pinned_articles') || '[]');
+    let pinnedArticles = [];
     
-    function savePinnedArticles() {
-      localStorage.setItem('ball603_pinned_articles', JSON.stringify(pinnedArticles));
+    async function loadPinnedArticles() {
+      try {
+        const { data, error } = await db
+          .from('site_settings')
+          .select('value')
+          .eq('key', 'pinned_articles')
+          .single();
+        
+        if (data && data.value && Array.isArray(data.value)) {
+          pinnedArticles = data.value;
+        } else {
+          pinnedArticles = [];
+        }
+      } catch (err) {
+        console.log('No pinned articles settings found, using empty array');
+        pinnedArticles = [];
+      }
+    }
+    
+    async function savePinnedArticles() {
+      try {
+        const { error } = await db
+          .from('site_settings')
+          .upsert({
+            key: 'pinned_articles',
+            value: pinnedArticles,
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'key'
+          });
+        
+        if (error) throw error;
+      } catch (err) {
+        console.error('Error saving pinned articles:', err);
+        showToast('Error saving pinned articles', 'error');
+      }
     }
     
     function openPinArticlesModal() {
@@ -5881,21 +5916,21 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('pinnedCount').textContent = `${pinnedArticles.length}/3 pinned`;
     }
     
-    function togglePinArticle(articleId) {
+    async function togglePinArticle(articleId) {
       const idx = pinnedArticles.indexOf(articleId);
       if (idx > -1) {
         pinnedArticles.splice(idx, 1);
       } else if (pinnedArticles.length < 3) {
         pinnedArticles.push(articleId);
       }
-      savePinnedArticles();
+      await savePinnedArticles();
       renderPinArticlesList();
       renderArticles(document.getElementById('articleSearch')?.value || '');
     }
     
-    function clearPinnedArticles() {
+    async function clearPinnedArticles() {
       pinnedArticles = [];
-      savePinnedArticles();
+      await savePinnedArticles();
       renderPinArticlesList();
       renderArticles(document.getElementById('articleSearch')?.value || '');
     }
