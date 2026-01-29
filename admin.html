@@ -19812,8 +19812,14 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           return;
         }
         
-        // Check if we're editing an existing article
-        const isEditing = currentArticle && currentArticle.id;
+        // Check if we're editing an existing MARQUEE article (has matchup_data)
+        // If currentArticle exists but has no matchup_data, we're creating a new marquee article
+        const isEditingMarquee = currentArticle && currentArticle.id && currentArticle.matchup_data;
+        
+        // If not editing a marquee article, force create new
+        if (!isEditingMarquee) {
+          currentArticle = null;
+        }
         
         // Generate and store the rich HTML content
         pendingMarqueeContent = generateRichMarqueeHTML();
@@ -19836,7 +19842,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         closeMarqueeModal();
         
         // Set up the article editor
-        if (!isEditing) {
+        if (!isEditingMarquee) {
           // New article
           currentArticle = null;
           currentGameData = null;
@@ -19899,7 +19905,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         document.getElementById('articlesPanel').style.display = 'none';
         document.getElementById('editorPanel').style.display = 'block';
         
-        if (isEditing) {
+        if (isEditingMarquee) {
           showToast('Marquee Matchups updated! Review and publish.', 'success');
         } else {
           showToast('Marquee Matchups ready! Add featured image and publish.', 'success');
