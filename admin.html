@@ -4598,7 +4598,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
               <th onclick="sortSOSTable('winPct')" style="padding: 10px; text-align: center; border-bottom: 2px solid #ddd; cursor: pointer;" title="Click to sort">Win % ⇅</th>
               <th onclick="sortSOSTable('playedOppWinPct')" style="padding: 10px; text-align: center; border-bottom: 2px solid #ddd; border-left: 2px solid #bbb; cursor: pointer;" title="Click to sort">Opp Win% ⇅</th>
               <th onclick="sortSOSTable('weightedSOS')" style="padding: 10px; text-align: center; border-bottom: 2px solid #ddd; cursor: pointer;" title="Weighted by home/away - Click to sort">Weighted ⇅</th>
-              <th onclick="sortSOSTable('rpiSOS')" style="padding: 10px; text-align: center; border-bottom: 2px solid #ddd; cursor: pointer;" title="RPI-style (includes opp's opp) - Click to sort">RPI ⇅</th>
+              <th onclick="sortSOSTable('rpi')" style="padding: 10px; text-align: center; border-bottom: 2px solid #ddd; cursor: pointer;" title="NCAA RPI: 25% WP + 50% OWP + 25% OOWP - Click to sort">RPI ⇅</th>
               <th style="padding: 10px; text-align: center; border-bottom: 2px solid #ddd;">Opp Rec</th>
               <th onclick="sortSOSTable('remainingOppWinPct')" style="padding: 10px; text-align: center; border-bottom: 2px solid #ddd; border-left: 2px solid #bbb; cursor: pointer;" title="Click to sort">Opp Win% ⇅</th>
               <th onclick="sortSOSTable('remainingSosRank')" style="padding: 10px; text-align: center; border-bottom: 2px solid #ddd; cursor: pointer;" title="Click to sort">SOS ⇅</th>
@@ -4615,8 +4615,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         <strong>How SOS metrics are calculated:</strong><br>
         • <strong>Opp Win%:</strong> Average winning percentage of all opponents played<br>
         • <strong>Weighted:</strong> Opp Win% weighted by location (away games ×1.2, home games ×0.8)<br>
-        • <strong>RPI:</strong> 50% Opp Win% + 50% Opponents' Opponents' Win% (like college basketball RPI)<br>
-        • <strong>SOS:</strong> Rank within division (1 = toughest schedule)
+        • <strong>RPI:</strong> NCAA formula: (WP × 25%) + (OWP × 50%) + (OOWP × 25%)<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;- WP weighted: road win=1.4, home win=0.6, road loss=0.6, home loss=1.4<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;- OWP excludes games against the team being calculated<br>
+        • <strong>SOS:</strong> Rank within division (1 = toughest schedule / highest RPI)
       </div>
     </div>
   </div>
@@ -18635,6 +18637,103 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         const results = [];
         const nhiaaTeams = new Set(standings.map(s => s.school));
         
+        // First pass: Calculate each team's weighted WP for RPI
+        // Home win = 0.6, Road win = 1.4, Home loss = 1.4, Road loss = 0.6
+        const teamWeightedWP = new Map();
+        
+        for (const teamName of nhiaaTeams) {
+          const playedData = teamsPlayedMap.get(teamName);
+          if (!playedData) {
+            teamWeightedWP.set(teamName, 0);
+            continue;
+          }
+          
+          let weightedWins = 0, weightedLosses = 0;
+          
+          for (const game of completedGames) {
+            const isHome = game.home_team === teamName;
+            const isAway = game.away_team === teamName;
+            if (!isHome && !isAway) continue;
+            
+            const teamScore = isHome ? game.home_score : game.away_score;
+            const oppScore = isHome ? game.away_score : game.home_score;
+            const won = teamScore > oppScore;
+            
+            if (won) {
+              weightedWins += isHome ? 0.6 : 1.4; // Home win = 0.6, Road win = 1.4
+            } else {
+              weightedLosses += isHome ? 1.4 : 0.6; // Home loss = 1.4, Road loss = 0.6
+            }
+          }
+          
+          const totalWeighted = weightedWins + weightedLosses;
+          teamWeightedWP.set(teamName, totalWeighted > 0 ? weightedWins / totalWeighted : 0);
+        }
+        
+        // Second pass: Calculate OWP for each team (excluding games vs the team)
+        const teamOWP = new Map();
+        
+        for (const teamName of nhiaaTeams) {
+          const playedData = teamsPlayedMap.get(teamName);
+          if (!playedData || playedData.opponents.length === 0) {
+            teamOWP.set(teamName, 0);
+            continue;
+          }
+          
+          let owpSum = 0, owpCount = 0;
+          
+          for (const { opp } of playedData.opponents) {
+            // Calculate opponent's win % excluding games against this team
+            let oppWins = 0, oppLosses = 0;
+            
+            for (const game of completedGames) {
+              const oppIsHome = game.home_team === opp;
+              const oppIsAway = game.away_team === opp;
+              if (!oppIsHome && !oppIsAway) continue;
+              
+              // Exclude games against the team we're calculating for
+              if (game.home_team === teamName || game.away_team === teamName) continue;
+              
+              const oppScore = oppIsHome ? game.home_score : game.away_score;
+              const otherScore = oppIsHome ? game.away_score : game.home_score;
+              
+              if (oppScore > otherScore) oppWins++;
+              else oppLosses++;
+            }
+            
+            const oppTotal = oppWins + oppLosses;
+            if (oppTotal > 0) {
+              owpSum += oppWins / oppTotal;
+              owpCount++;
+            }
+          }
+          
+          teamOWP.set(teamName, owpCount > 0 ? owpSum / owpCount : 0);
+        }
+        
+        // Third pass: Calculate OOWP for each team
+        const teamOOWP = new Map();
+        
+        for (const teamName of nhiaaTeams) {
+          const playedData = teamsPlayedMap.get(teamName);
+          if (!playedData || playedData.opponents.length === 0) {
+            teamOOWP.set(teamName, 0);
+            continue;
+          }
+          
+          let oowpSum = 0, oowpCount = 0;
+          
+          for (const { opp } of playedData.opponents) {
+            const oppOWP = teamOWP.get(opp);
+            if (oppOWP !== undefined) {
+              oowpSum += oppOWP;
+              oowpCount++;
+            }
+          }
+          
+          teamOOWP.set(teamName, oowpCount > 0 ? oowpSum / oowpCount : 0);
+        }
+        
         for (const teamName of nhiaaTeams) {
           const teamDiv = teamDivisions.get(`${teamName}_${gender}`);
           
@@ -18644,8 +18743,6 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           const playedData = teamsPlayedMap.get(teamName);
           let playedOppWins = 0, playedOppLosses = 0;
           let weightedSum = 0, weightedCount = 0;
-          let oppWinPctSum = 0, oppCount = 0;
-          let oppOppWinPctSum = 0, oppOppCount = 0;
           
           if (playedData) {
             for (const { opp, wasHome } of playedData.opponents) {
@@ -18656,26 +18753,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
                 playedOppWins += oppRecord.wins;
                 playedOppLosses += oppRecord.losses;
                 
-                // For simple Opp Win%
-                oppWinPctSum += oppWP;
-                oppCount++;
-                
                 // Weighted SOS: away = 1.2x, home = 0.8x
                 const weight = wasHome ? 0.8 : 1.2;
                 weightedSum += oppWP * weight;
                 weightedCount++;
-                
-                // RPI: Get opponent's opponents' win %
-                const oppPlayedData = teamsPlayedMap.get(opp);
-                if (oppPlayedData) {
-                  for (const { opp: oppOpp } of oppPlayedData.opponents) {
-                    const oppOppWP = teamWinPct.get(`${oppOpp}_${gender}`);
-                    if (oppOppWP !== undefined) {
-                      oppOppWinPctSum += oppOppWP;
-                      oppOppCount++;
-                    }
-                  }
-                }
               }
             }
           }
@@ -18683,9 +18764,12 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           const playedTotalOppGames = playedOppWins + playedOppLosses;
           const playedOppWinPct = playedTotalOppGames > 0 ? playedOppWins / playedTotalOppGames : 0;
           const weightedSOS = weightedCount > 0 ? weightedSum / weightedCount : 0;
-          const avgOppWinPct = oppCount > 0 ? oppWinPctSum / oppCount : 0;
-          const avgOppOppWinPct = oppOppCount > 0 ? oppOppWinPctSum / oppOppCount : 0;
-          const rpiSOS = (avgOppWinPct * 0.5) + (avgOppOppWinPct * 0.5);
+          
+          // NCAA RPI Formula: (WP × 0.25) + (OWP × 0.50) + (OOWP × 0.25)
+          const wp = teamWeightedWP.get(teamName) || 0;
+          const owp = teamOWP.get(teamName) || 0;
+          const oowp = teamOOWP.get(teamName) || 0;
+          const rpi = (wp * 0.25) + (owp * 0.50) + (oowp * 0.25);
           
           // REMAINING opponents
           const remainingData = teamsRemainingMap.get(teamName);
@@ -18719,7 +18803,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             playedOppLosses,
             playedOppWinPct,
             weightedSOS,
-            rpiSOS,
+            rpi,
             // Remaining
             remainingOppWins,
             remainingOppLosses,
@@ -18748,7 +18832,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         
         assignRanks('playedOppWinPct', 'playedSosRank');
         assignRanks('weightedSOS', 'weightedSosRank');
-        assignRanks('rpiSOS', 'rpiSosRank');
+        assignRanks('rpi', 'rpiRank');
         
         // Remaining SOS ranks (only for teams with remaining games)
         const resultsForRemaining = results.filter(r => r.hasRemaining);
@@ -18797,7 +18881,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       } else {
         sosSortField = field;
         // Default descending for percentages/stats, ascending for ranks and team name
-        sosSortDir = ['team', 'playedSosRank', 'remainingSosRank', 'weightedSosRank', 'rpiSosRank'].includes(field) ? 'asc' : 'desc';
+        sosSortDir = ['team', 'playedSosRank', 'remainingSosRank', 'weightedSosRank', 'rpiRank'].includes(field) ? 'asc' : 'desc';
       }
       
       const sorted = [...sosData].sort((a, b) => {
@@ -18860,7 +18944,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center;">${fmtPct(r.winPct)}</td>
           <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center; border-left: 2px solid #ddd;">${fmtPct(r.playedOppWinPct)}</td>
           <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center;">${fmtPct(r.weightedSOS)}</td>
-          <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center;">${fmtPct(r.rpiSOS)}</td>
+          <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center;">${fmtPct(r.rpi)}</td>
           <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center;">${r.playedOppWins}-${r.playedOppLosses}</td>
           <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center; border-left: 2px solid #ddd;">${r.hasRemaining ? fmtPct(r.remainingOppWinPct) : '-'}</td>
           <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center; font-weight: bold;">${r.remainingSosRank || '-'}</td>
