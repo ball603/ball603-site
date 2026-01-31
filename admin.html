@@ -4587,17 +4587,16 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         <table style="width: 100%; border-collapse: collapse;" id="sosTable">
           <thead>
             <tr style="background: #f5f5f5;">
-              <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">#</th>
+              <th style="padding: 12px; text-align: center; border-bottom: 2px solid #ddd; width: 60px;">SOS</th>
               <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Team</th>
               <th style="padding: 12px; text-align: center; border-bottom: 2px solid #ddd;">Record</th>
               <th style="padding: 12px; text-align: center; border-bottom: 2px solid #ddd;">Games</th>
               <th style="padding: 12px; text-align: center; border-bottom: 2px solid #ddd;">Opp Record</th>
               <th style="padding: 12px; text-align: center; border-bottom: 2px solid #ddd;">Opp Win%</th>
-              <th style="padding: 12px; text-align: center; border-bottom: 2px solid #ddd;">SOS Rank</th>
             </tr>
           </thead>
           <tbody id="sosTableBody">
-            <tr><td colspan="7" style="padding: 40px; text-align: center; color: #888;">Select options and click Refresh to load data</td></tr>
+            <tr><td colspan="6" style="padding: 40px; text-align: center; color: #888;">Select options and click Refresh to load data</td></tr>
           </tbody>
         </table>
       </div>
@@ -4606,7 +4605,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         <strong>How SOS is calculated:</strong><br>
         • <strong>Opp Record:</strong> Combined W-L record of all opponents played<br>
         • <strong>Opp Win%:</strong> Average winning percentage of all opponents (higher = tougher schedule)<br>
-        • <strong>SOS Rank:</strong> Rank within division based on Opp Win% (1 = toughest schedule)
+        • <strong>SOS:</strong> Rank within division based on Opp Win% (1 = toughest schedule)
       </div>
     </div>
   </div>
@@ -18520,7 +18519,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const division = document.getElementById('sosDivision').value;
       const tbody = document.getElementById('sosTableBody');
       
-      tbody.innerHTML = '<tr><td colspan="7" style="padding: 40px; text-align: center; color: #888;">Loading...</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" style="padding: 40px; text-align: center; color: #888;">Loading...</td></tr>';
       
       try {
         // Fetch all completed NHIAA games
@@ -18580,10 +18579,13 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           teamsMap.get(awayTeam).opponents.push(homeTeam);
         }
         
-        // Calculate opponent records
+        // Calculate opponent records - only include teams that exist in standings
         const results = [];
         
         for (const [teamName, teamData] of teamsMap) {
+          // Skip teams not in standings (non-NHIAA teams like Blue Mountain Union)
+          if (!teamRecords.has(`${teamName}_${gender}`)) continue;
+          
           // Filter by division if specified
           if (division !== 'all' && teamData.division !== division) continue;
           
@@ -18651,7 +18653,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         
       } catch (err) {
         console.error('Error loading SOS data:', err);
-        tbody.innerHTML = '<tr><td colspan="7" style="padding: 40px; text-align: center; color: #c00;">Error loading data: ' + err.message + '</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" style="padding: 40px; text-align: center; color: #c00;">Error loading data: ' + err.message + '</td></tr>';
       }
     }
     
@@ -18659,12 +18661,13 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const tbody = document.getElementById('sosTableBody');
       
       if (results.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="padding: 40px; text-align: center; color: #888;">No data found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" style="padding: 40px; text-align: center; color: #888;">No data found</td></tr>';
         return;
       }
       
       let currentDiv = '';
       let html = '';
+      let rowIndex = 0;
       
       for (let i = 0; i < results.length; i++) {
         const r = results[i];
@@ -18672,25 +18675,31 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         // Add division header when it changes
         if (r.division !== currentDiv) {
           currentDiv = r.division;
+          rowIndex = 0; // Reset for alternating colors
           html += `<tr style="background: #1a73e8; color: white;">
-            <td colspan="7" style="padding: 10px; font-weight: bold;">${r.division}</td>
+            <td colspan="6" style="padding: 10px; font-weight: bold;">${r.division}</td>
           </tr>`;
         }
         
         const oppWinPctFormatted = (r.oppWinPct * 100).toFixed(1) + '%';
-        const rowBg = r.sosRank <= 3 ? '#fff3e0' : (i % 2 === 0 ? '#fff' : '#f9f9f9');
+        const rowBg = rowIndex % 2 === 0 ? '#fff' : '#f9f9f9';
+        const logoSlug = r.team.toLowerCase().replace(/[^a-z0-9]/g, '');
         
         html += `<tr style="background: ${rowBg};">
-          <td style="padding: 10px; border-bottom: 1px solid #eee;">${i + 1}</td>
-          <td style="padding: 10px; border-bottom: 1px solid #eee; font-weight: 500;">${r.team}</td>
+          <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center; font-weight: bold;">${r.sosRank}</td>
+          <td style="padding: 10px; border-bottom: 1px solid #eee;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <img src="/logos/100px/${logoSlug}.png" onerror="this.src='/logos/100px/Ball603-white.png'" style="width: 28px; height: 28px; object-fit: contain;">
+              <span style="font-weight: 500;">${r.team}</span>
+            </div>
+          </td>
           <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">${r.wins}-${r.losses}</td>
           <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">${r.gamesPlayed}</td>
           <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">${r.oppWins}-${r.oppLosses}</td>
           <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center; font-weight: bold;">${oppWinPctFormatted}</td>
-          <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">
-            <span style="background: ${r.sosRank <= 3 ? '#f57c00' : '#666'}; color: white; padding: 3px 8px; border-radius: 12px; font-size: 12px;">#${r.sosRank}</span>
-          </td>
         </tr>`;
+        
+        rowIndex++;
       }
       
       tbody.innerHTML = html;
