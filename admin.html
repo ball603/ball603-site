@@ -4583,28 +4583,36 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         <span id="sosLastUpdated" style="color: #888; font-size: 13px; margin-left: auto;"></span>
       </div>
       
-      <div style="background: #fff; border-radius: 10px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.08);">
+      <div style="background: #fff; border-radius: 10px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); overflow-x: auto;">
         <table style="width: 100%; border-collapse: collapse;" id="sosTable">
           <thead>
+            <tr style="background: #e3e3e3;">
+              <th style="padding: 8px; border-bottom: 1px solid #ccc;" colspan="4"></th>
+              <th style="padding: 8px; text-align: center; border-bottom: 1px solid #ccc; border-left: 2px solid #bbb; background: #d9ead3;" colspan="2">Games Played</th>
+              <th style="padding: 8px; text-align: center; border-bottom: 1px solid #ccc; border-left: 2px solid #bbb; background: #fce5cd;" colspan="3">Remaining Schedule</th>
+            </tr>
             <tr style="background: #f5f5f5;">
-              <th style="padding: 12px; text-align: center; border-bottom: 2px solid #ddd; width: 60px;">SOS</th>
-              <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Team</th>
-              <th style="padding: 12px; text-align: center; border-bottom: 2px solid #ddd;">Record</th>
-              <th style="padding: 12px; text-align: center; border-bottom: 2px solid #ddd;">Games</th>
-              <th style="padding: 12px; text-align: center; border-bottom: 2px solid #ddd;">Opp Record</th>
-              <th style="padding: 12px; text-align: center; border-bottom: 2px solid #ddd;">Opp Win%</th>
+              <th style="padding: 10px; text-align: center; border-bottom: 2px solid #ddd; width: 50px;">SOS</th>
+              <th style="padding: 10px; text-align: left; border-bottom: 2px solid #ddd;">Team</th>
+              <th style="padding: 10px; text-align: center; border-bottom: 2px solid #ddd;">Record</th>
+              <th style="padding: 10px; text-align: center; border-bottom: 2px solid #ddd;">Win %</th>
+              <th style="padding: 10px; text-align: center; border-bottom: 2px solid #ddd; border-left: 2px solid #bbb;">Opp Rec</th>
+              <th style="padding: 10px; text-align: center; border-bottom: 2px solid #ddd;">Opp Win%</th>
+              <th style="padding: 10px; text-align: center; border-bottom: 2px solid #ddd; border-left: 2px solid #bbb;">Opp Rec</th>
+              <th style="padding: 10px; text-align: center; border-bottom: 2px solid #ddd;">Opp Win%</th>
+              <th style="padding: 10px; text-align: center; border-bottom: 2px solid #ddd;">SOS</th>
             </tr>
           </thead>
           <tbody id="sosTableBody">
-            <tr><td colspan="6" style="padding: 40px; text-align: center; color: #888;">Select options and click Refresh to load data</td></tr>
+            <tr><td colspan="9" style="padding: 40px; text-align: center; color: #888;">Select options and click Refresh to load data</td></tr>
           </tbody>
         </table>
       </div>
       
       <div style="margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px; font-size: 13px; color: #666;">
         <strong>How SOS is calculated:</strong><br>
-        • <strong>Opp Record:</strong> Combined W-L record of all opponents played<br>
-        • <strong>Opp Win%:</strong> Average winning percentage of all opponents (higher = tougher schedule)<br>
+        • <strong>Opp Rec:</strong> Combined W-L record of opponents<br>
+        • <strong>Opp Win%:</strong> Average winning percentage of opponents (higher = tougher schedule)<br>
         • <strong>SOS:</strong> Rank within division based on Opp Win% (1 = toughest schedule)
       </div>
     </div>
@@ -18519,11 +18527,11 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const division = document.getElementById('sosDivision').value;
       const tbody = document.getElementById('sosTableBody');
       
-      tbody.innerHTML = '<tr><td colspan="6" style="padding: 40px; text-align: center; color: #888;">Loading...</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="9" style="padding: 40px; text-align: center; color: #888;">Loading...</td></tr>';
       
       try {
         // Fetch all completed NHIAA games
-        const { data: games, error: gamesError } = await db
+        const { data: completedGames, error: gamesError } = await db
           .from('games')
           .select('home_team, away_team, home_score, away_score, gender, division')
           .eq('level', 'NHIAA')
@@ -18532,6 +18540,16 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           .not('away_score', 'is', null);
         
         if (gamesError) throw gamesError;
+        
+        // Fetch future/remaining games (no scores yet)
+        const { data: futureGames, error: futureError } = await db
+          .from('games')
+          .select('home_team, away_team, gender, division, date')
+          .eq('level', 'NHIAA')
+          .eq('gender', gender)
+          .is('home_score', null);
+        
+        if (futureError) throw futureError;
         
         // Fetch standings for division info
         const { data: standings, error: standingsError } = await db
@@ -18551,23 +18569,23 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           teamDivisions.set(key, s.division);
         }
         
-        // Calculate SOS for each team
-        const teamsMap = new Map();
+        // Calculate SOS for each team - PLAYED games
+        const teamsPlayedMap = new Map();
         
-        for (const game of games) {
+        for (const game of completedGames) {
           const homeTeam = game.home_team;
           const awayTeam = game.away_team;
           
           // Initialize teams if needed
-          if (!teamsMap.has(homeTeam)) {
-            teamsMap.set(homeTeam, { 
+          if (!teamsPlayedMap.has(homeTeam)) {
+            teamsPlayedMap.set(homeTeam, { 
               team: homeTeam, 
               opponents: [], 
               division: teamDivisions.get(`${homeTeam}_${gender}`) || game.division 
             });
           }
-          if (!teamsMap.has(awayTeam)) {
-            teamsMap.set(awayTeam, { 
+          if (!teamsPlayedMap.has(awayTeam)) {
+            teamsPlayedMap.set(awayTeam, { 
               team: awayTeam, 
               opponents: [], 
               division: teamDivisions.get(`${awayTeam}_${gender}`) || game.division 
@@ -18575,75 +18593,144 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           }
           
           // Add opponents
-          teamsMap.get(homeTeam).opponents.push(awayTeam);
-          teamsMap.get(awayTeam).opponents.push(homeTeam);
+          teamsPlayedMap.get(homeTeam).opponents.push(awayTeam);
+          teamsPlayedMap.get(awayTeam).opponents.push(homeTeam);
+        }
+        
+        // Calculate SOS for each team - REMAINING games
+        const teamsRemainingMap = new Map();
+        
+        for (const game of futureGames) {
+          const homeTeam = game.home_team;
+          const awayTeam = game.away_team;
+          
+          // Initialize teams if needed
+          if (!teamsRemainingMap.has(homeTeam)) {
+            teamsRemainingMap.set(homeTeam, { 
+              team: homeTeam, 
+              opponents: [], 
+              division: teamDivisions.get(`${homeTeam}_${gender}`) || game.division 
+            });
+          }
+          if (!teamsRemainingMap.has(awayTeam)) {
+            teamsRemainingMap.set(awayTeam, { 
+              team: awayTeam, 
+              opponents: [], 
+              division: teamDivisions.get(`${awayTeam}_${gender}`) || game.division 
+            });
+          }
+          
+          // Add opponents
+          teamsRemainingMap.get(homeTeam).opponents.push(awayTeam);
+          teamsRemainingMap.get(awayTeam).opponents.push(homeTeam);
         }
         
         // Calculate opponent records - only include teams that exist in standings
         const results = [];
         
-        for (const [teamName, teamData] of teamsMap) {
-          // Skip teams not in standings (non-NHIAA teams like Blue Mountain Union)
-          if (!teamRecords.has(`${teamName}_${gender}`)) continue;
+        // Get all NHIAA teams from standings
+        const nhiaaTeams = new Set(standings.map(s => s.school));
+        
+        for (const teamName of nhiaaTeams) {
+          const teamDiv = teamDivisions.get(`${teamName}_${gender}`);
           
           // Filter by division if specified
-          if (division !== 'all' && teamData.division !== division) continue;
+          if (division !== 'all' && teamDiv !== division) continue;
           
-          let oppWins = 0;
-          let oppLosses = 0;
-          let oppCount = 0;
+          // PLAYED opponents
+          const playedData = teamsPlayedMap.get(teamName);
+          let playedOppWins = 0, playedOppLosses = 0;
           
-          for (const opp of teamData.opponents) {
-            const oppRecord = teamRecords.get(`${opp}_${gender}`);
-            if (oppRecord) {
-              oppWins += oppRecord.wins;
-              oppLosses += oppRecord.losses;
-              oppCount++;
+          if (playedData) {
+            for (const opp of playedData.opponents) {
+              const oppRecord = teamRecords.get(`${opp}_${gender}`);
+              if (oppRecord) {
+                playedOppWins += oppRecord.wins;
+                playedOppLosses += oppRecord.losses;
+              }
             }
           }
           
-          const totalOppGames = oppWins + oppLosses;
-          const oppWinPct = totalOppGames > 0 ? oppWins / totalOppGames : 0;
+          const playedTotalOppGames = playedOppWins + playedOppLosses;
+          const playedOppWinPct = playedTotalOppGames > 0 ? playedOppWins / playedTotalOppGames : 0;
+          
+          // REMAINING opponents
+          const remainingData = teamsRemainingMap.get(teamName);
+          let remainingOppWins = 0, remainingOppLosses = 0;
+          
+          if (remainingData) {
+            for (const opp of remainingData.opponents) {
+              const oppRecord = teamRecords.get(`${opp}_${gender}`);
+              if (oppRecord) {
+                remainingOppWins += oppRecord.wins;
+                remainingOppLosses += oppRecord.losses;
+              }
+            }
+          }
+          
+          const remainingTotalOppGames = remainingOppWins + remainingOppLosses;
+          const remainingOppWinPct = remainingTotalOppGames > 0 ? remainingOppWins / remainingTotalOppGames : 0;
           
           const teamRecord = teamRecords.get(`${teamName}_${gender}`);
           
           results.push({
             team: teamName,
-            division: teamData.division,
+            division: teamDiv,
             wins: teamRecord?.wins || 0,
             losses: teamRecord?.losses || 0,
-            gamesPlayed: teamData.opponents.length,
-            oppWins: oppWins,
-            oppLosses: oppLosses,
-            oppWinPct: oppWinPct
+            // Played
+            playedOppWins: playedOppWins,
+            playedOppLosses: playedOppLosses,
+            playedOppWinPct: playedOppWinPct,
+            // Remaining
+            remainingOppWins: remainingOppWins,
+            remainingOppLosses: remainingOppLosses,
+            remainingOppWinPct: remainingOppWinPct,
+            hasRemaining: remainingData && remainingData.opponents.length > 0
           });
         }
         
-        // Sort by opponent win % (descending - toughest schedule first)
-        results.sort((a, b) => b.oppWinPct - a.oppWinPct);
+        // Sort by played opponent win % (descending - toughest schedule first)
+        results.sort((a, b) => b.playedOppWinPct - a.playedOppWinPct);
         
-        // Assign SOS ranks (within each division if filtering all)
+        // Assign SOS ranks for PLAYED (within each division if filtering all)
         if (division === 'all') {
-          // Rank within each division
           const byDivision = {};
           for (const r of results) {
             if (!byDivision[r.division]) byDivision[r.division] = [];
             byDivision[r.division].push(r);
           }
           for (const div of Object.keys(byDivision)) {
-            byDivision[div].sort((a, b) => b.oppWinPct - a.oppWinPct);
-            byDivision[div].forEach((r, i) => r.sosRank = i + 1);
+            byDivision[div].sort((a, b) => b.playedOppWinPct - a.playedOppWinPct);
+            byDivision[div].forEach((r, i) => r.playedSosRank = i + 1);
           }
         } else {
-          results.forEach((r, i) => r.sosRank = i + 1);
+          results.forEach((r, i) => r.playedSosRank = i + 1);
         }
         
-        // Re-sort by division then SOS rank for display
+        // Assign SOS ranks for REMAINING
+        const resultsForRemaining = results.filter(r => r.hasRemaining);
+        if (division === 'all') {
+          const byDivision = {};
+          for (const r of resultsForRemaining) {
+            if (!byDivision[r.division]) byDivision[r.division] = [];
+            byDivision[r.division].push(r);
+          }
+          for (const div of Object.keys(byDivision)) {
+            byDivision[div].sort((a, b) => b.remainingOppWinPct - a.remainingOppWinPct);
+            byDivision[div].forEach((r, i) => r.remainingSosRank = i + 1);
+          }
+        } else {
+          resultsForRemaining.sort((a, b) => b.remainingOppWinPct - a.remainingOppWinPct);
+          resultsForRemaining.forEach((r, i) => r.remainingSosRank = i + 1);
+        }
+        
+        // Re-sort by division then played SOS rank for display
         results.sort((a, b) => {
           const divOrder = ['D-I', 'D-II', 'D-III', 'D-IV'];
           const divCompare = divOrder.indexOf(a.division) - divOrder.indexOf(b.division);
           if (divCompare !== 0) return divCompare;
-          return a.sosRank - b.sosRank;
+          return a.playedSosRank - b.playedSosRank;
         });
         
         sosData = results;
@@ -18653,7 +18740,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         
       } catch (err) {
         console.error('Error loading SOS data:', err);
-        tbody.innerHTML = '<tr><td colspan="6" style="padding: 40px; text-align: center; color: #c00;">Error loading data: ' + err.message + '</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" style="padding: 40px; text-align: center; color: #c00;">Error loading data: ' + err.message + '</td></tr>';
       }
     }
     
@@ -18661,7 +18748,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const tbody = document.getElementById('sosTableBody');
       
       if (results.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="padding: 40px; text-align: center; color: #888;">No data found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" style="padding: 40px; text-align: center; color: #888;">No data found</td></tr>';
         return;
       }
       
@@ -18677,16 +18764,19 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           currentDiv = r.division;
           rowIndex = 0; // Reset for alternating colors
           html += `<tr style="background: #1a73e8; color: white;">
-            <td colspan="6" style="padding: 10px; font-weight: bold;">${r.division}</td>
+            <td colspan="9" style="padding: 10px; font-weight: bold;">${r.division}</td>
           </tr>`;
         }
         
-        const oppWinPctFormatted = (r.oppWinPct * 100).toFixed(1) + '%';
+        const playedOppWinPctFormatted = (r.playedOppWinPct * 100).toFixed(1) + '%';
+        const remainingOppWinPctFormatted = r.hasRemaining ? (r.remainingOppWinPct * 100).toFixed(1) + '%' : '-';
         const rowBg = rowIndex % 2 === 0 ? '#fff' : '#f9f9f9';
         const logoSlug = r.team.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const totalGames = r.wins + r.losses;
+        const winPct = totalGames > 0 ? ((r.wins / totalGames) * 100).toFixed(1) + '%' : '-';
         
         html += `<tr style="background: ${rowBg};">
-          <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center; font-weight: bold;">${r.sosRank}</td>
+          <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center; font-weight: bold;">${r.playedSosRank}</td>
           <td style="padding: 10px; border-bottom: 1px solid #eee;">
             <div style="display: flex; align-items: center; gap: 10px;">
               <img src="/logos/100px/${logoSlug}.png" onerror="this.src='/logos/100px/Ball603-white.png'" style="width: 28px; height: 28px; object-fit: contain;">
@@ -18694,9 +18784,12 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             </div>
           </td>
           <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">${r.wins}-${r.losses}</td>
-          <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">${r.gamesPlayed}</td>
-          <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">${r.oppWins}-${r.oppLosses}</td>
-          <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center; font-weight: bold;">${oppWinPctFormatted}</td>
+          <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">${winPct}</td>
+          <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center; border-left: 2px solid #ddd;">${r.playedOppWins}-${r.playedOppLosses}</td>
+          <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">${playedOppWinPctFormatted}</td>
+          <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center; border-left: 2px solid #ddd;">${r.hasRemaining ? r.remainingOppWins + '-' + r.remainingOppLosses : '-'}</td>
+          <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">${remainingOppWinPctFormatted}</td>
+          <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center; font-weight: bold;">${r.remainingSosRank || '-'}</td>
         </tr>`;
         
         rowIndex++;
