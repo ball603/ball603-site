@@ -188,6 +188,11 @@ async function updateSupabase(standings) {
 async function updateRecordsFromGames() {
   console.log('Calculating W-L records from games table...');
   
+  // Map normalized game names to NHIAA standings names (where they differ)
+  const GAME_TO_STANDINGS = {
+    'Coe-Brown': 'Coe-Brown Northwood'
+  };
+  
   // Step 1: Get all existing standings to find each team's actual division
   const standingsResponse = await fetch(
     `${SUPABASE_URL}/rest/v1/standings?select=school,gender,division`,
@@ -236,8 +241,9 @@ async function updateRecordsFromGames() {
   for (const game of games) {
     if (game.home_score === null || game.away_score === null) continue;
     
-    const homeTeam = game.home_team;
-    const awayTeam = game.away_team;
+    // Convert game team names to standings names (if mapping exists)
+    const homeTeam = GAME_TO_STANDINGS[game.home_team] || game.home_team;
+    const awayTeam = GAME_TO_STANDINGS[game.away_team] || game.away_team;
     const homeScore = parseInt(game.home_score);
     const awayScore = parseInt(game.away_score);
     const gender = game.gender;
