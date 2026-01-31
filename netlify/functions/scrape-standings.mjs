@@ -15,6 +15,94 @@ const STANDINGS_URLS = [
   { url: 'https://www.nhiaa.org/sports/standings/girls-basketball/division-4', gender: 'Girls', division: 'D-IV' },
 ];
 
+// Map from normalized game names back to NHIAA standings names
+// This is the REVERSE of what scrape-schedules uses
+const GAME_TO_STANDINGS_NAME = {
+  'Alvirne': 'Alvirne',
+  'Bedford': 'Bedford',
+  'Belmont': 'Belmont',
+  'Berlin': 'Berlin',
+  'Bishop Brady': 'Bishop Brady',
+  'Bishop Guertin': 'Bishop Guertin',
+  'Bow': 'Bow',
+  'Campbell': 'Campbell',
+  'Coe-Brown': 'Coe-Brown Northwood',
+  'Colebrook': 'Colebrook Academy',
+  'ConVal': 'ConVal',
+  'Conant': 'Conant',
+  'Concord Christian': 'Concord Christian',
+  'Concord': 'Concord',
+  'Derryfield': 'Derryfield',
+  'Dover': 'Dover',
+  'Epping': 'Epping',
+  'Exeter': 'Exeter',
+  'Fall Mountain': 'Fall Mountain',
+  'Farmington': 'Farmington',
+  'Franklin': 'Franklin',
+  'Gilford': 'Gilford',
+  'Goffstown': 'Goffstown',
+  'Gorham': 'Gorham',
+  'Groveton': 'Groveton',
+  'Hanover': 'Hanover',
+  'Hillsboro-Deering': 'Hillsboro-Deering',
+  'Hinsdale': 'Hinsdale',
+  'Hollis-Brookline': 'Hollis-Brookline',
+  'Holy Family': 'Holy Family',
+  'Hopkinton': 'Hopkinton',
+  'Inter-Lakes': 'Inter-Lakes',
+  'John Stark': 'John Stark',
+  'Kearsarge': 'Kearsarge',
+  'Keene': 'Keene',
+  'Kennett': 'Kennett',
+  'Kingswood': 'Kingswood',
+  'Laconia': 'Laconia',
+  'Lebanon': 'Lebanon',
+  'Lin-Wood': 'Lin-Wood',
+  'Lisbon': 'Lisbon',
+  'Littleton': 'Littleton',
+  'Londonderry': 'Londonderry',
+  'Manchester Central': 'Manchester Central',
+  'Manchester Memorial': 'Manchester Memorial',
+  'Manchester West': 'Manchester West',
+  'Mascenic': 'Mascenic',
+  'Mascoma Valley': 'Mascoma Valley',
+  'Merrimack': 'Merrimack',
+  'Merrimack Valley': 'Merrimack Valley',
+  'Milford': 'Milford',
+  'Monadnock': 'Monadnock',
+  'Moultonborough': 'Moultonborough',
+  'Nashua North': 'Nashua North',
+  'Nashua South': 'Nashua South',
+  'Newfound': 'Newfound',
+  'Newport': 'Newport',
+  'Oyster River': 'Oyster River',
+  'Pelham': 'Pelham',
+  'Pembroke': 'Pembroke',
+  'Pinkerton': 'Pinkerton',
+  'Pittsburg-Canaan': 'Pittsburg-Canaan',
+  'Plymouth': 'Plymouth',
+  'Portsmouth': 'Portsmouth',
+  'Portsmouth Christian': 'Portsmouth Christian',
+  'Profile': 'Profile',
+  'Prospect Mountain': 'Prospect Mountain',
+  'Raymond': 'Raymond',
+  'Salem': 'Salem',
+  'Sanborn': 'Sanborn',
+  'Souhegan': 'Souhegan',
+  'Spaulding': 'Spaulding',
+  'St. Thomas Aquinas': 'St. Thomas Aquinas',
+  'Stevens': 'Stevens',
+  'Sunapee': 'Sunapee',
+  'Somersworth': 'Somersworth',
+  'Timberlane': 'Timberlane',
+  'Trinity': 'Trinity',
+  'White Mountains': 'White Mountains',
+  'Wilton-Lyndeborough': 'Wilton-Lyndeborough',
+  'Winnisquam': 'Winnisquam',
+  'Windham': 'Windham',
+  'Woodsville': 'Woodsville'
+};
+
 function parseStandingsPage(html, gender, division) {
   const standings = [];
   
@@ -188,6 +276,55 @@ async function updateSupabase(standings) {
 async function updateRecordsFromGames() {
   console.log('Calculating W-L records from games table...');
   
+  // Step 1: Get all existing standings to build a lookup of actual NHIAA names
+  const standingsResponse = await fetch(
+    `${SUPABASE_URL}/rest/v1/standings?select=school,gender,division`,
+    {
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Range': '0-9999'
+      }
+    }
+  );
+  
+  // Build lookup: normalized name -> NHIAA name (by gender/division)
+  const standingsLookup = new Map();
+  if (standingsResponse.ok) {
+    const standings = await standingsResponse.json();
+    for (const s of standings) {
+      // Store the actual NHIAA name
+      const key = `${s.school.toLowerCase().replace(/[^a-z0-9]/g, '')}_${s.gender}_${s.division}`;
+      standingsLookup.set(key, s.school);
+    }
+    console.log(`  Loaded ${standingsLookup.size} standings entries for name lookup`);
+  }
+  
+  // Helper to find the NHIAA standings name for a game team name
+  function findStandingsName(gameTeamName, gender, division) {
+    // First try the explicit mapping
+    if (GAME_TO_STANDINGS_NAME[gameTeamName]) {
+      return GAME_TO_STANDINGS_NAME[gameTeamName];
+    }
+    
+    // Try to find in standings by normalized comparison
+    const normalizedGame = gameTeamName.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const key = `${normalizedGame}_${gender}_${division}`;
+    if (standingsLookup.has(key)) {
+      return standingsLookup.get(key);
+    }
+    
+    // Try without division (cross-division games)
+    for (const [k, v] of standingsLookup) {
+      if (k.startsWith(normalizedGame + '_' + gender)) {
+        return v;
+      }
+    }
+    
+    // Fall back to game name
+    return gameTeamName;
+  }
+  
   // Fetch all completed NHIAA games
   const gamesResponse = await fetch(
     `${SUPABASE_URL}/rest/v1/games?level=eq.NHIAA&select=home_team,away_team,home_score,away_score,gender,division&or=(home_score.not.is.null,away_score.not.is.null)`,
@@ -208,27 +345,45 @@ async function updateRecordsFromGames() {
   const games = await gamesResponse.json();
   console.log(`  Found ${games.length} completed games`);
   
-  // Calculate records for each team
+  // Calculate records for each team (using NHIAA standings names)
   const teamRecords = new Map();
   
   for (const game of games) {
     if (game.home_score === null || game.away_score === null) continue;
     
-    const homeTeam = game.home_team;
-    const awayTeam = game.away_team;
+    const homeTeamGame = game.home_team;
+    const awayTeamGame = game.away_team;
     const homeScore = parseInt(game.home_score);
     const awayScore = parseInt(game.away_score);
     const gender = game.gender;
     const division = game.division;
     
-    const homeKey = `${homeTeam}_${gender}_${division}`;
-    const awayKey = `${awayTeam}_${gender}_${division}`;
+    // Convert game team names to NHIAA standings names
+    const homeTeam = findStandingsName(homeTeamGame, gender, division);
+    const awayTeam = findStandingsName(awayTeamGame, gender, division);
+    
+    // Get each team's actual division from standings lookup
+    const getTeamDivision = (teamName, defaultDiv) => {
+      const normalized = teamName.toLowerCase().replace(/[^a-z0-9]/g, '');
+      for (const [k, v] of standingsLookup) {
+        if (k.startsWith(normalized + '_' + gender) && v === teamName) {
+          return k.split('_')[2]; // Extract division from key
+        }
+      }
+      return defaultDiv;
+    };
+    
+    const homeDivision = getTeamDivision(homeTeam, division);
+    const awayDivision = getTeamDivision(awayTeam, division);
+    
+    const homeKey = `${homeTeam}_${gender}_${homeDivision}`;
+    const awayKey = `${awayTeam}_${gender}_${awayDivision}`;
     
     if (!teamRecords.has(homeKey)) {
-      teamRecords.set(homeKey, { school: homeTeam, gender, division, wins: 0, losses: 0, ties: 0 });
+      teamRecords.set(homeKey, { school: homeTeam, gender, division: homeDivision, wins: 0, losses: 0, ties: 0 });
     }
     if (!teamRecords.has(awayKey)) {
-      teamRecords.set(awayKey, { school: awayTeam, gender, division, wins: 0, losses: 0, ties: 0 });
+      teamRecords.set(awayKey, { school: awayTeam, gender, division: awayDivision, wins: 0, losses: 0, ties: 0 });
     }
     
     const homeRecord = teamRecords.get(homeKey);
@@ -251,6 +406,7 @@ async function updateRecordsFromGames() {
   // Update standings with calculated records
   const now = new Date().toISOString();
   let updatedCount = 0;
+  let failedUpdates = [];
   
   for (const [key, record] of teamRecords) {
     const gamesPlayed = record.wins + record.losses + record.ties;
@@ -264,7 +420,7 @@ async function updateRecordsFromGames() {
           'apikey': SUPABASE_KEY,
           'Authorization': `Bearer ${SUPABASE_KEY}`,
           'Content-Type': 'application/json',
-          'Prefer': 'return=minimal'
+          'Prefer': 'return=representation'
         },
         body: JSON.stringify({
           wins: record.wins,
@@ -277,7 +433,22 @@ async function updateRecordsFromGames() {
       }
     );
     
-    if (response.ok) updatedCount++;
+    if (response.ok) {
+      const result = await response.json();
+      if (result.length > 0) {
+        updatedCount++;
+      } else {
+        failedUpdates.push(`${record.school} (${record.gender} ${record.division})`);
+      }
+    } else {
+      failedUpdates.push(`${record.school} (${record.gender} ${record.division})`);
+    }
+  }
+  
+  if (failedUpdates.length > 0) {
+    console.log(`  ⚠️ Failed to update ${failedUpdates.length} teams (no matching standings record):`);
+    failedUpdates.slice(0, 10).forEach(t => console.log(`    - ${t}`));
+    if (failedUpdates.length > 10) console.log(`    ... and ${failedUpdates.length - 10} more`);
   }
   
   console.log(`  Updated ${updatedCount} team W-L records`);
