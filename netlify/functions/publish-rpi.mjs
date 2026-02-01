@@ -109,12 +109,18 @@ export default async (request) => {
       'standings?select=school,gender,division,wins,losses'
     );
 
-    // 3. Calculate RPI for each gender/division
+    // 3. Fetch future/remaining games (no scores yet)
+    const futureGames = await supabaseGet(
+      'games?select=home_team,away_team,gender,division&level=eq.NHIAA&home_score=is.null'
+    );
+
+    // 4. Calculate RPI for each gender/division
     const allResults = [];
 
     for (const gender of GENDERS) {
       const games = allGames.filter(g => g.gender === gender);
       const standings = allStandings.filter(s => s.gender === gender);
+      const future = futureGames.filter(g => g.gender === gender);
       if (standings.length === 0) continue;
 
       const teamRecords = new Map();
@@ -124,6 +130,15 @@ export default async (request) => {
         teamDivisions.set(s.school, s.division);
       }
       const teams = new Set(standings.map(s => s.school));
+
+      // Build remaining opponents map from future games
+      const remainingOpps = new Map();
+      for (const g of future) {
+        if (!remainingOpps.has(g.home_team)) remainingOpps.set(g.home_team, []);
+        if (!remainingOpps.has(g.away_team)) remainingOpps.set(g.away_team, []);
+        remainingOpps.get(g.home_team).push(g.away_team);
+        remainingOpps.get(g.away_team).push(g.home_team);
+      }
 
       // Build opponent lists from completed games
       const oppMap = new Map();
@@ -184,6 +199,7 @@ export default async (request) => {
       }
 
       // Build results by division
+      const genderResults = [];
       for (const div of DIVISIONS) {
         const divTeams = [];
         for (const team of teams) {
@@ -201,8 +217,34 @@ export default async (request) => {
         }
         divTeams.sort((a, b) => b.rpi - a.rpi);
         divTeams.forEach((t, i) => { t.rank = i + 1; });
-        allResults.push(...divTeams);
+        genderResults.push(...divTeams);
       }
+
+      // Build team -> RPI lookup for this gender (across all divisions)
+      const teamRPI = new Map();
+      for (const r of genderResults) {
+        teamRPI.set(r.team, r.rpi);
+      }
+
+      // Calculate Remaining SOS = average RPI of remaining opponents
+      for (const r of genderResults) {
+        const opps = remainingOpps.get(r.team);
+        if (!opps || opps.length === 0) {
+          r.remaining_sos = null;
+        } else {
+          let sum = 0, cnt = 0;
+          for (const opp of opps) {
+            const oppRpi = teamRPI.get(opp);
+            if (oppRpi !== undefined) {
+              sum += oppRpi;
+              cnt++;
+            }
+          }
+          r.remaining_sos = cnt > 0 ? sum / cnt : null;
+        }
+      }
+
+      allResults.push(...genderResults);
     }
 
     // 4. Fetch historical data for High/Low/Last
@@ -225,7 +267,7 @@ export default async (request) => {
       // First run or table empty - that's fine
     }
 
-    // 5. Build rows
+    // 6. Build rows
     const rows = allResults.map(function(r) {
       const key = r.team + '_' + r.gender + '_' + r.division;
       const h = historyMap.get(key);
@@ -240,6 +282,7 @@ export default async (request) => {
         high_rank: h ? Math.min(r.rank, h.high) : r.rank,
         low_rank: h ? Math.max(r.rank, h.low) : r.rank,
         last_rank: h ? h.last : null,
+        remaining_sos: r.remaining_sos !== null ? parseFloat(r.remaining_sos.toFixed(4)) : null,
         calculated_at: now,
         week_of: weekOf
       };

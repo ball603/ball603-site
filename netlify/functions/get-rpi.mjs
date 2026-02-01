@@ -50,7 +50,7 @@ export default async (request) => {
     if (division) filter += `&division=eq.${encodeURIComponent(division)}`;
     
     const dataRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/rpi_rankings?${filter}&order=rank.asc&select=team,gender,division,wins,losses,win_pct,owp,oowp,rpi,rank,high_rank,low_rank,last_rank,calculated_at,week_of`,
+      `${SUPABASE_URL}/rest/v1/rpi_rankings?${filter}&order=rank.asc&select=team,gender,division,wins,losses,win_pct,owp,oowp,rpi,rank,high_rank,low_rank,last_rank,remaining_sos,calculated_at,week_of`,
       {
         headers: {
           'apikey': SUPABASE_KEY,
