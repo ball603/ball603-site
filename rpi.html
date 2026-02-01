@@ -610,13 +610,14 @@
               <th class="center" onclick="sortRPI('winPct')" id="th-winPct">Win %</th>
               <th class="center" onclick="sortRPI('owp')" id="th-owp">Opp Win %</th>
               <th class="center" onclick="sortRPI('oowp')" id="th-oowp">Opp-Opp Win %</th>
-              <th class="center track-col" onclick="sortRPI('high_rank')" id="th-high_rank">High</th>
-              <th class="center track-col-inner" onclick="sortRPI('low_rank')" id="th-low_rank">Low</th>
-              <th class="center track-col-inner" onclick="sortRPI('last_rank')" id="th-last_rank">Last</th>
+              <th class="center track-col" onclick="sortRPI('high_rank')" id="th-high_rank">High Rank</th>
+              <th class="center track-col-inner" onclick="sortRPI('low_rank')" id="th-low_rank">Low Rank</th>
+              <th class="center track-col-inner" onclick="sortRPI('last_rank')" id="th-last_rank">Last Week</th>
+              <th class="center track-col-inner" onclick="sortRPI('remaining_sos')" id="th-remaining_sos">Rem SOS</th>
             </tr>
           </thead>
           <tbody id="rpiBody">
-            <tr><td colspan="10" class="loading-msg">
+            <tr><td colspan="11" class="loading-msg">
               <div class="loading-spinner"></div>
               Loading RPI data...
             </td></tr>
@@ -629,7 +630,9 @@
           <strong>How RPI is calculated:</strong>
           RPI = (Win % &#215; 25%) + (Opp Win % &#215; 50%) + (Opp-Opp Win % &#215; 25%).
           Win % is weighted by location: road win = 1.4, home win = 0.6, road loss = 0.6, home loss = 1.4.
-          High/Low = best/worst rank this season. Last = rank from previous week.
+          <strong>High Rank / Low Rank</strong> = best / worst rank this season.
+          <strong>Last Week</strong> = rank from previous week.
+          <strong>Rem SOS</strong> (Remaining Strength of Schedule) = the average RPI of a team's remaining regular-season opponents. A higher value indicates a tougher remaining schedule.
         </div>
         <div class="rpi-source">Data calculated from Ball603 game results</div>
       </div>
@@ -702,7 +705,8 @@
       const sortLabels = {
         'rpi': 'RPI', 'team': 'Team Name', 'wins': 'Record',
         'winPct': 'Win %', 'owp': 'Opp Win %', 'oowp': 'Opp-Opp Win %',
-        'high_rank': 'Season High', 'low_rank': 'Season Low', 'last_rank': 'Last Week'
+        'high_rank': 'High Rank', 'low_rank': 'Low Rank', 'last_rank': 'Last Week',
+        'remaining_sos': 'Rem SOS'
       };
       const badge = document.querySelector('.rpi-card-badge');
       if (badge) {
@@ -723,7 +727,7 @@
     
     async function loadRPIData() {
       const tbody = document.getElementById('rpiBody');
-      tbody.innerHTML = '<tr><td colspan="10" class="loading-msg"><div class="loading-spinner"></div>Loading...</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="11" class="loading-msg"><div class="loading-spinner"></div>Loading...</td></tr>';
       updateCardHeader();
       
       // Check cache first
@@ -737,7 +741,7 @@
         const data = await response.json();
         
         if (!data.rankings || data.rankings.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="10" class="loading-msg">No RPI data available yet. Check back Monday!</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="11" class="loading-msg">No RPI data available yet. Check back Monday!</td></tr>';
           return;
         }
         
@@ -750,7 +754,7 @@
         
       } catch (err) {
         console.error('RPI load error:', err);
-        tbody.innerHTML = '<tr><td colspan="10" class="loading-msg" style="color:#c00;">Error loading data. Please refresh the page.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="11" class="loading-msg" style="color:#c00;">Error loading data. Please refresh the page.</td></tr>';
       }
     }
     
@@ -816,7 +820,7 @@
     function renderTable(results) {
       const tbody = document.getElementById('rpiBody');
       if (results.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="10" class="loading-msg">No data available for this division</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="11" class="loading-msg">No data available for this division</td></tr>';
         return;
       }
       
@@ -866,6 +870,7 @@
           '<td class="track-col center ' + highClass + '">' + (r.high_rank || r.rank) + '</td>' +
           '<td class="track-col-inner center ' + lowClass + '">' + (r.low_rank || r.rank) + '</td>' +
           '<td class="track-col-inner center ' + lastClass + '">' + lastDisplay + '</td>' +
+          '<td class="track-col-inner center">' + (r.remaining_sos !== null ? fmtDec(r.remaining_sos) : '-') + '</td>' +
         '</tr>';
       }
       
