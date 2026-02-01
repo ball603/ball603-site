@@ -1,341 +1,269 @@
 // Ball603 RPI Calculator
 // Scheduled: Mondays at 6 AM ET (11 AM UTC)
 // Also callable manually via POST from admin panel
-
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
-
-const GENDERS = ['Boys', 'Girls'];
-const DIVISIONS = ['D-I', 'D-II', 'D-III', 'D-IV'];
-
-// ===== HELPERS =====
-
-function getMondayOfWeek(date = new Date()) {
-  const d = new Date(date);
-  const day = d.getDay(); // 0=Sun, 1=Mon, ...
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  d.setDate(diff);
-  return d.toISOString().split('T')[0]; // YYYY-MM-DD
-}
-
-async function supabaseGet(path) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
-    headers: {
-      'apikey': SUPABASE_KEY,
-      'Authorization': `Bearer ${SUPABASE_KEY}`,
-      'Range': '0-9999'
-    }
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Supabase GET ${path} failed: ${res.status} ${text}`);
-  }
-  return res.json();
-}
-
-async function supabaseUpsert(table, data, onConflict) {
-  const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/${table}?on_conflict=${onConflict}`,
-    {
-      method: 'POST',
-      headers: {
-        'apikey': SUPABASE_KEY,
-        'Authorization': `Bearer ${SUPABASE_KEY}`,
-        'Content-Type': 'application/json',
-        'Prefer': 'return=minimal,resolution=merge-duplicates'
-      },
-      body: JSON.stringify(data)
-    }
-  );
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Supabase UPSERT ${table} failed: ${res.status} ${text}`);
-  }
-  return res;
-}
-
-// ===== RPI CALCULATION =====
-
-function calculateRPIForGender(completedGames, standings) {
-  // Build team records and divisions from standings
-  const teamRecords = new Map();
-  const teamDivisions = new Map();
-  
-  for (const s of standings) {
-    teamRecords.set(s.school, { wins: s.wins, losses: s.losses });
-    teamDivisions.set(s.school, s.division);
-  }
-  
-  const nhiaaTeams = new Set(standings.map(s => s.school));
-  
-  // Build opponent lists
-  const teamsPlayedMap = new Map();
-  for (const game of completedGames) {
-    const h = game.home_team, a = game.away_team;
-    if (!teamsPlayedMap.has(h)) teamsPlayedMap.set(h, []);
-    if (!teamsPlayedMap.has(a)) teamsPlayedMap.set(a, []);
-    teamsPlayedMap.get(h).push({ opp: a, wasHome: true });
-    teamsPlayedMap.get(a).push({ opp: h, wasHome: false });
-  }
-  
-  // 1. Calculate weighted WP for each team
-  // Home win = 0.6, Road win = 1.4, Home loss = 1.4, Road loss = 0.6
-  const teamWeightedWP = new Map();
-  
-  for (const teamName of nhiaaTeams) {
-    let wW = 0, wL = 0;
-    for (const game of completedGames) {
-      const isHome = game.home_team === teamName;
-      const isAway = game.away_team === teamName;
-      if (!isHome && !isAway) continue;
-      const tScore = isHome ? game.home_score : game.away_score;
-      const oScore = isHome ? game.away_score : game.home_score;
-      if (tScore > oScore) { wW += isHome ? 0.6 : 1.4; }
-      else { wL += isHome ? 1.4 : 0.6; }
-    }
-    const tot = wW + wL;
-    teamWeightedWP.set(teamName, tot > 0 ? wW / tot : 0);
-  }
-  
-  // 2. Calculate OWP for each team (excluding head-to-head)
-  const teamOWP = new Map();
-  
-  for (const teamName of nhiaaTeams) {
-    const opponents = teamsPlayedMap.get(teamName);
-    if (!opponents || opponents.length === 0) { teamOWP.set(teamName, 0); continue; }
-    let sum = 0, cnt = 0;
-    for (const { opp } of opponents) {
-      let oW = 0, oL = 0;
-      for (const game of completedGames) {
-        const oppIsH = game.home_team === opp, oppIsA = game.away_team === opp;
-        if (!oppIsH && !oppIsA) continue;
-        // Exclude games against the team we're calculating for
-        if (game.home_team === teamName || game.away_team === teamName) continue;
-        const oS = oppIsH ? game.home_score : game.away_score;
-        const xS = oppIsH ? game.away_score : game.home_score;
-        if (oS > xS) oW++; else oL++;
-      }
-      const t = oW + oL;
-      if (t > 0) { sum += oW / t; cnt++; }
-    }
-    teamOWP.set(teamName, cnt > 0 ? sum / cnt : 0);
-  }
-  
-  // 3. Calculate OOWP for each team
-  const teamOOWP = new Map();
-  
-  for (const teamName of nhiaaTeams) {
-    const opponents = teamsPlayedMap.get(teamName);
-    if (!opponents || opponents.length === 0) { teamOOWP.set(teamName, 0); continue; }
-    let sum = 0, cnt = 0;
-    for (const { opp } of opponents) {
-      const v = teamOWP.get(opp);
-      if (v !== undefined) { sum += v; cnt++; }
-    }
-    teamOOWP.set(teamName, cnt > 0 ? sum / cnt : 0);
-  }
-  
-  // 4. Build results by division
-  const allResults = [];
-  
-  for (const division of DIVISIONS) {
-    const divTeams = [];
-    
-    for (const teamName of nhiaaTeams) {
-      if (teamDivisions.get(teamName) !== division) continue;
-      
-      const wp = teamWeightedWP.get(teamName) || 0;
-      const owp = teamOWP.get(teamName) || 0;
-      const oowp = teamOOWP.get(teamName) || 0;
-      const rpi = (wp * 0.25) + (owp * 0.50) + (oowp * 0.25);
-      const rec = teamRecords.get(teamName);
-      
-      divTeams.push({
-        team: teamName,
-        division,
-        wins: rec?.wins || 0,
-        losses: rec?.losses || 0,
-        win_pct: wp,
-        owp,
-        oowp,
-        rpi
-      });
-    }
-    
-    // Sort by RPI descending to assign ranks
-    divTeams.sort((a, b) => b.rpi - a.rpi);
-    divTeams.forEach((t, i) => { t.rank = i + 1; });
-    
-    allResults.push(...divTeams);
-  }
-  
-  return allResults;
-}
-
-// ===== MAIN HANDLER =====
+// Add ?test=1 to URL for diagnostic mode
 
 export default async (request) => {
   const headers = {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*'
   };
-  
-  // Handle CORS preflight
-  if (request.method === 'OPTIONS') {
-    return new Response('', { status: 204, headers: { ...headers, 'Access-Control-Allow-Methods': 'POST, GET' } });
-  }
-  
-  // Validate env vars
-  if (!SUPABASE_URL || !SUPABASE_KEY) {
-    return new Response(JSON.stringify({
-      success: false,
-      error: 'Missing environment variables: SUPABASE_URL or SUPABASE_SERVICE_KEY'
-    }), { status: 500, headers });
-  }
-  
+
   try {
-    console.log('Starting RPI calculation...');
-    console.log('SUPABASE_URL:', SUPABASE_URL ? 'set' : 'MISSING');
+    // Parse URL params safely
+    let testMode = false;
+    try {
+      const url = new URL(request.url);
+      testMode = url.searchParams.get('test') === '1';
+    } catch (e) {
+      // Scheduled invocations may not have a real URL
+    }
+
+    // Handle CORS preflight
+    if (request.method === 'OPTIONS') {
+      return new Response('', { status: 204, headers });
+    }
+
+    const SUPABASE_URL = process.env.SUPABASE_URL;
+    const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
+
+    // ===== TEST MODE: Quick diagnostic =====
+    if (testMode) {
+      return new Response(JSON.stringify({
+        success: true,
+        test: true,
+        hasSupabaseUrl: !!SUPABASE_URL,
+        hasSupabaseKey: !!SUPABASE_KEY,
+        supabaseUrlPrefix: SUPABASE_URL ? SUPABASE_URL.substring(0, 30) + '...' : 'MISSING',
+        nodeVersion: process.version,
+        timestamp: new Date().toISOString()
+      }), { status: 200, headers });
+    }
+
+    // Validate env vars
+    if (!SUPABASE_URL || !SUPABASE_KEY) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Missing env vars. SUPABASE_URL: ' + (SUPABASE_URL ? 'set' : 'MISSING') + ', SUPABASE_SERVICE_KEY: ' + (SUPABASE_KEY ? 'set' : 'MISSING')
+      }), { status: 500, headers });
+    }
+
+    // ===== HELPERS =====
+    async function supabaseGet(path) {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Range': '0-9999'
+        }
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`GET ${path.substring(0, 60)} => ${res.status}: ${text.substring(0, 200)}`);
+      }
+      return res.json();
+    }
+
+    async function supabaseUpsert(table, data, onConflict) {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/${table}?on_conflict=${onConflict}`,
+        {
+          method: 'POST',
+          headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal,resolution=merge-duplicates'
+          },
+          body: JSON.stringify(data)
+        }
+      );
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`UPSERT ${table} => ${res.status}: ${text.substring(0, 200)}`);
+      }
+    }
+
+    // ===== MAIN LOGIC =====
+    const GENDERS = ['Boys', 'Girls'];
+    const DIVISIONS = ['D-I', 'D-II', 'D-III', 'D-IV'];
+
+    function getMondayOfWeek() {
+      const d = new Date();
+      const day = d.getDay();
+      const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+      d.setDate(diff);
+      return d.toISOString().split('T')[0];
+    }
+
     const weekOf = getMondayOfWeek();
     const now = new Date().toISOString();
-    console.log('Week of:', weekOf);
-    
-    // 1. Fetch all completed NHIAA games
-    console.log('Fetching games...');
+
+    // 1. Fetch games
     const allGames = await supabaseGet(
-      'games?select=home_team,away_team,home_score,away_score,gender,division' +
-      '&level=eq.NHIAA&home_score=not.is.null&away_score=not.is.null'
+      'games?select=home_team,away_team,home_score,away_score,gender,division&level=eq.NHIAA&home_score=not.is.null&away_score=not.is.null'
     );
-    console.log(`Fetched ${allGames.length} completed games`);
-    
-    // 2. Fetch all standings
-    console.log('Fetching standings...');
+
+    // 2. Fetch standings
     const allStandings = await supabaseGet(
       'standings?select=school,gender,division,wins,losses'
     );
-    console.log(`Fetched ${allStandings.length} standings entries`);
-    
-    // 3. Calculate RPI for each gender
+
+    // 3. Calculate RPI for each gender/division
     const allResults = [];
-    
+
     for (const gender of GENDERS) {
-      const genderGames = allGames.filter(g => g.gender === gender);
-      const genderStandings = allStandings.filter(s => s.gender === gender);
-      
-      if (genderStandings.length === 0) {
-        console.log(`No standings for ${gender}, skipping`);
-        continue;
+      const games = allGames.filter(g => g.gender === gender);
+      const standings = allStandings.filter(s => s.gender === gender);
+      if (standings.length === 0) continue;
+
+      const teamRecords = new Map();
+      const teamDivisions = new Map();
+      for (const s of standings) {
+        teamRecords.set(s.school, { wins: s.wins, losses: s.losses });
+        teamDivisions.set(s.school, s.division);
       }
-      
-      const results = calculateRPIForGender(genderGames, genderStandings);
-      
-      // Tag with gender
-      results.forEach(r => { r.gender = gender; });
-      allResults.push(...results);
+      const teams = new Set(standings.map(s => s.school));
+
+      // Build opponent lists from completed games
+      const oppMap = new Map();
+      for (const g of games) {
+        if (!oppMap.has(g.home_team)) oppMap.set(g.home_team, []);
+        if (!oppMap.has(g.away_team)) oppMap.set(g.away_team, []);
+        oppMap.get(g.home_team).push({ opp: g.away_team, wasHome: true });
+        oppMap.get(g.away_team).push({ opp: g.home_team, wasHome: false });
+      }
+
+      // Weighted WP: Home win=0.6, Road win=1.4, Home loss=1.4, Road loss=0.6
+      const weightedWP = new Map();
+      for (const team of teams) {
+        let wW = 0, wL = 0;
+        for (const g of games) {
+          const isH = g.home_team === team, isA = g.away_team === team;
+          if (!isH && !isA) continue;
+          const ts = isH ? g.home_score : g.away_score;
+          const os = isH ? g.away_score : g.home_score;
+          if (ts > os) wW += isH ? 0.6 : 1.4;
+          else wL += isH ? 1.4 : 0.6;
+        }
+        const t = wW + wL;
+        weightedWP.set(team, t > 0 ? wW / t : 0);
+      }
+
+      // OWP (exclude head-to-head)
+      const owpCalc = new Map();
+      for (const team of teams) {
+        const opps = oppMap.get(team);
+        if (!opps || opps.length === 0) { owpCalc.set(team, 0); continue; }
+        let sum = 0, cnt = 0;
+        for (const { opp } of opps) {
+          let oW = 0, oL = 0;
+          for (const g of games) {
+            const oH = g.home_team === opp, oA = g.away_team === opp;
+            if (!oH && !oA) continue;
+            if (g.home_team === team || g.away_team === team) continue;
+            if ((oH ? g.home_score : g.away_score) > (oH ? g.away_score : g.home_score)) oW++;
+            else oL++;
+          }
+          if (oW + oL > 0) { sum += oW / (oW + oL); cnt++; }
+        }
+        owpCalc.set(team, cnt > 0 ? sum / cnt : 0);
+      }
+
+      // OOWP
+      const oowpCalc = new Map();
+      for (const team of teams) {
+        const opps = oppMap.get(team);
+        if (!opps || opps.length === 0) { oowpCalc.set(team, 0); continue; }
+        let sum = 0, cnt = 0;
+        for (const { opp } of opps) {
+          const v = owpCalc.get(opp);
+          if (v !== undefined) { sum += v; cnt++; }
+        }
+        oowpCalc.set(team, cnt > 0 ? sum / cnt : 0);
+      }
+
+      // Build results by division
+      for (const div of DIVISIONS) {
+        const divTeams = [];
+        for (const team of teams) {
+          if (teamDivisions.get(team) !== div) continue;
+          const wp = weightedWP.get(team) || 0;
+          const owp = owpCalc.get(team) || 0;
+          const oowp = oowpCalc.get(team) || 0;
+          const rec = teamRecords.get(team);
+          divTeams.push({
+            team, gender, division: div,
+            wins: rec?.wins || 0, losses: rec?.losses || 0,
+            win_pct: wp, owp, oowp,
+            rpi: (wp * 0.25) + (owp * 0.50) + (oowp * 0.25)
+          });
+        }
+        divTeams.sort((a, b) => b.rpi - a.rpi);
+        divTeams.forEach((t, i) => { t.rank = i + 1; });
+        allResults.push(...divTeams);
+      }
     }
-    
-    console.log(`Calculated RPI for ${allResults.length} total teams`);
-    
+
     // 4. Fetch historical data for High/Low/Last
-    let historyMap = new Map(); // key: "team_gender_division" -> { high, low, last }
-    
+    const historyMap = new Map();
     try {
       const history = await supabaseGet(
-        `rpi_rankings?select=team,gender,division,rank,week_of&week_of=lt.${weekOf}&order=week_of.desc`
+        'rpi_rankings?select=team,gender,division,rank,week_of&week_of=lt.' + weekOf + '&order=week_of.desc'
       );
-      
-      // Process history: group by team/gender/division
       for (const row of history) {
-        const key = `${row.team}_${row.gender}_${row.division}`;
+        const key = row.team + '_' + row.gender + '_' + row.division;
         if (!historyMap.has(key)) {
-          historyMap.set(key, {
-            high: row.rank,    // First row (most recent week) starts as high
-            low: row.rank,     // and low
-            last: row.rank     // Most recent = last week's rank
-          });
+          historyMap.set(key, { high: row.rank, low: row.rank, last: row.rank });
         } else {
-          const entry = historyMap.get(key);
-          if (row.rank < entry.high) entry.high = row.rank;
-          if (row.rank > entry.low) entry.low = row.rank;
-          // last stays as the first row we saw (most recent week due to order)
+          const e = historyMap.get(key);
+          if (row.rank < e.high) e.high = row.rank;
+          if (row.rank > e.low) e.low = row.rank;
         }
       }
-      
-      console.log(`Loaded history for ${historyMap.size} team entries`);
     } catch (histErr) {
-      console.log('No historical data found (first run?)', histErr.message);
+      // First run or table empty - that's fine
     }
-    
-    // 5. Build final rows with High/Low/Last
-    const rows = allResults.map(r => {
-      const key = `${r.team}_${r.gender}_${r.division}`;
-      const hist = historyMap.get(key);
-      
-      let high_rank, low_rank, last_rank;
-      
-      if (hist) {
-        high_rank = Math.min(r.rank, hist.high);
-        low_rank = Math.max(r.rank, hist.low);
-        last_rank = hist.last;
-      } else {
-        // First week for this team
-        high_rank = r.rank;
-        low_rank = r.rank;
-        last_rank = null;
-      }
-      
+
+    // 5. Build rows
+    const rows = allResults.map(function(r) {
+      const key = r.team + '_' + r.gender + '_' + r.division;
+      const h = historyMap.get(key);
       return {
-        team: r.team,
-        gender: r.gender,
-        division: r.division,
-        wins: r.wins,
-        losses: r.losses,
+        team: r.team, gender: r.gender, division: r.division,
+        wins: r.wins, losses: r.losses,
         win_pct: parseFloat(r.win_pct.toFixed(4)),
         owp: parseFloat(r.owp.toFixed(4)),
         oowp: parseFloat(r.oowp.toFixed(4)),
         rpi: parseFloat(r.rpi.toFixed(4)),
         rank: r.rank,
-        high_rank,
-        low_rank,
-        last_rank,
+        high_rank: h ? Math.min(r.rank, h.high) : r.rank,
+        low_rank: h ? Math.max(r.rank, h.low) : r.rank,
+        last_rank: h ? h.last : null,
         calculated_at: now,
         week_of: weekOf
       };
     });
-    
-    // 6. Batch upsert into rpi_rankings
+
+    // 6. Upsert
     if (rows.length > 0) {
-      console.log('Upserting', rows.length, 'rows...');
-      // Upsert in chunks of 100 to avoid request size limits
-      const CHUNK_SIZE = 100;
-      for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
-        const chunk = rows.slice(i, i + CHUNK_SIZE);
-        console.log(`  Upserting chunk ${Math.floor(i/CHUNK_SIZE)+1} (${chunk.length} rows)...`);
-        await supabaseUpsert('rpi_rankings', chunk, 'team,gender,division,week_of');
+      var CHUNK = 100;
+      for (var i = 0; i < rows.length; i += CHUNK) {
+        await supabaseUpsert('rpi_rankings', rows.slice(i, i + CHUNK), 'team,gender,division,week_of');
       }
-      console.log(`Upserted ${rows.length} rows for week_of=${weekOf}`);
     }
-    
+
     return new Response(JSON.stringify({
       success: true,
       totalRows: rows.length,
-      weekOf,
-      calculatedAt: now,
-      breakdown: GENDERS.map(g => ({
-        gender: g,
-        divisions: DIVISIONS.map(d => ({
-          division: d,
-          teams: rows.filter(r => r.gender === g && r.division === d).length
-        }))
-      }))
-    }), { status: 200, headers });
-    
+      weekOf: weekOf,
+      calculatedAt: now
+    }), { status: 200, headers: headers });
+
   } catch (err) {
-    console.error('RPI calculation error:', err.message, err.stack);
     return new Response(JSON.stringify({
       success: false,
-      error: err.message,
-      stack: err.stack
-    }), { status: 500, headers });
+      error: String(err.message || err)
+    }), { status: 500, headers: headers });
   }
 };
