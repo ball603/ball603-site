@@ -185,12 +185,23 @@ export default async (request) => {
     return new Response('', { status: 204, headers: { ...headers, 'Access-Control-Allow-Methods': 'POST, GET' } });
   }
   
+  // Validate env vars
+  if (!SUPABASE_URL || !SUPABASE_KEY) {
+    return new Response(JSON.stringify({
+      success: false,
+      error: 'Missing environment variables: SUPABASE_URL or SUPABASE_SERVICE_KEY'
+    }), { status: 500, headers });
+  }
+  
   try {
     console.log('Starting RPI calculation...');
+    console.log('SUPABASE_URL:', SUPABASE_URL ? 'set' : 'MISSING');
     const weekOf = getMondayOfWeek();
     const now = new Date().toISOString();
+    console.log('Week of:', weekOf);
     
     // 1. Fetch all completed NHIAA games
+    console.log('Fetching games...');
     const allGames = await supabaseGet(
       'games?select=home_team,away_team,home_score,away_score,gender,division' +
       '&level=eq.NHIAA&home_score=not.is.null&away_score=not.is.null'
@@ -198,6 +209,7 @@ export default async (request) => {
     console.log(`Fetched ${allGames.length} completed games`);
     
     // 2. Fetch all standings
+    console.log('Fetching standings...');
     const allStandings = await supabaseGet(
       'standings?select=school,gender,division,wins,losses'
     );
@@ -293,10 +305,12 @@ export default async (request) => {
     
     // 6. Batch upsert into rpi_rankings
     if (rows.length > 0) {
+      console.log('Upserting', rows.length, 'rows...');
       // Upsert in chunks of 100 to avoid request size limits
       const CHUNK_SIZE = 100;
       for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
         const chunk = rows.slice(i, i + CHUNK_SIZE);
+        console.log(`  Upserting chunk ${Math.floor(i/CHUNK_SIZE)+1} (${chunk.length} rows)...`);
         await supabaseUpsert('rpi_rankings', chunk, 'team,gender,division,week_of');
       }
       console.log(`Upserted ${rows.length} rows for week_of=${weekOf}`);
@@ -317,10 +331,11 @@ export default async (request) => {
     }), { status: 200, headers });
     
   } catch (err) {
-    console.error('RPI calculation error:', err);
+    console.error('RPI calculation error:', err.message, err.stack);
     return new Response(JSON.stringify({
       success: false,
-      error: err.message
+      error: err.message,
+      stack: err.stack
     }), { status: 500, headers });
   }
 };
