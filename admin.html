@@ -4579,6 +4579,11 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           Refresh
         </button>
         
+        <button onclick="publishRPI()" id="publishRPIBtn" style="padding: 10px 20px; background: #4caf50; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600;">
+          &#128640; Publish to Website
+        </button>
+        <span id="rpiPublishStatus" style="font-size: 13px; margin-right: 8px;"></span>
+        
         <span id="sosLastUpdated" style="color: #888; font-size: 13px; margin-left: auto;"></span>
       </div>
       
@@ -18523,6 +18528,34 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     let sosData = [];
     let sosSortField = 'playedSosRank';
     let sosSortDir = 'asc';
+    
+    async function publishRPI() {
+      const btn = document.getElementById('publishRPIBtn');
+      const status = document.getElementById('rpiPublishStatus');
+      btn.disabled = true;
+      btn.textContent = 'Publishing...';
+      btn.style.opacity = '0.6';
+      status.textContent = '';
+      
+      try {
+        const response = await fetch('/.netlify/functions/calculate-rpi', { method: 'POST' });
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+          status.textContent = '\u2713 Published! ' + data.totalRows + ' teams updated for week of ' + data.weekOf;
+          status.style.color = '#4caf50';
+        } else {
+          throw new Error(data.error || 'Unknown error');
+        }
+      } catch (err) {
+        status.textContent = '\u2717 Error: ' + err.message;
+        status.style.color = '#c00';
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '&#128640; Publish to Website';
+        btn.style.opacity = '1';
+      }
+    }
     
     async function loadSOSData() {
       const gender = document.getElementById('sosGender').value;

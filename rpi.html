@@ -284,6 +284,48 @@
       white-space: nowrap;
     }
     
+    /* Tracking Columns (High/Low/Last) */
+    .rpi-table th.track-col {
+      border-left: 2px solid var(--border-color);
+    }
+    
+    .rpi-table th.track-col-inner {
+      /* no left border for Low and Last */
+    }
+    
+    .rpi-table td.track-col {
+      text-align: center;
+      font-weight: 600;
+      font-size: 13px;
+      border-left: 2px solid var(--border-color);
+    }
+    
+    .rpi-table td.track-col-inner {
+      text-align: center;
+      font-weight: 600;
+      font-size: 13px;
+    }
+    
+    .track-high {
+      color: #2e7d32;
+    }
+    
+    .track-low {
+      color: #c62828;
+    }
+    
+    .move-up {
+      color: #2e7d32;
+    }
+    
+    .move-down {
+      color: #c62828;
+    }
+    
+    .move-same {
+      color: var(--text-muted);
+    }
+    
     /* Footer */
     .rpi-footer {
       padding: 16px 20px;
@@ -312,12 +354,6 @@
     }
     
     /* Loading State */
-    .rpi-loading {
-      padding: 60px 20px;
-      text-align: center;
-      color: var(--text-muted);
-    }
-    
     .loading-spinner {
       width: 40px;
       height: 40px;
@@ -461,6 +497,11 @@
         font-size: 13px;
       }
       
+      .rpi-table td.track-col,
+      .rpi-table th.track-col {
+        border-left-color: #555;
+      }
+      
       .rpi-footer {
         flex-direction: column;
         align-items: flex-start;
@@ -475,6 +516,11 @@
       
       .rpi-info-text strong {
         color: #ccc;
+      }
+      
+      /* Hide detail stat columns on mobile to make room for tracking */
+      .hide-mobile {
+        display: none;
       }
       
       .site-footer {
@@ -563,13 +609,16 @@
               <th class="team-col" onclick="sortRPI('team')" id="th-team">Team</th>
               <th class="center sorted" onclick="sortRPI('rpi')" id="th-rpi">RPI</th>
               <th class="center" onclick="sortRPI('wins')" id="th-wins">Record</th>
-              <th class="center" onclick="sortRPI('winPct')" id="th-winPct">Win %</th>
-              <th class="center" onclick="sortRPI('owp')" id="th-owp">Opp Win %</th>
-              <th class="center" onclick="sortRPI('oowp')" id="th-oowp">Opp-Opp Win %</th>
+              <th class="center hide-mobile" onclick="sortRPI('winPct')" id="th-winPct">Win %</th>
+              <th class="center hide-mobile" onclick="sortRPI('owp')" id="th-owp">Opp Win %</th>
+              <th class="center hide-mobile" onclick="sortRPI('oowp')" id="th-oowp">Opp-Opp Win %</th>
+              <th class="center track-col" onclick="sortRPI('high_rank')" id="th-high_rank">High</th>
+              <th class="center track-col-inner" onclick="sortRPI('low_rank')" id="th-low_rank">Low</th>
+              <th class="center track-col-inner" onclick="sortRPI('last_rank')" id="th-last_rank">Last</th>
             </tr>
           </thead>
           <tbody id="rpiBody">
-            <tr><td colspan="7" class="loading-msg">
+            <tr><td colspan="10" class="loading-msg">
               <div class="loading-spinner"></div>
               Loading RPI data...
             </td></tr>
@@ -582,7 +631,7 @@
           <strong>How RPI is calculated:</strong>
           RPI = (Win % &#215; 25%) + (Opp Win % &#215; 50%) + (Opp-Opp Win % &#215; 25%).
           Win % is weighted by location: road win = 1.4, home win = 0.6, road loss = 0.6, home loss = 1.4.
-          Opp Win % excludes games against the team being calculated.
+          High/Low = best/worst rank this season. Last = rank from previous week.
         </div>
         <div class="rpi-source">Data calculated from Ball603 game results</div>
       </div>
@@ -616,18 +665,15 @@
   <script src="/app.js"></script>
   
   <script>
-    // ===== CONFIG =====
-    const SUPABASE_URL = 'https://suncdkxfqkwwnmhosxcf.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN1bmNka3hmcWt3d25taG9zeGNmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwNTk4MzIsImV4cCI6MjA4MDYzNTgzMn0.aT6V8Zx_YozqOh1ZnC6x-czI9vo-QhHKmP69PgY-8xw';
-    
-    let db;
-    let rpiData = [];
+    // ===== STATE =====
+    let rpiData = [];      // Current division's data from API
+    let allRpiCache = {};  // Cache: "Boys" -> full array, "Girls" -> full array
     let currentGender = 'Boys';
     let currentDivision = 'D-I';
     let sortField = 'rpi';
     let sortDir = 'desc';
+    let calculatedAt = null;
     
-    // Division display names
     const DIVISION_LABELS = {
       'D-I': 'Division I',
       'D-II': 'Division II',
@@ -635,15 +681,7 @@
       'D-IV': 'Division IV'
     };
     
-    // ===== INIT =====
-    async function initSupabase() {
-      const start = Date.now();
-      while ((!window.supabase || typeof window.supabase.createClient !== 'function') && (Date.now() - start) < 5000) {
-        await new Promise(r => setTimeout(r, 50));
-      }
-      db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-      loadRPIData();
-    }
+    // ===== UI HANDLERS =====
     
     function setGender(g) {
       currentGender = g;
@@ -656,21 +694,17 @@
       currentDivision = d;
       document.querySelectorAll('.division-tab').forEach(t => t.classList.remove('active'));
       document.getElementById('tab' + d.replace('-', '')).classList.add('active');
-      loadRPIData();
+      filterAndRender();
     }
     
-    // Update card header text
     function updateCardHeader() {
       const divLabel = DIVISION_LABELS[currentDivision] || currentDivision;
       document.getElementById('cardTitle').textContent = currentGender + ' ' + divLabel;
       
       const sortLabels = {
-        'rpi': 'RPI',
-        'team': 'Team Name',
-        'wins': 'Record',
-        'winPct': 'Win %',
-        'owp': 'Opp Win %',
-        'oowp': 'Opp-Opp Win %'
+        'rpi': 'RPI', 'team': 'Team Name', 'wins': 'Record',
+        'winPct': 'Win %', 'owp': 'Opp Win %', 'oowp': 'Opp-Opp Win %',
+        'high_rank': 'Season High', 'low_rank': 'Season Low', 'last_rank': 'Last Week'
       };
       const badge = document.querySelector('.rpi-card-badge');
       if (badge) {
@@ -678,168 +712,96 @@
       }
     }
     
-    // ===== LOAD DATA =====
-    async function loadRPIData() {
-      const tbody = document.getElementById('rpiBody');
-      tbody.innerHTML = '<tr><td colspan="7" class="loading-msg"><div class="loading-spinner"></div>Loading...</td></tr>';
-      
-      updateCardHeader();
-      
-      try {
-        const gender = currentGender;
-        const division = currentDivision;
-        
-        // Fetch completed games
-        const { data: completedGames, error: gamesErr } = await db
-          .from('games')
-          .select('home_team, away_team, home_score, away_score, gender, division')
-          .eq('level', 'NHIAA')
-          .eq('gender', gender)
-          .not('home_score', 'is', null)
-          .not('away_score', 'is', null);
-        
-        if (gamesErr) throw gamesErr;
-        
-        // Fetch standings
-        const { data: standings, error: standErr } = await db
-          .from('standings')
-          .select('school, gender, division, wins, losses')
-          .eq('gender', gender);
-        
-        if (standErr) throw standErr;
-        
-        // Build maps
-        const teamRecords = new Map();
-        const teamDivisions = new Map();
-        const teamWinPct = new Map();
-        
-        for (const s of standings) {
-          const key = `${s.school}_${s.gender}`;
-          teamRecords.set(key, { wins: s.wins, losses: s.losses });
-          teamDivisions.set(key, s.division);
-          const total = s.wins + s.losses;
-          teamWinPct.set(key, total > 0 ? s.wins / total : 0);
-        }
-        
-        // Build opponent lists with home/away
-        const teamsPlayedMap = new Map();
-        
-        for (const game of completedGames) {
-          const h = game.home_team, a = game.away_team;
-          if (!teamsPlayedMap.has(h)) teamsPlayedMap.set(h, { opponents: [] });
-          if (!teamsPlayedMap.has(a)) teamsPlayedMap.set(a, { opponents: [] });
-          teamsPlayedMap.get(h).opponents.push({ opp: a, wasHome: true });
-          teamsPlayedMap.get(a).opponents.push({ opp: h, wasHome: false });
-        }
-        
-        // Calculate weighted WP for each team
-        const nhiaaTeams = new Set(standings.map(s => s.school));
-        const teamWeightedWP = new Map();
-        
-        for (const teamName of nhiaaTeams) {
-          let wW = 0, wL = 0;
-          for (const game of completedGames) {
-            const isHome = game.home_team === teamName;
-            const isAway = game.away_team === teamName;
-            if (!isHome && !isAway) continue;
-            const tScore = isHome ? game.home_score : game.away_score;
-            const oScore = isHome ? game.away_score : game.home_score;
-            if (tScore > oScore) { wW += isHome ? 0.6 : 1.4; }
-            else { wL += isHome ? 1.4 : 0.6; }
-          }
-          const tot = wW + wL;
-          teamWeightedWP.set(teamName, tot > 0 ? wW / tot : 0);
-        }
-        
-        // Calculate OWP (excluding head-to-head)
-        const teamOWP = new Map();
-        for (const teamName of nhiaaTeams) {
-          const pd = teamsPlayedMap.get(teamName);
-          if (!pd || pd.opponents.length === 0) { teamOWP.set(teamName, 0); continue; }
-          let sum = 0, cnt = 0;
-          for (const { opp } of pd.opponents) {
-            let oW = 0, oL = 0;
-            for (const game of completedGames) {
-              const oppIsH = game.home_team === opp, oppIsA = game.away_team === opp;
-              if (!oppIsH && !oppIsA) continue;
-              if (game.home_team === teamName || game.away_team === teamName) continue;
-              const oS = oppIsH ? game.home_score : game.away_score;
-              const xS = oppIsH ? game.away_score : game.home_score;
-              if (oS > xS) oW++; else oL++;
-            }
-            const t = oW + oL;
-            if (t > 0) { sum += oW / t; cnt++; }
-          }
-          teamOWP.set(teamName, cnt > 0 ? sum / cnt : 0);
-        }
-        
-        // Calculate OOWP
-        const teamOOWP = new Map();
-        for (const teamName of nhiaaTeams) {
-          const pd = teamsPlayedMap.get(teamName);
-          if (!pd || pd.opponents.length === 0) { teamOOWP.set(teamName, 0); continue; }
-          let sum = 0, cnt = 0;
-          for (const { opp } of pd.opponents) {
-            const v = teamOWP.get(opp);
-            if (v !== undefined) { sum += v; cnt++; }
-          }
-          teamOOWP.set(teamName, cnt > 0 ? sum / cnt : 0);
-        }
-        
-        // Build results
-        const results = [];
-        for (const teamName of nhiaaTeams) {
-          const teamDiv = teamDivisions.get(`${teamName}_${gender}`);
-          if (teamDiv !== division) continue;
-          
-          const wp = teamWeightedWP.get(teamName) || 0;
-          const owp = teamOWP.get(teamName) || 0;
-          const oowp = teamOOWP.get(teamName) || 0;
-          const rpi = (wp * 0.25) + (owp * 0.50) + (oowp * 0.25);
-          const rec = teamRecords.get(`${teamName}_${gender}`);
-          
-          results.push({
-            team: teamName,
-            wins: rec?.wins || 0,
-            losses: rec?.losses || 0,
-            winPct: wp,
-            owp, oowp, rpi
-          });
-        }
-        
-        results.sort((a, b) => b.rpi - a.rpi);
-        
-        rpiData = results;
-        sortField = 'rpi';
-        sortDir = 'desc';
-        
-        renderTable(results);
-        highlightCol('rpi');
-        updateCardHeader();
-        document.getElementById('rpiUpdated').textContent = 'Updated: ' + new Date().toLocaleTimeString();
-        
-      } catch (err) {
-        console.error('RPI Error:', err);
-        tbody.innerHTML = '<tr><td colspan="7" class="loading-msg" style="color:#c00;">Error loading data. Please refresh the page.</td></tr>';
+    function updateTimestamp() {
+      const el = document.getElementById('rpiUpdated');
+      if (calculatedAt) {
+        const d = new Date(calculatedAt);
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' };
+        el.textContent = 'Updated: ' + d.toLocaleDateString('en-US', options);
       }
     }
     
-    // ===== SORT =====
+    // ===== DATA LOADING =====
+    
+    async function loadRPIData() {
+      const tbody = document.getElementById('rpiBody');
+      tbody.innerHTML = '<tr><td colspan="10" class="loading-msg"><div class="loading-spinner"></div>Loading...</td></tr>';
+      updateCardHeader();
+      
+      // Check cache first
+      if (allRpiCache[currentGender]) {
+        filterAndRender();
+        return;
+      }
+      
+      try {
+        const response = await fetch('/.netlify/functions/get-rpi?gender=' + encodeURIComponent(currentGender));
+        const data = await response.json();
+        
+        if (!data.rankings || data.rankings.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="10" class="loading-msg">No RPI data available yet. Check back Monday!</td></tr>';
+          return;
+        }
+        
+        // Cache the full gender dataset
+        allRpiCache[currentGender] = data.rankings;
+        calculatedAt = data.calculatedAt;
+        
+        updateTimestamp();
+        filterAndRender();
+        
+      } catch (err) {
+        console.error('RPI load error:', err);
+        tbody.innerHTML = '<tr><td colspan="10" class="loading-msg" style="color:#c00;">Error loading data. Please refresh the page.</td></tr>';
+      }
+    }
+    
+    function filterAndRender() {
+      const allData = allRpiCache[currentGender] || [];
+      
+      // Filter to current division
+      rpiData = allData.filter(r => r.division === currentDivision);
+      
+      // Apply current sort
+      sortField = 'rpi';
+      sortDir = 'desc';
+      
+      const sorted = sortData(rpiData, sortField, sortDir);
+      renderTable(sorted);
+      highlightCol('rpi');
+      updateCardHeader();
+    }
+    
+    // ===== SORTING =====
+    
+    function sortData(data, field, dir) {
+      return [...data].sort((a, b) => {
+        // Map frontend field names to API field names
+        const fieldMap = { 'winPct': 'win_pct' };
+        const apiField = fieldMap[field] || field;
+        
+        if (field === 'team') {
+          return dir === 'asc' ? a.team.localeCompare(b.team) : b.team.localeCompare(a.team);
+        }
+        
+        let aV = a[apiField] ?? (dir === 'asc' ? Infinity : -Infinity);
+        let bV = b[apiField] ?? (dir === 'asc' ? Infinity : -Infinity);
+        return dir === 'asc' ? aV - bV : bV - aV;
+      });
+    }
+    
     function sortRPI(field) {
       if (rpiData.length === 0) return;
+      
       if (sortField === field) {
         sortDir = sortDir === 'asc' ? 'desc' : 'asc';
       } else {
         sortField = field;
-        sortDir = field === 'team' ? 'asc' : 'desc';
+        // Ascending default for rank-type fields and team, descending for percentage fields
+        sortDir = ['team', 'high_rank', 'low_rank', 'last_rank'].includes(field) ? 'asc' : 'desc';
       }
       
-      const sorted = [...rpiData].sort((a, b) => {
-        if (field === 'team') return sortDir === 'asc' ? a.team.localeCompare(b.team) : b.team.localeCompare(a.team);
-        let aV = a[field] ?? -Infinity, bV = b[field] ?? -Infinity;
-        return sortDir === 'asc' ? aV - bV : bV - aV;
-      });
-      
+      const sorted = sortData(rpiData, sortField, sortDir);
       renderTable(sorted);
       highlightCol(field);
       updateCardHeader();
@@ -851,11 +813,12 @@
       if (el) el.classList.add('sorted');
     }
     
-    // ===== RENDER =====
+    // ===== RENDERING =====
+    
     function renderTable(results) {
       const tbody = document.getElementById('rpiBody');
       if (results.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="loading-msg">No data available for this division</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" class="loading-msg">No data available for this division</td></tr>';
         return;
       }
       
@@ -867,27 +830,51 @@
         const teamSlug = r.team.toLowerCase().replace(/[^a-z0-9]+/g, '');
         const logoUrl = (typeof Ball603 !== 'undefined' && Ball603.getLogoUrl) ? Ball603.getLogoUrl(r.team) : '/logos/100px/' + teamSlug + '.png';
         
-        html += `<tr>
-          <td class="rank-col center">${i + 1}</td>
-          <td>
-            <div class="team-cell">
-              <img class="team-logo" src="${logoUrl}" onerror="this.src='/logos/100px/Ball603-white.png'" alt="">
-              <a class="team-name" href="/${teamSlug}">${r.team}</a>
-            </div>
-          </td>
-          <td class="rpi-val center">${fmtPct(r.rpi)}</td>
-          <td class="record-cell center">${r.wins}-${r.losses}</td>
-          <td class="stat-col center">${fmtPct(r.winPct)}</td>
-          <td class="stat-col center">${fmtPct(r.owp)}</td>
-          <td class="stat-col center">${fmtPct(r.oowp)}</td>
-        </tr>`;
+        // Movement indicator for Last column
+        let lastDisplay = '-';
+        let lastClass = 'move-same';
+        if (r.last_rank !== null && r.last_rank !== undefined) {
+          const diff = r.last_rank - r.rank; // positive = improved
+          if (diff > 0) {
+            lastDisplay = r.last_rank + ' &#9650;'; // ▲
+            lastClass = 'move-up';
+          } else if (diff < 0) {
+            lastDisplay = r.last_rank + ' &#9660;'; // ▼
+            lastClass = 'move-down';
+          } else {
+            lastDisplay = r.last_rank + '';
+            lastClass = 'move-same';
+          }
+        }
+        
+        // High/Low coloring
+        const highClass = r.high_rank === r.rank ? 'track-high' : '';
+        const lowClass = r.low_rank === r.rank ? 'track-low' : '';
+        
+        html += '<tr>' +
+          '<td class="rank-col center">' + r.rank + '</td>' +
+          '<td>' +
+            '<div class="team-cell">' +
+              '<img class="team-logo" src="' + logoUrl + '" onerror="this.src=\'/logos/100px/Ball603-white.png\'" alt="">' +
+              '<a class="team-name" href="/' + teamSlug + '">' + r.team + '</a>' +
+            '</div>' +
+          '</td>' +
+          '<td class="rpi-val center">' + fmtPct(r.rpi) + '</td>' +
+          '<td class="record-cell center">' + r.wins + '-' + r.losses + '</td>' +
+          '<td class="stat-col center hide-mobile">' + fmtPct(r.win_pct) + '</td>' +
+          '<td class="stat-col center hide-mobile">' + fmtPct(r.owp) + '</td>' +
+          '<td class="stat-col center hide-mobile">' + fmtPct(r.oowp) + '</td>' +
+          '<td class="track-col center ' + highClass + '">' + (r.high_rank || r.rank) + '</td>' +
+          '<td class="track-col-inner center ' + lowClass + '">' + (r.low_rank || r.rank) + '</td>' +
+          '<td class="track-col-inner center ' + lastClass + '">' + lastDisplay + '</td>' +
+        '</tr>';
       }
       
       tbody.innerHTML = html;
     }
     
-    // ===== START =====
-    initSupabase();
+    // ===== INIT =====
+    loadRPIData();
   </script>
 </body>
 </html>
