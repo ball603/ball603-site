@@ -200,6 +200,28 @@
       cursor: default;
     }
     
+    /* Group header row */
+    .group-header-row th {
+      border-bottom: 2px solid var(--border-color);
+    }
+    
+    .group-header {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-secondary);
+      background: var(--bg-secondary);
+      border-bottom: 2px solid var(--border-color);
+      border-left: 2px solid var(--border-color);
+      padding: 10px 16px;
+      cursor: default;
+    }
+    
+    .group-header:first-of-type {
+      /* No left border on the first group */
+    }
+    
     .rpi-table th.center,
     .rpi-table td.center {
       text-align: center;
@@ -465,6 +487,17 @@
         font-size: 10px;
       }
       
+      .group-header {
+        background: #1e1e1e;
+        color: #ccc;
+        border-left-color: #555;
+        border-bottom-color: #555;
+      }
+      
+      .group-header-row th {
+        border-bottom-color: #555;
+      }
+      
       .rpi-table th.sorted {
         background: #3d2a00;
         color: #f57c00;
@@ -602,9 +635,14 @@
       <div class="rpi-table-wrapper">
         <table class="rpi-table" id="rpiTable">
           <thead>
+            <tr class="group-header-row">
+              <th rowspan="2" class="rank-col center">Rank</th>
+              <th rowspan="2" class="team-col" onclick="sortRPI('team')" id="th-team">Team</th>
+              <th colspan="5" class="group-header center">Rating Percentage Index</th>
+              <th colspan="3" class="group-header center">Season Ranking</th>
+              <th colspan="2" class="group-header center">Remaining Schedule</th>
+            </tr>
             <tr id="rpiHeaderRow">
-              <th class="rank-col center">Rank</th>
-              <th class="team-col" onclick="sortRPI('team')" id="th-team">Team</th>
               <th class="center sorted" onclick="sortRPI('rpi')" id="th-rpi">RPI</th>
               <th class="center" onclick="sortRPI('wins')" id="th-wins">Record</th>
               <th class="center" onclick="sortRPI('winPct')" id="th-winPct">Win %</th>
@@ -613,11 +651,12 @@
               <th class="center track-col" onclick="sortRPI('high_rank')" id="th-high_rank">High Rank</th>
               <th class="center track-col-inner" onclick="sortRPI('low_rank')" id="th-low_rank">Low Rank</th>
               <th class="center track-col-inner" onclick="sortRPI('last_rank')" id="th-last_rank">Last Week</th>
-              <th class="center track-col-inner" onclick="sortRPI('remaining_sos')" id="th-remaining_sos">Rem SOS</th>
+              <th class="center track-col" onclick="sortRPI('remaining_sos')" id="th-remaining_sos">Opp RPI</th>
+              <th class="center track-col-inner" onclick="sortRPI('rem_sos_rank')" id="th-rem_sos_rank">Rank</th>
             </tr>
           </thead>
           <tbody id="rpiBody">
-            <tr><td colspan="11" class="loading-msg">
+            <tr><td colspan="12" class="loading-msg">
               <div class="loading-spinner"></div>
               Loading RPI data...
             </td></tr>
@@ -632,7 +671,7 @@
           Win % is weighted by location: road win = 1.4, home win = 0.6, road loss = 0.6, home loss = 1.4.
           <strong>High Rank / Low Rank</strong> = best / worst rank this season.
           <strong>Last Week</strong> = rank from previous week.
-          <strong>Rem SOS</strong> (Remaining Strength of Schedule) = the average RPI of a team's remaining regular-season opponents. A higher value indicates a tougher remaining schedule.
+          <strong>Rem SOS</strong> (Remaining Strength of Schedule) = the average RPI of a team's remaining regular-season opponents. A higher value indicates a tougher remaining schedule. <strong>Opp RPI</strong> shows this value and <strong>Rem SOS Rank</strong> ranks teams by it within their division (1 = toughest remaining schedule).
         </div>
         <div class="rpi-source">Data calculated from Ball603 game results</div>
       </div>
@@ -706,7 +745,7 @@
         'rpi': 'RPI', 'team': 'Team Name', 'wins': 'Record',
         'winPct': 'Win %', 'owp': 'Opp Win %', 'oowp': 'Opp-Opp Win %',
         'high_rank': 'High Rank', 'low_rank': 'Low Rank', 'last_rank': 'Last Week',
-        'remaining_sos': 'Rem SOS'
+        'remaining_sos': 'Opp RPI', 'rem_sos_rank': 'Rem SOS Rank'
       };
       const badge = document.querySelector('.rpi-card-badge');
       if (badge) {
@@ -727,7 +766,7 @@
     
     async function loadRPIData() {
       const tbody = document.getElementById('rpiBody');
-      tbody.innerHTML = '<tr><td colspan="11" class="loading-msg"><div class="loading-spinner"></div>Loading...</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="12" class="loading-msg"><div class="loading-spinner"></div>Loading...</td></tr>';
       updateCardHeader();
       
       // Check cache first
@@ -741,7 +780,7 @@
         const data = await response.json();
         
         if (!data.rankings || data.rankings.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="11" class="loading-msg">No RPI data available yet. Check back Monday!</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="12" class="loading-msg">No RPI data available yet. Check back Monday!</td></tr>';
           return;
         }
         
@@ -754,7 +793,7 @@
         
       } catch (err) {
         console.error('RPI load error:', err);
-        tbody.innerHTML = '<tr><td colspan="11" class="loading-msg" style="color:#c00;">Error loading data. Please refresh the page.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="12" class="loading-msg" style="color:#c00;">Error loading data. Please refresh the page.</td></tr>';
       }
     }
     
@@ -763,6 +802,16 @@
       
       // Filter to current division
       rpiData = allData.filter(r => r.division === currentDivision);
+      
+      // Compute Rem SOS Rank within this division
+      // Sort by remaining_sos descending (highest = toughest = rank 1)
+      const withSos = rpiData.filter(r => r.remaining_sos !== null && r.remaining_sos !== undefined);
+      withSos.sort((a, b) => b.remaining_sos - a.remaining_sos);
+      withSos.forEach((r, i) => { r.rem_sos_rank = i + 1; });
+      // Teams with no remaining games get no rank
+      rpiData.forEach(r => {
+        if (r.remaining_sos === null || r.remaining_sos === undefined) r.rem_sos_rank = null;
+      });
       
       // Apply current sort
       sortField = 'rpi';
@@ -800,7 +849,7 @@
       } else {
         sortField = field;
         // Ascending default for rank-type fields and team, descending for percentage fields
-        sortDir = ['team', 'high_rank', 'low_rank', 'last_rank'].includes(field) ? 'asc' : 'desc';
+        sortDir = ['team', 'high_rank', 'low_rank', 'last_rank', 'rem_sos_rank'].includes(field) ? 'asc' : 'desc';
       }
       
       const sorted = sortData(rpiData, sortField, sortDir);
@@ -820,7 +869,7 @@
     function renderTable(results) {
       const tbody = document.getElementById('rpiBody');
       if (results.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="11" class="loading-msg">No data available for this division</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="12" class="loading-msg">No data available for this division</td></tr>';
         return;
       }
       
@@ -870,7 +919,8 @@
           '<td class="track-col center ' + highClass + '">' + (r.high_rank || r.rank) + '</td>' +
           '<td class="track-col-inner center ' + lowClass + '">' + (r.low_rank || r.rank) + '</td>' +
           '<td class="track-col-inner center ' + lastClass + '">' + lastDisplay + '</td>' +
-          '<td class="track-col-inner center">' + (r.remaining_sos !== null ? fmtDec(r.remaining_sos) : '-') + '</td>' +
+          '<td class="track-col center">' + (r.remaining_sos !== null ? fmtDec(r.remaining_sos) : '-') + '</td>' +
+          '<td class="track-col-inner center" style="font-weight:700;">' + (r.rem_sos_rank !== null ? r.rem_sos_rank : '-') + '</td>' +
         '</tr>';
       }
       
