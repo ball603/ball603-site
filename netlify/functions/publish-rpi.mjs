@@ -113,11 +113,28 @@ export default async (request) => {
       const wpTotal = wW + wL;
       const weightedWPVal = wpTotal > 0 ? wW / wpTotal : 0;
       
-      // 2. OWP
+      // 2. OWP (non-NHIAA opponents get .500)
       const opps = oppMap.get(debugTeam) || [];
       const debugOWP = [];
       let owpSum = 0, owpCnt = 0;
       for (const { opp } of opps) {
+        const isNHIAA = teams.has(opp);
+        
+        if (!isNHIAA) {
+          // Non-NHIAA opponent: assign .500
+          owpSum += 0.5;
+          owpCnt++;
+          debugOWP.push({
+            opponent: opp,
+            division: 'Non-NHIAA',
+            recordExcludingH2H: 'N/A (default .500)',
+            winPct: 0.5,
+            gamesCount: 0,
+            note: 'Non-NHIAA opponent assigned default .500 OWP'
+          });
+          continue;
+        }
+        
         let oW = 0, oL = 0;
         const oppGamesDetail = [];
         for (const g of dGames) {
@@ -146,12 +163,17 @@ export default async (request) => {
       }
       const owpVal = owpCnt > 0 ? owpSum / owpCnt : 0;
       
-      // 3. OOWP
+      // 3. OOWP (non-NHIAA opponents get .500)
       const allOWP = new Map();
       for (const t of teams) {
         const tOpps = oppMap.get(t) || [];
         let s = 0, c = 0;
         for (const { opp: o } of tOpps) {
+          if (!teams.has(o)) {
+            s += 0.5;
+            c++;
+            continue;
+          }
           let ow = 0, ol = 0;
           for (const g of dGames) {
             const oh = g.home_team === o, oa = g.away_team === o;
@@ -167,12 +189,22 @@ export default async (request) => {
       const debugOOWP = [];
       let oowpSum = 0, oowpCnt = 0;
       for (const { opp } of opps) {
-        const v = allOWP.get(opp);
-        if (v !== undefined) { oowpSum += v; oowpCnt++; }
-        debugOOWP.push({
-          opponent: opp,
-          owpValue: v !== undefined ? parseFloat(v.toFixed(4)) : null
-        });
+        if (!teams.has(opp)) {
+          oowpSum += 0.5;
+          oowpCnt++;
+          debugOOWP.push({
+            opponent: opp,
+            owpValue: 0.5,
+            note: 'Non-NHIAA opponent assigned default .500'
+          });
+        } else {
+          const v = allOWP.get(opp);
+          if (v !== undefined) { oowpSum += v; oowpCnt++; }
+          debugOOWP.push({
+            opponent: opp,
+            owpValue: v !== undefined ? parseFloat(v.toFixed(4)) : null
+          });
+        }
       }
       const oowpVal = oowpCnt > 0 ? oowpSum / oowpCnt : 0;
       
@@ -331,13 +363,19 @@ export default async (request) => {
         weightedWP.set(team, t > 0 ? wW / t : 0);
       }
 
-      // OWP (exclude head-to-head)
+      // OWP (exclude head-to-head; non-NHIAA opponents get .500)
       const owpCalc = new Map();
       for (const team of teams) {
         const opps = oppMap.get(team);
         if (!opps || opps.length === 0) { owpCalc.set(team, 0); continue; }
         let sum = 0, cnt = 0;
         for (const { opp } of opps) {
+          // Non-NHIAA opponent: assign .500
+          if (!teams.has(opp)) {
+            sum += 0.5;
+            cnt++;
+            continue;
+          }
           let oW = 0, oL = 0;
           for (const g of games) {
             const oH = g.home_team === opp, oA = g.away_team === opp;
@@ -351,15 +389,21 @@ export default async (request) => {
         owpCalc.set(team, cnt > 0 ? sum / cnt : 0);
       }
 
-      // OOWP
+      // OOWP (non-NHIAA opponents get .500)
       const oowpCalc = new Map();
       for (const team of teams) {
         const opps = oppMap.get(team);
         if (!opps || opps.length === 0) { oowpCalc.set(team, 0); continue; }
         let sum = 0, cnt = 0;
         for (const { opp } of opps) {
-          const v = owpCalc.get(opp);
-          if (v !== undefined) { sum += v; cnt++; }
+          if (!teams.has(opp)) {
+            // Non-NHIAA opponent: assign .500 OWP
+            sum += 0.5;
+            cnt++;
+          } else {
+            const v = owpCalc.get(opp);
+            if (v !== undefined) { sum += v; cnt++; }
+          }
         }
         oowpCalc.set(team, cnt > 0 ? sum / cnt : 0);
       }
