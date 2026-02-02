@@ -40,7 +40,9 @@ export default async (request) => {
         hasSupabaseKey: !!SUPABASE_KEY,
         supabaseUrlPrefix: SUPABASE_URL ? SUPABASE_URL.substring(0, 30) + '...' : 'MISSING',
         nodeVersion: process.version,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        debugTeam: debugTeam,
+        debugGender: debugGender
       }), { status: 200, headers });
     }
 
@@ -50,6 +52,166 @@ export default async (request) => {
         success: false,
         error: 'Missing env vars. SUPABASE_URL: ' + (SUPABASE_URL ? 'set' : 'MISSING') + ', SUPABASE_SERVICE_KEY: ' + (SUPABASE_KEY ? 'set' : 'MISSING')
       }), { status: 500, headers });
+    }
+
+    // ===== DEBUG MODE =====
+    if (debugTeam) {
+      const dGender = debugGender || 'Girls';
+      
+      const dGames = await supabaseGet(
+        'games?select=home_team,away_team,home_score,away_score,gender,division&level=eq.NHIAA&home_score=not.is.null&away_score=not.is.null&gender=eq.' + dGender
+      );
+      const dStandings = await supabaseGet(
+        'standings?select=school,gender,division,wins,losses&gender=eq.' + dGender
+      );
+      
+      const teamRecords = new Map();
+      const teamDivisions = new Map();
+      for (const s of dStandings) {
+        teamRecords.set(s.school, { wins: s.wins, losses: s.losses });
+        teamDivisions.set(s.school, s.division);
+      }
+      const teams = new Set(dStandings.map(s => s.school));
+      
+      if (!teams.has(debugTeam)) {
+        return new Response(JSON.stringify({
+          error: 'Team not found: ' + debugTeam,
+          gender: dGender,
+          availableTeams: [...teams].sort()
+        }, null, 2), { status: 200, headers });
+      }
+      
+      // Build opponent list
+      const oppMap = new Map();
+      for (const g of dGames) {
+        if (!oppMap.has(g.home_team)) oppMap.set(g.home_team, []);
+        if (!oppMap.has(g.away_team)) oppMap.set(g.away_team, []);
+        oppMap.get(g.home_team).push({ opp: g.away_team, wasHome: true });
+        oppMap.get(g.away_team).push({ opp: g.home_team, wasHome: false });
+      }
+      
+      // 1. WEIGHTED WIN %
+      const debugGamesArr = [];
+      let wW = 0, wL = 0;
+      for (const g of dGames) {
+        const isH = g.home_team === debugTeam, isA = g.away_team === debugTeam;
+        if (!isH && !isA) continue;
+        const ts = isH ? g.home_score : g.away_score;
+        const os = isH ? g.away_score : g.home_score;
+        const won = ts > os;
+        const weight = won ? (isH ? 0.6 : 1.4) : (isH ? 1.4 : 0.6);
+        if (won) wW += weight; else wL += weight;
+        debugGamesArr.push({
+          opponent: isH ? g.away_team : g.home_team,
+          score: ts + '-' + os,
+          location: isH ? 'Home' : 'Away',
+          result: won ? 'W' : 'L',
+          weight: weight,
+          weightType: won ? (isH ? 'Home W (0.6)' : 'Road W (1.4)') : (isH ? 'Home L (1.4)' : 'Road L (0.6)')
+        });
+      }
+      const wpTotal = wW + wL;
+      const weightedWPVal = wpTotal > 0 ? wW / wpTotal : 0;
+      
+      // 2. OWP
+      const opps = oppMap.get(debugTeam) || [];
+      const debugOWP = [];
+      let owpSum = 0, owpCnt = 0;
+      for (const { opp } of opps) {
+        let oW = 0, oL = 0;
+        const oppGamesDetail = [];
+        for (const g of dGames) {
+          const oH = g.home_team === opp, oA = g.away_team === opp;
+          if (!oH && !oA) continue;
+          if (g.home_team === debugTeam || g.away_team === debugTeam) continue;
+          const oppScore = oH ? g.home_score : g.away_score;
+          const otherScore = oH ? g.away_score : g.home_score;
+          const oppWon = oppScore > otherScore;
+          if (oppWon) oW++; else oL++;
+          oppGamesDetail.push({
+            vs: oH ? g.away_team : g.home_team,
+            score: oppScore + '-' + otherScore,
+            result: oppWon ? 'W' : 'L'
+          });
+        }
+        const oppWP = (oW + oL) > 0 ? oW / (oW + oL) : null;
+        if (oppWP !== null) { owpSum += oppWP; owpCnt++; }
+        debugOWP.push({
+          opponent: opp,
+          division: teamDivisions.get(opp) || 'unknown',
+          recordExcludingH2H: oW + '-' + oL,
+          winPct: oppWP !== null ? parseFloat(oppWP.toFixed(4)) : null,
+          gamesCount: oppGamesDetail.length
+        });
+      }
+      const owpVal = owpCnt > 0 ? owpSum / owpCnt : 0;
+      
+      // 3. OOWP
+      const allOWP = new Map();
+      for (const t of teams) {
+        const tOpps = oppMap.get(t) || [];
+        let s = 0, c = 0;
+        for (const { opp: o } of tOpps) {
+          let ow = 0, ol = 0;
+          for (const g of dGames) {
+            const oh = g.home_team === o, oa = g.away_team === o;
+            if (!oh && !oa) continue;
+            if (g.home_team === t || g.away_team === t) continue;
+            if ((oh ? g.home_score : g.away_score) > (oh ? g.away_score : g.home_score)) ow++; else ol++;
+          }
+          if (ow + ol > 0) { s += ow / (ow + ol); c++; }
+        }
+        allOWP.set(t, c > 0 ? s / c : 0);
+      }
+      
+      const debugOOWP = [];
+      let oowpSum = 0, oowpCnt = 0;
+      for (const { opp } of opps) {
+        const v = allOWP.get(opp);
+        if (v !== undefined) { oowpSum += v; oowpCnt++; }
+        debugOOWP.push({
+          opponent: opp,
+          owpValue: v !== undefined ? parseFloat(v.toFixed(4)) : null
+        });
+      }
+      const oowpVal = oowpCnt > 0 ? oowpSum / oowpCnt : 0;
+      
+      const rpiVal = (weightedWPVal * 0.25) + (owpVal * 0.50) + (oowpVal * 0.25);
+      
+      return new Response(JSON.stringify({
+        team: debugTeam,
+        gender: dGender,
+        division: teamDivisions.get(debugTeam),
+        record: teamRecords.get(debugTeam),
+        
+        step1_weightedWinPct: {
+          explanation: 'Home W=0.6, Road W=1.4, Home L=1.4, Road L=0.6',
+          games: debugGamesArr,
+          weightedWins: parseFloat(wW.toFixed(4)),
+          weightedLosses: parseFloat(wL.toFixed(4)),
+          result: parseFloat(weightedWPVal.toFixed(4)),
+          contributes: parseFloat((weightedWPVal * 0.25).toFixed(4))
+        },
+        
+        step2_OWP: {
+          explanation: 'Each opponent record excluding games vs ' + debugTeam,
+          opponents: debugOWP,
+          result: parseFloat(owpVal.toFixed(4)),
+          contributes: parseFloat((owpVal * 0.50).toFixed(4))
+        },
+        
+        step3_OOWP: {
+          explanation: 'Each opponent OWP value averaged',
+          opponents: debugOOWP,
+          result: parseFloat(oowpVal.toFixed(4)),
+          contributes: parseFloat((oowpVal * 0.25).toFixed(4))
+        },
+        
+        finalRPI: {
+          formula: '(WP x 0.25) + (OWP x 0.50) + (OOWP x 0.25)',
+          rpi: parseFloat(rpiVal.toFixed(4))
+        }
+      }, null, 2), { status: 200, headers });
     }
 
     // ===== HELPERS =====
@@ -249,176 +411,6 @@ export default async (request) => {
       }
 
       allResults.push(...genderResults);
-    }
-
-    // ===== DEBUG MODE =====
-    if (debugTeam && debugGender) {
-      // Re-derive detailed breakdown for the requested team
-      const gender = debugGender;
-      const team = debugTeam;
-      const games = allGames.filter(g => g.gender === gender);
-      const standings = allStandings.filter(s => s.gender === gender);
-      const future = futureGames.filter(g => g.gender === gender);
-      
-      const teamRecords = new Map();
-      const teamDivisions = new Map();
-      for (const s of standings) {
-        teamRecords.set(s.school, { wins: s.wins, losses: s.losses });
-        teamDivisions.set(s.school, s.division);
-      }
-      const teams = new Set(standings.map(s => s.school));
-      
-      if (!teams.has(team)) {
-        return new Response(JSON.stringify({
-          error: 'Team not found: ' + team,
-          gender: gender,
-          availableTeams: [...teams].sort()
-        }, null, 2), { status: 200, headers });
-      }
-      
-      // Build opponent list
-      const oppMap = new Map();
-      for (const g of games) {
-        if (!oppMap.has(g.home_team)) oppMap.set(g.home_team, []);
-        if (!oppMap.has(g.away_team)) oppMap.set(g.away_team, []);
-        oppMap.get(g.home_team).push({ opp: g.away_team, wasHome: true });
-        oppMap.get(g.away_team).push({ opp: g.home_team, wasHome: false });
-      }
-      
-      // 1. WEIGHTED WIN % - show each game
-      const debugGames = [];
-      let wW = 0, wL = 0;
-      for (const g of games) {
-        const isH = g.home_team === team, isA = g.away_team === team;
-        if (!isH && !isA) continue;
-        const ts = isH ? g.home_score : g.away_score;
-        const os = isH ? g.away_score : g.home_score;
-        const won = ts > os;
-        const loc = isH ? 'Home' : 'Away';
-        const weight = won ? (isH ? 0.6 : 1.4) : (isH ? 1.4 : 0.6);
-        if (won) wW += weight; else wL += weight;
-        debugGames.push({
-          opponent: isH ? g.away_team : g.home_team,
-          score: ts + '-' + os,
-          location: loc,
-          result: won ? 'W' : 'L',
-          weight: weight,
-          weightType: won ? (isH ? 'Home W (0.6)' : 'Road W (1.4)') : (isH ? 'Home L (1.4)' : 'Road L (0.6)')
-        });
-      }
-      const wpTotal = wW + wL;
-      const weightedWPVal = wpTotal > 0 ? wW / wpTotal : 0;
-      
-      // 2. OWP - each opponent's record excluding games vs this team
-      const opps = oppMap.get(team) || [];
-      const debugOWP = [];
-      let owpSum = 0, owpCnt = 0;
-      for (const { opp } of opps) {
-        let oW = 0, oL = 0;
-        const oppGamesDetail = [];
-        for (const g of games) {
-          const oH = g.home_team === opp, oA = g.away_team === opp;
-          if (!oH && !oA) continue;
-          if (g.home_team === team || g.away_team === team) continue; // exclude H2H
-          const oppScore = oH ? g.home_score : g.away_score;
-          const otherScore = oH ? g.away_score : g.home_score;
-          const oppWon = oppScore > otherScore;
-          if (oppWon) oW++; else oL++;
-          oppGamesDetail.push({
-            vs: oH ? g.away_team : g.home_team,
-            score: oppScore + '-' + otherScore,
-            result: oppWon ? 'W' : 'L'
-          });
-        }
-        const oppWP = (oW + oL) > 0 ? oW / (oW + oL) : null;
-        if (oppWP !== null) { owpSum += oppWP; owpCnt++; }
-        debugOWP.push({
-          opponent: opp,
-          division: teamDivisions.get(opp) || 'unknown',
-          recordExcludingH2H: oW + '-' + oL,
-          winPct: oppWP !== null ? parseFloat(oppWP.toFixed(4)) : null,
-          gamesExcludingH2H: oppGamesDetail
-        });
-      }
-      const owpVal = owpCnt > 0 ? owpSum / owpCnt : 0;
-      
-      // 3. OOWP - each opponent's OWP
-      // First compute OWP for all teams
-      const allOWP = new Map();
-      for (const t of teams) {
-        const tOpps = oppMap.get(t) || [];
-        let s = 0, c = 0;
-        for (const { opp: o } of tOpps) {
-          let ow = 0, ol = 0;
-          for (const g of games) {
-            const oh = g.home_team === o, oa = g.away_team === o;
-            if (!oh && !oa) continue;
-            if (g.home_team === t || g.away_team === t) continue;
-            if ((oh ? g.home_score : g.away_score) > (oh ? g.away_score : g.home_score)) ow++; else ol++;
-          }
-          if (ow + ol > 0) { s += ow / (ow + ol); c++; }
-        }
-        allOWP.set(t, c > 0 ? s / c : 0);
-      }
-      
-      const debugOOWP = [];
-      let oowpSum = 0, oowpCnt = 0;
-      for (const { opp } of opps) {
-        const v = allOWP.get(opp);
-        if (v !== undefined) { oowpSum += v; oowpCnt++; }
-        debugOOWP.push({
-          opponent: opp,
-          owpValue: v !== undefined ? parseFloat(v.toFixed(4)) : null
-        });
-      }
-      const oowpVal = oowpCnt > 0 ? oowpSum / oowpCnt : 0;
-      
-      const rpiVal = (weightedWPVal * 0.25) + (owpVal * 0.50) + (oowpVal * 0.25);
-      
-      // Find the team's result in allResults
-      const teamResult = allResults.find(r => r.team === team && r.gender === gender);
-      
-      return new Response(JSON.stringify({
-        team: team,
-        gender: gender,
-        division: teamDivisions.get(team),
-        record: teamRecords.get(team),
-        totalNHIAAGamesInDB: games.length,
-        
-        step1_weightedWinPct: {
-          explanation: 'Home W=0.6, Road W=1.4, Home L=1.4, Road L=0.6. WP = weightedWins / (weightedWins + weightedLosses)',
-          games: debugGames,
-          weightedWins: parseFloat(wW.toFixed(4)),
-          weightedLosses: parseFloat(wL.toFixed(4)),
-          weightedWinPct: parseFloat(weightedWPVal.toFixed(4)),
-          contributes: '25% of RPI = ' + parseFloat((weightedWPVal * 0.25).toFixed(4))
-        },
-        
-        step2_OWP: {
-          explanation: 'For each opponent, calculate their W-L record EXCLUDING games vs ' + team + '. Average all opponent win%s.',
-          opponents: debugOWP,
-          owpSum: parseFloat(owpSum.toFixed(4)),
-          owpCount: owpCnt,
-          owpAverage: parseFloat(owpVal.toFixed(4)),
-          contributes: '50% of RPI = ' + parseFloat((owpVal * 0.50).toFixed(4))
-        },
-        
-        step3_OOWP: {
-          explanation: 'For each opponent, get THEIR OWP value. Average all.',
-          opponents: debugOOWP,
-          oowpSum: parseFloat(oowpSum.toFixed(4)),
-          oowpCount: oowpCnt,
-          oowpAverage: parseFloat(oowpVal.toFixed(4)),
-          contributes: '25% of RPI = ' + parseFloat((oowpVal * 0.25).toFixed(4))
-        },
-        
-        finalRPI: {
-          formula: '(WP × 0.25) + (OWP × 0.50) + (OOWP × 0.25)',
-          calculation: parseFloat(weightedWPVal.toFixed(4)) + ' × 0.25 + ' + parseFloat(owpVal.toFixed(4)) + ' × 0.50 + ' + parseFloat(oowpVal.toFixed(4)) + ' × 0.25',
-          rpi: parseFloat(rpiVal.toFixed(4)),
-          rank: teamResult ? teamResult.rank : null
-        }
-      }, null, 2), { status: 200, headers });
     }
 
     // 4. Fetch historical data for High/Low/Last
