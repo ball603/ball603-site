@@ -250,9 +250,6 @@
   </div>
 
 <script>
-  const SUPABASE_URL = 'https://bftxsnnpgoqyazkguulo.supabase.co';
-  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJmdHhzbm5wZ29xeWF6a2d1dWxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzU1MTMzMTgsImV4cCI6MjA1MTA4OTMxOH0.4_Rm3FKNZX4LjbHFSGnCbfMq5UzKfYUiGafmcjKfx8s';
-
   const DIV_MAP = {
     'D-I': 'DI',
     'D-II': 'DII',
@@ -279,7 +276,6 @@
     const card = document.getElementById(cardId);
     if (!card) return;
     
-    // Keep the header
     const header = card.querySelector('.division-header');
     
     if (!rows || rows.length === 0) {
@@ -292,7 +288,6 @@
       return;
     }
     
-    // Top 10 only
     const top10 = rows.slice(0, 10);
     
     let html = '<table class="division-table">';
@@ -333,43 +328,39 @@
 
   async function loadAllRPI() {
     try {
-      const res = await fetch(
-        SUPABASE_URL + '/rest/v1/rpi_rankings?select=*&order=week_of.desc,gender,division,rank&limit=5000',
-        {
-          headers: {
-            'apikey': SUPABASE_KEY,
-            'Authorization': 'Bearer ' + SUPABASE_KEY
-          }
-        }
-      );
+      // Fetch all genders via get-rpi (no gender filter = returns all)
+      const boysRes = await fetch('/.netlify/functions/get-rpi?gender=Boys');
+      const girlsRes = await fetch('/.netlify/functions/get-rpi?gender=Girls');
       
-      if (!res.ok) throw new Error('Failed to fetch RPI data');
-      const data = await res.json();
-      if (!data || data.length === 0) {
+      if (!boysRes.ok || !girlsRes.ok) throw new Error('Failed to fetch RPI data');
+      
+      const boysData = await boysRes.json();
+      const girlsData = await girlsRes.json();
+      
+      const allRankings = [...(boysData.rankings || []), ...(girlsData.rankings || [])];
+      
+      if (allRankings.length === 0) {
         document.getElementById('updatedAt').textContent = 'No RPI data available';
         return;
       }
       
-      // Get latest week
-      const latestWeek = data[0].week_of;
-      const latest = data.filter(r => r.week_of === latestWeek);
-      
       // Update timestamp
-      if (latest.length > 0 && latest[0].calculated_at) {
-        const d = new Date(latest[0].calculated_at);
+      const calcAt = boysData.calculatedAt || girlsData.calculatedAt;
+      if (calcAt) {
+        const d = new Date(calcAt);
         document.getElementById('updatedAt').textContent = 'Updated: ' + d.toLocaleDateString('en-US', {
           weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
           hour: 'numeric', minute: '2-digit'
         });
       }
       
-      // Group by gender + division
+      // Render each division
       const genders = ['Boys', 'Girls'];
       const divisions = ['D-I', 'D-II', 'D-III', 'D-IV'];
       
       for (const gender of genders) {
         for (const div of divisions) {
-          const rows = latest
+          const rows = allRankings
             .filter(r => r.gender === gender && r.division === div)
             .sort((a, b) => a.rank - b.rank);
           
