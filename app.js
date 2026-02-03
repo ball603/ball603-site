@@ -10,8 +10,12 @@ const CONFIG = {
   SUPABASE_URL: 'https://suncdkxfqkwwnmhosxcf.supabase.co',
   SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN1bmNka3hmcWt3d25taG9zeGNmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwNTk4MzIsImV4cCI6MjA4MDYzNTgzMn0.aT6V8Zx_YozqOh1ZnC6x-czI9vo-QhHKmP69PgY-8xw',
   GAMES_API: '/.netlify/functions/get-games',
+  SETTINGS_API: '/.netlify/functions/get-site-settings',
   LOGO_PATH: '/logos/100px/',
-  DEFAULT_LOGO: '/logos/100px/Ball603-white.png'
+  DEFAULT_LOGO: '/logos/100px/Ball603-white.png',
+  // Default sport/season (used before settings load)
+  DEFAULT_SPORT: 'basketball',
+  DEFAULT_SEASON: '2025-26'
 };
 
 // ===== STATE =====
@@ -22,7 +26,13 @@ const state = {
   followedTeams: [],
   tickerCollapsed: false,
   currentGallery: null,
-  currentPhotoIndex: 0
+  currentPhotoIndex: 0,
+  // Multi-sport state
+  siteSettings: null,
+  currentSport: CONFIG.DEFAULT_SPORT,
+  currentSeason: CONFIG.DEFAULT_SEASON,
+  multiSportEnabled: false,
+  enabledSports: ['basketball']
 };
 
 // ===== SUPABASE CLIENT =====
@@ -49,11 +59,71 @@ async function waitForSupabase(maxWait = 5000) {
 // ===== DATA FETCHING =====
 
 /**
+ * Fetch site settings (feature flags, current sport/season)
+ */
+async function fetchSiteSettings() {
+  try {
+    const response = await fetch(CONFIG.SETTINGS_API);
+    const data = await response.json();
+    
+    if (data.settings) {
+      state.siteSettings = data.settings;
+      state.multiSportEnabled = data.settings.multi_sport_enabled || false;
+      state.currentSport = data.settings.current_sport || CONFIG.DEFAULT_SPORT;
+      state.currentSeason = data.settings.current_season || CONFIG.DEFAULT_SEASON;
+      state.enabledSports = data.enabledSports || ['basketball'];
+    }
+    
+    return state.siteSettings;
+  } catch (error) {
+    console.error('Error fetching site settings:', error);
+    // Use defaults on error
+    state.multiSportEnabled = false;
+    state.currentSport = CONFIG.DEFAULT_SPORT;
+    state.currentSeason = CONFIG.DEFAULT_SEASON;
+    state.enabledSports = ['basketball'];
+    return null;
+  }
+}
+
+/**
+ * Switch to a different sport (only works when multi-sport is enabled)
+ */
+function switchSport(sport) {
+  if (!state.multiSportEnabled) return false;
+  if (!state.enabledSports.includes(sport)) return false;
+  
+  state.currentSport = sport;
+  
+  // Store preference
+  localStorage.setItem('ball603_current_sport', sport);
+  
+  // Dispatch event for pages to react
+  document.dispatchEvent(new CustomEvent('ball603:sportChanged', { 
+    detail: { sport, season: state.currentSeason } 
+  }));
+  
+  return true;
+}
+
+/**
+ * Get current sport/season params for API calls
+ */
+function getSportParams() {
+  return {
+    sport: state.currentSport,
+    season: state.currentSeason
+  };
+}
+
+/**
  * Fetch all games from the API
  */
 async function fetchGames() {
   try {
-    const response = await fetch(CONFIG.GAMES_API);
+    // Build URL with sport/season params
+    const params = new URLSearchParams(getSportParams());
+    const response = await fetch(`${CONFIG.GAMES_API}?${params}`);
     const data = await response.json();
     state.games = (data.games || []).map(normalizeGame);
     return state.games;
@@ -1097,6 +1167,17 @@ async function initApp() {
   // Initialize Supabase (wait for library to load)
   await waitForSupabase();
   
+  // Load site settings first (feature flags, current sport/season)
+  await fetchSiteSettings();
+  
+  // Check for stored sport preference (only if multi-sport is enabled)
+  if (state.multiSportEnabled) {
+    const storedSport = localStorage.getItem('ball603_current_sport');
+    if (storedSport && state.enabledSports.includes(storedSport)) {
+      state.currentSport = storedSport;
+    }
+  }
+  
   // Load followed teams
   loadFollowedTeams();
   
@@ -1123,7 +1204,14 @@ async function initApp() {
   });
   
   // Dispatch event for page-specific initialization
-  document.dispatchEvent(new CustomEvent('ball603:ready', { detail: state }));
+  document.dispatchEvent(new CustomEvent('ball603:ready', { 
+    detail: { 
+      ...state,
+      multiSportEnabled: state.multiSportEnabled,
+      currentSport: state.currentSport,
+      enabledSports: state.enabledSports
+    } 
+  }));
 }
 
 // Auto-initialize when DOM is ready
@@ -1140,6 +1228,7 @@ window.Ball603 = {
   fetchGames,
   fetchArticles,
   fetchTeams,
+  fetchSiteSettings,
   getTodaysGames,
   getCompletedGames,
   getUpcomingGames,
@@ -1161,5 +1250,12 @@ window.Ball603 = {
   isTeamFollowed,
   showToast,
   loadFavorites,
-  getGamePriority
+  getGamePriority,
+  // Multi-sport functions
+  switchSport,
+  getSportParams,
+  isMultiSportEnabled: () => state.multiSportEnabled,
+  getCurrentSport: () => state.currentSport,
+  getCurrentSeason: () => state.currentSeason,
+  getEnabledSports: () => state.enabledSports
 };
