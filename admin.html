@@ -4693,6 +4693,75 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         </div>
       </div>
       
+      <!-- Multi-Sport Settings -->
+      <div style="background: #fff; border-radius: 10px; padding: 25px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.08);">
+        <h3 style="margin: 0 0 20px; font-size: 18px; color: #333; border-bottom: 2px solid #1a73e8; padding-bottom: 10px;">
+          🏀 Multi-Sport Mode
+        </h3>
+        
+        <p style="color: #666; font-size: 14px; margin-bottom: 20px;">
+          Enable multi-sport mode to show the sport switcher and allow content for multiple sports. 
+          Enable each sport individually when you're ready to launch it.
+        </p>
+        
+        <!-- Master Toggle -->
+        <div style="background: #f0f7ff; border: 1px solid #bbdefb; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+          <label style="display: flex; align-items: center; gap: 12px; cursor: pointer;">
+            <input type="checkbox" id="multiSportEnabledToggle" onchange="saveMultiSportSettings()" style="width: 20px; height: 20px;">
+            <div>
+              <span style="font-weight: 600; color: #1565c0;">Enable Multi-Sport Mode</span>
+              <p style="margin: 4px 0 0; font-size: 12px; color: #666;">Shows sport switcher in header and sport dropdown in article editor</p>
+            </div>
+          </label>
+        </div>
+        
+        <!-- Individual Sports -->
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
+          <!-- Basketball -->
+          <div style="background: #fff8e1; border: 1px solid #ffe082; border-radius: 8px; padding: 15px; text-align: center;">
+            <div style="font-size: 32px; margin-bottom: 8px;">🏀</div>
+            <div style="font-weight: 600; color: #333; margin-bottom: 8px;">Basketball</div>
+            <label style="display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;">
+              <input type="checkbox" id="basketballEnabledToggle" checked disabled style="width: 18px; height: 18px;">
+              <span style="font-size: 13px; color: #666;">Always On</span>
+            </label>
+          </div>
+          
+          <!-- Baseball -->
+          <div style="background: #e8f5e9; border: 1px solid #a5d6a7; border-radius: 8px; padding: 15px; text-align: center;">
+            <div style="font-size: 32px; margin-bottom: 8px;">⚾</div>
+            <div style="font-weight: 600; color: #333; margin-bottom: 8px;">Baseball</div>
+            <label style="display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;">
+              <input type="checkbox" id="baseballEnabledToggle" onchange="saveMultiSportSettings()" style="width: 18px; height: 18px;">
+              <span style="font-size: 13px; color: #666;">Enabled</span>
+            </label>
+          </div>
+          
+          <!-- Volleyball -->
+          <div style="background: #fce4ec; border: 1px solid #f48fb1; border-radius: 8px; padding: 15px; text-align: center;">
+            <div style="font-size: 32px; margin-bottom: 8px;">🏐</div>
+            <div style="font-weight: 600; color: #333; margin-bottom: 8px;">Volleyball</div>
+            <label style="display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;">
+              <input type="checkbox" id="volleyballEnabledToggle" onchange="saveMultiSportSettings()" style="width: 18px; height: 18px;">
+              <span style="font-size: 13px; color: #666;">Enabled</span>
+            </label>
+          </div>
+        </div>
+        
+        <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee;">
+          <span id="multiSportSaveStatus" style="color: #4caf50; display: none;">✓ Settings saved!</span>
+        </div>
+        
+        <div style="margin-top: 15px; background: #fff3e0; border-radius: 6px; padding: 12px; font-size: 12px; color: #e65100;">
+          <strong>⚠️ Note:</strong> After enabling a sport, you'll need to:
+          <ul style="margin: 8px 0 0 20px; padding: 0;">
+            <li>Add team data for that sport</li>
+            <li>Set up scrapers (if applicable)</li>
+            <li>Create initial content</li>
+          </ul>
+        </div>
+      </div>
+      
       <!-- Future settings sections can go here -->
       <div style="background: #f5f5f5; border-radius: 10px; padding: 25px; color: #888; text-align: center;">
         <p>More settings coming soon...</p>
@@ -19677,14 +19746,15 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       if (siteSettingsLoaded) return;
       
       try {
-        const { data, error } = await db
+        // Load ticker settings
+        const { data: tickerData } = await db
           .from('site_settings')
           .select('*')
           .eq('key', 'ticker_settings')
           .single();
         
-        if (data && data.value) {
-          const settings = data.value;
+        if (tickerData && tickerData.value) {
+          const settings = tickerData.value;
           
           // Set mode
           if (settings.mode === 'manual') {
@@ -19701,10 +19771,99 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           document.getElementById('tickerShowTomorrow').checked = settings.showTomorrow === true;
         }
         
+        // Load multi-sport settings
+        await loadMultiSportToggles();
+        
         siteSettingsLoaded = true;
       } catch (err) {
-        console.log('No existing ticker settings, using defaults');
+        console.log('Error loading site settings:', err);
         siteSettingsLoaded = true;
+      }
+    }
+    
+    /**
+     * Load multi-sport toggle states from database
+     */
+    async function loadMultiSportToggles() {
+      try {
+        const { data, error } = await db
+          .from('site_settings')
+          .select('key, value')
+          .in('key', ['multi_sport_enabled', 'baseball_enabled', 'volleyball_enabled']);
+        
+        if (error) throw error;
+        
+        // Create a map of settings
+        const settingsMap = {};
+        (data || []).forEach(row => {
+          settingsMap[row.key] = row.value === 'true' || row.value === true;
+        });
+        
+        // Update toggles
+        document.getElementById('multiSportEnabledToggle').checked = settingsMap['multi_sport_enabled'] || false;
+        document.getElementById('baseballEnabledToggle').checked = settingsMap['baseball_enabled'] || false;
+        document.getElementById('volleyballEnabledToggle').checked = settingsMap['volleyball_enabled'] || false;
+        
+      } catch (err) {
+        console.log('Error loading multi-sport toggles:', err);
+      }
+    }
+    
+    /**
+     * Save multi-sport settings to database
+     */
+    async function saveMultiSportSettings() {
+      const multiSportEnabled = document.getElementById('multiSportEnabledToggle').checked;
+      const baseballEnabled = document.getElementById('baseballEnabledToggle').checked;
+      const volleyballEnabled = document.getElementById('volleyballEnabledToggle').checked;
+      
+      try {
+        // Upsert each setting
+        const settings = [
+          { key: 'multi_sport_enabled', value: multiSportEnabled ? 'true' : 'false' },
+          { key: 'baseball_enabled', value: baseballEnabled ? 'true' : 'false' },
+          { key: 'volleyball_enabled', value: volleyballEnabled ? 'true' : 'false' }
+        ];
+        
+        for (const setting of settings) {
+          const { error } = await db
+            .from('site_settings')
+            .upsert({
+              key: setting.key,
+              value: setting.value,
+              updated_at: new Date().toISOString()
+            }, {
+              onConflict: 'key'
+            });
+          
+          if (error) throw error;
+        }
+        
+        // Update local state
+        multiSportEnabled ? (window.multiSportEnabled = true) : (window.multiSportEnabled = false);
+        
+        // Update enabled sports array
+        enabledSports = ['basketball'];
+        if (baseballEnabled) enabledSports.push('baseball');
+        if (volleyballEnabled) enabledSports.push('volleyball');
+        
+        // Show success indicator
+        const status = document.getElementById('multiSportSaveStatus');
+        status.style.display = 'inline';
+        setTimeout(() => { status.style.display = 'none'; }, 3000);
+        
+        // Also update the sport selector in article editor
+        const sportSelectorCard = document.getElementById('sportSelectorCard');
+        if (sportSelectorCard) {
+          sportSelectorCard.style.display = multiSportEnabled ? 'block' : 'none';
+        }
+        
+        console.log('[CMS] Multi-sport settings saved:', { multiSportEnabled, baseballEnabled, volleyballEnabled });
+        showToast('Multi-sport settings saved', 'success');
+        
+      } catch (err) {
+        console.error('Error saving multi-sport settings:', err);
+        showToast('Error saving settings', 'error');
       }
     }
     
