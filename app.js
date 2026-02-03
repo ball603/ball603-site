@@ -1170,8 +1170,14 @@ async function initApp() {
   // Load site settings first (feature flags, current sport/season)
   await fetchSiteSettings();
   
-  // Check for stored sport preference (only if multi-sport is enabled)
-  if (state.multiSportEnabled) {
+  // Check for sport in URL params (highest priority)
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlSport = urlParams.get('sport');
+  if (urlSport && ['basketball', 'baseball', 'volleyball'].includes(urlSport)) {
+    state.currentSport = urlSport;
+  }
+  // Otherwise check for stored sport preference (only if multi-sport is enabled)
+  else if (state.multiSportEnabled) {
     const storedSport = localStorage.getItem('ball603_current_sport');
     if (storedSport && state.enabledSports.includes(storedSport)) {
       state.currentSport = storedSport;
@@ -1257,5 +1263,13 @@ window.Ball603 = {
   isMultiSportEnabled: () => state.multiSportEnabled,
   getCurrentSport: () => state.currentSport,
   getCurrentSeason: () => state.currentSeason,
-  getEnabledSports: () => state.enabledSports
+  getEnabledSports: () => state.enabledSports,
+  // URL helpers for multi-sport
+  getSportUrl: (page) => {
+    // Returns sport-prefixed URL if multi-sport enabled, otherwise regular URL
+    if (state.multiSportEnabled && state.currentSport !== 'basketball') {
+      return `/${state.currentSport}/${page}`;
+    }
+    return `/${page}`;
+  }
 };
