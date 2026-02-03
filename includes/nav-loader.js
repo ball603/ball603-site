@@ -887,9 +887,26 @@
               buttons.forEach(b => b.classList.remove('active'));
               btn.classList.add('active');
               
-              // Reload page to show new sport data
-              // In the future, this could be AJAX-based
-              window.location.reload();
+              // Navigate to sport-prefixed URL for the current page
+              const currentPath = window.location.pathname;
+              const sportPages = ['standings', 'schedule', 'rpi', 'teams', 'rosters'];
+              
+              // Check if we're on a sport-specific page
+              let pageName = null;
+              for (const page of sportPages) {
+                if (currentPath.includes(page)) {
+                  pageName = page;
+                  break;
+                }
+              }
+              
+              if (pageName) {
+                // Navigate to sport-prefixed version
+                window.location.href = `/${sport}/${pageName}`;
+              } else {
+                // Just reload for other pages (home, articles, etc.)
+                window.location.reload();
+              }
             }
           }
         });
