@@ -507,11 +507,43 @@ function findPreviousMatchup(team1, team2, gender, beforeDate, completedGames) {
 }
 
 // Build rankings from standings
-function buildRankings(standings) {
-  const rankings = {}; // team_gender_division -> { rank, isTied }
-  const top10Teams = {}; // gender_division -> Set of team names
+function buildRankings(standings, rpiRankings) {
+  const rankings = {}; // team_gender_division -> { rank, isTied, rpiRank, rpi }
+  const top10Teams = {}; // gender_division -> Set of team names (by RPI)
+  const rpiData = {}; // team_gender_division -> { rpi, rpiRank }
 
-  // Group by division and gender
+  // Build RPI lookup from rpi_rankings table
+  // rpi_rankings is ordered by week_of desc, so first occurrence of each team is latest
+  const seenRpi = new Set();
+  for (const r of rpiRankings) {
+    const key = `${r.team}_${r.gender}_${r.division}`;
+    if (!seenRpi.has(key)) {
+      rpiData[key] = {
+        rpi: r.rpi,
+        rpiRank: r.rank
+      };
+      seenRpi.add(key);
+    }
+  }
+
+  // Build top-10 by RPI for each gender/division
+  const rpiByGroup = {};
+  for (const r of rpiRankings) {
+    const groupKey = `${r.gender}_${r.division}`;
+    if (!rpiByGroup[groupKey]) rpiByGroup[groupKey] = [];
+    // Only add if not already in list (since ordered by week_of desc)
+    if (!rpiByGroup[groupKey].find(x => x.team === r.team)) {
+      rpiByGroup[groupKey].push(r);
+    }
+  }
+  
+  for (const [key, teams] of Object.entries(rpiByGroup)) {
+    // Sort by RPI rank (already sorted, but ensure)
+    teams.sort((a, b) => a.rank - b.rank);
+    top10Teams[key] = new Set(teams.slice(0, 10).map(t => t.team));
+  }
+
+  // Group standings by division and gender for standings rank
   const groups = {};
   for (const s of standings) {
     const key = `${s.gender}_${s.division}`;
@@ -519,7 +551,7 @@ function buildRankings(standings) {
     groups[key].push(s);
   }
 
-  // Sort each group and assign ranks
+  // Sort each group and assign standings ranks
   for (const [key, teams] of Object.entries(groups)) {
     const sorted = teams.sort((a, b) => {
       // Sort by rating desc, then wins desc, then losses asc
@@ -528,7 +560,6 @@ function buildRankings(standings) {
       return a.losses - b.losses;
     });
 
-    top10Teams[key] = new Set();
     let prevRating = null;
     let prevWins = null;
     let prevRank = 0;
@@ -554,25 +585,24 @@ function buildRankings(standings) {
                        sorted[i + 1].wins === team.wins;
 
       const teamKey = `${team.school}_${team.gender}_${team.division}`;
+      const rpi = rpiData[teamKey];
+      
       rankings[teamKey] = {
-        rank,
+        rank, // standings rank
         isTied: isTied || nextTied,
         wins: team.wins,
         losses: team.losses,
-        rating: team.rating
+        rating: team.rating,
+        rpiRank: rpi ? rpi.rpiRank : null,
+        rpi: rpi ? rpi.rpi : null
       };
-
-      // Add to top 10
-      if (rank <= 10) {
-        top10Teams[key].add(team.school);
-      }
     }
   }
 
-  return { rankings, top10Teams };
+  return { rankings, top10Teams, rpiData };
 }
 
-// Score a matchup for Game of the Night selection
+// Score a matchup for Game of the Night selection (RPI-based)
 function scoreMatchup(matchup, rankings) {
   let score = 0;
   
@@ -582,29 +612,55 @@ function scoreMatchup(matchup, rankings) {
   const homeRanking = rankings[homeRankKey];
 
   if (!awayRanking || !homeRanking) return 0;
+  
+  const awayRPI = awayRanking.rpi || 0;
+  const homeRPI = homeRanking.rpi || 0;
+  const awayRPIRank = awayRanking.rpiRank || 99;
+  const homeRPIRank = homeRanking.rpiRank || 99;
 
-  // Battle of unbeatens (both 0 losses) - highest priority
+  // Combined RPI Quality: (RPI₁ + RPI₂) × 150
+  // Two .600 teams = 180 pts; two .500 teams = 150 pts
+  score += (awayRPI + homeRPI) * 150;
+
+  // Competitiveness: 100 − (RPI difference × 400)
+  // .600 vs .580 = 92 pts; .600 vs .450 = 40 pts
+  const rpiDiff = Math.abs(awayRPI - homeRPI);
+  score += Math.max(0, 100 - (rpiDiff * 400));
+
+  // Battle of unbeatens (both 0 losses)
   if (awayRanking.losses === 0 && homeRanking.losses === 0) {
-    score += 1000;
+    score += 200;
   }
 
-  // Both tied for 1st
-  if (awayRanking.rank === 1 && homeRanking.rank === 1) {
-    score += 500;
+  // Both RPI ≥ .600 (elite matchup)
+  if (awayRPI >= 0.6 && homeRPI >= 0.6) {
+    score += 100;
   }
 
-  // Lower combined ranking is better (1st vs 2nd = 3, beats 5th vs 6th = 11)
-  const combinedRank = awayRanking.rank + homeRanking.rank;
-  score += (20 - combinedRank) * 10; // Max 190 for 1 vs 1
+  // Both ≤ 2 losses (playoff bubble implications)
+  if (awayRanking.losses <= 2 && homeRanking.losses <= 2) {
+    score += 75;
+  }
 
-  // Rematch with close previous game adds intrigue
-  if (matchup.previousMatchup && matchup.previousMatchup.margin <= 10) {
+  // #1 vs #2 by RPI (division title stakes)
+  if ((awayRPIRank === 1 && homeRPIRank === 2) || (awayRPIRank === 2 && homeRPIRank === 1)) {
+    score += 100;
+  }
+
+  // Both top 5 by RPI
+  if (awayRPIRank <= 5 && homeRPIRank <= 5) {
     score += 50;
   }
 
-  // One-loss teams facing each other
-  if (awayRanking.losses <= 1 && homeRanking.losses <= 1) {
-    score += 100;
+  // Rematch bonuses
+  if (matchup.previousMatchup) {
+    if (matchup.previousMatchup.margin <= 5) {
+      // Close rematch (≤5 pts)
+      score += 50;
+    } else {
+      // Any rematch
+      score += 25;
+    }
   }
 
   return score;
@@ -616,14 +672,18 @@ function formatTeamDisplay(team, gender, division, rankings) {
   const ranking = rankings[key];
   
   if (!ranking) {
-    return { name: team, record: '', rank: '', display: team };
+    return { name: team, record: '', rank: '', rpiRank: '', display: team };
   }
 
   const rankStr = ranking.isTied ? `t-${ordinal(ranking.rank)}` : ordinal(ranking.rank);
+  const rpiRankStr = ranking.rpiRank ? ordinal(ranking.rpiRank) : 'N/A';
+  
   return {
     name: team,
     record: `${ranking.wins}-${ranking.losses}`,
     rank: rankStr,
+    rpiRank: rpiRankStr,
+    rpi: ranking.rpi,
     display: `${team} (${ranking.wins}-${ranking.losses}, ${rankStr})`
   };
 }
@@ -656,15 +716,17 @@ export default async (request) => {
     console.log(`Generating marquee matchups for ${date}`);
 
     // Fetch all required data in parallel
-    const [games, standings, allGames] = await Promise.all([
+    const [games, standings, allGames, rpiRankings] = await Promise.all([
       supabaseQuery('games', `?date=eq.${date}&level=eq.NHIAA&order=division,gender,time`),
       supabaseQuery('standings', '?select=*'),
-      supabaseQuery('games', '?level=eq.NHIAA&select=*')
+      supabaseQuery('games', '?level=eq.NHIAA&select=*'),
+      supabaseQuery('rpi_rankings', '?select=team,gender,division,rpi,rank,wins,losses&order=week_of.desc&limit=500')
     ]);
 
     console.log(`Found ${games.length} games on ${date}`);
     console.log(`Found ${standings.length} standings records`);
     console.log(`Found ${allGames.length} total games for stats`);
+    console.log(`Found ${rpiRankings.length} RPI rankings`);
 
     // Filter completed games for stats
     const completedGames = allGames.filter(g => 
@@ -672,8 +734,8 @@ export default async (request) => {
       g.date < date // Only games before this date
     );
 
-    // Build rankings and top 10 lists
-    const { rankings, top10Teams } = buildRankings(standings);
+    // Build rankings and top 10 lists (now using RPI)
+    const { rankings, top10Teams, rpiData } = buildRankings(standings, rpiRankings);
 
     // Process each game
     const processedGames = [];
