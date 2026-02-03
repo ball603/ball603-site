@@ -351,6 +351,7 @@
   let headerLoaded = false;
   let mobileMenuLoaded = false;
   let favoritesModalLoaded = false;
+  let sportSwitcherLoaded = false;
 
   // Check if all components are loaded, then initialize
   function checkAndInit() {
@@ -359,6 +360,9 @@
     }
     if (headerLoaded && mobileMenuLoaded && favoritesModalLoaded) {
       initFavoritesModal();
+    }
+    if (headerLoaded && sportSwitcherLoaded) {
+      initSportSwitcher();
     }
   }
 
@@ -377,6 +381,25 @@
       checkAndInit();
     })
     .catch(err => console.error('Failed to load header:', err));
+
+  // Load sport switcher (hidden by default, shown when multi-sport enabled)
+  fetch('/includes/sport-switcher.html')
+    .then(response => response.text())
+    .then(html => {
+      // Insert after header loads
+      const header = document.querySelector('.site-header');
+      if (header) {
+        header.insertAdjacentHTML('afterend', html);
+      }
+      sportSwitcherLoaded = true;
+      checkAndInit();
+    })
+    .catch(err => {
+      // Sport switcher is optional, don't error
+      console.log('Sport switcher not loaded:', err.message);
+      sportSwitcherLoaded = true;
+      checkAndInit();
+    });
 
   // Load mobile menu
   fetch('/includes/mobile-menu.html')
@@ -814,5 +837,75 @@
     load: loadFavorites,
     open: openFavoritesModal
   };
+
+  /**
+   * Initialize sport switcher
+   * Only shown when multi_sport_enabled is true in site settings
+   */
+  function initSportSwitcher() {
+    const switcher = document.getElementById('sportSwitcher');
+    if (!switcher) return;
+
+    // Listen for ball603:ready event to check if multi-sport is enabled
+    document.addEventListener('ball603:ready', function(e) {
+      const detail = e.detail || {};
+      const multiSportEnabled = detail.multiSportEnabled || false;
+      const enabledSports = detail.enabledSports || ['basketball'];
+      const currentSport = detail.currentSport || 'basketball';
+
+      if (!multiSportEnabled) {
+        // Keep hidden
+        switcher.style.display = 'none';
+        return;
+      }
+
+      // Show switcher
+      switcher.style.display = 'block';
+
+      // Update button states
+      const buttons = switcher.querySelectorAll('.sport-btn');
+      buttons.forEach(btn => {
+        const sport = btn.dataset.sport;
+        
+        // Hide buttons for disabled sports
+        if (!enabledSports.includes(sport)) {
+          btn.style.display = 'none';
+          return;
+        }
+        
+        btn.style.display = 'flex';
+        
+        // Mark current sport as active
+        btn.classList.toggle('active', sport === currentSport);
+        
+        // Add click handler
+        btn.addEventListener('click', function() {
+          if (window.Ball603 && window.Ball603.switchSport) {
+            const success = window.Ball603.switchSport(sport);
+            if (success) {
+              // Update active states
+              buttons.forEach(b => b.classList.remove('active'));
+              btn.classList.add('active');
+              
+              // Reload page to show new sport data
+              // In the future, this could be AJAX-based
+              window.location.reload();
+            }
+          }
+        });
+      });
+    });
+
+    // Also listen for sport change events (for SPA-style updates)
+    document.addEventListener('ball603:sportChanged', function(e) {
+      const sport = e.detail?.sport;
+      if (!sport) return;
+      
+      const buttons = switcher.querySelectorAll('.sport-btn');
+      buttons.forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.sport === sport);
+      });
+    });
+  }
 
 })();
