@@ -2062,6 +2062,19 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             </div>
           </div>
           
+          <!-- Sport Selector (hidden until multi-sport enabled) -->
+          <div class="sidebar-card" id="sportSelectorCard" style="display: none;">
+            <h4>&#127936; Sport</h4>
+            <div class="form-group">
+              <select id="articleSport" style="width: 100%;">
+                <option value="basketball">Basketball</option>
+                <option value="baseball">Baseball</option>
+                <option value="volleyball">Volleyball</option>
+              </select>
+              <small>Which sport is this article about?</small>
+            </div>
+          </div>
+          
           <div class="sidebar-card">
             <h4>📤 Distribution</h4>
             <div class="form-group">
@@ -5058,6 +5071,12 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     let selectedGame = null;
     let pendingMarqueeContent = null; // Stores rich HTML from Marquee Matchups generator
     
+    // Multi-sport state
+    let multiSportEnabled = false;
+    let currentSport = 'basketball';
+    let currentSeason = '2025-26';
+    let enabledSports = ['basketball'];
+    
     // Game data for articles (quarter scores, player stats)
     let currentGameData = null;
     
@@ -5610,6 +5629,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('loginScreen').style.display = 'none';
       document.getElementById('mainHeader').style.display = 'block';
       document.getElementById('mainContainer').style.display = 'block';
+      
+      // Load multi-sport settings first
+      await loadMultiSportSettings();
+      
       await loadPinnedArticles(); // Load pinned articles from Supabase first
       loadArticles();
       loadGamesForStory();
@@ -5620,6 +5643,50 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       setTimeout(() => {
         initQuillEditor();
       }, 100);
+    }
+    
+    /**
+     * Load multi-sport settings from the API
+     * Controls visibility of sport selector in article editor
+     */
+    async function loadMultiSportSettings() {
+      try {
+        const response = await fetch('/.netlify/functions/get-site-settings');
+        const data = await response.json();
+        
+        if (data.settings) {
+          multiSportEnabled = data.settings.multi_sport_enabled || false;
+          currentSport = data.settings.current_sport || 'basketball';
+          currentSeason = data.settings.current_season || '2025-26';
+          enabledSports = data.enabledSports || ['basketball'];
+        }
+        
+        // Show/hide sport selector based on multi-sport enabled
+        const sportSelectorCard = document.getElementById('sportSelectorCard');
+        if (sportSelectorCard) {
+          sportSelectorCard.style.display = multiSportEnabled ? 'block' : 'none';
+          
+          // Update sport dropdown options based on enabled sports
+          if (multiSportEnabled) {
+            const sportSelect = document.getElementById('articleSport');
+            if (sportSelect) {
+              // Hide options for disabled sports
+              Array.from(sportSelect.options).forEach(option => {
+                option.style.display = enabledSports.includes(option.value) ? '' : 'none';
+              });
+              // Set default to current sport
+              sportSelect.value = currentSport;
+            }
+          }
+        }
+        
+        console.log('[CMS] Multi-sport settings loaded:', { multiSportEnabled, currentSport, enabledSports });
+      } catch (err) {
+        console.log('[CMS] Could not load multi-sport settings, using defaults:', err.message);
+        multiSportEnabled = false;
+        currentSport = 'basketball';
+        enabledSports = ['basketball'];
+      }
     }
     
     // Check auth on load
@@ -7704,6 +7771,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       setAuthorValue('KJ Cardinal');
       setPhotographerValue('');
       document.getElementById('articleDate').value = getTodayEST();
+      document.getElementById('articleSport').value = currentSport || 'basketball'; // Reset to current sport
       isScheduled = false;
       scheduledTime = null;
       document.getElementById('scheduledDateTime').value = '';
@@ -7850,6 +7918,9 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       } else {
         document.getElementById('articleDate').value = getTodayEST();
       }
+      
+      // Handle sport (for multi-sport support)
+      document.getElementById('articleSport').value = article.sport || 'basketball';
       
       // Handle featured image
       if (article.featured_image_url) {
@@ -8737,6 +8808,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         slug: currentArticle?.slug || (generateSlug(title) + '-' + Date.now()),
         content: getEditorContent(), // Get from Quill
         excerpt: document.getElementById('articleExcerpt').value,
+        sport: document.getElementById('articleSport').value || 'basketball',
         game_id: document.getElementById('selectedGameId').value || null,
         smugmug_gallery_url: document.getElementById('smugmugUrl').value || null,
         youtube_url: document.getElementById('youtubeUrl').value || null,
@@ -8821,6 +8893,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         slug: currentArticle?.slug || (generateSlug(title) + '-' + Date.now()),
         content: getEditorContent(), // Get from Quill
         excerpt: document.getElementById('articleExcerpt').value,
+        sport: document.getElementById('articleSport').value || 'basketball',
         game_id: document.getElementById('selectedGameId').value || null,
         smugmug_gallery_url: document.getElementById('smugmugUrl').value || null,
         youtube_url: document.getElementById('youtubeUrl').value || null,
@@ -8932,6 +9005,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         slug,
         content: contentToSave,
         excerpt: document.getElementById('articleExcerpt').value,
+        sport: document.getElementById('articleSport').value || 'basketball',
         game_id: gameId,
         smugmug_gallery_url: smugmugUrl,
         youtube_url: youtubeUrl,
