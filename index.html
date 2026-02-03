@@ -904,6 +904,85 @@
       display: none;
     }
     
+    /* View Toggle (RPI/Standings) */
+    .view-toggle {
+      display: flex;
+      padding: 8px 12px;
+      gap: 8px;
+      background: #f0f0f0;
+      border-bottom: 1px solid #e8e8e8;
+    }
+    
+    .view-btn {
+      flex: 1;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #666;
+      background: transparent;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .view-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    
+    .view-btn.active {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+    
+    /* Standings Header Row */
+    .standings-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 0;
+      border-bottom: 2px solid #e0e0e0;
+      font-size: 10px;
+      font-weight: 700;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .standings-header .standings-rank {
+      font-size: 10px;
+      color: #888;
+    }
+    
+    .standings-header .standings-team-col {
+      flex: 1;
+      padding-left: 34px; /* logo width + gap */
+    }
+    
+    .standings-header .standings-record {
+      font-size: 10px;
+      color: #888;
+      font-weight: 700;
+    }
+    
+    .standings-header .standings-rpi {
+      font-size: 10px;
+      color: #888;
+      font-weight: 700;
+    }
+    
+    /* RPI Value Column */
+    .standings-rpi {
+      font-size: 12px;
+      color: var(--accent);
+      font-weight: 600;
+      font-family: 'Monaco', 'Menlo', monospace;
+      min-width: 42px;
+      text-align: right;
+    }
+    
     /* Standings */
     .standings-gender-toggle {
       display: flex;
@@ -1464,6 +1543,41 @@
         color: #666;
       }
       
+      /* View Toggle dark mode */
+      .view-toggle {
+        background: #252525;
+        border-bottom-color: #333;
+      }
+      
+      .view-btn {
+        color: #aaa;
+        border-color: #444;
+        background: transparent;
+      }
+      
+      .view-btn:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      
+      .view-btn.active {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+      }
+      
+      /* Standings header row dark mode */
+      .standings-header {
+        border-bottom-color: #444;
+        color: #666;
+      }
+      
+      .standings-header .standings-rank,
+      .standings-header .standings-record,
+      .standings-header .standings-rpi {
+        color: #666;
+      }
+      
       #standingsMini::-webkit-scrollbar-track {
         background: #333;
       }
@@ -1662,8 +1776,13 @@
   <div class="mobile-standings-section">
     <div class="sidebar-card">
       <div class="sidebar-header">
-        <h3 class="sidebar-title">&#128202; Standings</h3>
-        <a href="/standings" class="sidebar-link">Full Standings &#8594;</a>
+        <h3 class="sidebar-title" id="mobileViewTitle">&#128290; RPI</h3>
+        <a href="/rpi" class="sidebar-link" id="mobileViewLink">Full RPI &#8594;</a>
+      </div>
+      <!-- View Toggle -->
+      <div class="view-toggle">
+        <button class="view-btn active" data-view="rpi" onclick="setView('rpi')">🔢 RPI</button>
+        <button class="view-btn" data-view="standings" onclick="setView('standings')">📊 Standings</button>
       </div>
       <!-- Gender Toggle -->
       <div class="standings-gender-toggle">
@@ -1705,11 +1824,16 @@
       
       <!-- Sidebar -->
       <aside class="sidebar">
-        <!-- Standings -->
+        <!-- Standings / RPI -->
         <div class="sidebar-card">
           <div class="sidebar-header">
-            <h3 class="sidebar-title">&#128202; Standings</h3>
-            <a href="/standings" class="sidebar-link">Full Standings &#8594;</a>
+            <h3 class="sidebar-title" id="desktopViewTitle">&#128290; RPI</h3>
+            <a href="/rpi" class="sidebar-link" id="desktopViewLink">Full RPI &#8594;</a>
+          </div>
+          <!-- View Toggle -->
+          <div class="view-toggle">
+            <button class="view-btn active" data-view="rpi" onclick="setView('rpi')">🔢 RPI</button>
+            <button class="view-btn" data-view="standings" onclick="setView('standings')">📊 Standings</button>
           </div>
           <!-- Gender Toggle -->
           <div class="standings-gender-toggle">
@@ -2505,6 +2629,27 @@
     let standingsGender = 'Boys';
     let standingsDivision = 'D-I';
     let allStandings = [];
+    let allRpi = [];
+    let currentView = 'rpi'; // 'rpi' or 'standings'
+    
+    function setView(view) {
+      currentView = view;
+      // Update buttons
+      document.querySelectorAll('.view-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.view === view);
+      });
+      // Update header title and link
+      const titles = document.querySelectorAll('#mobileViewTitle, #desktopViewTitle');
+      const links = document.querySelectorAll('#mobileViewLink, #desktopViewLink');
+      if (view === 'rpi') {
+        titles.forEach(t => t.innerHTML = '&#128290; RPI');
+        links.forEach(l => { l.href = '/rpi'; l.innerHTML = 'Full RPI &#8594;'; });
+      } else {
+        titles.forEach(t => t.innerHTML = '&#128202; Standings');
+        links.forEach(l => { l.href = '/standings'; l.innerHTML = 'Full Standings &#8594;'; });
+      }
+      renderCurrentView();
+    }
     
     function setStandingsGender(gender) {
       standingsGender = gender;
@@ -2512,7 +2657,7 @@
       document.querySelectorAll('.gender-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.gender === gender);
       });
-      renderStandingsData();
+      renderCurrentView();
     }
     
     function setStandingsDivision(div) {
@@ -2521,7 +2666,15 @@
       document.querySelectorAll('.standings-tab').forEach(tab => {
         tab.classList.toggle('active', tab.dataset.div === div);
       });
-      renderStandingsData();
+      renderCurrentView();
+    }
+    
+    function renderCurrentView() {
+      if (currentView === 'rpi') {
+        renderRpiData();
+      } else {
+        renderStandingsData();
+      }
     }
     
     /**
@@ -2532,23 +2685,81 @@
       const mobileContainer = document.getElementById('standingsMiniMobile');
       
       try {
-        const response = await fetch('/.netlify/functions/get-standings');
-        const data = await response.json();
+        // Load both standings and RPI in parallel
+        const [standingsRes, rpiBoysRes, rpiGirlsRes] = await Promise.all([
+          fetch('/.netlify/functions/get-standings'),
+          fetch('/.netlify/functions/get-rpi?gender=Boys'),
+          fetch('/.netlify/functions/get-rpi?gender=Girls')
+        ]);
         
-        if (data.standings && data.standings.length > 0) {
-          allStandings = data.standings;
-          renderStandingsData();
-        } else {
-          const emptyHtml = '<div class="standings-empty">No standings available</div>';
-          container.innerHTML = emptyHtml;
-          if (mobileContainer) mobileContainer.innerHTML = emptyHtml;
+        const standingsData = await standingsRes.json();
+        const rpiBoysData = await rpiBoysRes.json();
+        const rpiGirlsData = await rpiGirlsRes.json();
+        
+        if (standingsData.standings && standingsData.standings.length > 0) {
+          allStandings = standingsData.standings;
         }
+        
+        allRpi = [...(rpiBoysData.rankings || []), ...(rpiGirlsData.rankings || [])];
+        
+        // Default to RPI view
+        renderCurrentView();
       } catch (err) {
-        console.error('Error loading standings:', err);
-        const errorHtml = '<div class="standings-empty">Unable to load standings</div>';
+        console.error('Error loading data:', err);
+        const errorHtml = '<div class="standings-empty">Unable to load data</div>';
         container.innerHTML = errorHtml;
         if (mobileContainer) mobileContainer.innerHTML = errorHtml;
       }
+    }
+    
+    /**
+     * Render RPI based on selected gender and division
+     */
+    function renderRpiData() {
+      const container = document.getElementById('standingsMini');
+      const mobileContainer = document.getElementById('standingsMiniMobile');
+      
+      // Filter RPI by gender and division
+      const filtered = allRpi.filter(r => 
+        r.gender === standingsGender && 
+        r.division === standingsDivision
+      );
+      
+      if (filtered.length === 0) {
+        const emptyHtml = '<div class="standings-empty">No RPI data available</div>';
+        container.innerHTML = emptyHtml;
+        if (mobileContainer) mobileContainer.innerHTML = emptyHtml;
+        return;
+      }
+      
+      // Sort by rank
+      const sorted = filtered.sort((a, b) => a.rank - b.rank);
+      
+      // Header row
+      let rpiHtml = `
+        <div class="standings-header">
+          <span class="standings-rank">#</span>
+          <span class="standings-team-col">Team</span>
+          <span class="standings-record">Record</span>
+          <span class="standings-rpi">RPI</span>
+        </div>
+      `;
+      
+      rpiHtml += sorted.map(r => {
+        const slug = (r.team || '').toLowerCase().replace(/[\s\-]+/g, '');
+        const rpiVal = r.rpi !== null ? ('.' + r.rpi.toFixed(3).split('.')[1]) : '—';
+        return `
+        <div class="standings-row">
+          <span class="standings-rank">${r.rank}</span>
+          <img class="standings-logo" src="${Ball603.getLogoUrl(r.team)}" alt="" onerror="this.src='/logos/100px/Ball603-white.png'">
+          <a href="/${slug}" class="standings-team-link">${Ball603.getShortName(r.team)}</a>
+          <span class="standings-record">${r.wins || 0}-${r.losses || 0}</span>
+          <span class="standings-rpi">${rpiVal}</span>
+        </div>
+      `}).join('');
+      
+      container.innerHTML = rpiHtml;
+      if (mobileContainer) mobileContainer.innerHTML = rpiHtml;
     }
     
     /**
@@ -2574,7 +2785,16 @@
       // Sort by power rating (descending)
       const sorted = filtered.sort((a, b) => (b.power_rating || 0) - (a.power_rating || 0));
       
-      const standingsHtml = sorted.map((s, i) => {
+      // Header row
+      let standingsHtml = `
+        <div class="standings-header">
+          <span class="standings-rank">#</span>
+          <span class="standings-team-col">Team</span>
+          <span class="standings-record">Record</span>
+        </div>
+      `;
+      
+      standingsHtml += sorted.map((s, i) => {
         // Convert school name to URL slug (lowercase, no spaces/hyphens)
         const slug = (s.school || '').toLowerCase().replace(/[\s\-]+/g, '');
         return `
