@@ -1,9 +1,14 @@
 // Ball603 Get RPI Rankings API
 // Returns the latest weekly RPI snapshot from rpi_rankings table
 // Used by the public rpi.html page
+// Supports multi-sport filtering (defaults to basketball for backward compatibility)
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
+
+// Default sport and season for backward compatibility
+const DEFAULT_SPORT = 'basketball';
+const DEFAULT_SEASON = '2025-26';
 
 export default async (request) => {
   const headers = {
@@ -16,9 +21,13 @@ export default async (request) => {
     const gender = url.searchParams.get('gender');
     const division = url.searchParams.get('division');
     
-    // Step 1: Get the latest week_of
+    // Sport and season filtering (with defaults for backward compatibility)
+    const sport = url.searchParams.get('sport') || DEFAULT_SPORT;
+    const season = url.searchParams.get('season') || DEFAULT_SEASON;
+    
+    // Step 1: Get the latest week_of for this sport/season
     const weekRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/rpi_rankings?select=week_of&order=week_of.desc&limit=1`,
+      `${SUPABASE_URL}/rest/v1/rpi_rankings?select=week_of&sport=eq.${encodeURIComponent(sport)}&season=eq.${encodeURIComponent(season)}&order=week_of.desc&limit=1`,
       {
         headers: {
           'apikey': SUPABASE_KEY,
@@ -38,6 +47,8 @@ export default async (request) => {
         rankings: [],
         calculatedAt: null,
         weekOf: null,
+        sport,
+        season,
         message: 'No RPI data available yet'
       }), { status: 200, headers });
     }
@@ -45,7 +56,7 @@ export default async (request) => {
     const latestWeek = weekData[0].week_of;
     
     // Step 2: Fetch all data for that week, optionally filtered
-    let filter = `week_of=eq.${latestWeek}`;
+    let filter = `week_of=eq.${latestWeek}&sport=eq.${encodeURIComponent(sport)}&season=eq.${encodeURIComponent(season)}`;
     if (gender) filter += `&gender=eq.${encodeURIComponent(gender)}`;
     if (division) filter += `&division=eq.${encodeURIComponent(division)}`;
     
@@ -72,7 +83,9 @@ export default async (request) => {
     return new Response(JSON.stringify({
       rankings,
       calculatedAt,
-      weekOf: latestWeek
+      weekOf: latestWeek,
+      sport,
+      season
     }), { status: 200, headers });
     
   } catch (err) {

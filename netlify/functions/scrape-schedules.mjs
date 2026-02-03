@@ -6,6 +6,10 @@
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
+// Sport and season for this scraper (basketball-specific)
+const SPORT = 'basketball';
+const SEASON = '2025-26';
+
 const SCHEDULE_URLS = [
   { url: 'https://www.nhiaa.org/sports/schedules/boys-basketball/division-1', gender: 'Boys', division: 'D-I' },
   { url: 'https://www.nhiaa.org/sports/schedules/boys-basketball/division-2', gender: 'Boys', division: 'D-II' },
@@ -693,9 +697,9 @@ async function migrateGameId(oldGame, newGameId) {
 }
 
 async function getExistingGames() {
-  // Fetch all NHIAA games from Supabase
+  // Fetch all NHIAA games from Supabase for this sport/season
   const response = await fetch(
-    `${SUPABASE_URL}/rest/v1/games?level=eq.NHIAA&select=game_id,date,time,away_score,home_score,photog1,photog2,videog,writer,notes,original_date,schedule_changed,photos_url,recap_url,highlights_url,live_stream_url,game_description,special_event,original_time`,
+    `${SUPABASE_URL}/rest/v1/games?level=eq.NHIAA&sport=eq.${SPORT}&season=eq.${SEASON}&select=game_id,date,time,away_score,home_score,photog1,photog2,videog,writer,notes,original_date,schedule_changed,photos_url,recap_url,highlights_url,live_stream_url,game_description,special_event,original_time`,
     {
       headers: {
         'apikey': SUPABASE_SERVICE_KEY,
@@ -777,6 +781,8 @@ async function updateSupabase(games) {
       gender: g.gender,
       level: g.level,
       division: g.division,
+      sport: SPORT,
+      season: SEASON,
       // Set status based on whether we have scores (manual or scraped)
       // This prevents the scraper from reverting manually-entered scores to 'scheduled'
       status: time === 'FINAL' ? 'final' : 'scheduled',
@@ -845,9 +851,9 @@ async function syncWithNHIAA(scrapedGames) {
     // Build set of scraped game_ids for fast lookup
     const scrapedGameIds = new Set(scrapedGames.map(g => g.game_id));
     
-    // Fetch all NHIAA games from database
+    // Fetch all NHIAA games from database for this sport/season
     const dbResponse = await fetch(
-      `${SUPABASE_URL}/rest/v1/games?level=eq.NHIAA&select=game_id,date,home_team,away_team,gender,photog1,photog2,videog,writer`,
+      `${SUPABASE_URL}/rest/v1/games?level=eq.NHIAA&sport=eq.${SPORT}&season=eq.${SEASON}&select=game_id,date,home_team,away_team,gender,photog1,photog2,videog,writer`,
       {
         headers: {
           'apikey': SUPABASE_SERVICE_KEY,

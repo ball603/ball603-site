@@ -4,6 +4,10 @@
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
+// Sport and season for this scraper (basketball-specific)
+const SPORT = 'basketball';
+const SEASON = '2025-26';
+
 const STANDINGS_URLS = [
   { url: 'https://www.nhiaa.org/sports/standings/boys-basketball/division-1', gender: 'Boys', division: 'D-I' },
   { url: 'https://www.nhiaa.org/sports/standings/boys-basketball/division-2', gender: 'Boys', division: 'D-II' },
@@ -98,7 +102,7 @@ async function updateSupabase(standings) {
   
   // First, get existing teams to know which are new vs existing
   const existingResponse = await fetch(
-    `${SUPABASE_URL}/rest/v1/standings?select=school,gender,division`,
+    `${SUPABASE_URL}/rest/v1/standings?select=school,gender,division&sport=eq.${SPORT}&season=eq.${SEASON}`,
     {
       headers: {
         'apikey': SUPABASE_KEY,
@@ -160,6 +164,8 @@ async function updateSupabase(standings) {
             school: s.school,
             gender: s.gender,
             division: s.division,
+            sport: SPORT,
+            season: SEASON,
             wins: s.wins,
             losses: s.losses,
             ties: s.ties,
@@ -195,7 +201,7 @@ async function updateRecordsFromGames() {
   
   // Step 1: Get all existing standings to find each team's actual division
   const standingsResponse = await fetch(
-    `${SUPABASE_URL}/rest/v1/standings?select=school,gender,division`,
+    `${SUPABASE_URL}/rest/v1/standings?select=school,gender,division&sport=eq.${SPORT}&season=eq.${SEASON}`,
     {
       headers: {
         'apikey': SUPABASE_KEY,
@@ -215,9 +221,9 @@ async function updateRecordsFromGames() {
     console.log(`  Loaded ${teamDivisionMap.size} team divisions from standings`);
   }
   
-  // Fetch all completed NHIAA games
+  // Fetch all completed NHIAA games for this sport/season
   const gamesResponse = await fetch(
-    `${SUPABASE_URL}/rest/v1/games?level=eq.NHIAA&select=home_team,away_team,home_score,away_score,gender,division&or=(home_score.not.is.null,away_score.not.is.null)`,
+    `${SUPABASE_URL}/rest/v1/games?level=eq.NHIAA&sport=eq.${SPORT}&season=eq.${SEASON}&select=home_team,away_team,home_score,away_score,gender,division&or=(home_score.not.is.null,away_score.not.is.null)`,
     {
       headers: {
         'apikey': SUPABASE_KEY,

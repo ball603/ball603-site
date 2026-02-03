@@ -2,6 +2,11 @@
 // Scheduled: Mondays at 6 AM ET (11 AM UTC)
 // Also callable manually via POST from admin panel
 // Add ?test=1 to URL for diagnostic mode
+// Supports multi-sport (defaults to basketball for backward compatibility)
+
+// Sport and season for this calculator (basketball-specific)
+const SPORT = 'basketball';
+const SEASON = '2025-26';
 
 export default async (request) => {
   const headers = {
@@ -59,10 +64,10 @@ export default async (request) => {
       const dGender = debugGender || 'Girls';
       
       const dGames = await supabaseGet(
-        'games?select=home_team,away_team,home_score,away_score,gender,division&level=eq.NHIAA&home_score=not.is.null&away_score=not.is.null&gender=eq.' + dGender
+        `games?select=home_team,away_team,home_score,away_score,gender,division&level=eq.NHIAA&sport=eq.${SPORT}&season=eq.${SEASON}&home_score=not.is.null&away_score=not.is.null&gender=eq.` + dGender
       );
       const dStandings = await supabaseGet(
-        'standings?select=school,gender,division,wins,losses&gender=eq.' + dGender
+        `standings?select=school,gender,division,wins,losses&sport=eq.${SPORT}&season=eq.${SEASON}&gender=eq.` + dGender
       );
       
       const teamRecords = new Map();
@@ -297,19 +302,19 @@ export default async (request) => {
     const weekOf = getMondayOfWeek();
     const now = new Date().toISOString();
 
-    // 1. Fetch games
+    // 1. Fetch games for this sport/season
     const allGames = await supabaseGet(
-      'games?select=home_team,away_team,home_score,away_score,gender,division&level=eq.NHIAA&home_score=not.is.null&away_score=not.is.null'
+      `games?select=home_team,away_team,home_score,away_score,gender,division&level=eq.NHIAA&sport=eq.${SPORT}&season=eq.${SEASON}&home_score=not.is.null&away_score=not.is.null`
     );
 
-    // 2. Fetch standings
+    // 2. Fetch standings for this sport/season
     const allStandings = await supabaseGet(
-      'standings?select=school,gender,division,wins,losses'
+      `standings?select=school,gender,division,wins,losses&sport=eq.${SPORT}&season=eq.${SEASON}`
     );
 
-    // 3. Fetch future/remaining games (no scores yet)
+    // 3. Fetch future/remaining games (no scores yet) for this sport/season
     const futureGames = await supabaseGet(
-      'games?select=home_team,away_team,gender,division&level=eq.NHIAA&home_score=is.null'
+      `games?select=home_team,away_team,gender,division&level=eq.NHIAA&sport=eq.${SPORT}&season=eq.${SEASON}&home_score=is.null`
     );
 
     // 4. Calculate RPI for each gender/division
@@ -457,11 +462,11 @@ export default async (request) => {
       allResults.push(...genderResults);
     }
 
-    // 4. Fetch historical data for High/Low/Last
+    // 4. Fetch historical data for High/Low/Last (for this sport/season)
     const historyMap = new Map();
     try {
       const history = await supabaseGet(
-        'rpi_rankings?select=team,gender,division,rank,week_of&week_of=lt.' + weekOf + '&order=week_of.desc'
+        `rpi_rankings?select=team,gender,division,rank,week_of&sport=eq.${SPORT}&season=eq.${SEASON}&week_of=lt.` + weekOf + '&order=week_of.desc'
       );
       for (const row of history) {
         const key = row.team + '_' + row.gender + '_' + row.division;
@@ -483,6 +488,8 @@ export default async (request) => {
       const h = historyMap.get(key);
       return {
         team: r.team, gender: r.gender, division: r.division,
+        sport: SPORT,
+        season: SEASON,
         wins: r.wins, losses: r.losses,
         win_pct: parseFloat(r.win_pct.toFixed(4)),
         owp: parseFloat(r.owp.toFixed(4)),

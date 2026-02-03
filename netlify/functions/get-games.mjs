@@ -1,8 +1,13 @@
 // Ball603 Get Games API
 // Returns schedule data from Supabase with team abbreviations for public display
+// Supports multi-sport filtering (defaults to basketball for backward compatibility)
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
+
+// Default sport and season for backward compatibility
+const DEFAULT_SPORT = 'basketball';
+const DEFAULT_SEASON = '2025-26';
 
 export default async (request) => {
   const corsHeaders = {
@@ -21,6 +26,13 @@ export default async (request) => {
     
     // Build query for games
     const queryParts = ['select=*'];
+    
+    // Sport and season filtering (with defaults for backward compatibility)
+    const sport = params.sport || DEFAULT_SPORT;
+    const season = params.season || DEFAULT_SEASON;
+    
+    queryParts.push(`sport=eq.${encodeURIComponent(sport)}`);
+    queryParts.push(`season=eq.${encodeURIComponent(season)}`);
     
     // Filter by date range
     if (params.start_date) {
