@@ -2426,11 +2426,18 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             <input type="text" id="contribAddress">
           </div>
           
-          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
             <div class="form-group">
-              <label>Venmo</label>
-              <input type="text" id="contribVenmo">
+              <label>Venmo Handle</label>
+              <input type="text" id="contribVenmo" placeholder="username (no @)">
             </div>
+            <div class="form-group">
+              <label>PayPal.me Username</label>
+              <input type="text" id="contribPaypalMe" placeholder="username">
+            </div>
+          </div>
+          
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
             <div class="form-group">
               <label>Shirt Size</label>
               <select id="contribShirtSize">
@@ -10768,6 +10775,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('contribCell').value = contrib.cell || '';
       document.getElementById('contribAddress').value = contrib.mailing_address || '';
       document.getElementById('contribVenmo').value = contrib.venmo || '';
+      document.getElementById('contribPaypalMe').value = contrib.paypal_me || '';
       document.getElementById('contribShirtSize').value = contrib.shirt_size || '';
       document.getElementById('contribSmugmugName').value = contrib.smugmug_name || '';
       
@@ -10913,6 +10921,19 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       return 'https://' + input;
     }
     
+    function normalizePaypalMe(input) {
+      if (!input) return null;
+      input = input.trim();
+      if (!input) return null;
+      // Already a full URL
+      if (input.startsWith('http://') || input.startsWith('https://')) return input;
+      // Has paypal.me but no protocol
+      if (input.includes('paypal.me')) return 'https://' + input;
+      // Just a username - remove @ if present
+      const handle = input.replace(/^@/, '');
+      return 'https://paypal.me/' + handle;
+    }
+    
     async function saveContributor() {
       const id = document.getElementById('contributorId').value;
       
@@ -10922,6 +10943,9 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         venmoHandle = venmoHandle.replace(/^@+/, '');
       }
       
+      // Normalize PayPal.me
+      let paypalMe = normalizePaypalMe(document.getElementById('contribPaypalMe').value);
+      
       const updateData = {
         name: document.getElementById('contribName').value.trim(),
         email: document.getElementById('contribEmail').value.trim(),
@@ -10929,6 +10953,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         cell: document.getElementById('contribCell').value.trim() || null,
         mailing_address: document.getElementById('contribAddress').value.trim() || null,
         venmo: venmoHandle || null,
+        paypal_me: paypalMe || null,
         shirt_size: document.getElementById('contribShirtSize').value || null,
         smugmug_name: document.getElementById('contribSmugmugName').value.trim() || null,
         // Public profile fields

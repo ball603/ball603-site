@@ -317,9 +317,12 @@
         if (featuredContributor.website_url) {
           socialHtml += '<a href="' + escapeHtml(featuredContributor.website_url) + '" target="_blank" title="Website">' + SOCIAL_ICONS.website + '</a>';
         }
+        // Payment link - Venmo first, then PayPal
         if (featuredContributor.venmo) {
           var venmoHandle = featuredContributor.venmo.replace(/^@+/, '');
           socialHtml += '<a href="https://venmo.com/' + venmoHandle + '" target="_blank" title="Venmo" class="featured-venmo-link"><span style="font-size: 18px;">&#128179;</span></a>';
+        } else if (featuredContributor.paypal_me) {
+          socialHtml += '<a href="' + escapeHtml(featuredContributor.paypal_me) + '" target="_blank" title="PayPal" class="featured-venmo-link"><span style="font-size: 18px;">&#128179;</span></a>';
         }
         document.getElementById('featuredSocial').innerHTML = socialHtml;
         
@@ -434,18 +437,23 @@
         html += '<div class="contributor-coverage"><span>&#128205;</span> ' + escapeHtml(c.primary_area) + '</div>';
       }
       
-      // Social row (includes venmo on the right)
-      var hasSocialOrVenmo = social || c.venmo;
-      if (hasSocialOrVenmo) {
+      // Social row (includes payment link on the right)
+      var hasPayment = c.venmo || c.paypal_me;
+      var hasSocialOrPayment = social || hasPayment;
+      if (hasSocialOrPayment) {
         html += '<div class="contributor-social">';
         if (social) {
           html += social;
         }
-        // Venmo link on same row, pushed to right
+        // Payment link on same row, pushed to right - Venmo first, then PayPal
         if (c.venmo) {
           var venmoHandle = c.venmo.replace(/^@+/, '');
           var venmoUrl = 'https://venmo.com/' + venmoHandle;
           html += '<a href="' + venmoUrl + '" target="_blank" class="contributor-venmo-link" title="Venmo: @' + escapeHtml(venmoHandle) + '" onclick="event.stopPropagation()">';
+          html += '<span>&#128179;</span>';
+          html += '</a>';
+        } else if (c.paypal_me) {
+          html += '<a href="' + escapeHtml(c.paypal_me) + '" target="_blank" class="contributor-venmo-link" title="PayPal" onclick="event.stopPropagation()">';
           html += '<span>&#128179;</span>';
           html += '</a>';
         }
@@ -545,13 +553,18 @@
         html += '</div>';
       }
       
-      // Venmo
+      // Payment - Venmo first, then PayPal
       if (c.venmo) {
         var venmoHandle = c.venmo.replace(/^@+/, ''); // Remove leading @ signs
         var venmoUrl = 'https://venmo.com/' + venmoHandle;
         html += '<a href="' + venmoUrl + '" target="_blank" class="modal-venmo" onclick="event.stopPropagation()">';
         html += '<span class="modal-venmo-icon">&#128179;</span>';
         html += '<span>Support on Venmo: @' + escapeHtml(venmoHandle) + '</span>';
+        html += '</a>';
+      } else if (c.paypal_me) {
+        html += '<a href="' + escapeHtml(c.paypal_me) + '" target="_blank" class="modal-venmo" onclick="event.stopPropagation()">';
+        html += '<span class="modal-venmo-icon">&#128179;</span>';
+        html += '<span>Support on PayPal</span>';
         html += '</a>';
       }
       
