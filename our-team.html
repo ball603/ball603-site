@@ -48,6 +48,8 @@
         <img class="team-featured-photo" id="featuredPhoto" src="" alt="">
         <h2 class="team-featured-name" id="featuredName"></h2>
         <p class="team-featured-title">Founder &#38; Operator</p>
+        <div class="team-featured-info" id="featuredInfo"></div>
+        <div class="team-featured-social" id="featuredSocial"></div>
       </div>
       <div class="team-featured-message">
         <h2>A Note of Thanks</h2>
@@ -166,10 +168,15 @@
       
       var overlay = document.getElementById('modalOverlay');
       var inner = document.getElementById('modalInner');
+      var modalContent = document.getElementById('modalContent');
       
       inner.innerHTML = buildModalContent(c);
       overlay.classList.add('active');
       document.body.style.overflow = 'hidden';
+      
+      // Scroll modal to top so headshot is visible
+      modalContent.scrollTop = 0;
+      overlay.scrollTop = 0;
     }
     
     function closeModal() {
@@ -261,10 +268,44 @@
         featuredName.textContent = featuredContributor.name;
         featuredSection.style.display = 'block';
         
-        // Make featured card clickable
+        // Populate founder info (alma mater, college, location)
+        var infoHtml = '';
+        if (featuredContributor.nhiaa_alma_mater) {
+          infoHtml += '<div class="featured-info-item"><span>&#127891;</span> ' + escapeHtml(featuredContributor.nhiaa_alma_mater) + '</div>';
+        }
+        if (featuredContributor.college) {
+          infoHtml += '<div class="featured-info-item"><span>&#127963;&#65039;</span> ' + escapeHtml(featuredContributor.college) + '</div>';
+        }
+        if (featuredContributor.primary_area) {
+          infoHtml += '<div class="featured-info-item"><span>&#128205;</span> ' + escapeHtml(featuredContributor.primary_area) + '</div>';
+        }
+        document.getElementById('featuredInfo').innerHTML = infoHtml;
+        
+        // Populate founder social links
+        var socialHtml = '';
+        if (featuredContributor.instagram_url) {
+          socialHtml += '<a href="' + escapeHtml(featuredContributor.instagram_url) + '" target="_blank" title="Instagram">' + SOCIAL_ICONS.instagram + '</a>';
+        }
+        if (featuredContributor.facebook_url) {
+          socialHtml += '<a href="' + escapeHtml(featuredContributor.facebook_url) + '" target="_blank" title="Facebook">' + SOCIAL_ICONS.facebook + '</a>';
+        }
+        if (featuredContributor.twitter_url) {
+          socialHtml += '<a href="' + escapeHtml(featuredContributor.twitter_url) + '" target="_blank" title="X (Twitter)">' + SOCIAL_ICONS.twitter + '</a>';
+        }
+        if (featuredContributor.website_url) {
+          socialHtml += '<a href="' + escapeHtml(featuredContributor.website_url) + '" target="_blank" title="Website">' + SOCIAL_ICONS.website + '</a>';
+        }
+        if (featuredContributor.venmo) {
+          var venmoHandle = featuredContributor.venmo.replace(/^@+/, '');
+          socialHtml += '<a href="https://venmo.com/' + venmoHandle + '" target="_blank" title="Venmo" class="featured-venmo-link"><span style="font-size: 18px;">&#128179;</span></a>';
+        }
+        document.getElementById('featuredSocial').innerHTML = socialHtml;
+        
+        // Make featured card clickable (but not links)
         var featuredCard = document.querySelector('.team-featured-card');
         featuredCard.style.cursor = 'pointer';
-        featuredCard.addEventListener('click', function() {
+        featuredCard.addEventListener('click', function(e) {
+          if (e.target.closest('a')) return; // Don't open modal if clicking a link
           openModal(featuredContributor.id);
         });
       }
@@ -337,12 +378,28 @@
         html += '</div>';
       }
       
+      if (c.college) {
+        html += '<div class="contributor-college">';
+        html += '<span>&#127963;&#65039;</span> '; // 🏛️
+        html += '<span>' + escapeHtml(c.college) + '</span>';
+        html += '</div>';
+      }
+      
       if (c.primary_area) {
         html += '<div class="contributor-coverage"><span>&#128205;</span> ' + escapeHtml(c.primary_area) + '</div>';
       }
       
       if (social) {
         html += '<div class="contributor-social">' + social + '</div>';
+      }
+      
+      // Venmo link on card
+      if (c.venmo) {
+        var venmoHandle = c.venmo.replace(/^@+/, '');
+        var venmoUrl = 'https://venmo.com/' + venmoHandle;
+        html += '<a href="' + venmoUrl + '" target="_blank" class="contributor-venmo-link" onclick="event.stopPropagation()">';
+        html += '<span>&#128179;</span> Venmo: @' + escapeHtml(venmoHandle);
+        html += '</a>';
       }
       
       html += '</div>';
@@ -382,7 +439,7 @@
       html += '<div class="modal-body">';
       
       // Meta info
-      var hasMeta = c.nhiaa_alma_mater || c.primary_area || c.first_season;
+      var hasMeta = c.nhiaa_alma_mater || c.college || c.primary_area || c.first_season;
       if (hasMeta) {
         html += '<div class="modal-meta">';
         if (c.first_season) {
@@ -397,6 +454,12 @@
           html += '<div class="modal-meta-item">';
           html += '<span class="modal-meta-icon">&#127891;</span>';
           html += '<span>' + escapeHtml(c.nhiaa_alma_mater) + '</span>';
+          html += '</div>';
+        }
+        if (c.college) {
+          html += '<div class="modal-meta-item">';
+          html += '<span class="modal-meta-icon">&#127963;&#65039;</span>';
+          html += '<span>' + escapeHtml(c.college) + '</span>';
           html += '</div>';
         }
         if (c.primary_area) {

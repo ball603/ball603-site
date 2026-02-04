@@ -2373,14 +2373,31 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           <!-- Public Profile Info -->
           <div style="background: #f3e5f5; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
             <label style="font-size: 13px; font-weight: 600; color: #7b1fa2; display: block; margin-bottom: 10px;">👤 Public Profile (Our Team Page)</label>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
-              <div class="form-group">
-                <label>Headshot URL</label>
-                <input type="url" id="contribHeadshotUrl" placeholder="https://...">
+            
+            <!-- Headshot Upload -->
+            <div style="display: flex; gap: 15px; align-items: flex-start; margin-bottom: 15px;">
+              <div style="flex-shrink: 0;">
+                <div id="contribHeadshotPreview" onclick="triggerContribHeadshotUpload()" style="width: 100px; height: 100px; border: 2px dashed #ccc; border-radius: 8px; display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: pointer; background: #fafafa;">
+                  <span style="text-align: center; color: #999; font-size: 11px; padding: 10px;">Click to upload</span>
+                </div>
+                <input type="file" id="contribHeadshotInput" accept="image/*" style="display: none;" onchange="handleContribHeadshotSelect(event)">
+                <input type="hidden" id="contribHeadshotUrl">
               </div>
+              <div style="flex: 1;">
+                <label style="font-size: 12px; color: #666; display: block; margin-bottom: 5px;">Headshot</label>
+                <p style="font-size: 11px; color: #888; margin: 0 0 8px;">Click image to upload. Square crop recommended.</p>
+                <button type="button" onclick="removeContribHeadshot()" id="contribHeadshotRemove" style="display: none; background: #ffebee; color: #c62828; border: none; padding: 4px 10px; border-radius: 4px; font-size: 11px; cursor: pointer;">Remove</button>
+              </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
               <div class="form-group">
                 <label>NHIAA Alma Mater</label>
                 <input type="text" id="contribAlmaMater" placeholder="e.g., Pinkerton Academy">
+              </div>
+              <div class="form-group">
+                <label>College 🏛️</label>
+                <input type="text" id="contribCollege" placeholder="e.g., University of New Hampshire">
               </div>
               <div class="form-group">
                 <label>First Season</label>
@@ -10741,6 +10758,9 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('contributorModal').style.display = 'block';
       document.body.style.overflow = 'hidden';
       
+      // Store current contributor ID for headshot upload
+      window.currentEditingContributorId = contrib.id;
+      
       document.getElementById('contributorId').value = contrib.id;
       document.getElementById('contribName').value = contrib.name || '';
       document.getElementById('contribEmail').value = contrib.email || '';
@@ -10755,8 +10775,12 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('contribHeadshotUrl').value = contrib.headshot_url || '';
       document.getElementById('contribBio').value = contrib.bio || '';
       document.getElementById('contribAlmaMater').value = contrib.nhiaa_alma_mater || '';
+      document.getElementById('contribCollege').value = contrib.college || '';
       document.getElementById('contribFirstSeason').value = contrib.first_season || '';
       document.getElementById('contribWebsiteUrl').value = contrib.website_url || '';
+      
+      // Set headshot preview
+      setContribHeadshotPreview(contrib.headshot_url);
       
       document.getElementById('contribIsPhotographer').checked = contrib.is_photographer || false;
       document.getElementById('contribIsVideographer').checked = contrib.is_videographer || false;
@@ -10782,6 +10806,68 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('contributorModal').style.display = 'none';
       document.body.style.overflow = 'auto';
     }
+    
+    // ========== CONTRIBUTOR HEADSHOT UPLOAD ==========
+    function triggerContribHeadshotUpload() {
+      document.getElementById('contribHeadshotInput').click();
+    }
+    
+    async function handleContribHeadshotSelect(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      if (file.size > 10 * 1024 * 1024) { 
+        showToast('File too large (max 10MB)', 'error'); 
+        return; 
+      }
+      
+      const preview = document.getElementById('contribHeadshotPreview');
+      preview.innerHTML = '<span style="color: #999; font-size: 11px;">Uploading...</span>';
+      
+      try {
+        const contributorId = window.currentEditingContributorId;
+        const filename = `contributors/${contributorId}/headshot-${Date.now()}.jpg`;
+        
+        const { error } = await db.storage.from('images').upload(filename, file, { 
+          cacheControl: '3600', 
+          upsert: true 
+        });
+        if (error) throw error;
+        
+        const { data: urlData } = db.storage.from('images').getPublicUrl(filename);
+        document.getElementById('contribHeadshotUrl').value = urlData.publicUrl;
+        setContribHeadshotPreview(urlData.publicUrl);
+        showToast('Headshot uploaded!', 'success');
+      } catch (err) {
+        console.error('Upload error:', err);
+        preview.innerHTML = '<span style="text-align: center; color: #999; font-size: 11px; padding: 10px;">Click to upload</span>';
+        showToast('Upload failed', 'error');
+      }
+      
+      // Clear file input
+      event.target.value = '';
+    }
+    
+    function setContribHeadshotPreview(url) {
+      const preview = document.getElementById('contribHeadshotPreview');
+      const removeBtn = document.getElementById('contribHeadshotRemove');
+      
+      if (url) {
+        preview.innerHTML = `<img src="${url}" style="width: 100%; height: 100%; object-fit: cover;">`;
+        preview.style.borderStyle = 'solid';
+        document.getElementById('contribHeadshotUrl').value = url;
+        removeBtn.style.display = 'inline-block';
+      } else {
+        preview.innerHTML = '<span style="text-align: center; color: #999; font-size: 11px; padding: 10px;">Click to upload</span>';
+        preview.style.borderStyle = 'dashed';
+        document.getElementById('contribHeadshotUrl').value = '';
+        removeBtn.style.display = 'none';
+      }
+    }
+    
+    function removeContribHeadshot() {
+      setContribHeadshotPreview(null);
+    }
+    // ========== END CONTRIBUTOR HEADSHOT UPLOAD ==========
     
     // URL normalization helpers
     function normalizeInstagramUrl(input) {
@@ -10849,6 +10935,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         headshot_url: document.getElementById('contribHeadshotUrl').value.trim() || null,
         bio: document.getElementById('contribBio').value.trim() || null,
         nhiaa_alma_mater: document.getElementById('contribAlmaMater').value.trim() || null,
+        college: document.getElementById('contribCollege').value.trim() || null,
         first_season: document.getElementById('contribFirstSeason').value || null,
         website_url: normalizeWebsiteUrl(document.getElementById('contribWebsiteUrl').value),
         // Contributor types
