@@ -1998,9 +1998,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             <div class="form-group">
               <select id="articleAuthor" onchange="toggleOtherAuthor()">
                 <option value="Ball603 Staff">Ball603 Staff</option>
-                <option value="KJ Cardinal">KJ Cardinal</option>
-                <option value="Guest Contributor">Guest Contributor</option>
-                <option value="other">Other...</option>
+                <!-- Writers populated dynamically -->
               </select>
               <input type="text" id="articleAuthorOther" placeholder="Enter author name..." style="display: none; margin-top: 8px;">
             </div>
@@ -5474,6 +5472,45 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       select.appendChild(otherOption);
     }
     
+    // Populate author dropdown from contributors who are writers
+    async function populateAuthorDropdown() {
+      const select = document.getElementById('articleAuthor');
+      if (!select) return;
+      
+      // Start with Ball603 Staff option
+      select.innerHTML = '<option value="Ball603 Staff">Ball603 Staff</option>';
+      
+      // Try to load writers from contributors table
+      try {
+        const { data: writers, error } = await db
+          .from('contributors')
+          .select('name')
+          .eq('is_writer', true)
+          .eq('active', true)
+          .order('name');
+        
+        if (!error && writers && writers.length > 0) {
+          // Add writers from database
+          writers.forEach(w => {
+            if (w.name) {
+              const option = document.createElement('option');
+              option.value = w.name;
+              option.textContent = w.name;
+              select.appendChild(option);
+            }
+          });
+        }
+      } catch (err) {
+        console.error('Error loading writers:', err);
+      }
+      
+      // Always add "Other..." option at the end
+      const otherOption = document.createElement('option');
+      otherOption.value = 'other';
+      otherOption.textContent = 'Other...';
+      select.appendChild(otherOption);
+    }
+    
     // Image Upload to Supabase Storage
     async function uploadImageToSupabase(file, folder = 'articles') {
       const timestamp = Date.now();
@@ -5687,6 +5724,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       loadArticles();
       loadGamesForStory();
       populatePhotographerDropdown();
+      populateAuthorDropdown();
       loadSponsors(); // Load sponsors for article dropdown
       
       // Initialize Quill editor
