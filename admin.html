@@ -10783,6 +10783,50 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.body.style.overflow = 'auto';
     }
     
+    // URL normalization helpers
+    function normalizeInstagramUrl(input) {
+      if (!input) return null;
+      input = input.trim();
+      if (!input) return null;
+      // Already a full URL
+      if (input.startsWith('http://') || input.startsWith('https://')) return input;
+      // Has instagram.com but no protocol
+      if (input.includes('instagram.com')) return 'https://' + input;
+      // Just a handle - remove @ if present
+      const handle = input.replace(/^@/, '');
+      return 'https://instagram.com/' + handle;
+    }
+    
+    function normalizeFacebookUrl(input) {
+      if (!input) return null;
+      input = input.trim();
+      if (!input) return null;
+      if (input.startsWith('http://') || input.startsWith('https://')) return input;
+      if (input.includes('facebook.com')) return 'https://' + input;
+      // Just a page name
+      return 'https://facebook.com/' + input;
+    }
+    
+    function normalizeTwitterUrl(input) {
+      if (!input) return null;
+      input = input.trim();
+      if (!input) return null;
+      if (input.startsWith('http://') || input.startsWith('https://')) return input;
+      if (input.includes('x.com') || input.includes('twitter.com')) return 'https://' + input;
+      // Just a handle - remove @ if present
+      const handle = input.replace(/^@/, '');
+      return 'https://x.com/' + handle;
+    }
+    
+    function normalizeWebsiteUrl(input) {
+      if (!input) return null;
+      input = input.trim();
+      if (!input) return null;
+      if (input.startsWith('http://') || input.startsWith('https://')) return input;
+      // Add https:// to anything else (www.site.com or site.com)
+      return 'https://' + input;
+    }
+    
     async function saveContributor() {
       const id = document.getElementById('contributorId').value;
       
@@ -10800,7 +10844,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         bio: document.getElementById('contribBio').value.trim() || null,
         nhiaa_alma_mater: document.getElementById('contribAlmaMater').value.trim() || null,
         first_season: document.getElementById('contribFirstSeason').value || null,
-        website_url: document.getElementById('contribWebsiteUrl').value.trim() || null,
+        website_url: normalizeWebsiteUrl(document.getElementById('contribWebsiteUrl').value),
         // Contributor types
         is_photographer: document.getElementById('contribIsPhotographer').checked,
         is_videographer: document.getElementById('contribIsVideographer').checked,
@@ -10810,12 +10854,12 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         // Admin settings
         top10_dropbox_url: document.getElementById('contribTop10Url').value.trim() || null,
         active: document.getElementById('contribActive').checked,
-        // Social media
-        instagram_url: document.getElementById('contribInstagramUrl').value.trim() || null,
+        // Social media (with URL normalization)
+        instagram_url: normalizeInstagramUrl(document.getElementById('contribInstagramUrl').value),
         instagram_user_id: document.getElementById('contribInstagramUserId').value.trim() || null,
-        facebook_url: document.getElementById('contribFacebookUrl').value.trim() || null,
+        facebook_url: normalizeFacebookUrl(document.getElementById('contribFacebookUrl').value),
         facebook_page_id: document.getElementById('contribFacebookPageId').value.trim() || null,
-        twitter_url: document.getElementById('contribTwitterUrl').value.trim() || null,
+        twitter_url: normalizeTwitterUrl(document.getElementById('contribTwitterUrl').value),
         updated_at: new Date().toISOString()
       };
       
