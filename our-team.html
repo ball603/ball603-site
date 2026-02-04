@@ -62,7 +62,12 @@
 
   <!-- Contributors Grid -->
   <div class="contributors-container">
-    <div class="contributors-section-title" id="sectionTitle" style="display: none;">Our Contributors</div>
+    <div class="contributors-section-header" id="sectionTitle" style="display: none;">
+      <span class="contributors-section-title">Our Contributors</span>
+      <select id="contributorDropdown" class="contributor-dropdown" onchange="jumpToContributor(this.value)">
+        <option value="">Jump to...</option>
+      </select>
+    </div>
     <div class="contributors-grid" id="contributorsGrid">
       <div class="contributors-loading">Loading team...</div>
     </div>
@@ -334,13 +339,29 @@
     function renderContributors() {
       var grid = document.getElementById('contributorsGrid');
       var sectionTitle = document.getElementById('sectionTitle');
+      var dropdown = document.getElementById('contributorDropdown');
       
       if (contributors.length === 0) {
         grid.innerHTML = '<div class="contributors-loading">No team members found</div>';
         return;
       }
       
-      sectionTitle.style.display = 'block';
+      sectionTitle.style.display = 'flex';
+      
+      // Populate dropdown with alphabetically sorted names
+      var allContribs = contributors.slice();
+      if (featuredContributor) {
+        allContribs.push(featuredContributor);
+      }
+      allContribs.sort(function(a, b) {
+        return (a.name || '').localeCompare(b.name || '');
+      });
+      
+      var dropdownHtml = '<option value="">Jump to...</option>';
+      allContribs.forEach(function(c) {
+        dropdownHtml += '<option value="' + c.id + '">' + escapeHtml(c.name) + '</option>';
+      });
+      dropdown.innerHTML = dropdownHtml;
       
       var html = '';
       contributors.forEach(function(c) {
@@ -360,11 +381,41 @@
       });
     }
     
+    function jumpToContributor(id) {
+      if (!id) return;
+      id = parseInt(id, 10);
+      
+      // Check if it's the founder
+      if (featuredContributor && featuredContributor.id === id) {
+        var featuredCard = document.querySelector('.team-featured-card');
+        if (featuredCard) {
+          featuredCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          setTimeout(function() {
+            openModal(id);
+          }, 500);
+        }
+        document.getElementById('contributorDropdown').value = '';
+        return;
+      }
+      
+      // Find and scroll to the contributor card
+      var card = document.getElementById('contributor-' + id);
+      if (card) {
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setTimeout(function() {
+          openModal(id);
+        }, 500);
+      }
+      
+      // Reset dropdown
+      document.getElementById('contributorDropdown').value = '';
+    }
+    
     function buildCard(c) {
       var roles = getRoles(c);
       var social = buildSocial(c);
       
-      var html = '<div class="contributor-card" data-id="' + c.id + '">';
+      var html = '<div class="contributor-card" id="contributor-' + c.id + '" data-id="' + c.id + '">';
       
       // Photo section
       html += '<div class="contributor-photo-wrap">';
