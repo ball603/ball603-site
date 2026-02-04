@@ -188,21 +188,30 @@
         if (result.error) throw result.error;
         var allContributors = result.data || [];
         
-        // Find KJ Cardinal for featured section
-        var kjIndex = -1;
+        // Find founder by is_founder flag (instead of hardcoded name)
+        var founderIndex = -1;
         for (var i = 0; i < allContributors.length; i++) {
-          if (allContributors[i].name === 'KJ Cardinal') {
-            kjIndex = i;
+          if (allContributors[i].is_founder) {
+            founderIndex = i;
             break;
           }
         }
         
-        if (kjIndex >= 0) {
-          featuredContributor = allContributors.splice(kjIndex, 1)[0];
+        if (founderIndex >= 0) {
+          featuredContributor = allContributors.splice(founderIndex, 1)[0];
         }
         
-        // Sort remaining by experience (first_season), then alphabetically
+        // Sort by display_order first, then fall back to experience/alphabetical
         allContributors.sort(function(a, b) {
+          // First: sort by display_order (nulls go to end)
+          var orderA = a.display_order != null ? a.display_order : 9999;
+          var orderB = b.display_order != null ? b.display_order : 9999;
+          
+          if (orderA !== orderB) {
+            return orderA - orderB;
+          }
+          
+          // Fallback: sort by experience (first_season)
           var seasonA = SEASON_ORDER[a.first_season] || 99;
           var seasonB = SEASON_ORDER[b.first_season] || 99;
           
