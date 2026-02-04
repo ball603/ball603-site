@@ -71,6 +71,9 @@
   <!-- Modal -->
   <div class="contributor-modal-overlay" id="modalOverlay">
     <div class="contributor-modal" id="modalContent">
+      <div class="modal-close-bar" id="modalCloseBar">
+        <span>Tap to close</span>
+      </div>
       <button class="modal-close" id="modalClose">
         <svg viewBox="0 0 24 24" fill="none"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
@@ -148,8 +151,10 @@
     function setupModal() {
       var overlay = document.getElementById('modalOverlay');
       var closeBtn = document.getElementById('modalClose');
+      var closeBar = document.getElementById('modalCloseBar');
       
       closeBtn.addEventListener('click', closeModal);
+      closeBar.addEventListener('click', closeModal);
       overlay.addEventListener('click', function(e) {
         if (e.target === overlay) closeModal();
       });
@@ -170,6 +175,9 @@
       var inner = document.getElementById('modalInner');
       var modalContent = document.getElementById('modalContent');
       
+      // Scroll page to top first (helps with iOS)
+      window.scrollTo(0, 0);
+      
       inner.innerHTML = buildModalContent(c);
       overlay.classList.add('active');
       document.body.style.overflow = 'hidden';
@@ -181,7 +189,11 @@
         modalContent.scrollTop = 0;
         overlay.scrollTop = 0;
         window.scrollTo(0, 0);
-      }, 50);
+      }, 10);
+      setTimeout(function() {
+        modalContent.scrollTop = 0;
+        overlay.scrollTop = 0;
+      }, 100);
     }
     
     function closeModal() {
