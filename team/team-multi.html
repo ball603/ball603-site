@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Ball603 Team Page Multi-Sport v249 - Simplified All Sports view (News, Galleries, Sponsor only) -->
+<!-- Ball603 Team Page Multi-Sport v249 - Simplified All Sports view, baseball roster fix + side-by-side layout -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -719,6 +719,15 @@
         if (boysStatsGroup) boysStatsGroup.style.display = '';
         if (boysScheduleCard) boysScheduleCard.style.display = '';
         if (boysRosterCard) boysRosterCard.style.display = '';
+        
+        // Move boys roster into schedules grid for side-by-side layout
+        const schedulesGrid = document.querySelector('.schedules-grid');
+        if (schedulesGrid && boysRosterCard && !schedulesGrid.contains(boysRosterCard)) {
+          schedulesGrid.appendChild(boysRosterCard);
+        }
+        // Hide rosters section (roster card moved to schedules grid)
+        if (rostersSection) rostersSection.style.display = 'none';
+        if (rostersMenuItem) rostersMenuItem.style.display = 'none';
       } else if (sport === 'volleyball') {
         // Volleyball = girls only - hide boys
         if (boysStatsGroup) boysStatsGroup.style.display = 'none';
@@ -728,8 +737,19 @@
         if (girlsStatsGroup) girlsStatsGroup.style.display = '';
         if (girlsScheduleCard) girlsScheduleCard.style.display = '';
         if (girlsRosterCard) girlsRosterCard.style.display = '';
+        
+        // Restore boys roster card to rosters section if it was moved
+        const rostersGrid = document.querySelector('.rosters-grid');
+        if (rostersGrid && boysRosterCard && !rostersGrid.contains(boysRosterCard)) {
+          rostersGrid.insertBefore(boysRosterCard, girlsRosterCard);
+        }
       } else if (sport === 'all') {
         // All sports view - schedules hidden above, nothing else to adjust here
+        // Restore boys roster card to rosters section if it was moved
+        const rostersGrid = document.querySelector('.rosters-grid');
+        if (rostersGrid && boysRosterCard && !rostersGrid.contains(boysRosterCard)) {
+          rostersGrid.insertBefore(boysRosterCard, girlsRosterCard);
+        }
       } else {
         // Basketball - restore based on team gender availability
         if (girlsStatsGroup) girlsStatsGroup.style.display = '';
@@ -738,6 +758,12 @@
         if (boysScheduleCard) boysScheduleCard.style.display = '';
         if (girlsRosterCard) girlsRosterCard.style.display = '';
         if (boysRosterCard) boysRosterCard.style.display = '';
+        
+        // Restore boys roster card to rosters section if it was moved
+        const rostersGrid = document.querySelector('.rosters-grid');
+        if (rostersGrid && boysRosterCard && !rostersGrid.contains(boysRosterCard)) {
+          rostersGrid.insertBefore(boysRosterCard, girlsRosterCard);
+        }
       }
       
       // Re-apply gender visibility on top (team may only have one gender)
@@ -1342,6 +1368,9 @@
         return;
       }
       
+      // Determine sport parameter - basketball data may have NULL sport
+      const sportParam = (currentSport === 'basketball') ? '' : `&sport=${currentSport}`;
+      
       try {
         // For Central-West, try multiple possible school names
         let schoolNames = [TEAM_CONFIG.name];
@@ -1350,7 +1379,7 @@
         }
         
         for (const schoolName of schoolNames) {
-          const response = await fetch(`/.netlify/functions/get-rosters?school=${encodeURIComponent(schoolName)}`);
+          const response = await fetch(`/.netlify/functions/get-rosters?school=${encodeURIComponent(schoolName)}${sportParam}`);
           const data = await response.json();
           if (data.success && data.rosters && data.rosters.length > 0) {
             console.log('Found roster for', schoolName, 'sport:', currentSport);
