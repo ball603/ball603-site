@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Ball603 - NHIAA Sports RPI Rankings using the NCAA Rating Percentage Index formula.">
+  <meta name="theme-color" content="#f57c00">
+  <title id="pageTitle">RPI Rankings | Ball603</title>
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="apple-touch-icon" href="/logo.png">
+  
+  <!-- Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-S4BN80729K"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-S4BN80729K');
+  </script>
+  
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0"></script>
+  
+  <!-- Shared Styles -->
+  <link rel="stylesheet" href="/styles.css">
+  
+  <style>
+    /* ===== RPI PAGE STYLES ===== */
+    /* Matched to standings.html design system */
+    
+    .rpi-page {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    .rpi-header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    
+    .rpi-title {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+    }
+    
+    .rpi-subtitle {
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+    
+    .rpi-updated {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+    
+    /* Sport Filter - Pill Style (matches standings) */
+    .sport-filter-wrapper {
+      display: flex;
+      justify-content: center;
+      width: 100%;
+      margin-bottom: 16px;
+    }
+    
+    .sport-filter {
+      display: inline-flex;
+      gap: 4px;
+      padding: 4px;
+      background: var(--bg-tertiary);
+      border-radius: 10px;
+      margin: 0;
+    }
+    
+    .sport-btn {
+      padding: 12px 28px;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-secondary);
+      background: transparent;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    
+    .sport-btn:hover {
+      color: var(--text-primary);
+      background: rgba(255,255,255,0.5);
+    }
+    
+    .sport-btn.active {
+      background: var(--bg-card);
+      color: var(--accent);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    /* Gender Toggle - matches standings */
+    .gender-toggle {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    
+    .gender-btn {
+      padding: 12px 32px;
+      font-size: 15px;
+      font-weight: 700;
+      border: 2px solid var(--border-color);
+      background: var(--bg-card);
+      color: var(--text-secondary);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .gender-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    
+    .gender-btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+    }
+    
+    /* Division Tabs - pill/segmented control matching standings */
+    .division-tabs-wrapper {
+      display: flex;
+      justify-content: center;
+      width: 100%;
+      margin-bottom: 24px;
+    }
+    
+    .division-tabs {
+      display: inline-flex;
+      gap: 4px;
+      padding: 4px;
+      background: var(--bg-tertiary);
+      border-radius: 10px;
+      margin: 0;
+    }
+    
+    .division-tab {
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      background: transparent;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .division-tab:hover {
+      color: var(--text-primary);
+      background: rgba(255,255,255,0.5);
+    }
+    
+    .division-tab.active {
+      background: var(--bg-card);
+      color: var(--accent);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    /* Card Container - matches standings card */
+    .rpi-card {
+      background: var(--bg-card);
+      border-radius: 16px;
+      border: 1px solid var(--border-color);
+      overflow: hidden;
+      box-shadow: var(--shadow-md);
+    }
+    
+    .rpi-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+      color: white;
+    }
+    
+    .rpi-card-title {
+      font-size: 18px;
+      font-weight: 700;
+    }
+    
+    .rpi-card-badge {
+      font-size: 12px;
+      color: rgba(255,255,255,0.7);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .rpi-badge-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--accent);
+      border-radius: 50%;
+    }
+    
+    /* Table Styles - matches standings */
+    .rpi-table-wrapper {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    
+    .rpi-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    
+    .rpi-table th {
+      padding: 8px;
+      text-align: left;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.15s;
+    }
+    
+    .rpi-table th.rank-col {
+      cursor: default;
+    }
+    
+    .rpi-table th.center,
+    .rpi-table td.center {
+      text-align: center;
+    }
+    
+    .rpi-table th.sorted {
+      background: #fff3e0;
+      color: #e65100;
+    }
+    
+    .rpi-table tbody tr {
+      border-bottom: 1px solid var(--border-color);
+      transition: background 0.15s;
+    }
+    
+    .rpi-table tbody tr:hover {
+      background: var(--bg-secondary);
+    }
+    
+    .rpi-table tbody tr:last-child {
+      border-bottom: none;
+    }
+    
+    .rpi-table td {
+      padding: 8px;
+      vertical-align: middle;
+      color: var(--text-primary);
+    }
+    
+    /* Rank Column */
+    .rpi-table .rank-col {
+      text-align: center;
+      font-weight: 700;
+      color: var(--text-secondary);
+      width: 40px;
+    }
+    
+    /* Team Cell - matches standings */
+    .team-cell {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 160px;
+    }
+    
+    .team-logo {
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      object-fit: contain;
+      background: #f5f5f5;
+      flex-shrink: 0;
+    }
+    
+    .team-name {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-primary);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    
+    .team-name:hover {
+      color: var(--accent);
+    }
+    
+    /* Stat Columns */
+    .rpi-table .stat-col {
+      text-align: center;
+      white-space: nowrap;
+    }
+    
+    .rpi-table .rpi-val {
+      font-weight: 700;
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 12px;
+      text-align: center;
+    }
+    
+    .rpi-table .record-cell {
+      font-weight: 600;
+      text-align: center;
+      white-space: nowrap;
+    }
+    
+    /* Tracking Columns (High/Low/Last) */
+    .rpi-table th.track-col {
+      border-left: 2px solid var(--border-color);
+    }
+    
+    .rpi-table th.track-col-inner {
+      /* no left border for Low and Last */
+    }
+    
+    .rpi-table td.track-col {
+      text-align: center;
+      font-weight: 600;
+      font-size: 12px;
+      border-left: 2px solid var(--border-color);
+    }
+    
+    .rpi-table td.track-col-inner {
+      text-align: center;
+      font-weight: 600;
+      font-size: 12px;
+    }
+    
+    .track-high {
+      color: #2e7d32;
+    }
+    
+    .track-low {
+      color: #c62828;
+    }
+    
+    .move-up {
+      color: #2e7d32;
+    }
+    
+    .move-down {
+      color: #c62828;
+    }
+    
+    .move-same {
+      color: var(--text-muted);
+    }
+    
+    /* Footer */
+    .rpi-footer {
+      padding: 16px 20px;
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    
+    .rpi-info-text {
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+    
+    .rpi-info-text strong {
+      color: var(--text-primary);
+    }
+    
+    .rpi-source {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    
+    /* Loading State */
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--border-color);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    .loading-msg {
+      padding: 40px;
+      text-align: center;
+      color: var(--text-muted);
+    }
+    
+    /* ===== MOBILE RESPONSIVE ===== */
+    @media (max-width: 768px) {
+      /* Dark Theme - matches standings */
+      body {
+        background: #1a1a1a;
+      }
+      
+      .rpi-page {
+        padding: 16px;
+        background: #1a1a1a;
+      }
+      
+      .rpi-header {
+        background: #1a1a1a;
+      }
+      
+      .rpi-title {
+        font-size: 24px;
+        color: #fff;
+      }
+      
+      .rpi-subtitle {
+        color: #888;
+      }
+      
+      .rpi-updated {
+        color: #666;
+      }
+      
+      .gender-btn {
+        padding: 10px 24px;
+        font-size: 14px;
+        background: #2d2d2d;
+        border-color: #444;
+        color: #fff;
+      }
+      
+      .gender-btn:hover {
+        border-color: #f57c00;
+        color: #f57c00;
+      }
+      
+      .gender-btn.active {
+        background: #f57c00;
+        border-color: #f57c00;
+        color: white;
+      }
+      
+      .division-tabs {
+        background: #2d2d2d;
+      }
+      
+      .division-tab {
+        padding: 8px 14px;
+        font-size: 13px;
+        color: #aaa;
+      }
+      
+      .division-tab:hover {
+        background: rgba(255,255,255,0.1);
+        color: #fff;
+      }
+      
+      .division-tab.active {
+        background: #f57c00;
+        color: #fff;
+      }
+      
+      .rpi-card {
+        background: #2d2d2d;
+        border-color: #3d3d3d;
+      }
+      
+      .rpi-card-header {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 8px;
+      }
+      
+      .rpi-card-badge {
+        justify-content: center;
+      }
+      
+      .rpi-table th {
+        background: #252525;
+        color: #aaa;
+        padding: 10px 8px;
+        font-size: 10px;
+      }
+      
+      .rpi-table th.sorted {
+        background: #3d2a00;
+        color: #f57c00;
+      }
+      
+      .rpi-table td {
+        background: #2d2d2d;
+        color: #fff;
+        border-bottom-color: #3d3d3d;
+        padding: 8px;
+        font-size: 12px;
+      }
+      
+      .rpi-table tbody tr:hover {
+        background: #383838;
+      }
+      
+      .team-cell {
+        min-width: 130px;
+      }
+      
+      .team-logo {
+        width: 24px;
+        height: 24px;
+        background: #3d3d3d;
+      }
+      
+      .team-name {
+        color: #fff;
+        font-size: 12px;
+      }
+      
+      .rpi-table td.track-col,
+      .rpi-table th.track-col {
+        border-left-color: #555;
+      }
+      
+      .rpi-footer {
+        flex-direction: column;
+        align-items: flex-start;
+        background: #252525;
+        border-top-color: #3d3d3d;
+        color: #888;
+      }
+      
+      .rpi-info-text {
+        color: #888;
+      }
+      
+      .rpi-info-text strong {
+        color: #ccc;
+      }
+      
+      /* Hide detail stat columns on mobile to make room for tracking */
+      /* All columns visible on mobile - horizontal scroll handles overflow */
+      
+      .site-footer {
+        background: #111;
+        border-top-color: #333;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      /* Keep gender buttons on same line */
+      .gender-toggle {
+        flex-direction: row;
+        gap: 8px;
+      }
+      
+      .gender-btn {
+        flex: 1;
+        padding: 10px 16px;
+        font-size: 13px;
+      }
+      
+      .division-tabs {
+        width: 100%;
+        justify-content: center;
+      }
+      
+      .division-tab {
+        flex: 1;
+        text-align: center;
+        padding: 8px 8px;
+        font-size: 12px;
+      }
+      
+      .rpi-page {
+        padding: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  
+  <!-- Navigation (loaded dynamically) -->
+  <div id="site-header"></div>
+  <div id="mobile-menu"></div>
+  <script src="/includes/nav-loader.js"></script>
+  
+  <main class="rpi-page">
+    <!-- Header -->
+    <div class="rpi-header">
+      <h1 class="rpi-title" id="rpiTitle">NHIAA Basketball RPI</h1>
+      <p class="rpi-subtitle">Rating Percentage Index Rankings</p>
+      <p class="rpi-updated" id="rpiUpdated"></p>
+    </div>
+    
+    <!-- Sport Filter -->
+    <div class="sport-filter-wrapper">
+      <div class="sport-filter">
+        <button class="sport-btn active" id="basketballBtn" onclick="selectSport('basketball')">🏀 Basketball</button>
+        <button class="sport-btn" id="baseballBtn" onclick="selectSport('baseball')">⚾ Baseball</button>
+        <!-- <button class="sport-btn" id="volleyballBtn" onclick="selectSport('volleyball')">🏐 Volleyball</button> -->
+      </div>
+    </div>
+    
+    <!-- Gender Toggle -->
+    <div class="gender-toggle" id="genderToggle">
+      <button class="gender-btn active" onclick="setGender('Boys')" id="btnBoys">🏀 Boys</button>
+      <button class="gender-btn" onclick="setGender('Girls')" id="btnGirls">🏀 Girls</button>
+    </div>
+    
+    <!-- Division Tabs -->
+    <div class="division-tabs-wrapper">
+      <div class="division-tabs">
+        <button class="division-tab active" onclick="setDivision('D-I')" id="tabDI">Division I</button>
+        <button class="division-tab" onclick="setDivision('D-II')" id="tabDII">Division II</button>
+        <button class="division-tab" onclick="setDivision('D-III')" id="tabDIII">Division III</button>
+        <button class="division-tab" onclick="setDivision('D-IV')" id="tabDIV">Division IV</button>
+      </div>
+    </div>
+    
+    <!-- RPI Card -->
+    <div class="rpi-card">
+      <div class="rpi-card-header">
+        <span class="rpi-card-title" id="cardTitle">Boys Division I</span>
+        <span class="rpi-card-badge">
+          <span class="rpi-badge-dot"></span>
+          <span>Sorted by RPI</span>
+        </span>
+      </div>
+      
+      <div class="rpi-table-wrapper">
+        <table class="rpi-table" id="rpiTable">
+          <thead>
+            <tr id="rpiHeaderRow">
+              <th class="rank-col center">Rank</th>
+              <th class="team-col" onclick="sortRPI('team')" id="th-team">Team</th>
+              <th class="center sorted" onclick="sortRPI('rpi')" id="th-rpi">RPI</th>
+              <th class="center" onclick="sortRPI('wins')" id="th-wins">Record</th>
+              <th class="center" onclick="sortRPI('winPct')" id="th-winPct">Wtd Win %</th>
+              <th class="center" onclick="sortRPI('owp')" id="th-owp">Opp Win %</th>
+              <th class="center" onclick="sortRPI('oowp')" id="th-oowp">Opp-Opp Win %</th>
+              <th class="center track-col" onclick="sortRPI('high_rank')" id="th-high_rank">High Rank</th>
+              <th class="center track-col-inner" onclick="sortRPI('low_rank')" id="th-low_rank">Low Rank</th>
+              <th class="center track-col-inner" onclick="sortRPI('last_rank')" id="th-last_rank">Last Week</th>
+              <th class="center track-col" onclick="sortRPI('remaining_sos')" id="th-remaining_sos">Opp RPI</th>
+              <th class="center track-col-inner" onclick="sortRPI('rem_sos_rank')" id="th-rem_sos_rank">Rank</th>
+            </tr>
+          </thead>
+          <tbody id="rpiBody">
+            <tr><td colspan="12" class="loading-msg">
+              <div class="loading-spinner"></div>
+              Loading RPI data...
+            </td></tr>
+          </tbody>
+        </table>
+      </div>
+      
+      <div class="rpi-footer">
+        <div class="rpi-info-text">
+          <strong>How RPI is calculated:</strong>
+          RPI = (Wtd Win % &#215; 25%) + (Opp Win % &#215; 50%) + (Opp-Opp Win % &#215; 25%).
+          Wtd Win % (Weighted Win Percentage) is adjusted by location: road win = 1.4, home win = 0.6, road loss = 0.6, home loss = 1.4.
+          <strong>High Rank / Low Rank</strong> = best / worst rank this season.
+          <strong>Last Week</strong> = rank from previous week.
+          <strong>Rem SOS</strong> (Remaining Strength of Schedule) = the average RPI of a team's remaining regular-season opponents. A higher value indicates a tougher remaining schedule. <strong>Opp RPI</strong> shows this value and <strong>Rem SOS Rank</strong> ranks teams by it within their division (1 = toughest remaining schedule).
+        </div>
+        <div class="rpi-info-text" style="margin-top: 8px;">
+          <strong>Non-NHIAA opponents:</strong>
+          Games against non-NHIAA teams (out-of-state, prep schools, etc.) count toward a team's Wtd Win %. However, because full season records are not available for non-NHIAA opponents, they are assigned a default .500 win percentage for Opponent Win % (OWP) and Opponent's Opponent Win % (OOWP) calculations. This ensures teams are not unfairly penalized or rewarded for scheduling out-of-state games.
+        </div>
+        <div class="rpi-source">Data calculated from Ball603 game results</div>
+      </div>
+    </div>
+  </main>
+  
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="footer-logo">
+      <img src="/logo.png" alt="Ball603">
+    </div>
+    <div class="footer-links">
+      <a href="/about">About Us</a>
+      <a href="/contact">Contact</a>
+    </div>
+    <div class="footer-social">
+      <a href="https://facebook.com/ball603" target="_blank" title="Facebook">
+        <svg viewBox="0 0 24 24"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+      </a>
+      <a href="https://www.instagram.com/ball603nh/" target="_blank" title="Instagram">
+        <svg viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+      </a>
+      <a href="https://x.com/Ball603NH" target="_blank" title="X (Twitter)">
+        <svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+      </a>
+    </div>
+    <p class="footer-copyright">&copy; 2025 Ball603. All rights reserved.</p>
+  </footer>
+  
+  <!-- Shared JS -->
+  <script src="/app.js"></script>
+  
+  <script>
+    // ===== STATE =====
+    let rpiData = [];      // Current division's data from API
+    let allRpiCache = {};  // Cache: "basketball-Boys" -> full array, etc.
+    let currentSport = 'basketball';
+    let currentGender = 'Boys';
+    let currentDivision = 'D-I';
+    let sortField = 'rpi';
+    let sortDir = 'desc';
+    let calculatedAt = null;
+    
+    const DIVISION_LABELS = {
+      'D-I': 'Division I',
+      'D-II': 'Division II',
+      'D-III': 'Division III',
+      'D-IV': 'Division IV'
+    };
+    
+    const SPORT_NAMES = {
+      basketball: 'Basketball',
+      baseball: 'Baseball',
+      volleyball: 'Volleyball'
+    };
+    
+    const SPORT_EMOJIS = {
+      basketball: '🏀',
+      baseball: '⚾',
+      volleyball: '🏐'
+    };
+    
+    // ===== UI HANDLERS =====
+    
+    function selectSport(sport) {
+      currentSport = sport;
+      
+      // Update sport buttons
+      document.getElementById('basketballBtn').classList.toggle('active', sport === 'basketball');
+      document.getElementById('baseballBtn').classList.toggle('active', sport === 'baseball');
+      // document.getElementById('volleyballBtn').classList.toggle('active', sport === 'volleyball');
+      
+      // Handle gender toggle based on sport
+      const genderToggle = document.getElementById('genderToggle');
+      const emoji = SPORT_EMOJIS[sport] || '🏀';
+      
+      if (sport === 'basketball') {
+        // Basketball: Show gender toggle
+        genderToggle.style.display = 'flex';
+        document.getElementById('btnBoys').innerHTML = `${emoji} Boys`;
+        document.getElementById('btnGirls').innerHTML = `${emoji} Girls`;
+      } else if (sport === 'baseball') {
+        // Baseball: Boys only
+        genderToggle.style.display = 'none';
+        currentGender = 'Boys';
+        document.getElementById('btnBoys').classList.add('active');
+        document.getElementById('btnGirls').classList.remove('active');
+      } else if (sport === 'volleyball') {
+        // Volleyball: Girls only
+        genderToggle.style.display = 'none';
+        currentGender = 'Girls';
+        document.getElementById('btnGirls').classList.add('active');
+        document.getElementById('btnBoys').classList.remove('active');
+      }
+      
+      updatePageTitle();
+      loadRPIData();
+    }
+    
+    function updatePageTitle() {
+      const sportName = SPORT_NAMES[currentSport] || 'Sports';
+      document.getElementById('pageTitle').textContent = `${sportName} RPI Rankings | Ball603`;
+      document.getElementById('rpiTitle').textContent = `NHIAA ${sportName} RPI`;
+    }
+    
+    function setGender(g) {
+      // Only allow gender change for basketball
+      if (currentSport !== 'basketball') return;
+      
+      currentGender = g;
+      document.getElementById('btnBoys').classList.toggle('active', g === 'Boys');
+      document.getElementById('btnGirls').classList.toggle('active', g === 'Girls');
+      loadRPIData();
+    }
+    
+    function setDivision(d) {
+      currentDivision = d;
+      document.querySelectorAll('.division-tab').forEach(t => t.classList.remove('active'));
+      document.getElementById('tab' + d.replace('-', '')).classList.add('active');
+      filterAndRender();
+    }
+    
+    function updateCardHeader() {
+      const divLabel = DIVISION_LABELS[currentDivision] || currentDivision;
+      const sportName = SPORT_NAMES[currentSport] || '';
+      document.getElementById('cardTitle').textContent = `${currentGender} ${divLabel} - ${sportName}`;
+      
+      const sortLabels = {
+        'rpi': 'RPI', 'team': 'Team Name', 'wins': 'Record',
+        'winPct': 'Wtd Win %', 'owp': 'Opp Win %', 'oowp': 'Opp-Opp Win %',
+        'high_rank': 'High Rank', 'low_rank': 'Low Rank', 'last_rank': 'Last Week',
+        'remaining_sos': 'Opp RPI', 'rem_sos_rank': 'Rem SOS Rank'
+      };
+      const badge = document.querySelector('.rpi-card-badge');
+      if (badge) {
+        badge.innerHTML = '<span class="rpi-badge-dot"></span><span>Sorted by ' + (sortLabels[sortField] || 'RPI') + '</span>';
+      }
+    }
+    
+    function updateTimestamp() {
+      const el = document.getElementById('rpiUpdated');
+      if (calculatedAt) {
+        const d = new Date(calculatedAt);
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' };
+        el.textContent = 'Updated: ' + d.toLocaleDateString('en-US', options);
+      }
+    }
+    
+    // ===== DATA LOADING =====
+    
+    async function loadRPIData() {
+      const tbody = document.getElementById('rpiBody');
+      tbody.innerHTML = '<tr><td colspan="12" class="loading-msg"><div class="loading-spinner"></div>Loading...</td></tr>';
+      updateCardHeader();
+      
+      // Cache key includes sport and gender
+      const cacheKey = `${currentSport}-${currentGender}`;
+      
+      // Check cache first
+      if (allRpiCache[cacheKey]) {
+        filterAndRender();
+        return;
+      }
+      
+      try {
+        // Include sport in API call
+        const response = await fetch('/.netlify/functions/get-rpi?gender=' + encodeURIComponent(currentGender) + '&sport=' + encodeURIComponent(currentSport));
+        const data = await response.json();
+        
+        const sportLabel = SPORT_NAMES[currentSport]?.toLowerCase() || 'sports';
+        
+        if (!data.rankings || data.rankings.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="12" class="loading-msg">No ${sportLabel} RPI data available yet. Check back Monday!</td></tr>`;
+          return;
+        }
+        
+        // Cache the data with sport-gender key
+        allRpiCache[cacheKey] = data.rankings;
+        calculatedAt = data.calculatedAt;
+        
+        updateTimestamp();
+        filterAndRender();
+        
+      } catch (err) {
+        console.error('RPI load error:', err);
+        tbody.innerHTML = '<tr><td colspan="12" class="loading-msg" style="color:#c00;">Error loading data. Please refresh the page.</td></tr>';
+      }
+    }
+    
+    function filterAndRender() {
+      const cacheKey = `${currentSport}-${currentGender}`;
+      const allData = allRpiCache[cacheKey] || [];
+      
+      // Filter to current division
+      rpiData = allData.filter(r => r.division === currentDivision);
+      
+      // Compute Rem SOS Rank within this division
+      // Sort by remaining_sos descending (highest = toughest = rank 1)
+      const withSos = rpiData.filter(r => r.remaining_sos !== null && r.remaining_sos !== undefined);
+      withSos.sort((a, b) => b.remaining_sos - a.remaining_sos);
+      withSos.forEach((r, i) => { r.rem_sos_rank = i + 1; });
+      // Teams with no remaining games get no rank
+      rpiData.forEach(r => {
+        if (r.remaining_sos === null || r.remaining_sos === undefined) r.rem_sos_rank = null;
+      });
+      
+      // Apply current sort
+      sortField = 'rpi';
+      sortDir = 'desc';
+      
+      const sorted = sortData(rpiData, sortField, sortDir);
+      renderTable(sorted);
+      highlightCol('rpi');
+      updateCardHeader();
+    }
+    
+    // ===== SORTING =====
+    
+    function sortData(data, field, dir) {
+      return [...data].sort((a, b) => {
+        // Map frontend field names to API field names
+        const fieldMap = { 'winPct': 'win_pct' };
+        const apiField = fieldMap[field] || field;
+        
+        if (field === 'team') {
+          return dir === 'asc' ? a.team.localeCompare(b.team) : b.team.localeCompare(a.team);
+        }
+        
+        let aV = a[apiField] ?? (dir === 'asc' ? Infinity : -Infinity);
+        let bV = b[apiField] ?? (dir === 'asc' ? Infinity : -Infinity);
+        return dir === 'asc' ? aV - bV : bV - aV;
+      });
+    }
+    
+    function sortRPI(field) {
+      if (rpiData.length === 0) return;
+      
+      if (sortField === field) {
+        sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        sortField = field;
+        // Ascending default for rank-type fields and team, descending for percentage fields
+        sortDir = ['team', 'high_rank', 'low_rank', 'last_rank', 'rem_sos_rank'].includes(field) ? 'asc' : 'desc';
+      }
+      
+      const sorted = sortData(rpiData, sortField, sortDir);
+      renderTable(sorted);
+      highlightCol(field);
+      updateCardHeader();
+    }
+    
+    function highlightCol(field) {
+      document.querySelectorAll('#rpiHeaderRow th').forEach(th => th.classList.remove('sorted'));
+      const el = document.getElementById('th-' + field);
+      if (el) el.classList.add('sorted');
+    }
+    
+    // ===== RENDERING =====
+    
+    function renderTable(results) {
+      const tbody = document.getElementById('rpiBody');
+      if (results.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="12" class="loading-msg">No data available for this division</td></tr>';
+        return;
+      }
+      
+      const fmtPct = v => (v * 100).toFixed(1) + '%';
+      const fmtDec = v => v.toFixed(3);
+      
+      let html = '';
+      for (let i = 0; i < results.length; i++) {
+        const r = results[i];
+        const teamSlug = r.team.toLowerCase().replace(/[^a-z0-9]+/g, '');
+        const logoUrl = (typeof Ball603 !== 'undefined' && Ball603.getLogoUrl) ? Ball603.getLogoUrl(r.team) : '/logos/100px/' + teamSlug + '.png';
+        
+        // Movement indicator for Last column
+        let lastDisplay = '-';
+        let lastClass = 'move-same';
+        if (r.last_rank !== null && r.last_rank !== undefined) {
+          const diff = r.last_rank - r.rank; // positive = improved
+          if (diff > 0) {
+            lastDisplay = r.last_rank + ' &#9650;'; // ▲
+            lastClass = 'move-up';
+          } else if (diff < 0) {
+            lastDisplay = r.last_rank + ' &#9660;'; // ▼
+            lastClass = 'move-down';
+          } else {
+            lastDisplay = r.last_rank + '';
+            lastClass = 'move-same';
+          }
+        }
+        
+        // High/Low coloring
+        const highClass = r.high_rank === r.rank ? 'track-high' : '';
+        const lowClass = r.low_rank === r.rank ? 'track-low' : '';
+        
+        html += '<tr>' +
+          '<td class="rank-col center">' + r.rank + '</td>' +
+          '<td>' +
+            '<div class="team-cell">' +
+              '<img class="team-logo" src="' + logoUrl + '" onerror="this.src=\'/logos/100px/Ball603-white.png\'" alt="">' +
+              '<a class="team-name" href="/' + teamSlug + '">' + r.team + '</a>' +
+            '</div>' +
+          '</td>' +
+          '<td class="rpi-val center">' + fmtDec(r.rpi) + '</td>' +
+          '<td class="record-cell center">' + r.wins + '-' + r.losses + '</td>' +
+          '<td class="stat-col center">' + fmtPct(r.win_pct) + '</td>' +
+          '<td class="stat-col center">' + fmtPct(r.owp) + '</td>' +
+          '<td class="stat-col center">' + fmtPct(r.oowp) + '</td>' +
+          '<td class="track-col center ' + highClass + '">' + (r.high_rank || r.rank) + '</td>' +
+          '<td class="track-col-inner center ' + lowClass + '">' + (r.low_rank || r.rank) + '</td>' +
+          '<td class="track-col-inner center ' + lastClass + '">' + lastDisplay + '</td>' +
+          '<td class="track-col center">' + (r.remaining_sos !== null ? fmtDec(r.remaining_sos) : '-') + '</td>' +
+          '<td class="track-col-inner center" style="font-weight:700;">' + (r.rem_sos_rank !== null ? r.rem_sos_rank : '-') + '</td>' +
+        '</tr>';
+      }
+      
+      tbody.innerHTML = html;
+    }
+    
+    // ===== INIT =====
+    updatePageTitle();
+    loadRPIData();
+    
+    // ===== GROUP HEADER ROW =====
+    // Inject via JS with all inline styles to avoid any CSS conflicts
+    (function() {
+      const thead = document.querySelector('#rpiTable thead');
+      const headerRow = document.getElementById('rpiHeaderRow');
+      if (!thead || !headerRow) return;
+      
+      const groupRow = document.createElement('tr');
+      
+      const baseStyle = 'background:var(--bg-secondary);padding:6px 8px;border-bottom:none;font-size:0;line-height:0;';
+      const labelStyle = 'background:var(--bg-secondary);padding:6px 8px;border-bottom:none;text-align:center;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.8px;color:#f57c00;white-space:nowrap;border-left:2px solid var(--border-color);';
+      const firstLabelStyle = 'background:var(--bg-secondary);padding:6px 8px;border-bottom:none;text-align:center;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.8px;color:#f57c00;white-space:nowrap;';
+      
+      // Empty cells for Rank + Team
+      const c1 = document.createElement('th');
+      c1.setAttribute('style', baseStyle);
+      groupRow.appendChild(c1);
+      
+      const c2 = document.createElement('th');
+      c2.setAttribute('style', baseStyle);
+      groupRow.appendChild(c2);
+      
+      // Rating Percentage Index (spans 5)
+      const g1 = document.createElement('th');
+      g1.setAttribute('colspan', '5');
+      g1.setAttribute('style', firstLabelStyle);
+      g1.textContent = 'Rating Percentage Index';
+      groupRow.appendChild(g1);
+      
+      // Season Ranking (spans 3)
+      const g2 = document.createElement('th');
+      g2.setAttribute('colspan', '3');
+      g2.setAttribute('style', labelStyle);
+      g2.textContent = 'Season Ranking';
+      groupRow.appendChild(g2);
+      
+      // Remaining Schedule (spans 2)
+      const g3 = document.createElement('th');
+      g3.setAttribute('colspan', '2');
+      g3.setAttribute('style', labelStyle);
+      g3.textContent = 'Remaining Schedule';
+      groupRow.appendChild(g3);
+      
+      thead.insertBefore(groupRow, headerRow);
+    })();
+  </script>
+</body>
+</html>
