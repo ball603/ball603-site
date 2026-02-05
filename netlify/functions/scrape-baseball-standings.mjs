@@ -29,11 +29,14 @@ function parseStandingsPage(html, gender, division) {
     if (rowContent.includes('<th')) continue;
     
     const cells = [];
-    const cellRegex = /<td[^>]*>([^<]*)<\/td>/gi;
+    // More robust cell extraction - captures content including nested tags
+    const cellRegex = /<td[^>]*>([\s\S]*?)<\/td>/gi;
     let cellMatch;
     
     while ((cellMatch = cellRegex.exec(rowContent)) !== null) {
-      cells.push(cellMatch[1].trim());
+      // Strip all HTML tags from the cell content and trim whitespace
+      const cellContent = cellMatch[1].replace(/<[^>]*>/g, '').trim();
+      cells.push(cellContent);
     }
     
     // We expect: School, W, L, T, Points, Rating
