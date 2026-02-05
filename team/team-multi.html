@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Ball603 Team Page Multi-Sport v249 - Simplified All Sports view, baseball roster fix + side-by-side layout -->
+<!-- Ball603 Team Page Multi-Sport v249 - Baseball UI polish: hero stats, menu text, section titles, card labels -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -129,7 +129,7 @@
       </a>
       <a href="#schedules" class="team-menu-item" data-section="schedules">
         <span class="menu-icon">&#128197;</span>
-        <span class="menu-text">Schedules</span>
+        <span class="menu-text" id="schedulesMenuText">Schedules</span>
       </a>
       <a href="#rosters" class="team-menu-item" data-section="rosters">
         <span class="menu-icon">&#128101;</span>
@@ -232,12 +232,12 @@
     <!-- SCHEDULES SECTION -->
     <section class="team-section" id="schedules">
       <div class="section-header">
-        <h2 class="section-title">&#128197; Schedules</h2>
+        <h2 class="section-title" id="schedulesSectionTitle">&#128197; Schedules</h2>
       </div>
       <div class="schedules-grid">
         <div class="schedule-card">
           <div class="schedule-card-header boys">
-            <span class="schedule-card-label">Boys Varsity</span>
+            <span class="schedule-card-label" id="boysScheduleLabel">Boys Varsity</span>
             <span class="schedule-card-record" id="boysRecordCard">--</span>
           </div>
           <div class="schedule-card-games" id="boysScheduleGames">
@@ -246,7 +246,7 @@
         </div>
         <div class="schedule-card">
           <div class="schedule-card-header girls">
-            <span class="schedule-card-label">Girls Varsity</span>
+            <span class="schedule-card-label" id="girlsScheduleLabel">Girls Varsity</span>
             <span class="schedule-card-record" id="girlsRecordCard">--</span>
           </div>
           <div class="schedule-card-games" id="girlsScheduleGames">
@@ -264,7 +264,7 @@
       <div class="rosters-grid">
         <div class="roster-card" id="boysRosterCard">
           <div class="roster-card-header boys">
-            <span class="roster-card-label">Boys Varsity</span>
+            <span class="roster-card-label" id="boysRosterLabel">Boys Varsity</span>
             <span class="roster-card-count" id="boysRosterCount">--</span>
           </div>
           <div class="roster-card-body" id="boysRosterBody">
@@ -274,7 +274,7 @@
         </div>
         <div class="roster-card" id="girlsRosterCard">
           <div class="roster-card-header girls">
-            <span class="roster-card-label">Girls Varsity</span>
+            <span class="roster-card-label" id="girlsRosterLabel">Girls Varsity</span>
             <span class="roster-card-count" id="girlsRosterCount">--</span>
           </div>
           <div class="roster-card-body" id="girlsRosterBody">
@@ -768,6 +768,36 @@
       
       // Re-apply gender visibility on top (team may only have one gender)
       applyGenderVisibility();
+      
+      // --- Update text labels based on sport ---
+      const schedulesMenuText = document.getElementById('schedulesMenuText');
+      const schedulesSectionTitle = document.getElementById('schedulesSectionTitle');
+      const boysScheduleLabel = document.getElementById('boysScheduleLabel');
+      const girlsScheduleLabel = document.getElementById('girlsScheduleLabel');
+      const boysRosterLabel = document.getElementById('boysRosterLabel');
+      const girlsRosterLabel = document.getElementById('girlsRosterLabel');
+      
+      if (sport === 'baseball') {
+        // Baseball: singular "Schedule", combined section title, sport-specific labels
+        if (schedulesMenuText) schedulesMenuText.textContent = 'Schedule';
+        if (schedulesSectionTitle) schedulesSectionTitle.innerHTML = '&#128197; Schedule &amp; &#128101; Roster';
+        if (boysScheduleLabel) boysScheduleLabel.textContent = 'Boys Varsity Baseball Schedule';
+        if (boysRosterLabel) boysRosterLabel.textContent = 'Boys Varsity Baseball Roster';
+      } else if (sport === 'volleyball') {
+        // Volleyball: singular labels for girls only
+        if (schedulesMenuText) schedulesMenuText.textContent = 'Schedules';
+        if (schedulesSectionTitle) schedulesSectionTitle.innerHTML = '&#128197; Schedules';
+        if (girlsScheduleLabel) girlsScheduleLabel.textContent = 'Girls Varsity Volleyball';
+        if (girlsRosterLabel) girlsRosterLabel.textContent = 'Girls Varsity Volleyball';
+      } else {
+        // Basketball or default: standard labels
+        if (schedulesMenuText) schedulesMenuText.textContent = 'Schedules';
+        if (schedulesSectionTitle) schedulesSectionTitle.innerHTML = '&#128197; Schedules';
+        if (boysScheduleLabel) boysScheduleLabel.textContent = 'Boys Varsity';
+        if (girlsScheduleLabel) girlsScheduleLabel.textContent = 'Girls Varsity';
+        if (boysRosterLabel) boysRosterLabel.textContent = 'Boys Varsity';
+        if (girlsRosterLabel) girlsRosterLabel.textContent = 'Girls Varsity';
+      }
     }
     
     // ===== UPDATE PAGE TITLE FOR SPORT =====
@@ -1006,7 +1036,7 @@
         schedulesGrid.innerHTML = `
           <div class="schedule-card">
             <div class="schedule-card-header boys">
-              <span class="schedule-card-label">Boys Varsity</span>
+              <span class="schedule-card-label" id="boysScheduleLabel">Boys Varsity</span>
               <span class="schedule-card-record" id="boysRecordCard">--</span>
             </div>
             <div class="schedule-card-games" id="boysScheduleGames">
@@ -1015,7 +1045,7 @@
           </div>
           <div class="schedule-card">
             <div class="schedule-card-header girls">
-              <span class="schedule-card-label">Girls Varsity</span>
+              <span class="schedule-card-label" id="girlsScheduleLabel">Girls Varsity</span>
               <span class="schedule-card-record" id="girlsRecordCard">--</span>
             </div>
             <div class="schedule-card-games" id="girlsScheduleGames">
@@ -1622,20 +1652,27 @@
       // Count boys and girls titles
       const boysTitles = (champs.boys || []).filter(g => g.result === 'champion').length;
       const girlsTitles = (champs.girls || []).filter(g => g.result === 'champion').length;
+      
+      // For single-gender sports (baseball=boys, volleyball=girls), don't show sublabel
       let sublabelText = '';
-      if (boysTitles > 0 && girlsTitles > 0) {
-        sublabelText = `${boysTitles} Boys &#8211; ${girlsTitles} Girls`;
-      } else if (boysTitles > 0) {
-        sublabelText = `${boysTitles} Boys`;
-      } else if (girlsTitles > 0) {
-        sublabelText = `${girlsTitles} Girls`;
+      if (currentSport === 'basketball') {
+        if (boysTitles > 0 && girlsTitles > 0) {
+          sublabelText = `${boysTitles} Boys &#8211; ${girlsTitles} Girls`;
+        } else if (boysTitles > 0) {
+          sublabelText = `${boysTitles} Boys`;
+        } else if (girlsTitles > 0) {
+          sublabelText = `${girlsTitles} Girls`;
+        }
       }
       
+      // Sport-specific emoji for Title Games
+      const titleGameEmoji = currentSport === 'baseball' ? '&#9918;' : currentSport === 'volleyball' ? '&#127952;' : '&#127936;';
+      
       container.innerHTML = `
-        ${titles > 0 ? `<div class="team-hero-stats-primary"><div class="team-hero-stat championship"><span class="stat-icon">&#127942;</span><div class="stat-text"><span class="stat-value">${titles}</span><span class="stat-label">State Championship${titles !== 1 ? 's' : ''}</span><span class="stat-sublabel">${sublabelText}</span></div></div></div>` : ''}
+        ${titles > 0 ? `<div class="team-hero-stats-primary"><div class="team-hero-stat championship"><span class="stat-icon">&#127942;</span><div class="stat-text"><span class="stat-value">${titles}</span><span class="stat-label">State Championship${titles !== 1 ? 's' : ''}</span>${sublabelText ? `<span class="stat-sublabel">${sublabelText}</span>` : ''}</div></div></div>` : ''}
         <div class="team-hero-stats-secondary">
           ${runnerUps > 0 ? `<div class="team-hero-stat-small runner-up"><span class="stat-icon">&#129352;</span><span class="stat-value">${runnerUps}</span><span class="stat-label">Runner-Up${runnerUps !== 1 ? 's' : ''}</span></div>` : ''}
-          ${total > 0 ? `<div class="team-hero-stat-small finals"><span class="stat-icon">&#127936;</span><span class="stat-value">${total}</span><span class="stat-label">Title Game${total !== 1 ? 's' : ''}</span></div>` : ''}
+          ${total > 0 ? `<div class="team-hero-stat-small finals"><span class="stat-icon">${titleGameEmoji}</span><span class="stat-value">${total}</span><span class="stat-label">Title Game${total !== 1 ? 's' : ''}</span></div>` : ''}
         </div>`;
     }
 
