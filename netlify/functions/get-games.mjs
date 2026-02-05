@@ -128,6 +128,8 @@ export default async (request) => {
       gender: game.gender || '',
       level: game.level || '',
       division: game.division || '',
+      sport: game.sport || 'basketball',
+      season: game.season || '2025-26',
       photog1: game.photog1 || '',
       photog2: game.photog2 || '',
       videog: game.videog || '',
