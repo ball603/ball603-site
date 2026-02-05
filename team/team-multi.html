@@ -418,6 +418,7 @@
     
     // Initialize sport on page load
     currentSport = getCurrentSport();
+    console.log('[Ball603] Sport detected:', currentSport, '| URL:', window.location.href);
 
     // ===== TEAM CONFIGURATION (built dynamically) =====
     let TEAM_CONFIG = null;
@@ -946,7 +947,30 @@
       if (currentSport === 'all') {
         renderUnifiedSchedule();
       } else {
-        // For specific sports, use the boys/girls split cards
+        // Restore the Boys/Girls card structure if it was replaced by unified view
+        const schedulesGrid = document.querySelector('.schedules-grid');
+        if (schedulesGrid && !document.getElementById('boysScheduleGames')) {
+          schedulesGrid.innerHTML = `
+            <div class="schedule-card">
+              <div class="schedule-card-header boys">
+                <span class="schedule-card-label">Boys Varsity</span>
+                <span class="schedule-card-record" id="boysRecordCard">--</span>
+              </div>
+              <div class="schedule-card-games" id="boysScheduleGames">
+                <div class="empty-state"><p>Loading schedule...</p></div>
+              </div>
+            </div>
+            <div class="schedule-card">
+              <div class="schedule-card-header girls">
+                <span class="schedule-card-label">Girls Varsity</span>
+                <span class="schedule-card-record" id="girlsRecordCard">--</span>
+              </div>
+              <div class="schedule-card-games" id="girlsScheduleGames">
+                <div class="empty-state"><p>Loading schedule...</p></div>
+              </div>
+            </div>
+          `;
+        }
         renderScheduleCard('boys', teamData.schedules.boys);
         renderScheduleCard('girls', teamData.schedules.girls);
       }
@@ -1268,10 +1292,10 @@
       try {
         let query = db.from('articles').select('*').eq('status', 'published');
         
-        // Filter by sport if not 'all'
-        if (currentSport !== 'all') {
-          // Show articles tagged with the specific sport OR with 'all' sport tag
-          query = query.in('sport', [currentSport, 'all']);
+        // Only filter by sport for non-basketball sports
+        // Basketball articles may have sport=NULL (pre-multi-sport data), so don't filter
+        if (currentSport !== 'all' && currentSport !== 'basketball') {
+          query = query.eq('sport', currentSport);
         }
         
         const { data: articles, error } = await query;
@@ -1380,8 +1404,7 @@
         }
         
         for (const schoolName of schoolNames) {
-          const sportParam = currentSport ? `&sport=${currentSport}` : '';
-          const response = await fetch(`/.netlify/functions/get-rosters?school=${encodeURIComponent(schoolName)}${sportParam}`);
+          const response = await fetch(`/.netlify/functions/get-rosters?school=${encodeURIComponent(schoolName)}`);
           const data = await response.json();
           if (data.success && data.rosters && data.rosters.length > 0) {
             console.log('Found roster for', schoolName, 'sport:', currentSport);
@@ -1530,8 +1553,9 @@
           .ilike('high_school', `%${schoolName}%`)
           .eq('active', true);
         
-        // Filter by sport if not 'all'
-        if (currentSport !== 'all') {
+        // Only filter by sport for non-basketball sports
+        // Basketball data may have sport=NULL (pre-multi-sport), so don't filter
+        if (currentSport !== 'all' && currentSport !== 'basketball') {
           ncaaQuery = ncaaQuery.eq('sport', currentSport);
         }
         
@@ -1558,8 +1582,9 @@
           .select('*')
           .or(`champion.ilike.${schoolName},runner_up.ilike.${schoolName}`);
         
-        // Filter by sport if not 'all'
-        if (currentSport !== 'all') {
+        // Only filter by sport for non-basketball sports
+        // Basketball data may have sport=NULL (pre-multi-sport), so don't filter
+        if (currentSport !== 'all' && currentSport !== 'basketball') {
           champQuery = champQuery.eq('sport', currentSport);
         }
         
