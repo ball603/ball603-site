@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Ball603 Team Page Multi-Sport v249 - Hide schedules for All Sports view, add sport column to championship history -->
+<!-- Ball603 Team Page Multi-Sport v249 - Simplified All Sports view (News, Galleries, Sponsor only) -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -84,36 +84,6 @@
       box-shadow: 0 2px 6px rgba(0,0,0,0.15);
     }
     
-    /* Championship history sport column */
-    .timeline-sport {
-      font-size: 18px;
-      min-width: 28px;
-      text-align: center;
-      flex-shrink: 0;
-    }
-    
-    /* Fix timeline item layout for multi-sport view */
-    .timeline-item {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 12px 16px;
-      flex-wrap: nowrap;
-    }
-    .timeline-item .timeline-year,
-    .timeline-item .timeline-gender,
-    .timeline-item .timeline-result,
-    .timeline-item .timeline-score,
-    .timeline-item .timeline-opponent {
-      white-space: nowrap;
-      flex-shrink: 0;
-    }
-    .timeline-item .timeline-opponent {
-      flex-shrink: 1;
-      min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
   </style>
 </head>
 <body class="team-page">
@@ -697,6 +667,28 @@
       } else {
         if (schedulesSection) schedulesSection.style.display = '';
         if (schedulesMenuItem) schedulesMenuItem.style.display = '';
+      }
+      
+      // --- Championship History: Hide for 'all' view ---
+      const historySection = document.getElementById('history');
+      const historyMenuItem = document.querySelector('.team-menu-item[data-section="history"]');
+      if (sport === 'all') {
+        if (historySection) historySection.style.display = 'none';
+        if (historyMenuItem) historyMenuItem.style.display = 'none';
+      } else {
+        if (historySection) historySection.style.display = '';
+        if (historyMenuItem) historyMenuItem.style.display = '';
+      }
+      
+      // --- 603 in NCAA: Hide for 'all' view ---
+      const collegeSection = document.getElementById('college');
+      const collegeMenuItem = document.querySelector('.team-menu-item[data-section="college"]');
+      if (sport === 'all') {
+        if (collegeSection) collegeSection.style.display = 'none';
+        if (collegeMenuItem) collegeMenuItem.style.display = 'none';
+      } else {
+        if (collegeSection) collegeSection.style.display = '';
+        if (collegeMenuItem) collegeMenuItem.style.display = '';
       }
       
       // --- 1K Club: Only for basketball ---
@@ -1631,17 +1623,10 @@
         return `${score1} - ${score2}${ot ? ' OT' : ''}`;
       };
       
-      // Sport emoji mapping
-      const sportEmoji = (sport) => {
-        const emojis = { basketball: '&#127936;', baseball: '&#9918;', volleyball: '&#127952;' };
-        return emojis[sport] || emojis['basketball'];
-      };
-      
       const wins = allGames.filter(g => g.result === 'champion');
       
       // For 'all' sports view, skip the banner cards - just show the appearances table
       const showBannerCards = currentSport !== 'all' && wins.length > 0;
-      const showSportColumn = currentSport === 'all';
       
       container.innerHTML = `
         ${showBannerCards ? `<div class="championship-cards-row">${wins.slice(0, 6).map(g => {
@@ -1651,8 +1636,7 @@
         <div class="history-timeline"><h3>All Title Game Appearances</h3><div class="timeline-list">${allGames.map(g => {
           const isChamp = g.result === 'champion', opp = isChamp ? g.runner_up : g.champion;
           const scoreText = isChamp ? formatScore(g.champion_score, g.runner_up_score, g.overtime) : formatScore(g.runner_up_score, g.champion_score, g.overtime);
-          const sportHtml = showSportColumn ? `<span class="timeline-sport">${sportEmoji(g.sport)}</span>` : '';
-          return `<div class="timeline-item ${isChamp ? 'champion' : 'runner-up'}">${sportHtml}<span class="timeline-year">${g.year}</span><span class="timeline-gender">${g.gender || ''}</span><span class="timeline-result">${isChamp ? '&#127942; Champion' : '&#129352; Runner-Up'}</span><span class="timeline-score">${scoreText}</span><span class="timeline-opponent">vs ${opp}</span></div>`;
+          return `<div class="timeline-item ${isChamp ? 'champion' : 'runner-up'}"><span class="timeline-year">${g.year}</span><span class="timeline-gender">${g.gender || ''}</span><span class="timeline-result">${isChamp ? '&#127942; Champion' : '&#129352; Runner-Up'}</span><span class="timeline-score">${scoreText}</span><span class="timeline-opponent">vs ${opp}</span></div>`;
         }).join('')}</div></div>`;
     }
 
