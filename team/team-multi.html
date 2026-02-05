@@ -1694,15 +1694,20 @@
       // For 'all' sports view, skip the banner cards - just show the appearances table
       const showBannerCards = currentSport !== 'all' && wins.length > 0;
       
+      // Single-gender sports don't need gender column
+      const isSingleGender = currentSport === 'baseball' || currentSport === 'volleyball';
+      
       container.innerHTML = `
         ${showBannerCards ? `<div class="championship-cards-row">${wins.slice(0, 6).map(g => {
           const scoreText = formatScore(g.champion_score, g.runner_up_score, g.overtime);
-          return `<div class="championship-card"><div class="champ-year">${g.year}</div><div class="champ-trophy">&#127942;</div><div class="champ-gender">${g.gender || ''}</div><div class="champ-division">${g.division}</div>${scoreText ? `<div class="champ-score-box"><span class="champ-score">${scoreText}</span></div>` : ''}<div class="champ-opponent">vs ${g.runner_up}</div></div>`;
+          const genderHtml = isSingleGender ? '' : `<div class="champ-gender">${g.gender || ''}</div>`;
+          return `<div class="championship-card"><div class="champ-year">${g.year}</div><div class="champ-trophy">&#127942;</div>${genderHtml}<div class="champ-division">${g.division}</div>${scoreText ? `<div class="champ-score-box"><span class="champ-score">${scoreText}</span></div>` : ''}<div class="champ-opponent">vs ${g.runner_up}</div></div>`;
         }).join('')}</div>` : ''}
         <div class="history-timeline"><h3>All Title Game Appearances</h3><div class="timeline-list">${allGames.map(g => {
           const isChamp = g.result === 'champion', opp = isChamp ? g.runner_up : g.champion;
           const scoreText = isChamp ? formatScore(g.champion_score, g.runner_up_score, g.overtime) : formatScore(g.runner_up_score, g.champion_score, g.overtime);
-          return `<div class="timeline-item ${isChamp ? 'champion' : 'runner-up'}"><span class="timeline-year">${g.year}</span><span class="timeline-gender">${g.gender || ''}</span><span class="timeline-result">${isChamp ? '&#127942; Champion' : '&#129352; Runner-Up'}</span><span class="timeline-score">${scoreText}</span><span class="timeline-opponent">vs ${opp}</span></div>`;
+          const genderHtml = isSingleGender ? '' : `<span class="timeline-gender">${g.gender || ''}</span>`;
+          return `<div class="timeline-item ${isChamp ? 'champion' : 'runner-up'}"><span class="timeline-year">${g.year}</span>${genderHtml}<span class="timeline-result">${isChamp ? '&#127942; Champion' : '&#129352; Runner-Up'}</span><span class="timeline-score">${scoreText}</span><span class="timeline-opponent">vs ${opp}</span></div>`;
         }).join('')}</div></div>`;
     }
 
