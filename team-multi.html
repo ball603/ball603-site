@@ -380,6 +380,16 @@
       const sportParam = urlParams.get('sport');
       if (sportParam) return sportParam.toLowerCase();
       
+      // Check for sport in URL path: /exeter-multi/baseball → 'baseball'
+      const pathParts = window.location.pathname.replace(/^\//, '').replace(/\/$/, '').split('/');
+      if (pathParts.length > 1) {
+        const pathSport = pathParts[1].toLowerCase();
+        if (['basketball', 'baseball', 'volleyball', 'all'].includes(pathSport)) {
+          return pathSport;
+        }
+      }
+      
+      // Auto-detect by month
       const month = new Date().getMonth() + 1;
       if (month >= 12 || month <= 3) return 'basketball';
       if (month >= 4 && month <= 7) return 'baseball';
@@ -484,9 +494,15 @@
     document.addEventListener('DOMContentLoaded', async () => {
       const path = window.location.pathname;
       const urlParams = new URLSearchParams(window.location.search);
-      // Support ?team= parameter (for testing) or clean URL slug (for production)
-      const slug = urlParams.get('team')?.toLowerCase() 
-        || path.replace(/^\//, '').replace(/\/$/, '').split('/')[0].toLowerCase();
+      const pathParts = path.replace(/^\//, '').replace(/\/$/, '').split('/');
+      
+      // Support multiple URL patterns:
+      // /exeter-multi          → slug=exeter (test URL, strip -multi)
+      // /exeter-multi/baseball → slug=exeter, sport from path
+      // /exeter                → slug=exeter (production clean URL)
+      // /team/team-multi.html?team=exeter → slug from query param (direct file access)
+      let slug = urlParams.get('team')?.toLowerCase()
+        || pathParts[0].toLowerCase().replace(/-multi$/, '');
       
       if (!slug) { showTeamNotFound('No team specified'); return; }
 
