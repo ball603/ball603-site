@@ -103,6 +103,22 @@
       white-space: nowrap !important;
     }
     
+    /* History + NCAA side-by-side grid for baseball */
+    .history-ncaa-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+    .history-ncaa-grid .history-timeline,
+    .history-ncaa-grid .feature-box {
+      margin: 0;
+    }
+    @media (max-width: 768px) {
+      .history-ncaa-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    
   </style>
 </head>
 <body class="team-page">
@@ -307,7 +323,7 @@
     <!-- HISTORY SECTION -->
     <section class="team-section" id="history">
       <div class="section-header">
-        <h2 class="section-title">&#127942; Championship History</h2>
+        <h2 class="section-title" id="historySectionTitle">&#127942; Championship History</h2>
       </div>
       <div class="history-content" id="historyContent">
         <div class="empty-state"><p>Loading championship history...</p></div>
@@ -644,6 +660,40 @@
       }
     }
 
+    // Helper function to restore NCAA box to features-grid
+    function restoreCollegeBox() {
+      const collegeBox = document.getElementById('college');
+      const featuresGrid = document.querySelector('.features-grid');
+      const featuresRow = document.getElementById('features-row');
+      const oneKBox = document.getElementById('1k-club');
+      
+      if (collegeBox && featuresGrid && !featuresGrid.contains(collegeBox)) {
+        // Move college box back after 1k-club
+        if (oneKBox) {
+          oneKBox.after(collegeBox);
+        } else {
+          featuresGrid.appendChild(collegeBox);
+        }
+      }
+      
+      // Show features-row again
+      if (featuresRow) featuresRow.style.display = '';
+      
+      // Remove the history-ncaa-grid wrapper if it exists
+      const historyContent = document.getElementById('historyContent');
+      if (historyContent) {
+        const historyGrid = historyContent.querySelector('.history-ncaa-grid');
+        if (historyGrid) {
+          // Move timeline back out of grid
+          const timeline = historyGrid.querySelector('.history-timeline');
+          if (timeline) {
+            historyContent.insertBefore(timeline, historyGrid);
+          }
+          historyGrid.remove();
+        }
+      }
+    }
+
     // ===== APPLY SPORT-SPECIFIC VISIBILITY =====
     function applySportVisibility() {
       if (!TEAM_CONFIG) return;
@@ -747,6 +797,33 @@
         // Hide rosters section (roster card moved to schedules grid)
         if (rostersSection) rostersSection.style.display = 'none';
         if (rostersMenuItem) rostersMenuItem.style.display = 'none';
+        
+        // Move NCAA box into history section for side-by-side layout
+        const historyContent = document.getElementById('historyContent');
+        const collegeBox = document.getElementById('college');
+        const featuresGrid = document.querySelector('.features-grid');
+        if (historyContent && collegeBox) {
+          // Create grid wrapper if not exists
+          let historyGrid = historyContent.querySelector('.history-ncaa-grid');
+          if (!historyGrid) {
+            historyGrid = document.createElement('div');
+            historyGrid.className = 'history-ncaa-grid';
+            // Move existing history content (timeline) into grid
+            const timeline = historyContent.querySelector('.history-timeline');
+            if (timeline) {
+              historyGrid.appendChild(timeline);
+            }
+            historyContent.appendChild(historyGrid);
+          }
+          // Move college box into grid
+          if (!historyGrid.contains(collegeBox)) {
+            historyGrid.appendChild(collegeBox);
+            collegeBox.style.display = '';
+          }
+        }
+        // Hide the features-row section since NCAA is moved
+        const featuresRow = document.getElementById('features-row');
+        if (featuresRow) featuresRow.style.display = 'none';
       } else if (sport === 'volleyball') {
         // Volleyball = girls only - hide boys
         if (boysStatsGroup) boysStatsGroup.style.display = 'none';
@@ -762,6 +839,9 @@
         if (rostersGrid && boysRosterCard && !rostersGrid.contains(boysRosterCard)) {
           rostersGrid.insertBefore(boysRosterCard, girlsRosterCard);
         }
+        
+        // Restore NCAA box to features-grid if it was moved
+        restoreCollegeBox();
       } else if (sport === 'all') {
         // All sports view - schedules hidden above, nothing else to adjust here
         // Restore boys roster card to rosters section if it was moved
@@ -769,6 +849,9 @@
         if (rostersGrid && boysRosterCard && !rostersGrid.contains(boysRosterCard)) {
           rostersGrid.insertBefore(boysRosterCard, girlsRosterCard);
         }
+        
+        // Restore NCAA box to features-grid if it was moved
+        restoreCollegeBox();
       } else {
         // Basketball - restore based on team gender availability
         if (girlsStatsGroup) girlsStatsGroup.style.display = '';
@@ -783,6 +866,9 @@
         if (rostersGrid && boysRosterCard && !rostersGrid.contains(boysRosterCard)) {
           rostersGrid.insertBefore(boysRosterCard, girlsRosterCard);
         }
+        
+        // Restore NCAA box to features-grid if it was moved
+        restoreCollegeBox();
       }
       
       // Re-apply gender visibility on top (team may only have one gender)
@@ -795,6 +881,8 @@
       const girlsScheduleLabel = document.getElementById('girlsScheduleLabel');
       const boysRosterLabel = document.getElementById('boysRosterLabel');
       const girlsRosterLabel = document.getElementById('girlsRosterLabel');
+      const historySectionTitle = document.getElementById('historySectionTitle');
+      const historyMenuText = document.querySelector('.team-menu-item[data-section="history"] .menu-text');
       
       if (sport === 'baseball') {
         // Baseball: singular "Schedule", combined section title, sport-specific labels
@@ -802,12 +890,20 @@
         if (schedulesSectionTitle) schedulesSectionTitle.innerHTML = '&#128197; Schedule &amp; &#128101; Roster';
         if (boysScheduleLabel) boysScheduleLabel.textContent = 'Boys Varsity Baseball Schedule';
         if (boysRosterLabel) boysRosterLabel.textContent = 'Boys Varsity Baseball Roster';
+        // Update history title to indicate combined section
+        if (historySectionTitle) historySectionTitle.innerHTML = '&#127942; History &amp; &#127891; 603 in the NCAA';
+        if (historyMenuText) historyMenuText.textContent = 'History & NCAA';
+        // Hide separate college menu item (content is in history section now)
+        if (collegeMenuItem) collegeMenuItem.style.display = 'none';
       } else if (sport === 'volleyball') {
         // Volleyball: singular labels for girls only
         if (schedulesMenuText) schedulesMenuText.textContent = 'Schedules';
         if (schedulesSectionTitle) schedulesSectionTitle.innerHTML = '&#128197; Schedules';
         if (girlsScheduleLabel) girlsScheduleLabel.textContent = 'Girls Varsity Volleyball';
         if (girlsRosterLabel) girlsRosterLabel.textContent = 'Girls Varsity Volleyball';
+        if (historySectionTitle) historySectionTitle.innerHTML = '&#127942; Championship History';
+        if (historyMenuText) historyMenuText.textContent = 'History';
+        if (collegeMenuItem) collegeMenuItem.style.display = '';
       } else {
         // Basketball or default: standard labels
         if (schedulesMenuText) schedulesMenuText.textContent = 'Schedules';
@@ -816,6 +912,9 @@
         if (girlsScheduleLabel) girlsScheduleLabel.textContent = 'Girls Varsity';
         if (boysRosterLabel) boysRosterLabel.textContent = 'Boys Varsity';
         if (girlsRosterLabel) girlsRosterLabel.textContent = 'Girls Varsity';
+        if (historySectionTitle) historySectionTitle.innerHTML = '&#127942; Championship History';
+        if (historyMenuText) historyMenuText.textContent = 'History';
+        if (collegeMenuItem) collegeMenuItem.style.display = '';
       }
     }
     
