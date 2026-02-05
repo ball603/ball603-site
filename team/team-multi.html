@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Ball603 Team Page Multi-Sport v249 - Baseball: side-by-side layouts, championship/NCAA history, timeline fix -->
+<!-- Ball603 Team Page Multi-Sport v250 - Baseball: shutout scores (0) now display correctly -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -1803,7 +1803,12 @@
       const displayScore = (s) => (s === null || s === undefined || s === '' || s === 'null' || s === 'Null') ? '' : s;
       const formatScore = (s1, s2, ot) => {
         const score1 = displayScore(s1), score2 = displayScore(s2);
-        if (!score1 || !score2) return '';
+        // For baseball, 0 is valid (shutouts). For basketball, 0 means unknown.
+        if (currentSport === 'baseball') {
+          if (score1 === '' || score2 === '') return '';  // Only hide if truly empty
+        } else {
+          if (!score1 || !score2) return '';  // Hide if falsy (including 0)
+        }
         return `${score1} - ${score2}${ot ? ' OT' : ''}`;
       };
       
