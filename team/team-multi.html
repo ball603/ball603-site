@@ -648,6 +648,22 @@
       
       const sport = currentSport;
       
+      // --- Hero Championship Stats: Hide for 'all' view ---
+      const heroStats = document.getElementById('heroStats');
+      if (sport === 'all') {
+        if (heroStats) heroStats.style.display = 'none';
+      } else {
+        if (heroStats) heroStats.style.display = '';
+      }
+      
+      // --- Quick Stats Bar: Hide for 'all' view ---
+      const quickStats = document.getElementById('quickStats');
+      if (sport === 'all') {
+        if (quickStats) quickStats.style.display = 'none';
+      } else {
+        if (quickStats) quickStats.style.display = '';
+      }
+      
       // --- Rosters: Hide for 'all' view ---
       const rostersSection = document.getElementById('rosters');
       const rostersMenuItem = document.querySelector('.team-menu-item[data-section="rosters"]');
@@ -1674,8 +1690,12 @@
       };
       
       const wins = allGames.filter(g => g.result === 'champion');
+      
+      // For 'all' sports view, skip the banner cards - just show the appearances table
+      const showBannerCards = currentSport !== 'all' && wins.length > 0;
+      
       container.innerHTML = `
-        ${wins.length > 0 ? `<div class="championship-cards-row">${wins.slice(0, 6).map(g => {
+        ${showBannerCards ? `<div class="championship-cards-row">${wins.slice(0, 6).map(g => {
           const scoreText = formatScore(g.champion_score, g.runner_up_score, g.overtime);
           return `<div class="championship-card"><div class="champ-year">${g.year}</div><div class="champ-trophy">&#127942;</div><div class="champ-gender">${g.gender || ''}</div><div class="champ-division">${g.division}</div>${scoreText ? `<div class="champ-score-box"><span class="champ-score">${scoreText}</span></div>` : ''}<div class="champ-opponent">vs ${g.runner_up}</div></div>`;
         }).join('')}</div>` : ''}
