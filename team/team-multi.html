@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Ball603 Team Page Multi-Sport v249 - Baseball UI polish: hero stats, menu text, section titles, card labels -->
+<!-- Ball603 Team Page Multi-Sport v249 - Baseball: side-by-side layouts, championship/NCAA history, timeline fix -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -108,7 +108,9 @@
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 24px;
+      align-items: start;
     }
+    .history-ncaa-grid .history-column,
     .history-ncaa-grid .history-timeline,
     .history-ncaa-grid .feature-box {
       margin: 0;
@@ -678,20 +680,6 @@
       
       // Show features-row again
       if (featuresRow) featuresRow.style.display = '';
-      
-      // Remove the history-ncaa-grid wrapper if it exists
-      const historyContent = document.getElementById('historyContent');
-      if (historyContent) {
-        const historyGrid = historyContent.querySelector('.history-ncaa-grid');
-        if (historyGrid) {
-          // Move timeline back out of grid
-          const timeline = historyGrid.querySelector('.history-timeline');
-          if (timeline) {
-            historyContent.insertBefore(timeline, historyGrid);
-          }
-          historyGrid.remove();
-        }
-      }
     }
 
     // ===== APPLY SPORT-SPECIFIC VISIBILITY =====
@@ -797,33 +785,7 @@
         // Hide rosters section (roster card moved to schedules grid)
         if (rostersSection) rostersSection.style.display = 'none';
         if (rostersMenuItem) rostersMenuItem.style.display = 'none';
-        
-        // Move NCAA box into history section for side-by-side layout
-        const historyContent = document.getElementById('historyContent');
-        const collegeBox = document.getElementById('college');
-        const featuresGrid = document.querySelector('.features-grid');
-        if (historyContent && collegeBox) {
-          // Create grid wrapper if not exists
-          let historyGrid = historyContent.querySelector('.history-ncaa-grid');
-          if (!historyGrid) {
-            historyGrid = document.createElement('div');
-            historyGrid.className = 'history-ncaa-grid';
-            // Move existing history content (timeline) into grid
-            const timeline = historyContent.querySelector('.history-timeline');
-            if (timeline) {
-              historyGrid.appendChild(timeline);
-            }
-            historyContent.appendChild(historyGrid);
-          }
-          // Move college box into grid
-          if (!historyGrid.contains(collegeBox)) {
-            historyGrid.appendChild(collegeBox);
-            collegeBox.style.display = '';
-          }
-        }
-        // Hide the features-row section since NCAA is moved
-        const featuresRow = document.getElementById('features-row');
-        if (featuresRow) featuresRow.style.display = 'none';
+        // Note: NCAA box is moved to history section in renderChampionshipHistory()
       } else if (sport === 'volleyball') {
         // Volleyball = girls only - hide boys
         if (boysStatsGroup) boysStatsGroup.style.display = 'none';
@@ -1797,7 +1759,24 @@
     function renderChampionshipHistory() {
       const container = document.getElementById('historyContent'), champs = teamData.championships;
       let allGames = [...(champs.boys || []), ...(champs.girls || [])].sort((a, b) => b.year - a.year);
-      if (allGames.length === 0) { container.innerHTML = '<div class="empty-state"><p>No championship game appearances on record.</p></div>'; return; }
+      
+      // Handle empty state - but for baseball, still need to show NCAA box
+      if (allGames.length === 0) {
+        if (currentSport === 'baseball') {
+          const collegeBox = document.getElementById('college');
+          const featuresRow = document.getElementById('features-row');
+          container.innerHTML = `<div class="history-ncaa-grid"><div class="history-column"><div class="empty-state"><p>No championship game appearances on record.</p></div></div></div>`;
+          const grid = container.querySelector('.history-ncaa-grid');
+          if (grid && collegeBox) {
+            grid.appendChild(collegeBox);
+            collegeBox.style.display = '';
+          }
+          if (featuresRow) featuresRow.style.display = 'none';
+        } else {
+          container.innerHTML = '<div class="empty-state"><p>No championship game appearances on record.</p></div>';
+        }
+        return;
+      }
       
       // Helper to display score - hide if null/undefined
       const displayScore = (s) => (s === null || s === undefined || s === '' || s === 'null' || s === 'Null') ? '' : s;
@@ -1815,7 +1794,7 @@
       // Single-gender sports don't need gender column
       const isSingleGender = currentSport === 'baseball' || currentSport === 'volleyball';
       
-      container.innerHTML = `
+      const timelineHtml = `
         ${showBannerCards ? `<div class="championship-cards-row">${wins.slice(0, 6).map(g => {
           const scoreText = formatScore(g.champion_score, g.runner_up_score, g.overtime);
           const genderHtml = isSingleGender ? '' : `<div class="champ-gender">${g.gender || ''}</div>`;
@@ -1828,6 +1807,26 @@
           const noGenderClass = isSingleGender ? ' no-gender' : '';
           return `<div class="timeline-item ${isChamp ? 'champion' : 'runner-up'}${noGenderClass}"><span class="timeline-year">${g.year}</span>${genderHtml}<span class="timeline-result">${isChamp ? '&#127942; Champion' : '&#129352; Runner-Up'}</span><span class="timeline-score">${scoreText}</span><span class="timeline-opponent">vs ${opp}</span></div>`;
         }).join('')}</div></div>`;
+      
+      // For baseball, create side-by-side layout with NCAA box
+      if (currentSport === 'baseball') {
+        const collegeBox = document.getElementById('college');
+        const featuresRow = document.getElementById('features-row');
+        
+        container.innerHTML = `<div class="history-ncaa-grid"><div class="history-column">${timelineHtml}</div></div>`;
+        
+        // Move college box into the grid
+        const grid = container.querySelector('.history-ncaa-grid');
+        if (grid && collegeBox) {
+          grid.appendChild(collegeBox);
+          collegeBox.style.display = '';
+        }
+        
+        // Hide the features-row section
+        if (featuresRow) featuresRow.style.display = 'none';
+      } else {
+        container.innerHTML = timelineHtml;
+      }
     }
 
     function render1KScorers() {
