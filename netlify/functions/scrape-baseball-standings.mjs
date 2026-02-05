@@ -111,6 +111,13 @@ async function updateSupabase(standings) {
   const now = new Date().toISOString();
   let updatedCount = 0;
   let insertedCount = 0;
+  let failedInserts = [];
+  
+  // Log first 5 teams to verify parsing
+  console.log('  Sample of parsed teams:');
+  standings.slice(0, 5).forEach(t => {
+    console.log(`    ${t.school} (${t.gender} ${t.division}): ${t.wins}-${t.losses}-${t.ties}, Rating: ${t.rating}`);
+  });
   
   // First, get existing teams to know which are new vs existing
   const existingResponse = await fetch(
@@ -159,7 +166,12 @@ async function updateSupabase(standings) {
         }
       );
       
-      if (response.ok) updatedCount++;
+      if (response.ok) {
+        updatedCount++;
+      } else {
+        const errorText = await response.text();
+        failedInserts.push(`UPDATE ${s.school}: ${response.status} - ${errorText}`);
+      }
     } else {
       // New team: Insert full record with W-L from NHIAA (will be recalculated by update-standings)
       const response = await fetch(
@@ -194,7 +206,20 @@ async function updateSupabase(standings) {
         }
       );
       
-      if (response.ok) insertedCount++;
+      if (response.ok) {
+        insertedCount++;
+      } else {
+        const errorText = await response.text();
+        failedInserts.push(`INSERT ${s.school}: ${response.status} - ${errorText}`);
+      }
+    }
+  }
+  
+  if (failedInserts.length > 0) {
+    console.log(`  ⚠️ Failed inserts/updates (${failedInserts.length} total):`);
+    failedInserts.slice(0, 10).forEach(msg => console.log(`    ${msg}`));
+    if (failedInserts.length > 10) {
+      console.log(`    ... and ${failedInserts.length - 10} more failures`);
     }
   }
   
