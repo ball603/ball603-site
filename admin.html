@@ -4784,6 +4784,12 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         <span>+</span> Add Championship
       </button>
       <div style="margin-left: auto; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+        <select id="champSportFilter" onchange="filterChampionships()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px;">
+          <option value="">All Sports</option>
+          <option value="basketball">Basketball</option>
+          <option value="baseball">Baseball</option>
+          <option value="volleyball">Volleyball</option>
+        </select>
         <select id="champGenderFilter" onchange="filterChampionships()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px;">
           <option value="">All Genders</option>
           <option value="Boys">Boys</option>
@@ -4807,8 +4813,9 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     </div>
     
     <div class="article-list" id="championshipList" style="margin-top: 15px;">
-      <div class="article-row header" style="grid-template-columns: 60px 100px 150px 1fr 1fr 80px 100px;">
+      <div class="article-row header" style="grid-template-columns: 60px 80px 80px 120px 1fr 1fr 80px 80px;">
         <div class="sortable" onclick="sortChampionships('year')" style="cursor: pointer;">Year ↕</div>
+        <div>Sport</div>
         <div>Gender</div>
         <div>Division</div>
         <div>Champion</div>
@@ -4826,10 +4833,18 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       <h2 style="margin-top: 0; margin-bottom: 20px;" id="championshipModalTitle">Add Championship</h2>
       <input type="hidden" id="championshipId">
       
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px;">
         <div class="form-group">
           <label>Year *</label>
           <input type="number" id="champYear" placeholder="2024" min="1900" max="2100" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+        </div>
+        <div class="form-group">
+          <label>Sport *</label>
+          <select id="champSport" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+            <option value="basketball">Basketball</option>
+            <option value="baseball">Baseball</option>
+            <option value="volleyball">Volleyball</option>
+          </select>
         </div>
         <div class="form-group">
           <label>Gender *</label>
@@ -19511,8 +19526,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         console.error('Error loading championships:', err);
         showToast('Error loading championships', 'error');
         document.getElementById('championshipList').innerHTML = `
-          <div class="article-row header" style="grid-template-columns: 60px 100px 150px 1fr 1fr 80px 100px;">
-            <div>Year</div><div>Gender</div><div>Division</div><div>Champion</div><div>Runner-Up</div><div>Score</div><div>Actions</div>
+          <div class="article-row header" style="grid-template-columns: 60px 80px 80px 120px 1fr 1fr 80px 80px;">
+            <div>Year</div><div>Sport</div><div>Gender</div><div>Division</div><div>Champion</div><div>Runner-Up</div><div>Score</div><div>Actions</div>
           </div>
           <div style="padding: 40px; text-align: center; color: #999;">Error loading championships. Make sure the table exists.</div>`;
       }
@@ -19526,12 +19541,14 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     }
     
     function filterChampionships() {
+      const sport = document.getElementById('champSportFilter').value;
       const gender = document.getElementById('champGenderFilter').value;
       const division = document.getElementById('champDivisionFilter').value;
       const year = document.getElementById('champYearFilter').value;
       const search = document.getElementById('champSearchBox').value.toLowerCase();
       
       let filtered = allChampionships.filter(c => {
+        if (sport && (c.sport || 'basketball') !== sport) return false;
         if (gender && c.gender !== gender) return false;
         if (division && c.division !== division) return false;
         if (year && c.year !== parseInt(year)) return false;
@@ -19571,17 +19588,20 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       
       if (championships.length === 0) {
         container.innerHTML = `
-          <div class="article-row header" style="grid-template-columns: 60px 100px 150px 1fr 1fr 80px 100px;">
+          <div class="article-row header" style="grid-template-columns: 60px 80px 80px 120px 1fr 1fr 80px 80px;">
             <div class="sortable" onclick="sortChampionships('year')" style="cursor: pointer;">Year ↕</div>
-            <div>Gender</div><div>Division</div><div>Champion</div><div>Runner-Up</div><div>Score</div><div>Actions</div>
+            <div>Sport</div><div>Gender</div><div>Division</div><div>Champion</div><div>Runner-Up</div><div>Score</div><div>Actions</div>
           </div>
           <div style="padding: 40px; text-align: center; color: #999;">No championships found</div>`;
         return;
       }
       
+      const sportEmoji = { basketball: '🏀', baseball: '⚾', volleyball: '🏐' };
+      
       container.innerHTML = `
-        <div class="article-row header" style="grid-template-columns: 60px 100px 150px 1fr 1fr 80px 100px;">
+        <div class="article-row header" style="grid-template-columns: 60px 80px 80px 120px 1fr 1fr 80px 80px;">
           <div class="sortable" onclick="sortChampionships('year')" style="cursor: pointer;">Year ${champSortField === 'year' ? (champSortDir === 'asc' ? '↑' : '↓') : '↕'}</div>
+          <div>Sport</div>
           <div>Gender</div>
           <div>Division</div>
           <div class="sortable" onclick="sortChampionships('champion')" style="cursor: pointer;">Champion ${champSortField === 'champion' ? (champSortDir === 'asc' ? '↑' : '↓') : ''}</div>
@@ -19589,9 +19609,13 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           <div>Score</div>
           <div>Actions</div>
         </div>
-        ${championships.map(c => `
-          <div class="article-row" style="grid-template-columns: 60px 100px 150px 1fr 1fr 80px 100px;">
+        ${championships.map(c => {
+          const sport = c.sport || 'basketball';
+          const emoji = sportEmoji[sport] || '🏀';
+          return `
+          <div class="article-row" style="grid-template-columns: 60px 80px 80px 120px 1fr 1fr 80px 80px;">
             <div style="font-weight: 600;">${c.year}</div>
+            <div style="font-size: 12px;">${emoji} ${sport.charAt(0).toUpperCase() + sport.slice(1)}</div>
             <div><span style="background: ${c.gender === 'Boys' ? '#e3f2fd' : '#fce4ec'}; color: ${c.gender === 'Boys' ? '#1565c0' : '#c2185b'}; padding: 2px 8px; border-radius: 10px; font-size: 11px;">${c.gender}</span></div>
             <div style="font-size: 12px;">${c.division}</div>
             <div style="font-weight: 500; color: #2e7d32;">🏆 ${c.champion}</div>
@@ -19602,12 +19626,13 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
               <button class="btn-delete" onclick="confirmDeleteChampionship(${c.id})">Del</button>
             </div>
           </div>
-        `).join('')}`;
+        `}).join('')}`;
     }
     
     function openChampionshipModal(championship = null) {
       document.getElementById('championshipId').value = championship?.id || '';
       document.getElementById('champYear').value = championship?.year || new Date().getFullYear();
+      document.getElementById('champSport').value = championship?.sport || 'basketball';
       document.getElementById('champGender').value = championship?.gender || 'Boys';
       document.getElementById('champDivision').value = championship?.division || 'Division I';
       document.getElementById('champChampion').value = championship?.champion || '';
@@ -19637,6 +19662,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     async function saveChampionship() {
       const id = document.getElementById('championshipId').value;
       const year = parseInt(document.getElementById('champYear').value);
+      const sport = document.getElementById('champSport').value;
       const gender = document.getElementById('champGender').value;
       const division = document.getElementById('champDivision').value;
       const champion = document.getElementById('champChampion').value.trim();
@@ -19646,13 +19672,13 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const overtime = document.getElementById('champOvertime').value === 'true';
       const notes = document.getElementById('champNotes').value.trim() || null;
       
-      if (!year || !gender || !division || !champion || !runner_up) {
+      if (!year || !sport || !gender || !division || !champion || !runner_up) {
         showToast('Please fill in all required fields', 'error');
         return;
       }
       
       try {
-        const data = { year, gender, division, champion, runner_up, champion_score, runner_up_score, overtime, notes, updated_at: new Date().toISOString() };
+        const data = { year, sport, gender, division, champion, runner_up, champion_score, runner_up_score, overtime, notes, updated_at: new Date().toISOString() };
         
         if (id) {
           const { error } = await db.from('championship_history').update(data).eq('id', id);
@@ -19705,17 +19731,19 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     }
     
     function exportChampionships() {
+      const sport = document.getElementById('champSportFilter').value;
       const gender = document.getElementById('champGenderFilter').value;
       const division = document.getElementById('champDivisionFilter').value;
       
       let filtered = allChampionships;
+      if (sport) filtered = filtered.filter(c => (c.sport || 'basketball') === sport);
       if (gender) filtered = filtered.filter(c => c.gender === gender);
       if (division) filtered = filtered.filter(c => c.division === division);
       
       const csv = [
-        'Year,Gender,Division,Champion,Runner-Up,Champion Score,Runner-Up Score,Overtime,Notes',
+        'Year,Sport,Gender,Division,Champion,Runner-Up,Champion Score,Runner-Up Score,Overtime,Notes',
         ...filtered.map(c => 
-          `${c.year},${c.gender},"${c.division}","${c.champion}","${c.runner_up}",${c.champion_score || ''},${c.runner_up_score || ''},${c.overtime ? 'Yes' : 'No'},"${(c.notes || '').replace(/"/g, '""')}"`
+          `${c.year},${c.sport || 'basketball'},${c.gender},"${c.division}","${c.champion}","${c.runner_up}",${c.champion_score || ''},${c.runner_up_score || ''},${c.overtime ? 'Yes' : 'No'},"${(c.notes || '').replace(/"/g, '""')}"`
         )
       ].join('\n');
       
