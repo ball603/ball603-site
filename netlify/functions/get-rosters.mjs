@@ -2,9 +2,10 @@
 // Netlify Function to fetch approved rosters from Supabase
 // 
 // Usage:
-//   GET /.netlify/functions/get-rosters              → All approved rosters
-//   GET /.netlify/functions/get-rosters?school=X     → Rosters for one school
-//   GET /.netlify/functions/get-rosters?school=X&gender=Boys → Specific roster
+//   GET /.netlify/functions/get-rosters                     → All approved rosters (defaults to basketball)
+//   GET /.netlify/functions/get-rosters?school=X            → Rosters for one school (basketball)
+//   GET /.netlify/functions/get-rosters?school=X&gender=Boys → Specific roster (basketball)
+//   GET /.netlify/functions/get-rosters?school=X&sport=baseball → Baseball rosters for school
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
@@ -37,9 +38,10 @@ export async function handler(event, context) {
     const params = event.queryStringParameters || {};
     const school = params.school;
     const gender = params.gender;
+    const sport = params.sport;
 
     // Build Supabase REST API URL
-    let url = `${supabaseUrl}/rest/v1/roster_submissions?status=eq.approved&select=id,school,gender,season,players_json,head_coach,assistant_coaches,managers`;
+    let url = `${supabaseUrl}/rest/v1/roster_submissions?status=eq.approved&select=id,school,gender,season,players_json,head_coach,assistant_coaches,managers,sport`;
 
     // Add optional filters
     if (school) {
@@ -47,6 +49,16 @@ export async function handler(event, context) {
     }
     if (gender) {
       url += `&gender=eq.${encodeURIComponent(gender)}`;
+    }
+    
+    // Sport filtering:
+    // - If sport param provided (e.g., 'baseball'), filter by that sport
+    // - If no sport param, default to basketball (handles both NULL and 'basketball' values)
+    if (sport) {
+      url += `&sport=eq.${encodeURIComponent(sport)}`;
+    } else {
+      // Default to basketball - include both NULL and 'basketball' for backward compatibility
+      url += `&or=(sport.is.null,sport.eq.basketball)`;
     }
 
     // Order by school, then gender
