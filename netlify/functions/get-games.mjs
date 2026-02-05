@@ -27,12 +27,23 @@ export default async (request) => {
     // Build query for games
     const queryParts = ['select=*'];
     
-    // Sport and season filtering (with defaults for backward compatibility)
-    const sport = params.sport || DEFAULT_SPORT;
-    const season = params.season || DEFAULT_SEASON;
+    // Sport filtering
+    // If sport parameter is explicitly provided, filter by it
+    // If not provided, return ALL sports (for multi-sport pages)
+    if (params.sport) {
+      queryParts.push(`sport=eq.${encodeURIComponent(params.sport)}`);
+    }
     
-    queryParts.push(`sport=eq.${encodeURIComponent(sport)}`);
-    queryParts.push(`season=eq.${encodeURIComponent(season)}`);
+    // Season filtering  
+    // If season parameter is explicitly provided, filter by it
+    // If not provided, return current seasons for all sports
+    // (This allows multi-sport pages to show basketball 2025-26 AND baseball 2026)
+    if (params.season) {
+      queryParts.push(`season=eq.${encodeURIComponent(params.season)}`);
+    } else {
+      // Return current seasons: basketball 2025-26 OR baseball 2026
+      queryParts.push(`season=in.("2025-26","2026")`);
+    }
     
     // Filter by date range
     if (params.start_date) {
