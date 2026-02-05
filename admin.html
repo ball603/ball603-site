@@ -2608,6 +2608,15 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             <option value="Girls">Girls</option>
           </select>
         </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <span style="font-size: 13px; color: #666;">Sport:</span>
+          <select id="rosterSportFilter" onchange="filterRosters()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px;">
+            <option value="">All</option>
+            <option value="basketball" selected>Basketball</option>
+            <option value="baseball">Baseball</option>
+            <option value="volleyball">Volleyball</option>
+          </select>
+        </div>
         <input type="text" id="rosterSearchBox" placeholder="Search school..." oninput="filterRosters()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px; width: 180px; margin-left: auto;">
       </div>
       
@@ -2617,9 +2626,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       </div>
       
       <div class="article-list" id="rosterList">
-        <div class="article-row header" style="grid-template-columns: 1fr 100px 100px 150px 120px 120px;">
+        <div class="article-row header" style="grid-template-columns: 1fr 80px 80px 80px 150px 100px 120px;">
           <div>School</div>
           <div>Gender</div>
+          <div>Sport</div>
           <div>Division</div>
           <div>Submitted</div>
           <div>Status</div>
@@ -2641,7 +2651,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           <input type="hidden" id="rosterId">
           
           <!-- Team Info Section -->
-          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr; gap: 15px; margin-bottom: 20px;">
             <div class="form-group">
               <label>School *</label>
               <input type="text" id="rosterSchool" list="schoolsList">
@@ -2651,6 +2661,14 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
               <select id="rosterGender">
                 <option value="Boys">Boys</option>
                 <option value="Girls">Girls</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Sport *</label>
+              <select id="rosterSport">
+                <option value="basketball">Basketball</option>
+                <option value="baseball">Baseball</option>
+                <option value="volleyball">Volleyball</option>
               </select>
             </div>
             <div class="form-group">
@@ -12352,9 +12370,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     
     async function loadRosters() {
       document.getElementById('rosterList').innerHTML = `
-        <div class="article-row header" style="grid-template-columns: 1fr 100px 100px 150px 120px 120px;">
+        <div class="article-row header" style="grid-template-columns: 1fr 80px 80px 80px 150px 100px 120px;">
           <div>School</div>
           <div>Gender</div>
+          <div>Sport</div>
           <div>Division</div>
           <div>Submitted</div>
           <div>Status</div>
@@ -12378,9 +12397,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         console.error('Error loading rosters:', err);
         showToast('Error loading roster submissions', 'error');
         document.getElementById('rosterList').innerHTML = `
-          <div class="article-row header" style="grid-template-columns: 1fr 100px 100px 150px 120px 120px;">
+          <div class="article-row header" style="grid-template-columns: 1fr 80px 80px 80px 150px 100px 120px;">
             <div>School</div>
             <div>Gender</div>
+            <div>Sport</div>
             <div>Division</div>
             <div>Submitted</div>
             <div>Status</div>
@@ -12398,6 +12418,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     function renderRosters() {
       const statusFilter = document.getElementById('rosterStatusFilter').value;
       const genderFilter = document.getElementById('rosterGenderFilter').value;
+      const sportFilter = document.getElementById('rosterSportFilter').value;
       const searchTerm = document.getElementById('rosterSearchBox').value.toLowerCase();
       
       let filtered = allRosterSubmissions;
@@ -12407,6 +12428,9 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       }
       if (genderFilter) {
         filtered = filtered.filter(r => r.gender === genderFilter);
+      }
+      if (sportFilter) {
+        filtered = filtered.filter(r => (r.sport || 'basketball') === sportFilter);
       }
       if (searchTerm) {
         filtered = filtered.filter(r => 
@@ -12421,9 +12445,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       
       if (filtered.length === 0) {
         list.innerHTML = `
-          <div class="article-row header" style="grid-template-columns: 1fr 100px 100px 150px 120px 120px;">
+          <div class="article-row header" style="grid-template-columns: 1fr 80px 80px 80px 150px 100px 120px;">
             <div>School</div>
             <div>Gender</div>
+            <div>Sport</div>
             <div>Division</div>
             <div>Submitted</div>
             <div>Status</div>
@@ -12435,9 +12460,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       }
       
       list.innerHTML = `
-        <div class="article-row header" style="grid-template-columns: 1fr 100px 100px 150px 120px 120px;">
+        <div class="article-row header" style="grid-template-columns: 1fr 80px 80px 80px 150px 100px 120px;">
           <div>School</div>
           <div>Gender</div>
+          <div>Sport</div>
           <div>Division</div>
           <div>Submitted</div>
           <div>Status</div>
@@ -12447,13 +12473,15 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           const statusClass = roster.status === 'approved' ? 'published' : 
                               roster.status === 'rejected' ? 'draft' : 'scheduled';
           const playerCount = roster.players_json ? roster.players_json.length : 0;
+          const sportDisplay = (roster.sport || 'basketball').charAt(0).toUpperCase() + (roster.sport || 'basketball').slice(1);
           return `
-            <div class="article-row" style="grid-template-columns: 1fr 100px 100px 150px 120px 120px;">
+            <div class="article-row" style="grid-template-columns: 1fr 80px 80px 80px 150px 100px 120px;">
               <div>
                 <div class="article-title" onclick="openRosterModal('${roster.id}')">${roster.school || 'Unknown'}</div>
-                <div style="font-size: 11px; color: #888;">${playerCount} players ${roster.submission_type || 'form'}</div>
+                <div style="font-size: 11px; color: #888;">${playerCount} players • ${roster.submission_type || 'form'}</div>
               </div>
               <div>${roster.gender || '-'}</div>
+              <div style="font-size: 12px;">${sportDisplay}</div>
               <div>${roster.division || '-'}</div>
               <div class="article-date">${formatDate(roster.created_at)}</div>
               <div>
@@ -12492,6 +12520,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('rosterId').value = id;
       document.getElementById('rosterSchool').value = currentRoster.school || '';
       document.getElementById('rosterGender').value = currentRoster.gender || 'Boys';
+      document.getElementById('rosterSport').value = currentRoster.sport || 'basketball';
       document.getElementById('rosterDivision').value = currentRoster.division || '';
       document.getElementById('rosterSeason').value = currentRoster.season || '2025-26';
       document.getElementById('rosterHeadCoach').value = currentRoster.head_coach || '';
@@ -12650,6 +12679,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const updates = {
         school: document.getElementById('rosterSchool').value,
         gender: document.getElementById('rosterGender').value,
+        sport: document.getElementById('rosterSport').value,
         division: document.getElementById('rosterDivision').value,
         season: document.getElementById('rosterSeason').value,
         head_coach: document.getElementById('rosterHeadCoach').value,
@@ -12685,6 +12715,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const rosterData = {
         school: document.getElementById('rosterSchool').value,
         gender: document.getElementById('rosterGender').value,
+        sport: document.getElementById('rosterSport').value,
         division: document.getElementById('rosterDivision').value,
         season: document.getElementById('rosterSeason').value,
         head_coach: document.getElementById('rosterHeadCoach').value,
@@ -12722,6 +12753,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const entry = {
         school: roster.school,
         gender: roster.gender,
+        sport: roster.sport || 'basketball',
         players: roster.players_json.map(p => ({
           number: p.number,
           name: p.name,
@@ -12740,14 +12772,14 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `roster_${roster.school.toLowerCase().replace(/\s+/g, '-')}_${roster.gender.toLowerCase()}.json`;
+      a.download = `roster_${roster.school.toLowerCase().replace(/\s+/g, '-')}_${roster.gender.toLowerCase()}_${roster.sport || 'basketball'}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       
       // Also show in a modal/alert for easy copy
-      const copyText = `// ${roster.school} ${roster.gender}\n${jsonStr}`;
+      const copyText = `// ${roster.school} ${roster.gender} ${(roster.sport || 'basketball').charAt(0).toUpperCase() + (roster.sport || 'basketball').slice(1)}\n${jsonStr}`;
       
       if (confirm('Roster exported! Would you like to copy the formatted entry to clipboard?')) {
         navigator.clipboard.writeText(copyText).then(() => {
