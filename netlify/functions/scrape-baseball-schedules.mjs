@@ -1038,6 +1038,6 @@ export default async (request) => {
 };
 
 export const config = {
-  // Every 4 hours during baseball season (March-June)
-  schedule: "0 */4 * 3,4,5,6 *"
+  // Every 4 hours during baseball season (February-June)
+  schedule: "0 */4 * 2,3,4,5,6 *"
 };
