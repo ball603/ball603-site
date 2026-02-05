@@ -121,6 +121,12 @@
       }
     }
     
+    /* Baseball card headers as section titles */
+    .schedule-card-header .schedule-card-label,
+    .roster-card-header .roster-card-label {
+      font-size: 15px;
+    }
+    
   </style>
 </head>
 <body class="team-page">
@@ -849,31 +855,46 @@
       if (sport === 'baseball') {
         // Baseball: singular "Schedule", combined section title, sport-specific labels
         if (schedulesMenuText) schedulesMenuText.textContent = 'Schedule';
-        if (schedulesSectionTitle) schedulesSectionTitle.innerHTML = '&#128197; Schedule &amp; &#128101; Roster';
-        if (boysScheduleLabel) boysScheduleLabel.textContent = 'Boys Varsity Baseball Schedule';
-        if (boysRosterLabel) boysRosterLabel.textContent = 'Boys Varsity Baseball Roster';
-        // Update history title to indicate combined section
-        if (historySectionTitle) historySectionTitle.innerHTML = '&#127942; History &amp; &#127891; 603 in the NCAA';
+        // Hide the section header - each card will have its own title with emoji
+        const schedulesSectionHeader = document.querySelector('#schedules .section-header');
+        if (schedulesSectionHeader) schedulesSectionHeader.style.display = 'none';
+        if (boysScheduleLabel) boysScheduleLabel.innerHTML = '&#128197; Schedule';
+        if (boysRosterLabel) boysRosterLabel.innerHTML = '&#128101; Roster';
+        // Hide history section header - each column has its own title
+        const historySectionHeader = document.querySelector('#history .section-header');
+        if (historySectionHeader) historySectionHeader.style.display = 'none';
         if (historyMenuText) historyMenuText.textContent = 'History & NCAA';
         // Hide separate college menu item (content is in history section now)
         if (collegeMenuItem) collegeMenuItem.style.display = 'none';
       } else if (sport === 'volleyball') {
         // Volleyball: singular labels for girls only
         if (schedulesMenuText) schedulesMenuText.textContent = 'Schedules';
+        // Show section header
+        const schedulesSectionHeader = document.querySelector('#schedules .section-header');
+        if (schedulesSectionHeader) schedulesSectionHeader.style.display = '';
         if (schedulesSectionTitle) schedulesSectionTitle.innerHTML = '&#128197; Schedules';
         if (girlsScheduleLabel) girlsScheduleLabel.textContent = 'Girls Varsity Volleyball';
         if (girlsRosterLabel) girlsRosterLabel.textContent = 'Girls Varsity Volleyball';
+        // Show history section header
+        const historySectionHeader = document.querySelector('#history .section-header');
+        if (historySectionHeader) historySectionHeader.style.display = '';
         if (historySectionTitle) historySectionTitle.innerHTML = '&#127942; Championship History';
         if (historyMenuText) historyMenuText.textContent = 'History';
         if (collegeMenuItem) collegeMenuItem.style.display = '';
       } else {
         // Basketball or default: standard labels
         if (schedulesMenuText) schedulesMenuText.textContent = 'Schedules';
+        // Show section header
+        const schedulesSectionHeader = document.querySelector('#schedules .section-header');
+        if (schedulesSectionHeader) schedulesSectionHeader.style.display = '';
         if (schedulesSectionTitle) schedulesSectionTitle.innerHTML = '&#128197; Schedules';
         if (boysScheduleLabel) boysScheduleLabel.textContent = 'Boys Varsity';
         if (girlsScheduleLabel) girlsScheduleLabel.textContent = 'Girls Varsity';
         if (boysRosterLabel) boysRosterLabel.textContent = 'Boys Varsity';
         if (girlsRosterLabel) girlsRosterLabel.textContent = 'Girls Varsity';
+        // Show history section header
+        const historySectionHeader = document.querySelector('#history .section-header');
+        if (historySectionHeader) historySectionHeader.style.display = '';
         if (historySectionTitle) historySectionTitle.innerHTML = '&#127942; Championship History';
         if (historyMenuText) historyMenuText.textContent = 'History';
         if (collegeMenuItem) collegeMenuItem.style.display = '';
@@ -1765,7 +1786,7 @@
         if (currentSport === 'baseball') {
           const collegeBox = document.getElementById('college');
           const featuresRow = document.getElementById('features-row');
-          container.innerHTML = `<div class="history-ncaa-grid"><div class="history-column"><div class="empty-state"><p>No championship game appearances on record.</p></div></div></div>`;
+          container.innerHTML = `<div class="history-ncaa-grid"><div class="history-column"><div class="history-timeline"><h3>&#127942; Title Game Appearances</h3><div class="empty-state"><p>No championship game appearances on record.</p></div></div></div></div>`;
           const grid = container.querySelector('.history-ncaa-grid');
           if (grid && collegeBox) {
             grid.appendChild(collegeBox);
@@ -1789,8 +1810,11 @@
       // Single-gender sports don't need gender column
       const isSingleGender = currentSport === 'baseball' || currentSport === 'volleyball';
       
+      // For baseball, add emoji to timeline header since section header is hidden
+      const timelineTitle = currentSport === 'baseball' ? '&#127942; Title Game Appearances' : 'All Title Game Appearances';
+      
       const timelineHtml = `
-        <div class="history-timeline"><h3>All Title Game Appearances</h3><div class="timeline-list">${allGames.map(g => {
+        <div class="history-timeline"><h3>${timelineTitle}</h3><div class="timeline-list">${allGames.map(g => {
           const isChamp = g.result === 'champion', opp = isChamp ? g.runner_up : g.champion;
           const scoreText = isChamp ? formatScore(g.champion_score, g.runner_up_score, g.overtime) : formatScore(g.runner_up_score, g.champion_score, g.overtime);
           const genderHtml = isSingleGender ? '' : `<span class="timeline-gender">${g.gender || ''}</span>`;
