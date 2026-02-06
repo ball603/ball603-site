@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ball603 Baseball - Coming Soon</title>
+  <link rel="icon" type="image/png" href="/logo.png">
+  
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      background: #000;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    
+    .splash-container {
+      text-align: center;
+      position: relative;
+      z-index: 10;
+    }
+    
+    /* Tagline styling */
+    .tagline {
+      font-size: clamp(28px, 6vw, 56px);
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 60px;
+      letter-spacing: -1px;
+    }
+    
+    .tagline .word {
+      display: inline-block;
+      opacity: 0;
+      transform: translateY(30px);
+      margin-right: 0.25em;
+    }
+    
+    .tagline .word.visible {
+      animation: wordFadeIn 0.6s ease forwards;
+    }
+    
+    .tagline .word.ball {
+      color: #f57c00;
+      font-style: italic;
+    }
+    
+    @keyframes wordFadeIn {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    /* Baseball logo */
+    .baseball-logo {
+      width: clamp(200px, 40vw, 400px);
+      height: auto;
+      opacity: 0;
+      transform: translateY(-200px) scale(0.5);
+      filter: drop-shadow(0 0 0 transparent);
+    }
+    
+    .baseball-logo.drop {
+      animation: baseballDrop 1s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+    
+    @keyframes baseballDrop {
+      0% {
+        opacity: 0;
+        transform: translateY(-200px) scale(0.5) rotate(-20deg);
+        filter: drop-shadow(0 0 0 transparent);
+      }
+      60% {
+        opacity: 1;
+        transform: translateY(20px) scale(1.05) rotate(5deg);
+      }
+      80% {
+        transform: translateY(-10px) scale(0.98) rotate(-2deg);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0) scale(1) rotate(0deg);
+        filter: drop-shadow(0 20px 40px rgba(0,0,0,0.5));
+      }
+    }
+    
+    /* Impact flash */
+    .impact-flash {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle at center, rgba(245,124,0,0.3) 0%, transparent 70%);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 5;
+    }
+    
+    .impact-flash.flash {
+      animation: impactFlash 0.4s ease-out forwards;
+    }
+    
+    @keyframes impactFlash {
+      0% { opacity: 0; }
+      30% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+    
+    /* Subtle floating particles */
+    .particles {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1;
+    }
+    
+    .particle {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      background: rgba(245,124,0,0.6);
+      border-radius: 50%;
+      opacity: 0;
+    }
+    
+    .particle.animate {
+      animation: particleFloat 3s ease-out forwards;
+    }
+    
+    @keyframes particleFloat {
+      0% {
+        opacity: 0;
+        transform: translateY(0) scale(1);
+      }
+      20% {
+        opacity: 1;
+      }
+      100% {
+        opacity: 0;
+        transform: translateY(-100px) scale(0);
+      }
+    }
+    
+    /* Vignette overlay */
+    .vignette {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.7) 100%);
+      pointer-events: none;
+      z-index: 2;
+    }
+    
+    /* Fade out the whole splash */
+    .splash-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #000;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.8s ease;
+    }
+    
+    .splash-overlay.fade-out {
+      opacity: 0;
+      pointer-events: none;
+    }
+    
+    /* Skip button */
+    .skip-btn {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      padding: 10px 20px;
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.3);
+      color: rgba(255,255,255,0.5);
+      font-size: 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      z-index: 110;
+      opacity: 0;
+      transition: all 0.3s ease;
+    }
+    
+    .skip-btn.visible {
+      opacity: 1;
+    }
+    
+    .skip-btn:hover {
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+      border-color: rgba(255,255,255,0.5);
+    }
+    
+    /* Subtext */
+    .subtext {
+      margin-top: 40px;
+      font-size: 18px;
+      color: rgba(255,255,255,0.6);
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    
+    .subtext.visible {
+      animation: subtextFadeIn 0.8s ease forwards;
+    }
+    
+    @keyframes subtextFadeIn {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .subtext span {
+      color: #c41e3a;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  
+  <div class="splash-overlay" id="splashOverlay">
+    <div class="vignette"></div>
+    <div class="impact-flash" id="impactFlash"></div>
+    <div class="particles" id="particles"></div>
+    
+    <div class="splash-container">
+      <h1 class="tagline" id="tagline">
+        <span class="word">There's</span>
+        <span class="word">a</span>
+        <span class="word">new</span>
+        <span class="word ball">Ball</span>
+        <span class="word">in</span>
+        <span class="word">town.</span>
+      </h1>
+      
+      <img src="/logos/Ball603-Baseball-real-no-shadow.png" alt="Ball603 Baseball" class="baseball-logo" id="baseballLogo">
+      
+      <p class="subtext" id="subtext">New Hampshire <span>Baseball</span> Coverage</p>
+    </div>
+  </div>
+  
+  <button class="skip-btn" id="skipBtn" onclick="skipSplash()">Skip &#8594;</button>
+  
+  <!-- This is where your actual homepage content would go -->
+  <main id="mainContent" style="display: none;">
+    <div style="min-height: 100vh; background: #1a1a1a; display: flex; align-items: center; justify-content: center; color: #fff;">
+      <h1>Homepage Content Here</h1>
+    </div>
+  </main>
+  
+  <script>
+    // Check if user has seen the splash before
+    const hasSeenSplash = localStorage.getItem('ball603_baseball_splash_seen');
+    
+    // For testing, uncomment this line to always show splash:
+    // localStorage.removeItem('ball603_baseball_splash_seen');
+    
+    if (hasSeenSplash) {
+      // Skip directly to main content
+      document.getElementById('splashOverlay').style.display = 'none';
+      document.getElementById('skipBtn').style.display = 'none';
+      document.getElementById('mainContent').style.display = 'block';
+    } else {
+      // Run the animation sequence
+      runSplashAnimation();
+    }
+    
+    function runSplashAnimation() {
+      const words = document.querySelectorAll('.tagline .word');
+      const logo = document.getElementById('baseballLogo');
+      const flash = document.getElementById('impactFlash');
+      const subtext = document.getElementById('subtext');
+      const skipBtn = document.getElementById('skipBtn');
+      
+      // Show skip button after 2 seconds
+      setTimeout(() => {
+        skipBtn.classList.add('visible');
+      }, 2000);
+      
+      // Animate words one by one
+      words.forEach((word, index) => {
+        setTimeout(() => {
+          word.classList.add('visible');
+        }, 400 + (index * 300)); // Start at 400ms, 300ms between each word
+      });
+      
+      // After tagline completes, drop the baseball
+      // 6 words * 300ms + 400ms start + 800ms pause = ~3000ms
+      setTimeout(() => {
+        logo.classList.add('drop');
+        
+        // Trigger impact flash when ball "lands"
+        setTimeout(() => {
+          flash.classList.add('flash');
+          createParticles();
+        }, 600); // 60% into the drop animation
+        
+      }, 3000);
+      
+      // Show subtext after logo animation
+      setTimeout(() => {
+        subtext.classList.add('visible');
+      }, 4500);
+      
+      // Fade out and show main content
+      setTimeout(() => {
+        completeSplash();
+      }, 7000);
+    }
+    
+    function createParticles() {
+      const container = document.getElementById('particles');
+      const logo = document.getElementById('baseballLogo');
+      const rect = logo.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      
+      for (let i = 0; i < 20; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'particle';
+        
+        // Random position around the ball
+        const angle = (Math.PI * 2 * i) / 20;
+        const distance = 50 + Math.random() * 100;
+        const x = centerX + Math.cos(angle) * distance;
+        const y = centerY + Math.sin(angle) * distance;
+        
+        particle.style.left = x + 'px';
+        particle.style.top = y + 'px';
+        particle.style.animationDelay = (Math.random() * 0.3) + 's';
+        
+        container.appendChild(particle);
+        
+        // Trigger animation
+        setTimeout(() => {
+          particle.classList.add('animate');
+        }, 50);
+        
+        // Remove after animation
+        setTimeout(() => {
+          particle.remove();
+        }, 3000);
+      }
+    }
+    
+    function skipSplash() {
+      completeSplash();
+    }
+    
+    function completeSplash() {
+      // Mark as seen
+      localStorage.setItem('ball603_baseball_splash_seen', 'true');
+      
+      // Fade out splash
+      const overlay = document.getElementById('splashOverlay');
+      const skipBtn = document.getElementById('skipBtn');
+      
+      overlay.classList.add('fade-out');
+      skipBtn.style.opacity = '0';
+      
+      // Show main content
+      setTimeout(() => {
+        overlay.style.display = 'none';
+        skipBtn.style.display = 'none';
+        document.getElementById('mainContent').style.display = 'block';
+        
+        // In production, you might redirect instead:
+        // window.location.href = '/';
+      }, 800);
+    }
+    
+    // For testing: Press 'R' to reset and replay
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'r' || e.key === 'R') {
+        localStorage.removeItem('ball603_baseball_splash_seen');
+        location.reload();
+      }
+    });
+  </script>
+</body>
+</html>
