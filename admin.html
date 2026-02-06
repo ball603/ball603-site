@@ -4719,6 +4719,20 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         • <strong>Opp Win %:</strong> Opponents' win % excluding games against this team<br>
         • <strong>Opp-Opp Win %:</strong> Average of opponents' Opp Win % values
       </div>
+      
+      <!-- Publish RPI Section -->
+      <div style="margin-top: 20px; padding: 20px; background: #fff; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.08);">
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px;">
+          <div>
+            <strong style="font-size: 15px;">Publish RPI Rankings</strong>
+            <p style="color: #666; font-size: 13px; margin: 5px 0 0;">Save current calculations to the database for the public RPI page.</p>
+          </div>
+          <button onclick="publishRPI()" id="publishRpiBtn" style="padding: 12px 24px; background: #2e7d32; color: white; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;">
+            📊 Publish All RPI Rankings
+          </button>
+        </div>
+        <div id="publishRpiStatus" style="margin-top: 10px; font-size: 13px; display: none;"></div>
+      </div>
     </div>
   </div>
   
@@ -19619,6 +19633,329 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       }
       
       tbody.innerHTML = html;
+    }
+    
+    // ===== PUBLISH RPI TO DATABASE =====
+    async function publishRPI() {
+      const btn = document.getElementById('publishRpiBtn');
+      const status = document.getElementById('publishRpiStatus');
+      const sport = document.getElementById('sosSport')?.value || 'basketball';
+      
+      // Determine season based on sport
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = now.getMonth() + 1;
+      let season;
+      if (sport === 'basketball') {
+        // Basketball season spans two years (e.g., "2025-26")
+        season = month >= 8 ? `${year}-${(year + 1).toString().slice(-2)}` : `${year - 1}-${year.toString().slice(-2)}`;
+      } else {
+        // Baseball and volleyball are single-year seasons
+        season = year.toString();
+      }
+      
+      // Get the Monday of current week for week_of
+      const today = new Date();
+      const dayOfWeek = today.getDay();
+      const monday = new Date(today);
+      monday.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+      const weekOf = monday.toISOString().split('T')[0];
+      
+      btn.disabled = true;
+      btn.textContent = '⏳ Publishing...';
+      status.style.display = 'block';
+      status.style.color = '#666';
+      status.textContent = 'Calculating RPI for all genders and divisions...';
+      
+      try {
+        const genders = sport === 'baseball' ? ['Boys'] : sport === 'volleyball' ? ['Girls'] : ['Boys', 'Girls'];
+        const allRecords = [];
+        
+        for (const gender of genders) {
+          status.textContent = `Calculating ${gender} RPI...`;
+          
+          // Fetch completed games
+          const { data: completedGames, error: gamesError } = await db
+            .from('games')
+            .select('home_team, away_team, home_score, away_score, gender, division')
+            .eq('level', 'NHIAA')
+            .eq('gender', gender)
+            .eq('sport', sport)
+            .not('home_score', 'is', null)
+            .not('away_score', 'is', null);
+          
+          if (gamesError) throw gamesError;
+          
+          // Fetch future games
+          const { data: futureGames, error: futureError } = await db
+            .from('games')
+            .select('home_team, away_team, gender, division')
+            .eq('level', 'NHIAA')
+            .eq('gender', gender)
+            .eq('sport', sport)
+            .is('home_score', null);
+          
+          if (futureError) throw futureError;
+          
+          // Fetch standings
+          const { data: standings, error: standingsError } = await db
+            .from('standings')
+            .select('school, gender, division, wins, losses')
+            .eq('gender', gender)
+            .eq('sport', sport);
+          
+          if (standingsError) throw standingsError;
+          
+          if (!standings || standings.length === 0) continue;
+          
+          // Build team records
+          const teamRecords = new Map();
+          const teamDivisions = new Map();
+          const teamWinPct = new Map();
+          
+          for (const s of standings) {
+            const key = `${s.school}_${s.gender}`;
+            teamRecords.set(key, { wins: s.wins, losses: s.losses });
+            teamDivisions.set(key, s.division);
+            const total = s.wins + s.losses;
+            teamWinPct.set(key, total > 0 ? s.wins / total : 0);
+          }
+          
+          // Build played opponents map
+          const teamsPlayedMap = new Map();
+          for (const game of completedGames) {
+            if (!teamsPlayedMap.has(game.home_team)) {
+              teamsPlayedMap.set(game.home_team, { opponents: [], division: teamDivisions.get(`${game.home_team}_${gender}`) || game.division });
+            }
+            if (!teamsPlayedMap.has(game.away_team)) {
+              teamsPlayedMap.set(game.away_team, { opponents: [], division: teamDivisions.get(`${game.away_team}_${gender}`) || game.division });
+            }
+            teamsPlayedMap.get(game.home_team).opponents.push({ opp: game.away_team, wasHome: true });
+            teamsPlayedMap.get(game.away_team).opponents.push({ opp: game.home_team, wasHome: false });
+          }
+          
+          // Build remaining opponents map
+          const teamsRemainingMap = new Map();
+          for (const game of futureGames) {
+            if (!teamsRemainingMap.has(game.home_team)) teamsRemainingMap.set(game.home_team, []);
+            if (!teamsRemainingMap.has(game.away_team)) teamsRemainingMap.set(game.away_team, []);
+            teamsRemainingMap.get(game.home_team).push(game.away_team);
+            teamsRemainingMap.get(game.away_team).push(game.home_team);
+          }
+          
+          const nhiaaTeams = new Set(standings.map(s => s.school));
+          
+          // Sport-specific weights
+          const RPI_WEIGHTS = {
+            basketball: { homeWin: 0.6, roadWin: 1.4, homeLoss: 1.4, roadLoss: 0.6 },
+            volleyball: { homeWin: 0.6, roadWin: 1.4, homeLoss: 1.4, roadLoss: 0.6 },
+            baseball:   { homeWin: 0.7, roadWin: 1.3, homeLoss: 1.3, roadLoss: 0.7 }
+          };
+          const weights = RPI_WEIGHTS[sport] || RPI_WEIGHTS.basketball;
+          
+          // Calculate weighted WP
+          const teamWeightedWP = new Map();
+          for (const teamName of nhiaaTeams) {
+            let weightedWins = 0, weightedLosses = 0;
+            for (const game of completedGames) {
+              const isHome = game.home_team === teamName;
+              const isAway = game.away_team === teamName;
+              if (!isHome && !isAway) continue;
+              const teamScore = isHome ? game.home_score : game.away_score;
+              const oppScore = isHome ? game.away_score : game.home_score;
+              const won = teamScore > oppScore;
+              if (won) {
+                weightedWins += isHome ? weights.homeWin : weights.roadWin;
+              } else {
+                weightedLosses += isHome ? weights.homeLoss : weights.roadLoss;
+              }
+            }
+            const total = weightedWins + weightedLosses;
+            teamWeightedWP.set(teamName, total > 0 ? weightedWins / total : 0);
+          }
+          
+          // Calculate OWP
+          const teamOWP = new Map();
+          for (const teamName of nhiaaTeams) {
+            const playedData = teamsPlayedMap.get(teamName);
+            if (!playedData || playedData.opponents.length === 0) {
+              teamOWP.set(teamName, 0);
+              continue;
+            }
+            let owpSum = 0, owpCount = 0;
+            for (const { opp } of playedData.opponents) {
+              let oppWins = 0, oppLosses = 0;
+              for (const game of completedGames) {
+                const oppIsHome = game.home_team === opp;
+                const oppIsAway = game.away_team === opp;
+                if (!oppIsHome && !oppIsAway) continue;
+                if (game.home_team === teamName || game.away_team === teamName) continue;
+                const oppScore = oppIsHome ? game.home_score : game.away_score;
+                const otherScore = oppIsHome ? game.away_score : game.home_score;
+                if (oppScore > otherScore) oppWins++;
+                else oppLosses++;
+              }
+              const oppTotal = oppWins + oppLosses;
+              if (oppTotal > 0) {
+                owpSum += oppWins / oppTotal;
+                owpCount++;
+              }
+            }
+            teamOWP.set(teamName, owpCount > 0 ? owpSum / owpCount : 0);
+          }
+          
+          // Calculate OOWP
+          const teamOOWP = new Map();
+          for (const teamName of nhiaaTeams) {
+            const playedData = teamsPlayedMap.get(teamName);
+            if (!playedData || playedData.opponents.length === 0) {
+              teamOOWP.set(teamName, 0);
+              continue;
+            }
+            let oowpSum = 0, oowpCount = 0;
+            for (const { opp } of playedData.opponents) {
+              const oppOWP = teamOWP.get(opp);
+              if (oppOWP !== undefined) {
+                oowpSum += oppOWP;
+                oowpCount++;
+              }
+            }
+            teamOOWP.set(teamName, oowpCount > 0 ? oowpSum / oowpCount : 0);
+          }
+          
+          // Build results by division
+          const divisionResults = {};
+          for (const teamName of nhiaaTeams) {
+            const teamDiv = teamDivisions.get(`${teamName}_${gender}`);
+            if (!divisionResults[teamDiv]) divisionResults[teamDiv] = [];
+            
+            const wp = teamWeightedWP.get(teamName) || 0;
+            const owp = teamOWP.get(teamName) || 0;
+            const oowp = teamOOWP.get(teamName) || 0;
+            const rpi = (wp * 0.25) + (owp * 0.50) + (oowp * 0.25);
+            
+            const teamRecord = teamRecords.get(`${teamName}_${gender}`);
+            
+            // Calculate remaining SOS
+            const remaining = teamsRemainingMap.get(teamName) || [];
+            let remainingSosSum = 0, remainingSosCount = 0;
+            for (const opp of remaining) {
+              // Use opponent's current RPI approximation
+              const oppWp = teamWeightedWP.get(opp) || 0;
+              const oppOwp = teamOWP.get(opp) || 0;
+              const oppOowp = teamOOWP.get(opp) || 0;
+              const oppRpi = (oppWp * 0.25) + (oppOwp * 0.50) + (oppOowp * 0.25);
+              remainingSosSum += oppRpi;
+              remainingSosCount++;
+            }
+            const remainingSos = remainingSosCount > 0 ? remainingSosSum / remainingSosCount : null;
+            
+            divisionResults[teamDiv].push({
+              team: teamName,
+              gender,
+              division: teamDiv,
+              wins: teamRecord?.wins || 0,
+              losses: teamRecord?.losses || 0,
+              win_pct: wp,
+              owp,
+              oowp,
+              rpi,
+              remaining_sos: remainingSos
+            });
+          }
+          
+          // Rank within each division and add to allRecords
+          for (const div of Object.keys(divisionResults)) {
+            const divTeams = divisionResults[div];
+            divTeams.sort((a, b) => b.rpi - a.rpi);
+            divTeams.forEach((team, idx) => {
+              team.rank = idx + 1;
+              team.sport = sport;
+              team.season = season;
+              team.week_of = weekOf;
+              team.calculated_at = new Date().toISOString();
+              allRecords.push(team);
+            });
+          }
+        }
+        
+        if (allRecords.length === 0) {
+          throw new Error('No RPI data calculated. Make sure standings and games exist.');
+        }
+        
+        status.textContent = `Fetching previous rankings for tracking...`;
+        
+        // Get previous week's rankings for high/low/last tracking
+        const prevMonday = new Date(monday);
+        prevMonday.setDate(prevMonday.getDate() - 7);
+        const prevWeekOf = prevMonday.toISOString().split('T')[0];
+        
+        const { data: prevRankings } = await db
+          .from('rpi_rankings')
+          .select('team, gender, division, rank, high_rank, low_rank')
+          .eq('sport', sport)
+          .eq('season', season)
+          .eq('week_of', prevWeekOf);
+        
+        const prevMap = new Map();
+        if (prevRankings) {
+          for (const r of prevRankings) {
+            prevMap.set(`${r.team}_${r.gender}_${r.division}`, r);
+          }
+        }
+        
+        // Update records with tracking fields
+        for (const record of allRecords) {
+          const key = `${record.team}_${record.gender}_${record.division}`;
+          const prev = prevMap.get(key);
+          if (prev) {
+            record.last_rank = prev.rank;
+            record.high_rank = Math.min(record.rank, prev.high_rank || record.rank);
+            record.low_rank = Math.max(record.rank, prev.low_rank || record.rank);
+          } else {
+            record.last_rank = null;
+            record.high_rank = record.rank;
+            record.low_rank = record.rank;
+          }
+        }
+        
+        status.textContent = `Deleting old records for ${weekOf}...`;
+        
+        // Delete existing records for this sport/season/week
+        const { error: deleteError } = await db
+          .from('rpi_rankings')
+          .delete()
+          .eq('sport', sport)
+          .eq('season', season)
+          .eq('week_of', weekOf);
+        
+        if (deleteError) throw deleteError;
+        
+        status.textContent = `Inserting ${allRecords.length} RPI records...`;
+        
+        // Insert new records
+        const { error: insertError } = await db
+          .from('rpi_rankings')
+          .insert(allRecords);
+        
+        if (insertError) throw insertError;
+        
+        status.style.color = '#2e7d32';
+        status.textContent = `✅ Published ${allRecords.length} RPI rankings for ${sport} (${season}, week of ${weekOf})`;
+        btn.textContent = '✅ Published!';
+        
+        setTimeout(() => {
+          btn.disabled = false;
+          btn.textContent = '📊 Publish All RPI Rankings';
+        }, 3000);
+        
+      } catch (err) {
+        console.error('Publish RPI error:', err);
+        status.style.color = '#c62828';
+        status.textContent = `❌ Error: ${err.message}`;
+        btn.disabled = false;
+        btn.textContent = '📊 Publish All RPI Rankings';
+      }
     }
     
     // ===== CHAMPIONSHIP HISTORY MANAGEMENT =====
