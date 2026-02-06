@@ -130,43 +130,63 @@
       100% { opacity: 0; }
     }
     
-    /* Floating particles */
-    .particles {
+    /* Floating background particles */
+    .particles-bg {
       position: fixed;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
+      overflow: hidden;
       pointer-events: none;
       z-index: 1;
     }
     
     .particle {
       position: absolute;
-      width: 8px;
-      height: 8px;
-      background: rgba(245,124,0,0.9);
       border-radius: 50%;
-      opacity: 0;
-      box-shadow: 0 0 10px rgba(245,124,0,0.8), 0 0 20px rgba(245,124,0,0.4);
     }
     
-    .particle.animate {
-      animation: particleFloat 5s ease-out forwards;
+    .particle.orange {
+      background: #f57c00;
+      opacity: 0.4;
     }
     
-    @keyframes particleFloat {
-      0% {
-        opacity: 0;
-        transform: translateY(0) scale(1);
-      }
-      15% {
-        opacity: 1;
-      }
-      100% {
-        opacity: 0;
-        transform: translateY(-150px) scale(0);
-      }
+    .particle.white {
+      background: rgba(255, 255, 255, 0.3);
+    }
+    
+    .particle.float-1 { animation: floatAround1 20s infinite ease-in-out; }
+    .particle.float-2 { animation: floatAround2 18s infinite ease-in-out; }
+    .particle.float-3 { animation: floatAround3 22s infinite ease-in-out; }
+    .particle.float-4 { animation: floatAround4 19s infinite ease-in-out; }
+    
+    @keyframes floatAround1 {
+      0%, 100% { transform: translate(0, 0); }
+      25% { transform: translate(30px, -40px); }
+      50% { transform: translate(-20px, -60px); }
+      75% { transform: translate(-40px, -20px); }
+    }
+    
+    @keyframes floatAround2 {
+      0%, 100% { transform: translate(0, 0); }
+      25% { transform: translate(-35px, -25px); }
+      50% { transform: translate(25px, -50px); }
+      75% { transform: translate(40px, 10px); }
+    }
+    
+    @keyframes floatAround3 {
+      0%, 100% { transform: translate(0, 0); }
+      25% { transform: translate(20px, 30px); }
+      50% { transform: translate(-30px, -30px); }
+      75% { transform: translate(-15px, 40px); }
+    }
+    
+    @keyframes floatAround4 {
+      0%, 100% { transform: translate(0, 0); }
+      25% { transform: translate(-25px, 35px); }
+      50% { transform: translate(35px, 20px); }
+      75% { transform: translate(15px, -35px); }
     }
     
     /* Vignette overlay */
@@ -252,7 +272,8 @@
     }
     
     .tap-icon {
-      font-size: 80px;
+      width: 120px;
+      height: auto;
       margin-bottom: 20px;
       animation: tapPulse 2s ease-in-out infinite;
     }
@@ -276,7 +297,7 @@
   <div class="splash-overlay" id="splashOverlay">
     <div class="vignette"></div>
     <div class="impact-flash" id="impactFlash"></div>
-    <div class="particles" id="particles"></div>
+    <div class="particles-bg" id="particlesBg"></div>
     
     <div class="splash-container">
       <img src="/logos/Splash1.png" alt="There's a new BALL in town..." class="splash-text" id="splashText1">
@@ -292,7 +313,7 @@
   <!-- Tap to start overlay (for mobile audio) -->
   <div class="tap-overlay" id="tapOverlay" onclick="startWithAudio()">
     <div class="tap-content">
-      <div class="tap-icon">&#9918;</div>
+      <img src="/logos/Ball603outline.png" alt="Ball603" class="tap-icon">
       <div class="tap-text">Tap to Start</div>
     </div>
   </div>
@@ -350,7 +371,6 @@
         // Trigger impact flash when ball "lands"
         setTimeout(() => {
           flash.classList.add('flash');
-          createParticles();
         }, 600);
         
       }, 1800);
@@ -366,40 +386,22 @@
       }, 8000);
     }
     
-    function createParticles() {
-      const container = document.getElementById('particles');
-      const logo = document.getElementById('baseballLogo');
-      const rect = logo.getBoundingClientRect();
-      const centerX = rect.left + rect.width / 2;
-      const centerY = rect.top + rect.height / 2;
-      
-      for (let i = 0; i < 35; i++) {
+    function createBackgroundParticles() {
+      const container = document.getElementById('particlesBg');
+      if (!container) return;
+      const colorTypes = ['orange', 'white'];
+      const floatTypes = ['float-1', 'float-2', 'float-3', 'float-4'];
+      for (let i = 0; i < 30; i++) {
         const particle = document.createElement('div');
-        particle.className = 'particle';
-        
-        // Random position around the ball
-        const angle = (Math.PI * 2 * i) / 35 + (Math.random() * 0.3);
-        const distance = 60 + Math.random() * 150;
-        const x = centerX + Math.cos(angle) * distance;
-        const y = centerY + Math.sin(angle) * distance;
-        
-        particle.style.left = x + 'px';
-        particle.style.top = y + 'px';
-        particle.style.animationDelay = (Math.random() * 0.3) + 's';
-        
+        particle.className = `particle ${colorTypes[i % colorTypes.length]} ${floatTypes[Math.floor(Math.random() * floatTypes.length)]}`;
+        const size = Math.random() * 6 + 3;
+        particle.style.cssText = `width:${size}px;height:${size}px;left:${Math.random()*100}%;top:${Math.random()*100}%;animation-delay:${-Math.random()*20}s`;
         container.appendChild(particle);
-        
-        // Trigger animation
-        setTimeout(() => {
-          particle.classList.add('animate');
-        }, 50);
-        
-        // Remove after animation
-        setTimeout(() => {
-          particle.remove();
-        }, 5000);
       }
     }
+    
+    // Create particles immediately
+    createBackgroundParticles();
     
     function skipSplash() {
       completeSplash();
@@ -436,8 +438,6 @@
         splashText2.classList.remove('visible');
         skipBtn.classList.remove('visible');
         skipBtn.style.opacity = '';
-        // Clear particles
-        document.getElementById('particles').innerHTML = '';
         // Reset audio
         document.getElementById('batSound').pause();
         document.getElementById('batSound').currentTime = 0;
