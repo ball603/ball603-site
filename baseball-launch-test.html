@@ -29,37 +29,26 @@
       z-index: 10;
     }
     
-    /* Tagline styling */
-    .tagline {
-      font-size: clamp(28px, 6vw, 56px);
-      font-weight: 700;
-      color: #fff;
-      margin-bottom: 60px;
-      letter-spacing: -1px;
-      text-align: center;
-    }
-    
-    .tagline-line {
-      display: block;
-      margin-bottom: 10px;
-    }
-    
-    .tagline .word {
-      display: inline-block;
+    /* Splash text images */
+    .splash-text {
+      width: clamp(280px, 60vw, 700px);
+      height: auto;
       opacity: 0;
       transform: translateY(30px);
-      margin-right: 0.25em;
+      margin-bottom: 40px;
+      display: block;
     }
     
-    .tagline .word.visible {
-      animation: wordFadeIn 0.6s ease forwards;
+    .splash-text.visible {
+      animation: textFadeIn 0.8s ease forwards;
     }
     
-    .tagline .word.ball {
-      color: #f57c00;
+    .splash-text.subtext {
+      margin-top: 40px;
+      margin-bottom: 0;
     }
     
-    @keyframes wordFadeIn {
+    @keyframes textFadeIn {
       to {
         opacity: 1;
         transform: translateY(0);
@@ -122,7 +111,7 @@
       100% { opacity: 0; }
     }
     
-    /* Subtle floating particles */
+    /* Floating particles */
     .particles {
       position: fixed;
       top: 0;
@@ -135,15 +124,16 @@
     
     .particle {
       position: absolute;
-      width: 4px;
-      height: 4px;
-      background: rgba(245,124,0,0.6);
+      width: 8px;
+      height: 8px;
+      background: rgba(245,124,0,0.9);
       border-radius: 50%;
       opacity: 0;
+      box-shadow: 0 0 10px rgba(245,124,0,0.8), 0 0 20px rgba(245,124,0,0.4);
     }
     
     .particle.animate {
-      animation: particleFloat 3s ease-out forwards;
+      animation: particleFloat 5s ease-out forwards;
     }
     
     @keyframes particleFloat {
@@ -151,12 +141,12 @@
         opacity: 0;
         transform: translateY(0) scale(1);
       }
-      20% {
+      15% {
         opacity: 1;
       }
       100% {
         opacity: 0;
-        transform: translateY(-100px) scale(0);
+        transform: translateY(-150px) scale(0);
       }
     }
     
@@ -219,42 +209,6 @@
       border-color: rgba(255,255,255,0.5);
     }
     
-    /* Subtext */
-    .subtext {
-      margin-top: 40px;
-      text-align: center;
-      opacity: 0;
-      transform: translateY(20px);
-    }
-    
-    .subtext.visible {
-      animation: subtextFadeIn 0.8s ease forwards;
-    }
-    
-    .subtext-line {
-      display: block;
-    }
-    
-    .subtext-line.baseball {
-      font-size: clamp(24px, 5vw, 42px);
-      font-weight: 700;
-      color: #f57c00;
-      letter-spacing: 2px;
-      margin-bottom: 8px;
-    }
-    
-    .subtext-line.granite {
-      font-size: clamp(16px, 3vw, 22px);
-      color: rgba(255,255,255,0.8);
-      font-weight: 400;
-    }
-    
-    @keyframes subtextFadeIn {
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
   </style>
 </head>
 <body>
@@ -265,25 +219,11 @@
     <div class="particles" id="particles"></div>
     
     <div class="splash-container">
-      <h1 class="tagline" id="tagline">
-        <span class="tagline-line line1">
-          <span class="word">There's</span>
-          <span class="word">a</span>
-          <span class="word">new</span>
-        </span>
-        <span class="tagline-line line2">
-          <span class="word ball">BALL</span>
-          <span class="word">in</span>
-          <span class="word">town.</span>
-        </span>
-      </h1>
+      <img src="/logos/Splash1.png" alt="There's a new BALL in town..." class="splash-text" id="splashText1">
       
       <img src="/logos/Ball603-Baseball-real-no-shadow.png" alt="Ball603 Baseball" class="baseball-logo" id="baseballLogo">
       
-      <div class="subtext" id="subtext">
-        <span class="subtext-line baseball">BASEBALL</span>
-        <span class="subtext-line granite">in the Granite State</span>
-      </div>
+      <img src="/logos/Splash2.png" alt="Baseball in the Granite State" class="splash-text subtext" id="splashText2">
     </div>
   </div>
   
@@ -314,10 +254,10 @@
     }
     
     function runSplashAnimation() {
-      const words = document.querySelectorAll('.tagline .word');
+      const splashText1 = document.getElementById('splashText1');
       const logo = document.getElementById('baseballLogo');
       const flash = document.getElementById('impactFlash');
-      const subtext = document.getElementById('subtext');
+      const splashText2 = document.getElementById('splashText2');
       const skipBtn = document.getElementById('skipBtn');
       
       // Show skip button after 2 seconds
@@ -325,15 +265,12 @@
         skipBtn.classList.add('visible');
       }, 2000);
       
-      // Animate words one by one
-      words.forEach((word, index) => {
-        setTimeout(() => {
-          word.classList.add('visible');
-        }, 300 + (index * 200)); // Start at 300ms, 200ms between each word
-      });
+      // Show first text (There's a new BALL in town...)
+      setTimeout(() => {
+        splashText1.classList.add('visible');
+      }, 400);
       
-      // After tagline completes, drop the baseball
-      // 6 words * 200ms + 300ms start + 600ms pause = ~2100ms
+      // Drop the baseball
       setTimeout(() => {
         logo.classList.add('drop');
         
@@ -341,19 +278,19 @@
         setTimeout(() => {
           flash.classList.add('flash');
           createParticles();
-        }, 600); // 60% into the drop animation
+        }, 600);
         
-      }, 2100);
+      }, 1800);
       
-      // Show subtext after logo animation
+      // Show bottom text (BASEBALL in the Granite State)
       setTimeout(() => {
-        subtext.classList.add('visible');
-      }, 3600);
+        splashText2.classList.add('visible');
+      }, 3500);
       
-      // Fade out and show main content
+      // Fade out and show main content (extended by 2 seconds for longer particles)
       setTimeout(() => {
         completeSplash();
-      }, 6000);
+      }, 8000);
     }
     
     function createParticles() {
@@ -363,13 +300,13 @@
       const centerX = rect.left + rect.width / 2;
       const centerY = rect.top + rect.height / 2;
       
-      for (let i = 0; i < 20; i++) {
+      for (let i = 0; i < 35; i++) {
         const particle = document.createElement('div');
         particle.className = 'particle';
         
         // Random position around the ball
-        const angle = (Math.PI * 2 * i) / 20;
-        const distance = 50 + Math.random() * 100;
+        const angle = (Math.PI * 2 * i) / 35 + (Math.random() * 0.3);
+        const distance = 60 + Math.random() * 150;
         const x = centerX + Math.cos(angle) * distance;
         const y = centerY + Math.sin(angle) * distance;
         
@@ -387,7 +324,7 @@
         // Remove after animation
         setTimeout(() => {
           particle.remove();
-        }, 3000);
+        }, 5000);
       }
     }
     
