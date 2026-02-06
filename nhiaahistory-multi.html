@@ -41,47 +41,6 @@
       display: block;
     }
     
-    /* Sport Filter - Pill Style (matches 603inthencaa) */
-    .sport-filter-wrapper {
-      display: flex;
-      justify-content: center;
-      width: 100%;
-      padding: 16px 20px;
-    }
-    
-    .sport-filter {
-      display: inline-flex;
-      gap: 4px;
-      padding: 4px;
-      background: var(--bg-tertiary);
-      border-radius: 10px;
-      margin: 0;
-    }
-    
-    .sport-btn {
-      padding: 12px 28px;
-      font-size: 15px;
-      font-weight: 700;
-      color: var(--text-secondary);
-      background: transparent;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      transition: all 0.2s;
-      white-space: nowrap;
-    }
-    
-    .sport-btn:hover {
-      color: var(--text-primary);
-      background: rgba(255,255,255,0.5);
-    }
-    
-    .sport-btn.active {
-      background: var(--bg-card);
-      color: var(--accent);
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
-    
     /* Mobile Dark Theme */
     @media (max-width: 768px) {
       /* Show short nav text, hide full */
@@ -104,15 +63,6 @@
       
       .features-main {
         background: #1a1a1a;
-      }
-      
-      .sport-filter-wrapper {
-        padding: 12px 15px;
-      }
-      
-      .sport-btn {
-        padding: 10px 20px;
-        font-size: 14px;
       }
       
       .history-nav {
@@ -436,8 +386,9 @@
     <!-- Sport Filter -->
     <div class="sport-filter-wrapper">
       <div class="sport-filter">
-        <button class="sport-btn active" data-sport="basketball">🏀 Basketball</button>
-        <button class="sport-btn" data-sport="baseball">⚾ Baseball</button>
+        <button class="sport-btn" id="basketballBtn" onclick="selectSport('basketball')">&#127936; Basketball</button>
+        <button class="sport-btn" id="baseballBtn" onclick="selectSport('baseball')">&#9918; Baseball</button>
+        <!-- <button class="sport-btn" id="volleyballBtn" onclick="selectSport('volleyball')">&#127952; Volleyball</button> -->
       </div>
     </div>
 
@@ -593,10 +544,19 @@
     const SUPABASE_ANON_KEY = 'sb_publishable_hHSpgZPD327r11GaQG9iHw_uZbuaWmF';
     const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     
+    // Utilities
+    function getCurrentSport() {
+      const month = new Date().getMonth() + 1; // 1-12
+      if (month >= 12 || month <= 3) return 'basketball';  // Dec-Mar
+      if (month >= 4 && month <= 7) return 'baseball';     // Apr-Jul
+      if (month >= 8 && month <= 11) return 'volleyball';  // Aug-Nov
+      return 'basketball'; // Fallback
+    }
+    
     // State
     let selectedBracketYear = 2024;
     let allChampionships = [];
-    let currentSport = 'basketball';
+    let currentSport = getCurrentSport();
     
     // Sport-specific dynasties data
     const DYNASTIES_BY_SPORT = {
@@ -638,6 +598,11 @@
     
     // Initialize
     document.addEventListener('DOMContentLoaded', async () => {
+      // Set initial active sport button
+      document.getElementById('basketballBtn').classList.toggle('active', currentSport === 'basketball');
+      document.getElementById('baseballBtn').classList.toggle('active', currentSport === 'baseball');
+      // document.getElementById('volleyballBtn').classList.toggle('active', currentSport === 'volleyball');
+      
       await loadChampionships();
       populateSchoolsList();
       renderDynastyLeaders();
@@ -646,27 +611,26 @@
       setupBracketViewer();
       
       setupEventListeners();
-      setupSportTabs();
     });
     
-    function setupSportTabs() {
-      document.querySelectorAll('.sport-btn').forEach(tab => {
-        tab.addEventListener('click', () => {
-          // Update active state
-          document.querySelectorAll('.sport-btn').forEach(t => t.classList.remove('active'));
-          tab.classList.add('active');
-          
-          // Update current sport
-          currentSport = tab.dataset.sport;
-          
-          // Update UI based on sport
-          updateUIForSport();
-          
-          // Re-render everything
-          populateSchoolsList();
-          renderDynastyLeaders();
-          renderRecentDynasties();
-          renderChampionships();
+    // Sport selection handler (called from onclick)
+    function selectSport(sport) {
+      currentSport = sport;
+      
+      // Update active state
+      document.getElementById('basketballBtn').classList.toggle('active', sport === 'basketball');
+      document.getElementById('baseballBtn').classList.toggle('active', sport === 'baseball');
+      // document.getElementById('volleyballBtn').classList.toggle('active', sport === 'volleyball');
+      
+      // Update UI based on sport
+      updateUIForSport();
+      
+      // Re-render everything
+      populateSchoolsList();
+      renderDynastyLeaders();
+      renderRecentDynasties();
+      renderChampionships();
+    }
         });
       });
     }
