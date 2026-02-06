@@ -509,10 +509,10 @@ function findPreviousMatchup(team1, team2, gender, beforeDate, completedGames) {
 // Build rankings from standings
 function buildRankings(standings, rpiRankings) {
   const rankings = {}; // team_gender_division -> { rank, isTied, rpiRank, rpi }
-  const top10Teams = {}; // gender_division -> Set of team names (by RPI)
+  const top10Teams = {}; // gender_division -> Set of team names (by STANDINGS rank)
   const rpiData = {}; // team_gender_division -> { rpi, rpiRank }
 
-  // Build RPI lookup from rpi_rankings table
+  // Build RPI lookup from rpi_rankings table (published RPI)
   // rpi_rankings is ordered by week_of desc, so first occurrence of each team is latest
   const seenRpi = new Set();
   for (const r of rpiRankings) {
@@ -524,23 +524,6 @@ function buildRankings(standings, rpiRankings) {
       };
       seenRpi.add(key);
     }
-  }
-
-  // Build top-10 by RPI for each gender/division
-  const rpiByGroup = {};
-  for (const r of rpiRankings) {
-    const groupKey = `${r.gender}_${r.division}`;
-    if (!rpiByGroup[groupKey]) rpiByGroup[groupKey] = [];
-    // Only add if not already in list (since ordered by week_of desc)
-    if (!rpiByGroup[groupKey].find(x => x.team === r.team)) {
-      rpiByGroup[groupKey].push(r);
-    }
-  }
-  
-  for (const [key, teams] of Object.entries(rpiByGroup)) {
-    // Sort by RPI rank (already sorted, but ensure)
-    teams.sort((a, b) => a.rank - b.rank);
-    top10Teams[key] = new Set(teams.slice(0, 10).map(t => t.team));
   }
 
   // Group standings by division and gender for standings rank
@@ -559,6 +542,9 @@ function buildRankings(standings, rpiRankings) {
       if (b.wins !== a.wins) return b.wins - a.wins;
       return a.losses - b.losses;
     });
+
+    // Build top-10 by STANDINGS rank for this group
+    top10Teams[key] = new Set(sorted.slice(0, 10).map(t => t.school));
 
     let prevRating = null;
     let prevWins = null;
@@ -600,6 +586,142 @@ function buildRankings(standings, rpiRankings) {
   }
 
   return { rankings, top10Teams, rpiData };
+}
+
+// Calculate CURRENT RPI on the fly (not published RPI)
+// This gives the most up-to-date RPI for admin display
+function calculateCurrentRPI(completedGames, standings) {
+  const currentRPI = {}; // team_gender_division -> { rpi, rpiRank }
+  
+  // Basketball weights
+  const weights = { homeWin: 0.6, roadWin: 1.4, homeLoss: 1.4, roadLoss: 0.6 };
+  
+  // Get all NHIAA teams from standings
+  const teamsByGroup = {}; // gender_division -> [team names]
+  for (const s of standings) {
+    const groupKey = `${s.gender}_${s.division}`;
+    if (!teamsByGroup[groupKey]) teamsByGroup[groupKey] = [];
+    teamsByGroup[groupKey].push(s.school);
+  }
+  
+  // Calculate weighted WP for each team
+  const teamWeightedWP = new Map();
+  const allTeams = standings.map(s => s.school);
+  
+  for (const teamName of allTeams) {
+    let weightedWins = 0, weightedLosses = 0;
+    for (const game of completedGames) {
+      const isHome = game.home_team === teamName;
+      const isAway = game.away_team === teamName;
+      if (!isHome && !isAway) continue;
+      if (game.home_score === null || game.away_score === null) continue;
+      
+      const teamScore = isHome ? game.home_score : game.away_score;
+      const oppScore = isHome ? game.away_score : game.home_score;
+      const won = teamScore > oppScore;
+      
+      if (won) {
+        weightedWins += isHome ? weights.homeWin : weights.roadWin;
+      } else {
+        weightedLosses += isHome ? weights.homeLoss : weights.roadLoss;
+      }
+    }
+    const total = weightedWins + weightedLosses;
+    teamWeightedWP.set(teamName, total > 0 ? weightedWins / total : 0);
+  }
+  
+  // Build played opponents map
+  const teamsPlayedMap = new Map();
+  for (const game of completedGames) {
+    if (game.home_score === null || game.away_score === null) continue;
+    if (!teamsPlayedMap.has(game.home_team)) {
+      teamsPlayedMap.set(game.home_team, { opponents: [], gender: game.gender, division: game.division });
+    }
+    if (!teamsPlayedMap.has(game.away_team)) {
+      teamsPlayedMap.set(game.away_team, { opponents: [], gender: game.gender, division: game.division });
+    }
+    teamsPlayedMap.get(game.home_team).opponents.push(game.away_team);
+    teamsPlayedMap.get(game.away_team).opponents.push(game.home_team);
+  }
+  
+  // Calculate OWP for each team
+  const teamOWP = new Map();
+  for (const teamName of allTeams) {
+    const playedData = teamsPlayedMap.get(teamName);
+    if (!playedData || playedData.opponents.length === 0) {
+      teamOWP.set(teamName, 0);
+      continue;
+    }
+    let owpSum = 0, owpCount = 0;
+    for (const opp of playedData.opponents) {
+      // Calculate opponent's win% excluding games against this team
+      let oppWins = 0, oppLosses = 0;
+      for (const game of completedGames) {
+        if (game.home_score === null || game.away_score === null) continue;
+        const oppIsHome = game.home_team === opp;
+        const oppIsAway = game.away_team === opp;
+        if (!oppIsHome && !oppIsAway) continue;
+        // Exclude games against the team we're calculating for
+        if (game.home_team === teamName || game.away_team === teamName) continue;
+        
+        const oppScore = oppIsHome ? game.home_score : game.away_score;
+        const otherScore = oppIsHome ? game.away_score : game.home_score;
+        if (oppScore > otherScore) oppWins++;
+        else oppLosses++;
+      }
+      const oppTotal = oppWins + oppLosses;
+      if (oppTotal > 0) {
+        owpSum += oppWins / oppTotal;
+        owpCount++;
+      }
+    }
+    teamOWP.set(teamName, owpCount > 0 ? owpSum / owpCount : 0);
+  }
+  
+  // Calculate OOWP for each team
+  const teamOOWP = new Map();
+  for (const teamName of allTeams) {
+    const playedData = teamsPlayedMap.get(teamName);
+    if (!playedData || playedData.opponents.length === 0) {
+      teamOOWP.set(teamName, 0);
+      continue;
+    }
+    let oowpSum = 0, oowpCount = 0;
+    for (const opp of playedData.opponents) {
+      const oppOWP = teamOWP.get(opp);
+      if (oppOWP !== undefined) {
+        oowpSum += oppOWP;
+        oowpCount++;
+      }
+    }
+    teamOOWP.set(teamName, oowpCount > 0 ? oowpSum / oowpCount : 0);
+  }
+  
+  // Calculate final RPI and rank within each division/gender
+  for (const [groupKey, teams] of Object.entries(teamsByGroup)) {
+    const [gender, division] = groupKey.split('_');
+    const teamRPIs = [];
+    
+    for (const teamName of teams) {
+      const wp = teamWeightedWP.get(teamName) || 0;
+      const owp = teamOWP.get(teamName) || 0;
+      const oowp = teamOOWP.get(teamName) || 0;
+      const rpi = (wp * 0.25) + (owp * 0.50) + (oowp * 0.25);
+      teamRPIs.push({ team: teamName, rpi, gender, division });
+    }
+    
+    // Sort by RPI descending and assign ranks
+    teamRPIs.sort((a, b) => b.rpi - a.rpi);
+    teamRPIs.forEach((t, idx) => {
+      const key = `${t.team}_${t.gender}_${t.division}`;
+      currentRPI[key] = {
+        rpi: t.rpi,
+        rpiRank: idx + 1
+      };
+    });
+  }
+  
+  return currentRPI;
 }
 
 // Score a matchup for Game of the Night selection (RPI-based)
@@ -667,22 +789,26 @@ function scoreMatchup(matchup, rankings) {
 }
 
 // Format team name with record and rank
-function formatTeamDisplay(team, gender, division, rankings) {
+function formatTeamDisplay(team, gender, division, rankings, currentRPI) {
   const key = `${team}_${gender}_${division}`;
   const ranking = rankings[key];
+  const current = currentRPI ? currentRPI[key] : null;
   
   if (!ranking) {
-    return { name: team, record: '', rank: '', rpiRank: '', display: team };
+    return { name: team, record: '', rank: '', rpiRank: '', currentRpiRank: '', display: team };
   }
 
   const rankStr = ranking.isTied ? `t-${ordinal(ranking.rank)}` : ordinal(ranking.rank);
   const rpiRankStr = ranking.rpiRank ? ordinal(ranking.rpiRank) : 'N/A';
+  const currentRpiRankStr = current ? ordinal(current.rpiRank) : 'N/A';
   
   return {
     name: team,
     record: `${ranking.wins}-${ranking.losses}`,
     rank: rankStr,
     rpiRank: rpiRankStr,
+    currentRpiRank: currentRpiRankStr,
+    currentRpi: current ? current.rpi : null,
     rpi: ranking.rpi,
     display: `${team} (${ranking.wins}-${ranking.losses}, ${rankStr})`
   };
@@ -735,8 +861,12 @@ export default async (request) => {
       g.date < date // Only games before this date
     );
 
-    // Build rankings and top 10 lists (now using RPI)
+    // Build rankings and top 10 lists (using STANDINGS rank for top-10)
     const { rankings, top10Teams, rpiData } = buildRankings(standings, rpiRankings);
+    
+    // Calculate CURRENT RPI on the fly for admin display
+    const currentRPI = calculateCurrentRPI(completedGames, standings);
+    console.log(`Calculated current RPI for ${Object.keys(currentRPI).length} teams`);
 
     // Process each game
     const processedGames = [];
@@ -752,9 +882,9 @@ export default async (request) => {
       const awayStats = calculateTeamStats(game.away_team, game.gender, completedGames);
       const homeStats = calculateTeamStats(game.home_team, game.gender, completedGames);
 
-      // Get formatted team info
-      const awayDisplay = formatTeamDisplay(game.away_team, game.gender, game.division, rankings);
-      const homeDisplay = formatTeamDisplay(game.home_team, game.gender, game.division, rankings);
+      // Get formatted team info (with current RPI)
+      const awayDisplay = formatTeamDisplay(game.away_team, game.gender, game.division, rankings, currentRPI);
+      const homeDisplay = formatTeamDisplay(game.home_team, game.gender, game.division, rankings, currentRPI);
 
       // Find previous matchup
       const previousMatchup = findPreviousMatchup(
