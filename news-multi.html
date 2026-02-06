@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Ball603 News - All the latest New Hampshire High School sports coverage">
+  <meta name="theme-color" content="#f57c00">
+  <title>News | Ball603</title>
+  
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="apple-touch-icon" href="/logo.png">
+  
+  <!-- Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-S4BN80729K"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-S4BN80729K');
+  </script>
+  
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0"></script>
+  
+  <!-- Shared Styles -->
+  <link rel="stylesheet" href="/styles.css">
+  
+  <!-- Open Graph -->
+  <meta property="og:title" content="News | Ball603">
+  <meta property="og:description" content="All the latest New Hampshire High School sports coverage">
+  <meta property="og:image" content="https://ball603.com/logo.png">
+  <meta property="og:url" content="https://ball603.com/news">
+  
+  <style>
+    /* Page Header */
+    .page-header {
+      text-align: center;
+      padding: 30px 20px 20px;
+      background: var(--bg-primary);
+    }
+    
+    .page-title {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin: 0 0 8px;
+    }
+    
+    .page-subtitle {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin: 0;
+    }
+
+    /* Sport Filter - Pill Style */
+    .sport-filter-wrapper {
+      display: flex;
+      justify-content: center;
+      width: 100%;
+      padding: 20px 20px 10px;
+      background: var(--bg-primary);
+    }
+    
+    .sport-filter {
+      display: inline-flex;
+      gap: 4px;
+      padding: 4px;
+      background: var(--bg-tertiary);
+      border-radius: 10px;
+      margin: 0;
+    }
+    
+    .sport-btn {
+      padding: 12px 28px;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-secondary);
+      background: transparent;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    
+    .sport-btn:hover {
+      color: var(--text-primary);
+      background: rgba(255,255,255,0.5);
+    }
+    
+    .sport-btn.active {
+      background: var(--bg-card);
+      color: var(--accent);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    /* Filter Bar */
+    .news-filter-bar {
+      background: #f5f5f5;
+      border-bottom: 1px solid #e0e0e0;
+      padding: 15px 20px;
+      position: sticky;
+      top: 0;
+      z-index: 500;
+    }
+    
+    .filter-inner {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+    
+    .search-box {
+      flex: 1;
+      min-width: 200px;
+      position: relative;
+    }
+    
+    .search-box input {
+      width: 100%;
+      padding: 10px 15px 10px 40px;
+      border: 1px solid #ddd;
+      border-radius: 25px;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s;
+      background: #fff;
+    }
+    
+    .search-box input:focus {
+      border-color: #f57c00;
+    }
+    
+    .search-box::before {
+      content: '\1F50D';
+      position: absolute;
+      left: 15px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 0.9rem;
+      opacity: 0.5;
+      pointer-events: none;
+    }
+
+    /* Main Content */
+    .news-main {
+      padding: 30px 20px 60px;
+    }
+    
+    /* Article Grid */
+    .article-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 25px;
+    }
+    
+    .article-card {
+      background: #fff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      transition: all 0.3s ease;
+      text-decoration: none;
+      color: inherit;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .article-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+    
+    .article-thumbnail {
+      position: relative;
+      width: 100%;
+      padding-top: 56.25%;
+      background: #1a1a1a;
+      overflow: hidden;
+    }
+    
+    .pinned-badge {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(245, 124, 0, 0.95);
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      z-index: 1;
+    }
+    
+    .article-card.pinned {
+      border: 2px solid #f57c00;
+    }
+    
+    .article-thumbnail img {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.3s;
+    }
+    
+    .article-card:hover .article-thumbnail img {
+      transform: scale(1.05);
+    }
+    
+    .article-info {
+      padding: 20px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .article-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #1a1a1a;
+      margin: 0 0 10px;
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    
+    .article-card:hover .article-title {
+      color: #f57c00;
+    }
+    
+    .article-meta {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      font-size: 0.8rem;
+      color: #888;
+      margin-top: auto;
+      padding-top: 15px;
+      border-top: 1px solid #f0f0f0;
+      flex-wrap: wrap;
+    }
+    
+    .article-meta-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    /* Pagination */
+    .pagination {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      margin-top: 40px;
+      flex-wrap: wrap;
+    }
+    
+    .pagination-btn {
+      padding: 10px 18px;
+      border: 1px solid #ddd;
+      background: #fff;
+      border-radius: 25px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+    
+    .pagination-btn:hover:not(:disabled) {
+      border-color: #f57c00;
+      color: #f57c00;
+    }
+    
+    .pagination-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    .pagination-info {
+      font-size: 0.9rem;
+      color: #666;
+      padding: 0 15px;
+    }
+    
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 80px 20px;
+      color: #666;
+    }
+    
+    .empty-state-icon {
+      font-size: 4rem;
+      margin-bottom: 20px;
+      opacity: 0.5;
+    }
+    
+    .empty-state p {
+      font-size: 1.1rem;
+      margin: 0;
+    }
+    
+    /* Loading State */
+    .loading-state {
+      text-align: center;
+      padding: 80px 20px;
+    }
+    
+    .loading-spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid #f0f0f0;
+      border-top-color: #f57c00;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 20px;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    /* Mobile Responsive */
+    @media (max-width: 768px) {
+      /* Dark Theme */
+      body {
+        background: #1a1a1a;
+      }
+      
+      .page-header {
+        background: #1a1a1a;
+      }
+      
+      .page-title {
+        font-size: 24px;
+        color: #fff;
+      }
+      
+      .page-subtitle {
+        color: #888;
+      }
+      
+      /* Sport Filter Dark Theme */
+      .sport-filter-wrapper {
+        background: #1a1a1a;
+      }
+      
+      .sport-filter {
+        background: #2d2d2d;
+      }
+      
+      .sport-btn {
+        color: #888;
+      }
+      
+      .sport-btn:hover {
+        color: #fff;
+        background: rgba(255,255,255,0.1);
+      }
+      
+      .sport-btn.active {
+        background: #3d3d3d;
+        color: #f57c00;
+      }
+      
+      /* Filter bar sticky on mobile */
+      .news-filter-bar {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        background: #1a1a1a;
+        border-bottom-color: #333;
+      }
+      
+      .search-box input {
+        background: #2d2d2d;
+        border-color: #444;
+        color: #fff;
+        font-size: 16px;
+      }
+      
+      .search-box input::placeholder {
+        color: #888;
+      }
+      
+      .search-box::before {
+        display: none;
+      }
+      
+      .news-main {
+        background: #1a1a1a;
+      }
+      
+      .article-card {
+        background: #2d2d2d;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      }
+      
+      .article-title {
+        color: #fff;
+      }
+      
+      .article-excerpt {
+        color: #aaa;
+      }
+      
+      .article-meta {
+        color: #888;
+      }
+      
+      .article-tag {
+        background: #3d3d3d;
+        color: #aaa;
+      }
+      
+      .empty-state {
+        color: #888;
+      }
+      
+      .site-footer {
+        background: #111;
+        border-top-color: #333;
+      }
+      
+      .article-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  
+  <!-- Navigation (loaded dynamically) -->
+  <div id="site-header"></div>
+  <div id="mobile-menu"></div>
+  <script src="/includes/nav-loader.js"></script>
+
+  <!-- Page Header -->
+  <div class="page-header">
+    <h1 class="page-title">News</h1>
+    <p class="page-subtitle">All the latest from around the Granite State</p>
+  </div>
+
+  <!-- Sport Filter -->
+  <div class="sport-filter-wrapper">
+    <div class="sport-filter">
+      <button class="sport-btn active" id="allSportsBtn" onclick="selectSport('all')">All Sports</button>
+      <button class="sport-btn" id="basketballBtn" onclick="selectSport('basketball')">🏀 Basketball</button>
+      <button class="sport-btn" id="baseballBtn" onclick="selectSport('baseball')">⚾ Baseball</button>
+    </div>
+  </div>
+
+  <!-- Filter Bar -->
+  <div class="news-filter-bar">
+    <div class="filter-inner">
+      <div class="search-box">
+        <input type="text" id="newsSearchInput" placeholder="Search articles...">
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <main class="news-main">
+    <div id="articlesContainer">
+      <div class="loading-state">
+        <div class="loading-spinner"></div>
+        <p>Loading articles...</p>
+      </div>
+    </div>
+    
+    <!-- Pagination -->
+    <div class="pagination" id="pagination" style="display: none;">
+      <button class="pagination-btn" id="prevBtn" disabled>&#8592; Previous</button>
+      <span class="pagination-info" id="pageInfo">Page 1 of 1</span>
+      <button class="pagination-btn" id="nextBtn" disabled>Next &#8594;</button>
+    </div>
+  </main>
+
+  <!-- Site Footer -->
+  <footer class="site-footer">
+    <div class="footer-logo"><img src="/logo.png" alt="Ball603"></div>
+    <div class="footer-links">
+      <a href="/about">About Us</a>
+      <a href="/contact">Contact</a>
+    </div>
+    <div class="footer-social">
+      <a href="https://facebook.com/ball603" target="_blank" title="Facebook"><svg viewBox="0 0 24 24"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg></a>
+      <a href="https://www.instagram.com/ball603nh/" target="_blank" title="Instagram"><svg viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg></a>
+      <a href="https://x.com/Ball603NH" target="_blank" title="X (Twitter)"><svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></a>
+    </div>
+    <p class="footer-copyright">&#169; 2025 Ball603. All rights reserved.</p>
+  </footer>
+
+  <script>
+    // ===== SUPABASE CLIENT =====
+    const SUPABASE_URL = 'https://suncdkxfqkwwnmhosxcf.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN1bmNka3hmcWt3d25taG9zeGNmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwNTk4MzIsImV4cCI6MjA4MDYzNTgzMn0.aT6V8Zx_YozqOh1ZnC6x-czI9vo-QhHKmP69PgY-8xw';
+    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // ===== STATE =====
+    let allArticles = [];
+    let filteredArticles = [];
+    let pinnedArticleIds = [];
+    let currentSport = 'all';
+    
+    // Load pinned articles from site settings
+    async function loadPinnedArticles() {
+      try {
+        const { data, error } = await db
+          .from('site_settings')
+          .select('value')
+          .eq('key', 'pinned_articles')
+          .single();
+        
+        if (data && data.value && Array.isArray(data.value)) {
+          pinnedArticleIds = data.value;
+        }
+      } catch (err) {
+        console.log('No pinned articles found');
+        pinnedArticleIds = [];
+      }
+    }
+    let currentPage = 1;
+    const articlesPerPage = 100;
+
+    // ===== UTILITIES =====
+    function formatDate(dateStr) {
+      if (!dateStr) return '';
+      // Handle YYYY-MM-DD format without timezone shift
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+        const [year, month, day] = dateStr.split('-').map(Number);
+        const date = new Date(year, month - 1, day); // Local midnight
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      }
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function stripHtml(html) {
+      if (!html) return '';
+      const tmp = document.createElement('div');
+      tmp.innerHTML = html;
+      return tmp.textContent || tmp.innerText || '';
+    }
+
+    function truncate(str, len) {
+      if (!str) return '';
+      if (str.length <= len) return str;
+      return str.substring(0, len).trim() + '...';
+    }
+    
+    // Get the effective date string for an article (YYYY-MM-DD format)
+    function getArticleDateString(article) {
+      if (article.article_date) {
+        return article.article_date; // Already YYYY-MM-DD
+      }
+      if (article.published_at) {
+        return article.published_at.split('T')[0]; // Extract date part
+      }
+      return '1970-01-01';
+    }
+    
+    // Get full date for display purposes
+    function getArticleDate(article) {
+      return article.article_date || article.published_at || null;
+    }
+
+    // ===== SPORT FILTER =====
+    function selectSport(sport) {
+      currentSport = sport;
+      
+      // Update button states
+      document.getElementById('allSportsBtn').classList.toggle('active', sport === 'all');
+      document.getElementById('basketballBtn').classList.toggle('active', sport === 'basketball');
+      document.getElementById('baseballBtn').classList.toggle('active', sport === 'baseball');
+      
+      // Re-apply filters
+      applyFiltersAndSort();
+    }
+
+    // ===== LOAD ARTICLES =====
+    async function loadArticles() {
+      console.log('loadArticles called');
+      try {
+        // Load pinned article IDs first
+        await loadPinnedArticles();
+        
+        const { data: articles, error } = await db
+          .from('articles')
+          .select('*')
+          .eq('status', 'published')
+          .order('published_at', { ascending: false });
+
+        if (error) throw error;
+
+        allArticles = articles || [];
+        console.log('Articles loaded:', allArticles.length);
+        
+        // Check for URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const tagParam = urlParams.get('tag');
+        const teamParam = urlParams.get('team');
+        const sportParam = urlParams.get('sport');
+        
+        // Set sport from URL parameter if provided
+        if (sportParam && ['all', 'basketball', 'baseball'].includes(sportParam)) {
+          currentSport = sportParam;
+          document.getElementById('allSportsBtn').classList.toggle('active', sportParam === 'all');
+          document.getElementById('basketballBtn').classList.toggle('active', sportParam === 'basketball');
+          document.getElementById('baseballBtn').classList.toggle('active', sportParam === 'baseball');
+        }
+        
+        // Pre-filter by tag or team if specified in URL
+        if (tagParam) {
+          const tagNormalized = tagParam.toLowerCase().replace(/[^a-z0-9]/g, '');
+          allArticles = allArticles.filter(a => {
+            if (!a.tags) return false;
+            return a.tags.some(t => t.toLowerCase().replace(/[^a-z0-9]/g, '') === tagNormalized);
+          });
+          console.log('Filtered by tag:', tagParam, '- Found:', allArticles.length);
+          // Update page title/subtitle
+          document.querySelector('.page-subtitle').textContent = `Showing articles tagged "${tagParam}"`;
+        } else if (teamParam) {
+          const teamNormalized = teamParam.toLowerCase().replace(/[^a-z0-9]/g, '');
+          allArticles = allArticles.filter(a => {
+            if (!a.tags) return false;
+            return a.tags.some(t => t.toLowerCase().replace(/[^a-z0-9]/g, '') === teamNormalized);
+          });
+          console.log('Filtered by team:', teamParam, '- Found:', allArticles.length);
+          // Update page title/subtitle
+          const teamDisplay = teamParam.split(/[-\s]/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+          document.querySelector('.page-subtitle').textContent = `Showing articles for ${teamDisplay}`;
+        }
+        
+        filteredArticles = [...allArticles];
+        
+        // Apply filters and sort
+        applyFiltersAndSort();
+      } catch (err) {
+        console.error('Error loading articles:', err);
+        document.getElementById('articlesContainer').innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">&#128240;</div>
+            <p>Unable to load articles. Please try again later.</p>
+          </div>
+        `;
+      }
+    }
+
+    // ===== FILTER & SORT =====
+    function applyFiltersAndSort() {
+      const searchTerm = document.getElementById('newsSearchInput').value.toLowerCase();
+      
+      // Filter - search headline, content, tags, AND sport
+      filteredArticles = allArticles.filter(article => {
+        // Sport filter
+        if (currentSport !== 'all') {
+          const articleSport = article.sport || 'basketball'; // Default to basketball if empty/null
+          if (articleSport !== currentSport) return false;
+        }
+        
+        // Search filter
+        if (!searchTerm) return true;
+        
+        const matchesTitle = article.title?.toLowerCase().includes(searchTerm);
+        const matchesContent = stripHtml(article.content)?.toLowerCase().includes(searchTerm);
+        const matchesTags = article.tags && article.tags.some(t => t.toLowerCase().includes(searchTerm));
+        
+        return matchesTitle || matchesContent || matchesTags;
+      });
+      
+      // Sort: pinned articles first (in pin order), then by date (newest first)
+      filteredArticles.sort((a, b) => {
+        const aPinIndex = pinnedArticleIds.indexOf(a.id);
+        const bPinIndex = pinnedArticleIds.indexOf(b.id);
+        
+        // Both pinned - sort by pin order
+        if (aPinIndex !== -1 && bPinIndex !== -1) {
+          return aPinIndex - bPinIndex;
+        }
+        
+        // Only a is pinned - a comes first
+        if (aPinIndex !== -1) return -1;
+        
+        // Only b is pinned - b comes first
+        if (bPinIndex !== -1) return 1;
+        
+        // Neither pinned - sort by date (newest first)
+        const dateA = getArticleDateString(a);
+        const dateB = getArticleDateString(b);
+        
+        if (dateA !== dateB) {
+          return dateB.localeCompare(dateA);
+        }
+        // Same date - use published_at timestamp as tiebreaker
+        const timeA = a.published_at ? new Date(a.published_at).getTime() : 0;
+        const timeB = b.published_at ? new Date(b.published_at).getTime() : 0;
+        return timeB - timeA;
+      });
+      
+      currentPage = 1;
+      renderArticles();
+    }
+
+    // ===== RENDER ARTICLES =====
+    function renderArticles() {
+      const container = document.getElementById('articlesContainer');
+      const pagination = document.getElementById('pagination');
+      
+      if (filteredArticles.length === 0) {
+        const sportLabel = currentSport === 'all' ? '' : ` ${currentSport}`;
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">&#128240;</div>
+            <p>${allArticles.length === 0 ? 'No articles yet. Check back soon!' : `No${sportLabel} articles match your search.`}</p>
+          </div>
+        `;
+        pagination.style.display = 'none';
+        return;
+      }
+      
+      // Pagination
+      const totalPages = Math.ceil(filteredArticles.length / articlesPerPage);
+      const startIndex = (currentPage - 1) * articlesPerPage;
+      const endIndex = startIndex + articlesPerPage;
+      const pageArticles = filteredArticles.slice(startIndex, endIndex);
+      
+      // Render grid
+      container.innerHTML = `<div class="article-grid">${pageArticles.map(renderArticleCard).join('')}</div>`;
+      
+      // Update pagination
+      if (totalPages > 1) {
+        pagination.style.display = 'flex';
+        document.getElementById('pageInfo').textContent = `Page ${currentPage} of ${totalPages}`;
+        document.getElementById('prevBtn').disabled = currentPage === 1;
+        document.getElementById('nextBtn').disabled = currentPage === totalPages;
+      } else {
+        pagination.style.display = 'none';
+      }
+    }
+
+    function renderArticleCard(article) {
+      const image = article.featured_image_url || '/logo.png';
+      const url = `/article/${article.slug}`;
+      const isPinned = pinnedArticleIds.includes(article.id);
+      
+      // Get photographer - check top-level first, then game_data
+      const photographer = article.photographer || article.game_data?.photographerName || '';
+      
+      // Get author (only show if not Ball603 Staff)
+      const author = article.author && article.author.toLowerCase() !== 'ball603 staff' ? article.author : '';
+      
+      // Get the display date
+      const displayDate = getArticleDate(article);
+
+      // Build meta items
+      let metaHtml = `<span class="article-meta-item">&#128197; ${formatDate(displayDate)}</span>`;
+      
+      if (author) {
+        metaHtml += `<span class="article-meta-item">&#9998; ${escapeHtml(author)}</span>`;
+      }
+      
+      if (photographer) {
+        metaHtml += `<span class="article-meta-item">&#128247; ${escapeHtml(photographer)}</span>`;
+      }
+
+      return `
+        <a href="${url}" class="article-card${isPinned ? ' pinned' : ''}">
+          <div class="article-thumbnail">
+            <img src="${image}" alt="${escapeHtml(article.title)}" onerror="this.src='/logo.png'; this.style.objectFit='contain'; this.style.padding='20px'; this.style.background='#f5f5f5';">
+            ${isPinned ? '<span class="pinned-badge">📌</span>' : ''}
+          </div>
+          <div class="article-info">
+            <h3 class="article-title">${escapeHtml(article.title)}</h3>
+            <div class="article-meta">
+              ${metaHtml}
+            </div>
+          </div>
+        </a>
+      `;
+    }
+
+    // ===== EVENT LISTENERS =====
+    function initEventListeners() {
+      // Search
+      let searchTimeout;
+      document.getElementById('newsSearchInput').addEventListener('input', () => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(applyFiltersAndSort, 300);
+      });
+      
+      // Pagination
+      document.getElementById('prevBtn').addEventListener('click', () => {
+        if (currentPage > 1) {
+          currentPage--;
+          renderArticles();
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      });
+      
+      document.getElementById('nextBtn').addEventListener('click', () => {
+        const totalPages = Math.ceil(filteredArticles.length / articlesPerPage);
+        if (currentPage < totalPages) {
+          currentPage++;
+          renderArticles();
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      });
+    }
+
+    // ===== INIT =====
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log('News page DOMContentLoaded');
+      initEventListeners();
+      loadArticles();
+    });
+  </script>
+</body>
+</html>
