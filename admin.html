@@ -20946,7 +20946,9 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       
       const options = data.allTopMatchups.map(m => {
         const selected = m.gameId === gotn.gameId ? 'selected' : '';
-        return `<option value="${m.gameId}" ${selected}>${m.gender} ${m.division}: ${m.awayTeam} at ${m.homeTeam}</option>`;
+        const awayRpi = m.awayDisplay.rpiRank ? `#${m.awayDisplay.rpiRank}` : '?';
+        const homeRpi = m.homeDisplay.rpiRank ? `#${m.homeDisplay.rpiRank}` : '?';
+        return `<option value="${m.gameId}" ${selected}>${m.gender} ${m.division}: ${m.awayTeam} (${awayRpi}) at ${m.homeTeam} (${homeRpi})</option>`;
       }).join('');
       
       return `
@@ -20986,6 +20988,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const awayRecordValue = `${awayStats.awayRecord.wins}-${awayStats.awayRecord.losses}`;
       const homeRecordValue = `${homeStats.homeRecord.wins}-${homeStats.homeRecord.losses}`;
       
+      // Format rank with CURRENT RPI in parentheses for admin preview
+      const awayRankDisplay = away.currentRpiRank ? `${away.rank} (RPI: ${away.currentRpiRank})` : away.rank;
+      const homeRankDisplay = home.currentRpiRank ? `${home.rank} (RPI: ${home.currentRpiRank})` : home.rank;
+      
       let previousHtml = '';
       if (matchup.previousMatchup) {
         const prev = matchup.previousMatchup;
@@ -21000,8 +21006,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             <th><img src="/logos/100px/${toLogoFilename(matchup.homeTeam)}" class="team-logo" onerror="this.src='/logo.png'"><br>${matchup.homeTeam}</th>
           </tr>
           <tr><td class="stat-label">Record</td><td>${away.record}</td><td>${home.record}</td></tr>
-          <tr><td class="stat-label">Rank</td><td>${away.rank}</td><td>${home.rank}</td></tr>
-          <tr><td class="stat-label">RPI Rank</td><td>${away.rpiRank || '—'}</td><td>${home.rpiRank || '—'}</td></tr>
+          <tr><td class="stat-label">Rank</td><td>${awayRankDisplay}</td><td>${homeRankDisplay}</td></tr>
           <tr><td class="stat-label">Streak</td><td>${awayStats.streak}</td><td>${homeStats.streak}</td></tr>
           <tr><td class="stat-label">Road / Home</td><td>${awayRecordValue}</td><td>${homeRecordValue}</td></tr>
           <tr><td class="stat-label">PPG</td><td>${awayStats.ppg}</td><td>${homeStats.ppg}</td></tr>
@@ -21066,6 +21071,15 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         const prev = matchup.previousMatchup;
         previousHtml = `<div class="capsule-previous">Earlier this season: ${prev.winner} ${prev.winnerScore}, ${prev.loser} ${prev.loserScore} (${prev.dateFormatted})</div>`;
       }
+      
+      // Format rank with CURRENT RPI in parentheses for admin preview
+      const awayRankDisplay = matchup.awayDisplay.currentRpiRank 
+        ? `${matchup.awayDisplay.rank} (RPI: ${matchup.awayDisplay.currentRpiRank})` 
+        : matchup.awayDisplay.rank;
+      const homeRankDisplay = matchup.homeDisplay.currentRpiRank 
+        ? `${matchup.homeDisplay.rank} (RPI: ${matchup.homeDisplay.currentRpiRank})` 
+        : matchup.homeDisplay.rank;
+      
       return `
         <div class="matchup-capsule">
           <div class="capsule-teams">
@@ -21073,7 +21087,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
               <img src="/logos/100px/${toLogoFilename(matchup.awayTeam)}" class="capsule-team-logo" onerror="this.src='/logo.png'">
               <div class="capsule-team-info">
                 <div class="capsule-team-name">${matchup.awayTeam}</div>
-                <div class="capsule-team-record">${matchup.awayDisplay.record}, ${matchup.awayDisplay.rank}</div>
+                <div class="capsule-team-record">${matchup.awayDisplay.record}, ${awayRankDisplay}</div>
               </div>
             </div>
             <div class="capsule-vs">at</div>
@@ -21081,7 +21095,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
               <img src="/logos/100px/${toLogoFilename(matchup.homeTeam)}" class="capsule-team-logo" onerror="this.src='/logo.png'">
               <div class="capsule-team-info">
                 <div class="capsule-team-name">${matchup.homeTeam}</div>
-                <div class="capsule-team-record">${matchup.homeDisplay.record}, ${matchup.homeDisplay.rank}</div>
+                <div class="capsule-team-record">${matchup.homeDisplay.record}, ${homeRankDisplay}</div>
               </div>
             </div>
           </div>
