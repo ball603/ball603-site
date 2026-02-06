@@ -5030,6 +5030,12 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         <span>+</span> Add Player
       </button>
       <div style="margin-left: auto; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+        <select id="ncaaSportFilter" onchange="filterNCAAPlayers()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px;">
+          <option value="">All Sports</option>
+          <option value="basketball">🏀 Basketball</option>
+          <option value="baseball">⚾ Baseball</option>
+          <option value="volleyball">🏐 Volleyball</option>
+        </select>
         <select id="ncaaCollegeFilter" onchange="filterNCAAPlayers()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px;">
           <option value="">All Colleges</option>
         </select>
@@ -5064,10 +5070,11 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     </div>
     
     <div class="article-list" id="ncaaPlayersList" style="margin-top: 15px; max-height: 600px; overflow-y: auto;">
-      <div class="article-row header" style="grid-template-columns: 1fr 180px 180px 60px 60px 100px;">
+      <div class="article-row header" style="grid-template-columns: 1fr 150px 150px 80px 60px 60px 100px;">
         <div>Name</div>
         <div>High School</div>
         <div>College</div>
+        <div>Sport</div>
         <div>Gender</div>
         <div>Div</div>
         <div>Actions</div>
@@ -5098,7 +5105,15 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         <datalist id="collegesList"></datalist>
       </div>
       
-      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+        <div class="form-group">
+          <label>Sport</label>
+          <select id="ncaaPlayerSport" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+            <option value="basketball">🏀 Basketball</option>
+            <option value="baseball">⚾ Baseball</option>
+            <option value="volleyball">🏐 Volleyball</option>
+          </select>
+        </div>
         <div class="form-group">
           <label>Gender</label>
           <select id="ncaaPlayerGender" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
@@ -18823,6 +18838,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     }
     
     function filterNCAAPlayers() {
+      const sport = document.getElementById('ncaaSportFilter').value;
       const college = document.getElementById('ncaaCollegeFilter').value;
       const gender = document.getElementById('ncaaGenderFilter').value;
       const division = document.getElementById('ncaaDivisionFilter').value;
@@ -18830,6 +18846,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const search = document.getElementById('ncaaSearchBox').value.toLowerCase();
       
       let filtered = allNCAAPlayers.filter(p => {
+        if (sport && (p.sport || 'basketball') !== sport) return false;
         if (college && p.college !== college) return false;
         if (gender && p.gender !== gender) return false;
         if (division && p.division !== division) return false;
@@ -18865,29 +18882,36 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const activeCount = allNCAAPlayers.filter(p => p.active !== false).length;
       countEl.textContent = `${players.length} of ${allNCAAPlayers.length} players | ${activeCount} currently active`;
       
+      const SPORT_EMOJIS = { basketball: '🏀', baseball: '⚾', volleyball: '🏐' };
+      
       if (players.length === 0) {
         container.innerHTML = `
-          <div class="article-row header" style="grid-template-columns: 1fr 180px 180px 60px 60px 100px;">
-            <div>Name</div><div>High School</div><div>College</div><div>Gender</div><div>Div</div><div>Actions</div>
+          <div class="article-row header" style="grid-template-columns: 1fr 150px 150px 80px 60px 60px 100px;">
+            <div>Name</div><div>High School</div><div>College</div><div>Sport</div><div>Gender</div><div>Div</div><div>Actions</div>
           </div>
           <div style="padding: 40px; text-align: center; color: #999;">No players found</div>`;
         return;
       }
       
       container.innerHTML = `
-        <div class="article-row header" style="grid-template-columns: 1fr 180px 180px 60px 60px 100px;">
+        <div class="article-row header" style="grid-template-columns: 1fr 150px 150px 80px 60px 60px 100px;">
           <div class="sortable" onclick="sortNCAAPlayers('name')" style="cursor: pointer;">Name ${ncaaSortField === 'name' ? (ncaaSortDir === 'asc' ? '↑' : '↓') : ''}</div>
           <div class="sortable" onclick="sortNCAAPlayers('high_school')" style="cursor: pointer;">High School ${ncaaSortField === 'high_school' ? (ncaaSortDir === 'asc' ? '↑' : '↓') : ''}</div>
           <div class="sortable" onclick="sortNCAAPlayers('college')" style="cursor: pointer;">College ${ncaaSortField === 'college' ? (ncaaSortDir === 'asc' ? '↑' : '↓') : ''}</div>
+          <div class="sortable" onclick="sortNCAAPlayers('sport')" style="cursor: pointer;">Sport ${ncaaSortField === 'sport' ? (ncaaSortDir === 'asc' ? '↑' : '↓') : ''}</div>
           <div>Gender</div>
           <div>Div</div>
           <div>Actions</div>
         </div>
-        ${players.map(p => `
-          <div class="article-row ${p.active === false ? '' : ''}" style="grid-template-columns: 1fr 180px 180px 60px 60px 100px; ${p.active === false ? 'opacity: 0.5;' : ''}">
+        ${players.map(p => {
+          const sport = p.sport || 'basketball';
+          const sportEmoji = SPORT_EMOJIS[sport] || '🏀';
+          return `
+          <div class="article-row ${p.active === false ? '' : ''}" style="grid-template-columns: 1fr 150px 150px 80px 60px 60px 100px; ${p.active === false ? 'opacity: 0.5;' : ''}">
             <div style="font-weight: 500;">${p.name}${p.active === false ? ' <span style="color: #999; font-size: 11px;">(inactive)</span>' : ''}</div>
             <div style="font-size: 13px; color: #666;">${p.high_school}</div>
             <div style="font-size: 13px;">${p.college}</div>
+            <div style="font-size: 12px;">${sportEmoji}</div>
             <div>${p.gender ? `<span style="background: ${p.gender === 'Boys' ? '#e3f2fd' : '#fce4ec'}; color: ${p.gender === 'Boys' ? '#1565c0' : '#c2185b'}; padding: 2px 6px; border-radius: 10px; font-size: 11px;">${p.gender === 'Boys' ? 'B' : 'G'}</span>` : '<span style="color: #ccc;">—</span>'}</div>
             <div style="font-size: 12px; color: ${p.division === 'D1' ? '#ff6f00' : '#666'};">${p.division || '—'}</div>
             <div class="article-actions">
@@ -18895,7 +18919,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
               <button class="btn-delete" onclick="confirmDeleteNCAAPlayer(${p.id})">Del</button>
             </div>
           </div>
-        `).join('')}`;
+        `}).join('')}`;
     }
     
     function sortNCAAPlayers(field) {
@@ -18913,6 +18937,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('ncaaPlayerName').value = player?.name || '';
       document.getElementById('ncaaPlayerHighSchool').value = player?.high_school || '';
       document.getElementById('ncaaPlayerCollege').value = player?.college || '';
+      document.getElementById('ncaaPlayerSport').value = player?.sport || 'basketball';
       document.getElementById('ncaaPlayerGender').value = player?.gender || '';
       document.getElementById('ncaaPlayerDivision').value = player?.division || '';
       document.getElementById('ncaaPlayerGradYear').value = player?.grad_year || '';
@@ -18942,6 +18967,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const name = document.getElementById('ncaaPlayerName').value.trim();
       const high_school = document.getElementById('ncaaPlayerHighSchool').value.trim();
       const college = document.getElementById('ncaaPlayerCollege').value.trim();
+      const sport = document.getElementById('ncaaPlayerSport').value || 'basketball';
       const gender = document.getElementById('ncaaPlayerGender').value || null;
       const division = document.getElementById('ncaaPlayerDivision').value || null;
       const grad_year = document.getElementById('ncaaPlayerGradYear').value ? parseInt(document.getElementById('ncaaPlayerGradYear').value) : null;
@@ -18955,7 +18981,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       }
       
       try {
-        const data = { name, high_school, college, gender, division, grad_year, position, notes, active, updated_at: new Date().toISOString() };
+        const data = { name, high_school, college, sport, gender, division, grad_year, position, notes, active, updated_at: new Date().toISOString() };
         
         if (id) {
           const { error } = await db.from('ncaa_players').update(data).eq('id', id);
