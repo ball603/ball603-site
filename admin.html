@@ -19150,9 +19150,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       baseball: `
         <strong>How RPI is calculated (Baseball):</strong><br>
         • <strong>RPI:</strong> (Win % × 25%) + (Opp Win % × 50%) + (Opp-Opp Win % × 25%)<br>
-        • <strong>Win %:</strong> Weighted by location:<br>
-        &nbsp;&nbsp;&nbsp;- Home Win: 0.7 | Road Win: 1.3 | Neutral Win: 1.0<br>
-        &nbsp;&nbsp;&nbsp;- Home Loss: 1.3 | Road Loss: 0.7 | Neutral Loss: 1.0<br>
+        • <strong>Win %:</strong> Weighted by location (road win=1.3, home win=0.7, road loss=0.7, home loss=1.3)<br>
         • <strong>Opp Win %:</strong> Opponents' win % excluding games against this team<br>
         • <strong>Opp-Opp Win %:</strong> Average of opponents' Opp Win % values<br>
         <em style="color:#e65100;">⚾ Baseball RPI begins the first Monday of May</em>
@@ -19247,7 +19245,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         const { data: standings, error: standingsError } = await db
           .from('standings')
           .select('school, gender, division, wins, losses')
-          .eq('gender', gender);
+          .eq('gender', gender)
+          .eq('sport', sport);
         
         if (standingsError) throw standingsError;
         
@@ -19322,8 +19321,17 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         const results = [];
         const nhiaaTeams = new Set(standings.map(s => s.school));
         
+        // Sport-specific RPI weights
+        // Basketball/Volleyball: Home Win = 0.6, Road Win = 1.4, Home Loss = 1.4, Road Loss = 0.6
+        // Baseball: Home Win = 0.7, Road Win = 1.3, Home Loss = 1.3, Road Loss = 0.7
+        const RPI_WEIGHTS = {
+          basketball: { homeWin: 0.6, roadWin: 1.4, homeLoss: 1.4, roadLoss: 0.6 },
+          volleyball: { homeWin: 0.6, roadWin: 1.4, homeLoss: 1.4, roadLoss: 0.6 },
+          baseball:   { homeWin: 0.7, roadWin: 1.3, homeLoss: 1.3, roadLoss: 0.7 }
+        };
+        const weights = RPI_WEIGHTS[sport] || RPI_WEIGHTS.basketball;
+        
         // First pass: Calculate each team's weighted WP for RPI
-        // Home win = 0.6, Road win = 1.4, Home loss = 1.4, Road loss = 0.6
         const teamWeightedWP = new Map();
         
         for (const teamName of nhiaaTeams) {
@@ -19345,9 +19353,9 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             const won = teamScore > oppScore;
             
             if (won) {
-              weightedWins += isHome ? 0.6 : 1.4; // Home win = 0.6, Road win = 1.4
+              weightedWins += isHome ? weights.homeWin : weights.roadWin;
             } else {
-              weightedLosses += isHome ? 1.4 : 0.6; // Home loss = 1.4, Road loss = 0.6
+              weightedLosses += isHome ? weights.homeLoss : weights.roadLoss;
             }
           }
           
