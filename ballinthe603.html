@@ -142,6 +142,7 @@
         .game-meta-row { display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.2rem; }
         .game-type-badge { font-size: 0.6rem; font-weight: 700; text-transform: uppercase; padding: 0.1rem 0.3rem; border-radius: 2px; background: var(--primary); color: white; flex-shrink: 0; }
         .game-type-badge.girls { background: #333; }
+        .sport-emoji { font-size: 0.85rem; flex-shrink: 0; }
         .game-time { font-weight: 700; color: var(--text-primary); font-size: 0.8rem; }
         .game-location { margin-left: auto; display: flex; align-items: center; gap: 0.2rem; color: var(--text-muted); font-size: 0.75rem; }
         .game-location svg { width: 11px; height: 11px; color: var(--primary); flex-shrink: 0; }
@@ -360,6 +361,11 @@
             return timeStr.replace(/^0(\d)/, '$1');
         }
 
+        function getSportEmoji(sport) {
+            const emojis = { 'basketball': '🏀', 'baseball': '⚾', 'volleyball': '🏐' };
+            return emojis[(sport || 'basketball').toLowerCase()] || '🏀';
+        }
+
         let map, markers = [], nhBorderLayer, userLocation = null, userMarker = null;
         let currentFilter = 'all', currentRegion = 'all', activeGameId = null;
         let currentDate = new Date(), allGames = [];
@@ -526,7 +532,8 @@
             let popupContent = `<div class="popup-content"><div class="popup-school">${school.name}</div>`;
             games.forEach(game => {
                 const genderLabel = (game.gender || 'TBD').charAt(0).toUpperCase() + (game.gender || '').slice(1);
-                popupContent += `<div class="popup-game"><div class="popup-game-time">${formatTime(game.time)} • ${genderLabel}</div><div class="popup-teams">${game.away}<span class="popup-vs">@</span>${game.home}</div></div>`;
+                const sportEmoji = getSportEmoji(game.sport);
+                popupContent += `<div class="popup-game"><div class="popup-game-time">${formatTime(game.time)} • ${genderLabel} ${sportEmoji}</div><div class="popup-teams">${game.away}<span class="popup-vs">@</span>${game.home}</div></div>`;
             });
             popupContent += '</div>';
             
@@ -554,6 +561,7 @@
                 return `<div class="game-card ${activeGameId === game.id ? 'active' : ''}" data-game-id="${game.id}" data-school="${homeKey || ''}">
                     <div class="game-meta-row">
                         <span class="game-type-badge ${genderClass}">${genderLabel}</span>
+                        <span class="sport-emoji">${getSportEmoji(game.sport)}</span>
                         <span class="game-time">${formatTime(game.time)}</span>
                         <span class="game-location"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>${town}${distHtml}</span>
                     </div>
