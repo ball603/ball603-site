@@ -4722,16 +4722,22 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       
       <!-- Publish RPI Section -->
       <div style="margin-top: 20px; padding: 20px; background: #fff; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.08);">
-        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px;">
-          <div>
-            <strong style="font-size: 15px;">Publish RPI Rankings</strong>
-            <p style="color: #666; font-size: 13px; margin: 5px 0 0;">Save current calculations to the database for the public RPI page.</p>
-          </div>
-          <button onclick="publishRPI()" id="publishRpiBtn" style="padding: 12px 24px; background: #2e7d32; color: white; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;">
-            📊 Publish All RPI Rankings
+        <div style="margin-bottom: 15px;">
+          <strong style="font-size: 15px;">Publish RPI Rankings</strong>
+          <p style="color: #666; font-size: 13px; margin: 5px 0 0;">Save current calculations to the database for the public RPI page.</p>
+        </div>
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+          <button onclick="publishRPI('basketball')" id="publishRpiBtn-basketball" style="padding: 12px 20px; background: #f57c00; color: white; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;">
+            🏀 Publish Basketball
+          </button>
+          <button onclick="publishRPI('baseball')" id="publishRpiBtn-baseball" style="padding: 12px 20px; background: #2e7d32; color: white; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;">
+            ⚾ Publish Baseball
+          </button>
+          <button onclick="publishRPI('volleyball')" id="publishRpiBtn-volleyball" style="padding: 12px 20px; background: #1565c0; color: white; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;">
+            🏐 Publish Volleyball
           </button>
         </div>
-        <div id="publishRpiStatus" style="margin-top: 10px; font-size: 13px; display: none;"></div>
+        <div id="publishRpiStatus" style="margin-top: 12px; font-size: 13px; display: none;"></div>
       </div>
     </div>
   </div>
@@ -19636,10 +19642,11 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     }
     
     // ===== PUBLISH RPI TO DATABASE =====
-    async function publishRPI() {
-      const btn = document.getElementById('publishRpiBtn');
+    async function publishRPI(sport) {
+      const btn = document.getElementById(`publishRpiBtn-${sport}`);
       const status = document.getElementById('publishRpiStatus');
-      const sport = document.getElementById('sosSport')?.value || 'basketball';
+      const sportLabels = { basketball: '🏀 Basketball', baseball: '⚾ Baseball', volleyball: '🏐 Volleyball' };
+      const sportLabel = sportLabels[sport] || sport;
       
       // Determine season based on sport
       const now = new Date();
@@ -19662,17 +19669,17 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const weekOf = monday.toISOString().split('T')[0];
       
       btn.disabled = true;
-      btn.textContent = '⏳ Publishing...';
+      btn.textContent = `⏳ Publishing ${sport}...`;
       status.style.display = 'block';
       status.style.color = '#666';
-      status.textContent = 'Calculating RPI for all genders and divisions...';
+      status.textContent = `Calculating ${sportLabel} RPI...`;
       
       try {
         const genders = sport === 'baseball' ? ['Boys'] : sport === 'volleyball' ? ['Girls'] : ['Boys', 'Girls'];
         const allRecords = [];
         
         for (const gender of genders) {
-          status.textContent = `Calculating ${gender} RPI...`;
+          status.textContent = `Calculating ${sportLabel} ${gender} RPI...`;
           
           // Fetch completed games
           const { data: completedGames, error: gamesError } = await db
@@ -19940,13 +19947,15 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         
         if (insertError) throw insertError;
         
+        const btnLabels = { basketball: '🏀 Publish Basketball', baseball: '⚾ Publish Baseball', volleyball: '🏐 Publish Volleyball' };
+        
         status.style.color = '#2e7d32';
         status.textContent = `✅ Published ${allRecords.length} RPI rankings for ${sport} (${season}, week of ${weekOf})`;
         btn.textContent = '✅ Published!';
         
         setTimeout(() => {
           btn.disabled = false;
-          btn.textContent = '📊 Publish All RPI Rankings';
+          btn.textContent = btnLabels[sport] || `Publish ${sport}`;
         }, 3000);
         
       } catch (err) {
@@ -19954,7 +19963,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         status.style.color = '#c62828';
         status.textContent = `❌ Error: ${err.message}`;
         btn.disabled = false;
-        btn.textContent = '📊 Publish All RPI Rankings';
+        const btnLabels = { basketball: '🏀 Publish Basketball', baseball: '⚾ Publish Baseball', volleyball: '🏐 Publish Volleyball' };
+        btn.textContent = btnLabels[sport] || `Publish ${sport}`;
       }
     }
     
