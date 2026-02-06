@@ -34,6 +34,8 @@
       height: auto;
       opacity: 0;
       display: block;
+      margin-left: auto;
+      margin-right: auto;
     }
     
     /* Top text - comes in from above */
@@ -226,6 +228,47 @@
       border-color: rgba(255,255,255,0.5);
     }
     
+    /* Tap to start overlay */
+    .tap-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #000;
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    
+    .tap-overlay.hidden {
+      display: none;
+    }
+    
+    .tap-content {
+      text-align: center;
+    }
+    
+    .tap-icon {
+      font-size: 80px;
+      margin-bottom: 20px;
+      animation: tapPulse 2s ease-in-out infinite;
+    }
+    
+    .tap-text {
+      font-size: 24px;
+      color: #fff;
+      font-weight: 600;
+      letter-spacing: 2px;
+    }
+    
+    @keyframes tapPulse {
+      0%, 100% { transform: scale(1); opacity: 0.8; }
+      50% { transform: scale(1.1); opacity: 1; }
+    }
+    
   </style>
 </head>
 <body>
@@ -246,6 +289,14 @@
   
   <button class="skip-btn" id="skipBtn" onclick="skipSplash()">Skip &#8594;</button>
   
+  <!-- Tap to start overlay (for mobile audio) -->
+  <div class="tap-overlay" id="tapOverlay" onclick="startWithAudio()">
+    <div class="tap-content">
+      <div class="tap-icon">&#9918;</div>
+      <div class="tap-text">Tap to Start</div>
+    </div>
+  </div>
+  
   <!-- Sound effect -->
   <audio id="batSound" preload="auto">
     <source src="/logos/baseball.mp3" type="audio/mpeg">
@@ -257,14 +308,16 @@
     // const hasSeenSplash = localStorage.getItem('ball603_baseball_splash_seen');
     const hasSeenSplash = false; // Always show during testing
     
-    // For testing, uncomment this line to always show splash:
-    // localStorage.removeItem('ball603_baseball_splash_seen');
-    
     if (hasSeenSplash) {
       // Skip directly to homepage
       window.location.href = '/index.html';
-    } else {
-      // Run the animation sequence
+    }
+    // Animation waits for tap to start (for mobile audio unlock)
+    
+    function startWithAudio() {
+      // Hide tap overlay
+      document.getElementById('tapOverlay').classList.add('hidden');
+      // Start animation
       runSplashAnimation();
     }
     
