@@ -464,6 +464,7 @@
     <!-- Sport Filter -->
     <div class="sport-filter-wrapper">
       <div class="sport-filter">
+        <button class="sport-btn" id="allSportsBtn" onclick="selectSport('all')">All Sports</button>
         <button class="sport-btn active" id="basketballBtn" onclick="selectSport('basketball')">🏀 Basketball</button>
         <button class="sport-btn" id="baseballBtn" onclick="selectSport('baseball')">⚾ Baseball</button>
         <!-- <button class="sport-btn" id="volleyballBtn" onclick="selectSport('volleyball')">🏐 Volleyball</button> -->
@@ -483,7 +484,7 @@
       <table class="ncaa-table" id="playersTable">
         <thead>
           <tr>
-            <th data-sort="sport" style="width: 50px; text-align: center;">Sport <span class="sort-icon">&#9650;</span></th>
+            <th style="width: 50px; text-align: center;">Sport</th>
             <th data-sort="name" class="sorted">Name <span class="sort-icon">&#9650;</span></th>
             <th data-sort="school">High School <span class="sort-icon">&#9650;</span></th>
             <th data-sort="college">College <span class="sort-icon">&#9650;</span></th>
@@ -602,22 +603,30 @@
       currentSport = sport;
       
       // Update sport buttons
+      document.getElementById('allSportsBtn').classList.toggle('active', sport === 'all');
       document.getElementById('basketballBtn').classList.toggle('active', sport === 'basketball');
       document.getElementById('baseballBtn').classList.toggle('active', sport === 'baseball');
       // document.getElementById('volleyballBtn').classList.toggle('active', sport === 'volleyball');
       
       // Update page title
-      const sportName = SPORT_NAMES[sport] || 'Sports';
-      document.getElementById('pageTitle').textContent = `603 in the NCAA - ${sportName} | Ball603`;
-      document.getElementById('heroSubtitle').innerHTML = `New Hampshire Players in College ${sportName} &#8226; 2025-26 Season`;
+      const sportName = sport === 'all' ? '' : (SPORT_NAMES[sport] || 'Sports');
+      if (sport === 'all') {
+        document.getElementById('pageTitle').textContent = `603 in the NCAA | Ball603`;
+        document.getElementById('heroSubtitle').innerHTML = `New Hampshire Players in College &#8226; 2025-26 Season`;
+      } else {
+        document.getElementById('pageTitle').textContent = `603 in the NCAA - ${sportName} | Ball603`;
+        document.getElementById('heroSubtitle').innerHTML = `New Hampshire Players in College ${sportName} &#8226; 2025-26 Season`;
+      }
       
       applyFilters();
       updateStats();
     }
     
     function updateStats() {
-      // Filter players by current sport for stats
-      const sportPlayers = allPlayers.filter(p => (p.sport || 'basketball') === currentSport);
+      // Filter players by current sport for stats (or all if 'all' selected)
+      const sportPlayers = currentSport === 'all' 
+        ? allPlayers 
+        : allPlayers.filter(p => (p.sport || 'basketball') === currentSport);
       
       document.getElementById('totalPlayers').textContent = sportPlayers.length;
       
@@ -671,9 +680,11 @@
       const search = document.getElementById('playerSearch').value.toLowerCase().trim();
       
       filteredPlayers = allPlayers.filter(player => {
-        // Filter by sport
-        const playerSport = player.sport || 'basketball';
-        if (playerSport !== currentSport) return false;
+        // Filter by sport (skip if 'all' selected)
+        if (currentSport !== 'all') {
+          const playerSport = player.sport || 'basketball';
+          if (playerSport !== currentSport) return false;
+        }
         
         // Filter by search
         if (search) {
@@ -717,9 +728,6 @@
         } else if (sortColumn === 'college') {
           valA = a.college.toLowerCase();
           valB = b.college.toLowerCase();
-        } else if (sortColumn === 'sport') {
-          valA = (a.sport || 'basketball').toLowerCase();
-          valB = (b.sport || 'basketball').toLowerCase();
         }
         
         if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
