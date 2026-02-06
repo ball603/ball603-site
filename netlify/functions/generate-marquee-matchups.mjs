@@ -716,11 +716,12 @@ export default async (request) => {
     console.log(`Generating marquee matchups for ${date}`);
 
     // Fetch all required data in parallel
+    // Filter by basketball sport for all queries
     const [games, standings, allGames, rpiRankings] = await Promise.all([
-      supabaseQuery('games', `?date=eq.${date}&level=eq.NHIAA&order=division,gender,time`),
-      supabaseQuery('standings', '?select=*'),
-      supabaseQuery('games', '?level=eq.NHIAA&select=*'),
-      supabaseQuery('rpi_rankings', '?select=team,gender,division,rpi,rank,wins,losses&order=week_of.desc&limit=500')
+      supabaseQuery('games', `?date=eq.${date}&level=eq.NHIAA&sport=eq.basketball&order=division,gender,time`),
+      supabaseQuery('standings', '?select=*&sport=eq.basketball'),
+      supabaseQuery('games', '?level=eq.NHIAA&sport=eq.basketball&select=*'),
+      supabaseQuery('rpi_rankings', '?select=team,gender,division,rpi,rank,wins,losses&sport=eq.basketball&order=week_of.desc&limit=500')
     ]);
 
     console.log(`Found ${games.length} games on ${date}`);
