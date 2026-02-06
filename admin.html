@@ -4661,6 +4661,12 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       <h2 style="margin-bottom: 20px; color: #333;">📊 NHIAA RPI</h2>
       
       <div style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; align-items: center;">
+        <select id="sosSport" onchange="onSportChange()" style="padding: 10px 15px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; font-weight: 600;">
+          <option value="basketball">🏀 Basketball</option>
+          <option value="baseball">⚾ Baseball</option>
+          <option value="volleyball">🏐 Volleyball</option>
+        </select>
+        
         <select id="sosGender" onchange="loadSOSData()" style="padding: 10px 15px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px;">
           <option value="Girls">Girls</option>
           <option value="Boys">Boys</option>
@@ -4706,10 +4712,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         </table>
       </div>
       
-      <div style="margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px; font-size: 13px; color: #666;">
-        <strong>How RPI is calculated:</strong><br>
+      <div style="margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px; font-size: 13px; color: #666;" id="rpiFormulaBox">
+        <strong>How RPI is calculated (Basketball):</strong><br>
         • <strong>RPI:</strong> (Win % × 25%) + (Opp Win % × 50%) + (Opp-Opp Win % × 25%)<br>
-        • <strong>Win %:</strong> Weighted by location (road win=1.4, home win=0.6, road loss=0.6, home loss=1.4)<br>
+        • <strong>Win %:</strong> Weighted by location (road win=1.3, home win=0.7, road loss=0.7, home loss=1.3)<br>
         • <strong>Opp Win %:</strong> Opponents' win % excluding games against this team<br>
         • <strong>Opp-Opp Win %:</strong> Average of opponents' Opp Win % values
       </div>
@@ -19104,8 +19110,70 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     let sosData = [];
     let sosSortField = 'playedSosRank';
     let sosSortDir = 'asc';
+    let currentRpiSport = 'basketball';
+    
+    // RPI formula info for each sport
+    const RPI_FORMULAS = {
+      basketball: `
+        <strong>How RPI is calculated (Basketball):</strong><br>
+        • <strong>RPI:</strong> (Win % × 25%) + (Opp Win % × 50%) + (Opp-Opp Win % × 25%)<br>
+        • <strong>Win %:</strong> Weighted by location (road win=1.3, home win=0.7, road loss=0.7, home loss=1.3)<br>
+        • <strong>Opp Win %:</strong> Opponents' win % excluding games against this team<br>
+        • <strong>Opp-Opp Win %:</strong> Average of opponents' Opp Win % values
+      `,
+      baseball: `
+        <strong>How RPI is calculated (Baseball):</strong><br>
+        • <strong>RPI:</strong> (Win % × 25%) + (Opp Win % × 50%) + (Opp-Opp Win % × 25%)<br>
+        • <strong>Win %:</strong> Weighted by location:<br>
+        &nbsp;&nbsp;&nbsp;- Home Win: 0.7 | Road Win: 1.3 | Neutral Win: 1.0<br>
+        &nbsp;&nbsp;&nbsp;- Home Loss: 1.3 | Road Loss: 0.7 | Neutral Loss: 1.0<br>
+        • <strong>Opp Win %:</strong> Opponents' win % excluding games against this team<br>
+        • <strong>Opp-Opp Win %:</strong> Average of opponents' Opp Win % values<br>
+        <em style="color:#e65100;">⚾ Baseball RPI begins the first Monday of May</em>
+      `,
+      volleyball: `
+        <strong>How RPI is calculated (Volleyball):</strong><br>
+        • <strong>RPI:</strong> (Win % × 25%) + (Opp Win % × 50%) + (Opp-Opp Win % × 25%)<br>
+        • <strong>Win %:</strong> Weighted by location (road win=1.3, home win=0.7, road loss=0.7, home loss=1.3)<br>
+        • <strong>Opp Win %:</strong> Opponents' win % excluding games against this team<br>
+        • <strong>Opp-Opp Win %:</strong> Average of opponents' Opp Win % values
+      `
+    };
+    
+    function onSportChange() {
+      const sport = document.getElementById('sosSport').value;
+      currentRpiSport = sport;
+      
+      const genderSelect = document.getElementById('sosGender');
+      
+      // Handle gender based on sport
+      if (sport === 'basketball') {
+        genderSelect.style.display = '';
+        genderSelect.innerHTML = '<option value="Girls">Girls</option><option value="Boys">Boys</option>';
+      } else if (sport === 'baseball') {
+        // Baseball is boys only
+        genderSelect.style.display = 'none';
+        genderSelect.innerHTML = '<option value="Boys">Boys</option>';
+        genderSelect.value = 'Boys';
+      } else if (sport === 'volleyball') {
+        // Volleyball - girls only for now
+        genderSelect.style.display = 'none';
+        genderSelect.innerHTML = '<option value="Girls">Girls</option>';
+        genderSelect.value = 'Girls';
+      }
+      
+      // Update formula display
+      const formulaBox = document.getElementById('rpiFormulaBox');
+      if (formulaBox && RPI_FORMULAS[sport]) {
+        formulaBox.innerHTML = RPI_FORMULAS[sport];
+      }
+      
+      // Reload data with new sport
+      loadSOSData();
+    }
     
     async function loadSOSData() {
+      const sport = document.getElementById('sosSport')?.value || 'basketball';
       const gender = document.getElementById('sosGender').value;
       const division = document.getElementById('sosDivision').value;
       const tbody = document.getElementById('sosTableBody');
@@ -19119,6 +19187,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           .select('home_team, away_team, home_score, away_score, gender, division')
           .eq('level', 'NHIAA')
           .eq('gender', gender)
+          .eq('sport', sport)
           .not('home_score', 'is', null)
           .not('away_score', 'is', null);
         
@@ -19130,6 +19199,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           .select('home_team, away_team, gender, division, date')
           .eq('level', 'NHIAA')
           .eq('gender', gender)
+          .eq('sport', sport)
           .is('home_score', null);
         
         if (futureError) throw futureError;
