@@ -8,6 +8,15 @@ const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const SPORT = 'basketball';
 const SEASON = '2025-26';
 
+// Normalize team names to match games table
+function normalizeTeamName(name) {
+  const normalizations = {
+    'Coe-Brown Northwood': 'Coe-Brown',
+    'Coe-Brown Northwood Academy': 'Coe-Brown'
+  };
+  return normalizations[name] || name;
+}
+
 const STANDINGS_URLS = [
   { url: 'https://www.nhiaa.org/sports/standings/boys-basketball/division-1', gender: 'Boys', division: 'D-I' },
   { url: 'https://www.nhiaa.org/sports/standings/boys-basketball/division-2', gender: 'Boys', division: 'D-II' },
@@ -51,7 +60,7 @@ function parseStandingsPage(html, gender, division) {
       
       if (school && school.length > 0) {
         standings.push({
-          school,
+          school: normalizeTeamName(school),
           gender,
           division,
           wins,
@@ -194,10 +203,7 @@ async function updateSupabase(standings) {
 async function updateRecordsFromGames() {
   console.log('Calculating W-L records from games table...');
   
-  // Map normalized game names to NHIAA standings names (where they differ)
-  const GAME_TO_STANDINGS = {
-    'Coe-Brown': 'Coe-Brown Northwood'
-  };
+  // Team names are now normalized at parse time, no mapping needed
   
   // Step 1: Get all existing standings to find each team's actual division
   const standingsResponse = await fetch(
@@ -247,9 +253,9 @@ async function updateRecordsFromGames() {
   for (const game of games) {
     if (game.home_score === null || game.away_score === null) continue;
     
-    // Convert game team names to standings names (if mapping exists)
-    const homeTeam = GAME_TO_STANDINGS[game.home_team] || game.home_team;
-    const awayTeam = GAME_TO_STANDINGS[game.away_team] || game.away_team;
+    // Team names now match between games and standings (both normalized)
+    const homeTeam = game.home_team;
+    const awayTeam = game.away_team;
     const homeScore = parseInt(game.home_score);
     const awayScore = parseInt(game.away_score);
     const gender = game.gender;
