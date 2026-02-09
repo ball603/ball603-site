@@ -4694,13 +4694,14 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         <table style="width: 100%; border-collapse: collapse;" id="sosTable">
           <thead>
             <tr>
-              <th id="sosDivisionHeader" style="padding: 10px; text-align: left; background: #f57c00; color: white; font-weight: bold;" colspan="7">D-I</th>
+              <th id="sosDivisionHeader" style="padding: 10px; text-align: left; background: #f57c00; color: white; font-weight: bold;" colspan="8">D-I</th>
               <th style="padding: 10px; text-align: center; background: #e0e0e0; color: #333; border-left: 2px solid #bbb;" colspan="3">Remaining Schedule</th>
             </tr>
             <tr style="background: #f5f5f5;" id="sosHeaderRow">
               <th style="padding: 10px; text-align: center; border-bottom: 2px solid #ddd; width: 50px;">Rank</th>
               <th id="th-team" onclick="sortSOSTable('team')" style="padding: 10px; text-align: left; border-bottom: 2px solid #ddd; cursor: pointer;" title="Click to sort">Team</th>
               <th id="th-rpi" onclick="sortSOSTable('rpi')" style="padding: 10px; text-align: center; border-bottom: 2px solid #ddd; cursor: pointer; background: #fff3e0;" title="Click to sort">RPI</th>
+              <th id="th-weeklyChange" onclick="sortSOSTable('weeklyChange')" style="padding: 10px; text-align: center; border-bottom: 2px solid #ddd; cursor: pointer;" title="Click to sort">+/-</th>
               <th id="th-wins" onclick="sortSOSTable('wins')" style="padding: 10px; text-align: center; border-bottom: 2px solid #ddd; cursor: pointer;" title="Click to sort">Record</th>
               <th id="th-winPct" onclick="sortSOSTable('winPct')" style="padding: 10px; text-align: center; border-bottom: 2px solid #ddd; cursor: pointer;" title="Click to sort">Win %</th>
               <th id="th-owp" onclick="sortSOSTable('owp')" style="padding: 10px; text-align: center; border-bottom: 2px solid #ddd; cursor: pointer;" title="Click to sort">Opp Win %</th>
@@ -4711,7 +4712,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             </tr>
           </thead>
           <tbody id="sosTableBody">
-            <tr><td colspan="10" style="padding: 40px; text-align: center; color: #888;">Loading...</td></tr>
+            <tr><td colspan="11" style="padding: 40px; text-align: center; color: #888;">Loading...</td></tr>
           </tbody>
         </table>
       </div>
@@ -19228,13 +19229,13 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       
       // Show message for sports that aren't active yet
       if (sport === 'baseball') {
-        tbody.innerHTML = '<tr><td colspan="10" style="padding: 40px; text-align: center; color: #666;"><span style="font-size: 24px;">⚾</span><br><br><strong>Baseball RPI begins the first Monday of May</strong><br><span style="color: #888;">Check back when the season is underway!</span></td></tr>';
+        tbody.innerHTML = '<tr><td colspan="11" style="padding: 40px; text-align: center; color: #666;"><span style="font-size: 24px;">⚾</span><br><br><strong>Baseball RPI begins the first Monday of May</strong><br><span style="color: #888;">Check back when the season is underway!</span></td></tr>';
         document.getElementById('sosLastUpdated').textContent = '';
         return;
       }
       
       if (sport === 'volleyball') {
-        tbody.innerHTML = '<tr><td colspan="10" style="padding: 40px; text-align: center; color: #666;"><span style="font-size: 24px;">🏐</span><br><br><strong>Volleyball RPI begins the third Monday in September</strong><br><span style="color: #888;">Check back when the season is underway!</span></td></tr>';
+        tbody.innerHTML = '<tr><td colspan="11" style="padding: 40px; text-align: center; color: #666;"><span style="font-size: 24px;">🏐</span><br><br><strong>Volleyball RPI begins the third Monday in September</strong><br><span style="color: #888;">Check back when the season is underway!</span></td></tr>';
         document.getElementById('sosLastUpdated').textContent = '';
         return;
       }
@@ -19273,6 +19274,41 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           .eq('sport', sport);
         
         if (standingsError) throw standingsError;
+        
+        // Fetch latest published RPI ranks for comparison (to show weekly +/-)
+        // This gets the most recent published rankings to compare against realtime calculations
+        const lastRankMap = new Map();
+        try {
+          // First get the latest week_of for this sport
+          const { data: latestWeekData } = await db
+            .from('rpi_rankings')
+            .select('week_of')
+            .eq('sport', sport)
+            .eq('gender', gender)
+            .order('week_of', { ascending: false })
+            .limit(1);
+          
+          if (latestWeekData && latestWeekData.length > 0) {
+            const latestWeek = latestWeekData[0].week_of;
+            
+            // Fetch all published rankings for that week
+            const { data: publishedRanks } = await db
+              .from('rpi_rankings')
+              .select('team, rank, division')
+              .eq('sport', sport)
+              .eq('gender', gender)
+              .eq('week_of', latestWeek);
+            
+            if (publishedRanks) {
+              for (const r of publishedRanks) {
+                lastRankMap.set(`${r.team}_${r.division}`, r.rank);
+              }
+            }
+          }
+        } catch (rpiErr) {
+          console.log('Could not fetch published RPI for comparison:', rpiErr);
+          // Continue without last rank data
+        }
         
         // Build team records map and get win % for each team
         const teamRecords = new Map();
@@ -19530,6 +19566,15 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         results.sort((a, b) => b.rpi - a.rpi);
         results.forEach((r, i) => r.rpiRank = i + 1);
         
+        // Add last published rank and calculate weekly change
+        results.forEach(r => {
+          const key = `${r.team}_${r.division}`;
+          const lastRank = lastRankMap.get(key);
+          r.lastRank = lastRank !== undefined ? lastRank : null;
+          // Positive = improved (was 10, now 5 = +5)
+          r.weeklyChange = lastRank !== undefined ? lastRank - r.rpiRank : null;
+        });
+        
         // Remaining ranks (only for teams with remaining games)
         const resultsForRemaining = results.filter(r => r.hasRemaining);
         resultsForRemaining.sort((a, b) => b.remainingOppWinPct - a.remainingOppWinPct);
@@ -19551,7 +19596,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         
       } catch (err) {
         console.error('Error loading SOS data:', err);
-        tbody.innerHTML = '<tr><td colspan="10" style="padding: 40px; text-align: center; color: #c00;">Error loading data: ' + err.message + '</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="11" style="padding: 40px; text-align: center; color: #c00;">Error loading data: ' + err.message + '</td></tr>';
       }
     }
     
@@ -19608,7 +19653,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const tbody = document.getElementById('sosTableBody');
       
       if (results.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="10" style="padding: 40px; text-align: center; color: #888;">No data found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="11" style="padding: 40px; text-align: center; color: #888;">No data found</td></tr>';
         return;
       }
       
@@ -19623,6 +19668,19 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         
         const fmtPct = (val) => val !== undefined ? (val * 100).toFixed(1) + '%' : '-';
         
+        // Weekly change display
+        let changeDisplay = '—';
+        let changeColor = '#888';
+        if (r.weeklyChange !== null) {
+          if (r.weeklyChange > 0) {
+            changeDisplay = '+' + r.weeklyChange;
+            changeColor = '#2e7d32';
+          } else if (r.weeklyChange < 0) {
+            changeDisplay = r.weeklyChange.toString();
+            changeColor = '#c62828';
+          }
+        }
+        
         html += `<tr style="background: ${rowBg};">
           <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center; font-weight: bold;">${displayRank}</td>
           <td style="padding: 8px; border-bottom: 1px solid #eee;">
@@ -19632,6 +19690,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             </div>
           </td>
           <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center; font-weight: 600;">${fmtPct(r.rpi)}</td>
+          <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center; font-weight: 700; color: ${changeColor};">${changeDisplay}</td>
           <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center;">${r.wins}-${r.losses}</td>
           <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center;">${fmtPct(r.winPct)}</td>
           <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center;">${fmtPct(r.owp)}</td>
