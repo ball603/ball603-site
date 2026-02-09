@@ -623,12 +623,13 @@
               <th class="center track-col" onclick="sortRPI('high_rank')" id="th-high_rank">High Rank</th>
               <th class="center track-col-inner" onclick="sortRPI('low_rank')" id="th-low_rank">Low Rank</th>
               <th class="center track-col-inner" onclick="sortRPI('last_rank')" id="th-last_rank">Last Week</th>
+              <th class="center track-col-inner" onclick="sortRPI('weekly_change')" id="th-weekly_change">Weekly +/-</th>
               <th class="center track-col" onclick="sortRPI('remaining_sos')" id="th-remaining_sos">Opp RPI</th>
               <th class="center track-col-inner" onclick="sortRPI('rem_sos_rank')" id="th-rem_sos_rank">Rank</th>
             </tr>
           </thead>
           <tbody id="rpiBody">
-            <tr><td colspan="12" class="loading-msg">
+            <tr><td colspan="13" class="loading-msg">
               <div class="loading-spinner"></div>
               Loading RPI data...
             </td></tr>
@@ -822,7 +823,7 @@
         'rpi': 'RPI', 'team': 'Team Name', 'wins': 'Record',
         'winPct': 'Wtd Win %', 'owp': 'Opp Win %', 'oowp': 'Opp-Opp Win %',
         'high_rank': 'High Rank', 'low_rank': 'Low Rank', 'last_rank': 'Last Week',
-        'remaining_sos': 'Opp RPI', 'rem_sos_rank': 'Rem SOS Rank'
+        'weekly_change': 'Weekly +/-', 'remaining_sos': 'Opp RPI', 'rem_sos_rank': 'Rem SOS Rank'
       };
       const badge = document.querySelector('.rpi-card-badge');
       if (badge) {
@@ -843,7 +844,7 @@
     
     async function loadRPIData() {
       const tbody = document.getElementById('rpiBody');
-      tbody.innerHTML = '<tr><td colspan="12" class="loading-msg"><div class="loading-spinner"></div>Loading...</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="13" class="loading-msg"><div class="loading-spinner"></div>Loading...</td></tr>';
       updateCardHeader();
       
       // Cache key includes sport and gender
@@ -870,7 +871,7 @@
           } else if (currentSport === 'volleyball') {
             noDataMsg = '🏐 Volleyball RPI begins the third Monday in September. Check back then!';
           }
-          tbody.innerHTML = `<tr><td colspan="12" class="loading-msg">${noDataMsg}</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="13" class="loading-msg">${noDataMsg}</td></tr>`;
           return;
         }
         
@@ -883,7 +884,7 @@
         
       } catch (err) {
         console.error('RPI load error:', err);
-        tbody.innerHTML = '<tr><td colspan="12" class="loading-msg" style="color:#c00;">Error loading data. Please refresh the page.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="13" class="loading-msg" style="color:#c00;">Error loading data. Please refresh the page.</td></tr>';
       }
     }
     
@@ -902,6 +903,15 @@
       // Teams with no remaining games get no rank
       rpiData.forEach(r => {
         if (r.remaining_sos === null || r.remaining_sos === undefined) r.rem_sos_rank = null;
+      });
+      
+      // Compute weekly_change for sorting (positive = improved)
+      rpiData.forEach(r => {
+        if (r.last_rank !== null && r.last_rank !== undefined) {
+          r.weekly_change = r.last_rank - r.rank;
+        } else {
+          r.weekly_change = null;
+        }
       });
       
       // Apply current sort
@@ -940,7 +950,7 @@
       } else {
         sortField = field;
         // Ascending default for rank-type fields and team, descending for percentage fields
-        sortDir = ['team', 'high_rank', 'low_rank', 'last_rank', 'rem_sos_rank'].includes(field) ? 'asc' : 'desc';
+        sortDir = ['team', 'high_rank', 'low_rank', 'last_rank', 'weekly_change', 'rem_sos_rank'].includes(field) ? 'asc' : 'desc';
       }
       
       const sorted = sortData(rpiData, sortField, sortDir);
@@ -960,7 +970,7 @@
     function renderTable(results) {
       const tbody = document.getElementById('rpiBody');
       if (results.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="12" class="loading-msg">No data available for this division</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="13" class="loading-msg">No data available for this division</td></tr>';
         return;
       }
       
@@ -990,6 +1000,23 @@
           }
         }
         
+        // Weekly +/- calculation
+        let weeklyChangeDisplay = '—';
+        let weeklyChangeClass = 'move-same';
+        if (r.last_rank !== null && r.last_rank !== undefined) {
+          const change = r.last_rank - r.rank; // positive = improved
+          if (change > 0) {
+            weeklyChangeDisplay = '+' + change;
+            weeklyChangeClass = 'move-up';
+          } else if (change < 0) {
+            weeklyChangeDisplay = change.toString(); // already has minus sign
+            weeklyChangeClass = 'move-down';
+          } else {
+            weeklyChangeDisplay = '—';
+            weeklyChangeClass = 'move-same';
+          }
+        }
+        
         // High/Low coloring
         const highClass = r.high_rank === r.rank ? 'track-high' : '';
         const lowClass = r.low_rank === r.rank ? 'track-low' : '';
@@ -1010,6 +1037,7 @@
           '<td class="track-col center ' + highClass + '">' + (r.high_rank || r.rank) + '</td>' +
           '<td class="track-col-inner center ' + lowClass + '">' + (r.low_rank || r.rank) + '</td>' +
           '<td class="track-col-inner center ' + lastClass + '">' + lastDisplay + '</td>' +
+          '<td class="track-col-inner center ' + weeklyChangeClass + '" style="font-weight:700;">' + weeklyChangeDisplay + '</td>' +
           '<td class="track-col center">' + (r.remaining_sos !== null ? fmtDec(r.remaining_sos) : '-') + '</td>' +
           '<td class="track-col-inner center" style="font-weight:700;">' + (r.rem_sos_rank !== null ? r.rem_sos_rank : '-') + '</td>' +
         '</tr>';
@@ -1064,9 +1092,9 @@
       g1.textContent = 'Rating Percentage Index';
       groupRow.appendChild(g1);
       
-      // Season Ranking (spans 3)
+      // Season Ranking (spans 4)
       const g2 = document.createElement('th');
-      g2.setAttribute('colspan', '3');
+      g2.setAttribute('colspan', '4');
       g2.setAttribute('style', labelStyle);
       g2.textContent = 'Season Ranking';
       groupRow.appendChild(g2);
