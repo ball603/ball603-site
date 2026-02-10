@@ -6874,23 +6874,31 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         if (filter) {
           const search = filter.toLowerCase();
           return g.away?.toLowerCase().includes(search) || 
-                 g.home?.toLowerCase().includes(search);
+                 g.home?.toLowerCase().includes(search) ||
+                 g.round?.toLowerCase().includes(search);
         }
         return true;
-      }).slice(0, 20);
+      }).slice(0, 30);
       
       if (filtered.length === 0) {
         selector.innerHTML = '<div style="padding: 10px; color: #999;">No games found</div>';
         return;
       }
       
-      selector.innerHTML = filtered.map(g => `
+      selector.innerHTML = filtered.map(g => {
+        const isPlayoff = g.is_playoff;
+        const playoffBadge = isPlayoff ? `<span style="background: #f57c00; color: white; font-size: 10px; padding: 2px 6px; border-radius: 3px; margin-right: 5px;">${g.round || 'PLAYOFF'}</span>` : '';
+        const seedInfo = isPlayoff && (g.away_seed || g.home_seed) ? 
+          `#${g.away_seed || '?'} vs #${g.home_seed || '?'}` : '';
+        
+        return `
         <div class="game-option ${g.game_id === document.getElementById('selectedGameId').value ? 'selected' : ''}" 
-             onclick="selectGame('${g.game_id}', '${g.away} @ ${g.home}')">
-          <div class="teams">${g.away || 'TBD'} @ ${g.home || 'TBD'}</div>
-          <div class="meta">${g.date} •${g.gender} ${g.division || ''}</div>
+             onclick="selectGame('${g.game_id}', '${(g.away || 'TBD')} @ ${(g.home || 'TBD')}')"
+             style="${isPlayoff ? 'background: #fff8f0; border-left: 3px solid #f57c00;' : ''}">
+          <div class="teams">${playoffBadge}${g.away || 'TBD'} @ ${g.home || 'TBD'}</div>
+          <div class="meta">${g.date} • ${g.gender} ${g.division || ''} ${seedInfo}</div>
         </div>
-      `).join('');
+      `}).join('');
     }
     
     function searchGames(value) {
@@ -22711,6 +22719,15 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         statusDisplay = `<span style="color: #2e7d32; font-weight: 600;">${finalMap[game.game_status] || 'Final'}</span>`;
       }
       
+      // Coverage links badges
+      const coverageLinks = [];
+      if (game.photos_url) coverageLinks.push(`<a href="${game.photos_url}" target="_blank" title="Photos" style="color: #1565c0; text-decoration: none;">📷</a>`);
+      if (game.recap_url) coverageLinks.push(`<a href="${game.recap_url}" target="_blank" title="Recap" style="color: #1565c0; text-decoration: none;">📝</a>`);
+      if (game.highlights_url) coverageLinks.push(`<a href="${game.highlights_url}" target="_blank" title="Highlights" style="color: #1565c0; text-decoration: none;">🎬</a>`);
+      if (game.live_stream_url) coverageLinks.push(`<a href="${game.live_stream_url}" target="_blank" title="Stream" style="color: #1565c0; text-decoration: none;">📺</a>`);
+      const coverageDisplay = coverageLinks.length > 0 ? 
+        `<div style="display: flex; gap: 8px; margin-top: 8px; padding-top: 8px; border-top: 1px dashed #ddd;">${coverageLinks.join('')}</div>` : '';
+      
       return `
         <div class="${cardClass}">
           <div class="playoff-game-actions">
@@ -22733,6 +22750,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             <span>${game.time || ''} @ ${game.location || 'TBD'}</span>
             ${statusDisplay}
           </div>
+          ${coverageDisplay}
         </div>
       `;
     }
@@ -22767,7 +22785,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('editGamePhotos').value = game.photos_url || '';
       document.getElementById('editGameRecap').value = game.recap_url || '';
       document.getElementById('editGameHighlights').value = game.highlights_url || '';
-      document.getElementById('editGameStream').value = game.stream_url || '';
+      document.getElementById('editGameStream').value = game.live_stream_url || '';
       document.getElementById('editGameId').value = gameId;
       
       document.getElementById('editPlayoffGameModal').style.display = 'flex';
@@ -22811,7 +22829,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           photos_url: document.getElementById('editGamePhotos').value || null,
           recap_url: document.getElementById('editGameRecap').value || null,
           highlights_url: document.getElementById('editGameHighlights').value || null,
-          stream_url: document.getElementById('editGameStream').value || null
+          live_stream_url: document.getElementById('editGameStream').value || null
         };
         
         // Only update if not already updating via score function
