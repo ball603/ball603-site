@@ -1,0 +1,1241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Ball603 - NHIAA Basketball Playoffs brackets, scores, and coverage for all divisions.">
+  <meta name="theme-color" content="#f57c00">
+  <title>Playoffs | Ball603</title>
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="apple-touch-icon" href="/logo.png">
+  
+  <!-- Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-S4BN80729K"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-S4BN80729K');
+  </script>
+  
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0"></script>
+  
+  <!-- Shared Styles -->
+  <link rel="stylesheet" href="/styles.css">
+  
+  <style>
+    /* ===== PLAYOFFS PAGE STYLES ===== */
+    
+    .playoffs-page {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    .playoffs-header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    
+    .playoffs-title {
+      font-size: 32px;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+    }
+    
+    .playoffs-subtitle {
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+    
+    /* Tournament Selector */
+    .tournament-selector {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+    
+    .tournament-selector select {
+      padding: 12px 20px;
+      font-size: 15px;
+      font-weight: 600;
+      border: 2px solid var(--border-color);
+      background: var(--bg-card);
+      color: var(--text-primary);
+      border-radius: 8px;
+      cursor: pointer;
+      min-width: 140px;
+    }
+    
+    .tournament-selector select:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    
+    /* Tournament Info Card */
+    .tournament-info {
+      background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+      color: white;
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+      display: none;
+    }
+    
+    .tournament-info.visible {
+      display: block;
+    }
+    
+    .tournament-info-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    
+    .tournament-name {
+      font-size: 20px;
+      font-weight: 700;
+    }
+    
+    .tournament-badge {
+      background: var(--accent);
+      color: white;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    
+    .tournament-schedule {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+    
+    .schedule-round {
+      text-align: center;
+      padding: 12px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 8px;
+    }
+    
+    .schedule-round-name {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      opacity: 0.7;
+      margin-bottom: 6px;
+    }
+    
+    .schedule-round-date {
+      font-size: 14px;
+      font-weight: 600;
+    }
+    
+    .schedule-round-site {
+      font-size: 11px;
+      opacity: 0.6;
+      margin-top: 4px;
+    }
+    
+    /* Not Locked State */
+    .not-locked-message {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-secondary);
+      display: none;
+    }
+    
+    .not-locked-message.visible {
+      display: block;
+    }
+    
+    .not-locked-message .icon {
+      font-size: 64px;
+      margin-bottom: 16px;
+    }
+    
+    .not-locked-message h2 {
+      color: var(--text-primary);
+      margin-bottom: 8px;
+    }
+    
+    /* Bracket Container */
+    .bracket-container {
+      display: none;
+      overflow-x: auto;
+      padding: 20px 0;
+    }
+    
+    .bracket-container.visible {
+      display: block;
+    }
+    
+    .bracket {
+      display: flex;
+      gap: 40px;
+      min-width: max-content;
+      padding: 20px;
+    }
+    
+    .bracket-round {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-around;
+      min-width: 260px;
+    }
+    
+    .round-header {
+      text-align: center;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-secondary);
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid var(--border-color);
+    }
+    
+    .bracket-games {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-around;
+      flex: 1;
+      gap: 12px;
+    }
+    
+    /* Matchup Card */
+    .matchup {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .matchup:hover {
+      border-color: var(--accent);
+      box-shadow: 0 4px 12px rgba(245, 124, 0, 0.15);
+    }
+    
+    .matchup.live {
+      border-color: #e53935;
+      border-width: 2px;
+      animation: livePulse 2s infinite;
+    }
+    
+    @keyframes livePulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(229, 57, 53, 0.4); }
+      50% { box-shadow: 0 0 0 8px rgba(229, 57, 53, 0); }
+    }
+    
+    .matchup.final {
+      border-color: #4caf50;
+    }
+    
+    .matchup-team {
+      display: flex;
+      align-items: center;
+      padding: 10px 12px;
+      gap: 10px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .matchup-team:last-of-type {
+      border-bottom: none;
+    }
+    
+    .matchup-team.winner {
+      background: rgba(76, 175, 80, 0.08);
+    }
+    
+    .matchup-team.loser {
+      opacity: 0.5;
+    }
+    
+    .team-seed {
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 7px;
+      border-radius: 4px;
+      min-width: 28px;
+      text-align: center;
+    }
+    
+    .matchup-team.winner .team-seed {
+      background: var(--accent);
+      color: white;
+    }
+    
+    .team-logo {
+      width: 28px;
+      height: 28px;
+      object-fit: contain;
+    }
+    
+    .team-name {
+      flex: 1;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    
+    .team-score {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-primary);
+      min-width: 32px;
+      text-align: right;
+    }
+    
+    .matchup-team.winner .team-score {
+      color: #2e7d32;
+    }
+    
+    .matchup-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      background: var(--bg-secondary);
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+    
+    .matchup-status {
+      font-weight: 600;
+    }
+    
+    .matchup-status.live {
+      color: #e53935;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .matchup-status.live::before {
+      content: '';
+      width: 8px;
+      height: 8px;
+      background: #e53935;
+      border-radius: 50%;
+      animation: pulse 1.5s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+    
+    .matchup-status.final {
+      color: #2e7d32;
+    }
+    
+    .upset-indicator {
+      color: #ffc107;
+      font-size: 14px;
+    }
+    
+    /* Coverage Links in matchup */
+    .matchup-coverage {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .matchup-coverage a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 14px;
+      transition: color 0.2s;
+    }
+    
+    .matchup-coverage a:hover {
+      color: var(--accent);
+    }
+    
+    /* BYE styling */
+    .matchup.bye {
+      opacity: 0.5;
+      cursor: default;
+    }
+    
+    .matchup.bye:hover {
+      border-color: var(--border-color);
+      box-shadow: none;
+    }
+    
+    .bye-text {
+      text-align: center;
+      padding: 20px;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+    
+    /* Coverage Section */
+    .coverage-section {
+      margin-top: 32px;
+      display: none;
+    }
+    
+    .coverage-section.visible {
+      display: block;
+    }
+    
+    .coverage-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 16px;
+    }
+    
+    .coverage-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 12px;
+    }
+    
+    .coverage-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      text-decoration: none;
+      color: var(--text-primary);
+      transition: all 0.2s;
+    }
+    
+    .coverage-item:hover {
+      border-color: var(--accent);
+      background: var(--bg-secondary);
+    }
+    
+    .coverage-icon {
+      font-size: 20px;
+    }
+    
+    .coverage-info {
+      flex: 1;
+    }
+    
+    .coverage-type {
+      font-size: 11px;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+    
+    .coverage-label {
+      font-size: 13px;
+      font-weight: 500;
+    }
+    
+    /* Comparison Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    
+    .modal-overlay.open {
+      display: flex;
+    }
+    
+    .modal-content {
+      background: var(--bg-card);
+      border-radius: 16px;
+      max-width: 600px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .modal-title {
+      font-size: 18px;
+      font-weight: 700;
+    }
+    
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 28px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      line-height: 1;
+    }
+    
+    .modal-close:hover {
+      color: var(--text-primary);
+    }
+    
+    .comparison-teams {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 16px;
+      padding: 20px;
+      align-items: center;
+    }
+    
+    .comparison-team {
+      text-align: center;
+    }
+    
+    .comparison-team img {
+      width: 64px;
+      height: 64px;
+      object-fit: contain;
+      margin-bottom: 8px;
+    }
+    
+    .comparison-team .seed {
+      background: var(--accent);
+      color: white;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 12px;
+      display: inline-block;
+      margin-bottom: 8px;
+    }
+    
+    .comparison-team .name {
+      font-size: 16px;
+      font-weight: 600;
+    }
+    
+    .comparison-vs {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+    
+    .comparison-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    .comparison-table th,
+    .comparison-table td {
+      padding: 12px 16px;
+      text-align: center;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .comparison-table th {
+      background: var(--bg-secondary);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+    }
+    
+    .comparison-table td {
+      font-size: 14px;
+    }
+    
+    .comparison-table td:first-child,
+    .comparison-table td:last-child {
+      font-weight: 600;
+    }
+    
+    .comparison-table .stat-label {
+      color: var(--text-secondary);
+      font-size: 13px;
+    }
+    
+    .comparison-table .better {
+      color: #2e7d32;
+      font-weight: 700;
+    }
+    
+    .head-to-head {
+      padding: 16px 20px;
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--border-color);
+    }
+    
+    .head-to-head-title {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+    
+    .head-to-head-result {
+      font-size: 14px;
+      color: var(--text-primary);
+    }
+    
+    .modal-game-result {
+      padding: 20px;
+      text-align: center;
+      background: linear-gradient(135deg, rgba(76, 175, 80, 0.1) 0%, rgba(76, 175, 80, 0.05) 100%);
+    }
+    
+    .modal-final-score {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    
+    .modal-coverage-links {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+    }
+    
+    .modal-coverage-links a {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    
+    .modal-coverage-links a:hover {
+      text-decoration: underline;
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+      .playoffs-page {
+        padding: 12px;
+      }
+      
+      .playoffs-title {
+        font-size: 24px;
+      }
+      
+      .tournament-schedule {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      
+      .bracket {
+        gap: 24px;
+      }
+      
+      .bracket-round {
+        min-width: 220px;
+      }
+      
+      .comparison-teams {
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+      
+      .comparison-vs {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  
+  <!-- Navigation (loaded dynamically) -->
+  <div id="site-header"></div>
+  <div id="mobile-menu"></div>
+  <script src="/includes/nav-loader.js"></script>
+  
+  <main class="playoffs-page">
+    <!-- Header -->
+    <div class="playoffs-header">
+      <h1 class="playoffs-title">🏀 NHIAA Playoffs</h1>
+      <p class="playoffs-subtitle">Brackets, scores, and tournament coverage</p>
+    </div>
+    
+    <!-- Tournament Selector -->
+    <div class="tournament-selector">
+      <select id="genderSelect" onchange="loadPlayoffs()">
+        <option value="Boys">🏀 Boys</option>
+        <option value="Girls">🏀 Girls</option>
+      </select>
+      <select id="divisionSelect" onchange="loadPlayoffs()">
+        <option value="D-I">Division I</option>
+        <option value="D-II">Division II</option>
+        <option value="D-III">Division III</option>
+        <option value="D-IV">Division IV</option>
+      </select>
+    </div>
+    
+    <!-- Tournament Info Card -->
+    <div class="tournament-info" id="tournamentInfo">
+      <div class="tournament-info-header">
+        <span class="tournament-name" id="tournamentName">Boys Division I</span>
+        <span class="tournament-badge" id="tournamentBadge">16 Teams</span>
+      </div>
+      <div class="tournament-schedule" id="tournamentSchedule">
+        <!-- Filled by JS -->
+      </div>
+    </div>
+    
+    <!-- Not Locked Message -->
+    <div class="not-locked-message" id="notLockedMessage">
+      <div class="icon">📋</div>
+      <h2>Bracket Not Yet Set</h2>
+      <p>Seeds haven't been locked for this tournament yet. Check back when the bracket is announced.</p>
+    </div>
+    
+    <!-- Bracket Container -->
+    <div class="bracket-container" id="bracketContainer">
+      <div class="bracket" id="bracket">
+        <!-- Filled by JS -->
+      </div>
+    </div>
+    
+    <!-- Coverage Section -->
+    <div class="coverage-section" id="coverageSection">
+      <h2 class="coverage-title">Tournament Coverage</h2>
+      <div class="coverage-grid" id="coverageGrid">
+        <!-- Filled by JS -->
+      </div>
+    </div>
+  </main>
+  
+  <!-- Comparison Modal -->
+  <div class="modal-overlay" id="comparisonModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <span class="modal-title">Matchup Preview</span>
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+      </div>
+      <div id="modalContent">
+        <!-- Filled by JS -->
+      </div>
+    </div>
+  </div>
+  
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="footer-logo">
+      <img src="/logo.png" alt="Ball603">
+    </div>
+    <div class="footer-links">
+      <a href="/about">About Us</a>
+      <a href="/contact">Contact</a>
+    </div>
+    <div class="footer-social">
+      <a href="https://facebook.com/ball603" target="_blank" title="Facebook">
+        <svg viewBox="0 0 24 24"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+      </a>
+      <a href="https://www.instagram.com/ball603nh/" target="_blank" title="Instagram">
+        <svg viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+      </a>
+      <a href="https://twitter.com/ball603nh" target="_blank" title="Twitter/X">
+        <svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+      </a>
+    </div>
+    <div class="footer-copyright">
+      <p>&copy; 2025 Ball603. All rights reserved.</p>
+    </div>
+  </footer>
+  
+  <script>
+    // Supabase config
+    const SUPABASE_URL = 'https://suncdkxfqkwwnmhosxcf.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_hHSpgZPD327r11GaQG9iHw_uZbuaWmF';
+    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    
+    // Tournament schedule data
+    const TOURNAMENT_SCHEDULE = {
+      'Boys': {
+        'D-I': {
+          prelims: { date: '2026-03-04', time: '6:00 PM', site: 'Higher Seed' },
+          quarters: { date: '2026-03-07', time: '6:00 PM', site: 'Higher Seed' },
+          semis: { date: '2026-03-11', times: ['5:30 PM', '7:30 PM'], site: 'Rochester' },
+          final: { date: '2026-03-15', time: '4:00 PM', site: 'UNH' }
+        },
+        'D-II': {
+          prelims: { date: '2026-03-03', time: '6:00 PM', site: 'Higher Seed' },
+          quarters: { date: '2026-03-06', time: '6:00 PM', site: 'Higher Seed' },
+          semis: { date: '2026-03-09', times: ['5:30 PM', '7:30 PM'], site: 'Rochester' },
+          final: { date: '2026-03-15', time: '12:00 PM', site: 'UNH' }
+        },
+        'D-III': {
+          prelims: { date: '2026-02-17', time: '6:00 PM', site: 'Higher Seed' },
+          quarters: { date: '2026-02-20', time: '6:00 PM', site: 'Higher Seed' },
+          semis: { date: '2026-02-24', times: ['5:30 PM', '7:30 PM'], site: 'TBD' },
+          final: { date: '2026-02-28', time: '4:00 PM', site: 'Keene State' }
+        },
+        'D-IV': {
+          prelims: { date: '2026-02-23', time: '6:00 PM', site: 'Higher Seed' },
+          quarters: { date: '2026-02-26', time: '6:00 PM', site: 'Higher Seed' },
+          semis: { date: '2026-03-02', times: ['5:30 PM', '7:30 PM'], site: 'TBD' },
+          final: { date: '2026-03-07', time: '3:00 PM', site: 'Colby Sawyer' }
+        }
+      },
+      'Girls': {
+        'D-I': {
+          prelims: { date: '2026-03-02', time: '6:00 PM', site: 'Higher Seed' },
+          quarters: { date: '2026-03-05', time: '6:00 PM', site: 'Higher Seed' },
+          semis: { date: '2026-03-09', times: ['5:30 PM', '7:30 PM'], site: 'TBD' },
+          final: { date: '2026-03-14', time: '4:00 PM', site: 'UNH' }
+        },
+        'D-II': {
+          prelims: { date: '2026-03-04', time: '6:00 PM', site: 'Higher Seed' },
+          quarters: { date: '2026-03-07', time: '6:00 PM', site: 'Higher Seed' },
+          semis: { date: '2026-03-11', times: ['5:30 PM', '7:30 PM'], site: 'TBD' },
+          final: { date: '2026-03-14', time: '12:00 PM', site: 'UNH' }
+        },
+        'D-III': {
+          prelims: { date: '2026-02-18', time: '6:00 PM', site: 'Higher Seed' },
+          quarters: { date: '2026-02-21', time: '6:00 PM', site: 'Higher Seed' },
+          semis: { date: '2026-02-25', times: ['5:30 PM', '7:30 PM'], site: 'Bow HS' },
+          final: { date: '2026-02-28', time: '1:00 PM', site: 'Keene State' }
+        },
+        'D-IV': {
+          prelims: { date: '2026-02-24', time: '6:00 PM', site: 'Higher Seed' },
+          quarters: { date: '2026-02-27', time: '6:00 PM', site: 'Higher Seed' },
+          semis: { date: '2026-03-03', times: ['5:30 PM', '7:30 PM'], site: 'TBD' },
+          final: { date: '2026-03-07', time: '1:00 PM', site: 'Colby Sawyer' }
+        }
+      }
+    };
+    
+    // State
+    let playoffSeeds = [];
+    let playoffGames = [];
+    let currentGender = 'Boys';
+    let currentDivision = 'D-IV';
+    
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      // Check URL params
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('gender')) {
+        currentGender = params.get('gender').charAt(0).toUpperCase() + params.get('gender').slice(1).toLowerCase();
+        document.getElementById('genderSelect').value = currentGender;
+      }
+      if (params.get('division')) {
+        currentDivision = params.get('division').toUpperCase().replace('D', 'D-');
+        if (!currentDivision.includes('-')) currentDivision = 'D-' + currentDivision.replace('D-', '');
+        document.getElementById('divisionSelect').value = currentDivision;
+      }
+      
+      loadPlayoffs();
+    });
+    
+    async function loadPlayoffs() {
+      currentGender = document.getElementById('genderSelect').value;
+      currentDivision = document.getElementById('divisionSelect').value;
+      const season = '2025-26';
+      
+      // Update URL
+      const url = new URL(window.location);
+      url.searchParams.set('gender', currentGender.toLowerCase());
+      url.searchParams.set('division', currentDivision.toLowerCase().replace('-', ''));
+      window.history.replaceState({}, '', url);
+      
+      // Update tournament info
+      updateTournamentInfo();
+      
+      try {
+        // Fetch seeds and games
+        const response = await fetch(`/.netlify/functions/playoff-seeds?gender=${currentGender}&division=${currentDivision}&season=${season}`);
+        const data = await response.json();
+        
+        if (!data.locked || !data.seeds || data.seeds.length === 0) {
+          // Not locked yet
+          document.getElementById('notLockedMessage').classList.add('visible');
+          document.getElementById('bracketContainer').classList.remove('visible');
+          document.getElementById('coverageSection').classList.remove('visible');
+          return;
+        }
+        
+        playoffSeeds = data.seeds;
+        playoffGames = data.games || [];
+        
+        document.getElementById('notLockedMessage').classList.remove('visible');
+        document.getElementById('bracketContainer').classList.add('visible');
+        
+        renderBracket();
+        renderCoverage();
+        
+      } catch (error) {
+        console.error('Error loading playoffs:', error);
+        document.getElementById('notLockedMessage').classList.add('visible');
+        document.getElementById('bracketContainer').classList.remove('visible');
+      }
+    }
+    
+    function updateTournamentInfo() {
+      const schedule = TOURNAMENT_SCHEDULE[currentGender]?.[currentDivision];
+      if (!schedule) return;
+      
+      document.getElementById('tournamentInfo').classList.add('visible');
+      document.getElementById('tournamentName').textContent = `${currentGender} ${currentDivision} Tournament`;
+      
+      const formatDate = (dateStr) => {
+        const date = new Date(dateStr + 'T12:00:00');
+        return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+      };
+      
+      document.getElementById('tournamentSchedule').innerHTML = `
+        <div class="schedule-round">
+          <div class="schedule-round-name">1st Round</div>
+          <div class="schedule-round-date">${formatDate(schedule.prelims.date)}</div>
+          <div class="schedule-round-site">${schedule.prelims.site}</div>
+        </div>
+        <div class="schedule-round">
+          <div class="schedule-round-name">Quarterfinals</div>
+          <div class="schedule-round-date">${formatDate(schedule.quarters.date)}</div>
+          <div class="schedule-round-site">${schedule.quarters.site}</div>
+        </div>
+        <div class="schedule-round">
+          <div class="schedule-round-name">Semifinals</div>
+          <div class="schedule-round-date">${formatDate(schedule.semis.date)}</div>
+          <div class="schedule-round-site">${schedule.semis.site}</div>
+        </div>
+        <div class="schedule-round">
+          <div class="schedule-round-name">Championship</div>
+          <div class="schedule-round-date">${formatDate(schedule.final.date)}</div>
+          <div class="schedule-round-site">${schedule.final.site}</div>
+        </div>
+      `;
+      
+      // Update badge
+      const numTeams = playoffSeeds.length || 16;
+      document.getElementById('tournamentBadge').textContent = `${numTeams} Teams`;
+    }
+    
+    function renderBracket() {
+      const bracket = document.getElementById('bracket');
+      
+      // Group games by round
+      const rounds = {
+        'Prelims': playoffGames.filter(g => g.round === 'Prelims').sort((a, b) => a.bracket_position - b.bracket_position),
+        'Quarters': playoffGames.filter(g => g.round === 'Quarters').sort((a, b) => a.bracket_position - b.bracket_position),
+        'Semis': playoffGames.filter(g => g.round === 'Semis').sort((a, b) => a.bracket_position - b.bracket_position),
+        'Final': playoffGames.filter(g => g.round === 'Final')
+      };
+      
+      // Build seed map for quick lookup
+      const seedMap = new Map(playoffSeeds.map(s => [s.seed, s]));
+      
+      bracket.innerHTML = `
+        <div class="bracket-round">
+          <div class="round-header">1st Round</div>
+          <div class="bracket-games">
+            ${renderRoundGames(rounds['Prelims'], seedMap)}
+          </div>
+        </div>
+        <div class="bracket-round">
+          <div class="round-header">Quarterfinals</div>
+          <div class="bracket-games">
+            ${renderRoundGames(rounds['Quarters'], seedMap)}
+          </div>
+        </div>
+        <div class="bracket-round">
+          <div class="round-header">Semifinals</div>
+          <div class="bracket-games">
+            ${renderRoundGames(rounds['Semis'], seedMap)}
+          </div>
+        </div>
+        <div class="bracket-round">
+          <div class="round-header">Championship</div>
+          <div class="bracket-games">
+            ${renderRoundGames(rounds['Final'], seedMap)}
+          </div>
+        </div>
+      `;
+    }
+    
+    function renderRoundGames(games, seedMap) {
+      if (!games || games.length === 0) {
+        return '<div class="matchup bye"><div class="bye-text">TBD</div></div>';
+      }
+      
+      return games.map(game => {
+        const isLive = game.game_status && !game.game_status.includes('FINAL');
+        const isFinal = game.game_status && game.game_status.includes('FINAL');
+        const hasScore = game.away_score !== null && game.home_score !== null;
+        
+        // Determine winner
+        let awayClass = '', homeClass = '';
+        let isUpset = false;
+        if (isFinal && hasScore) {
+          if (game.away_score > game.home_score) {
+            awayClass = 'winner';
+            homeClass = 'loser';
+            // Upset if lower seed (higher number) wins
+            if (game.away_seed > game.home_seed) isUpset = true;
+          } else {
+            homeClass = 'winner';
+            awayClass = 'loser';
+            if (game.home_seed > game.away_seed) isUpset = true;
+          }
+        }
+        
+        // Status text
+        let statusText = '';
+        let statusClass = '';
+        if (isLive) {
+          const statusMap = { '1Q': 'End 1st', 'HALF': 'Halftime', '3Q': 'End 3rd', 'OT': 'OT', '2OT': '2OT', '3OT': '3OT' };
+          statusText = statusMap[game.game_status] || game.game_status;
+          statusClass = 'live';
+        } else if (isFinal) {
+          const finalMap = { 'FINAL': 'Final', 'FINAL-OT': 'Final (OT)', 'FINAL-2OT': 'Final (2OT)', 'FINAL-3OT': 'Final (3OT)' };
+          statusText = finalMap[game.game_status] || 'Final';
+          statusClass = 'final';
+        } else {
+          statusText = game.time || 'TBD';
+        }
+        
+        // Coverage links
+        const coverageLinks = [];
+        if (game.photos_url) coverageLinks.push(`<a href="${game.photos_url}" target="_blank" title="Photos">📷</a>`);
+        if (game.recap_url) coverageLinks.push(`<a href="${game.recap_url}" target="_blank" title="Recap">📝</a>`);
+        if (game.highlights_url) coverageLinks.push(`<a href="${game.highlights_url}" target="_blank" title="Highlights">🎬</a>`);
+        
+        // Check for BYE (no away team but has home team)
+        if (!game.away_team && game.home_team) {
+          const homeSeed = seedMap.get(game.home_seed);
+          return `
+            <div class="matchup bye">
+              <div class="matchup-team">
+                <span class="team-seed">#${game.home_seed}</span>
+                <img src="/logos/100px/${getLogoFilename(game.home_team)}" class="team-logo" onerror="this.style.display='none'" alt="">
+                <span class="team-name">${game.home_team}</span>
+              </div>
+              <div class="matchup-footer">
+                <span>BYE</span>
+              </div>
+            </div>
+          `;
+        }
+        
+        // Check for TBD matchup
+        if (!game.away_team && !game.home_team) {
+          return `
+            <div class="matchup">
+              <div class="matchup-team">
+                <span class="team-seed">-</span>
+                <span class="team-name">TBD</span>
+              </div>
+              <div class="matchup-team">
+                <span class="team-seed">-</span>
+                <span class="team-name">TBD</span>
+              </div>
+              <div class="matchup-footer">
+                <span>${statusText}</span>
+              </div>
+            </div>
+          `;
+        }
+        
+        return `
+          <div class="matchup ${isLive ? 'live' : ''} ${isFinal ? 'final' : ''}" onclick="openMatchup('${game.game_id}')">
+            <div class="matchup-team ${awayClass}">
+              <span class="team-seed">#${game.away_seed || '?'}</span>
+              <img src="/logos/100px/${getLogoFilename(game.away_team)}" class="team-logo" onerror="this.style.display='none'" alt="">
+              <span class="team-name">${game.away_team || 'TBD'}</span>
+              <span class="team-score">${hasScore ? game.away_score : ''}</span>
+            </div>
+            <div class="matchup-team ${homeClass}">
+              <span class="team-seed">#${game.home_seed || '?'}</span>
+              <img src="/logos/100px/${getLogoFilename(game.home_team)}" class="team-logo" onerror="this.style.display='none'" alt="">
+              <span class="team-name">${game.home_team || 'TBD'}</span>
+              <span class="team-score">${hasScore ? game.home_score : ''}</span>
+            </div>
+            <div class="matchup-footer">
+              <span class="matchup-status ${statusClass}">${statusText}</span>
+              ${isUpset ? '<span class="upset-indicator" title="Upset">⚡</span>' : ''}
+              <div class="matchup-coverage">${coverageLinks.join('')}</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+    
+    function renderCoverage() {
+      const coverageGrid = document.getElementById('coverageGrid');
+      const coverageSection = document.getElementById('coverageSection');
+      
+      // Collect all coverage links from games
+      const coverage = [];
+      playoffGames.forEach(game => {
+        if (!game.away_team || !game.home_team) return;
+        const label = `${game.away_team} vs ${game.home_team}`;
+        
+        if (game.photos_url) {
+          coverage.push({ type: 'Photos', icon: '📷', label, url: game.photos_url, round: game.round });
+        }
+        if (game.recap_url) {
+          coverage.push({ type: 'Recap', icon: '📝', label, url: game.recap_url, round: game.round });
+        }
+        if (game.highlights_url) {
+          coverage.push({ type: 'Highlights', icon: '🎬', label, url: game.highlights_url, round: game.round });
+        }
+      });
+      
+      if (coverage.length === 0) {
+        coverageSection.classList.remove('visible');
+        return;
+      }
+      
+      coverageSection.classList.add('visible');
+      coverageGrid.innerHTML = coverage.map(c => `
+        <a href="${c.url}" target="_blank" class="coverage-item">
+          <span class="coverage-icon">${c.icon}</span>
+          <div class="coverage-info">
+            <div class="coverage-type">${c.round} ${c.type}</div>
+            <div class="coverage-label">${c.label}</div>
+          </div>
+        </a>
+      `).join('');
+    }
+    
+    function openMatchup(gameId) {
+      const game = playoffGames.find(g => g.game_id === gameId);
+      if (!game || !game.away_team || !game.home_team) return;
+      
+      const awaySeed = playoffSeeds.find(s => s.team === game.away_team);
+      const homeSeed = playoffSeeds.find(s => s.team === game.home_team);
+      
+      const isFinal = game.game_status && game.game_status.includes('FINAL');
+      const hasScore = game.away_score !== null && game.home_score !== null;
+      
+      let awayWon = false, homeWon = false;
+      if (isFinal && hasScore) {
+        awayWon = game.away_score > game.home_score;
+        homeWon = game.home_score > game.away_score;
+      }
+      
+      // Build comparison stats
+      const stats = [
+        { label: 'Seed', away: `#${game.away_seed}`, home: `#${game.home_seed}`, compare: false },
+        { label: 'Reg. Season', away: awaySeed ? `${awaySeed.reg_season_wins}-${awaySeed.reg_season_losses}` : '-', home: homeSeed ? `${homeSeed.reg_season_wins}-${homeSeed.reg_season_losses}` : '-', compare: true, higherBetter: true },
+        { label: 'RPI Rank', away: awaySeed?.final_rpi_rank || '-', home: homeSeed?.final_rpi_rank || '-', compare: true, higherBetter: false },
+        { label: 'vs Playoff Teams', away: awaySeed ? `${awaySeed.vs_playoff_wins}-${awaySeed.vs_playoff_losses}` : '-', home: homeSeed ? `${homeSeed.vs_playoff_wins}-${homeSeed.vs_playoff_losses}` : '-', compare: false }
+      ];
+      
+      // Result section if final
+      let resultSection = '';
+      if (isFinal && hasScore) {
+        const winner = awayWon ? game.away_team : game.home_team;
+        const winScore = awayWon ? game.away_score : game.home_score;
+        const loseScore = awayWon ? game.home_score : game.away_score;
+        const otText = game.game_status.includes('OT') ? ` (${game.game_status.replace('FINAL-', '')})` : '';
+        
+        const coverageLinks = [];
+        if (game.photos_url) coverageLinks.push(`<a href="${game.photos_url}" target="_blank">📷 Photos</a>`);
+        if (game.recap_url) coverageLinks.push(`<a href="${game.recap_url}" target="_blank">📝 Recap</a>`);
+        if (game.highlights_url) coverageLinks.push(`<a href="${game.highlights_url}" target="_blank">🎬 Highlights</a>`);
+        
+        resultSection = `
+          <div class="modal-game-result">
+            <div class="modal-final-score">${winner} wins ${winScore}-${loseScore}${otText}</div>
+            ${coverageLinks.length > 0 ? `<div class="modal-coverage-links">${coverageLinks.join('')}</div>` : ''}
+          </div>
+        `;
+      }
+      
+      document.getElementById('modalContent').innerHTML = `
+        <div class="comparison-teams">
+          <div class="comparison-team">
+            <img src="/logos/100px/${getLogoFilename(game.away_team)}" onerror="this.style.display='none'" alt="">
+            <div class="seed">#${game.away_seed}</div>
+            <div class="name">${game.away_team}</div>
+          </div>
+          <div class="comparison-vs">VS</div>
+          <div class="comparison-team">
+            <img src="/logos/100px/${getLogoFilename(game.home_team)}" onerror="this.style.display='none'" alt="">
+            <div class="seed">#${game.home_seed}</div>
+            <div class="name">${game.home_team}</div>
+          </div>
+        </div>
+        
+        <table class="comparison-table">
+          <thead>
+            <tr>
+              <th>${game.away_team}</th>
+              <th>Stat</th>
+              <th>${game.home_team}</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${stats.map(stat => `
+              <tr>
+                <td>${stat.away}</td>
+                <td class="stat-label">${stat.label}</td>
+                <td>${stat.home}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        
+        ${resultSection}
+      `;
+      
+      document.getElementById('comparisonModal').classList.add('open');
+    }
+    
+    function closeModal() {
+      document.getElementById('comparisonModal').classList.remove('open');
+    }
+    
+    // Close modal on outside click
+    document.getElementById('comparisonModal').addEventListener('click', (e) => {
+      if (e.target.id === 'comparisonModal') closeModal();
+    });
+    
+    // Close modal on Escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeModal();
+    });
+    
+    // Logo filename helper
+    function getLogoFilename(teamName) {
+      if (!teamName) return 'Ball603-white.png';
+      const specialCases = {
+        'coe-brown': 'CoeBrown', 'bishop brady': 'BishopBrady', 'bishop guertin': 'BishopGuertin',
+        'concord christian': 'ConcordChristian', 'con-val': 'ConVal', 'conval': 'ConVal', 'fall mountain': 'FallMountain',
+        'hillsboro-deering': 'HillsboroDeering', 'hollis-brookline': 'HollisBrookline', 'holy family': 'HolyFamily',
+        'inter-lakes': 'InterLakes', 'john stark': 'JohnStark', 'lin-wood': 'LinWood', 'manchester central': 'ManchesterCentral',
+        'manchester memorial': 'ManchesterMemorial', 'manchester west': 'ManchesterWest', 'mascoma valley': 'Mascoma',
+        'merrimack valley': 'MerrimackValley', 'mount royal': 'MountRoyal', 'nashua north': 'NashuaNorth',
+        'nashua south': 'NashuaSouth', 'oyster river': 'OysterRiver', 'pittsburg-canaan': 'PittsburgCanaan',
+        'portsmouth christian': 'PortsmouthChristian', 'prospect mountain': 'ProspectMountain',
+        'st. thomas aquinas': 'StThomasAquinas', 'st thomas aquinas': 'StThomasAquinas', 'white mountains': 'WhiteMountains',
+        'wilton-lyndeborough': 'WiltonLyndeborough'
+      };
+      const lower = teamName.toLowerCase().trim();
+      if (specialCases[lower]) return specialCases[lower] + '.png';
+      return teamName.split(/[\s-]+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join('') + '.png';
+    }
+  </script>
+</body>
+</html>
