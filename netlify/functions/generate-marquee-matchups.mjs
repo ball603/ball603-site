@@ -590,119 +590,127 @@ function buildRankings(standings, rpiRankings) {
 
 // Calculate CURRENT RPI on the fly (not published RPI)
 // This gives the most up-to-date RPI for admin display
+// IMPORTANT: Must calculate separately by gender to avoid mixing Boys/Girls games
 function calculateCurrentRPI(completedGames, standings) {
   const currentRPI = {}; // team_gender_division -> { rpi, rpiRank }
   
   // Basketball weights
   const weights = { homeWin: 0.6, roadWin: 1.4, homeLoss: 1.4, roadLoss: 0.6 };
   
-  // Get all NHIAA teams from standings
-  const teamsByGroup = {}; // gender_division -> [team names]
+  // Group standings by gender_division
+  const teamsByGroup = {}; // gender_division -> [{ school, gender, division }]
   for (const s of standings) {
     const groupKey = `${s.gender}_${s.division}`;
     if (!teamsByGroup[groupKey]) teamsByGroup[groupKey] = [];
-    teamsByGroup[groupKey].push(s.school);
+    teamsByGroup[groupKey].push({ school: s.school, gender: s.gender, division: s.division });
   }
   
-  // Calculate weighted WP for each team
-  const teamWeightedWP = new Map();
-  const allTeams = standings.map(s => s.school);
-  
-  for (const teamName of allTeams) {
-    let weightedWins = 0, weightedLosses = 0;
-    for (const game of completedGames) {
-      const isHome = game.home_team === teamName;
-      const isAway = game.away_team === teamName;
-      if (!isHome && !isAway) continue;
-      if (game.home_score === null || game.away_score === null) continue;
-      
-      const teamScore = isHome ? game.home_score : game.away_score;
-      const oppScore = isHome ? game.away_score : game.home_score;
-      const won = teamScore > oppScore;
-      
-      if (won) {
-        weightedWins += isHome ? weights.homeWin : weights.roadWin;
-      } else {
-        weightedLosses += isHome ? weights.homeLoss : weights.roadLoss;
-      }
-    }
-    const total = weightedWins + weightedLosses;
-    teamWeightedWP.set(teamName, total > 0 ? weightedWins / total : 0);
-  }
-  
-  // Build played opponents map
-  const teamsPlayedMap = new Map();
-  for (const game of completedGames) {
-    if (game.home_score === null || game.away_score === null) continue;
-    if (!teamsPlayedMap.has(game.home_team)) {
-      teamsPlayedMap.set(game.home_team, { opponents: [], gender: game.gender, division: game.division });
-    }
-    if (!teamsPlayedMap.has(game.away_team)) {
-      teamsPlayedMap.set(game.away_team, { opponents: [], gender: game.gender, division: game.division });
-    }
-    teamsPlayedMap.get(game.home_team).opponents.push(game.away_team);
-    teamsPlayedMap.get(game.away_team).opponents.push(game.home_team);
-  }
-  
-  // Calculate OWP for each team
-  const teamOWP = new Map();
-  for (const teamName of allTeams) {
-    const playedData = teamsPlayedMap.get(teamName);
-    if (!playedData || playedData.opponents.length === 0) {
-      teamOWP.set(teamName, 0);
-      continue;
-    }
-    let owpSum = 0, owpCount = 0;
-    for (const opp of playedData.opponents) {
-      // Calculate opponent's win% excluding games against this team
-      let oppWins = 0, oppLosses = 0;
-      for (const game of completedGames) {
-        if (game.home_score === null || game.away_score === null) continue;
-        const oppIsHome = game.home_team === opp;
-        const oppIsAway = game.away_team === opp;
-        if (!oppIsHome && !oppIsAway) continue;
-        // Exclude games against the team we're calculating for
-        if (game.home_team === teamName || game.away_team === teamName) continue;
-        
-        const oppScore = oppIsHome ? game.home_score : game.away_score;
-        const otherScore = oppIsHome ? game.away_score : game.home_score;
-        if (oppScore > otherScore) oppWins++;
-        else oppLosses++;
-      }
-      const oppTotal = oppWins + oppLosses;
-      if (oppTotal > 0) {
-        owpSum += oppWins / oppTotal;
-        owpCount++;
-      }
-    }
-    teamOWP.set(teamName, owpCount > 0 ? owpSum / owpCount : 0);
-  }
-  
-  // Calculate OOWP for each team
-  const teamOOWP = new Map();
-  for (const teamName of allTeams) {
-    const playedData = teamsPlayedMap.get(teamName);
-    if (!playedData || playedData.opponents.length === 0) {
-      teamOOWP.set(teamName, 0);
-      continue;
-    }
-    let oowpSum = 0, oowpCount = 0;
-    for (const opp of playedData.opponents) {
-      const oppOWP = teamOWP.get(opp);
-      if (oppOWP !== undefined) {
-        oowpSum += oppOWP;
-        oowpCount++;
-      }
-    }
-    teamOOWP.set(teamName, oowpCount > 0 ? oowpSum / oowpCount : 0);
-  }
-  
-  // Calculate final RPI and rank within each division/gender
-  for (const [groupKey, teams] of Object.entries(teamsByGroup)) {
+  // Process each gender_division group separately
+  for (const [groupKey, teamsInGroup] of Object.entries(teamsByGroup)) {
     const [gender, division] = groupKey.split('_');
-    const teamRPIs = [];
     
-    for (const teamName of teams) {
+    // Filter games to ONLY this gender
+    const genderGames = completedGames.filter(g => 
+      g.gender === gender && 
+      g.home_score !== null && 
+      g.away_score !== null
+    );
+    
+    // Get all team names in this group
+    const teamNames = teamsInGroup.map(t => t.school);
+    const teamNameSet = new Set(teamNames);
+    
+    // Calculate weighted WP for each team (using only this gender's games)
+    const teamWeightedWP = new Map();
+    for (const teamName of teamNames) {
+      let weightedWins = 0, weightedLosses = 0;
+      for (const game of genderGames) {
+        const isHome = game.home_team === teamName;
+        const isAway = game.away_team === teamName;
+        if (!isHome && !isAway) continue;
+        
+        const teamScore = isHome ? game.home_score : game.away_score;
+        const oppScore = isHome ? game.away_score : game.home_score;
+        const won = teamScore > oppScore;
+        
+        if (won) {
+          weightedWins += isHome ? weights.homeWin : weights.roadWin;
+        } else {
+          weightedLosses += isHome ? weights.homeLoss : weights.roadLoss;
+        }
+      }
+      const total = weightedWins + weightedLosses;
+      teamWeightedWP.set(teamName, total > 0 ? weightedWins / total : 0);
+    }
+    
+    // Build played opponents map (for this gender only)
+    const teamsPlayedMap = new Map();
+    for (const game of genderGames) {
+      if (!teamsPlayedMap.has(game.home_team)) {
+        teamsPlayedMap.set(game.home_team, []);
+      }
+      if (!teamsPlayedMap.has(game.away_team)) {
+        teamsPlayedMap.set(game.away_team, []);
+      }
+      teamsPlayedMap.get(game.home_team).push(game.away_team);
+      teamsPlayedMap.get(game.away_team).push(game.home_team);
+    }
+    
+    // Calculate OWP for each team
+    const teamOWP = new Map();
+    for (const teamName of teamNames) {
+      const opponents = teamsPlayedMap.get(teamName) || [];
+      if (opponents.length === 0) {
+        teamOWP.set(teamName, 0);
+        continue;
+      }
+      let owpSum = 0, owpCount = 0;
+      for (const opp of opponents) {
+        // Calculate opponent's win% excluding games against this team
+        let oppWins = 0, oppLosses = 0;
+        for (const game of genderGames) {
+          const oppIsHome = game.home_team === opp;
+          const oppIsAway = game.away_team === opp;
+          if (!oppIsHome && !oppIsAway) continue;
+          // Exclude games against the team we're calculating for
+          if (game.home_team === teamName || game.away_team === teamName) continue;
+          
+          const oppScore = oppIsHome ? game.home_score : game.away_score;
+          const otherScore = oppIsHome ? game.away_score : game.home_score;
+          if (oppScore > otherScore) oppWins++;
+          else oppLosses++;
+        }
+        const oppTotal = oppWins + oppLosses;
+        if (oppTotal > 0) {
+          owpSum += oppWins / oppTotal;
+          owpCount++;
+        }
+      }
+      teamOWP.set(teamName, owpCount > 0 ? owpSum / owpCount : 0);
+    }
+    
+    // Calculate OOWP for each team
+    const teamOOWP = new Map();
+    for (const teamName of teamNames) {
+      const opponents = teamsPlayedMap.get(teamName) || [];
+      if (opponents.length === 0) {
+        teamOOWP.set(teamName, 0);
+        continue;
+      }
+      let oowpSum = 0, oowpCount = 0;
+      for (const opp of opponents) {
+        const oppOWP = teamOWP.get(opp);
+        if (oppOWP !== undefined) {
+          oowpSum += oppOWP;
+          oowpCount++;
+        }
+      }
+      teamOOWP.set(teamName, oowpCount > 0 ? oowpSum / oowpCount : 0);
+    }
+    
+    // Calculate final RPI and rank within this division/gender
+    const teamRPIs = [];
+    for (const teamName of teamNames) {
       const wp = teamWeightedWP.get(teamName) || 0;
       const owp = teamOWP.get(teamName) || 0;
       const oowp = teamOOWP.get(teamName) || 0;
