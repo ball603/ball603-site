@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1a1a1a">
+  <title>Playoff Scores | Ball603</title>
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="apple-touch-icon" href="/logo.png">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a1a;
+      color: #fff;
+      min-height: 100vh;
+      min-height: -webkit-fill-available;
+    }
+    
+    .container {
+      max-width: 500px;
+      margin: 0 auto;
+      padding: 20px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .logo {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 20px;
+      display: block;
+    }
+    
+    .page {
+      display: none;
+      flex-direction: column;
+      flex: 1;
+    }
+    
+    .page.active {
+      display: flex;
+    }
+    
+    .page-title {
+      font-size: 24px;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 10px;
+      color: #fff;
+    }
+    
+    .page-subtitle {
+      font-size: 14px;
+      text-align: center;
+      color: #999;
+      margin-bottom: 30px;
+    }
+    
+    .playoff-badge {
+      background: linear-gradient(135deg, #f57c00 0%, #e65100 100%);
+      color: white;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 6px 14px;
+      border-radius: 20px;
+      display: inline-block;
+      margin: 0 auto 20px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    /* Login */
+    .login-input {
+      width: 100%;
+      padding: 16px 20px;
+      font-size: 18px;
+      border: 2px solid #333;
+      border-radius: 12px;
+      background: #222;
+      color: #fff;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    
+    .login-input:focus {
+      outline: none;
+      border-color: #f57c00;
+    }
+    
+    .login-input::placeholder {
+      color: #666;
+    }
+    
+    .login-error {
+      color: #ff5252;
+      text-align: center;
+      margin-bottom: 15px;
+      font-size: 14px;
+      display: none;
+    }
+    
+    /* Buttons */
+    .btn {
+      width: 100%;
+      padding: 18px 24px;
+      font-size: 18px;
+      font-weight: 600;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: transform 0.1s, opacity 0.2s;
+    }
+    
+    .btn:active {
+      transform: scale(0.98);
+    }
+    
+    .btn-primary {
+      background: #f57c00;
+      color: #fff;
+    }
+    
+    .btn-primary:hover {
+      background: #e66a00;
+    }
+    
+    .btn-secondary {
+      background: #333;
+      color: #fff;
+      margin-top: 12px;
+    }
+    
+    .btn-secondary:hover {
+      background: #444;
+    }
+    
+    /* Tournament Selection */
+    .tournament-selects {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin-bottom: 30px;
+    }
+    
+    .select-group label {
+      display: block;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #888;
+      margin-bottom: 8px;
+    }
+    
+    .tournament-select {
+      width: 100%;
+      padding: 16px 20px;
+      font-size: 18px;
+      font-weight: 600;
+      border: 2px solid #333;
+      border-radius: 12px;
+      background: #222;
+      color: #fff;
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 16px center;
+    }
+    
+    .tournament-select:focus {
+      outline: none;
+      border-color: #f57c00;
+    }
+    
+    /* Round Tabs */
+    .round-tabs {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 20px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+    }
+    
+    .round-tab {
+      flex: 1;
+      min-width: 70px;
+      padding: 12px 8px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      text-align: center;
+      border: 2px solid #333;
+      border-radius: 10px;
+      background: #222;
+      color: #888;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    
+    .round-tab:hover {
+      border-color: #444;
+    }
+    
+    .round-tab.active {
+      background: #f57c00;
+      border-color: #f57c00;
+      color: #fff;
+    }
+    
+    .round-tab .count {
+      display: block;
+      font-size: 16px;
+      margin-top: 4px;
+    }
+    
+    /* Games Header */
+    .games-header {
+      font-size: 16px;
+      font-weight: 600;
+      color: #f57c00;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+    
+    /* Games List */
+    .games-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      flex: 1;
+      overflow-y: auto;
+      padding-bottom: 80px;
+    }
+    
+    .game-card {
+      display: flex;
+      flex-direction: column;
+      padding: 14px 16px;
+      background: #222;
+      border: 2px solid #333;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .game-card:hover {
+      border-color: #f57c00;
+      background: #2a2a2a;
+    }
+    
+    .game-card:active {
+      transform: scale(0.98);
+    }
+    
+    .game-card.live {
+      border-color: #e53935;
+      animation: livePulse 2s infinite;
+    }
+    
+    @keyframes livePulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(229, 57, 53, 0.4); }
+      50% { box-shadow: 0 0 0 6px rgba(229, 57, 53, 0); }
+    }
+    
+    .game-card.final {
+      border-color: #4caf50;
+    }
+    
+    .game-card.bye {
+      opacity: 0.4;
+      cursor: default;
+    }
+    
+    .game-card.bye:hover {
+      border-color: #333;
+      background: #222;
+    }
+    
+    .game-card-teams {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    
+    .game-card-team {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 1;
+    }
+    
+    .game-card-team.home {
+      flex-direction: row-reverse;
+      text-align: right;
+    }
+    
+    .game-card-seed {
+      background: #333;
+      color: #999;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 7px;
+      border-radius: 4px;
+    }
+    
+    .game-card-team.winner .game-card-seed {
+      background: #f57c00;
+      color: white;
+    }
+    
+    .game-card-logo {
+      width: 36px;
+      height: 36px;
+      object-fit: contain;
+    }
+    
+    .game-card-name {
+      font-size: 14px;
+      font-weight: 600;
+      flex: 1;
+    }
+    
+    .game-card-score {
+      font-size: 22px;
+      font-weight: 700;
+      min-width: 36px;
+      text-align: center;
+    }
+    
+    .game-card-team.winner .game-card-score {
+      color: #4caf50;
+    }
+    
+    .game-card-team.loser {
+      opacity: 0.5;
+    }
+    
+    .game-card-vs {
+      font-size: 12px;
+      color: #666;
+      padding: 0 10px;
+    }
+    
+    .game-card-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 10px;
+      border-top: 1px solid #333;
+      font-size: 12px;
+      color: #888;
+    }
+    
+    .game-card-status {
+      font-weight: 600;
+    }
+    
+    .game-card-status.live {
+      color: #e53935;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .game-card-status.live::before {
+      content: '';
+      width: 8px;
+      height: 8px;
+      background: #e53935;
+      border-radius: 50%;
+      animation: pulse 1.5s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+    
+    .game-card-status.final {
+      color: #4caf50;
+    }
+    
+    .edit-badge {
+      background: #f57c00;
+      color: white;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 4px;
+    }
+    
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: #666;
+    }
+    
+    .empty-state-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+    
+    /* Score Entry */
+    .score-entry {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .matchup-header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    
+    .matchup-round {
+      background: #f57c00;
+      color: white;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 12px;
+      border-radius: 12px;
+      display: inline-block;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    .team-score-row {
+      display: flex;
+      align-items: center;
+      padding: 20px;
+      background: #222;
+      border-radius: 12px;
+      margin-bottom: 12px;
+    }
+    
+    .team-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+    }
+    
+    .team-seed-badge {
+      background: #333;
+      color: #999;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+    
+    .team-logo {
+      width: 48px;
+      height: 48px;
+      object-fit: contain;
+    }
+    
+    .team-name {
+      font-size: 16px;
+      font-weight: 600;
+    }
+    
+    .score-input {
+      width: 80px;
+      padding: 12px;
+      font-size: 28px;
+      font-weight: 700;
+      text-align: center;
+      border: 2px solid #333;
+      border-radius: 10px;
+      background: #1a1a1a;
+      color: #fff;
+    }
+    
+    .score-input:focus {
+      outline: none;
+      border-color: #f57c00;
+    }
+    
+    .status-label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #888;
+      margin-bottom: 10px;
+      margin-top: 20px;
+    }
+    
+    .status-select {
+      width: 100%;
+      padding: 16px 20px;
+      font-size: 16px;
+      font-weight: 600;
+      border: 2px solid #333;
+      border-radius: 12px;
+      background: #222;
+      color: #fff;
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 16px center;
+    }
+    
+    .status-select:focus {
+      outline: none;
+      border-color: #f57c00;
+    }
+    
+    .submit-section {
+      margin-top: auto;
+      padding-top: 20px;
+    }
+    
+    /* Confirmation */
+    .confirm-box {
+      background: #222;
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 30px;
+    }
+    
+    .confirm-matchup {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    
+    .confirm-team {
+      text-align: center;
+      flex: 1;
+    }
+    
+    .confirm-seed {
+      background: #333;
+      color: #999;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 4px;
+      display: inline-block;
+      margin-bottom: 8px;
+    }
+    
+    .confirm-logo {
+      width: 56px;
+      height: 56px;
+      object-fit: contain;
+      margin-bottom: 8px;
+    }
+    
+    .confirm-name {
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 12px;
+    }
+    
+    .confirm-score {
+      font-size: 36px;
+      font-weight: 800;
+    }
+    
+    .confirm-score.winner {
+      color: #4caf50;
+    }
+    
+    .confirm-vs {
+      font-size: 20px;
+      color: #666;
+    }
+    
+    .confirm-divider {
+      border-top: 1px solid #333;
+      margin-top: 16px;
+      padding-top: 16px;
+    }
+    
+    .confirm-status {
+      text-align: center;
+      font-size: 18px;
+      font-weight: 700;
+      color: #f57c00;
+    }
+    
+    /* Thanks Page */
+    .thanks-icon {
+      font-size: 80px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    
+    .thanks-message {
+      font-size: 20px;
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    
+    .thanks-note {
+      text-align: center;
+      color: #888;
+      font-size: 14px;
+      margin-bottom: 30px;
+    }
+    
+    /* Loading */
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #888;
+    }
+    
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid #333;
+      border-top-color: #f57c00;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <img src="/logo.png" alt="Ball603" class="logo">
+    
+    <!-- Page 1: Login -->
+    <div class="page active" id="loginPage">
+      <h1 class="page-title">Playoff Scores</h1>
+      <div class="playoff-badge">🏆 Tournament Mode</div>
+      <p class="page-subtitle">Enter password to continue</p>
+      
+      <div class="login-error" id="loginError"></div>
+      <input type="password" class="login-input" id="passwordInput" placeholder="Password" autocomplete="off">
+      <button class="btn btn-primary" onclick="checkPassword()">Enter</button>
+    </div>
+    
+    <!-- Page 2: Tournament Selection -->
+    <div class="page" id="tournamentPage">
+      <h1 class="page-title">Select Tournament</h1>
+      <p class="page-subtitle">Choose gender and division</p>
+      
+      <div class="tournament-selects">
+        <div class="select-group">
+          <label>Gender</label>
+          <select class="tournament-select" id="genderSelect">
+            <option value="Boys">🏀 Boys</option>
+            <option value="Girls">🏀 Girls</option>
+          </select>
+        </div>
+        <div class="select-group">
+          <label>Division</label>
+          <select class="tournament-select" id="divisionSelect">
+            <option value="D-I">Division I</option>
+            <option value="D-II">Division II</option>
+            <option value="D-III">Division III</option>
+            <option value="D-IV">Division IV</option>
+          </select>
+        </div>
+      </div>
+      
+      <button class="btn btn-primary" onclick="selectTournament()">Continue</button>
+    </div>
+    
+    <!-- Page 3: Games List -->
+    <div class="page" id="gamesPage">
+      <h1 class="page-title" id="tournamentTitle">Boys D-IV</h1>
+      
+      <div class="round-tabs" id="roundTabs">
+        <button class="round-tab active" data-round="Prelims" onclick="selectRound('Prelims')">
+          1st Rd
+          <span class="count" id="prelimsCount">0</span>
+        </button>
+        <button class="round-tab" data-round="Quarters" onclick="selectRound('Quarters')">
+          Quarters
+          <span class="count" id="quartersCount">0</span>
+        </button>
+        <button class="round-tab" data-round="Semis" onclick="selectRound('Semis')">
+          Semis
+          <span class="count" id="semisCount">0</span>
+        </button>
+        <button class="round-tab" data-round="Final" onclick="selectRound('Final')">
+          Final
+          <span class="count" id="finalCount">0</span>
+        </button>
+      </div>
+      
+      <div class="games-list" id="gamesList">
+        <div class="loading">
+          <div class="loading-spinner"></div>
+          Loading games...
+        </div>
+      </div>
+      
+      <button class="btn btn-secondary" onclick="goToTournament()">← Change Tournament</button>
+    </div>
+    
+    <!-- Page 4: Score Entry -->
+    <div class="page" id="scorePage">
+      <div class="matchup-header">
+        <span class="matchup-round" id="scoreRound">Quarterfinal</span>
+      </div>
+      
+      <div class="score-entry">
+        <div class="team-score-row">
+          <div class="team-info">
+            <span class="team-seed-badge" id="awaySeed">#8</span>
+            <img id="awayLogo" class="team-logo" src="/logo.png" alt="">
+            <span class="team-name" id="awayName">Away Team</span>
+          </div>
+          <input type="number" class="score-input" id="awayScore" value="0" min="0" inputmode="numeric" pattern="[0-9]*">
+        </div>
+        
+        <div class="team-score-row">
+          <div class="team-info">
+            <span class="team-seed-badge" id="homeSeed">#1</span>
+            <img id="homeLogo" class="team-logo" src="/logo.png" alt="">
+            <span class="team-name" id="homeName">Home Team</span>
+          </div>
+          <input type="number" class="score-input" id="homeScore" value="0" min="0" inputmode="numeric" pattern="[0-9]*">
+        </div>
+        
+        <div class="status-label">Game Status</div>
+        <select class="status-select" id="gameStatus">
+          <option value="1Q">End of 1st Quarter</option>
+          <option value="HALF">Halftime</option>
+          <option value="3Q">End of 3rd Quarter</option>
+          <option value="OT">End of OT</option>
+          <option value="2OT">End of 2OT</option>
+          <option value="3OT">End of 3OT</option>
+          <option value="FINAL" selected>Final</option>
+          <option value="FINAL-OT">Final (OT)</option>
+          <option value="FINAL-2OT">Final (2OT)</option>
+          <option value="FINAL-3OT">Final (3OT)</option>
+        </select>
+        
+        <div class="submit-section">
+          <button class="btn btn-primary" onclick="submitScore()">Submit Score</button>
+          <button class="btn btn-secondary" onclick="goToGames()">← Back to Games</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Page 5: Confirmation -->
+    <div class="page" id="confirmPage">
+      <h1 class="page-title">Confirm Score</h1>
+      
+      <div class="confirm-box">
+        <div class="confirm-matchup">
+          <div class="confirm-team">
+            <span class="confirm-seed" id="confirmAwaySeed">#8</span>
+            <img id="confirmAwayLogo" class="confirm-logo" src="/logo.png" alt="">
+            <div class="confirm-name" id="confirmAwayName">Away</div>
+            <div class="confirm-score" id="confirmAwayScore">0</div>
+          </div>
+          <div class="confirm-vs">VS</div>
+          <div class="confirm-team">
+            <span class="confirm-seed" id="confirmHomeSeed">#1</span>
+            <img id="confirmHomeLogo" class="confirm-logo" src="/logo.png" alt="">
+            <div class="confirm-name" id="confirmHomeName">Home</div>
+            <div class="confirm-score" id="confirmHomeScore">0</div>
+          </div>
+        </div>
+        <div class="confirm-divider">
+          <div class="confirm-status" id="confirmStatus">FINAL</div>
+        </div>
+      </div>
+      
+      <button class="btn btn-primary" onclick="confirmScore()">✓ Confirm & Save</button>
+      <button class="btn btn-secondary" onclick="goToScore()">← Edit Score</button>
+    </div>
+    
+    <!-- Page 6: Thanks -->
+    <div class="page" id="thanksPage">
+      <div class="thanks-icon">✅</div>
+      <div class="thanks-message">Score Saved!</div>
+      <div class="thanks-note">The bracket will update automatically.</div>
+      
+      <button class="btn btn-primary" onclick="goToGames()">Enter Another Score</button>
+      <button class="btn btn-secondary" onclick="goToTournament()">Change Tournament</button>
+    </div>
+  </div>
+  
+  <script>
+    // Config
+    const PASSWORD = 'ball603';
+    const SEASON = '2025-26';
+    
+    // State
+    let currentGender = 'Boys';
+    let currentDivision = 'D-IV';
+    let currentRound = 'Prelims';
+    let playoffGames = [];
+    let selectedGame = null;
+    
+    // Show page
+    function showPage(pageId) {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.getElementById(pageId).classList.add('active');
+    }
+    
+    // Check password
+    function checkPassword() {
+      const input = document.getElementById('passwordInput').value;
+      const errorEl = document.getElementById('loginError');
+      
+      if (input.toLowerCase() === PASSWORD) {
+        errorEl.style.display = 'none';
+        showPage('tournamentPage');
+      } else {
+        errorEl.textContent = 'Incorrect password';
+        errorEl.style.display = 'block';
+      }
+    }
+    
+    // Handle enter key on password
+    document.getElementById('passwordInput').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') checkPassword();
+    });
+    
+    // Select tournament
+    async function selectTournament() {
+      currentGender = document.getElementById('genderSelect').value;
+      currentDivision = document.getElementById('divisionSelect').value;
+      
+      document.getElementById('tournamentTitle').textContent = `${currentGender} ${currentDivision}`;
+      
+      showPage('gamesPage');
+      await loadPlayoffGames();
+      selectRound('Prelims');
+    }
+    
+    // Load playoff games
+    async function loadPlayoffGames() {
+      const listEl = document.getElementById('gamesList');
+      listEl.innerHTML = '<div class="loading"><div class="loading-spinner"></div>Loading games...</div>';
+      
+      try {
+        const response = await fetch(`/.netlify/functions/playoff-seeds?gender=${currentGender}&division=${currentDivision}&season=${SEASON}`);
+        const data = await response.json();
+        
+        if (!data.locked || !data.games) {
+          listEl.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📋</div>Bracket not set yet</div>';
+          return;
+        }
+        
+        playoffGames = data.games || [];
+        updateRoundCounts();
+        
+      } catch (error) {
+        console.error('Error loading playoff games:', error);
+        listEl.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div>Error loading games</div>';
+      }
+    }
+    
+    // Update round tab counts
+    function updateRoundCounts() {
+      const counts = {
+        'Prelims': playoffGames.filter(g => g.round === 'Prelims').length,
+        'Quarters': playoffGames.filter(g => g.round === 'Quarters').length,
+        'Semis': playoffGames.filter(g => g.round === 'Semis').length,
+        'Final': playoffGames.filter(g => g.round === 'Final').length
+      };
+      
+      document.getElementById('prelimsCount').textContent = counts['Prelims'];
+      document.getElementById('quartersCount').textContent = counts['Quarters'];
+      document.getElementById('semisCount').textContent = counts['Semis'];
+      document.getElementById('finalCount').textContent = counts['Final'];
+    }
+    
+    // Select round
+    function selectRound(round) {
+      currentRound = round;
+      
+      // Update tabs
+      document.querySelectorAll('.round-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.round === round);
+      });
+      
+      renderGames();
+    }
+    
+    // Render games list
+    function renderGames() {
+      const listEl = document.getElementById('gamesList');
+      
+      const roundGames = playoffGames.filter(g => g.round === currentRound);
+      roundGames.sort((a, b) => (a.bracket_position || 0) - (b.bracket_position || 0));
+      
+      if (roundGames.length === 0) {
+        listEl.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🏀</div>No games in this round</div>';
+        return;
+      }
+      
+      listEl.innerHTML = roundGames.map(game => {
+        const isLive = game.game_status && !game.game_status.includes('FINAL');
+        const isFinal = game.game_status && game.game_status.includes('FINAL');
+        const hasScore = game.away_score !== null && game.home_score !== null;
+        const isBye = !game.away_team && game.home_team;
+        
+        // Winner/loser classes
+        let awayClass = '', homeClass = '';
+        if (isFinal && hasScore) {
+          if (game.away_score > game.home_score) {
+            awayClass = 'winner';
+            homeClass = 'loser';
+          } else {
+            homeClass = 'winner';
+            awayClass = 'loser';
+          }
+        }
+        
+        // Status text
+        let statusText = '', statusClass = '';
+        if (isLive) {
+          const statusMap = { '1Q': 'End 1st', 'HALF': 'Halftime', '3Q': 'End 3rd', 'OT': 'OT', '2OT': '2OT', '3OT': '3OT' };
+          statusText = statusMap[game.game_status] || game.game_status;
+          statusClass = 'live';
+        } else if (isFinal) {
+          const finalMap = { 'FINAL': 'Final', 'FINAL-OT': 'Final (OT)', 'FINAL-2OT': 'Final (2OT)', 'FINAL-3OT': 'Final (3OT)' };
+          statusText = finalMap[game.game_status] || 'Final';
+          statusClass = 'final';
+        } else {
+          statusText = game.time || 'TBD';
+        }
+        
+        // BYE game
+        if (isBye) {
+          return `
+            <div class="game-card bye">
+              <div class="game-card-teams">
+                <div class="game-card-team">
+                  <span class="game-card-seed">#${game.home_seed}</span>
+                  <img class="game-card-logo" src="/logos/100px/${getLogoFilename(game.home_team)}" onerror="this.style.display='none'" alt="">
+                  <span class="game-card-name">${game.home_team}</span>
+                </div>
+              </div>
+              <div class="game-card-footer">
+                <span>BYE - Advances to next round</span>
+              </div>
+            </div>
+          `;
+        }
+        
+        // TBD matchup
+        if (!game.away_team && !game.home_team) {
+          return `
+            <div class="game-card">
+              <div class="game-card-teams">
+                <div class="game-card-team">
+                  <span class="game-card-seed">-</span>
+                  <span class="game-card-name">TBD</span>
+                </div>
+                <span class="game-card-vs">vs</span>
+                <div class="game-card-team home">
+                  <span class="game-card-seed">-</span>
+                  <span class="game-card-name">TBD</span>
+                </div>
+              </div>
+              <div class="game-card-footer">
+                <span>Waiting for previous round</span>
+              </div>
+            </div>
+          `;
+        }
+        
+        return `
+          <div class="game-card ${isLive ? 'live' : ''} ${isFinal ? 'final' : ''}" onclick="selectGame('${game.game_id}')">
+            <div class="game-card-teams">
+              <div class="game-card-team ${awayClass}">
+                <span class="game-card-seed">#${game.away_seed || '?'}</span>
+                <img class="game-card-logo" src="/logos/100px/${getLogoFilename(game.away_team)}" onerror="this.style.display='none'" alt="">
+                <span class="game-card-name">${game.away_team || 'TBD'}</span>
+                <span class="game-card-score">${hasScore ? game.away_score : ''}</span>
+              </div>
+              <span class="game-card-vs">vs</span>
+              <div class="game-card-team home ${homeClass}">
+                <span class="game-card-score">${hasScore ? game.home_score : ''}</span>
+                <span class="game-card-name">${game.home_team || 'TBD'}</span>
+                <img class="game-card-logo" src="/logos/100px/${getLogoFilename(game.home_team)}" onerror="this.style.display='none'" alt="">
+                <span class="game-card-seed">#${game.home_seed || '?'}</span>
+              </div>
+            </div>
+            <div class="game-card-footer">
+              <span class="game-card-status ${statusClass}">${statusText}</span>
+              ${isFinal || isLive ? '<span class="edit-badge">TAP TO EDIT</span>' : '<span class="edit-badge">TAP TO SCORE</span>'}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+    
+    // Select game for scoring
+    function selectGame(gameId) {
+      selectedGame = playoffGames.find(g => g.game_id === gameId);
+      if (!selectedGame || !selectedGame.away_team || !selectedGame.home_team) return;
+      
+      const roundNames = { 'Prelims': '1st Round', 'Quarters': 'Quarterfinal', 'Semis': 'Semifinal', 'Final': 'Championship' };
+      document.getElementById('scoreRound').textContent = roundNames[selectedGame.round] || selectedGame.round;
+      
+      document.getElementById('awaySeed').textContent = `#${selectedGame.away_seed || '?'}`;
+      document.getElementById('awayLogo').src = `/logos/100px/${getLogoFilename(selectedGame.away_team)}`;
+      document.getElementById('awayName').textContent = selectedGame.away_team;
+      
+      document.getElementById('homeSeed').textContent = `#${selectedGame.home_seed || '?'}`;
+      document.getElementById('homeLogo').src = `/logos/100px/${getLogoFilename(selectedGame.home_team)}`;
+      document.getElementById('homeName').textContent = selectedGame.home_team;
+      
+      document.getElementById('awayScore').value = selectedGame.away_score || 0;
+      document.getElementById('homeScore').value = selectedGame.home_score || 0;
+      document.getElementById('gameStatus').value = selectedGame.game_status || 'FINAL';
+      
+      showPage('scorePage');
+    }
+    
+    // Submit score (go to confirmation)
+    function submitScore() {
+      const awayScore = parseInt(document.getElementById('awayScore').value) || 0;
+      const homeScore = parseInt(document.getElementById('homeScore').value) || 0;
+      const status = document.getElementById('gameStatus').value;
+      
+      document.getElementById('confirmAwaySeed').textContent = `#${selectedGame.away_seed || '?'}`;
+      document.getElementById('confirmAwayLogo').src = `/logos/100px/${getLogoFilename(selectedGame.away_team)}`;
+      document.getElementById('confirmAwayName').textContent = selectedGame.away_team;
+      document.getElementById('confirmAwayScore').textContent = awayScore;
+      document.getElementById('confirmAwayScore').className = 'confirm-score' + (awayScore > homeScore ? ' winner' : '');
+      
+      document.getElementById('confirmHomeSeed').textContent = `#${selectedGame.home_seed || '?'}`;
+      document.getElementById('confirmHomeLogo').src = `/logos/100px/${getLogoFilename(selectedGame.home_team)}`;
+      document.getElementById('confirmHomeName').textContent = selectedGame.home_team;
+      document.getElementById('confirmHomeScore').textContent = homeScore;
+      document.getElementById('confirmHomeScore').className = 'confirm-score' + (homeScore > awayScore ? ' winner' : '');
+      
+      const statusMap = { '1Q': 'End 1st', 'HALF': 'Halftime', '3Q': 'End 3rd', 'OT': 'OT', '2OT': '2OT', '3OT': '3OT', 'FINAL': 'FINAL', 'FINAL-OT': 'FINAL (OT)', 'FINAL-2OT': 'FINAL (2OT)', 'FINAL-3OT': 'FINAL (3OT)' };
+      document.getElementById('confirmStatus').textContent = statusMap[status] || status;
+      
+      showPage('confirmPage');
+    }
+    
+    // Confirm and save score
+    async function confirmScore() {
+      const awayScore = parseInt(document.getElementById('awayScore').value) || 0;
+      const homeScore = parseInt(document.getElementById('homeScore').value) || 0;
+      const status = document.getElementById('gameStatus').value;
+      
+      try {
+        const response = await fetch('/.netlify/functions/update-score', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            game_id: selectedGame.game_id,
+            away_score: awayScore,
+            home_score: homeScore,
+            game_status: status
+          })
+        });
+        
+        if (!response.ok) {
+          const result = await response.json().catch(() => ({}));
+          console.error('Error saving score:', result);
+          alert('Error saving score. Please try again.');
+          return;
+        }
+        
+        // Update local data
+        const gameIndex = playoffGames.findIndex(g => g.game_id === selectedGame.game_id);
+        if (gameIndex !== -1) {
+          playoffGames[gameIndex].away_score = awayScore;
+          playoffGames[gameIndex].home_score = homeScore;
+          playoffGames[gameIndex].game_status = status;
+        }
+        
+        showPage('thanksPage');
+        
+        // Reload games in background to get any auto-advance updates
+        setTimeout(() => loadPlayoffGames(), 1000);
+        
+      } catch (err) {
+        console.error('Error:', err);
+        alert('Error saving score. Please try again.');
+      }
+    }
+    
+    // Navigation
+    function goToTournament() {
+      showPage('tournamentPage');
+    }
+    
+    function goToGames() {
+      renderGames();
+      showPage('gamesPage');
+    }
+    
+    function goToScore() {
+      showPage('scorePage');
+    }
+    
+    // Logo filename helper
+    function getLogoFilename(teamName) {
+      if (!teamName) return 'Ball603-white.png';
+      const specialCases = {
+        'coe-brown': 'CoeBrown', 'bishop brady': 'BishopBrady', 'bishop guertin': 'BishopGuertin',
+        'concord christian': 'ConcordChristian', 'con-val': 'ConVal', 'conval': 'ConVal', 'fall mountain': 'FallMountain',
+        'hillsboro-deering': 'HillsboroDeering', 'hollis-brookline': 'HollisBrookline', 'holy family': 'HolyFamily',
+        'inter-lakes': 'InterLakes', 'john stark': 'JohnStark', 'lin-wood': 'LinWood', 'manchester central': 'ManchesterCentral',
+        'manchester memorial': 'ManchesterMemorial', 'manchester west': 'ManchesterWest', 'mascoma valley': 'Mascoma',
+        'merrimack valley': 'MerrimackValley', 'mount royal': 'MountRoyal', 'nashua north': 'NashuaNorth',
+        'nashua south': 'NashuaSouth', 'oyster river': 'OysterRiver', 'pittsburg-canaan': 'PittsburgCanaan',
+        'portsmouth christian': 'PortsmouthChristian', 'prospect mountain': 'ProspectMountain',
+        'st. thomas aquinas': 'StThomasAquinas', 'st thomas aquinas': 'StThomasAquinas', 'white mountains': 'WhiteMountains',
+        'wilton-lyndeborough': 'WiltonLyndeborough'
+      };
+      const lower = teamName.toLowerCase().trim();
+      if (specialCases[lower]) return specialCases[lower] + '.png';
+      return teamName.split(/[\s-]+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join('') + '.png';
+    }
+  </script>
+</body>
+</html>
