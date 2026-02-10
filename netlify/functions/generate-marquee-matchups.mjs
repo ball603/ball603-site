@@ -843,11 +843,13 @@ export default async (request) => {
 
     // Fetch all required data in parallel
     // Filter by basketball sport for all queries
+    // NOTE: Legacy basketball data has sport=NULL, so we must include both basketball AND null
+    const basketballFilter = 'or=(sport.eq.basketball,sport.is.null)';
     const [games, standings, allGames, rpiRankings] = await Promise.all([
-      supabaseQuery('games', `?date=eq.${date}&level=eq.NHIAA&sport=eq.basketball&order=division,gender,time`),
-      supabaseQuery('standings', '?select=*&sport=eq.basketball'),
-      supabaseQuery('games', '?level=eq.NHIAA&sport=eq.basketball&select=*'),
-      supabaseQuery('rpi_rankings', '?select=team,gender,division,rpi,rank,wins,losses&sport=eq.basketball&order=week_of.desc&limit=500')
+      supabaseQuery('games', `?date=eq.${date}&level=eq.NHIAA&${basketballFilter}&order=division,gender,time`),
+      supabaseQuery('standings', `?select=*&${basketballFilter}`),
+      supabaseQuery('games', `?level=eq.NHIAA&${basketballFilter}&select=*`),
+      supabaseQuery('rpi_rankings', `?select=team,gender,division,rpi,rank,wins,losses&${basketballFilter}&order=week_of.desc&limit=500`)
     ]);
 
     console.log(`Found ${games.length} games on ${date}`);
