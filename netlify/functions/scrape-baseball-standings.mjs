@@ -154,8 +154,9 @@ async function updateSupabase(standings) {
     
     if (existingTeams.has(teamKey)) {
       // Existing team: Only update rating/points/seed/qualifies (NOT W-L)
+      // IMPORTANT: Must include sport and season in WHERE clause to avoid updating basketball records!
       const response = await fetch(
-        `${SUPABASE_URL}/rest/v1/standings?school=eq.${encodeURIComponent(s.school)}&gender=eq.${encodeURIComponent(s.gender)}&division=eq.${encodeURIComponent(s.division)}`,
+        `${SUPABASE_URL}/rest/v1/standings?school=eq.${encodeURIComponent(s.school)}&gender=eq.${encodeURIComponent(s.gender)}&division=eq.${encodeURIComponent(s.division)}&sport=eq.${SPORT}&season=eq.${SEASON}`,
         {
           method: 'PATCH',
           headers: {
@@ -338,7 +339,7 @@ async function updateRecordsFromGames() {
     const winPct = gamesPlayed > 0 ? (record.wins / gamesPlayed).toFixed(3) : '0.000';
     
     const response = await fetch(
-      `${SUPABASE_URL}/rest/v1/standings?school=eq.${encodeURIComponent(record.school)}&gender=eq.${encodeURIComponent(record.gender)}&division=eq.${encodeURIComponent(record.division)}`,
+      `${SUPABASE_URL}/rest/v1/standings?school=eq.${encodeURIComponent(record.school)}&gender=eq.${encodeURIComponent(record.gender)}&division=eq.${encodeURIComponent(record.division)}&sport=eq.${SPORT}&season=eq.${SEASON}`,
       {
         method: 'PATCH',
         headers: {
