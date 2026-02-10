@@ -564,6 +564,41 @@
         font-weight: 700;
       }
       
+      /* Playoff game styles */
+      .game-card.playoff {
+        border-color: #f57c00;
+        background: linear-gradient(135deg, rgba(245, 124, 0, 0.1) 0%, #2d2d2d 100%);
+      }
+      
+      .game-card.playoff .game-card-header {
+        background: linear-gradient(135deg, rgba(245, 124, 0, 0.15) 0%, #252525 100%);
+      }
+      
+      .playoff-badge {
+        background: #f57c00;
+        color: white;
+        font-size: 10px;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      
+      .playoff-round {
+        color: #f57c00;
+        font-weight: 600;
+      }
+      
+      /* Table playoff row */
+      tr.playoff-row {
+        background: rgba(245, 124, 0, 0.08);
+      }
+      
+      tr.playoff-row:hover {
+        background: rgba(245, 124, 0, 0.15);
+      }
+      
       .empty-state {
         text-align: center;
         padding: 60px 20px;
@@ -1009,6 +1044,11 @@
         const isFinal = g.time === 'FINAL' || hasScore;
         const aw = hasScore && parseInt(as) > parseInt(hs);
         const hw = hasScore && parseInt(hs) > parseInt(as);
+        const isPlayoff = g.is_playoff;
+        
+        // Playoff round names
+        const roundNames = { 'Prelims': '1st Rd', 'Quarters': 'QF', 'Semis': 'SF', 'Final': 'Final' };
+        const roundBadge = isPlayoff && g.round ? '<span class="playoff-badge">'+(roundNames[g.round]||g.round)+'</span> ' : '';
         
         let cov = '';
         if (g.photos_url) cov += '<a href="'+g.photos_url+'" class="coverage-link" title="Photos">&#128248;</a>';
@@ -1023,23 +1063,24 @@
           statusCell = '<span class="game-time">'+formatTime(g.time)+'</span>';
         }
         
-        tableHtml += '<tr>';
-        tableHtml += '<td class="col-level">'+(g.level||'')+'</td>';
+        tableHtml += '<tr'+(isPlayoff?' class="playoff-row"':'')+'>';
+        tableHtml += '<td class="col-level">'+roundBadge+(g.level||'')+'</td>';
         tableHtml += '<td class="col-gender">'+(g.gender||'')+'</td>';
-        tableHtml += '<td class="col-away"><div class="away-team-cell">' + getTeamLink(g.away, getLogoFilename(g.away), aw, g.level) + '</div></td>';
-        tableHtml += '<td class="col-home"><div class="home-team-cell"><span class="matchup-at">@</span>' + getTeamLink(g.home, getLogoFilename(g.home), hw, g.level) + '</div></td>';
+        tableHtml += '<td class="col-away"><div class="away-team-cell">' + getTeamLink(g.away, getLogoFilename(g.away), aw, g.level) + (isPlayoff && g.away_seed ? ' <span class="playoff-round">#'+g.away_seed+'</span>' : '') + '</div></td>';
+        tableHtml += '<td class="col-home"><div class="home-team-cell"><span class="matchup-at">@</span>' + getTeamLink(g.home, getLogoFilename(g.home), hw, g.level) + (isPlayoff && g.home_seed ? ' <span class="playoff-round">#'+g.home_seed+'</span>' : '') + '</div></td>';
         tableHtml += '<td class="col-status">'+statusCell+'</td>';
         tableHtml += '<td class="col-coverage">'+(cov||'-')+'</td>';
         tableHtml += '</tr>';
         
         // Mobile card
         const td = isFinal ? '<span class="game-status">FINAL</span>' : formatTime(g.time);
-        cardsHtml += '<div class="game-card">';
+        const playoffHeader = isPlayoff && g.round ? '<span class="playoff-badge">'+(roundNames[g.round]||g.round)+'</span> ' : '';
+        cardsHtml += '<div class="game-card'+(isPlayoff?' playoff':'')+'">';
         if (g.gamedescription) cardsHtml += '<div class="game-description">'+g.gamedescription+'</div>';
-        cardsHtml += '<div class="game-card-header"><span class="game-level">'+(g.gender||'')+' '+(g.level||'')+'</span><span class="game-time">'+td+'</span></div>';
+        cardsHtml += '<div class="game-card-header"><span class="game-level">'+playoffHeader+(g.gender||'')+' '+(g.level||'')+'</span><span class="game-time">'+td+'</span></div>';
         cardsHtml += '<div class="game-card-body">';
-        cardsHtml += '<div class="game-team">'+getMobileTeamLink(g.away, getLogoFilename(g.away), g.away_record, g.level)+(hasScore?'<div class="team-score'+(aw?' winner':'')+'">'+as+'</div>':'')+'</div>';
-        cardsHtml += '<div class="game-team">'+getMobileTeamLink(g.home, getLogoFilename(g.home), g.home_record, g.level)+(hasScore?'<div class="team-score'+(hw?' winner':'')+'">'+hs+'</div>':'')+'</div>';
+        cardsHtml += '<div class="game-team">'+getMobileTeamLink(g.away, getLogoFilename(g.away), isPlayoff && g.away_seed ? '#'+g.away_seed : g.away_record, g.level)+(hasScore?'<div class="team-score'+(aw?' winner':'')+'">'+as+'</div>':'')+'</div>';
+        cardsHtml += '<div class="game-team">'+getMobileTeamLink(g.home, getLogoFilename(g.home), isPlayoff && g.home_seed ? '#'+g.home_seed : g.home_record, g.level)+(hasScore?'<div class="team-score'+(hw?' winner':'')+'">'+hs+'</div>':'')+'</div>';
         cardsHtml += '</div>';
         if (cov) cardsHtml += '<div class="game-card-footer">'+cov+'</div>';
         cardsHtml += '</div>';

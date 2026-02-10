@@ -589,6 +589,18 @@ function formatDivision(game) {
   const parts = [];
   if (game.gender) parts.push(game.gender);
   if (game.division) parts.push(game.division);
+  
+  // Add playoff round if this is a playoff game
+  if (game.is_playoff && game.round) {
+    const roundNames = {
+      'Prelims': '1st Rd',
+      'Quarters': 'QF',
+      'Semis': 'SF',
+      'Final': 'Final'
+    };
+    parts.push(roundNames[game.round] || game.round);
+  }
+  
   return parts.join(' ');
 }
 
@@ -635,15 +647,30 @@ function renderTicker(games) {
   tickerScroll.innerHTML = games.map(game => {
     const awayWins = parseInt(game.awayScore) > parseInt(game.homeScore);
     const homeWins = parseInt(game.homeScore) > parseInt(game.awayScore);
+    const isPlayoff = game.is_playoff;
     
     let coverageIcons = '';
     if (game.hasPhotos) coverageIcons += '<span class="ticker-coverage-icon">📸</span>';
     if (game.hasRecap) coverageIcons += '<span class="ticker-coverage-icon">✍️</span>';
     if (game.hasHighlights) coverageIcons += '<span class="ticker-coverage-icon">🎥</span>';
     
+    // Status display - show playoff round for playoff games
+    let statusText = 'Final';
+    let statusClass = 'final';
+    if (isPlayoff && game.round) {
+      const roundNames = {
+        'Prelims': '1st Round',
+        'Quarters': 'Quarterfinal',
+        'Semis': 'Semifinal',
+        'Final': 'Championship'
+      };
+      statusText = roundNames[game.round] || game.round;
+      statusClass = 'playoff';
+    }
+    
     return `
-      <div class="ticker-game" onclick="goToGame('${game.game_id}')" data-game-id="${game.game_id}">
-        <div class="ticker-status final">Final</div>
+      <div class="ticker-game ${isPlayoff ? 'playoff' : ''}" onclick="goToGame('${game.game_id}')" data-game-id="${game.game_id}">
+        <div class="ticker-status ${statusClass}">${statusText}</div>
         <div class="ticker-team">
           <div class="ticker-team-info">
             <img class="ticker-team-logo" src="${getLogoUrl(game.away)}" alt="" onerror="this.src='${CONFIG.DEFAULT_LOGO}'">
@@ -659,7 +686,7 @@ function renderTicker(games) {
           <span class="ticker-team-score ${homeWins ? 'winner' : ''}">${game.homeScore}</span>
         </div>
         <div class="ticker-meta">
-          <span class="ticker-division">${formatDivision(game)}</span>
+          <span class="ticker-division ${isPlayoff ? 'playoff' : ''}">${formatDivision(game)}</span>
           ${coverageIcons ? `<div class="ticker-coverage">${coverageIcons}</div>` : ''}
         </div>
       </div>
