@@ -22,29 +22,35 @@ export default async (request) => {
     const sport = url.searchParams.get('sport') || DEFAULT_SPORT;
     const season = url.searchParams.get('season') || DEFAULT_SEASON;
     
-    // Build query with sport/season filters
-    const queryParams = new URLSearchParams({
-      select: '*',
-      sport: `eq.${sport}`,
-      season: `eq.${season}`,
-      order: 'rating.desc'
-    });
+    // Build query URL
+    // NOTE: Basketball legacy data has sport=NULL, so we need to include both
+    // For other sports, use strict filtering
+    let queryUrl;
     
-    const response = await fetch(
-      `${SUPABASE_URL}/rest/v1/standings?${queryParams.toString()}`,
-      {
-        headers: {
-          'apikey': SUPABASE_KEY,
-          'Authorization': `Bearer ${SUPABASE_KEY}`
-        }
+    if (sport === 'basketball') {
+      // Basketball: include sport='basketball' OR sport=NULL (legacy data)
+      queryUrl = `${SUPABASE_URL}/rest/v1/standings?select=*&or=(sport.eq.basketball,sport.is.null)&season=eq.${encodeURIComponent(season)}&order=rating.desc`;
+    } else {
+      // Other sports: strict filtering by sport value
+      queryUrl = `${SUPABASE_URL}/rest/v1/standings?select=*&sport=eq.${encodeURIComponent(sport)}&season=eq.${encodeURIComponent(season)}&order=rating.desc`;
+    }
+    
+    console.log(`Fetching standings: sport=${sport}, season=${season}`);
+    
+    const response = await fetch(queryUrl, {
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`
       }
-    );
+    });
     
     if (!response.ok) {
       throw new Error(`Supabase error: ${response.status}`);
     }
     
     const standings = await response.json();
+    
+    console.log(`Retrieved ${standings.length} standings records for ${sport} ${season}`);
     
     return new Response(JSON.stringify({ 
       standings: standings || [],
