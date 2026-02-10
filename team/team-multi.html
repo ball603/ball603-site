@@ -1351,13 +1351,34 @@
           resultText = (timeToShow && timeToShow.toUpperCase() !== 'FINAL') ? formatTime(timeToShow) : 'TBD';
         }
         
+        // Playoff game formatting
+        let playoffPrefix = '';
+        let oppSeedDisplay = '';
+        if (g.is_playoff && g.round) {
+          const roundNames = {
+            'Prelims': '1st Round',
+            'Quarters': 'Quarterfinal',
+            'Semis': 'Semifinal',
+            'Final': 'Championship'
+          };
+          const roundName = roundNames[g.round] || g.round;
+          playoffPrefix = `<div class="playoff-round-label">${g.division} ${roundName}</div>`;
+          
+          // Get opponent seed
+          const oppSeed = g.isHome ? g.away_seed : g.home_seed;
+          if (oppSeed) {
+            oppSeedDisplay = `#${oppSeed} `;
+          }
+        }
+        
         return `
-          <div class="schedule-game-item">
+          <div class="schedule-game-item ${g.is_playoff ? 'playoff-game' : ''}">
             <div class="schedule-game-date">${formatShortDate(g.date)}</div>
             <div class="schedule-game-opponent">
+              ${playoffPrefix}
               <a href="/${oppSlug}" class="schedule-opponent-link">
                 <img src="/logos/100px/${getLogoFilename(opp)}" onerror="this.style.display='none'" class="schedule-game-logo" alt="">
-                <span>${g.isHome ? 'vs' : '@'} ${opp}</span>
+                <span>${g.isHome ? 'vs' : '@'} ${oppSeedDisplay}${opp || 'TBD'}</span>
               </a>
             </div>
             <div class="schedule-game-result ${resultClass}">${resultText}</div>
