@@ -5,15 +5,9 @@
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
-// Map game team names to standings team names (where they differ)
-const TEAM_NAME_MAP = {
-  'Coe-Brown': 'Coe-Brown Northwood'
-};
-
-function normalizeTeamName(name) {
-  if (!name) return name;
-  return TEAM_NAME_MAP[name] || name;
-}
+// No team name mapping needed - both games and standings tables
+// use normalized short names (e.g., "Coe-Brown" not "Coe-Brown Northwood")
+// Normalization happens at scrape time in scrape-schedules.mjs and scrape-standings.mjs
 
 export default async (request) => {
   const headers = {
@@ -75,9 +69,9 @@ export default async (request) => {
       // Skip games without scores
       if (game.home_score === null || game.away_score === null) continue;
       
-      // Normalize team names to match standings table
-      const homeTeam = normalizeTeamName(game.home_team);
-      const awayTeam = normalizeTeamName(game.away_team);
+      // Team names already normalized at scrape time
+      const homeTeam = game.home_team;
+      const awayTeam = game.away_team;
       const homeScore = parseInt(game.home_score);
       const awayScore = parseInt(game.away_score);
       const gender = game.gender;
