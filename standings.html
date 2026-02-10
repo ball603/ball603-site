@@ -275,6 +275,15 @@
       color: var(--text-secondary);
     }
     
+    /* Playoff Columns */
+    .playoff-col {
+      background: rgba(245, 124, 0, 0.05);
+    }
+    
+    .standings-table th.playoff-col {
+      color: var(--accent);
+    }
+    
     /* Streak Cell */
     .streak-cell {
       font-weight: 700;
@@ -634,6 +643,8 @@
     let allStandings = [];
     let allGames = [];
     let teamStats = {}; // Calculated stats: home/away records, streaks
+    let playoffStats = {}; // Calculated playoff records
+    let lockedDivisions = {}; // Track which divisions have locked seeds
     let currentGender = 'Boys';
     let currentDivision = 'D-I';
     
@@ -748,14 +759,45 @@
     
     async function loadData() {
       try {
-        // Fetch both standings and games in parallel
-        const [standingsRes, gamesRes] = await Promise.all([
+        // Fetch standings, games, and playoff status in parallel
+        const [standingsRes, gamesRes, ...playoffResponses] = await Promise.all([
           fetch('/.netlify/functions/get-standings'),
-          fetch('/.netlify/functions/get-games')
+          fetch('/.netlify/functions/get-games'),
+          // Fetch playoff status for all 8 divisions
+          fetch('/.netlify/functions/playoff-seeds?gender=Boys&division=D-I&season=2025-26'),
+          fetch('/.netlify/functions/playoff-seeds?gender=Boys&division=D-II&season=2025-26'),
+          fetch('/.netlify/functions/playoff-seeds?gender=Boys&division=D-III&season=2025-26'),
+          fetch('/.netlify/functions/playoff-seeds?gender=Boys&division=D-IV&season=2025-26'),
+          fetch('/.netlify/functions/playoff-seeds?gender=Girls&division=D-I&season=2025-26'),
+          fetch('/.netlify/functions/playoff-seeds?gender=Girls&division=D-II&season=2025-26'),
+          fetch('/.netlify/functions/playoff-seeds?gender=Girls&division=D-III&season=2025-26'),
+          fetch('/.netlify/functions/playoff-seeds?gender=Girls&division=D-IV&season=2025-26')
         ]);
         
         const standingsData = await standingsRes.json();
         const gamesData = await gamesRes.json();
+        
+        // Process playoff status for each division
+        const divisions = [
+          { gender: 'Boys', division: 'D-I' },
+          { gender: 'Boys', division: 'D-II' },
+          { gender: 'Boys', division: 'D-III' },
+          { gender: 'Boys', division: 'D-IV' },
+          { gender: 'Girls', division: 'D-I' },
+          { gender: 'Girls', division: 'D-II' },
+          { gender: 'Girls', division: 'D-III' },
+          { gender: 'Girls', division: 'D-IV' }
+        ];
+        
+        for (let i = 0; i < playoffResponses.length; i++) {
+          try {
+            const data = await playoffResponses[i].json();
+            const key = `${divisions[i].gender}-${divisions[i].division}`;
+            lockedDivisions[key] = data.locked || false;
+          } catch (e) {
+            // If fetch fails, assume not locked
+          }
+        }
         
         allStandings = (standingsData.standings || []).map(s => ({
           ...s,
@@ -766,6 +808,9 @@
         
         // Calculate team stats from games
         calculateTeamStats();
+        
+        // Calculate playoff records
+        calculatePlayoffStats();
         
         // Update last updated timestamp
         if (allStandings.length > 0 && allStandings[0].scraped_at) {
@@ -881,6 +926,63 @@
       return `${stats.awayWins}-${stats.awayLosses}`;
     }
     
+    // ===== PLAYOFF STATS =====
+    
+    function calculatePlayoffStats() {
+      playoffStats = {};
+      
+      // Get all completed playoff games
+      const playoffGames = allGames.filter(game => {
+        const hasScore = game.home_score !== null && game.home_score !== '' &&
+                        game.away_score !== null && game.away_score !== '';
+        return hasScore && game.is_playoff;
+      });
+      
+      // Process each playoff game
+      playoffGames.forEach(game => {
+        const homeTeam = normalizeTeamName(game.home);
+        const awayTeam = normalizeTeamName(game.away);
+        const homeScore = parseInt(game.home_score);
+        const awayScore = parseInt(game.away_score);
+        const homeWon = homeScore > awayScore;
+        const gender = game.gender;
+        
+        // Initialize playoff stats if needed
+        [homeTeam, awayTeam].forEach(team => {
+          const key = `${team}-${gender}`;
+          if (!playoffStats[key]) {
+            playoffStats[key] = { wins: 0, losses: 0 };
+          }
+        });
+        
+        const homeKey = `${homeTeam}-${gender}`;
+        const awayKey = `${awayTeam}-${gender}`;
+        
+        if (homeWon) {
+          playoffStats[homeKey].wins++;
+          playoffStats[awayKey].losses++;
+        } else {
+          playoffStats[homeKey].losses++;
+          playoffStats[awayKey].wins++;
+        }
+      });
+    }
+    
+    function getPlayoffRecord(team, gender) {
+      const key = `${team}-${gender}`;
+      const stats = playoffStats[key];
+      if (!stats) return '0-0';
+      return `${stats.wins}-${stats.losses}`;
+    }
+    
+    function getOverallRecord(team, gender, regWins, regLosses) {
+      const key = `${team}-${gender}`;
+      const pStats = playoffStats[key];
+      const pWins = pStats ? pStats.wins : 0;
+      const pLosses = pStats ? pStats.losses : 0;
+      return `${regWins + pWins}-${regLosses + pLosses}`;
+    }
+    
     // ===== UI HANDLERS =====
     
     function selectGender(gender) {
@@ -911,6 +1013,10 @@
       const divisionName = currentDivision.replace('-', ' ');
       document.getElementById('cardTitle').textContent = `${currentGender} Division ${divisionName.split(' ')[1]}`;
       
+      // Check if this division's seeds are locked
+      const divisionKey = `${currentGender}-${currentDivision}`;
+      const isLocked = lockedDivisions[divisionKey] || false;
+      
       // Get playoff info
       const playoffSpots = PLAYOFF_TEAMS[currentGender][currentDivision];
       const byeCount = calculateByes(playoffSpots);
@@ -920,6 +1026,9 @@
         playoffText += ' • #1 gets bye';
       } else if (byeCount > 1) {
         playoffText += ` • Top ${byeCount} get byes`;
+      }
+      if (isLocked) {
+        playoffText = '🏆 Tournament in progress';
       }
       document.getElementById('playoffText').textContent = playoffText;
       
@@ -934,14 +1043,16 @@
         return;
       }
       
-      // Build table
+      // Build table - add playoff columns if locked
       let html = `
         <table class="standings-table">
           <thead>
             <tr>
               <th class="center" style="width: 40px;">#</th>
               <th>Team</th>
-              <th class="center">Overall</th>
+              <th class="center">${isLocked ? 'Reg Season' : 'Overall'}</th>
+              ${isLocked ? '<th class="center playoff-col">Playoff</th>' : ''}
+              ${isLocked ? '<th class="center playoff-col">Overall</th>' : ''}
               <th class="center hide-mobile">Home</th>
               <th class="center hide-mobile">Away</th>
               <th class="center">Streak</th>
@@ -953,7 +1064,7 @@
       
       standings.forEach((team, index) => {
         const rank = index + 1;
-        const isPlayoff = rank <= playoffSpots;
+        const isPlayoffTeam = rank <= playoffSpots;
         const isBye = rank <= byeCount;
         const isPlayoffLine = rank === playoffSpots;
         
@@ -963,9 +1074,13 @@
         const awayRecord = getAwayRecord(team.school, currentGender);
         const streakClass = streak.startsWith('W') ? 'win' : streak.startsWith('L') ? 'loss' : '';
         
+        // Playoff records (only if locked)
+        const playoffRecord = isLocked ? getPlayoffRecord(team.school, currentGender) : '';
+        const overallRecord = isLocked ? getOverallRecord(team.school, currentGender, team.wins, team.losses) : '';
+        
         let rankClass = 'rank-cell';
         if (isBye) rankClass += ' bye';
-        else if (isPlayoff) rankClass += ' playoff';
+        else if (isPlayoffTeam) rankClass += ' playoff';
         
         html += `
           <tr class="${isPlayoffLine ? 'playoff-line' : ''}">
@@ -977,6 +1092,8 @@
               </div>
             </td>
             <td class="record-cell center">${team.wins}-${team.losses}</td>
+            ${isLocked ? `<td class="record-cell center playoff-col">${playoffRecord}</td>` : ''}
+            ${isLocked ? `<td class="record-cell center playoff-col">${overallRecord}</td>` : ''}
             <td class="record-cell home-away center hide-mobile">${homeRecord}</td>
             <td class="record-cell home-away center hide-mobile">${awayRecord}</td>
             <td class="center">
