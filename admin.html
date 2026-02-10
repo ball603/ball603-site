@@ -701,6 +701,7 @@
     <!-- Second Row of Tabs (Data Management) -->
     <div class="tabs tabs-row-2">
       <button class="tab" onclick="showTab('championships')">🏆 Championships</button>
+      <button class="tab" onclick="showTab('playoffs')">🏀 Playoffs</button>
       <button class="tab" onclick="showTab('scorers1k')">🎯 1K Scorers</button>
       <button class="tab" onclick="showTab('ncaaplayers')">🎓 NCAA Players</button>
       <button class="tab" onclick="showTab('fanvideos')">🎬 Fan Videos</button>
@@ -5191,6 +5192,432 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     </div>
   </div>
 
+  <!-- Playoffs Panel -->
+  <div class="panel" id="playoffsPanel" style="display: none;">
+    <div style="max-width: 1200px; margin: 0 auto; padding: 20px;">
+      <h2 style="margin-bottom: 20px; color: #333;">🏀 NHIAA Playoffs</h2>
+      
+      <!-- Tournament Selector -->
+      <div style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; align-items: center;">
+        <select id="playoffGender" onchange="loadPlayoffsData()" style="padding: 10px 15px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; font-weight: 600;">
+          <option value="Boys">Boys</option>
+          <option value="Girls">Girls</option>
+        </select>
+        
+        <select id="playoffDivision" onchange="loadPlayoffsData()" style="padding: 10px 15px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px;">
+          <option value="D-I">D-I</option>
+          <option value="D-II">D-II</option>
+          <option value="D-III">D-III</option>
+          <option value="D-IV">D-IV</option>
+        </select>
+        
+        <button onclick="loadPlayoffsData()" style="padding: 10px 20px; background: #f57c00; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500;">
+          Refresh
+        </button>
+        
+        <span id="playoffStatus" style="margin-left: auto; font-size: 13px; color: #888;"></span>
+      </div>
+      
+      <!-- Tournament Schedule Info Card -->
+      <div id="playoffScheduleCard" style="background: linear-gradient(135deg, #1a1a1a 0%, #333 100%); color: white; border-radius: 10px; padding: 20px; margin-bottom: 20px; display: none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+          <h3 style="margin: 0; font-size: 16px;" id="playoffTournamentTitle">Boys D-I Tournament</h3>
+          <span id="playoffBracketInfo" style="background: #f57c00; padding: 5px 12px; border-radius: 15px; font-size: 12px; font-weight: 600;"></span>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px;" id="playoffScheduleDates">
+          <!-- Filled by JS -->
+        </div>
+      </div>
+      
+      <!-- Pre-Lock View: Standings Preview -->
+      <div id="playoffsPreLock" style="display: none;">
+        <div style="background: #fff; border-radius: 10px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); margin-bottom: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h3 style="margin: 0; font-size: 16px; color: #333;">Seed Preview</h3>
+            <span style="color: #888; font-size: 13px;">Drag rows to adjust seeding order</span>
+          </div>
+          
+          <table style="width: 100%; border-collapse: collapse;" id="playoffSeedsTable">
+            <thead>
+              <tr style="background: #f5f5f5;">
+                <th style="padding: 10px; text-align: center; border-bottom: 2px solid #ddd; width: 60px;">Seed</th>
+                <th style="padding: 10px; text-align: left; border-bottom: 2px solid #ddd;">Team</th>
+                <th style="padding: 10px; text-align: center; border-bottom: 2px solid #ddd;">Record</th>
+                <th style="padding: 10px; text-align: center; border-bottom: 2px solid #ddd;">Rating</th>
+                <th style="padding: 10px; text-align: center; border-bottom: 2px solid #ddd;">RPI Rank</th>
+                <th style="padding: 10px; text-align: center; border-bottom: 2px solid #ddd; width: 80px;">Qualifies</th>
+              </tr>
+            </thead>
+            <tbody id="playoffSeedsBody">
+              <tr><td colspan="6" style="padding: 40px; text-align: center; color: #888;">Loading standings...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        
+        <div style="display: flex; justify-content: flex-end; gap: 15px;">
+          <button onclick="resetSeedOrder()" style="padding: 12px 24px; background: #f5f5f5; color: #333; border: 1px solid #ddd; border-radius: 5px; cursor: pointer; font-size: 14px;">
+            Reset Order
+          </button>
+          <button onclick="confirmLockSeeds()" style="padding: 12px 24px; background: #f57c00; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; font-weight: 600;">
+            🔒 Lock Seeds & Generate Bracket
+          </button>
+        </div>
+      </div>
+      
+      <!-- Post-Lock View: Bracket Management -->
+      <div id="playoffsPostLock" style="display: none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <div>
+            <span id="playoffLockedAt" style="color: #2e7d32; font-size: 13px;"></span>
+          </div>
+          <button onclick="confirmUnlock()" style="padding: 10px 20px; background: #ffebee; color: #c62828; border: none; border-radius: 5px; cursor: pointer; font-size: 13px;">
+            🔓 Unlock Bracket
+          </button>
+        </div>
+        
+        <!-- Seeds Reference -->
+        <div style="background: #fff; border-radius: 10px; padding: 15px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.08);">
+          <h4 style="margin: 0 0 12px; font-size: 14px; color: #555;">Locked Seeds</h4>
+          <div id="playoffLockedSeeds" style="display: flex; flex-wrap: wrap; gap: 8px;">
+            <!-- Filled by JS -->
+          </div>
+        </div>
+        
+        <!-- Bracket Games by Round -->
+        <div style="background: #fff; border-radius: 10px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.08);">
+          <h3 style="margin: 0 0 20px; font-size: 16px; color: #333;">Bracket Games</h3>
+          
+          <!-- Round Tabs -->
+          <div style="display: flex; gap: 5px; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px;">
+            <button class="playoff-round-tab active" data-round="Prelims" onclick="showPlayoffRound('Prelims')">Prelims</button>
+            <button class="playoff-round-tab" data-round="Quarters" onclick="showPlayoffRound('Quarters')">Quarters</button>
+            <button class="playoff-round-tab" data-round="Semis" onclick="showPlayoffRound('Semis')">Semis</button>
+            <button class="playoff-round-tab" data-round="Final" onclick="showPlayoffRound('Final')">Final</button>
+          </div>
+          
+          <!-- Games Grid -->
+          <div id="playoffGamesGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px;">
+            <!-- Filled by JS -->
+          </div>
+        </div>
+      </div>
+      
+      <!-- No Data State -->
+      <div id="playoffsNoData" style="display: none; text-align: center; padding: 60px 20px; color: #888;">
+        <div style="font-size: 48px; margin-bottom: 15px;">📋</div>
+        <h3 style="margin: 0 0 10px; color: #555;">No Standings Data</h3>
+        <p style="margin: 0;">Standings data is required to set up playoffs. Please ensure standings have been imported.</p>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Lock Seeds Confirmation Modal -->
+  <div id="lockSeedsModal" class="modal-overlay" style="display: none;">
+    <div class="modal-content" style="max-width: 500px;">
+      <div class="modal-header">
+        <h2 style="margin: 0; font-size: 18px;">🔒 Lock Playoff Seeds?</h2>
+        <button onclick="closeLockSeedsModal()" class="modal-close">&times;</button>
+      </div>
+      <div style="padding: 20px;">
+        <p style="margin: 0 0 15px; color: #555;">This will:</p>
+        <ul style="margin: 0 0 20px; padding-left: 20px; color: #666; line-height: 1.8;">
+          <li>Freeze regular season stats for seeded teams</li>
+          <li>Generate all bracket games (Prelims through Final)</li>
+          <li>Make seed order permanent for this tournament</li>
+        </ul>
+        <div style="background: #fff3e0; padding: 12px; border-radius: 6px; margin-bottom: 20px;">
+          <strong style="color: #e65100;">⚠️ Note:</strong>
+          <span style="color: #795548; font-size: 13px;"> You can unlock later, but this will delete all playoff game data.</span>
+        </div>
+        <div id="lockSeedsPreview" style="max-height: 200px; overflow-y: auto; background: #f9f9f9; border-radius: 6px; padding: 10px; margin-bottom: 20px; font-size: 13px;">
+          <!-- Seed preview filled by JS -->
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 10px;">
+          <button onclick="closeLockSeedsModal()" style="padding: 10px 20px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 5px; cursor: pointer;">Cancel</button>
+          <button onclick="executeLockSeeds()" id="lockSeedsBtn" style="padding: 10px 20px; background: #f57c00; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600;">Lock Seeds</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Unlock Bracket Confirmation Modal -->
+  <div id="unlockBracketModal" class="modal-overlay" style="display: none;">
+    <div class="modal-content" style="max-width: 450px;">
+      <div class="modal-header">
+        <h2 style="margin: 0; font-size: 18px;">🔓 Unlock Bracket?</h2>
+        <button onclick="closeUnlockModal()" class="modal-close">&times;</button>
+      </div>
+      <div style="padding: 20px;">
+        <div style="background: #ffebee; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
+          <strong style="color: #c62828;">⚠️ Warning:</strong>
+          <p style="margin: 10px 0 0; color: #555; font-size: 14px;">This will permanently delete:</p>
+          <ul style="margin: 10px 0 0; padding-left: 20px; color: #666; line-height: 1.8;">
+            <li>All locked seeds</li>
+            <li>All playoff games and scores</li>
+            <li>Any coverage links added to games</li>
+          </ul>
+        </div>
+        <p style="margin: 0 0 20px; color: #555; font-size: 14px;">Type <strong>UNLOCK</strong> to confirm:</p>
+        <input type="text" id="unlockConfirmInput" placeholder="Type UNLOCK" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; margin-bottom: 20px;">
+        <div style="display: flex; justify-content: flex-end; gap: 10px;">
+          <button onclick="closeUnlockModal()" style="padding: 10px 20px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 5px; cursor: pointer;">Cancel</button>
+          <button onclick="executeUnlock()" id="unlockBtn" style="padding: 10px 20px; background: #c62828; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600;">Unlock Bracket</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Edit Playoff Game Modal -->
+  <div id="editPlayoffGameModal" class="modal-overlay" style="display: none;">
+    <div class="modal-content" style="max-width: 550px;">
+      <div class="modal-header">
+        <h2 style="margin: 0; font-size: 18px;" id="editGameTitle">Edit Game</h2>
+        <button onclick="closeEditGameModal()" class="modal-close">&times;</button>
+      </div>
+      <div style="padding: 20px;">
+        <!-- Game Info -->
+        <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span id="editGameRound" style="font-weight: 600; color: #555;"></span>
+            <span id="editGameDate" style="color: #888; font-size: 13px;"></span>
+          </div>
+        </div>
+        
+        <!-- Teams Display -->
+        <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 15px; align-items: center; margin-bottom: 20px;">
+          <div style="text-align: center;">
+            <div style="font-size: 12px; color: #888; margin-bottom: 5px;">AWAY</div>
+            <div id="editAwayTeamDisplay" style="font-weight: 600;"></div>
+            <input type="number" id="editAwayScore" placeholder="Score" style="width: 80px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 18px; text-align: center; margin-top: 10px;">
+          </div>
+          <div style="font-size: 24px; color: #ddd;">@</div>
+          <div style="text-align: center;">
+            <div style="font-size: 12px; color: #888; margin-bottom: 5px;">HOME</div>
+            <div id="editHomeTeamDisplay" style="font-weight: 600;"></div>
+            <input type="number" id="editHomeScore" placeholder="Score" style="width: 80px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 18px; text-align: center; margin-top: 10px;">
+          </div>
+        </div>
+        
+        <!-- Game Status -->
+        <div style="margin-bottom: 20px;">
+          <label style="display: block; font-size: 13px; font-weight: 600; color: #555; margin-bottom: 6px;">Game Status</label>
+          <select id="editGameStatus" style="width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px;">
+            <option value="">-- Pre-game --</option>
+            <option value="1Q">End 1st</option>
+            <option value="HALF">Halftime</option>
+            <option value="3Q">End 3rd</option>
+            <option value="FINAL">Final</option>
+            <option value="OT">End 1st OT</option>
+            <option value="2OT">End 2nd OT</option>
+            <option value="3OT">End 3rd OT</option>
+            <option value="FINAL-OT">Final (OT)</option>
+            <option value="FINAL-2OT">Final (2OT)</option>
+            <option value="FINAL-3OT">Final (3OT)</option>
+          </select>
+        </div>
+        
+        <!-- Time/Location -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+          <div>
+            <label style="display: block; font-size: 13px; font-weight: 600; color: #555; margin-bottom: 6px;">Time</label>
+            <input type="text" id="editGameTime" placeholder="6:00 PM" style="width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px;">
+          </div>
+          <div>
+            <label style="display: block; font-size: 13px; font-weight: 600; color: #555; margin-bottom: 6px;">Location</label>
+            <input type="text" id="editGameLocation" placeholder="School Name" style="width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px;">
+          </div>
+        </div>
+        
+        <!-- Coverage Links -->
+        <div style="margin-bottom: 20px;">
+          <label style="display: block; font-size: 13px; font-weight: 600; color: #555; margin-bottom: 6px;">Coverage Links</label>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <input type="url" id="editGamePhotos" placeholder="Photos URL" style="padding: 10px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px;">
+            <input type="url" id="editGameRecap" placeholder="Recap URL" style="padding: 10px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px;">
+            <input type="url" id="editGameHighlights" placeholder="Highlights URL" style="padding: 10px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px;">
+            <input type="url" id="editGameStream" placeholder="Stream URL" style="padding: 10px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px;">
+          </div>
+        </div>
+        
+        <input type="hidden" id="editGameId">
+        
+        <div style="display: flex; justify-content: flex-end; gap: 10px; padding-top: 15px; border-top: 1px solid #eee;">
+          <button onclick="closeEditGameModal()" style="padding: 10px 20px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 5px; cursor: pointer;">Cancel</button>
+          <button onclick="savePlayoffGame()" style="padding: 10px 20px; background: #f57c00; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600;">Save Changes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <style>
+    /* Playoff-specific styles */
+    .playoff-round-tab {
+      padding: 8px 16px;
+      background: #f5f5f5;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      color: #666;
+      transition: all 0.2s;
+    }
+    .playoff-round-tab:hover {
+      background: #eee;
+    }
+    .playoff-round-tab.active {
+      background: #f57c00;
+      color: white;
+    }
+    
+    .playoff-game-card {
+      background: #f9f9f9;
+      border-radius: 8px;
+      padding: 15px;
+      position: relative;
+      transition: box-shadow 0.2s;
+    }
+    .playoff-game-card:hover {
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .playoff-game-card.live {
+      border-left: 4px solid #e53935;
+      background: linear-gradient(135deg, #fff5f5 0%, #fff 100%);
+    }
+    .playoff-game-card.final {
+      border-left: 4px solid #2e7d32;
+    }
+    .playoff-game-card.bye {
+      background: #f0f0f0;
+      opacity: 0.7;
+    }
+    
+    .playoff-team-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 0;
+    }
+    .playoff-team-row .seed {
+      background: #e0e0e0;
+      color: #555;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 3px;
+      min-width: 24px;
+      text-align: center;
+    }
+    .playoff-team-row .team-name {
+      flex: 1;
+      font-weight: 500;
+      font-size: 14px;
+    }
+    .playoff-team-row .score {
+      font-size: 18px;
+      font-weight: 700;
+      min-width: 40px;
+      text-align: right;
+    }
+    .playoff-team-row.winner .team-name,
+    .playoff-team-row.winner .score {
+      color: #2e7d32;
+    }
+    .playoff-team-row.loser {
+      opacity: 0.6;
+    }
+    
+    .playoff-game-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 10px;
+      margin-top: 10px;
+      border-top: 1px solid #eee;
+      font-size: 12px;
+      color: #888;
+    }
+    
+    .playoff-game-actions {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+    }
+    .playoff-game-actions button {
+      background: #e3f2fd;
+      border: none;
+      color: #1565c0;
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+    .playoff-game-actions button:hover {
+      background: #bbdefb;
+    }
+    
+    .live-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: #e53935;
+      color: white;
+      padding: 3px 8px;
+      border-radius: 3px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .live-indicator::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      background: white;
+      border-radius: 50%;
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+    
+    .playoff-seed-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #f5f5f5;
+      padding: 6px 10px;
+      border-radius: 5px;
+      font-size: 13px;
+    }
+    .playoff-seed-chip .num {
+      background: #f57c00;
+      color: white;
+      font-size: 11px;
+      font-weight: 700;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    /* Drag and drop styles for seed reordering */
+    #playoffSeedsBody tr {
+      cursor: grab;
+    }
+    #playoffSeedsBody tr:active {
+      cursor: grabbing;
+    }
+    #playoffSeedsBody tr.dragging {
+      opacity: 0.5;
+      background: #fff3e0;
+    }
+    #playoffSeedsBody tr.drag-over {
+      border-top: 3px solid #f57c00;
+    }
+  </style>
+
   <script src="rosters_data.js"></script>
   <script>
     // Supabase config
@@ -5836,6 +6263,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('settingsPanel').style.display = tab === 'settings' ? 'block' : 'none';
       document.getElementById('fanvideosPanel').style.display = tab === 'fanvideos' ? 'block' : 'none';
       document.getElementById('championshipsPanel').style.display = tab === 'championships' ? 'block' : 'none';
+      document.getElementById('playoffsPanel').style.display = tab === 'playoffs' ? 'block' : 'none';
       document.getElementById('scorers1kPanel').style.display = tab === 'scorers1k' ? 'block' : 'none';
       document.getElementById('ncaaplayersPanel').style.display = tab === 'ncaaplayers' ? 'block' : 'none';
       document.getElementById('sosPanel').style.display = tab === 'sos' ? 'block' : 'none';
@@ -5914,6 +6342,11 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       // Load SOS data when tab is selected
       if (tab === 'sos') {
         loadSOSData();
+      }
+      
+      // Load playoffs data when tab is selected
+      if (tab === 'playoffs') {
+        loadPlayoffsData();
       }
     }
     
@@ -21793,6 +22226,614 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       }
       
       return html;
+    }
+    
+    // ============================================
+    // PLAYOFFS MANAGEMENT
+    // ============================================
+    
+    // Tournament schedule data (from NHIAA Winter 2025-26)
+    const TOURNAMENT_SCHEDULE = {
+      'Boys': {
+        'D-I': {
+          prelims: { date: '2026-03-04', time: '6:00 PM', site: 'Higher Seed' },
+          quarters: { date: '2026-03-07', time: '6:00 PM', site: 'Higher Seed' },
+          semis: { date: '2026-03-11', times: ['5:30 PM', '7:30 PM'], site: 'Rochester Rec Center' },
+          final: { date: '2026-03-15', time: '4:00 PM', site: 'UNH' }
+        },
+        'D-II': {
+          prelims: { date: '2026-03-03', time: '6:00 PM', site: 'Higher Seed' },
+          quarters: { date: '2026-03-06', time: '6:00 PM', site: 'Higher Seed' },
+          semis: { date: '2026-03-09', times: ['5:30 PM', '7:30 PM'], site: 'Rochester Rec Center' },
+          final: { date: '2026-03-15', time: '12:00 PM', site: 'UNH' }
+        },
+        'D-III': {
+          prelims: { date: '2026-02-17', time: '6:00 PM', site: 'Higher Seed' },
+          quarters: { date: '2026-02-20', time: '6:00 PM', site: 'Higher Seed' },
+          semis: { date: '2026-02-24', times: ['5:30 PM', '7:30 PM'], site: 'TBD' },
+          final: { date: '2026-02-28', time: '4:00 PM', site: 'Keene State College' }
+        },
+        'D-IV': {
+          prelims: { date: '2026-02-23', time: '6:00 PM', site: 'Higher Seed' },
+          quarters: { date: '2026-02-26', time: '6:00 PM', site: 'Higher Seed' },
+          semis: { date: '2026-03-02', times: ['5:30 PM', '7:30 PM'], site: 'TBD' },
+          final: { date: '2026-03-07', time: '3:00 PM', site: 'Colby Sawyer College' }
+        }
+      },
+      'Girls': {
+        'D-I': {
+          prelims: { date: '2026-03-02', time: '6:00 PM', site: 'Higher Seed' },
+          quarters: { date: '2026-03-05', time: '6:00 PM', site: 'Higher Seed' },
+          semis: { date: '2026-03-09', times: ['5:30 PM', '7:30 PM'], site: 'TBD' },
+          final: { date: '2026-03-14', time: '4:00 PM', site: 'UNH' }
+        },
+        'D-II': {
+          prelims: { date: '2026-03-04', time: '6:00 PM', site: 'Higher Seed' },
+          quarters: { date: '2026-03-07', time: '6:00 PM', site: 'Higher Seed' },
+          semis: { date: '2026-03-11', times: ['5:30 PM', '7:30 PM'], site: 'TBD' },
+          final: { date: '2026-03-14', time: '12:00 PM', site: 'UNH' }
+        },
+        'D-III': {
+          prelims: { date: '2026-02-18', time: '6:00 PM', site: 'Higher Seed' },
+          quarters: { date: '2026-02-21', time: '6:00 PM', site: 'Higher Seed' },
+          semis: { date: '2026-02-25', times: ['5:30 PM', '7:30 PM'], site: 'Bow High School' },
+          final: { date: '2026-02-28', time: '1:00 PM', site: 'Keene State College' }
+        },
+        'D-IV': {
+          prelims: { date: '2026-02-24', time: '6:00 PM', site: 'Higher Seed' },
+          quarters: { date: '2026-02-27', time: '6:00 PM', site: 'Higher Seed' },
+          semis: { date: '2026-03-03', times: ['5:30 PM', '7:30 PM'], site: 'TBD' },
+          final: { date: '2026-03-07', time: '1:00 PM', site: 'Colby Sawyer College' }
+        }
+      }
+    };
+    
+    // State for playoffs
+    let playoffSeeds = [];
+    let playoffGames = [];
+    let playoffLocked = false;
+    let currentRound = 'Prelims';
+    
+    // Load playoffs data for selected tournament
+    async function loadPlayoffsData() {
+      const gender = document.getElementById('playoffGender').value;
+      const division = document.getElementById('playoffDivision').value;
+      const season = '2025-26';
+      
+      document.getElementById('playoffStatus').textContent = 'Loading...';
+      
+      try {
+        // First, check if seeds are locked
+        const lockedResponse = await fetch(`/.netlify/functions/playoff-seeds?gender=${gender}&division=${division}&season=${season}`);
+        const lockedData = await lockedResponse.json();
+        
+        playoffLocked = lockedData.locked;
+        playoffSeeds = lockedData.seeds || [];
+        playoffGames = lockedData.games || [];
+        
+        // Update schedule card
+        updateScheduleCard(gender, division);
+        
+        if (playoffLocked) {
+          // Show post-lock view
+          document.getElementById('playoffsPreLock').style.display = 'none';
+          document.getElementById('playoffsPostLock').style.display = 'block';
+          document.getElementById('playoffsNoData').style.display = 'none';
+          
+          renderLockedSeeds();
+          renderPlayoffGames();
+          
+          const lockedDate = new Date(lockedData.lockedAt).toLocaleDateString('en-US', { 
+            weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+          });
+          document.getElementById('playoffLockedAt').textContent = `🔒 Seeds locked on ${lockedDate}`;
+          document.getElementById('playoffStatus').textContent = 'Bracket locked';
+        } else {
+          // Get preview standings
+          const previewResponse = await fetch(`/.netlify/functions/playoff-seeds?gender=${gender}&division=${division}&season=${season}&preview=true`);
+          const previewData = await previewResponse.json();
+          
+          if (!previewData.preview || previewData.preview.length === 0) {
+            document.getElementById('playoffsPreLock').style.display = 'none';
+            document.getElementById('playoffsPostLock').style.display = 'none';
+            document.getElementById('playoffsNoData').style.display = 'block';
+            document.getElementById('playoffStatus').textContent = 'No standings data';
+            return;
+          }
+          
+          // Show pre-lock view
+          document.getElementById('playoffsPreLock').style.display = 'block';
+          document.getElementById('playoffsPostLock').style.display = 'none';
+          document.getElementById('playoffsNoData').style.display = 'none';
+          
+          playoffSeeds = previewData.preview;
+          renderSeedPreview(previewData);
+          
+          document.getElementById('playoffStatus').textContent = `${previewData.tournamentSpots} teams qualify`;
+        }
+        
+      } catch (error) {
+        console.error('Error loading playoffs data:', error);
+        document.getElementById('playoffStatus').textContent = 'Error loading data';
+        showToast('Error loading playoffs data', 'error');
+      }
+    }
+    
+    // Update the schedule card with tournament dates
+    function updateScheduleCard(gender, division) {
+      const schedule = TOURNAMENT_SCHEDULE[gender]?.[division];
+      if (!schedule) return;
+      
+      document.getElementById('playoffScheduleCard').style.display = 'block';
+      document.getElementById('playoffTournamentTitle').textContent = `${gender} ${division} Tournament`;
+      
+      // Calculate byes based on bracket size
+      const bracketInfo = playoffSeeds.length > 0 
+        ? `${playoffSeeds.length} teams, ${16 - playoffSeeds.length} byes`
+        : '16-team bracket';
+      document.getElementById('playoffBracketInfo').textContent = bracketInfo;
+      
+      const formatDate = (dateStr) => {
+        const date = new Date(dateStr + 'T12:00:00');
+        return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+      };
+      
+      document.getElementById('playoffScheduleDates').innerHTML = `
+        <div style="text-align: center;">
+          <div style="font-size: 12px; opacity: 0.7; margin-bottom: 4px;">Prelims</div>
+          <div style="font-weight: 600;">${formatDate(schedule.prelims.date)}</div>
+          <div style="font-size: 12px; opacity: 0.7; margin-top: 2px;">${schedule.prelims.site}</div>
+        </div>
+        <div style="text-align: center;">
+          <div style="font-size: 12px; opacity: 0.7; margin-bottom: 4px;">Quarters</div>
+          <div style="font-weight: 600;">${formatDate(schedule.quarters.date)}</div>
+          <div style="font-size: 12px; opacity: 0.7; margin-top: 2px;">${schedule.quarters.site}</div>
+        </div>
+        <div style="text-align: center;">
+          <div style="font-size: 12px; opacity: 0.7; margin-bottom: 4px;">Semis</div>
+          <div style="font-weight: 600;">${formatDate(schedule.semis.date)}</div>
+          <div style="font-size: 12px; opacity: 0.7; margin-top: 2px;">${schedule.semis.site}</div>
+        </div>
+        <div style="text-align: center;">
+          <div style="font-size: 12px; opacity: 0.7; margin-bottom: 4px;">Final</div>
+          <div style="font-weight: 600;">${formatDate(schedule.final.date)}</div>
+          <div style="font-size: 12px; opacity: 0.7; margin-top: 2px;">${schedule.final.site}</div>
+        </div>
+      `;
+    }
+    
+    // Render seed preview table (pre-lock)
+    function renderSeedPreview(data) {
+      const tbody = document.getElementById('playoffSeedsBody');
+      
+      if (!data.preview || data.preview.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="padding: 40px; text-align: center; color: #888;">No qualifying teams found</td></tr>';
+        return;
+      }
+      
+      tbody.innerHTML = data.preview.map((team, idx) => `
+        <tr draggable="true" data-seed="${team.seed}" data-team="${team.team}">
+          <td style="padding: 10px; text-align: center; font-weight: 700; color: #f57c00;">#${idx + 1}</td>
+          <td style="padding: 10px; font-weight: 500;">${team.team}</td>
+          <td style="padding: 10px; text-align: center;">${team.wins}-${team.losses}</td>
+          <td style="padding: 10px; text-align: center;">${team.rating ? team.rating.toFixed(1) : '-'}</td>
+          <td style="padding: 10px; text-align: center;">${team.rpiRank || '-'}</td>
+          <td style="padding: 10px; text-align: center;">
+            ${team.qualifies ? '<span style="color: #2e7d32;">✓</span>' : '<span style="color: #c62828;">✗</span>'}
+          </td>
+        </tr>
+      `).join('');
+      
+      // Set up drag and drop
+      setupSeedDragDrop();
+    }
+    
+    // Setup drag and drop for seed reordering
+    function setupSeedDragDrop() {
+      const tbody = document.getElementById('playoffSeedsBody');
+      const rows = tbody.querySelectorAll('tr');
+      
+      rows.forEach(row => {
+        row.addEventListener('dragstart', handleDragStart);
+        row.addEventListener('dragend', handleDragEnd);
+        row.addEventListener('dragover', handleDragOver);
+        row.addEventListener('drop', handleDrop);
+        row.addEventListener('dragleave', handleDragLeave);
+      });
+    }
+    
+    let draggedRow = null;
+    
+    function handleDragStart(e) {
+      draggedRow = this;
+      this.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    }
+    
+    function handleDragEnd(e) {
+      this.classList.remove('dragging');
+      document.querySelectorAll('#playoffSeedsBody tr').forEach(row => {
+        row.classList.remove('drag-over');
+      });
+    }
+    
+    function handleDragOver(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      if (this !== draggedRow) {
+        this.classList.add('drag-over');
+      }
+    }
+    
+    function handleDragLeave(e) {
+      this.classList.remove('drag-over');
+    }
+    
+    function handleDrop(e) {
+      e.preventDefault();
+      this.classList.remove('drag-over');
+      
+      if (draggedRow !== this) {
+        const tbody = document.getElementById('playoffSeedsBody');
+        const allRows = Array.from(tbody.querySelectorAll('tr'));
+        const draggedIdx = allRows.indexOf(draggedRow);
+        const targetIdx = allRows.indexOf(this);
+        
+        if (draggedIdx < targetIdx) {
+          this.parentNode.insertBefore(draggedRow, this.nextSibling);
+        } else {
+          this.parentNode.insertBefore(draggedRow, this);
+        }
+        
+        // Renumber seeds
+        renumberSeeds();
+      }
+    }
+    
+    function renumberSeeds() {
+      const rows = document.querySelectorAll('#playoffSeedsBody tr');
+      rows.forEach((row, idx) => {
+        const seedCell = row.querySelector('td:first-child');
+        if (seedCell) {
+          seedCell.textContent = `#${idx + 1}`;
+        }
+      });
+      
+      // Update playoffSeeds array
+      playoffSeeds = Array.from(rows).map((row, idx) => ({
+        seed: idx + 1,
+        team: row.dataset.team
+      }));
+    }
+    
+    function resetSeedOrder() {
+      loadPlayoffsData();
+    }
+    
+    // Confirm lock seeds
+    function confirmLockSeeds() {
+      // Build preview HTML
+      const previewHtml = playoffSeeds.slice(0, 16).map(s => 
+        `<div style="padding: 4px 0; border-bottom: 1px solid #eee;"><strong>#${s.seed}</strong> ${s.team}</div>`
+      ).join('');
+      
+      document.getElementById('lockSeedsPreview').innerHTML = previewHtml;
+      document.getElementById('lockSeedsModal').style.display = 'flex';
+    }
+    
+    function closeLockSeedsModal() {
+      document.getElementById('lockSeedsModal').style.display = 'none';
+    }
+    
+    async function executeLockSeeds() {
+      const gender = document.getElementById('playoffGender').value;
+      const division = document.getElementById('playoffDivision').value;
+      const season = '2025-26';
+      
+      const btn = document.getElementById('lockSeedsBtn');
+      btn.disabled = true;
+      btn.textContent = 'Locking...';
+      
+      try {
+        // Build seeds array from current order
+        const rows = document.querySelectorAll('#playoffSeedsBody tr');
+        const seeds = Array.from(rows).slice(0, 16).map((row, idx) => ({
+          seed: idx + 1,
+          team: row.dataset.team
+        }));
+        
+        const response = await fetch('/.netlify/functions/playoff-seeds', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'lock',
+            gender,
+            division,
+            season,
+            seeds
+          })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          showToast(`Seeds locked! Created ${result.gamesCreated} bracket games.`, 'success');
+          closeLockSeedsModal();
+          loadPlayoffsData();
+        } else {
+          throw new Error(result.error || 'Failed to lock seeds');
+        }
+        
+      } catch (error) {
+        console.error('Error locking seeds:', error);
+        showToast('Error locking seeds: ' + error.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Lock Seeds';
+      }
+    }
+    
+    // Unlock bracket
+    function confirmUnlock() {
+      document.getElementById('unlockConfirmInput').value = '';
+      document.getElementById('unlockBracketModal').style.display = 'flex';
+    }
+    
+    function closeUnlockModal() {
+      document.getElementById('unlockBracketModal').style.display = 'none';
+    }
+    
+    async function executeUnlock() {
+      const confirmText = document.getElementById('unlockConfirmInput').value.trim();
+      if (confirmText !== 'UNLOCK') {
+        showToast('Please type UNLOCK to confirm', 'error');
+        return;
+      }
+      
+      const gender = document.getElementById('playoffGender').value;
+      const division = document.getElementById('playoffDivision').value;
+      const season = '2025-26';
+      
+      const btn = document.getElementById('unlockBtn');
+      btn.disabled = true;
+      btn.textContent = 'Unlocking...';
+      
+      try {
+        const response = await fetch('/.netlify/functions/playoff-seeds', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'unlock',
+            gender,
+            division,
+            season
+          })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          showToast('Bracket unlocked. All playoff data deleted.', 'success');
+          closeUnlockModal();
+          loadPlayoffsData();
+        } else {
+          throw new Error(result.error || 'Failed to unlock bracket');
+        }
+        
+      } catch (error) {
+        console.error('Error unlocking bracket:', error);
+        showToast('Error unlocking bracket: ' + error.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Unlock Bracket';
+      }
+    }
+    
+    // Render locked seeds chips
+    function renderLockedSeeds() {
+      const container = document.getElementById('playoffLockedSeeds');
+      
+      container.innerHTML = playoffSeeds.map(seed => `
+        <div class="playoff-seed-chip">
+          <span class="num">${seed.seed}</span>
+          <span>${seed.team}</span>
+          <span style="color: #888; font-size: 11px;">${seed.reg_season_wins}-${seed.reg_season_losses}</span>
+        </div>
+      `).join('');
+    }
+    
+    // Render playoff games
+    function renderPlayoffGames() {
+      showPlayoffRound(currentRound);
+    }
+    
+    function showPlayoffRound(round) {
+      currentRound = round;
+      
+      // Update tabs
+      document.querySelectorAll('.playoff-round-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.round === round);
+      });
+      
+      // Filter games by round
+      const roundGames = playoffGames.filter(g => g.round === round);
+      const grid = document.getElementById('playoffGamesGrid');
+      
+      if (roundGames.length === 0) {
+        grid.innerHTML = `<div style="padding: 40px; text-align: center; color: #888;">No ${round.toLowerCase()} games yet</div>`;
+        return;
+      }
+      
+      grid.innerHTML = roundGames.map(game => renderGameCard(game)).join('');
+    }
+    
+    function renderGameCard(game) {
+      const isLive = game.game_status && !game.game_status.includes('FINAL');
+      const isFinal = game.game_status && game.game_status.includes('FINAL');
+      const isBye = !game.away_team && game.home_team;
+      
+      let cardClass = 'playoff-game-card';
+      if (isLive) cardClass += ' live';
+      if (isFinal) cardClass += ' final';
+      if (isBye) cardClass += ' bye';
+      
+      // Determine winner for styling
+      let awayClass = '', homeClass = '';
+      if (isFinal && game.away_score !== null && game.home_score !== null) {
+        if (game.away_score > game.home_score) {
+          awayClass = 'winner';
+          homeClass = 'loser';
+        } else {
+          homeClass = 'winner';
+          awayClass = 'loser';
+        }
+      }
+      
+      // Format status
+      let statusDisplay = '';
+      if (isLive) {
+        const statusMap = {
+          '1Q': 'End 1st',
+          'HALF': 'Halftime', 
+          '3Q': 'End 3rd',
+          'OT': 'End OT',
+          '2OT': 'End 2OT',
+          '3OT': 'End 3OT'
+        };
+        statusDisplay = `<span class="live-indicator">${statusMap[game.game_status] || game.game_status}</span>`;
+      } else if (isFinal) {
+        const finalMap = {
+          'FINAL': 'Final',
+          'FINAL-OT': 'Final (OT)',
+          'FINAL-2OT': 'Final (2OT)',
+          'FINAL-3OT': 'Final (3OT)'
+        };
+        statusDisplay = `<span style="color: #2e7d32; font-weight: 600;">${finalMap[game.game_status] || 'Final'}</span>`;
+      }
+      
+      return `
+        <div class="${cardClass}">
+          <div class="playoff-game-actions">
+            <button onclick="openEditGameModal('${game.game_id}')">Edit</button>
+          </div>
+          
+          <div class="playoff-team-row ${awayClass}">
+            <span class="seed">${game.away_seed || '-'}</span>
+            <span class="team-name">${game.away_team || 'TBD'}</span>
+            <span class="score">${game.away_score !== null ? game.away_score : ''}</span>
+          </div>
+          
+          <div class="playoff-team-row ${homeClass}">
+            <span class="seed">${game.home_seed || '-'}</span>
+            <span class="team-name">${game.home_team || 'TBD'}</span>
+            <span class="score">${game.home_score !== null ? game.home_score : ''}</span>
+          </div>
+          
+          <div class="playoff-game-meta">
+            <span>${game.time || ''} @ ${game.location || 'TBD'}</span>
+            ${statusDisplay}
+          </div>
+        </div>
+      `;
+    }
+    
+    // Edit game modal
+    let editingGame = null;
+    
+    function openEditGameModal(gameId) {
+      const game = playoffGames.find(g => g.game_id === gameId);
+      if (!game) return;
+      
+      editingGame = game;
+      
+      document.getElementById('editGameTitle').textContent = `Edit ${game.round} Game`;
+      document.getElementById('editGameRound').textContent = `${game.round} - Position ${game.bracket_position}`;
+      document.getElementById('editGameDate').textContent = new Date(game.date + 'T12:00:00').toLocaleDateString('en-US', {
+        weekday: 'short', month: 'short', day: 'numeric'
+      });
+      
+      document.getElementById('editAwayTeamDisplay').innerHTML = game.away_team 
+        ? `<span style="background: #e0e0e0; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin-right: 5px;">#${game.away_seed}</span> ${game.away_team}`
+        : '<span style="color: #888;">TBD</span>';
+      document.getElementById('editHomeTeamDisplay').innerHTML = game.home_team
+        ? `<span style="background: #e0e0e0; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin-right: 5px;">#${game.home_seed}</span> ${game.home_team}`
+        : '<span style="color: #888;">TBD</span>';
+      
+      document.getElementById('editAwayScore').value = game.away_score || '';
+      document.getElementById('editHomeScore').value = game.home_score || '';
+      document.getElementById('editGameStatus').value = game.game_status || '';
+      document.getElementById('editGameTime').value = game.time || '';
+      document.getElementById('editGameLocation').value = game.location || '';
+      document.getElementById('editGamePhotos').value = game.photos_url || '';
+      document.getElementById('editGameRecap').value = game.recap_url || '';
+      document.getElementById('editGameHighlights').value = game.highlights_url || '';
+      document.getElementById('editGameStream').value = game.stream_url || '';
+      document.getElementById('editGameId').value = gameId;
+      
+      document.getElementById('editPlayoffGameModal').style.display = 'flex';
+    }
+    
+    function closeEditGameModal() {
+      document.getElementById('editPlayoffGameModal').style.display = 'none';
+      editingGame = null;
+    }
+    
+    async function savePlayoffGame() {
+      const gameId = document.getElementById('editGameId').value;
+      const awayScore = document.getElementById('editAwayScore').value;
+      const homeScore = document.getElementById('editHomeScore').value;
+      const gameStatus = document.getElementById('editGameStatus').value;
+      
+      try {
+        // Use update-score function for score updates (handles auto-advance)
+        if (awayScore !== '' && homeScore !== '') {
+          const scoreResponse = await fetch('/.netlify/functions/update-score', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              game_id: gameId,
+              away_score: parseInt(awayScore),
+              home_score: parseInt(homeScore),
+              game_status: gameStatus || null
+            })
+          });
+          
+          const scoreResult = await scoreResponse.json();
+          if (!scoreResult.success) {
+            throw new Error(scoreResult.error || 'Failed to update score');
+          }
+        }
+        
+        // Update other fields directly in Supabase
+        const updates = {
+          time: document.getElementById('editGameTime').value || null,
+          location: document.getElementById('editGameLocation').value || null,
+          photos_url: document.getElementById('editGamePhotos').value || null,
+          recap_url: document.getElementById('editGameRecap').value || null,
+          highlights_url: document.getElementById('editGameHighlights').value || null,
+          stream_url: document.getElementById('editGameStream').value || null
+        };
+        
+        // Only update if not already updating via score function
+        if (awayScore === '' || homeScore === '') {
+          updates.game_status = gameStatus || null;
+        }
+        
+        const { error } = await db
+          .from('games')
+          .update(updates)
+          .eq('game_id', gameId);
+        
+        if (error) throw error;
+        
+        showToast('Game updated successfully', 'success');
+        closeEditGameModal();
+        loadPlayoffsData();
+        
+      } catch (error) {
+        console.error('Error saving game:', error);
+        showToast('Error saving game: ' + error.message, 'error');
+      }
     }
   </script>
   
