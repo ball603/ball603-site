@@ -52,30 +52,75 @@
       color: var(--text-secondary);
     }
     
-    /* Tournament Selector */
-    .tournament-selector {
+    /* Gender Toggle */
+    .gender-toggle {
       display: flex;
       justify-content: center;
-      gap: 12px;
-      margin-bottom: 24px;
-      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 20px;
     }
     
-    .tournament-selector select {
-      padding: 12px 20px;
+    .gender-btn {
+      padding: 12px 32px;
       font-size: 15px;
-      font-weight: 600;
+      font-weight: 700;
       border: 2px solid var(--border-color);
       background: var(--bg-card);
-      color: var(--text-primary);
+      color: var(--text-secondary);
       border-radius: 8px;
       cursor: pointer;
-      min-width: 140px;
+      transition: all 0.2s;
     }
     
-    .tournament-selector select:focus {
-      outline: none;
+    .gender-btn:hover {
       border-color: var(--accent);
+      color: var(--accent);
+    }
+    
+    .gender-btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+    }
+    
+    /* Division Tabs */
+    .division-tabs-wrapper {
+      display: flex;
+      justify-content: center;
+      width: 100%;
+      margin-bottom: 24px;
+    }
+    
+    .division-tabs {
+      display: inline-flex;
+      gap: 4px;
+      padding: 4px;
+      background: var(--bg-tertiary);
+      border-radius: 10px;
+      margin: 0;
+    }
+    
+    .division-tab {
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      background: transparent;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .division-tab:hover {
+      color: var(--text-primary);
+      background: rgba(255,255,255,0.5);
+    }
+    
+    .division-tab.active {
+      background: var(--bg-card);
+      color: var(--accent);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
     
     /* Tournament Info Card */
@@ -640,6 +685,23 @@
         font-size: 24px;
       }
       
+      .gender-btn {
+        padding: 10px 20px;
+        font-size: 14px;
+      }
+      
+      .division-tabs {
+        width: 100%;
+        justify-content: center;
+      }
+      
+      .division-tab {
+        flex: 1;
+        text-align: center;
+        padding: 8px 8px;
+        font-size: 12px;
+      }
+      
       .tournament-schedule {
         grid-template-columns: repeat(2, 1fr);
       }
@@ -677,18 +739,20 @@
       <p class="playoffs-subtitle">Brackets, scores, and tournament coverage</p>
     </div>
     
-    <!-- Tournament Selector -->
-    <div class="tournament-selector">
-      <select id="genderSelect" onchange="loadPlayoffs()">
-        <option value="Boys">🏀 Boys</option>
-        <option value="Girls">🏀 Girls</option>
-      </select>
-      <select id="divisionSelect" onchange="loadPlayoffs()">
-        <option value="D-I">Division I</option>
-        <option value="D-II">Division II</option>
-        <option value="D-III">Division III</option>
-        <option value="D-IV">Division IV</option>
-      </select>
+    <!-- Gender Toggle -->
+    <div class="gender-toggle">
+      <button class="gender-btn active" id="boysBtn" onclick="selectGender('Boys')">🏀 Boys</button>
+      <button class="gender-btn" id="girlsBtn" onclick="selectGender('Girls')">🏀 Girls</button>
+    </div>
+    
+    <!-- Division Tabs -->
+    <div class="division-tabs-wrapper">
+      <div class="division-tabs" id="divisionTabs">
+        <button class="division-tab" data-division="D-I" onclick="selectDivision('D-I')">Division I</button>
+        <button class="division-tab" data-division="D-II" onclick="selectDivision('D-II')">Division II</button>
+        <button class="division-tab" data-division="D-III" onclick="selectDivision('D-III')">Division III</button>
+        <button class="division-tab active" data-division="D-IV" onclick="selectDivision('D-IV')">Division IV</button>
+      </div>
     </div>
     
     <!-- Tournament Info Card -->
@@ -837,20 +901,43 @@
       const params = new URLSearchParams(window.location.search);
       if (params.get('gender')) {
         currentGender = params.get('gender').charAt(0).toUpperCase() + params.get('gender').slice(1).toLowerCase();
-        document.getElementById('genderSelect').value = currentGender;
       }
       if (params.get('division')) {
         currentDivision = params.get('division').toUpperCase().replace('D', 'D-');
         if (!currentDivision.includes('-')) currentDivision = 'D-' + currentDivision.replace('D-', '');
-        document.getElementById('divisionSelect').value = currentDivision;
       }
+      
+      // Update UI to match state
+      updateGenderUI();
+      updateDivisionUI();
       
       loadPlayoffs();
     });
     
+    function selectGender(gender) {
+      currentGender = gender;
+      updateGenderUI();
+      loadPlayoffs();
+    }
+    
+    function selectDivision(division) {
+      currentDivision = division;
+      updateDivisionUI();
+      loadPlayoffs();
+    }
+    
+    function updateGenderUI() {
+      document.getElementById('boysBtn').classList.toggle('active', currentGender === 'Boys');
+      document.getElementById('girlsBtn').classList.toggle('active', currentGender === 'Girls');
+    }
+    
+    function updateDivisionUI() {
+      document.querySelectorAll('.division-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.division === currentDivision);
+      });
+    }
+    
     async function loadPlayoffs() {
-      currentGender = document.getElementById('genderSelect').value;
-      currentDivision = document.getElementById('divisionSelect').value;
       const season = '2025-26';
       
       // Update URL
