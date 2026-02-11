@@ -1471,7 +1471,7 @@
     async function loadArticles() {
       if (!TEAM_CONFIG) return;
       try {
-        // Fetch all published articles (don't filter by sport at DB level)
+        // Fetch all published articles
         const { data: articles, error } = await db
           .from('articles')
           .select('*')
@@ -1510,13 +1510,21 @@
           const articleSportTags = normalizedTags.filter(t => sportTags.includes(t));
           const articleTeamTags = normalizedTags.filter(t => !sportTags.includes(t) && t !== 'allnhiaa');
           
-          // Rule 2: Has this team's tag → show on all this team's pages
-          const hasThisTeamTag = articleTeamTags.some(t => teamTagVariations.includes(t));
-          if (hasThisTeamTag) return true;
-          
-          // Rule 3: Sport tag only (no team tags) → show on all pages for that sport
+          // Rule 2: Sport tag only (no team tags) → show on all pages for that sport
           if (articleSportTags.length > 0 && articleTeamTags.length === 0) {
             return articleSportTags.includes(currentSportTag) || currentSport === 'all';
+          }
+          
+          // Rule 3: Has sport tag + team tag → show on those team's pages (any sport view)
+          if (articleSportTags.length > 0 && articleTeamTags.length > 0) {
+            return articleTeamTags.some(t => teamTagVariations.includes(t));
+          }
+          
+          // Rule 4: Team tag only (no sport tag) → use article's sport DB field
+          const hasThisTeamTag = articleTeamTags.some(t => teamTagVariations.includes(t));
+          if (hasThisTeamTag) {
+            if (currentSport === 'all') return true;
+            return a.sport === currentSportTag;
           }
           
           return false;
