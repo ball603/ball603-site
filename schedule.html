@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Ball603 - New Hampshire High School and College Basketball Schedule">
+  <meta name="description" content="Ball603 - New Hampshire High School and College Multi-Sport Schedule">
   <meta name="theme-color" content="#f57c00">
-  <title>Schedule | Ball603</title>
+  <title>Multi-Sport Schedule | Ball603</title>
   <link rel="icon" type="image/png" href="/logo.png">
   <link rel="apple-touch-icon" href="/logo.png">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -185,6 +185,19 @@
       color: #666;
     }
     
+    .games-table .col-sport {
+      width: 60px;
+      text-align: center;
+    }
+    
+    .games-table th.col-sport {
+      font-size: 13px;
+    }
+    
+    .games-table td.col-sport {
+      font-size: 20px;
+    }
+    
     .games-table .col-away {
       text-align: left;
     }
@@ -351,10 +364,14 @@
       /* Mobile filters row */
       .mobile-filters {
         display: grid;
-        grid-template-columns: 1fr 1fr 50px 60px;
+        grid-template-columns: 1fr 1fr;
         gap: 8px;
-        padding: 12px 15px;
+        padding: 12px 15px 6px;
         background: #1a1a1a;
+      }
+      
+      .mobile-filters:has(.calendar-btn) {
+        padding: 6px 15px 12px;
       }
       
       .mobile-filters .filter-select {
@@ -459,6 +476,11 @@
         font-size: 12px;
         color: #aaa;
         text-transform: uppercase;
+      }
+      
+      .game-sport-emoji {
+        font-size: 16px;
+        margin-right: 6px;
       }
       
       .game-time {
@@ -681,6 +703,11 @@
         <option value="NHIAA">NHIAA</option>
         <option value="College">College</option>
       </select>
+      <select class="filter-select" id="sportFilter" onchange="renderSchedule()">
+        <option value="">All Sports</option>
+        <option value="basketball">&#127936; Basketball</option>
+        <option value="baseball">&#9918; Baseball</option>
+      </select>
       <select class="filter-select" id="genderFilter" onchange="renderSchedule()">
         <option value="">Gender (All)</option>
         <option value="Boys">Boys</option>
@@ -707,6 +734,11 @@
         <option value="NHIAA">NHIAA</option>
         <option value="College">College</option>
       </select>
+      <select class="filter-select" id="sportFilterMobile" onchange="syncFilter('sport')">
+        <option value="">All Sports</option>
+        <option value="basketball">&#127936; Basketball</option>
+        <option value="baseball">&#9918; Baseball</option>
+      </select>
       <select class="filter-select" id="genderFilterMobile" onchange="syncFilter('gender')">
         <option value="">Gender (All)</option>
         <option value="Boys">Boys</option>
@@ -714,6 +746,10 @@
         <option value="Men">Men</option>
         <option value="Women">Women</option>
       </select>
+    </div>
+    
+    <!-- Mobile Action Buttons Row -->
+    <div class="mobile-filters">
       <button class="calendar-btn" onclick="openCalendar()">&#128197;</button>
       <button class="today-btn" onclick="goToToday()">Today</button>
     </div>
@@ -778,6 +814,8 @@
         document.getElementById('levelFilter').value = document.getElementById('levelFilterMobile').value;
       } else if (type === 'gender') {
         document.getElementById('genderFilter').value = document.getElementById('genderFilterMobile').value;
+      } else if (type === 'sport') {
+        document.getElementById('sportFilter').value = document.getElementById('sportFilterMobile').value;
       }
       renderSchedule();
     }
@@ -785,6 +823,32 @@
     function syncSearch() {
       document.getElementById('teamSearchInput').value = document.getElementById('teamSearchMobile').value;
       renderSchedule();
+    }
+    
+    // Get sport emoji
+    function getSportEmoji(sport) {
+      if (!sport) return '&#127936;'; // Default to basketball
+      const emojis = {
+        'basketball': '&#127936;',
+        'baseball': '&#9918;',
+        'volleyball': '&#127952;',
+        'soccer': '&#9917;',
+        'hockey': '&#127954;'
+      };
+      return emojis[sport.toLowerCase()] || '&#127936;';
+    }
+    
+    // Get sport name for display
+    function getSportName(sport) {
+      if (!sport) return 'Basketball'; // Default fallback
+      const names = {
+        'basketball': 'Basketball',
+        'baseball': 'Baseball',
+        'volleyball': 'Volleyball',
+        'soccer': 'Soccer',
+        'hockey': 'Hockey'
+      };
+      return names[sport.toLowerCase()] || 'Basketball';
     }
 
     // Schedule
@@ -1001,8 +1065,8 @@
 
     async function loadGames() {
       try {
-        // Basketball-only schedule page
-        const response = await fetch('/.netlify/functions/get-games?sport=basketball');
+        // Load ALL sports - no sport filter in API call
+        const response = await fetch('/.netlify/functions/get-games');
         const data = await response.json();
         allGames = (data.games || []).map(g => ({...g, home: normalizeTeamName(g.home), away: normalizeTeamName(g.away)}));
         renderSchedule();
@@ -1016,8 +1080,9 @@
       const search = document.getElementById('teamSearchInput').value.toLowerCase();
       const gender = document.getElementById('genderFilter').value;
       const level = document.getElementById('levelFilter').value;
+      const sport = document.getElementById('sportFilter').value;
       const dateStr = getDateString(currentDate);
-      let games = allGames.filter(g => g.date === dateStr && (!level || g.level === level) && (!gender || g.gender === gender) && (!search || g.home.toLowerCase().includes(search) || g.away.toLowerCase().includes(search)));
+      let games = allGames.filter(g => g.date === dateStr && (!level || g.level === level) && (!gender || g.gender === gender) && (!sport || g.sport === sport) && (!search || g.home.toLowerCase().includes(search) || g.away.toLowerCase().includes(search)));
       games.sort((a,b) => {
         const priorityA = getGamePriority(a);
         const priorityB = getGamePriority(b);
@@ -1027,13 +1092,15 @@
       });
       document.getElementById('gameCount').textContent = games.length + ' game' + (games.length !== 1 ? 's' : '');
       
-      if (games.length === 0) { 
-        document.getElementById('gamesContainer').innerHTML = '<div class="empty-state"><div class="empty-icon">&#127936;</div><div class="empty-title">No games scheduled</div><div class="empty-text">Try a different date</div></div>'; 
+      if (games.length === 0) {
+        const sportName = sport ? getSportName(sport) : '';
+        const emptyTitle = sport ? `No ${sportName.toLowerCase()} games scheduled` : 'No games scheduled';
+        document.getElementById('gamesContainer').innerHTML = `<div class="empty-state"><div class="empty-icon">&#127936;</div><div class="empty-title">${emptyTitle}</div><div class="empty-text">Try a different date</div></div>`; 
         return; 
       }
       
       // Desktop table
-      let tableHtml = '<table class="games-table"><thead><tr><th class="col-level">Level</th><th class="col-gender">Gender</th><th class="col-away">Match-up</th><th class="col-home"></th><th class="col-status">Time/Status</th><th class="col-coverage">Coverage</th></tr></thead><tbody>';
+      let tableHtml = '<table class="games-table"><thead><tr><th class="col-sport">Sport</th><th class="col-level">Level</th><th class="col-gender">Gender</th><th class="col-away">Match-up</th><th class="col-home"></th><th class="col-status">Time/Status</th><th class="col-coverage">Coverage</th></tr></thead><tbody>';
       
       // Mobile cards
       let cardsHtml = '<div class="games-grid">';
@@ -1064,6 +1131,20 @@
         }
         
         tableHtml += '<tr'+(isPlayoff?' class="playoff-row"':'')+'>';
+        const sportValue = g.sport || 'basketball';
+        const sportEmoji = getSportEmoji(sportValue);
+        // Debug first 3 games
+        if (games.indexOf(g) < 3) {
+          console.log('Game debug:', {
+            gameId: g.game_id,
+            rawSport: g.sport,
+            sportValue: sportValue,
+            sportEmoji: sportEmoji,
+            homeTeam: g.home,
+            awayTeam: g.away
+          });
+        }
+        tableHtml += '<td class="col-sport">'+sportEmoji+'</td>';
         tableHtml += '<td class="col-level">'+roundBadge+(g.level||'')+'</td>';
         tableHtml += '<td class="col-gender">'+(g.gender||'')+'</td>';
         tableHtml += '<td class="col-away"><div class="away-team-cell">' + getTeamLink(g.away, getLogoFilename(g.away), aw, g.level) + (isPlayoff && g.away_seed ? ' <span class="playoff-round">#'+g.away_seed+'</span>' : '') + '</div></td>';
@@ -1077,7 +1158,7 @@
         const playoffHeader = isPlayoff && g.round ? '<span class="playoff-badge">'+(roundNames[g.round]||g.round)+'</span> ' : '';
         cardsHtml += '<div class="game-card'+(isPlayoff?' playoff':'')+'">';
         if (g.gamedescription) cardsHtml += '<div class="game-description">'+g.gamedescription+'</div>';
-        cardsHtml += '<div class="game-card-header"><span class="game-level">'+playoffHeader+(g.gender||'')+' '+(g.level||'')+'</span><span class="game-time">'+td+'</span></div>';
+        cardsHtml += '<div class="game-card-header"><span class="game-level"><span class="game-sport-emoji">'+getSportEmoji(g.sport || 'basketball')+'</span>'+playoffHeader+(g.gender||'')+' '+(g.level||'')+'</span><span class="game-time">'+td+'</span></div>';
         cardsHtml += '<div class="game-card-body">';
         cardsHtml += '<div class="game-team">'+getMobileTeamLink(g.away, getLogoFilename(g.away), isPlayoff && g.away_seed ? '#'+g.away_seed : g.away_record, g.level)+(hasScore?'<div class="team-score'+(aw?' winner':'')+'">'+as+'</div>':'')+'</div>';
         cardsHtml += '<div class="game-team">'+getMobileTeamLink(g.home, getLogoFilename(g.home), isPlayoff && g.home_seed ? '#'+g.home_seed : g.home_record, g.level)+(hasScore?'<div class="team-score'+(hw?' winner':'')+'">'+hs+'</div>':'')+'</div>';

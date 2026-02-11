@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Ball603 - New Hampshire High School Basketball Team Rosters">
+  <meta name="description" content="Ball603 - New Hampshire High School Sports Team Rosters">
   <meta name="theme-color" content="#f57c00">
-  <title>Rosters | Ball603</title>
+  <title id="pageTitle">Rosters | Ball603</title>
   
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="/logo.png">
@@ -300,11 +300,20 @@
     
     <div class="rosters-header">
       <h1 class="rosters-title">Team Rosters</h1>
-      <p class="rosters-subtitle">2025-26 New Hampshire High School Basketball</p>
+      <p class="rosters-subtitle" id="rostersSubtitle">2025-26 New Hampshire High School Basketball</p>
+    </div>
+    
+    <!-- Sport Filter -->
+    <div class="sport-filter-wrapper">
+      <div class="sport-filter">
+        <button class="sport-btn" id="basketballBtn" onclick="selectSport('basketball')">&#127936; Basketball</button>
+        <button class="sport-btn" id="baseballBtn" onclick="selectSport('baseball')">&#9918; Baseball</button>
+        <!-- <button class="sport-btn" id="volleyballBtn" onclick="selectSport('volleyball')">&#127952; Volleyball</button> -->
+      </div>
     </div>
     
     <!-- Gender Toggle -->
-    <div class="gender-toggle">
+    <div class="gender-toggle" id="genderToggle">
       <button class="gender-btn active" id="boysBtn" onclick="selectGender('Boys')">Boys</button>
       <button class="gender-btn" id="girlsBtn" onclick="selectGender('Girls')">Girls</button>
     </div>
@@ -385,17 +394,41 @@
   
   <!-- Rosters Page JS -->
   <script>
+    // ===== UTILITIES =====
+    function getCurrentSport() {
+      const month = new Date().getMonth() + 1; // 1-12
+      if (month >= 12 || month <= 3) return 'basketball';  // Dec-Mar
+      if (month >= 4 && month <= 7) return 'baseball';     // Apr-Jul
+      if (month >= 8 && month <= 11) return 'volleyball';  // Aug-Nov
+      return 'basketball'; // Fallback
+    }
+    
     // ===== STATE =====
-    let currentGender = 'Boys';
+    let currentSport = getCurrentSport();
+    let currentGender = currentSport === 'volleyball' ? 'Girls' : 'Boys';
     let allTeams = [];
     let allRosters = [];
     
     // ===== INITIALIZATION =====
     document.addEventListener('DOMContentLoaded', async () => {
+      // Set initial active sport button
+      document.getElementById('basketballBtn').classList.toggle('active', currentSport === 'basketball');
+      document.getElementById('baseballBtn').classList.toggle('active', currentSport === 'baseball');
+      // document.getElementById('volleyballBtn').classList.toggle('active', currentSport === 'volleyball');
+      
+      // Handle gender toggle visibility on initial load
+      const genderToggle = document.getElementById('genderToggle');
+      if (currentSport === 'baseball') {
+        genderToggle.style.display = 'none';
+      } else if (currentSport === 'volleyball') {
+        genderToggle.style.display = 'none';
+      }
+      
       // Use supabase from app.js
       initSupabase();
       await loadTeams();
       await loadAllRosters();
+      updatePageTitle();
       populateTeamDropdown();
     });
     
@@ -431,22 +464,74 @@
       }
     }
     
+    // ===== SELECT SPORT =====
+    function selectSport(sport) {
+      currentSport = sport;
+      
+      // Update sport buttons
+      document.getElementById('basketballBtn').classList.toggle('active', sport === 'basketball');
+      document.getElementById('baseballBtn').classList.toggle('active', sport === 'baseball');
+      // document.getElementById('volleyballBtn').classList.toggle('active', sport === 'volleyball');
+      
+      // Handle gender toggle based on sport
+      const genderToggle = document.getElementById('genderToggle');
+      if (sport === 'basketball') {
+        // Basketball: Show gender toggle
+        genderToggle.style.display = 'flex';
+      } else if (sport === 'baseball') {
+        // Baseball: Boys only
+        genderToggle.style.display = 'none';
+        currentGender = 'Boys';
+        document.getElementById('boysBtn').classList.add('active');
+        document.getElementById('girlsBtn').classList.remove('active');
+      } else if (sport === 'volleyball') {
+        // Volleyball: Girls only
+        genderToggle.style.display = 'none';
+        currentGender = 'Girls';
+        document.getElementById('girlsBtn').classList.add('active');
+        document.getElementById('boysBtn').classList.remove('active');
+      }
+      
+      updatePageTitle();
+      populateTeamDropdown();
+    }
+    
+    // ===== UPDATE PAGE TITLE =====
+    function updatePageTitle() {
+      const sportNames = {
+        basketball: 'Basketball',
+        baseball: 'Baseball',
+        volleyball: 'Volleyball'
+      };
+      const sportName = sportNames[currentSport] || 'Sports';
+      
+      document.getElementById('pageTitle').textContent = `${sportName} Rosters | Ball603`;
+      document.getElementById('rostersSubtitle').textContent = `2025-26 New Hampshire High School ${sportName}`;
+    }
+    
     // ===== POPULATE TEAM DROPDOWN =====
     function populateTeamDropdown() {
       const select = document.getElementById('teamSelect');
       
-      // Get teams that have approved rosters for current gender (case-insensitive)
+      // Get teams that have approved rosters for current sport and gender
       const genderLower = currentGender.toLowerCase();
       const teamsWithRosters = allRosters
-        .filter(r => (r.gender || '').toLowerCase() === genderLower)
+        .filter(r => {
+          const rosterSport = (r.sport || 'basketball').toLowerCase();
+          const rosterGender = (r.gender || '').toLowerCase();
+          return rosterSport === currentSport && rosterGender === genderLower;
+        })
         .map(r => r.school)
         .filter(Boolean);
       
       // Remove duplicates and sort
       const uniqueTeams = [...new Set(teamsWithRosters)].sort((a, b) => a.localeCompare(b));
       
+      const sportNames = { basketball: 'basketball', baseball: 'baseball', volleyball: 'volleyball' };
+      const sportLabel = sportNames[currentSport] || 'sports';
+      
       if (uniqueTeams.length === 0) {
-        select.innerHTML = '<option value="">No rosters available yet</option>';
+        select.innerHTML = `<option value="">No ${sportLabel} rosters available yet</option>`;
       } else {
         select.innerHTML = '<option value="">Select a team...</option>' + 
           uniqueTeams.map(t => `<option value="${t}">${t}</option>`).join('');
@@ -455,14 +540,20 @@
       // Reset display
       document.getElementById('rosterCard').style.display = 'none';
       document.getElementById('rosterEmpty').style.display = 'block';
+      
+      const sportEmojis = { basketball: '🏀', baseball: '⚾', volleyball: '🏐' };
+      const emoji = sportEmojis[currentSport] || '🏀';
       document.getElementById('rosterEmpty').innerHTML = `
-        <div class="roster-empty-icon">&#127936;</div>
+        <div class="roster-empty-icon">${emoji}</div>
         <p>Select a team above to view their roster</p>
       `;
     }
     
     // ===== SELECT GENDER =====
     function selectGender(gender) {
+      // Only allow gender change for basketball
+      if (currentSport !== 'basketball') return;
+      
       currentGender = gender;
       
       // Update buttons
@@ -490,13 +581,14 @@
       document.getElementById('rosterEmpty').style.display = 'none';
       document.getElementById('rosterLoading').style.display = 'block';
       
-      // Find roster - check both school exact match and partial matches (case-insensitive)
+      // Find roster - filter by sport, gender, and school
       const genderLower = currentGender.toLowerCase();
       const roster = allRosters.find(r => {
         const normalizedSchool = (r.school || '').toLowerCase().trim();
         const normalizedTeam = teamName.toLowerCase().trim();
         const rosterGender = (r.gender || '').toLowerCase();
-        return normalizedSchool === normalizedTeam && rosterGender === genderLower;
+        const rosterSport = (r.sport || 'basketball').toLowerCase();
+        return normalizedSchool === normalizedTeam && rosterGender === genderLower && rosterSport === currentSport;
       });
       
       // Find team info
@@ -511,7 +603,7 @@
       if (!roster || !players || players.length === 0) {
         document.getElementById('rosterEmpty').style.display = 'block';
         document.getElementById('rosterEmpty').innerHTML = `
-          <div class="roster-empty-icon">&#128203;</div>
+          <div class="roster-empty-icon">📋</div>
           <p>No roster available for ${teamName}</p>
           <p style="font-size: 13px; margin-top: 8px; color: #888;">Coaches can submit rosters via our <a href="/roster-submission-form" style="color: var(--accent);">submission form</a></p>
         `;
