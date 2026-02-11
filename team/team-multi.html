@@ -1471,39 +1471,55 @@
     async function loadArticles() {
       if (!TEAM_CONFIG) return;
       try {
-        let query = db.from('articles').select('*').eq('status', 'published');
+        // Fetch all published articles (don't filter by sport at DB level)
+        const { data: articles, error } = await db
+          .from('articles')
+          .select('*')
+          .eq('status', 'published');
         
-        // Only filter by sport for non-basketball sports
-        // Basketball articles may have sport=NULL (pre-multi-sport data), so don't filter
-        if (currentSport !== 'all' && currentSport !== 'basketball') {
-          query = query.eq('sport', currentSport);
-        }
-        
-        const { data: articles, error } = await query;
         if (error) throw error;
         
-        // Normalize team slug for comparison (strip all non-alphanumeric)
+        // Known sport tags
+        const sportTags = ['basketball', 'baseball', 'volleyball'];
+        
+        // Normalize team slug for comparison
         const teamTagNormalized = TEAM_CONFIG.slug.toLowerCase().replace(/[^a-z0-9]/g, '');
         
-        // Build list of normalized tag variations to match
-        let tagVariations = [teamTagNormalized];
+        // Build list of normalized tag variations to match for this team
+        let teamTagVariations = [teamTagNormalized];
         if (TEAM_CONFIG.slug === 'centralwest' || TEAM_CONFIG.shortname === 'Central-West') {
-          tagVariations.push('mancentralmanwest', 'manchestercentralwest', 'centralwest');
+          teamTagVariations.push('mancentralmanwest', 'manchestercentralwest', 'centralwest');
         }
-        
-        // Mascoma articles may be tagged as "mascoma" or "mascomavalley"
         if (TEAM_CONFIG.slug === 'mascoma' || TEAM_CONFIG.shortname === 'Mascoma' || TEAM_CONFIG.shortname === 'Mascoma Valley') {
-          tagVariations.push('mascoma', 'mascomavalley');
+          teamTagVariations.push('mascoma', 'mascomavalley');
         }
         
-        // Filter articles by team tag
+        // Current sport being viewed
+        const currentSportTag = currentSport.toLowerCase();
+        
+        // Filter articles based on tagging rules
         const teamArticles = (articles || []).filter(a => {
           if (!a.tags) return false;
           const tagArray = Array.isArray(a.tags) ? a.tags : JSON.parse(a.tags || '[]');
-          return tagArray.some(tag => {
-            const normalizedTag = tag.toLowerCase().replace(/[^a-z0-9]/g, '');
-            return tagVariations.includes(normalizedTag);
-          });
+          const normalizedTags = tagArray.map(t => t.toLowerCase().replace(/[^a-z0-9]/g, ''));
+          
+          // Rule 1: "all-nhiaa" tag shows on all team pages, all sports
+          if (normalizedTags.includes('allnhiaa')) return true;
+          
+          // Separate sport tags from other tags
+          const articleSportTags = normalizedTags.filter(t => sportTags.includes(t));
+          const articleTeamTags = normalizedTags.filter(t => !sportTags.includes(t) && t !== 'allnhiaa');
+          
+          // Rule 2: Has this team's tag → show on all this team's pages
+          const hasThisTeamTag = articleTeamTags.some(t => teamTagVariations.includes(t));
+          if (hasThisTeamTag) return true;
+          
+          // Rule 3: Sport tag only (no team tags) → show on all pages for that sport
+          if (articleSportTags.length > 0 && articleTeamTags.length === 0) {
+            return articleSportTags.includes(currentSportTag) || currentSport === 'all';
+          }
+          
+          return false;
         });
         
         // Sort by article_date (Publication Date), falling back to published_at
