@@ -12,10 +12,36 @@
       navigator.serviceWorker.register('/service-worker.js')
         .then((registration) => {
           console.log('[PWA] Service Worker registered:', registration.scope);
+          
+          // Check for updates immediately
+          registration.update();
+          
+          // When a new service worker is found, force it to activate
+          registration.addEventListener('updatefound', () => {
+            const newWorker = registration.installing;
+            console.log('[PWA] New service worker found, installing...');
+            
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                // New content available, reload to get it
+                console.log('[PWA] New content available, reloading...');
+                window.location.reload();
+              }
+            });
+          });
         })
         .catch((error) => {
           console.log('[PWA] Service Worker registration failed:', error);
         });
+    });
+    
+    // Also reload when the controlling service worker changes
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!refreshing) {
+        refreshing = true;
+        window.location.reload();
+      }
     });
   }
 
