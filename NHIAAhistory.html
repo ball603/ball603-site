@@ -27,6 +27,48 @@
       display: none;
     }
     
+    /* Bracket filters - three dropdowns centered */
+    .bracket-filters-row {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      padding: 16px;
+    }
+    
+    .bracket-filter {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    
+    .bracket-filter label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #666;
+      font-weight: 600;
+    }
+    
+    .bracket-filter select {
+      padding: 10px 32px 10px 12px;
+      font-size: 15px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background: white;
+      cursor: pointer;
+      min-width: 120px;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+    }
+    
+    .bracket-filter select:focus {
+      outline: none;
+      border-color: #f57c00;
+    }
+    
     /* Sport filter background to match page content area */
     .sport-filter-wrapper {
       background: var(--bg-secondary);
@@ -237,24 +279,15 @@
         border-color: #333;
       }
       
-      .bracket-years {
-        background: #2d2d2d;
-      }
-      
-      .bracket-year-btn {
-        background: transparent;
-        color: #aaa;
-      }
-      
-      .bracket-year-btn.active {
-        background: #f57c00;
-        color: #fff;
-      }
-      
       .bracket-filter select {
         background: #2d2d2d;
         border-color: #444;
         color: #fff;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23aaa' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      }
+      
+      .bracket-filter label {
+        color: #888;
       }
       
       .bracket-display {
@@ -284,6 +317,10 @@
       
       .final-vs {
         color: #aaa;
+      }
+      
+      .bracket-info {
+        border-bottom-color: #444;
       }
       
       .bracket-story {
@@ -334,6 +371,32 @@
       
       .bracket-note-text {
         color: #aaa;
+      }
+      
+      /* Upsets section - fix yellow box for dark theme */
+      .bracket-upsets {
+        background: #2d2d2d;
+        border-color: #f57c00;
+      }
+      
+      .bracket-upsets h4 {
+        color: #f57c00;
+      }
+      
+      .upset-item {
+        color: #ccc;
+      }
+      
+      .upset-winner {
+        color: #4caf50;
+      }
+      
+      .upset-score {
+        color: #888;
+      }
+      
+      .upset-loser {
+        color: #999;
       }
       
       .bracket-covid-note {
@@ -494,26 +557,38 @@
     <!-- Bracket Viewer (Basketball only) -->
     <section class="bracket-section" id="bracketsSection">
       <h2 class="section-title">🏀 Tournament Brackets</h2>
-      <p class="section-subtitle bracket-sport-note">Basketball tournament brackets • 2017-2024</p>
+      <p class="section-subtitle bracket-sport-note">Basketball tournament brackets • 2017-2025</p>
       
       <div class="bracket-controls">
-        <div class="bracket-years" id="bracketYears">
-          <!-- Year buttons populated by JS -->
-        </div>
-        
-        <div class="bracket-filters">
+        <div class="bracket-filters-row">
           <div class="bracket-filter">
+            <label for="bracketGender">Gender</label>
             <select id="bracketGender">
               <option value="boys">Boys</option>
               <option value="girls">Girls</option>
             </select>
           </div>
           <div class="bracket-filter">
+            <label for="bracketDivision">Division</label>
             <select id="bracketDivision">
               <option value="D-I">Division I</option>
               <option value="D-II">Division II</option>
               <option value="D-III">Division III</option>
               <option value="D-IV">Division IV</option>
+            </select>
+          </div>
+          <div class="bracket-filter">
+            <label for="bracketYear">Year</label>
+            <select id="bracketYear">
+              <option value="2025">2025</option>
+              <option value="2024">2024</option>
+              <option value="2023">2023</option>
+              <option value="2022">2022</option>
+              <option value="2021">2021</option>
+              <option value="2020">2020</option>
+              <option value="2019">2019</option>
+              <option value="2018">2018</option>
+              <option value="2017">2017</option>
             </select>
           </div>
         </div>
@@ -938,28 +1013,19 @@
     }
     
     function setupBracketViewer() {
-      const yearsContainer = document.getElementById('bracketYears');
-      const years = [2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018, 2017];
-      
-      yearsContainer.innerHTML = years.map(year => `
-        <button class="bracket-year-btn ${year === selectedBracketYear ? 'active' : ''}" 
-                onclick="selectBracketYear(${year})">${year}</button>
-      `).join('');
-      
-      renderBracket();
-    }
-    
-    function selectBracketYear(year) {
-      selectedBracketYear = year;
-      document.querySelectorAll('.bracket-year-btn').forEach(btn => {
-        btn.classList.toggle('active', parseInt(btn.textContent) === year);
+      // Add event listener for year dropdown
+      document.getElementById('bracketYear').addEventListener('change', function() {
+        selectedBracketYear = parseInt(this.value);
+        renderBracket();
       });
+      
       renderBracket();
     }
     
     function renderBracket() {
       const gender = document.getElementById('bracketGender').value;
       const division = document.getElementById('bracketDivision').value;
+      selectedBracketYear = parseInt(document.getElementById('bracketYear').value);
       const container = document.getElementById('bracketDisplay');
       
       const yearData = TOURNAMENT_BRACKETS[selectedBracketYear];
