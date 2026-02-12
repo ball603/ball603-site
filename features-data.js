@@ -11711,6 +11711,287 @@ const CHAMPIONSHIP_HISTORY = {
 };
 const TOURNAMENT_BRACKETS = {
   // ============================================================
+  // 2025 TOURNAMENT BRACKETS
+  // ============================================================
+  2025: {
+    boys: {
+      'D-I': {
+        champion: 'Bedford',
+        championSeed: 1,
+        runnerUp: 'Keene',
+        runnerUpSeed: 6,
+        finalScore: '51-50',
+        bracketSize: 16,
+        notes: 'Bedford wins thriller by 1 point over 6-seed Keene',
+        games: {
+          firstRound: [
+            { winner: 'Bedford', winnerSeed: 1, loser: 'Bye', loserSeed: null, winnerScore: null, loserScore: null },
+            { winner: 'Windham', winnerSeed: 9, loser: 'Bishop Guertin', loserSeed: 8, winnerScore: 64, loserScore: 49 },
+            { winner: 'Nashua South', winnerSeed: 4, loser: 'Merrimack', loserSeed: 13, winnerScore: 55, loserScore: 49 },
+            { winner: 'Exeter', winnerSeed: 5, loser: 'Goffstown', loserSeed: 12, winnerScore: 82, loserScore: 63 },
+            { winner: 'Portsmouth', winnerSeed: 2, loser: 'Salem', loserSeed: 15, winnerScore: 74, loserScore: 60 },
+            { winner: 'Manchester Memorial', winnerSeed: 10, loser: 'Alvirne', loserSeed: 7, winnerScore: 66, loserScore: 65 },
+            { winner: 'Trinity', winnerSeed: 3, loser: 'Winnacunnet', loserSeed: 14, winnerScore: 60, loserScore: 48 },
+            { winner: 'Keene', winnerSeed: 6, loser: 'Londonderry', loserSeed: 11, winnerScore: 51, loserScore: 43 }
+          ],
+          quarterFinals: [
+            { winner: 'Bedford', winnerSeed: 1, loser: 'Windham', loserSeed: 9, winnerScore: 66, loserScore: 59 },
+            { winner: 'Exeter', winnerSeed: 5, loser: 'Nashua South', loserSeed: 4, winnerScore: 60, loserScore: 44 },
+            { winner: 'Portsmouth', winnerSeed: 2, loser: 'Manchester Memorial', loserSeed: 10, winnerScore: 64, loserScore: 61 },
+            { winner: 'Keene', winnerSeed: 6, loser: 'Trinity', loserSeed: 3, winnerScore: 59, loserScore: 58 }
+          ],
+          semiFinals: [
+            { winner: 'Bedford', winnerSeed: 1, loser: 'Exeter', loserSeed: 5, winnerScore: 58, loserScore: 55 },
+            { winner: 'Keene', winnerSeed: 6, loser: 'Portsmouth', loserSeed: 2, winnerScore: 61, loserScore: 60 }
+          ],
+          final: [
+            { winner: 'Bedford', winnerSeed: 1, loser: 'Keene', loserSeed: 6, winnerScore: 51, loserScore: 50 }
+          ]
+        }
+      },
+      'D-II': {
+        champion: 'Pembroke',
+        championSeed: 1,
+        runnerUp: 'Sanborn',
+        runnerUpSeed: 3,
+        finalScore: '63-54',
+        bracketSize: 16,
+        notes: 'Pembroke captures D-II title',
+        games: {
+          firstRound: [
+            { winner: 'Pembroke', winnerSeed: 1, loser: 'Bye', loserSeed: null, winnerScore: null, loserScore: null },
+            { winner: 'Bow', winnerSeed: 9, loser: 'Manchester West', loserSeed: 8, winnerScore: 53, loserScore: 52 },
+            { winner: 'Pelham', winnerSeed: 4, loser: 'Kingswood', loserSeed: 13, winnerScore: 68, loserScore: 40 },
+            { winner: 'Coe-Brown Northwood', winnerSeed: 5, loser: 'Kennett', loserSeed: 12, winnerScore: 59, loserScore: 40 },
+            { winner: 'Hanover', winnerSeed: 2, loser: 'Bye', loserSeed: null, winnerScore: null, loserScore: null },
+            { winner: 'Oyster River', winnerSeed: 7, loser: 'Merrimack Valley', loserSeed: 10, winnerScore: 85, loserScore: 67 },
+            { winner: 'Sanborn', winnerSeed: 3, loser: 'ConVal', loserSeed: 14, winnerScore: 67, loserScore: 48 },
+            { winner: 'Hollis-Brookline', winnerSeed: 6, loser: 'Souhegan', loserSeed: 11, winnerScore: 54, loserScore: 39 }
+          ],
+          quarterFinals: [
+            { winner: 'Pembroke', winnerSeed: 1, loser: 'Bow', loserSeed: 9, winnerScore: 74, loserScore: 60 },
+            { winner: 'Pelham', winnerSeed: 4, loser: 'Coe-Brown Northwood', loserSeed: 5, winnerScore: 66, loserScore: 60 },
+            { winner: 'Oyster River', winnerSeed: 7, loser: 'Hanover', loserSeed: 2, winnerScore: 51, loserScore: 39 },
+            { winner: 'Sanborn', winnerSeed: 3, loser: 'Hollis-Brookline', loserSeed: 6, winnerScore: 73, loserScore: 55 }
+          ],
+          semiFinals: [
+            { winner: 'Pembroke', winnerSeed: 1, loser: 'Pelham', loserSeed: 4, winnerScore: 57, loserScore: 42 },
+            { winner: 'Sanborn', winnerSeed: 3, loser: 'Oyster River', loserSeed: 7, winnerScore: 69, loserScore: 59 }
+          ],
+          final: [
+            { winner: 'Pembroke', winnerSeed: 1, loser: 'Sanborn', loserSeed: 3, winnerScore: 63, loserScore: 54 }
+          ]
+        }
+      },
+      'D-III': {
+        champion: 'Belmont',
+        championSeed: 1,
+        runnerUp: 'Kearsarge',
+        runnerUpSeed: 3,
+        finalScore: '49-43',
+        bracketSize: 16,
+        notes: 'Belmont captures D-III crown',
+        games: {
+          firstRound: [
+            { winner: 'Belmont', winnerSeed: 1, loser: 'Bye', loserSeed: null, winnerScore: null, loserScore: null },
+            { winner: 'Fall Mountain', winnerSeed: 8, loser: 'Raymond', loserSeed: 9, winnerScore: 59, loserScore: 49 },
+            { winner: 'Campbell', winnerSeed: 4, loser: 'Hopkinton', loserSeed: 13, winnerScore: 52, loserScore: 48 },
+            { winner: 'St. Thomas Aquinas', winnerSeed: 5, loser: 'Prospect Mountain', loserSeed: 12, winnerScore: 84, loserScore: 33 },
+            { winner: 'Mascoma Valley', winnerSeed: 2, loser: 'Stevens', loserSeed: 15, winnerScore: 57, loserScore: 46 },
+            { winner: 'Newport', winnerSeed: 7, loser: 'Newfound', loserSeed: 10, winnerScore: 66, loserScore: 46 },
+            { winner: 'Kearsarge', winnerSeed: 3, loser: 'Conant', loserSeed: 14, winnerScore: 57, loserScore: 38 },
+            { winner: 'Gilford', winnerSeed: 6, loser: 'White Mountains', loserSeed: 11, winnerScore: 57, loserScore: 46 }
+          ],
+          quarterFinals: [
+            { winner: 'Belmont', winnerSeed: 1, loser: 'Fall Mountain', loserSeed: 8, winnerScore: 72, loserScore: 50 },
+            { winner: 'St. Thomas Aquinas', winnerSeed: 5, loser: 'Campbell', loserSeed: 4, winnerScore: 71, loserScore: 66 },
+            { winner: 'Mascoma Valley', winnerSeed: 2, loser: 'Newport', loserSeed: 7, winnerScore: 87, loserScore: 53 },
+            { winner: 'Kearsarge', winnerSeed: 3, loser: 'Gilford', loserSeed: 6, winnerScore: 48, loserScore: 45 }
+          ],
+          semiFinals: [
+            { winner: 'Belmont', winnerSeed: 1, loser: 'St. Thomas Aquinas', loserSeed: 5, winnerScore: 69, loserScore: 53 },
+            { winner: 'Kearsarge', winnerSeed: 3, loser: 'Mascoma Valley', loserSeed: 2, winnerScore: 52, loserScore: 33 }
+          ],
+          final: [
+            { winner: 'Belmont', winnerSeed: 1, loser: 'Kearsarge', loserSeed: 3, winnerScore: 49, loserScore: 43 }
+          ]
+        }
+      },
+      'D-IV': {
+        champion: 'Woodsville',
+        championSeed: 1,
+        runnerUp: 'Littleton',
+        runnerUpSeed: 3,
+        finalScore: '51-48',
+        bracketSize: 16,
+        notes: 'Woodsville edges rival Littleton for the title',
+        games: {
+          firstRound: [
+            { winner: 'Woodsville', winnerSeed: 1, loser: 'Lin-Wood', loserSeed: 16, winnerScore: 61, loserScore: 46 },
+            { winner: 'Farmington', winnerSeed: 8, loser: 'Hinsdale', loserSeed: 9, winnerScore: 71, loserScore: 56 },
+            { winner: 'Newmarket', winnerSeed: 4, loser: 'Franklin', loserSeed: 13, winnerScore: 52, loserScore: 23 },
+            { winner: 'Gorham', winnerSeed: 5, loser: 'Mascenic', loserSeed: 12, winnerScore: 62, loserScore: 42 },
+            { winner: 'Concord Christian', winnerSeed: 2, loser: 'Pittsburg-Canaan', loserSeed: 15, winnerScore: 68, loserScore: 57 },
+            { winner: 'Groveton', winnerSeed: 7, loser: 'Epping', loserSeed: 10, winnerScore: 82, loserScore: 80 },
+            { winner: 'Littleton', winnerSeed: 3, loser: 'Moultonborough', loserSeed: 14, winnerScore: 66, loserScore: 53 },
+            { winner: 'Holy Family', winnerSeed: 11, loser: 'Portsmouth Christian', loserSeed: 6, winnerScore: 67, loserScore: 61 }
+          ],
+          quarterFinals: [
+            { winner: 'Woodsville', winnerSeed: 1, loser: 'Farmington', loserSeed: 8, winnerScore: 57, loserScore: 40 },
+            { winner: 'Gorham', winnerSeed: 5, loser: 'Newmarket', loserSeed: 4, winnerScore: 39, loserScore: 35 },
+            { winner: 'Concord Christian', winnerSeed: 2, loser: 'Groveton', loserSeed: 7, winnerScore: 61, loserScore: 56 },
+            { winner: 'Littleton', winnerSeed: 3, loser: 'Holy Family', loserSeed: 11, winnerScore: 49, loserScore: 41 }
+          ],
+          semiFinals: [
+            { winner: 'Woodsville', winnerSeed: 1, loser: 'Gorham', loserSeed: 5, winnerScore: 43, loserScore: 27 },
+            { winner: 'Littleton', winnerSeed: 3, loser: 'Concord Christian', loserSeed: 2, winnerScore: 64, loserScore: 51 }
+          ],
+          final: [
+            { winner: 'Woodsville', winnerSeed: 1, loser: 'Littleton', loserSeed: 3, winnerScore: 51, loserScore: 48 }
+          ]
+        }
+      }
+    },
+    girls: {
+      'D-I': {
+        champion: 'Bedford',
+        championSeed: 1,
+        runnerUp: 'Londonderry',
+        runnerUpSeed: 2,
+        finalScore: '50-44',
+        bracketSize: 16,
+        notes: 'Bedford completes dominant season with D-I title',
+        games: {
+          firstRound: [
+            { winner: 'Bedford', winnerSeed: 1, loser: 'Central-West', loserSeed: 16, winnerScore: 79, loserScore: 21 },
+            { winner: 'Exeter', winnerSeed: 9, loser: 'Dover', loserSeed: 8, winnerScore: 65, loserScore: 61 },
+            { winner: 'Concord Christian', winnerSeed: 4, loser: 'Keene', loserSeed: 13, winnerScore: 55, loserScore: 42 },
+            { winner: 'Bishop Guertin', winnerSeed: 5, loser: 'Portsmouth', loserSeed: 12, winnerScore: 45, loserScore: 20 },
+            { winner: 'Londonderry', winnerSeed: 2, loser: 'Nashua South', loserSeed: 15, winnerScore: 73, loserScore: 29 },
+            { winner: 'Salem', winnerSeed: 7, loser: 'Alvirne', loserSeed: 10, winnerScore: 43, loserScore: 29 },
+            { winner: 'Windham', winnerSeed: 3, loser: 'Nashua North', loserSeed: 14, winnerScore: 53, loserScore: 43 },
+            { winner: 'Pinkerton', winnerSeed: 6, loser: 'Timberlane', loserSeed: 11, winnerScore: 73, loserScore: 42 }
+          ],
+          quarterFinals: [
+            { winner: 'Bedford', winnerSeed: 1, loser: 'Exeter', loserSeed: 9, winnerScore: 85, loserScore: 39 },
+            { winner: 'Concord Christian', winnerSeed: 4, loser: 'Bishop Guertin', loserSeed: 5, winnerScore: 48, loserScore: 33 },
+            { winner: 'Londonderry', winnerSeed: 2, loser: 'Salem', loserSeed: 7, winnerScore: 55, loserScore: 41 },
+            { winner: 'Windham', winnerSeed: 3, loser: 'Pinkerton', loserSeed: 6, winnerScore: 44, loserScore: 41 }
+          ],
+          semiFinals: [
+            { winner: 'Bedford', winnerSeed: 1, loser: 'Concord Christian', loserSeed: 4, winnerScore: 58, loserScore: 34 },
+            { winner: 'Londonderry', winnerSeed: 2, loser: 'Windham', loserSeed: 3, winnerScore: 51, loserScore: 36 }
+          ],
+          final: [
+            { winner: 'Bedford', winnerSeed: 1, loser: 'Londonderry', loserSeed: 2, winnerScore: 50, loserScore: 44 }
+          ]
+        }
+      },
+      'D-II': {
+        champion: 'Milford',
+        championSeed: 2,
+        runnerUp: 'Oyster River',
+        runnerUpSeed: 4,
+        finalScore: '43-36',
+        bracketSize: 16,
+        notes: 'Milford captures D-II title; Oyster River upset #1 Laconia in semis',
+        games: {
+          firstRound: [
+            { winner: 'Laconia', winnerSeed: 1, loser: 'Bye', loserSeed: null, winnerScore: null, loserScore: null },
+            { winner: 'Pelham', winnerSeed: 8, loser: 'Lebanon', loserSeed: 9, winnerScore: 56, loserScore: 54 },
+            { winner: 'Oyster River', winnerSeed: 4, loser: 'Hollis-Brookline', loserSeed: 13, winnerScore: 50, loserScore: 34 },
+            { winner: 'Pembroke', winnerSeed: 5, loser: 'Souhegan', loserSeed: 12, winnerScore: 54, loserScore: 23 },
+            { winner: 'Milford', winnerSeed: 2, loser: 'Bye', loserSeed: null, winnerScore: null, loserScore: null },
+            { winner: 'Coe-Brown Northwood', winnerSeed: 10, loser: 'Bow', loserSeed: 7, winnerScore: 54, loserScore: 46 },
+            { winner: 'Derryfield', winnerSeed: 3, loser: 'Plymouth', loserSeed: 14, winnerScore: 46, loserScore: 18 },
+            { winner: 'Merrimack Valley', winnerSeed: 6, loser: 'Kingswood', loserSeed: 11, winnerScore: 65, loserScore: 20 }
+          ],
+          quarterFinals: [
+            { winner: 'Laconia', winnerSeed: 1, loser: 'Pelham', loserSeed: 8, winnerScore: 61, loserScore: 48 },
+            { winner: 'Oyster River', winnerSeed: 4, loser: 'Pembroke', loserSeed: 5, winnerScore: 66, loserScore: 48 },
+            { winner: 'Milford', winnerSeed: 2, loser: 'Coe-Brown Northwood', loserSeed: 10, winnerScore: 55, loserScore: 42 },
+            { winner: 'Derryfield', winnerSeed: 3, loser: 'Merrimack Valley', loserSeed: 6, winnerScore: 50, loserScore: 45 }
+          ],
+          semiFinals: [
+            { winner: 'Oyster River', winnerSeed: 4, loser: 'Laconia', loserSeed: 1, winnerScore: 39, loserScore: 36 },
+            { winner: 'Milford', winnerSeed: 2, loser: 'Derryfield', loserSeed: 3, winnerScore: 37, loserScore: 29 }
+          ],
+          final: [
+            { winner: 'Milford', winnerSeed: 2, loser: 'Oyster River', loserSeed: 4, winnerScore: 43, loserScore: 36 }
+          ]
+        }
+      },
+      'D-III': {
+        champion: 'St. Thomas Aquinas',
+        championSeed: 1,
+        runnerUp: 'Fall Mountain',
+        runnerUpSeed: 2,
+        finalScore: '72-35',
+        bracketSize: 16,
+        notes: 'STA dominates with 37-point championship win; Stevens upsets #3 Newport',
+        games: {
+          firstRound: [
+            { winner: 'St. Thomas Aquinas', winnerSeed: 1, loser: 'Bye', loserSeed: null, winnerScore: null, loserScore: null },
+            { winner: 'Hopkinton', winnerSeed: 9, loser: 'Berlin', loserSeed: 8, winnerScore: 48, loserScore: 46 },
+            { winner: 'Gilford', winnerSeed: 4, loser: 'Raymond', loserSeed: 13, winnerScore: 60, loserScore: 22 },
+            { winner: 'Monadnock', winnerSeed: 5, loser: 'Kearsarge', loserSeed: 12, winnerScore: 48, loserScore: 45 },
+            { winner: 'Fall Mountain', winnerSeed: 2, loser: 'Bye', loserSeed: null, winnerScore: null, loserScore: null },
+            { winner: 'White Mountains', winnerSeed: 7, loser: 'Conant', loserSeed: 10, winnerScore: 48, loserScore: 44 },
+            { winner: 'Stevens', winnerSeed: 14, loser: 'Newport', loserSeed: 3, winnerScore: 36, loserScore: 27 },
+            { winner: 'Prospect Mountain', winnerSeed: 6, loser: 'Belmont', loserSeed: 11, winnerScore: 42, loserScore: 23 }
+          ],
+          quarterFinals: [
+            { winner: 'St. Thomas Aquinas', winnerSeed: 1, loser: 'Hopkinton', loserSeed: 9, winnerScore: 70, loserScore: 44 },
+            { winner: 'Monadnock', winnerSeed: 5, loser: 'Gilford', loserSeed: 4, winnerScore: 65, loserScore: 27 },
+            { winner: 'Fall Mountain', winnerSeed: 2, loser: 'White Mountains', loserSeed: 7, winnerScore: 59, loserScore: 35 },
+            { winner: 'Stevens', winnerSeed: 14, loser: 'Prospect Mountain', loserSeed: 6, winnerScore: 26, loserScore: 20 }
+          ],
+          semiFinals: [
+            { winner: 'St. Thomas Aquinas', winnerSeed: 1, loser: 'Monadnock', loserSeed: 5, winnerScore: 63, loserScore: 53 },
+            { winner: 'Fall Mountain', winnerSeed: 2, loser: 'Stevens', loserSeed: 14, winnerScore: 61, loserScore: 24 }
+          ],
+          final: [
+            { winner: 'St. Thomas Aquinas', winnerSeed: 1, loser: 'Fall Mountain', loserSeed: 2, winnerScore: 72, loserScore: 35 }
+          ]
+        }
+      },
+      'D-IV': {
+        champion: 'Groveton',
+        championSeed: 3,
+        runnerUp: 'Littleton',
+        runnerUpSeed: 1,
+        finalScore: '36-33',
+        bracketSize: 16,
+        notes: 'Groveton upsets #1 Littleton in championship thriller',
+        games: {
+          firstRound: [
+            { winner: 'Littleton', winnerSeed: 1, loser: 'Gorham', loserSeed: 16, winnerScore: 69, loserScore: 17 },
+            { winner: 'Farmington', winnerSeed: 8, loser: 'Mount Royal', loserSeed: 9, winnerScore: 61, loserScore: 35 },
+            { winner: 'Newmarket', winnerSeed: 4, loser: 'Hinsdale', loserSeed: 13, winnerScore: 41, loserScore: 12 },
+            { winner: 'Moultonborough', winnerSeed: 12, loser: 'Franklin', loserSeed: 5, winnerScore: 46, loserScore: 40 },
+            { winner: 'Holy Family', winnerSeed: 2, loser: 'Profile', loserSeed: 15, winnerScore: 47, loserScore: 21 },
+            { winner: 'Colebrook', winnerSeed: 7, loser: 'Woodsville', loserSeed: 10, winnerScore: 51, loserScore: 45 },
+            { winner: 'Groveton', winnerSeed: 3, loser: 'Lin-Wood', loserSeed: 14, winnerScore: 72, loserScore: 32 },
+            { winner: 'Portsmouth Christian', winnerSeed: 6, loser: 'Pittsburg-Canaan', loserSeed: 11, winnerScore: 40, loserScore: 39 }
+          ],
+          quarterFinals: [
+            { winner: 'Littleton', winnerSeed: 1, loser: 'Farmington', loserSeed: 8, winnerScore: 52, loserScore: 41 },
+            { winner: 'Newmarket', winnerSeed: 4, loser: 'Moultonborough', loserSeed: 12, winnerScore: 38, loserScore: 20 },
+            { winner: 'Holy Family', winnerSeed: 2, loser: 'Colebrook', loserSeed: 7, winnerScore: 39, loserScore: 33 },
+            { winner: 'Groveton', winnerSeed: 3, loser: 'Portsmouth Christian', loserSeed: 6, winnerScore: 69, loserScore: 40 }
+          ],
+          semiFinals: [
+            { winner: 'Littleton', winnerSeed: 1, loser: 'Newmarket', loserSeed: 4, winnerScore: 37, loserScore: 31 },
+            { winner: 'Groveton', winnerSeed: 3, loser: 'Holy Family', loserSeed: 2, winnerScore: 51, loserScore: 29 }
+          ],
+          final: [
+            { winner: 'Groveton', winnerSeed: 3, loser: 'Littleton', loserSeed: 1, winnerScore: 36, loserScore: 33 }
+          ]
+        }
+      }
+    }
+  },
+  // ============================================================
   // 2024 TOURNAMENT BRACKETS
   // ============================================================
   2024: {
