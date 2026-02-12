@@ -2459,7 +2459,15 @@
         const hasScoreA = (a.home_score !== null && a.home_score !== '' && a.home_score !== undefined);
         const hasScoreB = (b.home_score !== null && b.home_score !== '' && b.home_score !== undefined);
         
-        // Within same priority: completed games first
+        // Check for live games (has score + non-final status)
+        const liveStatusesSet = new Set(['1Q', 'HALF', '3Q', 'OT', '2OT', '3OT']);
+        const isLiveA = hasScoreA && a.game_status && liveStatusesSet.has(a.game_status);
+        const isLiveB = hasScoreB && b.game_status && liveStatusesSet.has(b.game_status);
+        
+        // Within same priority: live games first, then completed, then upcoming
+        if (isLiveA && !isLiveB) return -1;
+        if (!isLiveA && isLiveB) return 1;
+        
         if (hasScoreA && !hasScoreB) return -1;
         if (!hasScoreA && hasScoreB) return 1;
         
@@ -2504,8 +2512,8 @@
           const scoreKey = `${game.away_score}-${game.home_score}`;
           newScores[gameId] = scoreKey;
           
-          // Check if this is a newly completed game
-          if (!previousScores[gameId] && scoreKey) {
+          // Check if this is a new score or a score change (live update)
+          if (!previousScores[gameId] || previousScores[gameId] !== scoreKey) {
             updatedGameIds.push(gameId);
           }
         }
@@ -2535,20 +2543,42 @@
         
         // Determine status text
         let statusText, statusClass;
-        if (hasScore) {
-          statusText = 'Final';
+        
+        // Map game_status codes to display text
+        const statusMap = {
+          '1Q': 'End 1st', 'HALF': 'Halftime', '3Q': 'End 3rd',
+          'FINAL': 'Final', 'OT': 'End 1st OT', '2OT': 'End 2nd OT', '3OT': 'End 3rd OT',
+          'FINAL-OT': 'Final (OT)', 'FINAL-2OT': 'Final (2OT)', 'FINAL-3OT': 'Final (3OT)'
+        };
+        const isFinalStatus = !game.game_status || ['FINAL', 'FINAL-OT', 'FINAL-2OT', 'FINAL-3OT'].includes(game.game_status);
+        const isLive = hasScore && game.game_status && !isFinalStatus;
+        
+        if (hasScore && isLive) {
+          // Live game with in-progress status
+          statusText = statusMap[game.game_status] || game.game_status;
+          statusClass = 'live';
+        } else if (hasScore) {
+          // Completed game — show OT variant if applicable
+          statusText = (game.game_status && statusMap[game.game_status]) ? statusMap[game.game_status] : 'Final';
           statusClass = 'final';
+        } else if (game.game_status && statusMap[game.game_status]) {
+          // Has status but no score yet (edge case)
+          statusText = statusMap[game.game_status];
+          statusClass = 'live';
         } else {
-          // Use time as-is (already formatted like "5:30 PM")
+          // Upcoming — show game time
           const timeStr = game.time || '';
           if (timeStr) {
-            // Just strip leading zero if present
             statusText = timeStr.replace(/^0(\d)/, '$1');
           } else {
             statusText = 'TBD';
           }
           statusClass = 'upcoming';
         }
+        
+        // Playoff badge
+        const isPlayoff = game.is_playoff;
+        const playoffBadge = isPlayoff ? '🏆 ' : '';
         
         // Get gender label
         const gender = (game.gender || 'Boys').toUpperCase();
@@ -2581,7 +2611,7 @@
             </div>
             <div class="ticker-info">
               ${isFavorite ? '<span class="ticker-star">★</span>' : ''}
-              <span class="ticker-gender">${gender}</span>
+              <span class="ticker-gender">${playoffBadge}${gender}</span>
               <span class="ticker-status ${statusClass}">${statusText}</span>
             </div>
           </div>

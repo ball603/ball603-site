@@ -78,6 +78,13 @@
     /* Mismatch warning */
     .mismatch-warning { background: #fff3cd; color: #856404; padding: 4px 8px; border-radius: 4px; font-size: 11px; margin-top: 4px; }
     
+    /* Playoff styling */
+    .playoff-badge { display: inline-block; background: #f57c00; color: white; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 700; margin-left: 6px; vertical-align: middle; }
+    .playoff-seed { color: #f57c00; font-weight: 700; font-size: 12px; }
+    .game-status-label { font-size: 11px; color: #f57c00; font-weight: 600; margin-top: 2px; }
+    .game-status-label.live { color: #4caf50; }
+    .status-select { padding: 6px 8px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px; }
+    
     /* Empty state */
     .empty-state { padding: 40px; text-align: center; color: #888; }
     
@@ -281,15 +288,28 @@
       }
       
       let html = '';
+      const roundNames = { 'Prelims': 'Prelims', 'Quarters': 'Quarters', 'Semis': 'Semis', 'Final': 'Final' };
       games.forEach(game => {
         const hasScore = game.score_away || game.score_home;
+        const isPlayoff = game.is_playoff;
         const cardClass = hasScore ? 'game-card has-score' : 'game-card';
+        
+        // Build matchup text with seeds if playoff
+        let matchupText = `${game.away} @ ${game.home}`;
+        if (isPlayoff) {
+          const awaySeed = game.away_seed ? `<span class="playoff-seed">#${game.away_seed}</span> ` : '';
+          const homeSeed = game.home_seed ? `<span class="playoff-seed">#${game.home_seed}</span> ` : '';
+          matchupText = `${awaySeed}${game.away} @ ${homeSeed}${game.home}`;
+        }
+        
+        // Playoff round badge
+        const roundBadge = isPlayoff && game.round ? `<span class="playoff-badge">🏆 ${roundNames[game.round] || game.round}</span>` : '';
         
         html += `
           <div class="${cardClass}" data-id="${game.game_id}">
             <div class="game-info">
-              <div class="game-date">${formatDate(game.date)} ${game.time ? '• ' + game.time : ''}</div>
-              <div class="game-matchup">${game.away} @ ${game.home}</div>
+              <div class="game-date">${formatDate(game.date)} ${game.time ? '• ' + game.time : ''} ${roundBadge}</div>
+              <div class="game-matchup">${matchupText}</div>
               <div class="game-details">${game.gender || ''} ${game.division || ''} ${game.level || ''}</div>
               ${game.score_mismatch ? `<div class="mismatch-warning">⚠️ ${game.score_mismatch}</div>` : ''}
             </div>
@@ -302,21 +322,48 @@
     }
     
     function renderScoreDisplay(game) {
+      const statusMap = {
+        '1Q': 'End 1st', 'HALF': 'Halftime', '3Q': 'End 3rd',
+        'FINAL': 'Final', 'OT': 'End 1st OT', '2OT': 'End 2nd OT', '3OT': 'End 3rd OT',
+        'FINAL-OT': 'Final (OT)', 'FINAL-2OT': 'Final (2OT)', 'FINAL-3OT': 'Final (3OT)'
+      };
+      const isFinal = !game.game_status || ['FINAL', 'FINAL-OT', 'FINAL-2OT', 'FINAL-3OT'].includes(game.game_status);
+      const statusLabel = game.game_status && statusMap[game.game_status] ? statusMap[game.game_status] : '';
+      const statusClass = !isFinal ? 'game-status-label live' : 'game-status-label';
+      
       return `
         <div class="game-score-display">
           <div class="score">${game.score_away} - ${game.score_home}</div>
+          ${statusLabel ? `<div class="${statusClass}">${statusLabel}</div>` : ''}
           <div class="source">${game.score_source || 'unknown'}</div>
         </div>
       `;
     }
     
     function renderScoreEntry(game) {
+      const statusDropdown = game.is_playoff ? `
+        <select class="status-select" id="status-${game.game_id}">
+          <option value="">Status</option>
+          <option value="1Q">End 1st</option>
+          <option value="HALF">Halftime</option>
+          <option value="3Q">End 3rd</option>
+          <option value="FINAL">Final</option>
+          <option value="OT">End 1st OT</option>
+          <option value="2OT">End 2nd OT</option>
+          <option value="3OT">End 3rd OT</option>
+          <option value="FINAL-OT">Final (OT)</option>
+          <option value="FINAL-2OT">Final (2OT)</option>
+          <option value="FINAL-3OT">Final (3OT)</option>
+        </select>
+      ` : '';
+      
       return `
         <div class="score-entry" id="entry-${game.game_id}">
           <input type="number" class="score-input" id="away-${game.game_id}" placeholder="0" min="0">
           <span class="score-dash">-</span>
           <input type="number" class="score-input" id="home-${game.game_id}" placeholder="0" min="0">
-          <button class="score-submit" onclick="submitScore('${game.game_id}')">Save</button>
+          ${statusDropdown}
+          <button class="score-submit" onclick="submitScore('${game.game_id}', ${!!game.is_playoff})">Save</button>
         </div>
       `;
     }
@@ -329,7 +376,7 @@
       return `${monthName} ${dayNum}`;
     }
     
-    async function submitScore(gameId) {
+    async function submitScore(gameId, isPlayoff) {
       const contributor = getContributor();
       if (!contributor) {
         alert('Please select your name first');
@@ -358,15 +405,17 @@
       button.textContent = 'Saving...';
       
       try {
+        // Get game_status for playoff games
+        const statusEl = document.getElementById(`status-${gameId}`);
+        const gameStatus = (isPlayoff && statusEl) ? statusEl.value : undefined;
+        
+        const body = { gameId, scoreAway, scoreHome, enteredBy: contributor };
+        if (gameStatus) body.game_status = gameStatus;
+        
         const response = await fetch('/.netlify/functions/update-score', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            gameId,
-            scoreAway,
-            scoreHome,
-            enteredBy: contributor
-          })
+          body: JSON.stringify(body)
         });
         
         const result = await response.json();
@@ -378,6 +427,7 @@
             game.score_away = scoreAway;
             game.score_home = scoreHome;
             game.score_source = `manual (${contributor})`;
+            if (gameStatus) game.game_status = gameStatus;
           }
           filterGames();
         } else {
