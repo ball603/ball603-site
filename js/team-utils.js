@@ -50,6 +50,9 @@ const TeamUtils = (function() {
     'mc': 'manchestercentral',
     'mm': 'manchestermemorial',
     'mw': 'manchesterwest',
+    'centralwest': 'centralwest',
+    'manchestercentralwest': 'centralwest',
+    'cw': 'centralwest',
     
     // Mascoma = Mascoma Valley (same school)
     'mascoma': 'mascoma',
