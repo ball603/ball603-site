@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Ball603 Home Page v294 - Standings team links include sport context -->
+<!-- Ball603 Home Page v297 - Added Standings/RPI toggle with basketball emoji -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -857,6 +857,41 @@
       color: var(--accent);
       text-decoration: none;
       font-weight: 600;
+    }
+    
+    /* Standings/RPI Mode Toggle */
+    .standings-mode-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .standings-mode-toggle .sport-icon {
+      font-size: 14px;
+    }
+    
+    .mode-btn {
+      background: none;
+      border: none;
+      font-size: 14px;
+      font-weight: 700;
+      color: #1a1a1a;
+      cursor: pointer;
+      padding: 0;
+      transition: color 0.2s;
+    }
+    
+    .mode-btn:hover {
+      color: var(--accent);
+    }
+    
+    .mode-btn.active {
+      color: var(--accent);
+    }
+    
+    .mode-separator {
+      color: #ccc;
+      font-weight: 400;
     }
     
     .sidebar-content {
@@ -1996,8 +2031,13 @@
   <div class="mobile-standings-section">
     <div class="sidebar-card">
       <div class="sidebar-header">
-        <h3 class="sidebar-title">&#128202; Standings</h3>
-        <a href="/standings" class="sidebar-link">Full Standings &#8594;</a>
+        <div class="standings-mode-toggle">
+          <span class="sport-icon">&#127936;</span>
+          <button class="mode-btn active" data-mode="standings" onclick="setStandingsMode('standings')">&#128202; Standings</button>
+          <span class="mode-separator">|</span>
+          <button class="mode-btn" data-mode="rpi" onclick="setStandingsMode('rpi')">&#128200; RPI</button>
+        </div>
+        <a href="/standings" class="sidebar-link standings-full-link">Full Standings &#8594;</a>
       </div>
       <!-- Gender Toggle -->
       <div class="standings-gender-toggle">
@@ -2042,8 +2082,13 @@
         <!-- Standings -->
         <div class="sidebar-card">
           <div class="sidebar-header">
-            <h3 class="sidebar-title">&#128202; Standings</h3>
-            <a href="/standings" class="sidebar-link">Full Standings &#8594;</a>
+            <div class="standings-mode-toggle">
+              <span class="sport-icon">&#127936;</span>
+              <button class="mode-btn active" data-mode="standings" onclick="setStandingsMode('standings')">&#128202; Standings</button>
+              <span class="mode-separator">|</span>
+              <button class="mode-btn" data-mode="rpi" onclick="setStandingsMode('rpi')">&#128200; RPI</button>
+            </div>
+            <a href="/standings" class="sidebar-link standings-full-link" id="standingsFullLink">Full Standings &#8594;</a>
           </div>
           <!-- Gender Toggle -->
           <div class="standings-gender-toggle">
@@ -2850,6 +2895,36 @@
     let standingsGender = 'Boys';
     let standingsDivision = 'D-I';
     let allStandings = [];
+    let allRpiData = [];
+    let currentMode = 'standings'; // 'standings' or 'rpi'
+    
+    function setStandingsMode(mode) {
+      currentMode = mode;
+      
+      // Update mode buttons
+      document.querySelectorAll('.mode-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.mode === mode);
+      });
+      
+      // Update full link
+      const linkText = mode === 'rpi' ? 'Full RPI &#8594;' : 'Full Standings &#8594;';
+      const linkHref = mode === 'rpi' ? '/rpi' : '/standings';
+      document.querySelectorAll('.standings-full-link, #standingsFullLink').forEach(link => {
+        link.innerHTML = linkText;
+        link.href = linkHref;
+      });
+      
+      // Render appropriate data
+      if (mode === 'rpi') {
+        if (allRpiData.length === 0) {
+          loadRpiData();
+        } else {
+          renderRpiData();
+        }
+      } else {
+        renderStandingsData();
+      }
+    }
     
     function setStandingsGender(gender) {
       standingsGender = gender;
@@ -2857,7 +2932,11 @@
       document.querySelectorAll('.gender-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.gender === gender);
       });
-      renderStandingsData();
+      if (currentMode === 'rpi') {
+        renderRpiData();
+      } else {
+        renderStandingsData();
+      }
     }
     
     function setStandingsDivision(div) {
@@ -2866,7 +2945,11 @@
       document.querySelectorAll('.standings-tab').forEach(tab => {
         tab.classList.toggle('active', tab.dataset.div === div);
       });
-      renderStandingsData();
+      if (currentMode === 'rpi') {
+        renderRpiData();
+      } else {
+        renderStandingsData();
+      }
     }
     
     /**
@@ -2933,6 +3016,78 @@
       
       container.innerHTML = standingsHtml;
       if (mobileContainer) mobileContainer.innerHTML = standingsHtml;
+    }
+    
+    /**
+     * Load RPI data from Netlify function (published RPI)
+     */
+    async function loadRpiData() {
+      const container = document.getElementById('standingsMini');
+      const mobileContainer = document.getElementById('standingsMiniMobile');
+      
+      // Show loading state
+      const loadingHtml = '<div class="standings-empty">Loading RPI...</div>';
+      container.innerHTML = loadingHtml;
+      if (mobileContainer) mobileContainer.innerHTML = loadingHtml;
+      
+      try {
+        const response = await fetch('/.netlify/functions/get-rpi?sport=basketball');
+        const data = await response.json();
+        
+        if (data.rankings && data.rankings.length > 0) {
+          allRpiData = data.rankings;
+          renderRpiData();
+        } else {
+          const emptyHtml = '<div class="standings-empty">No RPI data available</div>';
+          container.innerHTML = emptyHtml;
+          if (mobileContainer) mobileContainer.innerHTML = emptyHtml;
+        }
+      } catch (err) {
+        console.error('Error loading RPI:', err);
+        const errorHtml = '<div class="standings-empty">Unable to load RPI</div>';
+        container.innerHTML = errorHtml;
+        if (mobileContainer) mobileContainer.innerHTML = errorHtml;
+      }
+    }
+    
+    /**
+     * Render RPI data based on selected gender and division
+     */
+    function renderRpiData() {
+      const container = document.getElementById('standingsMini');
+      const mobileContainer = document.getElementById('standingsMiniMobile');
+      
+      // Map division format (D-I -> D1, etc.)
+      const divisionMap = { 'D-I': 'D1', 'D-II': 'D2', 'D-III': 'D3', 'D-IV': 'D4' };
+      const rpiDivision = divisionMap[standingsDivision] || standingsDivision;
+      
+      // Filter RPI by gender and division
+      const filtered = allRpiData.filter(r => 
+        r.gender === standingsGender && 
+        r.division === rpiDivision
+      );
+      
+      if (filtered.length === 0) {
+        const emptyHtml = '<div class="standings-empty">No RPI data available</div>';
+        container.innerHTML = emptyHtml;
+        if (mobileContainer) mobileContainer.innerHTML = emptyHtml;
+        return;
+      }
+      
+      // Already sorted by rank from API
+      const rpiHtml = filtered.slice(0, 10).map(r => {
+        const slug = (r.team || '').toLowerCase().replace(/[\s\-]+/g, '');
+        return `
+        <div class="standings-row">
+          <span class="standings-rank">${r.rank}</span>
+          <img class="standings-logo" src="${Ball603.getLogoUrl(r.team)}" alt="" onerror="this.src='/logos/100px/Ball603-white.png'">
+          <a href="/${slug}?sport=basketball" class="standings-team-link">${Ball603.getShortName(r.team)}</a>
+          <span class="standings-record">${r.rpi ? r.rpi.toFixed(3) : '—'}</span>
+        </div>
+      `}).join('');
+      
+      container.innerHTML = rpiHtml;
+      if (mobileContainer) mobileContainer.innerHTML = rpiHtml;
     }
     
     /**
