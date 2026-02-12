@@ -216,11 +216,6 @@ async function postToInstagram(message, imageUrls, collaborators, scheduledTime)
         access_token: accessToken
       });
       
-      // Collaborators for single image
-      if (collaborators && collaborators.length > 0) {
-        params.append('collaborators', collaborators.join(','));
-      }
-      
       console.log('Creating single IG media...');
       
       const createResponse = await fetch(
@@ -286,11 +281,6 @@ async function postToInstagram(message, imageUrls, collaborators, scheduledTime)
         access_token: accessToken
       });
       
-      // Collaborators for carousel
-      if (collaborators && collaborators.length > 0) {
-        carouselParams.append('collaborators', collaborators.join(','));
-      }
-      
       console.log('Creating IG carousel container...');
       
       const carouselResponse = await fetch(
@@ -334,7 +324,6 @@ async function postToInstagram(message, imageUrls, collaborators, scheduledTime)
     return { 
       success: true, 
       postId: publishData.id,
-      collaboratorInvites: collaborators?.length || 0,
       imagesPosted: creationId ? (imageUrls.length === 1 ? 1 : childIds.length) : 0
     };
 
