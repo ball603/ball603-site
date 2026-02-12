@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Ball603 Team Page v256 - Updated 2026-01-16 -->
+<!-- Ball603 Team Page Multi-Sport v293 - Article filter checks sport field OR tags -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -45,6 +45,144 @@
       --team-accent: #ffb74d;
     }
   </style>
+  
+  <!-- Sport Switcher Styles (separate from teamStyles to avoid JS overwrite) -->
+  <style>
+    /* Sport Switcher Styles */
+    .sport-switcher {
+      display: inline-flex;
+      gap: 4px;
+      padding: 4px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 10px;
+      margin-bottom: 14px;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+    
+    .sport-btn {
+      padding: 8px 18px;
+      font-size: 13px;
+      font-weight: 700;
+      border: none;
+      background: transparent;
+      color: rgba(255,255,255,0.7);
+      border-radius: 7px;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    
+    .sport-btn:hover {
+      color: #fff;
+      background: rgba(255,255,255,0.12);
+    }
+    
+    .sport-btn.active {
+      background: rgba(255,255,255,0.25);
+      color: #fff;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    }
+    
+    /* Fix timeline item layout - force single line (override team.css grid) */
+    .history-timeline .timeline-list {
+      display: block !important;
+    }
+    .history-timeline .timeline-item {
+      display: grid !important;
+      grid-template-columns: 60px 60px 120px 70px 1fr !important;
+      align-items: center !important;
+      gap: 8px !important;
+      padding: 12px 16px !important;
+    }
+    /* For single-gender sports (no gender column) - 4 columns */
+    .history-timeline .timeline-item.no-gender {
+      grid-template-columns: 60px 120px 70px 1fr !important;
+    }
+    .history-timeline .timeline-item > span {
+      white-space: nowrap !important;
+    }
+    
+    /* History + NCAA side-by-side grid for baseball */
+    .history-ncaa-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+    .history-ncaa-grid .history-column,
+    .history-ncaa-grid .history-timeline,
+    .history-ncaa-grid .feature-box {
+      margin: 0;
+    }
+    @media (max-width: 900px) {
+      .history-ncaa-grid {
+        grid-template-columns: 1fr;
+        gap: 20px !important;
+      }
+      /* Consistent spacing when schedule + roster stack on mobile */
+      .schedules-grid {
+        gap: 20px !important;
+      }
+      /* Normalize ALL team sections */
+      .team-section {
+        margin-bottom: 24px !important;
+      }
+      /* Sponsor section */
+      .team-sponsor-section {
+        margin-bottom: 24px !important;
+      }
+      .team-sponsor {
+        padding: 20px 15px !important;
+      }
+      /* Features row */
+      #features-row {
+        margin-bottom: 24px !important;
+      }
+      .features-grid {
+        gap: 20px !important;
+      }
+      /* Cards within grids - no extra margins */
+      .schedule-card,
+      .roster-card,
+      .feature-box,
+      .history-timeline {
+        margin-bottom: 0 !important;
+      }
+    }
+    
+    @media (max-width: 600px) {
+      /* Tighter spacing on phones */
+      .team-section {
+        margin-bottom: 20px !important;
+      }
+      .team-sponsor-section {
+        margin-bottom: 20px !important;
+      }
+      .team-sponsor {
+        padding: 15px !important;
+      }
+      #features-row {
+        margin-bottom: 20px !important;
+      }
+      .history-ncaa-grid {
+        gap: 16px !important;
+      }
+      .schedules-grid {
+        gap: 16px !important;
+      }
+      .features-grid {
+        gap: 16px !important;
+      }
+    }
+    
+    /* Baseball card headers as section titles */
+    .schedule-card-header .schedule-card-label,
+    .roster-card-header .roster-card-label {
+      font-size: 15px;
+    }
+    
+  </style>
 </head>
 <body class="team-page">
   
@@ -59,11 +197,19 @@
     <div class="team-hero-bg"></div>
     <div class="particles-container" id="particlesContainer"></div>
     <div class="team-hero-content">
+      <!-- Sport Switcher -->
+      <div class="sport-switcher" id="sportSwitcher">
+        <button class="sport-btn" data-sport="all">All Sports</button>
+        <button class="sport-btn" data-sport="basketball">&#127936; Basketball</button>
+        <button class="sport-btn" data-sport="baseball">&#9918; Baseball</button>
+      </div>
+      
       <div class="team-hero-tagline" id="teamTagline">LOADING...</div>
       <div class="team-hero-logo-wrap">
         <img src="/logo.png" alt="Team Logo" class="team-hero-logo" id="teamLogo">
       </div>
       <div class="team-hero-meta" id="teamMeta"></div>
+      
       <div class="team-hero-stats" id="heroStats"></div>
     </div>
   </section>
@@ -81,7 +227,7 @@
       </a>
       <a href="#schedules" class="team-menu-item" data-section="schedules">
         <span class="menu-icon">&#128197;</span>
-        <span class="menu-text">Schedules</span>
+        <span class="menu-text" id="schedulesMenuText">Schedules</span>
       </a>
       <a href="#rosters" class="team-menu-item" data-section="rosters">
         <span class="menu-icon">&#128101;</span>
@@ -184,12 +330,12 @@
     <!-- SCHEDULES SECTION -->
     <section class="team-section" id="schedules">
       <div class="section-header">
-        <h2 class="section-title">&#128197; Schedules</h2>
+        <h2 class="section-title" id="schedulesSectionTitle">&#128197; Schedules</h2>
       </div>
       <div class="schedules-grid">
         <div class="schedule-card">
           <div class="schedule-card-header boys">
-            <span class="schedule-card-label">Boys Varsity</span>
+            <span class="schedule-card-label" id="boysScheduleLabel">Boys Varsity</span>
             <span class="schedule-card-record" id="boysRecordCard">--</span>
           </div>
           <div class="schedule-card-games" id="boysScheduleGames">
@@ -198,7 +344,7 @@
         </div>
         <div class="schedule-card">
           <div class="schedule-card-header girls">
-            <span class="schedule-card-label">Girls Varsity</span>
+            <span class="schedule-card-label" id="girlsScheduleLabel">Girls Varsity</span>
             <span class="schedule-card-record" id="girlsRecordCard">--</span>
           </div>
           <div class="schedule-card-games" id="girlsScheduleGames">
@@ -216,7 +362,7 @@
       <div class="rosters-grid">
         <div class="roster-card" id="boysRosterCard">
           <div class="roster-card-header boys">
-            <span class="roster-card-label">Boys Varsity</span>
+            <span class="roster-card-label" id="boysRosterLabel">Boys Varsity</span>
             <span class="roster-card-count" id="boysRosterCount">--</span>
           </div>
           <div class="roster-card-body" id="boysRosterBody">
@@ -226,7 +372,7 @@
         </div>
         <div class="roster-card" id="girlsRosterCard">
           <div class="roster-card-header girls">
-            <span class="roster-card-label">Girls Varsity</span>
+            <span class="roster-card-label" id="girlsRosterLabel">Girls Varsity</span>
             <span class="roster-card-count" id="girlsRosterCount">--</span>
           </div>
           <div class="roster-card-body" id="girlsRosterBody">
@@ -240,7 +386,7 @@
     <!-- HISTORY SECTION -->
     <section class="team-section" id="history">
       <div class="section-header">
-        <h2 class="section-title">&#127942; Championship History</h2>
+        <h2 class="section-title" id="historySectionTitle">&#127942; Championship History</h2>
       </div>
       <div class="history-content" id="historyContent">
         <div class="empty-state"><p>Loading championship history...</p></div>
@@ -311,13 +457,57 @@
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN1bmNka3hmcWt3d25taG9zeGNmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwNTk4MzIsImV4cCI6MjA4MDYzNTgzMn0.aT6V8Zx_YozqOh1ZnC6x-czI9vo-QhHKmP69PgY-8xw';
     const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+    // ===== SPORT DETECTION & STATE =====
+    let currentSport = 'basketball'; // Will be set by URL or auto-detection
+    
+    function getCurrentSport() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const sportParam = urlParams.get('sport');
+      if (sportParam) return sportParam.toLowerCase();
+      
+      // Check for sport in URL path: /exeter-multi/baseball → 'baseball'
+      const pathParts = window.location.pathname.replace(/^\//, '').replace(/\/$/, '').split('/');
+      if (pathParts.length > 1) {
+        const pathSport = pathParts[1].toLowerCase();
+        if (['basketball', 'baseball', 'volleyball', 'all'].includes(pathSport)) {
+          return pathSport;
+        }
+      }
+      
+      // Default to All Sports view when no sport specified in URL
+      return 'all';
+    }
+    
+    function switchSport(sport) {
+      currentSport = sport;
+      const url = new URL(window.location);
+      if (sport === 'all') {
+        url.searchParams.delete('sport');
+      } else {
+        url.searchParams.set('sport', sport);
+      }
+      window.history.pushState({}, '', url);
+      
+      // Update active button
+      document.querySelectorAll('.sport-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.sport === sport);
+      });
+      
+      // Reload content for new sport
+      loadAllTeamContent();
+    }
+    
+    // Initialize sport on page load
+    currentSport = getCurrentSport();
+    console.log('[Ball603] Sport detected:', currentSport, '| URL:', window.location.href);
+
     // ===== TEAM CONFIGURATION (built dynamically) =====
     let TEAM_CONFIG = null;
 
     // ===== STATE =====
     let teamData = {
       rosters: { boys: null, girls: null },
-      schedules: { boys: [], girls: [] },
+      schedules: { boys: [], girls: [], all: [] },
       championships: { boys: [], girls: [], totalTitles: 0, totalRunnerUp: 0 },
       scorers1K: [],
       ncaaPlayers: [],
@@ -365,19 +555,11 @@
     }
 
     // ===== INITIALIZATION =====
-    document.addEventListener('DOMContentLoaded', async () => {
-      const path = window.location.pathname;
-      const slug = path.replace(/^\//, '').replace(/\/$/, '').split('/')[0].toLowerCase();
-      
-      if (!slug) { showTeamNotFound('No team specified'); return; }
-
-      const teamLoaded = await loadTeamConfig(slug);
-      if (!teamLoaded) { showTeamNotFound(slug); return; }
-
-      updatePageWithTeamInfo();
-      applyGenderVisibility();
-      initMenuNavigation();
-      createParticles();
+    // ===== LOAD ALL TEAM CONTENT (called on init and sport switch) =====
+    async function loadAllTeamContent() {
+      // Apply sport-specific visibility first
+      applySportVisibility();
+      updatePageTitleForSport();
       
       await Promise.all([
         loadRosters(),
@@ -389,6 +571,40 @@
       ]);
       
       renderAll();
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      const path = window.location.pathname;
+      const urlParams = new URLSearchParams(window.location.search);
+      const pathParts = path.replace(/^\//, '').replace(/\/$/, '').split('/');
+      
+      // Support multiple URL patterns:
+      // /exeter-multi          → slug=exeter (test URL, strip -multi)
+      // /exeter-multi/baseball → slug=exeter, sport from path
+      // /exeter                → slug=exeter (production clean URL)
+      // /team/team-multi.html?team=exeter → slug from query param (direct file access)
+      let slug = urlParams.get('team')?.toLowerCase()
+        || pathParts[0].toLowerCase().replace(/-multi$/, '');
+      
+      if (!slug) { showTeamNotFound('No team specified'); return; }
+
+      const teamLoaded = await loadTeamConfig(slug);
+      if (!teamLoaded) { showTeamNotFound(slug); return; }
+
+      updatePageWithTeamInfo();
+      applyGenderVisibility();
+      initMenuNavigation();
+      createParticles();
+      
+      // Sport button event listeners
+      document.querySelectorAll('.sport-btn').forEach(btn => {
+        btn.addEventListener('click', () => switchSport(btn.dataset.sport));
+      });
+      
+      // Set initial active button
+      document.querySelector(`.sport-btn[data-sport="${currentSport}"]`)?.classList.add('active');
+      
+      await loadAllTeamContent();
     });
 
     // ===== LOAD TEAM CONFIG FROM DATABASE =====
@@ -507,7 +723,276 @@
       }
     }
 
-    // ===== UPDATE PAGE WITH TEAM INFO =====
+    // Helper function to restore NCAA box to features-grid
+    function restoreCollegeBox() {
+      const collegeBox = document.getElementById('college');
+      const featuresGrid = document.querySelector('.features-grid');
+      const featuresRow = document.getElementById('features-row');
+      const oneKBox = document.getElementById('1k-club');
+      
+      if (collegeBox && featuresGrid && !featuresGrid.contains(collegeBox)) {
+        // Move college box back after 1k-club
+        if (oneKBox) {
+          oneKBox.after(collegeBox);
+        } else {
+          featuresGrid.appendChild(collegeBox);
+        }
+      }
+      
+      // Show features-row again
+      if (featuresRow) featuresRow.style.display = '';
+    }
+
+    // ===== APPLY SPORT-SPECIFIC VISIBILITY =====
+    function applySportVisibility() {
+      if (!TEAM_CONFIG) return;
+      
+      const sport = currentSport;
+      
+      // --- Hero Championship Stats: Hide for 'all' view ---
+      const heroStats = document.getElementById('heroStats');
+      if (sport === 'all') {
+        if (heroStats) heroStats.style.display = 'none';
+      } else {
+        if (heroStats) heroStats.style.display = '';
+      }
+      
+      // --- Quick Stats Bar: Hide for 'all' view ---
+      const quickStats = document.getElementById('quickStats');
+      if (sport === 'all') {
+        if (quickStats) quickStats.style.display = 'none';
+      } else {
+        if (quickStats) quickStats.style.display = '';
+      }
+      
+      // --- Rosters: Hide for 'all' view ---
+      const rostersSection = document.getElementById('rosters');
+      const rostersMenuItem = document.querySelector('.team-menu-item[data-section="rosters"]');
+      if (sport === 'all') {
+        if (rostersSection) rostersSection.style.display = 'none';
+        if (rostersMenuItem) rostersMenuItem.style.display = 'none';
+      } else {
+        if (rostersSection) rostersSection.style.display = '';
+        if (rostersMenuItem) rostersMenuItem.style.display = '';
+      }
+      
+      // --- Schedules: Hide for 'all' view ---
+      const schedulesSection = document.getElementById('schedules');
+      const schedulesMenuItem = document.querySelector('.team-menu-item[data-section="schedules"]');
+      if (sport === 'all') {
+        if (schedulesSection) schedulesSection.style.display = 'none';
+        if (schedulesMenuItem) schedulesMenuItem.style.display = 'none';
+      } else {
+        if (schedulesSection) schedulesSection.style.display = '';
+        if (schedulesMenuItem) schedulesMenuItem.style.display = '';
+      }
+      
+      // --- Championship History: Hide for 'all' view ---
+      const historySection = document.getElementById('history');
+      const historyMenuItem = document.querySelector('.team-menu-item[data-section="history"]');
+      if (sport === 'all') {
+        if (historySection) historySection.style.display = 'none';
+        if (historyMenuItem) historyMenuItem.style.display = 'none';
+      } else {
+        if (historySection) historySection.style.display = '';
+        if (historyMenuItem) historyMenuItem.style.display = '';
+      }
+      
+      // --- 603 in NCAA: Hide for 'all' view ---
+      const collegeSection = document.getElementById('college');
+      const collegeMenuItem = document.querySelector('.team-menu-item[data-section="college"]');
+      if (sport === 'all') {
+        if (collegeSection) collegeSection.style.display = 'none';
+        if (collegeMenuItem) collegeMenuItem.style.display = 'none';
+      } else {
+        if (collegeSection) collegeSection.style.display = '';
+        if (collegeMenuItem) collegeMenuItem.style.display = '';
+      }
+      
+      // --- 1K Club: Only for basketball ---
+      const oneKSection = document.getElementById('1k-club');
+      const oneKMenuItem = document.querySelector('.team-menu-item[data-section="1k-club"]');
+      if (sport === 'basketball') {
+        if (oneKSection) oneKSection.style.display = '';
+        if (oneKMenuItem) oneKMenuItem.style.display = '';
+      } else {
+        if (oneKSection) oneKSection.style.display = 'none';
+        if (oneKMenuItem) oneKMenuItem.style.display = 'none';
+      }
+      
+      // --- Quick Stats & Gender Cards: Adjust for sport ---
+      const girlsStatsGroup = document.querySelector('.girls-stats');
+      const girlsScheduleCard = document.querySelector('.schedules-grid .schedule-card:last-child');
+      const girlsRosterCard = document.getElementById('girlsRosterCard');
+      const boysStatsGroup = document.querySelector('.boys-stats');
+      const boysScheduleCard = document.querySelector('.schedules-grid .schedule-card:first-child');
+      const boysRosterCard = document.getElementById('boysRosterCard');
+      
+      if (sport === 'baseball') {
+        // Baseball = boys only - hide girls
+        if (girlsStatsGroup) girlsStatsGroup.style.display = 'none';
+        if (girlsScheduleCard) girlsScheduleCard.style.display = 'none';
+        if (girlsRosterCard) girlsRosterCard.style.display = 'none';
+        // Show boys
+        if (boysStatsGroup) boysStatsGroup.style.display = '';
+        if (boysScheduleCard) boysScheduleCard.style.display = '';
+        if (boysRosterCard) boysRosterCard.style.display = '';
+        
+        // Move boys roster into schedules grid for side-by-side layout
+        const schedulesGrid = document.querySelector('.schedules-grid');
+        if (schedulesGrid && boysRosterCard && !schedulesGrid.contains(boysRosterCard)) {
+          schedulesGrid.appendChild(boysRosterCard);
+        }
+        // Hide rosters section (roster card moved to schedules grid)
+        if (rostersSection) rostersSection.style.display = 'none';
+        if (rostersMenuItem) rostersMenuItem.style.display = 'none';
+        // Note: NCAA box is moved to history section in renderChampionshipHistory()
+      } else if (sport === 'volleyball') {
+        // Volleyball = girls only - hide boys
+        if (boysStatsGroup) boysStatsGroup.style.display = 'none';
+        if (boysScheduleCard) boysScheduleCard.style.display = 'none';
+        if (boysRosterCard) boysRosterCard.style.display = 'none';
+        // Show girls
+        if (girlsStatsGroup) girlsStatsGroup.style.display = '';
+        if (girlsScheduleCard) girlsScheduleCard.style.display = '';
+        if (girlsRosterCard) girlsRosterCard.style.display = '';
+        
+        // Restore boys roster card to rosters section if it was moved
+        const rostersGrid = document.querySelector('.rosters-grid');
+        if (rostersGrid && boysRosterCard && !rostersGrid.contains(boysRosterCard)) {
+          rostersGrid.insertBefore(boysRosterCard, girlsRosterCard);
+        }
+        
+        // Restore NCAA box to features-grid if it was moved
+        restoreCollegeBox();
+      } else if (sport === 'all') {
+        // All sports view - schedules hidden above, nothing else to adjust here
+        // Restore boys roster card to rosters section if it was moved
+        const rostersGrid = document.querySelector('.rosters-grid');
+        if (rostersGrid && boysRosterCard && !rostersGrid.contains(boysRosterCard)) {
+          rostersGrid.insertBefore(boysRosterCard, girlsRosterCard);
+        }
+        
+        // Restore NCAA box to features-grid if it was moved
+        restoreCollegeBox();
+      } else {
+        // Basketball - restore based on team gender availability
+        if (girlsStatsGroup) girlsStatsGroup.style.display = '';
+        if (boysStatsGroup) boysStatsGroup.style.display = '';
+        if (girlsScheduleCard) girlsScheduleCard.style.display = '';
+        if (boysScheduleCard) boysScheduleCard.style.display = '';
+        if (girlsRosterCard) girlsRosterCard.style.display = '';
+        if (boysRosterCard) boysRosterCard.style.display = '';
+        
+        // Restore boys roster card to rosters section if it was moved
+        const rostersGrid = document.querySelector('.rosters-grid');
+        if (rostersGrid && boysRosterCard && !rostersGrid.contains(boysRosterCard)) {
+          rostersGrid.insertBefore(boysRosterCard, girlsRosterCard);
+        }
+        
+        // Restore NCAA box to features-grid if it was moved
+        restoreCollegeBox();
+      }
+      
+      // Re-apply gender visibility on top (team may only have one gender)
+      applyGenderVisibility();
+      
+      // --- Update text labels based on sport ---
+      const schedulesMenuText = document.getElementById('schedulesMenuText');
+      const schedulesSectionTitle = document.getElementById('schedulesSectionTitle');
+      const boysScheduleLabel = document.getElementById('boysScheduleLabel');
+      const girlsScheduleLabel = document.getElementById('girlsScheduleLabel');
+      const boysRosterLabel = document.getElementById('boysRosterLabel');
+      const girlsRosterLabel = document.getElementById('girlsRosterLabel');
+      const historySectionTitle = document.getElementById('historySectionTitle');
+      const historyMenuText = document.querySelector('.team-menu-item[data-section="history"] .menu-text');
+      
+      if (sport === 'baseball') {
+        // Baseball: singular "Schedule", combined section title, sport-specific labels
+        if (schedulesMenuText) schedulesMenuText.textContent = 'Schedule';
+        // Hide the section header - each card will have its own title with emoji
+        const schedulesSectionHeader = document.querySelector('#schedules .section-header');
+        if (schedulesSectionHeader) schedulesSectionHeader.style.display = 'none';
+        if (boysScheduleLabel) boysScheduleLabel.innerHTML = '&#128197; Schedule';
+        if (boysRosterLabel) boysRosterLabel.innerHTML = '&#128101; Roster';
+        // Hide history section header - each column has its own title
+        const historySectionHeader = document.querySelector('#history .section-header');
+        if (historySectionHeader) historySectionHeader.style.display = 'none';
+        if (historyMenuText) historyMenuText.textContent = 'History & NCAA';
+        // Hide separate college menu item (content is in history section now)
+        if (collegeMenuItem) collegeMenuItem.style.display = 'none';
+      } else if (sport === 'volleyball') {
+        // Volleyball: singular labels for girls only
+        if (schedulesMenuText) schedulesMenuText.textContent = 'Schedules';
+        // Show section header
+        const schedulesSectionHeader = document.querySelector('#schedules .section-header');
+        if (schedulesSectionHeader) schedulesSectionHeader.style.display = '';
+        if (schedulesSectionTitle) schedulesSectionTitle.innerHTML = '&#128197; Schedules';
+        if (girlsScheduleLabel) girlsScheduleLabel.textContent = 'Girls Varsity Volleyball';
+        if (girlsRosterLabel) girlsRosterLabel.textContent = 'Girls Varsity Volleyball';
+        // Show history section header
+        const historySectionHeader = document.querySelector('#history .section-header');
+        if (historySectionHeader) historySectionHeader.style.display = '';
+        if (historySectionTitle) historySectionTitle.innerHTML = '&#127942; Championship History';
+        if (historyMenuText) historyMenuText.textContent = 'History';
+        if (collegeMenuItem) collegeMenuItem.style.display = '';
+      } else {
+        // Basketball or default: standard labels
+        if (schedulesMenuText) schedulesMenuText.textContent = 'Schedules';
+        // Show section header
+        const schedulesSectionHeader = document.querySelector('#schedules .section-header');
+        if (schedulesSectionHeader) schedulesSectionHeader.style.display = '';
+        if (schedulesSectionTitle) schedulesSectionTitle.innerHTML = '&#128197; Schedules';
+        if (boysScheduleLabel) boysScheduleLabel.textContent = 'Boys Varsity';
+        if (girlsScheduleLabel) girlsScheduleLabel.textContent = 'Girls Varsity';
+        if (boysRosterLabel) boysRosterLabel.textContent = 'Boys Varsity';
+        if (girlsRosterLabel) girlsRosterLabel.textContent = 'Girls Varsity';
+        // Show history section header
+        const historySectionHeader = document.querySelector('#history .section-header');
+        if (historySectionHeader) historySectionHeader.style.display = '';
+        if (historySectionTitle) historySectionTitle.innerHTML = '&#127942; Championship History';
+        if (historyMenuText) historyMenuText.textContent = 'History';
+        if (collegeMenuItem) collegeMenuItem.style.display = '';
+      }
+    }
+    
+    // ===== UPDATE PAGE TITLE FOR SPORT =====
+    function updatePageTitleForSport() {
+      if (!TEAM_CONFIG) return;
+      
+      const sportNames = {
+        'all': 'All Sports',
+        'basketball': 'Basketball',
+        'baseball': 'Baseball',
+        'volleyball': 'Volleyball'
+      };
+      
+      const sportName = sportNames[currentSport] || 'Basketball';
+      const { name, mascot, fullName } = TEAM_CONFIG;
+      
+      // Update page title
+      document.title = `${fullName} ${sportName} | Ball603`;
+      
+      // Update hero tagline
+      const tagline = document.getElementById('teamTagline');
+      if (tagline) {
+        if (currentSport === 'all') {
+          tagline.textContent = `${name.toUpperCase()} ${mascot.toUpperCase()}`;
+        } else {
+          tagline.textContent = `${name.toUpperCase()} ${mascot.toUpperCase()} ${sportName.toUpperCase()}`;
+        }
+      }
+      
+      // Update meta description
+      const description = currentSport === 'all'
+        ? `${fullName} - Schedule, Roster, News, and History on Ball603`
+        : `${fullName} ${sportName} - Schedule, Roster, News, and History on Ball603`;
+      document.getElementById('metaDescription')?.setAttribute('content', description);
+      document.getElementById('ogDescription')?.setAttribute('content', description);
+      
+      // Update OG title
+      document.getElementById('ogTitle')?.setAttribute('content', `${fullName} ${sportName} | Ball603`);
+    }
     function updatePageWithTeamInfo() {
       if (!TEAM_CONFIG) return;
       const { name, mascot, fullName, town, colors, logo, slug, logoFilename } = TEAM_CONFIG;
@@ -532,7 +1017,7 @@
         }
       `;
 
-      document.getElementById('teamTagline').textContent = `${name.toUpperCase()} ${mascot.toUpperCase()} BASKETBALL`;
+      document.getElementById('teamTagline').textContent = `${name.toUpperCase()} ${mascot.toUpperCase()}`;
       document.getElementById('teamLogo').src = logo;
       document.getElementById('teamLogo').alt = fullName;
       document.getElementById('teamMeta').textContent = town ? `${town}, NH` : 'New Hampshire';
@@ -618,10 +1103,11 @@
     async function loadSchedules() {
       if (!TEAM_CONFIG) return;
       try {
-        // Filter to basketball only for team pages
-        const response = await fetch('/.netlify/functions/get-games?sport=basketball');
+        // Use currentSport for filtering - 'all' fetches everything
+        const sportParam = currentSport === 'all' ? '' : `sport=${currentSport}`;
+        const response = await fetch(`/.netlify/functions/get-games?${sportParam}`);
         const data = await response.json();
-        console.log('Got', (data.games || []).length, 'total games from API');
+        console.log('Got', (data.games || []).length, 'total games from API for sport:', currentSport);
         
         const allGames = (data.games || []).map(g => ({
           ...g, home: normalizeTeamName(g.home || g.home_team), away: normalizeTeamName(g.away || g.away_team)
@@ -690,12 +1176,88 @@
         
         teamData.schedules.boys = dedupeGames(teamGames.filter(g => g.gender === 'Boys'));
         teamData.schedules.girls = dedupeGames(teamGames.filter(g => g.gender === 'Girls'));
-        console.log(`Schedules loaded: ${teamData.schedules.boys.length} boys, ${teamData.schedules.girls.length} girls games`);
+        teamData.schedules.all = dedupeGames(teamGames); // Keep all for unified view
+        console.log(`Schedules loaded: ${teamData.schedules.boys.length} boys, ${teamData.schedules.girls.length} girls games (sport: ${currentSport})`);
         renderSchedules();
       } catch (err) { console.error('Error loading schedules:', err); renderScheduleError(); }
     }
 
-    function renderSchedules() { renderScheduleCard('boys', teamData.schedules.boys); renderScheduleCard('girls', teamData.schedules.girls); }
+    function renderSchedules() {
+      // Skip schedule rendering for 'all' view - section is hidden
+      if (currentSport === 'all') return;
+      
+      // Restore the Boys/Girls card structure if it was replaced by unified view
+      const schedulesGrid = document.querySelector('.schedules-grid');
+      if (schedulesGrid && !document.getElementById('boysScheduleGames')) {
+        schedulesGrid.innerHTML = `
+          <div class="schedule-card">
+            <div class="schedule-card-header boys">
+              <span class="schedule-card-label" id="boysScheduleLabel">Boys Varsity</span>
+              <span class="schedule-card-record" id="boysRecordCard">--</span>
+            </div>
+            <div class="schedule-card-games" id="boysScheduleGames">
+              <div class="empty-state"><p>Loading schedule...</p></div>
+            </div>
+          </div>
+          <div class="schedule-card">
+            <div class="schedule-card-header girls">
+              <span class="schedule-card-label" id="girlsScheduleLabel">Girls Varsity</span>
+              <span class="schedule-card-record" id="girlsRecordCard">--</span>
+            </div>
+            <div class="schedule-card-games" id="girlsScheduleGames">
+              <div class="empty-state"><p>Loading schedule...</p></div>
+            </div>
+          </div>
+        `;
+      }
+      renderScheduleCard('boys', teamData.schedules.boys);
+      renderScheduleCard('girls', teamData.schedules.girls);
+    }
+    
+    function updateQuickStatsAllSports() {
+      const teamNames = TEAM_CONFIG.nameVariations;
+      const isThisTeam = (name) => teamNames.some(n => n && name?.includes(n));
+      const today = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+      today.setHours(0, 0, 0, 0);
+      
+      ['boys', 'girls'].forEach(gender => {
+        const games = teamData.schedules[gender] || [];
+        let wins = 0, losses = 0;
+        let lastResult = null, nextGame = null;
+        
+        games.sort((a, b) => new Date(a.date) - new Date(b.date));
+        
+        games.forEach(g => {
+          const gameDate = new Date(g.date + 'T12:00:00-05:00'); gameDate.setHours(0, 0, 0, 0);
+          const isHome = isThisTeam(g.home);
+          const hs = String(g.home_score || '').trim(), as = String(g.away_score || '').trim();
+          const hasScore = hs !== '' && as !== '';
+          const isScheduled = g.status && g.status.toLowerCase() === 'scheduled';
+          
+          if (hasScore && !isScheduled) {
+            const homeScore = parseInt(hs), awayScore = parseInt(as);
+            const teamScore = isHome ? homeScore : awayScore, oppScore = isHome ? awayScore : homeScore;
+            const won = teamScore > oppScore;
+            if (won) wins++; else losses++;
+            lastResult = { won, teamScore, oppScore, isHome, opp: isHome ? g.away : g.home };
+          } else if (gameDate >= today && !nextGame) {
+            nextGame = { date: g.date, isHome, opp: isHome ? g.away : g.home };
+          }
+        });
+        
+        const recordEl = document.getElementById(`${gender}Record`);
+        const nextGameEl = document.getElementById(`${gender}NextGame`);
+        const lastResultEl = document.getElementById(`${gender}LastResult`);
+        
+        if (recordEl) recordEl.textContent = `${wins}-${losses}`;
+        if (nextGameEl) {
+          nextGameEl.textContent = nextGame ? `${formatShortDate(nextGame.date)} ${nextGame.isHome ? 'vs' : '@'} ${nextGame.opp}` : '--';
+        }
+        if (lastResultEl) {
+          lastResultEl.textContent = lastResult ? `${lastResult.won ? 'W' : 'L'} ${lastResult.teamScore}-${lastResult.oppScore} ${lastResult.isHome ? 'vs' : '@'} ${lastResult.opp}` : '--';
+        }
+      });
+    }
 
     function renderScheduleCard(gender, games) {
       const container = document.getElementById(`${gender}ScheduleGames`);
@@ -829,6 +1391,7 @@
       if (!teamName) return 'Ball603-white.png';
       const specialCases = {
         'coe-brown': 'CoeBrown', 'bishop brady': 'BishopBrady', 'bishop guertin': 'BishopGuertin',
+        'central-west': 'CentralWest', 'centralwest': 'CentralWest', 'man. central-man. west': 'CentralWest',
         'concord christian': 'ConcordChristian', 'con-val': 'ConVal', 'conval': 'ConVal', 'fall mountain': 'FallMountain',
         'hillsboro-deering': 'HillsboroDeering', 'hollis-brookline': 'HollisBrookline', 'holy family': 'HolyFamily',
         'inter-lakes': 'InterLakes', 'john stark': 'JohnStark', 'lin-wood': 'LinWood', 'manchester central': 'ManchesterCentral',
@@ -849,6 +1412,7 @@
       const slugMap = {
         'alvirne': 'alvirne', 'bedford': 'bedford', 'belmont': 'belmont', 'berlin': 'berlin',
         'bishop brady': 'bishopbrady', 'bishop guertin': 'bishopguertin', 'bow': 'bow', 'campbell': 'campbell',
+        'central-west': 'centralwest', 'man. central-man. west': 'centralwest',
         'coe-brown': 'coebrown', 'colebrook': 'colebrook', 'conval': 'conval', 'con-val': 'conval',
         'conant': 'conant', 'concord christian': 'concordchristian', 'concord': 'concord',
         'derryfield': 'derryfield', 'dover': 'dover', 'epping': 'epping', 'exeter': 'exeter',
@@ -907,31 +1471,71 @@
     async function loadArticles() {
       if (!TEAM_CONFIG) return;
       try {
-        const { data: articles, error } = await db.from('articles').select('*').eq('status', 'published');
+        // Fetch all published articles
+        const { data: articles, error } = await db
+          .from('articles')
+          .select('*')
+          .eq('status', 'published');
+        
         if (error) throw error;
         
-        // Normalize team slug for comparison (strip all non-alphanumeric)
+        // Known sport tags
+        const sportTags = ['basketball', 'baseball', 'volleyball'];
+        
+        // Normalize team slug for comparison
         const teamTagNormalized = TEAM_CONFIG.slug.toLowerCase().replace(/[^a-z0-9]/g, '');
         
-        // Build list of normalized tag variations to match
-        let tagVariations = [teamTagNormalized];
+        // Build list of normalized tag variations to match for this team
+        let teamTagVariations = [teamTagNormalized];
         if (TEAM_CONFIG.slug === 'centralwest' || TEAM_CONFIG.shortname === 'Central-West') {
-          tagVariations.push('mancentralmanwest', 'manchestercentralwest', 'centralwest');
+          teamTagVariations.push('mancentralmanwest', 'manchestercentralwest', 'centralwest');
         }
-        
-        // Mascoma articles may be tagged as "mascoma" or "mascomavalley"
         if (TEAM_CONFIG.slug === 'mascoma' || TEAM_CONFIG.shortname === 'Mascoma' || TEAM_CONFIG.shortname === 'Mascoma Valley') {
-          tagVariations.push('mascoma', 'mascomavalley');
+          teamTagVariations.push('mascoma', 'mascomavalley');
         }
         
-        // Filter articles by team tag
+        // Current sport being viewed
+        const currentSportTag = currentSport.toLowerCase();
+        
+        // Filter articles based on tagging rules
         const teamArticles = (articles || []).filter(a => {
           if (!a.tags) return false;
           const tagArray = Array.isArray(a.tags) ? a.tags : JSON.parse(a.tags || '[]');
-          return tagArray.some(tag => {
-            const normalizedTag = tag.toLowerCase().replace(/[^a-z0-9]/g, '');
-            return tagVariations.includes(normalizedTag);
-          });
+          const normalizedTags = tagArray.map(t => t.toLowerCase().replace(/[^a-z0-9]/g, ''));
+          
+          // Rule 1: "all-nhiaa" tag shows on all team pages, all sports
+          if (normalizedTags.includes('allnhiaa')) return true;
+          
+          // Separate sport tags from other tags
+          const articleSportTags = normalizedTags.filter(t => sportTags.includes(t));
+          const articleTeamTags = normalizedTags.filter(t => !sportTags.includes(t) && t !== 'allnhiaa');
+          
+          // Get effective sport from EITHER tags OR sport DB field
+          const articleSportField = (a.sport || '').toLowerCase();
+          const effectiveSportTags = articleSportField && !articleSportTags.includes(articleSportField) 
+            ? [...articleSportTags, articleSportField] 
+            : articleSportTags;
+          
+          // Rule 2: Sport tag/field only (no team tags) → show on all pages for that sport
+          if (effectiveSportTags.length > 0 && articleTeamTags.length === 0) {
+            return effectiveSportTags.includes(currentSportTag) || currentSport === 'all';
+          }
+          
+          // Rule 3: Has sport tag/field + team tag → show on that team's page for matching sport
+          if (effectiveSportTags.length > 0 && articleTeamTags.length > 0) {
+            const hasThisTeam = articleTeamTags.some(t => teamTagVariations.includes(t));
+            const hasThisSport = effectiveSportTags.includes(currentSportTag) || currentSport === 'all';
+            return hasThisTeam && hasThisSport;
+          }
+          
+          // Rule 4: Team tag only (no sport tag) → use article's sport DB field
+          const hasThisTeamTag = articleTeamTags.some(t => teamTagVariations.includes(t));
+          if (hasThisTeamTag) {
+            if (currentSport === 'all') return true;
+            return a.sport === currentSportTag;
+          }
+          
+          return false;
         });
         
         // Sort by article_date (Publication Date), falling back to published_at
@@ -995,6 +1599,19 @@
     // ===== LOAD ROSTERS =====
     async function loadRosters() {
       if (!TEAM_CONFIG) return;
+      
+      // Reset rosters
+      teamData.rosters = { boys: null, girls: null };
+      
+      // Don't load rosters for 'all' view (section is hidden)
+      if (currentSport === 'all') {
+        renderRosters();
+        return;
+      }
+      
+      // Determine sport parameter - basketball data may have NULL sport
+      const sportParam = (currentSport === 'basketball') ? '' : `&sport=${currentSport}`;
+      
       try {
         // For Central-West, try multiple possible school names
         let schoolNames = [TEAM_CONFIG.name];
@@ -1003,10 +1620,10 @@
         }
         
         for (const schoolName of schoolNames) {
-          const response = await fetch(`/.netlify/functions/get-rosters?school=${encodeURIComponent(schoolName)}`);
+          const response = await fetch(`/.netlify/functions/get-rosters?school=${encodeURIComponent(schoolName)}${sportParam}`);
           const data = await response.json();
           if (data.success && data.rosters && data.rosters.length > 0) {
-            console.log('Found roster for', schoolName);
+            console.log('Found roster for', schoolName, 'sport:', currentSport);
             data.rosters.forEach(r => { if (r.gender === 'Boys') teamData.rosters.boys = r; else if (r.gender === 'Girls') teamData.rosters.girls = r; });
             break;
           }
@@ -1146,11 +1763,19 @@
       
       // Fetch NCAA players from Supabase
       try {
-        const { data: players, error: playersError } = await db
+        let ncaaQuery = db
           .from('ncaa_players')
           .select('*')
           .ilike('high_school', `%${schoolName}%`)
-          .eq('active', true)
+          .eq('active', true);
+        
+        // Only filter by sport for non-basketball sports
+        // Basketball data may have sport=NULL (pre-multi-sport), so don't filter
+        if (currentSport !== 'all' && currentSport !== 'basketball') {
+          ncaaQuery = ncaaQuery.eq('sport', currentSport);
+        }
+        
+        const { data: players, error: playersError } = await ncaaQuery
           .order('name', { ascending: true });
         
         if (playersError) throw playersError;
@@ -1168,10 +1793,18 @@
       
       // Fetch championships from Supabase
       try {
-        const { data, error } = await db
+        let champQuery = db
           .from('championship_history')
           .select('*')
-          .or(`champion.ilike.${schoolName},runner_up.ilike.${schoolName}`)
+          .or(`champion.ilike.${schoolName},runner_up.ilike.${schoolName}`);
+        
+        // Only filter by sport for non-basketball sports
+        // Basketball data may have sport=NULL (pre-multi-sport), so don't filter
+        if (currentSport !== 'all' && currentSport !== 'basketball') {
+          champQuery = champQuery.eq('sport', currentSport);
+        }
+        
+        const { data, error } = await champQuery
           .order('year', { ascending: false });
         
         if (error) throw error;
@@ -1215,10 +1848,14 @@
     }
 
     // ===== RENDER ALL =====
-    function renderAll() { renderChampionshipStats(); renderChampionshipHistory(); render1KScorers(); renderNCAAPlayers(); }
+    function renderAll() { applySportVisibility(); renderChampionshipStats(); renderChampionshipHistory(); render1KScorers(); renderNCAAPlayers(); }
 
     function renderChampionshipStats() {
       const champs = teamData.championships, container = document.getElementById('heroStats');
+      
+      // Hide hero stats for 'all' sports view
+      if (currentSport === 'all') { container.innerHTML = ''; container.style.display = 'none'; return; }
+      
       const titles = champs.totalTitles || 0, runnerUps = champs.totalRunnerUp || 0, total = titles + runnerUps;
       if (total === 0) { container.innerHTML = ''; container.style.display = 'none'; return; }
       container.style.display = 'flex';
@@ -1226,47 +1863,99 @@
       // Count boys and girls titles
       const boysTitles = (champs.boys || []).filter(g => g.result === 'champion').length;
       const girlsTitles = (champs.girls || []).filter(g => g.result === 'champion').length;
+      
+      // For single-gender sports (baseball=boys, volleyball=girls), don't show sublabel
       let sublabelText = '';
-      if (boysTitles > 0 && girlsTitles > 0) {
-        sublabelText = `${boysTitles} Boys &#8211; ${girlsTitles} Girls`;
-      } else if (boysTitles > 0) {
-        sublabelText = `${boysTitles} Boys`;
-      } else if (girlsTitles > 0) {
-        sublabelText = `${girlsTitles} Girls`;
+      if (currentSport === 'basketball') {
+        if (boysTitles > 0 && girlsTitles > 0) {
+          sublabelText = `${boysTitles} Boys &#8211; ${girlsTitles} Girls`;
+        } else if (boysTitles > 0) {
+          sublabelText = `${boysTitles} Boys`;
+        } else if (girlsTitles > 0) {
+          sublabelText = `${girlsTitles} Girls`;
+        }
       }
       
+      // Sport-specific emoji for Title Games
+      const titleGameEmoji = currentSport === 'baseball' ? '&#9918;' : currentSport === 'volleyball' ? '&#127952;' : '&#127936;';
+      
       container.innerHTML = `
-        ${titles > 0 ? `<div class="team-hero-stats-primary"><div class="team-hero-stat championship"><span class="stat-icon">&#127942;</span><div class="stat-text"><span class="stat-value">${titles}</span><span class="stat-label">State Championship${titles !== 1 ? 's' : ''}</span><span class="stat-sublabel">${sublabelText}</span></div></div></div>` : ''}
+        ${titles > 0 ? `<div class="team-hero-stats-primary"><div class="team-hero-stat championship"><span class="stat-icon">&#127942;</span><div class="stat-text"><span class="stat-value">${titles}</span><span class="stat-label">State Championship${titles !== 1 ? 's' : ''}</span>${sublabelText ? `<span class="stat-sublabel">${sublabelText}</span>` : ''}</div></div></div>` : ''}
         <div class="team-hero-stats-secondary">
           ${runnerUps > 0 ? `<div class="team-hero-stat-small runner-up"><span class="stat-icon">&#129352;</span><span class="stat-value">${runnerUps}</span><span class="stat-label">Runner-Up${runnerUps !== 1 ? 's' : ''}</span></div>` : ''}
-          ${total > 0 ? `<div class="team-hero-stat-small finals"><span class="stat-icon">&#127936;</span><span class="stat-value">${total}</span><span class="stat-label">Title Game${total !== 1 ? 's' : ''}</span></div>` : ''}
+          ${total > 0 ? `<div class="team-hero-stat-small finals"><span class="stat-icon">${titleGameEmoji}</span><span class="stat-value">${total}</span><span class="stat-label">Title Game${total !== 1 ? 's' : ''}</span></div>` : ''}
         </div>`;
     }
 
     function renderChampionshipHistory() {
       const container = document.getElementById('historyContent'), champs = teamData.championships;
       let allGames = [...(champs.boys || []), ...(champs.girls || [])].sort((a, b) => b.year - a.year);
-      if (allGames.length === 0) { container.innerHTML = '<div class="empty-state"><p>No championship game appearances on record.</p></div>'; return; }
+      
+      // Handle empty state - but for baseball, still need to show NCAA box
+      if (allGames.length === 0) {
+        if (currentSport === 'baseball') {
+          const collegeBox = document.getElementById('college');
+          const featuresRow = document.getElementById('features-row');
+          container.innerHTML = `<div class="history-ncaa-grid"><div class="history-column"><div class="history-timeline"><h3>&#127942; Title Game Appearances</h3><div class="empty-state"><p>No championship game appearances on record.</p></div></div></div></div>`;
+          const grid = container.querySelector('.history-ncaa-grid');
+          if (grid && collegeBox) {
+            grid.appendChild(collegeBox);
+            collegeBox.style.display = '';
+          }
+          if (featuresRow) featuresRow.style.display = 'none';
+        } else {
+          container.innerHTML = '<div class="empty-state"><p>No championship game appearances on record.</p></div>';
+        }
+        return;
+      }
       
       // Helper to display score - hide if null/undefined
       const displayScore = (s) => (s === null || s === undefined || s === '' || s === 'null' || s === 'Null') ? '' : s;
       const formatScore = (s1, s2, ot) => {
         const score1 = displayScore(s1), score2 = displayScore(s2);
-        if (!score1 || !score2) return '';
+        // For baseball, 0 is valid (shutouts). For basketball, 0 means unknown.
+        if (currentSport === 'baseball') {
+          if (score1 === '' || score2 === '') return '';  // Only hide if truly empty
+        } else {
+          if (!score1 || !score2) return '';  // Hide if falsy (including 0)
+        }
         return `${score1} - ${score2}${ot ? ' OT' : ''}`;
       };
       
-      const wins = allGames.filter(g => g.result === 'champion');
-      container.innerHTML = `
-        ${wins.length > 0 ? `<div class="championship-cards-row">${wins.slice(0, 6).map(g => {
-          const scoreText = formatScore(g.champion_score, g.runner_up_score, g.overtime);
-          return `<div class="championship-card"><div class="champ-year">${g.year}</div><div class="champ-trophy">&#127942;</div><div class="champ-gender">${g.gender || ''}</div><div class="champ-division">${g.division}</div>${scoreText ? `<div class="champ-score-box"><span class="champ-score">${scoreText}</span></div>` : ''}<div class="champ-opponent">vs ${g.runner_up}</div></div>`;
-        }).join('')}</div>` : ''}
-        <div class="history-timeline"><h3>All Title Game Appearances</h3><div class="timeline-list">${allGames.map(g => {
+      // Single-gender sports don't need gender column
+      const isSingleGender = currentSport === 'baseball' || currentSport === 'volleyball';
+      
+      // For baseball, add emoji to timeline header since section header is hidden
+      const timelineTitle = currentSport === 'baseball' ? '&#127942; Title Game Appearances' : 'All Title Game Appearances';
+      
+      const timelineHtml = `
+        <div class="history-timeline"><h3>${timelineTitle}</h3><div class="timeline-list">${allGames.map(g => {
           const isChamp = g.result === 'champion', opp = isChamp ? g.runner_up : g.champion;
           const scoreText = isChamp ? formatScore(g.champion_score, g.runner_up_score, g.overtime) : formatScore(g.runner_up_score, g.champion_score, g.overtime);
-          return `<div class="timeline-item ${isChamp ? 'champion' : 'runner-up'}"><span class="timeline-year">${g.year}</span><span class="timeline-gender">${g.gender || ''}</span><span class="timeline-result">${isChamp ? '&#127942; Champion' : '&#129352; Runner-Up'}</span><span class="timeline-score">${scoreText}</span><span class="timeline-opponent">vs ${opp}</span></div>`;
+          const genderHtml = isSingleGender ? '' : `<span class="timeline-gender">${g.gender || ''}</span>`;
+          const noGenderClass = isSingleGender ? ' no-gender' : '';
+          return `<div class="timeline-item ${isChamp ? 'champion' : 'runner-up'}${noGenderClass}"><span class="timeline-year">${g.year}</span>${genderHtml}<span class="timeline-result">${isChamp ? '&#127942; Champion' : '&#129352; Runner-Up'}</span><span class="timeline-score">${scoreText}</span><span class="timeline-opponent">vs ${opp}</span></div>`;
         }).join('')}</div></div>`;
+      
+      // For baseball, create side-by-side layout with NCAA box
+      if (currentSport === 'baseball') {
+        const collegeBox = document.getElementById('college');
+        const featuresRow = document.getElementById('features-row');
+        
+        container.innerHTML = `<div class="history-ncaa-grid"><div class="history-column">${timelineHtml}</div></div>`;
+        
+        // Move college box into the grid
+        const grid = container.querySelector('.history-ncaa-grid');
+        if (grid && collegeBox) {
+          grid.appendChild(collegeBox);
+          collegeBox.style.display = '';
+        }
+        
+        // Hide the features-row section
+        if (featuresRow) featuresRow.style.display = 'none';
+      } else {
+        container.innerHTML = timelineHtml;
+      }
     }
 
     function render1KScorers() {
