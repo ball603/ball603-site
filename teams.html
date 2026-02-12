@@ -1,9 +1,10 @@
 <!DOCTYPE html>
+<!-- Ball603 Teams Page v293 - Simplified to search only, multi-sport tagline -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="All New Hampshire High School Basketball Teams - Ball603">
+  <meta name="description" content="All New Hampshire High School Teams - Ball603">
   <meta name="theme-color" content="#f57c00">
   <title>Teams | Ball603</title>
   
@@ -27,7 +28,7 @@
   
   <!-- Open Graph -->
   <meta property="og:title" content="Teams | Ball603">
-  <meta property="og:description" content="All New Hampshire High School Basketball Teams">
+  <meta property="og:description" content="All New Hampshire High School Teams">
   <meta property="og:image" content="https://ball603.com/logo.png">
   <meta property="og:url" content="https://ball603.com/teams">
   
@@ -422,7 +423,7 @@
   <!-- Page Header -->
   <div class="page-header">
     <h1 class="page-title">NHIAA Teams</h1>
-    <p class="page-subtitle">New Hampshire High School Basketball</p>
+    <p class="page-subtitle">Teams Around the Granite State</p>
   </div>
 
   <!-- Mobile Sticky Search (only visible on mobile) -->
@@ -433,12 +434,6 @@
   <!-- Filter Bar -->
   <div class="teams-filter-bar">
     <div class="filter-inner">
-      <div class="filter-group">
-        <div class="filter-buttons">
-          <button class="filter-btn active" data-view="all">All Teams</button>
-          <button class="filter-btn" data-view="division">By Division</button>
-        </div>
-      </div>
       <div class="search-box">
         <input type="text" id="teamSearch" placeholder="Search teams...">
       </div>
@@ -478,7 +473,6 @@
 
     // ===== STATE =====
     let allTeams = [];
-    let currentView = 'all';
     let searchTerm = '';
 
     // ===== UTILITIES =====
@@ -548,60 +542,11 @@
         return;
       }
 
-      if (currentView === 'division') {
-        renderByDivision(container, filtered);
-      } else {
-        renderAllTeams(container, filtered);
-      }
-    }
-
-    function renderAllTeams(container, teams) {
       container.innerHTML = `
         <div class="teams-grid">
-          ${teams.map(t => renderTeamCard(t)).join('')}
+          ${filtered.map(t => renderTeamCard(t)).join('')}
         </div>
       `;
-    }
-
-    function renderByDivision(container, teams) {
-      // Group by division (use Boys division as primary)
-      const divisions = { 'D1': [], 'D2': [], 'D3': [], 'D4': [], 'Other': [] };
-      
-      teams.forEach(t => {
-        const div = t.division || 'Other';
-        if (divisions[div]) {
-          divisions[div].push(t);
-        } else {
-          divisions['Other'].push(t);
-        }
-      });
-
-      const divisionNames = {
-        'D1': 'Division I',
-        'D2': 'Division II',
-        'D3': 'Division III',
-        'D4': 'Division IV',
-        'Other': 'Other'
-      };
-
-      let html = '';
-      ['D1', 'D2', 'D3', 'D4', 'Other'].forEach(div => {
-        if (divisions[div].length > 0) {
-          html += `
-            <div class="division-section">
-              <div class="division-header">
-                <h2>${divisionNames[div]}</h2>
-                <span class="division-count">${divisions[div].length} teams</span>
-              </div>
-              <div class="teams-grid">
-                ${divisions[div].map(t => renderTeamCard(t)).join('')}
-              </div>
-            </div>
-          `;
-        }
-      });
-
-      container.innerHTML = html;
     }
 
     function renderTeamCard(team) {
@@ -624,16 +569,6 @@
 
     // ===== EVENT HANDLERS =====
     function initFilters() {
-      // View toggle buttons
-      document.querySelectorAll('.filter-btn[data-view]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          document.querySelectorAll('.filter-btn[data-view]').forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-          currentView = btn.dataset.view;
-          renderTeams();
-        });
-      });
-
       // Search inputs (desktop and mobile)
       const searchInput = document.getElementById('teamSearch');
       const mobileSearchInput = document.getElementById('mobileTeamSearch');
