@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Ball603 Team Page Multi-Sport v300 - Sponsor sport filtering -->
+<!-- Ball603 Team Page Multi-Sport v301 - Multi-sport sponsor support -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -1589,20 +1589,27 @@
     async function loadSponsor() {
       if (!TEAM_CONFIG) return;
       try {
-        // Query sponsors for this team that match the current sport or 'all' sports
+        // Query all active sponsors for this team
         const { data: sponsors, error } = await db
           .from('sponsors')
           .select('*')
           .eq('team_shortname', TEAM_CONFIG.shortname)
-          .eq('active', true)
-          .or(`sport.eq.${currentSport},sport.eq.all`);
+          .eq('active', true);
         
         if (!error && sponsors && sponsors.length > 0) {
-          // Prefer sport-specific sponsor over 'all' sponsor
-          const sportSpecific = sponsors.find(s => s.sport === currentSport);
-          const sponsor = sportSpecific || sponsors[0];
-          teamData.sponsor = sponsor;
-          renderSponsor(sponsor);
+          // Filter sponsors that include the current sport in their comma-separated list
+          const matchingSponsors = sponsors.filter(s => {
+            const sportList = (s.sport || 'basketball').split(',');
+            return currentSport === 'all' || sportList.includes(currentSport);
+          });
+          
+          if (matchingSponsors.length > 0) {
+            // Prefer sport-specific sponsor (one that lists fewer sports) over general sponsors
+            matchingSponsors.sort((a, b) => (a.sport || '').split(',').length - (b.sport || '').split(',').length);
+            const sponsor = matchingSponsors[0];
+            teamData.sponsor = sponsor;
+            renderSponsor(sponsor);
+          }
         }
       } catch (err) { /* Fallback shown */ }
     }
