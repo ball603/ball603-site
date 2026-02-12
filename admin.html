@@ -2137,6 +2137,12 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           <span>+</span> Add Sponsor
         </button>
         <div style="margin-left: auto; display: flex; gap: 10px; align-items: center;">
+          <select id="sponsorSportFilter" onchange="filterSponsors()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px;">
+            <option value="">All Sports</option>
+            <option value="basketball">🏀 Basketball</option>
+            <option value="baseball">⚾ Baseball</option>
+            <option value="volleyball">🏐 Volleyball</option>
+          </select>
           <select id="sponsorTeamFilter" onchange="filterSponsors()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px;">
             <option value="">All Teams</option>
           </select>
@@ -2150,10 +2156,11 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       </div>
       
       <div class="article-list" id="sponsorList" style="margin-top: 15px;">
-        <div class="article-row header" style="grid-template-columns: 80px 1fr 150px 100px 100px 120px;">
+        <div class="article-row header" style="grid-template-columns: 80px 1fr 150px 100px 100px 100px 100px;">
           <div>Logo</div>
           <div>Sponsor</div>
           <div>Team</div>
+          <div>Sport</div>
           <div>Tier</div>
           <div>Status</div>
           <div>Actions</div>
@@ -2199,6 +2206,18 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             </select>
           </div>
           <div class="form-group">
+            <label>Sport *</label>
+            <select id="sponsorSport" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+              <option value="basketball">🏀 Basketball</option>
+              <option value="baseball">⚾ Baseball</option>
+              <option value="volleyball">🏐 Volleyball</option>
+              <option value="all">All Sports</option>
+            </select>
+          </div>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+          <div class="form-group">
             <label>Tier</label>
             <select id="sponsorTier" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
               <option value="standard">Standard</option>
@@ -2206,17 +2225,18 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
               <option value="presenting">Presenting</option>
             </select>
           </div>
-        </div>
-        
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
           <div class="form-group">
             <label>Start Date</label>
             <input type="date" id="sponsorStartDate" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
           </div>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
           <div class="form-group">
             <label>End Date</label>
             <input type="date" id="sponsorEndDate" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
           </div>
+          <div class="form-group"></div>
         </div>
         
         <div class="form-group" style="margin-bottom: 15px;">
@@ -18543,11 +18563,16 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     
     function renderSponsorList() {
       const container = document.getElementById('sponsorList');
+      const sportFilter = document.getElementById('sponsorSportFilter').value;
       const teamFilter = document.getElementById('sponsorTeamFilter').value;
       const statusFilter = document.getElementById('sponsorStatusFilter').value;
       const searchFilter = document.getElementById('sponsorSearchBox').value.toLowerCase();
       
       let filtered = allSponsors;
+      
+      if (sportFilter) {
+        filtered = filtered.filter(s => s.sport === sportFilter);
+      }
       
       if (teamFilter) {
         filtered = filtered.filter(s => s.team_shortname === teamFilter);
@@ -18566,12 +18591,15 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         );
       }
       
+      const sportEmoji = { basketball: '🏀', baseball: '⚾', volleyball: '🏐', all: '🌐' };
+      
       if (filtered.length === 0) {
         container.innerHTML = `
-          <div class="article-row header" style="grid-template-columns: 80px 1fr 150px 100px 100px 120px;">
+          <div class="article-row header" style="grid-template-columns: 80px 1fr 150px 100px 100px 100px 100px;">
             <div>Logo</div>
             <div>Sponsor</div>
             <div>Team</div>
+            <div>Sport</div>
             <div>Tier</div>
             <div>Status</div>
             <div>Actions</div>
@@ -18584,16 +18612,17 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       }
       
       container.innerHTML = `
-        <div class="article-row header" style="grid-template-columns: 80px 1fr 150px 100px 100px 120px;">
+        <div class="article-row header" style="grid-template-columns: 80px 1fr 150px 100px 100px 100px 100px;">
           <div>Logo</div>
           <div>Sponsor</div>
           <div>Team</div>
+          <div>Sport</div>
           <div>Tier</div>
           <div>Status</div>
           <div>Actions</div>
         </div>
         ${filtered.map(sponsor => `
-          <div class="article-row" style="grid-template-columns: 80px 1fr 150px 100px 100px 120px;">
+          <div class="article-row" style="grid-template-columns: 80px 1fr 150px 100px 100px 100px 100px;">
             <div>
               <img src="${sponsor.logo_url}" alt="${sponsor.name}" style="max-width: 70px; max-height: 35px; object-fit: contain; border-radius: 4px;" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 50%22><rect fill=%22%23f5f5f5%22 width=%22100%22 height=%2250%22/><text x=%2250%22 y=%2230%22 text-anchor=%22middle%22 fill=%22%23999%22 font-size=%2212%22>No Logo</text></svg>'">
             </div>
@@ -18602,6 +18631,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
               ${sponsor.url ? `<div style="font-size: 11px; color: #888;"><a href="${sponsor.url}" target="_blank">${sponsor.url.replace('https://', '').substring(0, 30)}...</a></div>` : ''}
             </div>
             <div style="font-size: 13px;">${sponsor.team_shortname}</div>
+            <div style="font-size: 13px;">${sportEmoji[sponsor.sport] || ''} ${sponsor.sport || 'basketball'}</div>
             <div><span style="font-size: 11px; padding: 3px 8px; border-radius: 10px; background: ${sponsor.tier === 'premium' ? '#fff3e0' : sponsor.tier === 'presenting' ? '#e8f5e9' : '#f5f5f5'}; color: ${sponsor.tier === 'premium' ? '#e65100' : sponsor.tier === 'presenting' ? '#2e7d32' : '#666'};">${sponsor.tier || 'standard'}</span></div>
             <div><span class="article-status ${sponsor.active ? 'published' : 'draft'}">${sponsor.active ? 'Active' : 'Inactive'}</span></div>
             <div class="article-actions">
@@ -18635,6 +18665,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         document.getElementById('sponsorLogoUrl').value = sponsor.logo_url || '';
         document.getElementById('sponsorWebsite').value = sponsor.url || '';
         document.getElementById('sponsorTeam').value = sponsor.team_shortname || '';
+        document.getElementById('sponsorSport').value = sponsor.sport || 'basketball';
         document.getElementById('sponsorTier').value = sponsor.tier || 'standard';
         document.getElementById('sponsorStartDate').value = sponsor.start_date || '';
         document.getElementById('sponsorEndDate').value = sponsor.end_date || '';
@@ -18654,6 +18685,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         document.getElementById('sponsorLogoUrl').value = '';
         document.getElementById('sponsorWebsite').value = '';
         document.getElementById('sponsorTeam').value = '';
+        document.getElementById('sponsorSport').value = 'basketball';
         document.getElementById('sponsorTier').value = 'standard';
         document.getElementById('sponsorStartDate').value = '';
         document.getElementById('sponsorEndDate').value = '';
@@ -18680,14 +18712,15 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const logoUrl = document.getElementById('sponsorLogoUrl').value.trim();
       const website = document.getElementById('sponsorWebsite').value.trim();
       const team = document.getElementById('sponsorTeam').value;
+      const sport = document.getElementById('sponsorSport').value;
       const tier = document.getElementById('sponsorTier').value;
       const startDate = document.getElementById('sponsorStartDate').value || null;
       const endDate = document.getElementById('sponsorEndDate').value || null;
       const notes = document.getElementById('sponsorNotes').value.trim();
       const active = document.getElementById('sponsorActive').checked;
       
-      if (!name || !logoUrl || !team) {
-        showToast('Please fill in Name, Logo URL, and Team', 'error');
+      if (!name || !logoUrl || !team || !sport) {
+        showToast('Please fill in Name, Logo URL, Team, and Sport', 'error');
         return;
       }
       
@@ -18696,6 +18729,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         logo_url: logoUrl,
         url: website || null,
         team_shortname: team,
+        sport,
         tier,
         start_date: startDate,
         end_date: endDate,

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Ball603 Article Page v299 - PWA bottom-nav fix via overscroll-behavior -->
+<!-- Ball603 Article Page v300 - Sponsor sport filtering -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -1732,13 +1732,17 @@
           return [];
         }
         
-        // Query sponsors for these teams (standard tier only)
+        // Determine article sport (default to basketball for backwards compatibility)
+        const articleSport = article.sport || 'basketball';
+        
+        // Query sponsors for these teams (standard tier only), matching sport or 'all'
         const { data: sponsors, error } = await supabaseClient
           .from('sponsors')
           .select('*')
           .in('team_shortname', teams)
           .eq('active', true)
-          .eq('tier', 'standard');
+          .eq('tier', 'standard')
+          .or(`sport.eq.${articleSport},sport.eq.all`);
         
         if (error) {
           console.error('Error loading sponsors:', error);
