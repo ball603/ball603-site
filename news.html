@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Ball603 News - All the latest New Hampshire High School Basketball coverage">
+  <meta name="description" content="Ball603 News - All the latest New Hampshire High School sports coverage">
   <meta name="theme-color" content="#f57c00">
   <title>News | Ball603</title>
   
@@ -27,16 +27,17 @@
   
   <!-- Open Graph -->
   <meta property="og:title" content="News | Ball603">
-  <meta property="og:description" content="All the latest New Hampshire High School Basketball coverage">
+  <meta property="og:description" content="All the latest New Hampshire High School sports coverage">
   <meta property="og:image" content="https://ball603.com/logo.png">
   <meta property="og:url" content="https://ball603.com/news">
   
   <style>
-    /* Page Header */
+    /* Page Header - Override global margins to eliminate gray gap */
     .page-header {
       text-align: center;
-      padding: 30px 20px 20px;
+      padding: 30px 20px 0;
       background: var(--bg-primary);
+      margin-bottom: 0;
     }
     
     .page-title {
@@ -50,6 +51,12 @@
       font-size: 14px;
       color: var(--text-secondary);
       margin: 0;
+    }
+
+    /* Sport filter wrapper needs background to match header */
+    .sport-filter-wrapper {
+      padding: 20px;
+      background: var(--bg-primary);
     }
 
     /* Filter Bar */
@@ -302,6 +309,11 @@
         color: #888;
       }
       
+      /* Sport Filter wrapper background for dark theme */
+      .sport-filter-wrapper {
+        background: #1a1a1a;
+      }
+      
       /* Filter bar sticky on mobile */
       .news-filter-bar {
         position: sticky;
@@ -377,7 +389,17 @@
   <!-- Page Header -->
   <div class="page-header">
     <h1 class="page-title">News</h1>
-    <p class="page-subtitle">All the latest from the Granite State hardwood</p>
+    <p class="page-subtitle">All the latest from around the Granite State</p>
+  </div>
+
+  <!-- Sport Filter -->
+  <div class="sport-filter-wrapper">
+    <div class="sport-filter">
+      <button class="sport-btn active" id="allSportsBtn" onclick="selectSport('all')">All Sports</button>
+      <button class="sport-btn" id="basketballBtn" onclick="selectSport('basketball')">&#127936; Basketball</button>
+      <button class="sport-btn" id="baseballBtn" onclick="selectSport('baseball')">&#9918; Baseball</button>
+      <!-- <button class="sport-btn" id="volleyballBtn" onclick="selectSport('volleyball')">&#127952; Volleyball</button> -->
+    </div>
   </div>
 
   <!-- Filter Bar -->
@@ -431,6 +453,7 @@
     let allArticles = [];
     let filteredArticles = [];
     let pinnedArticleIds = [];
+    let currentSport = 'all';
     
     // Load pinned articles from site settings
     async function loadPinnedArticles() {
@@ -501,6 +524,19 @@
       return article.article_date || article.published_at || null;
     }
 
+    // ===== SPORT FILTER =====
+    function selectSport(sport) {
+      currentSport = sport;
+      
+      // Update button states
+      document.getElementById('allSportsBtn').classList.toggle('active', sport === 'all');
+      document.getElementById('basketballBtn').classList.toggle('active', sport === 'basketball');
+      document.getElementById('baseballBtn').classList.toggle('active', sport === 'baseball');
+      
+      // Re-apply filters
+      applyFiltersAndSort();
+    }
+
     // ===== LOAD ARTICLES =====
     async function loadArticles() {
       console.log('loadArticles called');
@@ -523,6 +559,15 @@
         const urlParams = new URLSearchParams(window.location.search);
         const tagParam = urlParams.get('tag');
         const teamParam = urlParams.get('team');
+        const sportParam = urlParams.get('sport');
+        
+        // Set sport from URL parameter if provided
+        if (sportParam && ['all', 'basketball', 'baseball'].includes(sportParam)) {
+          currentSport = sportParam;
+          document.getElementById('allSportsBtn').classList.toggle('active', sportParam === 'all');
+          document.getElementById('basketballBtn').classList.toggle('active', sportParam === 'basketball');
+          document.getElementById('baseballBtn').classList.toggle('active', sportParam === 'baseball');
+        }
         
         // Pre-filter by tag or team if specified in URL
         if (tagParam) {
@@ -565,8 +610,15 @@
     function applyFiltersAndSort() {
       const searchTerm = document.getElementById('newsSearchInput').value.toLowerCase();
       
-      // Filter - search headline, content, and tags
+      // Filter - search headline, content, tags, AND sport
       filteredArticles = allArticles.filter(article => {
+        // Sport filter
+        if (currentSport !== 'all') {
+          const articleSport = article.sport || 'basketball'; // Default to basketball if empty/null
+          if (articleSport !== currentSport) return false;
+        }
+        
+        // Search filter
         if (!searchTerm) return true;
         
         const matchesTitle = article.title?.toLowerCase().includes(searchTerm);
@@ -615,10 +667,11 @@
       const pagination = document.getElementById('pagination');
       
       if (filteredArticles.length === 0) {
+        const sportLabel = currentSport === 'all' ? '' : ` ${currentSport}`;
         container.innerHTML = `
           <div class="empty-state">
             <div class="empty-state-icon">&#128240;</div>
-            <p>${allArticles.length === 0 ? 'No articles yet. Check back soon!' : 'No articles match your search.'}</p>
+            <p>${allArticles.length === 0 ? 'No articles yet. Check back soon!' : `No${sportLabel} articles match your search.`}</p>
           </div>
         `;
         pagination.style.display = 'none';
