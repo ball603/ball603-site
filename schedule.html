@@ -370,17 +370,21 @@
         background: #1a1a1a;
       }
       
-      .mobile-filters:has(.calendar-btn) {
-        padding: 6px 15px 12px;
+      .mobile-filters.three-col {
+        grid-template-columns: 1fr 1fr 1fr;
+      }
+      
+      .mobile-filters:last-of-type {
+        padding-bottom: 12px;
       }
       
       .mobile-filters .filter-select {
         background: #2d2d2d;
         border: 1px solid #444;
         color: #fff;
-        padding: 10px;
+        padding: 10px 8px;
         border-radius: 6px;
-        font-size: 14px;
+        font-size: 13px;
       }
       
       .mobile-filters .filter-select option {
@@ -394,16 +398,22 @@
         color: #fff;
         padding: 10px;
         border-radius: 6px;
+        font-size: 16px;
       }
       
       .mobile-filters .today-btn {
-        background: #f57c00;
+        background: #2d2d2d;
+        border: 1px solid #444;
         color: #fff;
-        border: none;
         padding: 10px;
         border-radius: 6px;
         font-weight: 600;
         font-size: 13px;
+      }
+      
+      .mobile-filters .today-btn.active {
+        background: #f57c00;
+        border-color: #f57c00;
       }
       
       /* Mobile search bar */
@@ -698,15 +708,15 @@
         <div class="current-date" id="currentDate">Loading...</div>
         <button class="date-btn" onclick="nextDay()">&#9654;</button>
       </div>
+      <select class="filter-select" id="sportFilter" onchange="renderSchedule()">
+        <option value="">Sport (All)</option>
+        <option value="basketball">&#127936; Basketball</option>
+        <option value="baseball">&#9918; Baseball</option>
+      </select>
       <select class="filter-select" id="levelFilter" onchange="renderSchedule()">
         <option value="">Level (All)</option>
         <option value="NHIAA">NHIAA</option>
         <option value="College">College</option>
-      </select>
-      <select class="filter-select" id="sportFilter" onchange="renderSchedule()">
-        <option value="">All Sports</option>
-        <option value="basketball">&#127936; Basketball</option>
-        <option value="baseball">&#9918; Baseball</option>
       </select>
       <select class="filter-select" id="genderFilter" onchange="renderSchedule()">
         <option value="">Gender (All)</option>
@@ -714,6 +724,13 @@
         <option value="Girls">Girls</option>
         <option value="Men">Men</option>
         <option value="Women">Women</option>
+      </select>
+      <select class="filter-select" id="divisionFilter" onchange="renderSchedule()">
+        <option value="">Division (All)</option>
+        <option value="D-I">Division I</option>
+        <option value="D-II">Division II</option>
+        <option value="D-III">Division III</option>
+        <option value="D-IV">Division IV</option>
       </select>
       <button class="calendar-btn" onclick="openCalendar()" title="Pick a date">&#128197;</button>
       <input type="text" class="search-box" id="teamSearchInput" placeholder="Search teams..." oninput="renderSchedule()">
@@ -727,17 +744,17 @@
       <button class="date-btn" onclick="nextDay()">&#9654;</button>
     </div>
     
-    <!-- Mobile Filters Row -->
-    <div class="mobile-filters">
+    <!-- Mobile Filters Row 1: Sport, Level, Gender -->
+    <div class="mobile-filters three-col">
+      <select class="filter-select" id="sportFilterMobile" onchange="syncFilter('sport')">
+        <option value="">Sport (All)</option>
+        <option value="basketball">&#127936; Basketball</option>
+        <option value="baseball">&#9918; Baseball</option>
+      </select>
       <select class="filter-select" id="levelFilterMobile" onchange="syncFilter('level')">
         <option value="">Level (All)</option>
         <option value="NHIAA">NHIAA</option>
         <option value="College">College</option>
-      </select>
-      <select class="filter-select" id="sportFilterMobile" onchange="syncFilter('sport')">
-        <option value="">All Sports</option>
-        <option value="basketball">&#127936; Basketball</option>
-        <option value="baseball">&#9918; Baseball</option>
       </select>
       <select class="filter-select" id="genderFilterMobile" onchange="syncFilter('gender')">
         <option value="">Gender (All)</option>
@@ -748,10 +765,17 @@
       </select>
     </div>
     
-    <!-- Mobile Action Buttons Row -->
-    <div class="mobile-filters">
+    <!-- Mobile Filters Row 2: Division, Today, Calendar -->
+    <div class="mobile-filters three-col">
+      <select class="filter-select" id="divisionFilterMobile" onchange="syncFilter('division')">
+        <option value="">Division (All)</option>
+        <option value="D-I">Division I</option>
+        <option value="D-II">Division II</option>
+        <option value="D-III">Division III</option>
+        <option value="D-IV">Division IV</option>
+      </select>
+      <button class="today-btn active" id="todayBtnMobile" onclick="goToToday()">Today</button>
       <button class="calendar-btn" onclick="openCalendar()">&#128197;</button>
-      <button class="today-btn" onclick="goToToday()">Today</button>
     </div>
     
     <!-- Mobile Search Bar -->
@@ -816,6 +840,8 @@
         document.getElementById('genderFilter').value = document.getElementById('genderFilterMobile').value;
       } else if (type === 'sport') {
         document.getElementById('sportFilter').value = document.getElementById('sportFilterMobile').value;
+      } else if (type === 'division') {
+        document.getElementById('divisionFilter').value = document.getElementById('divisionFilterMobile').value;
       }
       renderSchedule();
     }
@@ -882,6 +908,12 @@
       const today = getESTDate(); today.setHours(0,0,0,0);
       const diff = Math.floor((currentDate - today) / 86400000);
       document.getElementById('sectionTitle').textContent = diff === 0 ? "Today's Games" : diff === 1 ? "Tomorrow's Games" : diff === -1 ? "Yesterday's Games" : dateText;
+      
+      // Update Today button active state
+      const isToday = diff === 0;
+      const todayBtnMobile = document.getElementById('todayBtnMobile');
+      if (todayBtnMobile) todayBtnMobile.classList.toggle('active', isToday);
+      
       renderSchedule();
     }
 
@@ -1081,8 +1113,9 @@
       const gender = document.getElementById('genderFilter').value;
       const level = document.getElementById('levelFilter').value;
       const sport = document.getElementById('sportFilter').value;
+      const division = document.getElementById('divisionFilter').value;
       const dateStr = getDateString(currentDate);
-      let games = allGames.filter(g => g.date === dateStr && (!level || g.level === level) && (!gender || g.gender === gender) && (!sport || g.sport === sport) && (!search || g.home.toLowerCase().includes(search) || g.away.toLowerCase().includes(search)));
+      let games = allGames.filter(g => g.date === dateStr && (!level || g.level === level) && (!gender || g.gender === gender) && (!sport || g.sport === sport) && (!division || g.division === division) && (!search || g.home.toLowerCase().includes(search) || g.away.toLowerCase().includes(search)));
       games.sort((a,b) => {
         const priorityA = getGamePriority(a);
         const priorityB = getGamePriority(b);
