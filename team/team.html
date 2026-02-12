@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Ball603 Team Page Multi-Sport v295 - Sport button active state from URL param -->
+<!-- Ball603 Team Page Multi-Sport v296 - Fixed championship/NCAA sport filtering -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -1777,9 +1777,14 @@
           .ilike('high_school', `%${schoolName}%`)
           .eq('active', true);
         
-        // Only filter by sport for non-basketball sports
-        // Basketball data may have sport=NULL (pre-multi-sport), so don't filter
-        if (currentSport !== 'all' && currentSport !== 'basketball') {
+        // Filter by sport
+        if (currentSport === 'all') {
+          // Show all sports - no filter needed
+        } else if (currentSport === 'basketball') {
+          // Basketball: include records with sport='basketball' OR sport IS NULL (legacy data)
+          ncaaQuery = ncaaQuery.or('sport.eq.basketball,sport.is.null');
+        } else {
+          // Other sports: exact match only
           ncaaQuery = ncaaQuery.eq('sport', currentSport);
         }
         
@@ -1806,9 +1811,14 @@
           .select('*')
           .or(`champion.ilike.${schoolName},runner_up.ilike.${schoolName}`);
         
-        // Only filter by sport for non-basketball sports
-        // Basketball data may have sport=NULL (pre-multi-sport), so don't filter
-        if (currentSport !== 'all' && currentSport !== 'basketball') {
+        // Filter by sport
+        if (currentSport === 'all') {
+          // Show all sports - no filter needed
+        } else if (currentSport === 'basketball') {
+          // Basketball: include records with sport='basketball' OR sport IS NULL (legacy data)
+          champQuery = champQuery.or('sport.eq.basketball,sport.is.null');
+        } else {
+          // Other sports: exact match only
           champQuery = champQuery.eq('sport', currentSport);
         }
         
