@@ -237,12 +237,12 @@ const TeamUtils = (function() {
   /**
    * Get the full logo URL for any team input
    * @param {string} input - Team name in any format
-   * @param {string} size - Logo size folder ('100PX', '200PX', '400PX')
+   * @param {string} size - Logo size folder ('100px', '200px', '400px')
    * @returns {string} - Full logo URL
    */
-  function getLogoUrl(input, size = '100PX') {
+  function getLogoUrl(input, size = '100px') {
     const filename = getLogoFilename(input);
-    return `/images/logos/${size}/${filename}`;
+    return `/logos/${size}/${filename}`;
   }
   
   /**
