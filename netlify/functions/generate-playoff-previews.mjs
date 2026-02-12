@@ -19,6 +19,10 @@
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+
+// Import tournament brackets for playoff history context
+import { tournamentBrackets } from '../../tournament_brackets.js';
 
 // Helper: Make Supabase request
 async function supabaseQuery(table, query = '') {
@@ -238,6 +242,146 @@ function generateMatchupBlurb(matchup, round) {
   return parts.join(' ');
 }
 
+// Look up playoff history between two teams from tournament_brackets data
+function findPlayoffHistory(team1, team2, gender, division) {
+  if (!tournamentBrackets) return [];
+  
+  const genderKey = gender.toLowerCase();
+  const history = [];
+  
+  for (const [year, yearData] of Object.entries(tournamentBrackets)) {
+    const genderData = yearData[genderKey];
+    if (!genderData) continue;
+    const divData = genderData[division];
+    if (!divData || !divData.games) continue;
+    
+    for (const [roundName, roundGames] of Object.entries(divData.games)) {
+      if (!Array.isArray(roundGames)) continue;
+      for (const game of roundGames) {
+        if (!game.winner || !game.loser) continue;
+        if ((game.winner === team1 && game.loser === team2) ||
+            (game.winner === team2 && game.loser === team1)) {
+          history.push({
+            year: parseInt(year),
+            round: roundName,
+            winner: game.winner,
+            loser: game.loser,
+            winnerScore: game.winnerScore,
+            loserScore: game.loserScore,
+            winnerSeed: game.winnerSeed,
+            loserSeed: game.loserSeed
+          });
+        }
+      }
+    }
+  }
+  
+  return history.sort((a, b) => b.year - a.year);
+}
+
+// Generate AI blurbs for all matchups via Claude API
+async function generateAIBlurbs(matchups, gender, division, round) {
+  if (!ANTHROPIC_API_KEY) {
+    console.log('No ANTHROPIC_API_KEY — falling back to template blurbs');
+    return null;
+  }
+  
+  // Build the context for Claude
+  const matchupDescriptions = matchups.filter(m => !m.isTBD && m.higherSeed && m.lowerSeed).map(m => {
+    const h = m.higherSeed;
+    const l = m.lowerSeed;
+    
+    let desc = `GAME ${m.bracketPosition}: #${h.seed} ${h.team} (${h.regSeasonWins}-${h.regSeasonLosses}) vs #${l.seed} ${l.team} (${l.regSeasonWins}-${l.regSeasonLosses})
+  Time: ${m.time}, Location: ${m.location}
+  ${h.team}: PPG ${m.higherSeedStats?.ppg || 0}, PPG Allowed ${m.higherSeedStats?.ppgAllowed || 0}, Streak ${m.higherSeedStats?.streak || 'N/A'}, RPI Rank ${h.rpiRank || 'N/A'}, vs Playoff Teams ${h.vsPlayoffWins}-${h.vsPlayoffLosses}
+  ${l.team}: PPG ${m.lowerSeedStats?.ppg || 0}, PPG Allowed ${m.lowerSeedStats?.ppgAllowed || 0}, Streak ${m.lowerSeedStats?.streak || 'N/A'}, RPI Rank ${l.rpiRank || 'N/A'}, vs Playoff Teams ${l.vsPlayoffWins}-${l.vsPlayoffLosses}`;
+    
+    // Previous meetings this season
+    if (m.previousMeetings && m.previousMeetings.length > 0) {
+      desc += `\n  Season series: ${m.previousMeetings.map(pm => `${pm.winner} ${pm.winnerScore}-${pm.loserScore} (${pm.dateFormatted})`).join(', ')}`;
+    } else {
+      desc += `\n  No regular season meetings`;
+    }
+    
+    // Playoff history
+    const history = findPlayoffHistory(h.team, l.team, gender, division);
+    if (history.length > 0) {
+      desc += `\n  Playoff history: ${history.map(ph => `${ph.year}: ${ph.winner} ${ph.winnerScore || ''}${ph.loserScore ? '-' + ph.loserScore : ''} ${ph.loser} (${ph.round})`).join(', ')}`;
+    }
+    
+    return { gameId: m.gameId, desc };
+  });
+  
+  if (matchupDescriptions.length === 0) return null;
+  
+  const roundNames = { Prelims: 'First Round', Quarters: 'Quarterfinals', Semis: 'Semifinals', Final: 'Championship Final' };
+  const roundLabel = roundNames[round] || round;
+  
+  const prompt = `You are a New Hampshire high school basketball writer for Ball603.com. Write preview blurbs for these ${gender} ${division} ${roundLabel} playoff matchups.
+
+MATCHUPS:
+${matchupDescriptions.map(m => m.desc).join('\n\n')}
+
+INSTRUCTIONS:
+- Write 2-4 sentences per matchup. Be concise and engaging.
+- Reference specific stats (PPG, records, streaks, RPI) naturally — don't just list them.
+- If teams met this season, weave that into the narrative (revenge game, rubber match, etc.)
+- If there's playoff history, mention it briefly (e.g. "These two met in the 2023 quarterfinals...")
+- Highlight interesting storylines: upsets potential, dominant streaks, defensive battles, high-scoring matchups
+- Vary your openings — don't start every blurb the same way
+- Use team nicknames naturally (e.g. "the Bulldogs" instead of repeating the school name)
+- Write for New Hampshire basketball fans who know these teams
+- For large seed gaps (e.g. #1 vs #16), acknowledge the favorite but note what the underdog brings
+- For close seed matchups, play up the competitive angle
+- Keep the tone confident and knowledgeable, like a beat writer
+
+IMPORTANT: Respond ONLY with valid JSON in this exact format, no markdown backticks:
+{
+  "${matchupDescriptions[0]?.gameId || 'game_id'}": "blurb text here",
+  "game_id_2": "blurb text here"
+}`;
+
+  try {
+    console.log('Calling Claude API for playoff preview blurbs...');
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 2000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Claude API error:', response.status, errorText);
+      return null;
+    }
+    
+    const data = await response.json();
+    const rawText = data.content?.[0]?.text || '';
+    
+    // Parse JSON response
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const blurbs = JSON.parse(jsonMatch[0]);
+      console.log(`Generated ${Object.keys(blurbs).length} AI blurbs`);
+      return blurbs;
+    } else {
+      console.error('No JSON found in Claude response:', rawText.substring(0, 200));
+      return null;
+    }
+  } catch (error) {
+    console.error('Claude API blurb generation failed:', error.message);
+    return null;
+  }
+}
+
 // Format date for display
 function formatDate(dateStr) {
   if (!dateStr) return 'TBD';
@@ -321,7 +465,6 @@ export default async (request) => {
 
     // Build matchup objects
     const matchups = [];
-    const blurbs = {};
     const warnings = [];
 
     for (const game of roundGames) {
@@ -420,13 +563,40 @@ export default async (request) => {
       };
 
       matchups.push(matchup);
-
-      // Generate blurb
-      blurbs[game.game_id] = generateMatchupBlurb(matchup, round);
     }
 
     // Sort matchups by bracket position
     matchups.sort((a, b) => a.bracketPosition - b.bracketPosition);
+
+    // Attach playoff history to each matchup
+    for (const matchup of matchups) {
+      if (matchup.isTBD || !matchup.higherSeed || !matchup.lowerSeed) continue;
+      matchup.playoffHistory = findPlayoffHistory(
+        matchup.higherSeed.team, matchup.lowerSeed.team, gender, division
+      );
+    }
+
+    // Generate blurbs — try Claude API first, fall back to templates
+    let blurbs = {};
+    const aiBlurbs = await generateAIBlurbs(matchups, gender, division, round);
+    
+    if (aiBlurbs) {
+      blurbs = aiBlurbs;
+      // Fill in any missing blurbs with templates
+      for (const matchup of matchups) {
+        if (!matchup.isTBD && !blurbs[matchup.gameId]) {
+          blurbs[matchup.gameId] = generateMatchupBlurb(matchup, round);
+        }
+      }
+    } else {
+      // Full template fallback
+      console.log('Using template blurbs (AI unavailable)');
+      for (const matchup of matchups) {
+        if (!matchup.isTBD) {
+          blurbs[matchup.gameId] = generateMatchupBlurb(matchup, round);
+        }
+      }
+    }
 
     // Get round date from first game
     const roundDate = roundGames[0]?.date || null;
@@ -445,6 +615,7 @@ export default async (request) => {
       totalMatchups: matchups.length,
       matchups,
       blurbs,
+      blurbSource: aiBlurbs ? 'ai' : 'template',
       warnings,
       seeds: seeds.map(s => ({
         seed: s.seed,
