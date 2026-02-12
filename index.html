@@ -3033,11 +3033,15 @@
       try {
         const response = await fetch('/.netlify/functions/get-rpi?sport=basketball');
         const data = await response.json();
+        console.log('[Ball603] RPI data loaded:', data);
         
         if (data.rankings && data.rankings.length > 0) {
           allRpiData = data.rankings;
+          console.log('[Ball603] RPI rankings count:', allRpiData.length);
+          console.log('[Ball603] Sample RPI entry:', allRpiData[0]);
           renderRpiData();
         } else {
+          console.log('[Ball603] No RPI rankings in response');
           const emptyHtml = '<div class="standings-empty">No RPI data available</div>';
           container.innerHTML = emptyHtml;
           if (mobileContainer) mobileContainer.innerHTML = emptyHtml;
@@ -3057,15 +3061,16 @@
       const container = document.getElementById('standingsMini');
       const mobileContainer = document.getElementById('standingsMiniMobile');
       
-      // Map division format (D-I -> D1, etc.)
-      const divisionMap = { 'D-I': 'D1', 'D-II': 'D2', 'D-III': 'D3', 'D-IV': 'D4' };
-      const rpiDivision = divisionMap[standingsDivision] || standingsDivision;
+      console.log('[Ball603] Rendering RPI for:', standingsGender, standingsDivision);
+      console.log('[Ball603] Total RPI entries:', allRpiData.length);
       
-      // Filter RPI by gender and division
+      // Filter RPI by gender and division (RPI uses same D-I format as standings)
       const filtered = allRpiData.filter(r => 
         r.gender === standingsGender && 
-        r.division === rpiDivision
+        r.division === standingsDivision
       );
+      
+      console.log('[Ball603] Filtered RPI count:', filtered.length);
       
       if (filtered.length === 0) {
         const emptyHtml = '<div class="standings-empty">No RPI data available</div>';
