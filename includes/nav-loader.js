@@ -954,8 +954,9 @@
   // ===== PULL TO REFRESH (PWA) =====
   
   function initPullToRefresh() {
-    // Only enable on touch devices
-    if (!('ontouchstart' in window)) return;
+    // Only enable in PWA standalone mode on touch devices
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    if (!('ontouchstart' in window) || !isStandalone) return;
     
     let touchStartY = 0;
     let touchCurrentY = 0;
@@ -1004,6 +1005,11 @@
     document.head.appendChild(style);
     
     document.addEventListener('touchstart', (e) => {
+      // Don't activate if touching bottom 80px (bottom-nav area)
+      const touchY = e.touches[0].clientY;
+      const windowHeight = window.innerHeight;
+      if (touchY > windowHeight - 80) return;
+      
       if (window.scrollY <= 0) {
         touchStartY = e.touches[0].clientY;
         isPulling = true;
