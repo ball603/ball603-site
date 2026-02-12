@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Ball603 Team Page Multi-Sport v256 - Roster sport support added -->
+<!-- Ball603 Team Page Multi-Sport v293 - Article filter checks sport field OR tags -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -1510,15 +1510,21 @@
           const articleSportTags = normalizedTags.filter(t => sportTags.includes(t));
           const articleTeamTags = normalizedTags.filter(t => !sportTags.includes(t) && t !== 'allnhiaa');
           
-          // Rule 2: Sport tag only (no team tags) → show on all pages for that sport
-          if (articleSportTags.length > 0 && articleTeamTags.length === 0) {
-            return articleSportTags.includes(currentSportTag) || currentSport === 'all';
+          // Get effective sport from EITHER tags OR sport DB field
+          const articleSportField = (a.sport || '').toLowerCase();
+          const effectiveSportTags = articleSportField && !articleSportTags.includes(articleSportField) 
+            ? [...articleSportTags, articleSportField] 
+            : articleSportTags;
+          
+          // Rule 2: Sport tag/field only (no team tags) → show on all pages for that sport
+          if (effectiveSportTags.length > 0 && articleTeamTags.length === 0) {
+            return effectiveSportTags.includes(currentSportTag) || currentSport === 'all';
           }
           
-          // Rule 3: Has sport tag + team tag → show on that team's page for matching sport
-          if (articleSportTags.length > 0 && articleTeamTags.length > 0) {
+          // Rule 3: Has sport tag/field + team tag → show on that team's page for matching sport
+          if (effectiveSportTags.length > 0 && articleTeamTags.length > 0) {
             const hasThisTeam = articleTeamTags.some(t => teamTagVariations.includes(t));
-            const hasThisSport = articleSportTags.includes(currentSportTag) || currentSport === 'all';
+            const hasThisSport = effectiveSportTags.includes(currentSportTag) || currentSport === 'all';
             return hasThisTeam && hasThisSport;
           }
           
