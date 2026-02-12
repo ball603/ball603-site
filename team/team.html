@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Ball603 Team Page Multi-Sport v301 - Multi-sport sponsor support -->
+<!-- Ball603 Team Page Multi-Sport v302 - Multiple sponsors on All Sports view -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -512,7 +512,7 @@
       scorers1K: [],
       ncaaPlayers: [],
       galleries: [],
-      sponsor: null
+      sponsors: []
     };
 
     // ===== SLUG & FILENAME UTILITIES =====
@@ -1597,31 +1597,44 @@
           .eq('active', true);
         
         if (!error && sponsors && sponsors.length > 0) {
-          // Filter sponsors that include the current sport in their comma-separated list
-          const matchingSponsors = sponsors.filter(s => {
-            const sportList = (s.sport || 'basketball').split(',');
-            return currentSport === 'all' || sportList.includes(currentSport);
-          });
-          
-          if (matchingSponsors.length > 0) {
-            // Prefer sport-specific sponsor (one that lists fewer sports) over general sponsors
-            matchingSponsors.sort((a, b) => (a.sport || '').split(',').length - (b.sport || '').split(',').length);
-            const sponsor = matchingSponsors[0];
-            teamData.sponsor = sponsor;
-            renderSponsor(sponsor);
+          if (currentSport === 'all') {
+            // All Sports view: show all unique sponsors (deduplicated by id)
+            const uniqueSponsors = [...new Map(sponsors.map(s => [s.id, s])).values()];
+            teamData.sponsors = uniqueSponsors;
+            renderSponsors(uniqueSponsors);
+          } else {
+            // Sport-specific view: filter sponsors that include the current sport
+            const matchingSponsors = sponsors.filter(s => {
+              const sportList = (s.sport || 'basketball').split(',');
+              return sportList.includes(currentSport);
+            });
+            
+            if (matchingSponsors.length > 0) {
+              // Prefer sport-specific sponsor (one that lists fewer sports) over general sponsors
+              matchingSponsors.sort((a, b) => (a.sport || '').split(',').length - (b.sport || '').split(',').length);
+              teamData.sponsors = [matchingSponsors[0]];
+              renderSponsors([matchingSponsors[0]]);
+            }
           }
         }
       } catch (err) { /* Fallback shown */ }
     }
 
-    function renderSponsor(sponsor) {
-      if (!sponsor || !TEAM_CONFIG) return;
+    function renderSponsors(sponsors) {
+      if (!sponsors || sponsors.length === 0 || !TEAM_CONFIG) return;
+      
       const sportLabel = currentSport === 'all' ? '' : ` ${currentSport.toUpperCase()}`;
-      document.getElementById('sponsorBox').innerHTML = `
-        <div class="sponsor-header">${TEAM_CONFIG.shortname.toUpperCase()}${sportLabel} COVERAGE PRESENTED BY</div>
-        <a href="${sponsor.url || '#'}" class="sponsor-link" ${sponsor.url ? 'target="_blank"' : ''}>
+      const plural = sponsors.length > 1 ? 'S' : '';
+      
+      const sponsorLogos = sponsors.map(sponsor => `
+        <a href="${sponsor.url || '#'}" class="sponsor-link" ${sponsor.url ? 'target="_blank"' : ''} title="${sponsor.name}">
           <img src="${sponsor.logo_url}" alt="${sponsor.name}" class="sponsor-logo-img">
         </a>
+      `).join('');
+      
+      document.getElementById('sponsorBox').innerHTML = `
+        <div class="sponsor-header">${TEAM_CONFIG.shortname.toUpperCase()}${sportLabel} COVERAGE PRESENTED BY</div>
+        <div class="sponsor-logos-grid">${sponsorLogos}</div>
       `;
     }
 
