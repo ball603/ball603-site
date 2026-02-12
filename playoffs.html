@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- Ball603 Playoffs Page v294 - Team names are now clickable links -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -337,6 +338,16 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+    
+    a.team-name {
+      text-decoration: none;
+      color: var(--text-primary);
+    }
+    
+    a.team-name:hover {
+      color: #f57c00;
+      text-decoration: underline;
     }
     
     .team-score {
@@ -1121,7 +1132,7 @@
               <div class="matchup-team">
                 <span class="team-seed">#${game.home_seed}</span>
                 <img src="/logos/100px/${getLogoFilename(game.home_team)}" class="team-logo" onerror="this.style.display='none'" alt="">
-                <span class="team-name">${game.home_team}</span>
+                ${getTeamNameHtml(game.home_team)}
               </div>
               <div class="matchup-footer">
                 <span>BYE</span>
@@ -1154,13 +1165,13 @@
             <div class="matchup-team ${awayClass}">
               <span class="team-seed">#${game.away_seed || '?'}</span>
               <img src="/logos/100px/${getLogoFilename(game.away_team)}" class="team-logo" onerror="this.style.display='none'" alt="">
-              <span class="team-name">${game.away_team || 'TBD'}</span>
+              ${getTeamNameHtml(game.away_team)}
               <span class="team-score">${hasScore ? game.away_score : ''}</span>
             </div>
             <div class="matchup-team ${homeClass}">
               <span class="team-seed">#${game.home_seed || '?'}</span>
               <img src="/logos/100px/${getLogoFilename(game.home_team)}" class="team-logo" onerror="this.style.display='none'" alt="">
-              <span class="team-name">${game.home_team || 'TBD'}</span>
+              ${getTeamNameHtml(game.home_team)}
               <span class="team-score">${hasScore ? game.home_score : ''}</span>
             </div>
             <div class="matchup-footer">
@@ -1328,6 +1339,19 @@
       const lower = teamName.toLowerCase().trim();
       if (specialCases[lower]) return specialCases[lower] + '.png';
       return teamName.split(/[\s-]+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join('') + '.png';
+    }
+    
+    // Team slug helper
+    function getTeamSlug(teamName) {
+      if (!teamName || teamName === 'TBD') return null;
+      return teamName.toLowerCase().replace(/[^a-z0-9]+/g, '');
+    }
+    
+    // Team link helper - returns linked name or plain span
+    function getTeamNameHtml(teamName) {
+      const slug = getTeamSlug(teamName);
+      if (!slug) return `<span class="team-name">${teamName || 'TBD'}</span>`;
+      return `<a class="team-name" href="/${slug}/basketball">${teamName}</a>`;
     }
   </script>
 </body>
