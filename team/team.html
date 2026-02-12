@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Ball603 Team Page Multi-Sport v296 - Fixed championship/NCAA sport filtering -->
+<!-- Ball603 Team Page Multi-Sport v300 - Sponsor sport filtering -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -1589,15 +1589,29 @@
     async function loadSponsor() {
       if (!TEAM_CONFIG) return;
       try {
-        const { data: sponsor, error } = await db.from('sponsors').select('*').eq('team_shortname', TEAM_CONFIG.shortname).eq('active', true).single();
-        if (!error && sponsor) { teamData.sponsor = sponsor; renderSponsor(sponsor); }
+        // Query sponsors for this team that match the current sport or 'all' sports
+        const { data: sponsors, error } = await db
+          .from('sponsors')
+          .select('*')
+          .eq('team_shortname', TEAM_CONFIG.shortname)
+          .eq('active', true)
+          .or(`sport.eq.${currentSport},sport.eq.all`);
+        
+        if (!error && sponsors && sponsors.length > 0) {
+          // Prefer sport-specific sponsor over 'all' sponsor
+          const sportSpecific = sponsors.find(s => s.sport === currentSport);
+          const sponsor = sportSpecific || sponsors[0];
+          teamData.sponsor = sponsor;
+          renderSponsor(sponsor);
+        }
       } catch (err) { /* Fallback shown */ }
     }
 
     function renderSponsor(sponsor) {
       if (!sponsor || !TEAM_CONFIG) return;
+      const sportLabel = currentSport === 'all' ? '' : ` ${currentSport.toUpperCase()}`;
       document.getElementById('sponsorBox').innerHTML = `
-        <div class="sponsor-header">${TEAM_CONFIG.shortname.toUpperCase()} COVERAGE PRESENTED BY</div>
+        <div class="sponsor-header">${TEAM_CONFIG.shortname.toUpperCase()}${sportLabel} COVERAGE PRESENTED BY</div>
         <a href="${sponsor.url || '#'}" class="sponsor-link" ${sponsor.url ? 'target="_blank"' : ''}>
           <img src="${sponsor.logo_url}" alt="${sponsor.name}" class="sponsor-logo-img">
         </a>
