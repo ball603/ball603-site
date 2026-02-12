@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Ball603 Schedule Page v308 - Sport filter reads from URL param -->
+<!-- Ball603 Schedule Page v309 - TeamUtils integration for consistent team name/logo handling -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -707,6 +707,7 @@
   <div id="site-header"></div>
   <div id="mobile-menu"></div>
   <script src="/includes/nav-loader.js"></script>
+  <script src="/js/team-utils.js"></script>
 
   <main class="schedule-main">
     <!-- Desktop Controls (single row) -->
@@ -938,6 +939,11 @@
 
     function getLogoFilename(team) {
       if (!team) return 'Ball603-white.png';
+      // Use TeamUtils if initialized, otherwise fallback
+      if (typeof TeamUtils !== 'undefined' && TeamUtils.isInitialized()) {
+        return TeamUtils.getLogoFilename(team);
+      }
+      // Fallback for before initialization
       return team.replace(/[^a-zA-Z0-9]/g, '') + '.png';
     }
 
@@ -980,6 +986,11 @@
 
     function normalizeTeamName(name) {
       if (!name) return name;
+      // Use TeamUtils if initialized
+      if (typeof TeamUtils !== 'undefined' && TeamUtils.isInitialized()) {
+        return TeamUtils.getDisplayName(name);
+      }
+      // Fallback: hardcoded mappings
       const n = {'Alvirne High School':'Alvirne','Bedford High School':'Bedford','Belmont High School':'Belmont','Bishop Brady High School':'Bishop Brady','Bishop Guertin High School':'Bishop Guertin','Bow High School':'Bow','Campbell High School':'Campbell','Coe-Brown Northwood Academy':'Coe-Brown','Concord High School':'Concord','Concord Christian Academy':'Concord Christian','ConVal Regional High School':'ConVal','Derryfield School':'Derryfield','Dover High School':'Dover','Exeter High School':'Exeter','Farmington High School':'Farmington','Gilford High School':'Gilford','Goffstown High School':'Goffstown','Hanover High School':'Hanover','Hollis-Brookline High School':'Hollis-Brookline','Keene High School':'Keene','Kennett High School':'Kennett','Kingswood Regional High School':'Kingswood','Laconia High School':'Laconia','Lebanon High School':'Lebanon','Londonderry High School':'Londonderry','Manchester Central High School':'Manchester Central','Manchester Memorial High School':'Manchester Memorial','Manchester West High School':'Manchester West','Merrimack High School':'Merrimack','Milford High School':'Milford','Nashua High School North':'Nashua North','Nashua High School South':'Nashua South','Oyster River High School':'Oyster River','Pelham High School':'Pelham','Pembroke Academy':'Pembroke','Pinkerton Academy':'Pinkerton','Plymouth Regional High School':'Plymouth','Portsmouth High School':'Portsmouth','Salem High School':'Salem','Souhegan High School':'Souhegan','Spaulding High School':'Spaulding','St. Thomas Aquinas High School':'St. Thomas Aquinas','Timberlane Regional High School':'Timberlane','Trinity High School':'Trinity','Windham High School':'Windham','Winnacunnet High School':'Winnacunnet','Mascoma Valley':'Mascoma'};
       return n[name] || name;
     }
@@ -987,104 +998,13 @@
     function getTeamSlug(teamName) {
       if (!teamName || teamName === 'TBD') return null;
       
-      // Explicit mapping from team shortnames to URL slugs (based on _redirects)
-      const slugMap = {
-        'alvirne': 'alvirne',
-        'bedford': 'bedford',
-        'belmont': 'belmont',
-        'berlin': 'berlin',
-        'bishop brady': 'bishopbrady',
-        'bishop guertin': 'bishopguertin',
-        'bow': 'bow',
-        'campbell': 'campbell',
-        'canaan': 'canaan',
-        'central west': 'centralwest',
-        'coe-brown': 'coebrown',
-        'colebrook': 'colebrook',
-        'conant': 'conant',
-        'concord': 'concord',
-        'concord christian': 'concordchristian',
-        'conval': 'conval',
-        'derryfield': 'derryfield',
-        'dover': 'dover',
-        'epping': 'epping',
-        'exeter': 'exeter',
-        'fall mountain': 'fallmountain',
-        'farmington': 'farmington',
-        'franklin': 'franklin',
-        'gilford': 'gilford',
-        'goffstown': 'goffstown',
-        'gorham': 'gorham',
-        'groveton': 'groveton',
-        'hanover': 'hanover',
-        'hillsboro-deering': 'hillsborodeering',
-        'hinsdale': 'hinsdale',
-        'hollis-brookline': 'hollisbrookline',
-        'holy family': 'holyfamily',
-        'hopkinton': 'hopkinton',
-        'inter-lakes': 'interlakes',
-        'john stark': 'johnstark',
-        'kearsarge': 'kearsarge',
-        'keene': 'keene',
-        'kennett': 'kennett',
-        'kingswood': 'kingswood',
-        'laconia': 'laconia',
-        'lebanon': 'lebanon',
-        'lin-wood': 'linwood',
-        'lisbon': 'lisbon',
-        'littleton': 'littleton',
-        'londonderry': 'londonderry',
-        'manchester central': 'manchestercentral',
-        'manchester memorial': 'manchestermemorial',
-        'manchester west': 'manchesterwest',
-        'mascenic': 'mascenic',
-        'mascoma': 'mascoma',
-        'mascoma valley': 'mascoma',
-        'merrimack': 'merrimack',
-        'merrimack valley': 'merrimackvalley',
-        'milford': 'milford',
-        'monadnock': 'monadnock',
-        'moultonborough': 'moultonborough',
-        'mount royal': 'mountroyal',
-        'nashua north': 'nashuanorth',
-        'nashua south': 'nashuasouth',
-        'newfound': 'newfound',
-        'newmarket': 'newmarket',
-        'newport': 'newport',
-        'nute': 'nute',
-        'oyster river': 'oysterriver',
-        'pelham': 'pelham',
-        'pembroke': 'pembroke',
-        'pinkerton': 'pinkerton',
-        'pittsburg': 'pittsburg',
-        'pittsburg-canaan': 'pittsburgcanaan',
-        'pittsfield': 'pittsfield',
-        'plymouth': 'plymouth',
-        'portsmouth': 'portsmouth',
-        'portsmouth christian': 'portsmouthchristian',
-        'profile': 'profile',
-        'prospect mountain': 'prospectmountain',
-        'raymond': 'raymond',
-        'salem': 'salem',
-        'sanborn': 'sanborn',
-        'somersworth': 'somersworth',
-        'souhegan': 'souhegan',
-        'spaulding': 'spaulding',
-        'stevens': 'stevens',
-        'st. thomas aquinas': 'stthomasaquinas',
-        'sunapee': 'sunapee',
-        'timberlane': 'timberlane',
-        'trinity': 'trinity',
-        'white mountains': 'whitemountains',
-        'wilton-lyndeborough': 'wiltonlyndeborough',
-        'windham': 'windham',
-        'winnacunnet': 'winnacunnet',
-        'winnisquam': 'winnisquam',
-        'woodsville': 'woodsville'
-      };
+      // Use TeamUtils if initialized
+      if (typeof TeamUtils !== 'undefined' && TeamUtils.isInitialized()) {
+        return TeamUtils.getSlug(teamName);
+      }
       
-      const normalized = teamName.toLowerCase().trim();
-      return slugMap[normalized] || null;
+      // Fallback: basic slug generation (strip non-alphanumeric, lowercase)
+      return teamName.toLowerCase().replace(/[^a-z0-9]/g, '') || null;
     }
 
     function isCollegeGame(level) {
@@ -1263,7 +1183,23 @@
     function selectDate(y,m,d) { currentDate = new Date(y,m,d); currentDate.setHours(0,0,0,0); updateDateDisplay(); document.getElementById('calendarOverlay').classList.remove('show'); }
 
     updateDateDisplay();
-    loadGames();
+    
+    // Initialize TeamUtils with teams data, then load games
+    (async function initAndLoad() {
+      try {
+        const teamsResponse = await fetch('/.netlify/functions/teams?active=true');
+        if (teamsResponse.ok) {
+          const teamsData = await teamsResponse.json();
+          if (teamsData.teams && teamsData.teams.length > 0) {
+            TeamUtils.init(teamsData.teams);
+          }
+        }
+      } catch (err) {
+        console.warn('Could not load teams for TeamUtils:', err);
+      }
+      // Load games regardless of whether TeamUtils initialized
+      loadGames();
+    })();
   </script>
 </body>
 </html>
