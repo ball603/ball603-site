@@ -2813,7 +2813,30 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         </div>
       </div>
       
-      <p style="color: #666; margin-bottom: 20px;">Your article has been published! Edit posts, add images, select collaborators, and send to socials.</p>
+      <p style="color: #666; margin-bottom: 20px;">Your article has been published! Edit posts, add images, and send to socials.</p>
+      
+      <!-- Scheduling (moved to top) -->
+      <div style="margin-bottom: 20px; padding: 15px; background: #e8f5e9; border-radius: 8px; border: 1px solid #4caf50;">
+        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2e7d32;">🕐 When to Post</label>
+        
+        <div style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap;">
+          <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+            <input type="radio" name="socialSchedule" value="now" checked onchange="toggleSchedulePicker()">
+            <span>Post Now</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+            <input type="radio" name="socialSchedule" value="scheduled" onchange="toggleSchedulePicker()">
+            <span>Schedule for Later</span>
+          </label>
+          
+          <div id="schedulePicker" style="display: none; margin-left: auto;">
+            <input type="datetime-local" id="socialScheduleTime" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;">
+          </div>
+        </div>
+      </div>
+      
+      <!-- Send Status (moved to top) -->
+      <div id="socialSendStatus" style="display: none; margin-bottom: 15px; padding: 12px; border-radius: 8px;"></div>
       
       <!-- Image Upload Zone -->
       <div style="margin-bottom: 20px; padding: 15px; background: #f0f7ff; border-radius: 8px; border: 1px solid #1877f2;">
@@ -2851,48 +2874,12 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         </div>
       </div>
       
-      <!-- Contributors to Tag -->
-      <div style="margin-bottom: 20px; padding: 15px; background: #f3e5f5; border-radius: 8px; border: 1px solid #9c27b0;">
-        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #7b1fa2;">👥 Contributors (IG Collaborator + FB Tag)</label>
-        
-        <!-- Selected Contributors -->
-        <div id="socialContributorsList" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; min-height: 36px;">
-          <span style="color: #888; font-size: 13px; padding: 8px;" id="noContributorsMsg">No contributors selected</span>
-        </div>
-        
-        <!-- Add Contributor Dropdown -->
-        <div style="display: flex; gap: 10px; align-items: center;">
-          <select id="socialContributorSelect" style="flex: 1; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;">
-            <option value="">+ Add contributor...</option>
-          </select>
-          <button onclick="addSocialContributor()" style="background: #9c27b0; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px;">Add</button>
-        </div>
-        
-        <p style="margin: 10px 0 0; font-size: 11px; color: #666;">ℹ️ Photographer from article auto-added. Contributors need IG User ID for collaborator invite, FB Page ID for tagging.</p>
+      <!-- Contributors (hidden but needed for JS) -->
+      <div style="display: none;">
+        <div id="socialContributorsList"></div>
+        <select id="socialContributorSelect"><option value="">+ Add contributor...</option></select>
+        <span id="noContributorsMsg"></span>
       </div>
-      
-      <!-- Scheduling -->
-      <div style="margin-bottom: 20px; padding: 15px; background: #e8f5e9; border-radius: 8px; border: 1px solid #4caf50;">
-        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2e7d32;">🕐 When to Post</label>
-        
-        <div style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap;">
-          <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
-            <input type="radio" name="socialSchedule" value="now" checked onchange="toggleSchedulePicker()">
-            <span>Post Now</span>
-          </label>
-          <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
-            <input type="radio" name="socialSchedule" value="scheduled" onchange="toggleSchedulePicker()">
-            <span>Schedule for Later</span>
-          </label>
-          
-          <div id="schedulePicker" style="display: none; margin-left: auto;">
-            <input type="datetime-local" id="socialScheduleTime" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;">
-          </div>
-        </div>
-      </div>
-      
-      <!-- Send Status -->
-      <div id="socialSendStatus" style="display: none; margin-bottom: 15px; padding: 12px; border-radius: 8px;"></div>
       
       <!-- Post Content Grid -->
       <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
@@ -8599,10 +8586,36 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       // Initialize social publishing panel (images, contributors, etc.)
       await initSocialPublishingPanel();
       
+      // Get the article URL
+      const articleUrl = currentArticle?.slug ? `https://ball603.com/article/${currentArticle.slug}` : '';
+      
+      // Helper to fix duplicate basketball emoji at start (🏀 🏀 -> 🏀)
+      const fixDuplicateBasketball = (text) => {
+        if (text.startsWith('🏀 🏀')) {
+          return text.replace('🏀 🏀', '🏀'); // Replace double with single
+        }
+        return text;
+      };
+      
       // Populate the textareas
-      const fbPost = generatedSocialPosts.facebookPost || '';
-      const igPost = generatedSocialPosts.instagramPost || '';
-      const twPost = generatedSocialPosts.twitterPost || '';
+      let fbPost = generatedSocialPosts.facebookPost || '';
+      let igPost = generatedSocialPosts.instagramPost || '';
+      let twPost = generatedSocialPosts.twitterPost || '';
+      
+      // Fix duplicate basketball emojis in all posts
+      fbPost = fixDuplicateBasketball(fbPost);
+      igPost = fixDuplicateBasketball(igPost);
+      twPost = fixDuplicateBasketball(twPost);
+      
+      // Auto-append article link to Facebook and Twitter (not IG since links don't work there)
+      if (articleUrl) {
+        if (fbPost && !fbPost.includes(articleUrl)) {
+          fbPost = fbPost + `\n\n🔗 ${articleUrl}`;
+        }
+        if (twPost && !twPost.includes(articleUrl)) {
+          twPost = twPost + `\n\n🔗 ${articleUrl}`;
+        }
+      }
       
       document.getElementById('socialFacebookPost').value = fbPost;
       document.getElementById('socialInstagramPost').value = igPost;
