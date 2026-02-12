@@ -2206,13 +2206,21 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             </select>
           </div>
           <div class="form-group">
-            <label>Sport *</label>
-            <select id="sponsorSport" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
-              <option value="basketball">🏀 Basketball</option>
-              <option value="baseball">⚾ Baseball</option>
-              <option value="volleyball">🏐 Volleyball</option>
-              <option value="all">All Sports</option>
-            </select>
+            <label>Sports *</label>
+            <div id="sponsorSportsCheckboxes" style="display: flex; flex-wrap: wrap; gap: 12px; padding: 8px 0;">
+              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                <input type="checkbox" name="sponsorSport" value="basketball" style="width: 16px; height: 16px;">
+                <span>🏀 Basketball</span>
+              </label>
+              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                <input type="checkbox" name="sponsorSport" value="baseball" style="width: 16px; height: 16px;">
+                <span>⚾ Baseball</span>
+              </label>
+              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                <input type="checkbox" name="sponsorSport" value="volleyball" style="width: 16px; height: 16px;">
+                <span>🏐 Volleyball</span>
+              </label>
+            </div>
           </div>
         </div>
         
@@ -18591,8 +18599,6 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         );
       }
       
-      const sportEmoji = { basketball: '🏀', baseball: '⚾', volleyball: '🏐', all: '🌐' };
-      
       if (filtered.length === 0) {
         container.innerHTML = `
           <div class="article-row header" style="grid-template-columns: 80px 1fr 150px 100px 100px 100px 100px;">
@@ -18610,6 +18616,13 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         `;
         return;
       }
+      
+      // Helper to convert sports string to emojis
+      const getSportEmojis = (sportStr) => {
+        const sportEmoji = { basketball: '🏀', baseball: '⚾', volleyball: '🏐' };
+        if (!sportStr) return '🏀';
+        return sportStr.split(',').map(s => sportEmoji[s] || s).join(' ');
+      };
       
       container.innerHTML = `
         <div class="article-row header" style="grid-template-columns: 80px 1fr 150px 100px 100px 100px 100px;">
@@ -18631,7 +18644,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
               ${sponsor.url ? `<div style="font-size: 11px; color: #888;"><a href="${sponsor.url}" target="_blank">${sponsor.url.replace('https://', '').substring(0, 30)}...</a></div>` : ''}
             </div>
             <div style="font-size: 13px;">${sponsor.team_shortname}</div>
-            <div style="font-size: 13px;">${sportEmoji[sponsor.sport] || ''} ${sponsor.sport || 'basketball'}</div>
+            <div style="font-size: 13px;">${getSportEmojis(sponsor.sport)}</div>
             <div><span style="font-size: 11px; padding: 3px 8px; border-radius: 10px; background: ${sponsor.tier === 'premium' ? '#fff3e0' : sponsor.tier === 'presenting' ? '#e8f5e9' : '#f5f5f5'}; color: ${sponsor.tier === 'premium' ? '#e65100' : sponsor.tier === 'presenting' ? '#2e7d32' : '#666'};">${sponsor.tier || 'standard'}</span></div>
             <div><span class="article-status ${sponsor.active ? 'published' : 'draft'}">${sponsor.active ? 'Active' : 'Inactive'}</span></div>
             <div class="article-actions">
@@ -18665,7 +18678,13 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         document.getElementById('sponsorLogoUrl').value = sponsor.logo_url || '';
         document.getElementById('sponsorWebsite').value = sponsor.url || '';
         document.getElementById('sponsorTeam').value = sponsor.team_shortname || '';
-        document.getElementById('sponsorSport').value = sponsor.sport || 'basketball';
+        
+        // Set sport checkboxes
+        const sports = (sponsor.sport || 'basketball').split(',');
+        document.querySelectorAll('input[name="sponsorSport"]').forEach(cb => {
+          cb.checked = sports.includes(cb.value);
+        });
+        
         document.getElementById('sponsorTier').value = sponsor.tier || 'standard';
         document.getElementById('sponsorStartDate').value = sponsor.start_date || '';
         document.getElementById('sponsorEndDate').value = sponsor.end_date || '';
@@ -18685,7 +18704,12 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         document.getElementById('sponsorLogoUrl').value = '';
         document.getElementById('sponsorWebsite').value = '';
         document.getElementById('sponsorTeam').value = '';
-        document.getElementById('sponsorSport').value = 'basketball';
+        
+        // Default to basketball checked
+        document.querySelectorAll('input[name="sponsorSport"]').forEach(cb => {
+          cb.checked = cb.value === 'basketball';
+        });
+        
         document.getElementById('sponsorTier').value = 'standard';
         document.getElementById('sponsorStartDate').value = '';
         document.getElementById('sponsorEndDate').value = '';
@@ -18712,7 +18736,12 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const logoUrl = document.getElementById('sponsorLogoUrl').value.trim();
       const website = document.getElementById('sponsorWebsite').value.trim();
       const team = document.getElementById('sponsorTeam').value;
-      const sport = document.getElementById('sponsorSport').value;
+      
+      // Collect checked sports
+      const checkedSports = Array.from(document.querySelectorAll('input[name="sponsorSport"]:checked'))
+        .map(cb => cb.value);
+      const sport = checkedSports.length > 0 ? checkedSports.join(',') : '';
+      
       const tier = document.getElementById('sponsorTier').value;
       const startDate = document.getElementById('sponsorStartDate').value || null;
       const endDate = document.getElementById('sponsorEndDate').value || null;
@@ -18720,7 +18749,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const active = document.getElementById('sponsorActive').checked;
       
       if (!name || !logoUrl || !team || !sport) {
-        showToast('Please fill in Name, Logo URL, Team, and Sport', 'error');
+        showToast('Please fill in Name, Logo URL, Team, and at least one Sport', 'error');
         return;
       }
       
