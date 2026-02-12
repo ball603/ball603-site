@@ -23368,9 +23368,13 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       let html = '';
       
       // Round header
+      const blurbSourceLabel = data.blurbSource === 'ai' 
+        ? '<span style="background: #1b5e20; color: #a5d6a7; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin-left: 10px;">✨ AI Blurbs</span>'
+        : '<span style="background: #4a3000; color: #ffb74d; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin-left: 10px;">📝 Template Blurbs</span>';
+      
       html += `
         <div class="playoff-round-header">
-          <h3>${data.gender} ${data.division} ${data.round}</h3>
+          <h3>${data.gender} ${data.division} ${data.round} ${blurbSourceLabel}</h3>
           <div class="round-meta">${data.roundDateFormatted} — ${data.roundLocation}</div>
         </div>
       `;
@@ -23472,8 +23476,22 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           html += `</div>`;
         }
         
-        // Playoff history (from tournament_brackets if available in client)
-        html += `<div id="playoffHistory_${matchup.gameId}" class="playoff-history-section" style="display: none;"></div>`;
+        // Playoff history (from API or client-side fallback)
+        let historyHtml = '';
+        if (matchup.playoffHistory && matchup.playoffHistory.length > 0) {
+          historyHtml = `
+            <div class="playoff-history-section" style="display: block;">
+              <div class="history-title">🏆 Playoff History</div>
+              ${matchup.playoffHistory.sort((a, b) => b.year - a.year).map(h =>
+                `<div class="history-entry">${h.year}: ${h.winner} ${h.winnerScore || ''}-${h.loserScore || ''} ${h.loser} (${h.round})</div>`
+              ).join('')}
+            </div>
+          `;
+        } else {
+          historyHtml = `<div id="playoffHistory_${matchup.gameId}" class="playoff-history-section" style="display: none;"></div>`;
+        }
+        
+        html += historyHtml;
         
         // Watch link
         html += `
