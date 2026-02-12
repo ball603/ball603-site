@@ -925,4 +925,106 @@
     });
   }
 
+  // ===== PULL TO REFRESH (PWA) =====
+  
+  function initPullToRefresh() {
+    // Only enable on touch devices
+    if (!('ontouchstart' in window)) return;
+    
+    let touchStartY = 0;
+    let touchCurrentY = 0;
+    let isPulling = false;
+    const threshold = 80;
+    
+    // Create pull indicator element
+    const indicator = document.createElement('div');
+    indicator.id = 'pull-refresh-indicator';
+    indicator.innerHTML = '<div class="pull-refresh-spinner"></div><span>Release to refresh</span>';
+    indicator.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 0;
+      background: linear-gradient(135deg, #f57c00 0%, #ef6c00 100%);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      overflow: hidden;
+      z-index: 99999;
+      transition: height 0.2s ease;
+    `;
+    document.body.appendChild(indicator);
+    
+    // Add spinner CSS
+    const style = document.createElement('style');
+    style.textContent = `
+      .pull-refresh-spinner {
+        width: 20px;
+        height: 20px;
+        border: 2px solid rgba(255,255,255,0.3);
+        border-top-color: white;
+        border-radius: 50%;
+        animation: pull-spin 0.8s linear infinite;
+      }
+      @keyframes pull-spin {
+        to { transform: rotate(360deg); }
+      }
+    `;
+    document.head.appendChild(style);
+    
+    document.addEventListener('touchstart', (e) => {
+      if (window.scrollY <= 0) {
+        touchStartY = e.touches[0].clientY;
+        isPulling = true;
+      }
+    }, { passive: true });
+    
+    document.addEventListener('touchmove', (e) => {
+      if (!isPulling || window.scrollY > 0) {
+        isPulling = false;
+        indicator.style.height = '0';
+        return;
+      }
+      
+      touchCurrentY = e.touches[0].clientY;
+      const pullDistance = touchCurrentY - touchStartY;
+      
+      if (pullDistance > 0) {
+        const height = Math.min(pullDistance * 0.5, 60);
+        indicator.style.height = height + 'px';
+        indicator.querySelector('span').textContent = pullDistance > threshold ? 'Release to refresh' : 'Pull down to refresh';
+      }
+    }, { passive: true });
+    
+    document.addEventListener('touchend', () => {
+      if (!isPulling) return;
+      
+      const pullDistance = touchCurrentY - touchStartY;
+      
+      if (pullDistance > threshold && window.scrollY <= 0) {
+        indicator.querySelector('span').textContent = 'Refreshing...';
+        indicator.style.height = '50px';
+        setTimeout(() => window.location.reload(), 300);
+      } else {
+        indicator.style.height = '0';
+      }
+      
+      isPulling = false;
+      touchStartY = 0;
+      touchCurrentY = 0;
+    }, { passive: true });
+  }
+  
+  // Initialize pull-to-refresh when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initPullToRefresh);
+  } else {
+    initPullToRefresh();
+  }
+
 })();
