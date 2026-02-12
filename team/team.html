@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Ball603 Team Page v307 - Opponent links include sport param -->
+<!-- Ball603 Team Page v308 - Fix sport button active state on page load -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -489,9 +489,7 @@
       window.history.pushState({}, '', url);
       
       // Update active button
-      document.querySelectorAll('.sport-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.sport === sport);
-      });
+      updateSportButtonState();
       
       // Reload content for new sport
       loadAllTeamContent();
@@ -500,6 +498,14 @@
     // Initialize sport on page load
     currentSport = getCurrentSport();
     console.log('[Ball603] Sport detected:', currentSport, '| URL:', window.location.href);
+    
+    // Update sport button active state
+    function updateSportButtonState() {
+      document.querySelectorAll('.sport-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.sport === currentSport);
+      });
+      console.log('[Ball603] Updated sport button state to:', currentSport);
+    }
 
     // ===== TEAM CONFIGURATION (built dynamically) =====
     let TEAM_CONFIG = null;
@@ -571,6 +577,7 @@
       ]);
       
       renderAll();
+      updateSportButtonState(); // Ensure button state is correct after content loads
     }
 
     document.addEventListener('DOMContentLoaded', async () => {
@@ -601,16 +608,8 @@
         btn.addEventListener('click', () => switchSport(btn.dataset.sport));
       });
       
-      // Set initial active button based on URL param or path
-      document.querySelectorAll('.sport-btn').forEach(btn => btn.classList.remove('active'));
-      const activeBtn = document.querySelector(`.sport-btn[data-sport="${currentSport}"]`);
-      if (activeBtn) {
-        activeBtn.classList.add('active');
-      } else {
-        // Fallback to 'all' if sport not found
-        document.querySelector('.sport-btn[data-sport="all"]')?.classList.add('active');
-      }
-      console.log('[Ball603] Setting active sport button:', currentSport);
+      // Set initial active button based on URL param
+      updateSportButtonState();
       
       await loadAllTeamContent();
     });
