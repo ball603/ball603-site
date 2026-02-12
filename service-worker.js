@@ -1,5 +1,5 @@
 // Ball603 Service Worker
-const CACHE_NAME = 'ball603-v4';
+const CACHE_NAME = 'ball603-v6';
 
 // Static assets to cache immediately on install
 const STATIC_ASSETS = [
@@ -43,7 +43,7 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch event - serve from cache, fall back to network
+// Fetch event - network first for HTML/JS, cache first for images/CSS
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
@@ -57,57 +57,61 @@ self.addEventListener('fetch', (event) => {
   // Skip API/function calls - always fetch fresh
   if (url.pathname.startsWith('/.netlify/')) return;
   
-  event.respondWith(
-    caches.match(request)
-      .then((cachedResponse) => {
-        // Return cached version if available
+  // Determine if this is HTML or JS (network-first) vs images/CSS (cache-first)
+  const isHtmlOrJs = request.headers.get('accept')?.includes('text/html') ||
+                     url.pathname.endsWith('.js') ||
+                     url.pathname.endsWith('.html') ||
+                     url.pathname === '/' ||
+                     !url.pathname.includes('.');
+  
+  if (isHtmlOrJs) {
+    // Network-first strategy for HTML/JS
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response.ok) {
+            const responseToCache = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, responseToCache));
+          }
+          return response;
+        })
+        .catch(() => {
+          // Network failed - try cache
+          return caches.match(request).then((cachedResponse) => {
+            if (cachedResponse) return cachedResponse;
+            // Show offline page for HTML requests
+            if (request.headers.get('accept')?.includes('text/html')) {
+              return caches.match('/offline.html');
+            }
+            return new Response('', { status: 503, statusText: 'Offline' });
+          });
+        })
+    );
+  } else {
+    // Cache-first strategy for images, CSS, etc.
+    event.respondWith(
+      caches.match(request).then((cachedResponse) => {
         if (cachedResponse) {
-          // Fetch fresh version in background for next time
+          // Update cache in background
           event.waitUntil(
-            fetch(request)
-              .then((response) => {
-                if (response.ok) {
-                  caches.open(CACHE_NAME)
-                    .then((cache) => cache.put(request, response));
-                }
-              })
-              .catch(() => {}) // Ignore errors for background fetch
+            fetch(request).then((response) => {
+              if (response.ok) {
+                caches.open(CACHE_NAME).then((cache) => cache.put(request, response));
+              }
+            }).catch(() => {})
           );
           return cachedResponse;
         }
         
         // Not in cache - fetch from network
-        return fetch(request)
-          .then((response) => {
-            // Don't cache non-successful responses
-            if (!response.ok) return response;
-            
-            // Clone response (can only be consumed once)
+        return fetch(request).then((response) => {
+          if (response.ok) {
             const responseToCache = response.clone();
-            
-            // Cache the fetched response for future
-            caches.open(CACHE_NAME)
-              .then((cache) => {
-                // Only cache HTML pages and static assets
-                const contentType = response.headers.get('content-type') || '';
-                if (contentType.includes('text/html') || 
-                    contentType.includes('text/css') ||
-                    contentType.includes('javascript') ||
-                    contentType.includes('image/')) {
-                  cache.put(request, responseToCache);
-                }
-              });
-            
-            return response;
-          })
-          .catch(() => {
-            // Network failed - show offline page for HTML requests
-            if (request.headers.get('accept')?.includes('text/html')) {
-              return caches.match('/offline.html');
-            }
-            // Return empty response for other failed requests
-            return new Response('', { status: 503, statusText: 'Offline' });
-          });
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, responseToCache));
+          }
+          return response;
+        }).catch(() => new Response('', { status: 503, statusText: 'Offline' }));
       })
-  );
+    );
+  }
 });
