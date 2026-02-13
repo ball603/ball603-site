@@ -298,32 +298,87 @@ export const handler = async (event) => {
       let albumKey = cachedAlbumKey || null;
       
       // Only do the lookup if we don't have a cached albumKey
-      if (!albumKey) {
-        // First, get the album info by URL path
-        const albumEndpoint = `/api/v2/album/ball603-${galleryPath}?_expand=HighlightImage`;
-        let albumResult = await smugmugRequest(albumEndpoint);
+      if (!albumKey && galleryPath) {
+        console.log('Looking up album for path:', galleryPath);
         
-        albumKey = albumResult?.Response?.Album?.AlbumKey;
-        
-        if (!albumKey) {
-          // Try searching for the album by name
-          const searchEndpoint = `/api/v2/user/ball603!albums?count=200&_expand=HighlightImage`;
-          const searchResult = await smugmugRequest(searchEndpoint);
-          const albums = searchResult?.Response?.Album || [];
+        // Method 1: SmugMug URL-based lookup (most reliable)
+        try {
+          const lookupEndpoint = `/api/v2!weburilookup?WebUri=https://ball603.smugmug.com/${galleryPath}`;
+          const lookupResult = await smugmugRequest(lookupEndpoint);
           
-          // Find album where URL contains the path
-          const matchingAlbum = albums.find(a => a.WebUri && a.WebUri.includes(galleryPath));
-          albumKey = matchingAlbum?.AlbumKey;
+          // The lookup returns the node/album at that URL
+          if (lookupResult?.Response?.Album?.AlbumKey) {
+            albumKey = lookupResult.Response.Album.AlbumKey;
+            console.log('Found album via URL lookup:', albumKey);
+          } else if (lookupResult?.Response?.Folder) {
+            // Sometimes returns as folder with albums inside
+            const albumUri = lookupResult.Response.Folder?.Uris?.Album?.Uri;
+            if (albumUri) {
+              const albumResult = await smugmugRequest(albumUri);
+              albumKey = albumResult?.Response?.Album?.AlbumKey;
+              console.log('Found album via folder lookup:', albumKey);
+            }
+          }
+        } catch (e) {
+          console.log('URL lookup failed:', e.message);
+        }
+        
+        // Method 2: Direct album key guess (legacy - works for some albums)
+        if (!albumKey) {
+          try {
+            const albumEndpoint = `/api/v2/album/ball603-${galleryPath}?_expand=HighlightImage`;
+            const albumResult = await smugmugRequest(albumEndpoint);
+            albumKey = albumResult?.Response?.Album?.AlbumKey;
+            if (albumKey) console.log('Found album via direct key:', albumKey);
+          } catch (e) {
+            console.log('Direct key lookup failed:', e.message);
+          }
+        }
+        
+        // Method 3: Search all user albums with pagination
+        if (!albumKey) {
+          try {
+            let start = 1;
+            const pageSize = 200;
+            let found = false;
+            
+            while (!found) {
+              const searchEndpoint = `/api/v2/user/ball603!albums?start=${start}&count=${pageSize}`;
+              const searchResult = await smugmugRequest(searchEndpoint);
+              const albums = searchResult?.Response?.Album || [];
+              
+              if (albums.length === 0) break;
+              
+              const matchingAlbum = albums.find(a => a.WebUri && a.WebUri.includes(galleryPath));
+              if (matchingAlbum) {
+                albumKey = matchingAlbum.AlbumKey;
+                console.log('Found album via paginated search:', albumKey, 'at page starting', start);
+                found = true;
+              }
+              
+              // If we got fewer than pageSize, we've seen all albums
+              if (albums.length < pageSize) break;
+              start += pageSize;
+              
+              // Safety limit — don't search more than 1000 albums
+              if (start > 1000) break;
+            }
+          } catch (e) {
+            console.log('Paginated search failed:', e.message);
+          }
         }
       }
       
       if (!albumKey) {
+        console.error('Album not found after all lookup methods. Path:', galleryPath);
         return {
           statusCode: 404,
           headers,
-          body: JSON.stringify({ error: 'Gallery not found', path: galleryPath })
+          body: JSON.stringify({ error: 'Gallery not found', path: galleryPath, methods: 'url-lookup, direct-key, paginated-search' })
         };
       }
+      
+      console.log('Fetching images for albumKey:', albumKey);
       
       // Now fetch images for this album
       const imagesEndpoint = `/api/v2/album/${albumKey}!images?count=500&_expand=ImageSizes`;
