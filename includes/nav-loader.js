@@ -23,9 +23,12 @@
             
             newWorker.addEventListener('statechange', () => {
               if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                // New content available, reload to get it
-                console.log('[PWA] New content available, reloading...');
-                window.location.reload();
+                // New content available, reload once
+                if (!sessionStorage.getItem('sw_reloaded')) {
+                  console.log('[PWA] New content available, reloading...');
+                  sessionStorage.setItem('sw_reloaded', '1');
+                  window.location.reload();
+                }
               }
             });
           });
@@ -35,11 +38,10 @@
         });
     });
     
-    // Also reload when the controlling service worker changes
-    let refreshing = false;
+    // Also reload when the controlling service worker changes (once per session)
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (!refreshing) {
-        refreshing = true;
+      if (!sessionStorage.getItem('sw_reloaded')) {
+        sessionStorage.setItem('sw_reloaded', '1');
         window.location.reload();
       }
     });
