@@ -695,7 +695,7 @@ async function migrateGameId(oldGame, newGameId) {
 async function getExistingGames() {
   // Fetch all NHIAA games from Supabase for this sport/season
   const response = await fetch(
-    `${SUPABASE_URL}/rest/v1/games?level=eq.NHIAA&sport=eq.${SPORT}&season=eq.${SEASON}&select=game_id,date,time,away_score,home_score,photog1,photog2,videog,writer,notes,original_date,schedule_changed,photos_url,recap_url,highlights_url,live_stream_url,game_description,special_event,original_time,manual_override`,
+    `${SUPABASE_URL}/rest/v1/games?level=eq.NHIAA&sport=eq.${SPORT}&season=eq.${SEASON}&select=game_id,date,time,home_team,away_team,gender,division,away_score,home_score,photog1,photog2,videog,writer,notes,original_date,schedule_changed,photos_url,recap_url,highlights_url,live_stream_url,game_description,special_event,original_time,manual_override`,
     {
       headers: {
         'apikey': SUPABASE_SERVICE_KEY,
@@ -726,6 +726,9 @@ async function updateSupabase(games) {
   const existingGames = await getExistingGames();
   console.log(`  Found ${Object.keys(existingGames).length} existing NHIAA games`);
   
+  // Build list of locked games for cross-checking duplicates
+  const lockedGames = Object.values(existingGames).filter(g => g.manual_override);
+  
   let changesDetected = 0;
   
   // Build upsert data, preserving assignments
@@ -736,6 +739,26 @@ async function updateSupabase(games) {
     if (existing.manual_override) {
       console.log(`  🔒 Skipping locked game: ${g.home_team} vs ${g.away_team} on ${g.date}`);
       return null;
+    }
+    
+    // Check if this game duplicates a LOCKED game in the DB
+    if (!existing.game_id) {
+      const dominated = lockedGames.find(locked => {
+        if (locked.game_id === g.game_id) return false;
+        if (locked.home_team !== g.home_team || locked.away_team !== g.away_team) return false;
+        if (locked.gender !== g.gender) return false;
+        if (locked.home_score === null || g.home_score === null) return false;
+        if (parseInt(locked.home_score) !== parseInt(g.home_score) || 
+            parseInt(locked.away_score) !== parseInt(g.away_score)) return false;
+        const d1 = new Date(locked.date + 'T12:00:00');
+        const d2 = new Date(g.date + 'T12:00:00');
+        const diffDays = Math.abs((d2 - d1) / (1000 * 60 * 60 * 24));
+        return diffDays <= 28;
+      });
+      if (dominated) {
+        console.log(`  🔒 Skipping duplicate of locked game: ${g.away_team} @ ${g.home_team} on ${g.date} (locked version: ${dominated.date})`);
+        return null;
+      }
     }
     
     // Check if this game has an assignment
