@@ -282,33 +282,39 @@ export const handler = async (event) => {
       };
     } else if (action === 'galleryImages') {
       // Fetch images by gallery URL path (e.g., "Epping-Boys-at-Farmington-12-9-25-Michael-Griffin")
+      // OR by cached albumKey (skips the flaky lookup step)
       const galleryPath = event.queryStringParameters?.path;
+      const cachedAlbumKey = event.queryStringParameters?.albumKey;
       const debug = event.queryStringParameters?.debug === 'true';
       
-      if (!galleryPath) {
+      if (!galleryPath && !cachedAlbumKey) {
         return {
           statusCode: 400,
           headers,
-          body: JSON.stringify({ error: 'Gallery path required' })
+          body: JSON.stringify({ error: 'Gallery path or albumKey required' })
         };
       }
       
-      // First, get the album info by URL path
-      const albumEndpoint = `/api/v2/album/ball603-${galleryPath}?_expand=HighlightImage`;
-      let albumResult = await smugmugRequest(albumEndpoint);
+      let albumKey = cachedAlbumKey || null;
       
-      // If that doesn't work, try looking up via user albums
-      let albumKey = albumResult?.Response?.Album?.AlbumKey;
-      
+      // Only do the lookup if we don't have a cached albumKey
       if (!albumKey) {
-        // Try searching for the album by name
-        const searchEndpoint = `/api/v2/user/ball603!albums?count=200&_expand=HighlightImage`;
-        const searchResult = await smugmugRequest(searchEndpoint);
-        const albums = searchResult?.Response?.Album || [];
+        // First, get the album info by URL path
+        const albumEndpoint = `/api/v2/album/ball603-${galleryPath}?_expand=HighlightImage`;
+        let albumResult = await smugmugRequest(albumEndpoint);
         
-        // Find album where URL contains the path
-        const matchingAlbum = albums.find(a => a.WebUri && a.WebUri.includes(galleryPath));
-        albumKey = matchingAlbum?.AlbumKey;
+        albumKey = albumResult?.Response?.Album?.AlbumKey;
+        
+        if (!albumKey) {
+          // Try searching for the album by name
+          const searchEndpoint = `/api/v2/user/ball603!albums?count=200&_expand=HighlightImage`;
+          const searchResult = await smugmugRequest(searchEndpoint);
+          const albums = searchResult?.Response?.Album || [];
+          
+          // Find album where URL contains the path
+          const matchingAlbum = albums.find(a => a.WebUri && a.WebUri.includes(galleryPath));
+          albumKey = matchingAlbum?.AlbumKey;
+        }
       }
       
       if (!albumKey) {
