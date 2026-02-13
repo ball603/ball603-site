@@ -857,13 +857,16 @@ export default async (request) => {
       supabaseQuery('games', `?date=eq.${date}&level=eq.NHIAA&${basketballFilter}&order=division,gender,time`),
       supabaseQuery('standings', `?select=*&${basketballFilter}`),
       supabaseQuery('games', `?level=eq.NHIAA&${basketballFilter}&select=*`),
-      supabaseQuery('rpi_rankings', `?select=team,gender,division,rpi,rank,wins,losses&${basketballFilter}&order=week_of.desc&limit=500`)
+      supabaseQuery('rpi_rankings', `?select=team,gender,division,rpi,rank,wins,losses,week_of&${basketballFilter}&season=eq.2025-26&order=week_of.desc`)
     ]);
 
     console.log(`Found ${games.length} games on ${date}`);
     console.log(`Found ${standings.length} standings records`);
     console.log(`Found ${allGames.length} total games for stats`);
     console.log(`Found ${rpiRankings.length} RPI rankings`);
+    if (rpiRankings.length > 0) {
+      console.log(`Latest RPI week_of: ${rpiRankings[0].week_of}`);
+    }
 
     // Filter completed games for stats
     const completedGames = allGames.filter(g => 
