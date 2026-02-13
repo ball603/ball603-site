@@ -530,6 +530,9 @@
       galleries: [],
       sponsors: []
     };
+    
+    // Map of game_id → article slug for linking scores to game stories
+    let gameArticleMap = {};
 
     // ===== SLUG & FILENAME UTILITIES =====
     function toSlug(name) {
@@ -1193,6 +1196,21 @@
         teamData.schedules.girls = dedupeGames(teamGames.filter(g => g.gender === 'Girls'));
         teamData.schedules.all = dedupeGames(teamGames); // Keep all for unified view
         console.log(`Schedules loaded: ${teamData.schedules.boys.length} boys, ${teamData.schedules.girls.length} girls games (sport: ${currentSport})`);
+        
+        // Fetch published articles linked to games for score→article links
+        try {
+          const { data: articles } = await db
+            .from('articles')
+            .select('game_id, slug')
+            .eq('status', 'published')
+            .not('game_id', 'is', null);
+          if (articles) {
+            gameArticleMap = {};
+            articles.forEach(a => { gameArticleMap[a.game_id] = a.slug; });
+            console.log(`Loaded ${articles.length} game articles for schedule links`);
+          }
+        } catch (e) { console.log('Could not load game articles:', e); }
+        
         renderSchedules();
       } catch (err) { console.error('Error loading schedules:', err); renderScheduleError(); }
     }
@@ -1399,7 +1417,11 @@
                 <span>${g.isHome ? 'vs' : '@'} ${oppSeedDisplay}${opp || 'TBD'}</span>
               </a>
             </div>
-            <div class="schedule-game-result ${resultClass}">${resultText}</div>
+            <div class="schedule-game-result ${resultClass}">${
+              g.hasScore && !isScheduled && g.game_id && gameArticleMap[g.game_id]
+                ? `<a href="/article/${gameArticleMap[g.game_id]}" class="score-article-link">${resultText}</a>`
+                : resultText
+            }</div>
           </div>
         `;
       }).join('');
