@@ -9757,6 +9757,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         excerpt: document.getElementById('articleExcerpt').value,
         game_id: document.getElementById('selectedGameId').value || null,
         smugmug_gallery_url: document.getElementById('smugmugUrl').value || null,
+        smugmug_album_key: currentArticle?.smugmug_album_key || null,
         youtube_url: document.getElementById('youtubeUrl').value || null,
         video_autoplay: document.getElementById('videoAutoplay').checked,
         video_standalone: document.getElementById('videoStandalone').checked,
@@ -9842,6 +9843,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         excerpt: document.getElementById('articleExcerpt').value,
         game_id: document.getElementById('selectedGameId').value || null,
         smugmug_gallery_url: document.getElementById('smugmugUrl').value || null,
+        smugmug_album_key: currentArticle?.smugmug_album_key || null,
         youtube_url: document.getElementById('youtubeUrl').value || null,
         video_autoplay: document.getElementById('videoAutoplay').checked,
         video_standalone: document.getElementById('videoStandalone').checked,
@@ -9955,6 +9957,23 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         contentToSave = getEditorContent();
       }
       
+      // Resolve SmugMug album key for faster gallery loading
+      let smugmugAlbumKey = currentArticle?.smugmug_album_key || null;
+      if (smugmugUrl && !smugmugAlbumKey) {
+        try {
+          const urlParts = smugmugUrl.replace(/\/$/, '').split('/');
+          const galleryPath = urlParts[urlParts.length - 1];
+          const res = await fetch(`/.netlify/functions/smugmug?action=galleryImages&path=${encodeURIComponent(galleryPath)}`);
+          const data = await res.json();
+          if (data.success && data.albumKey) {
+            smugmugAlbumKey = data.albumKey;
+            console.log('Resolved SmugMug album key:', smugmugAlbumKey);
+          }
+        } catch (e) { console.log('Could not resolve SmugMug album key:', e); }
+      }
+      // Clear album key if gallery URL was removed
+      if (!smugmugUrl) smugmugAlbumKey = null;
+      
       const articleData = {
         title,
         slug,
@@ -9962,6 +9981,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         excerpt: document.getElementById('articleExcerpt').value,
         game_id: gameId,
         smugmug_gallery_url: smugmugUrl,
+        smugmug_album_key: smugmugAlbumKey,
         youtube_url: youtubeUrl,
         video_autoplay: document.getElementById('videoAutoplay').checked,
         video_standalone: document.getElementById('videoStandalone').checked,

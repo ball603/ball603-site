@@ -2220,6 +2220,8 @@
     
     /**
      * Load gallery from SmugMug API and display embedded
+     * Uses cached albumKey when available (skips flaky lookup)
+     * Retries up to 3 times on failure
      */
     async function loadGalleryPhotos(article) {
       if (!article.smugmug_gallery_url) return;
@@ -2230,65 +2232,77 @@
       const embedContainer = document.getElementById('smugmugEmbed');
       embedContainer.innerHTML = '<div class="gallery-loading">Loading photos...</div>';
       
-      try {
-        // Extract gallery path from URL
-        // URL format: https://ball603.smugmug.com/Gallery-Name
-        const urlParts = article.smugmug_gallery_url.replace(/\/$/, '').split('/');
-        const galleryPath = urlParts[urlParts.length - 1];
-        
-        console.log('Fetching gallery:', galleryPath);
-        
-        const response = await fetch(`/.netlify/functions/smugmug?action=galleryImages&path=${encodeURIComponent(galleryPath)}`);
-        const data = await response.json();
-        
-        if (data.success && data.images && data.images.length > 0) {
-          // Store images for lightbox
-          window.galleryImages = data.images;
-          
-          // Preload first few images in background for faster lightbox
-          data.images.slice(0, 4).forEach(img => {
-            const src = img.x2large || img.xlarge || img.large || img.archivedUri;
-            if (src) {
-              const preload = new Image();
-              preload.src = src;
-            }
-          });
-          
-          // Render gallery grid with ALL photos
-          const gridHtml = data.images.map((img, index) => `
-            <div class="gallery-thumb" onclick="openGalleryLightbox(${index})">
-              <img src="${img.medium || img.thumbnail}" alt="${img.caption || img.title || ''}" loading="lazy">
-            </div>
-          `).join('');
-          
-          embedContainer.innerHTML = `
-            <div class="gallery-grid">
-              ${gridHtml}
-            </div>
-            <div class="gallery-count-info">${data.images.length} photos</div>
-          `;
-        } else {
-          // Fallback to link if API fails
-          embedContainer.innerHTML = `
-            <a href="${article.smugmug_gallery_url}" target="_blank" class="gallery-preview-card">
-              <div class="gallery-preview-overlay">
-                <div class="gallery-preview-icon">📸</div>
-                <div class="gallery-preview-text">View photo gallery on SmugMug</div>
-              </div>
-            </a>
-          `;
-        }
-      } catch (err) {
-        console.error('Gallery load error:', err);
-        embedContainer.innerHTML = `
-          <a href="${article.smugmug_gallery_url}" target="_blank" class="gallery-preview-card">
-            <div class="gallery-preview-overlay">
-              <div class="gallery-preview-icon">📸</div>
-              <div class="gallery-preview-text">View photo gallery on SmugMug</div>
-            </div>
-          </a>
-        `;
+      // Build the API URL — use cached albumKey if available
+      const urlParts = article.smugmug_gallery_url.replace(/\/$/, '').split('/');
+      const galleryPath = urlParts[urlParts.length - 1];
+      let apiUrl = `/.netlify/functions/smugmug?action=galleryImages&path=${encodeURIComponent(galleryPath)}`;
+      if (article.smugmug_album_key) {
+        apiUrl += `&albumKey=${encodeURIComponent(article.smugmug_album_key)}`;
       }
+      
+      console.log('Fetching gallery:', galleryPath, article.smugmug_album_key ? '(cached key)' : '(lookup)');
+      
+      const maxRetries = 3;
+      let lastError = null;
+      
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          const response = await fetch(apiUrl);
+          const data = await response.json();
+          
+          if (data.success && data.images && data.images.length > 0) {
+            // Store images for lightbox
+            window.galleryImages = data.images;
+            
+            // Preload first few images in background for faster lightbox
+            data.images.slice(0, 4).forEach(img => {
+              const src = img.x2large || img.xlarge || img.large || img.archivedUri;
+              if (src) {
+                const preload = new Image();
+                preload.src = src;
+              }
+            });
+            
+            // Render gallery grid with ALL photos
+            const gridHtml = data.images.map((img, index) => `
+              <div class="gallery-thumb" onclick="openGalleryLightbox(${index})">
+                <img src="${img.medium || img.thumbnail}" alt="${img.caption || img.title || ''}" loading="lazy">
+              </div>
+            `).join('');
+            
+            embedContainer.innerHTML = `
+              <div class="gallery-grid">
+                ${gridHtml}
+              </div>
+              <div class="gallery-count-info">${data.images.length} photos</div>
+            `;
+            return; // Success — exit
+          }
+          
+          lastError = 'No images returned';
+          console.warn(`Gallery attempt ${attempt}/${maxRetries}: no images`);
+          
+        } catch (err) {
+          lastError = err;
+          console.warn(`Gallery attempt ${attempt}/${maxRetries} failed:`, err.message);
+        }
+        
+        // Wait before retrying (1s, 2s)
+        if (attempt < maxRetries) {
+          await new Promise(r => setTimeout(r, attempt * 1000));
+        }
+      }
+      
+      // All retries exhausted — show embedded fallback link
+      console.error('Gallery load failed after retries:', lastError);
+      embedContainer.innerHTML = `
+        <a href="${article.smugmug_gallery_url}" target="_blank" class="gallery-preview-card">
+          <div class="gallery-preview-overlay">
+            <div class="gallery-preview-icon">📸</div>
+            <div class="gallery-preview-text">View photo gallery on SmugMug</div>
+          </div>
+        </a>
+      `;
     }
     
     /**
