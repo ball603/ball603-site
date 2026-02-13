@@ -2248,6 +2248,13 @@
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
           const response = await fetch(apiUrl);
+          
+          // Don't retry on 404 — album genuinely not found
+          if (response.status === 404) {
+            console.warn('Gallery not found (404) — skipping retries');
+            break;
+          }
+          
           const data = await response.json();
           
           if (data.success && data.images && data.images.length > 0) {
