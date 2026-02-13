@@ -1973,14 +1973,19 @@
       tieGroups.forEach(tg => {
         if (!tg.resolution || !tg.resolution.order || tg.resolution.order.length === 0) return;
         const startIdx = tg.startRank - 1;
-        const endIdx = startIdx + tg.teams.length;
         const resolvedOrder = tg.resolution.order;
         
-        // Replace the tied segment with resolved order
+        // Save references to tied entries BEFORE overwriting
+        const tiedEntries = {};
+        for (let i = startIdx; i < startIdx + tg.teams.length && i < standings.length; i++) {
+          tiedEntries[standings[i].school] = standings[i];
+        }
+        
+        // Now replace in resolved order using saved references
         for (let i = 0; i < resolvedOrder.length; i++) {
-          const team = standings.find(s => s.school === resolvedOrder[i]);
-          if (team && startIdx + i < standings.length) {
-            standings[startIdx + i] = team;
+          const entry = tiedEntries[resolvedOrder[i]];
+          if (entry && startIdx + i < standings.length) {
+            standings[startIdx + i] = entry;
           }
         }
       });
