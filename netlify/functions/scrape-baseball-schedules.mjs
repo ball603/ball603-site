@@ -695,7 +695,7 @@ async function migrateGameId(oldGame, newGameId) {
 async function getExistingGames() {
   // Fetch all NHIAA games from Supabase for this sport/season
   const response = await fetch(
-    `${SUPABASE_URL}/rest/v1/games?level=eq.NHIAA&sport=eq.${SPORT}&season=eq.${SEASON}&select=game_id,date,time,away_score,home_score,photog1,photog2,videog,writer,notes,original_date,schedule_changed,photos_url,recap_url,highlights_url,live_stream_url,game_description,special_event,original_time`,
+    `${SUPABASE_URL}/rest/v1/games?level=eq.NHIAA&sport=eq.${SPORT}&season=eq.${SEASON}&select=game_id,date,time,away_score,home_score,photog1,photog2,videog,writer,notes,original_date,schedule_changed,photos_url,recap_url,highlights_url,live_stream_url,game_description,special_event,original_time,manual_override`,
     {
       headers: {
         'apikey': SUPABASE_SERVICE_KEY,
@@ -731,6 +731,12 @@ async function updateSupabase(games) {
   // Build upsert data, preserving assignments
   const upsertData = games.map(g => {
     const existing = existingGames[g.game_id] || {};
+    
+    // Skip games with manual_override — do not overwrite
+    if (existing.manual_override) {
+      console.log(`  🔒 Skipping locked game: ${g.home_team} vs ${g.away_team} on ${g.date}`);
+      return null;
+    }
     
     // Check if this game has an assignment
     const hasAssignment = existing.photog1 || existing.photog2 || existing.videog || existing.writer;
@@ -797,7 +803,7 @@ async function updateSupabase(games) {
       original_date: originalDate,
       schedule_changed: scheduleChanged
     };
-  });
+  }).filter(Boolean); // Remove null entries (locked games)
   
   if (changesDetected > 0) {
     console.log(`  ⚠️ Total schedule changes detected: ${changesDetected}`);

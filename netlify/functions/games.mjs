@@ -212,7 +212,8 @@ export default async (request) => {
             game_description: game.game_description || game.gamedescription || null,
             special_event: game.special_event || game.specialevent || null,
             original_date: game.original_date || null,
-            schedule_changed: game.schedule_changed === 'YES' || game.schedule_changed === true
+            schedule_changed: game.schedule_changed === 'YES' || game.schedule_changed === true,
+            manual_override: game.manual_override || false
           }));
           
           try {
