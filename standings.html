@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<!-- Ball603 Standings Page v294 - Team links include sport context -->
+<!-- Ball603 Standings Page v2 - With NHIAA Tiebreaker System -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Ball603 - New Hampshire High School Sports Standings with power ratings, records and playoff picture.">
   <meta name="theme-color" content="#f57c00">
-  <title id="pageTitle">Standings | Ball603</title>
+  <title id="pageTitle">Standings (Tiebreakers) | Ball603</title>
   
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="/logo.png">
@@ -57,6 +57,39 @@
       font-size: 12px;
       color: var(--text-muted);
       margin-top: 4px;
+    }
+    
+    .beta-banner {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: rgba(245, 124, 0, 0.1);
+      border: 1px solid rgba(245, 124, 0, 0.3);
+      border-radius: 8px;
+      padding: 10px 16px;
+      margin: 16px auto;
+      max-width: 700px;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+    
+    .beta-banner .beta-tag {
+      background: #f57c00;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    @media (prefers-color-scheme: dark) {
+      .beta-banner {
+        background: rgba(245, 124, 0, 0.15);
+        border-color: rgba(245, 124, 0, 0.4);
+      }
     }
     
     /* Gender Toggle */
@@ -531,6 +564,344 @@
         font-size: 12px;
       }
     }
+    /* ===== TIEBREAKER STYLES ===== */
+    
+    .tie-badge {
+      display: inline-block;
+      background: #fff3e0;
+      color: #e65100;
+      font-size: 9px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 10px;
+      margin-left: 6px;
+      cursor: pointer;
+      border: 1px solid #ffcc80;
+      transition: all 0.2s;
+      vertical-align: middle;
+    }
+    
+    .tie-badge:hover {
+      background: #e65100;
+      color: #fff;
+    }
+    
+    /* Overlay backdrop */
+    .tiebreaker-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 9999;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    
+    .tiebreaker-overlay.open {
+      display: flex;
+    }
+    
+    /* Floating panel */
+    .tiebreaker-panel {
+      background: var(--card-bg, #fff);
+      border-radius: 14px;
+      width: 420px;
+      max-width: 95vw;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+      animation: tbSlideUp 0.25s ease-out;
+    }
+    
+    @keyframes tbSlideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .tiebreaker-header {
+      padding: 14px 18px;
+      background: linear-gradient(135deg, #e65100, #f57c00);
+      color: #fff;
+      font-weight: 700;
+      font-size: 13px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-radius: 14px 14px 0 0;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    
+    .tiebreaker-header .close-btn {
+      background: rgba(255,255,255,0.2);
+      border: none;
+      color: #fff;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    
+    .tiebreaker-header .close-btn:hover {
+      background: rgba(255,255,255,0.35);
+    }
+    
+    .tiebreaker-teams {
+      padding: 12px 16px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      border-bottom: 1px solid var(--border-color, #eee);
+    }
+    
+    .tiebreaker-team-chip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 10px;
+      background: var(--surface-bg, #f5f5f5);
+      border-radius: 20px;
+      font-weight: 600;
+      font-size: 12px;
+      color: var(--text-primary, #333);
+    }
+    
+    .tiebreaker-team-chip img {
+      width: 18px;
+      height: 18px;
+      border-radius: 3px;
+      object-fit: contain;
+    }
+    
+    .tiebreaker-steps {
+      padding: 12px 16px;
+    }
+    
+    .tiebreaker-step {
+      display: flex;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border-color, #f0f0f0);
+      font-size: 12px;
+      align-items: flex-start;
+    }
+    
+    .tiebreaker-step:last-child {
+      border-bottom: none;
+    }
+    
+    .step-icon {
+      flex-shrink: 0;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+    }
+    
+    .step-icon.resolved {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+    
+    .step-icon.tied {
+      background: #fff3e0;
+      color: #e65100;
+    }
+    
+    .step-icon.skipped {
+      background: var(--surface-bg, #f5f5f5);
+      color: var(--text-muted, #999);
+    }
+    
+    .step-content {
+      flex: 1;
+      min-width: 0;
+    }
+    
+    .step-label {
+      font-weight: 600;
+      color: var(--text-primary, #333);
+      margin-bottom: 2px;
+      font-size: 12px;
+    }
+    
+    .step-label.resolved {
+      color: #2e7d32;
+    }
+    
+    .step-detail {
+      color: var(--text-muted, #888);
+      font-size: 11px;
+      line-height: 1.4;
+    }
+    
+    .step-detail .team-result {
+      display: inline-block;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+      margin: 1px 2px;
+      font-size: 11px;
+    }
+    
+    .step-detail .team-result.winner {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+    
+    .step-detail .team-result.loser {
+      background: #fce4ec;
+      color: #c62828;
+    }
+    
+    .step-detail .team-result.even {
+      background: #fff3e0;
+      color: #e65100;
+    }
+    
+    .tiebreaker-result {
+      padding: 10px 16px;
+      font-size: 12px;
+      color: #2e7d32;
+      font-weight: 600;
+      background: #f1f8e9;
+      border-top: 1px solid #c8e6c9;
+    }
+    
+    .tiebreaker-disclaimer {
+      padding: 10px 16px;
+      font-size: 10px;
+      color: var(--text-muted, #999);
+      background: var(--surface-bg, #fafafa);
+      border-top: 1px solid var(--border-color, #eee);
+      border-radius: 0 0 14px 14px;
+    }
+    
+    @media (max-width: 600px) {
+      .tiebreaker-overlay {
+        padding: 0;
+        align-items: flex-end;
+      }
+      
+      .tiebreaker-panel {
+        width: 100%;
+        max-height: 80vh;
+        border-radius: 14px 14px 0 0;
+      }
+      
+      .tiebreaker-header {
+        border-radius: 14px 14px 0 0;
+      }
+      
+      .tiebreaker-disclaimer {
+        border-radius: 0;
+        padding-bottom: env(safe-area-inset-bottom, 10px);
+      }
+    }
+    
+    /* Dark theme for mobile tiebreaker panel */
+    @media (max-width: 768px) {
+      .tiebreaker-overlay {
+        background: rgba(0,0,0,0.7);
+      }
+      
+      .tiebreaker-panel {
+        background: #1e1e1e;
+        box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+      }
+      
+      .tiebreaker-teams {
+        border-bottom-color: #333;
+      }
+      
+      .tiebreaker-team-chip {
+        background: #2a2a2a;
+        color: #fff;
+      }
+      
+      .tiebreaker-step {
+        border-bottom-color: #333;
+      }
+      
+      .step-label {
+        color: #fff;
+      }
+      
+      .step-label.resolved {
+        color: #66bb6a;
+      }
+      
+      .step-detail {
+        color: #b0b0b0;
+      }
+      
+      .step-icon.resolved {
+        background: #1a3d1a;
+        color: #66bb6a;
+      }
+      
+      .step-icon.tied {
+        background: #3d2a00;
+        color: #ffb74d;
+      }
+      
+      .step-icon.skipped {
+        background: #2a2a2a;
+        color: #707070;
+      }
+      
+      .step-detail .team-result.winner {
+        background: #1a3d1a;
+        color: #66bb6a;
+      }
+      
+      .step-detail .team-result.loser {
+        background: #3d1a1a;
+        color: #ef5350;
+      }
+      
+      .step-detail .team-result.even {
+        background: #3d2a00;
+        color: #ffb74d;
+      }
+      
+      .tiebreaker-result {
+        background: #1a3d1a;
+        color: #66bb6a;
+        border-top-color: #2e5a2e;
+      }
+      
+      .tiebreaker-disclaimer {
+        background: #1a1a1a;
+        color: #707070;
+        border-top-color: #333;
+      }
+      
+      .tie-badge {
+        background: #3d2a00;
+        color: #ffb74d;
+        border-color: #5a3d00;
+      }
+      
+      .tie-badge:hover {
+        background: #e65100;
+        color: #fff;
+      }
+    }
+    
   </style>
 </head>
 <body>
@@ -544,8 +915,14 @@
     <!-- Header -->
     <div class="standings-header">
       <h1 class="standings-title">NHIAA Sports Standings</h1>
-      <p class="standings-subtitle">Ratings, records and playoff picture</p>
+      <p class="standings-subtitle">Ratings, records and playoff picture — with NHIAA tiebreaker resolution</p>
       <p class="standings-last-updated" id="lastUpdated"></p>
+    </div>
+    
+    <!-- Beta Banner -->
+    <div class="beta-banner">
+      <span class="beta-tag">Beta</span>
+      <span>Seed Decoder is experimental — official playoff seedings are determined by NHIAA.</span>
     </div>
     
     <!-- Sport Filter -->
@@ -604,13 +981,20 @@
             <span class="legend-dot bye"></span>
             <span>First-round bye</span>
           </div>
+          <div class="legend-item">
+            <span class="tie-badge" style="cursor:default;margin-left:0;">TIE</span>
+            <span>Click for tiebreaker breakdown</span>
+          </div>
         </div>
         <div class="standings-source">
-          <span style="font-size: 11px; color: var(--text-muted);">Data from NHIAA.org</span>
+          <span style="font-size: 11px; color: var(--text-muted);">Data from NHIAA.org • Tiebreakers use NHIAA By-Law Article XII criteria (win % approximation for criteria 2, 4, 5). Official seedings determined by NHIAA.</span>
         </div>
       </div>
     </div>
   </main>
+  
+  <!-- Tiebreaker Overlay -->
+  <div class="tiebreaker-overlay" id="tiebreakerOverlay" onclick="if(event.target===this)closeTiebreakerOverlay()"></div>
   
   <!-- Footer -->
   <footer class="site-footer">
@@ -1049,6 +1433,636 @@
       return `${regWins + pWins}-${regLosses + pLosses}`;
     }
     
+    // ===== TIEBREAKER ENGINE =====
+    
+    let tiebreakerResults = {}; // Key: "gender-division", Value: array of tie groups with resolutions
+    
+    function resolveTiebreakers() {
+      tiebreakerResults = {};
+      
+      // Get standings for current view
+      const standings = allStandings
+        .filter(s => s.gender === currentGender && s.division === currentDivision)
+        .sort((a, b) => b.rating - a.rating || b.wins - a.wins || a.losses - b.losses);
+      
+      if (standings.length === 0) return;
+      
+      // Get playoff spots for this division
+      let playoffSpots = 16;
+      if (PLAYOFF_TEAMS[currentSport] && PLAYOFF_TEAMS[currentSport][currentGender]) {
+        playoffSpots = PLAYOFF_TEAMS[currentSport][currentGender][currentDivision] || 16;
+      }
+      
+      // Find tie groups (teams with same W-L record)
+      const tieGroups = [];
+      let i = 0;
+      while (i < standings.length) {
+        let j = i + 1;
+        // Same record = same wins AND same losses
+        while (j < standings.length && 
+               standings[j].wins === standings[i].wins && 
+               standings[j].losses === standings[i].losses) {
+          j++;
+        }
+        if (j - i > 1) {
+          // Build team ratings map for this group
+          const teamRatings = {};
+          standings.slice(i, j).forEach(s => {
+            teamRatings[s.school] = s.rating;
+          });
+          tieGroups.push({
+            startRank: i + 1,
+            teams: standings.slice(i, j).map(s => s.school),
+            record: { wins: standings[i].wins, losses: standings[i].losses },
+            teamRatings: teamRatings,
+            affectsPlayoff: (i + 1) <= playoffSpots + 1 && j > playoffSpots // Tie spans the playoff line
+          });
+        }
+        i = j;
+      }
+      
+      // Get completed divisional games for this gender
+      const divGames = getCompletedDivisionGames(currentGender, currentDivision);
+      
+      // Get tournament teams (top N by rating)
+      const tournamentTeams = new Set(standings.slice(0, playoffSpots).map(s => s.school));
+      
+      // Resolve each tie group
+      const key = `${currentGender}-${currentDivision}`;
+      tiebreakerResults[key] = tieGroups.map(group => {
+        const resolution = walkTiebreakers(group.teams, divGames, tournamentTeams, currentGender, group.startRank, group.teamRatings);
+        return {
+          ...group,
+          resolution
+        };
+      });
+    }
+    
+    function getCompletedDivisionGames(gender, division) {
+      return allGames.filter(game => {
+        const hasScore = game.home_score !== null && game.home_score !== '' &&
+                        game.away_score !== null && game.away_score !== '';
+        const isBash = (game.specialevent || '').toLowerCase().includes('bash') ||
+                      (game.gamedescription || '').toLowerCase().includes('bash') ||
+                      (game.notes || '').toLowerCase().includes('bash');
+        const isPlayoff = game.is_playoff;
+        return hasScore && !isBash && !isPlayoff && game.gender === gender;
+      }).map(g => ({
+        home: normalizeTeamName(g.home_team || g.home),
+        away: normalizeTeamName(g.away_team || g.away),
+        homeScore: parseInt(g.home_score),
+        awayScore: parseInt(g.away_score),
+        date: g.date,
+        division: g.division,
+        gender: g.gender
+      }));
+    }
+    
+    function walkTiebreakers(teams, allDivGames, tournamentTeams, gender, startRank, teamRatings) {
+      const steps = [];
+      let remainingTeams = [...teams];
+      const finalOrder = [];
+      
+      // We need to resolve the entire group ordering
+      // Process iteratively: find the top team, remove, repeat
+      while (remainingTeams.length > 1) {
+        const result = resolveOneRound(remainingTeams, allDivGames, tournamentTeams, gender, steps, teamRatings);
+        if (result.resolved) {
+          // Full ordering found in this round
+          result.order.forEach(t => {
+            if (!finalOrder.includes(t)) finalOrder.push(t);
+          });
+          break;
+        } else if (result.topTeam) {
+          // Found the top team, continue with rest
+          finalOrder.push(result.topTeam);
+          remainingTeams = remainingTeams.filter(t => t !== result.topTeam);
+        } else {
+          // Couldn't resolve — push remaining in original order
+          remainingTeams.forEach(t => {
+            if (!finalOrder.includes(t)) finalOrder.push(t);
+          });
+          break;
+        }
+      }
+      
+      // If only one left, add it
+      if (remainingTeams.length === 1 && !finalOrder.includes(remainingTeams[0])) {
+        finalOrder.push(remainingTeams[0]);
+      }
+      
+      return { steps, order: finalOrder };
+    }
+    
+    function resolveOneRound(teams, allDivGames, tournamentTeams, gender, steps, teamRatings) {
+      // Criterion 0: Rating (NHIAA power rating)
+      const ratingResult = evaluateRating(teams, teamRatings);
+      steps.push({
+        criterion: 0,
+        label: 'Rating',
+        ...ratingResult
+      });
+      if (ratingResult.resolved) return { resolved: true, order: ratingResult.order };
+      if (ratingResult.topTeam) return { topTeam: ratingResult.topTeam };
+      
+      // Criterion 1: Head-to-head
+      const h2h = evaluateHeadToHead(teams, allDivGames);
+      steps.push({
+        criterion: 1,
+        label: 'Head-to-Head',
+        ...h2h
+      });
+      if (h2h.resolved) return { resolved: true, order: h2h.order };
+      if (h2h.topTeam) return { topTeam: h2h.topTeam };
+      
+      // Criterion 2: Win pct vs tournament teams
+      const vsTourney = evaluateVsTournamentTeams(teams, allDivGames, tournamentTeams, gender);
+      steps.push({
+        criterion: 2,
+        label: 'Win % vs Tournament Teams',
+        ...vsTourney,
+        approximate: true
+      });
+      if (vsTourney.resolved) return { resolved: true, order: vsTourney.order };
+      if (vsTourney.topTeam) return { topTeam: vsTourney.topTeam };
+      
+      // Criterion 3: Quality of wins
+      const qualityWins = evaluateQualityOfWins(teams, allDivGames, tournamentTeams, gender);
+      steps.push({
+        criterion: 3,
+        label: 'Quality of Wins',
+        ...qualityWins
+      });
+      if (qualityWins.resolved) return { resolved: true, order: qualityWins.order };
+      if (qualityWins.topTeam) return { topTeam: qualityWins.topTeam };
+      
+      // Criterion 4: Away win pct vs divisional opponents
+      const awayDiv = evaluateHomeAwayVsDivision(teams, allDivGames, gender, 'away');
+      steps.push({
+        criterion: 4,
+        label: 'Away Win % vs Division',
+        ...awayDiv,
+        approximate: true
+      });
+      if (awayDiv.resolved) return { resolved: true, order: awayDiv.order };
+      if (awayDiv.topTeam) return { topTeam: awayDiv.topTeam };
+      
+      // Criterion 5: Home win pct vs divisional opponents
+      const homeDiv = evaluateHomeAwayVsDivision(teams, allDivGames, gender, 'home');
+      steps.push({
+        criterion: 5,
+        label: 'Home Win % vs Division',
+        ...homeDiv,
+        approximate: true
+      });
+      if (homeDiv.resolved) return { resolved: true, order: homeDiv.order };
+      if (homeDiv.topTeam) return { topTeam: homeDiv.topTeam };
+      
+      // Criterion 6: Total away wins
+      const awayWins = evaluateTotalHomeAwayWins(teams, allDivGames, gender, 'away');
+      steps.push({
+        criterion: 6,
+        label: 'Total Away Wins',
+        ...awayWins
+      });
+      if (awayWins.resolved) return { resolved: true, order: awayWins.order };
+      if (awayWins.topTeam) return { topTeam: awayWins.topTeam };
+      
+      // Criterion 7: Total home wins
+      const homeWins = evaluateTotalHomeAwayWins(teams, allDivGames, gender, 'home');
+      steps.push({
+        criterion: 7,
+        label: 'Total Home Wins',
+        ...homeWins
+      });
+      if (homeWins.resolved) return { resolved: true, order: homeWins.order };
+      if (homeWins.topTeam) return { topTeam: homeWins.topTeam };
+      
+      // Criterion 8: Committee / unresolved
+      steps.push({
+        criterion: 8,
+        label: 'Committee Decision',
+        status: 'unresolved',
+        detail: 'Could not resolve with available data — would go to NHIAA committee',
+        teamValues: {}
+      });
+      
+      return { resolved: false };
+    }
+    
+    // --- Criterion 0: Rating ---
+    function evaluateRating(teams, teamRatings) {
+      // Build team values for display
+      const teamValues = {};
+      teams.forEach(team => {
+        teamValues[team] = teamRatings[team].toFixed(3);
+      });
+      
+      // Sort teams by rating (highest first)
+      const sorted = [...teams].sort((a, b) => teamRatings[b] - teamRatings[a]);
+      
+      // Check if all ratings are the same (within tolerance)
+      const allSame = teams.every(t => Math.abs(teamRatings[t] - teamRatings[teams[0]]) < 0.0005);
+      
+      if (allSame) {
+        return { status: 'tied', detail: 'All teams have same rating', teamValues };
+      }
+      
+      // Check if there's a clear winner (highest rating is unique)
+      const highestRating = teamRatings[sorted[0]];
+      const teamsWithHighest = sorted.filter(t => Math.abs(teamRatings[t] - highestRating) < 0.0005);
+      
+      if (teamsWithHighest.length === 1) {
+        // Clear winner by rating
+        if (teams.length === 2) {
+          return { 
+            status: 'resolved', 
+            resolved: true, 
+            order: sorted, 
+            detail: `${sorted[0]} has higher rating`,
+            teamValues 
+          };
+        } else {
+          // Multi-team: rating resolves the top team
+          return { 
+            status: 'resolved', 
+            topTeam: sorted[0], 
+            detail: `${sorted[0]} has highest rating`,
+            teamValues 
+          };
+        }
+      }
+      
+      // Multiple teams tied for highest rating - continue to next criterion
+      return { status: 'tied', detail: 'Multiple teams tied for highest rating', teamValues };
+    }
+    
+    // --- Criterion 1: Head-to-Head ---
+    function evaluateHeadToHead(teams, games) {
+      // Find games between tied teams
+      const h2hGames = games.filter(g =>
+        teams.includes(g.home) && teams.includes(g.away)
+      );
+      
+      if (h2hGames.length === 0) {
+        return { status: 'skipped', detail: 'Teams did not play each other', teamValues: {} };
+      }
+      
+      // Check same number of games requirement (for 2-team ties)
+      if (teams.length === 2) {
+        const t1 = teams[0], t2 = teams[1];
+        const gamesPlayed = h2hGames.filter(g =>
+          (g.home === t1 && g.away === t2) || (g.home === t2 && g.away === t1)
+        );
+        
+        if (gamesPlayed.length === 0) {
+          return { status: 'skipped', detail: 'Teams did not play each other', teamValues: {} };
+        }
+        
+        let t1Wins = 0, t2Wins = 0;
+        const gameDetails = [];
+        gamesPlayed.forEach(g => {
+          const winner = g.homeScore > g.awayScore ? g.home : g.away;
+          const winScore = Math.max(g.homeScore, g.awayScore);
+          const loseScore = Math.min(g.homeScore, g.awayScore);
+          if (winner === t1) t1Wins++;
+          else t2Wins++;
+          gameDetails.push(`${winner} ${winScore}-${loseScore} (${formatDateShort(g.date)})`);
+        });
+        
+        const teamValues = { [t1]: `${t1Wins}-${t2Wins}`, [t2]: `${t2Wins}-${t1Wins}` };
+        const detail = gameDetails.join(' • ');
+        
+        if (t1Wins > t2Wins) {
+          return { status: 'resolved', resolved: true, order: [t1, t2], detail, teamValues };
+        } else if (t2Wins > t1Wins) {
+          return { status: 'resolved', resolved: true, order: [t2, t1], detail, teamValues };
+        }
+        return { status: 'tied', detail: `Split ${t1Wins}-${t2Wins}: ${detail}`, teamValues };
+      }
+      
+      // Multi-team tie: check if one team beat ALL others
+      for (const team of teams) {
+        const others = teams.filter(t => t !== team);
+        let beatAll = true;
+        for (const opp of others) {
+          const matchups = h2hGames.filter(g =>
+            (g.home === team && g.away === opp) || (g.home === opp && g.away === team)
+          );
+          const wins = matchups.filter(g =>
+            (g.home === team && g.homeScore > g.awayScore) || (g.away === team && g.awayScore > g.homeScore)
+          ).length;
+          const losses = matchups.filter(g =>
+            (g.home === team && g.homeScore < g.awayScore) || (g.away === team && g.awayScore < g.homeScore)
+          ).length;
+          if (losses > 0 || wins === 0) { beatAll = false; break; }
+        }
+        if (beatAll) {
+          return {
+            status: 'resolved',
+            topTeam: team,
+            detail: `${team} beat all tied opponents`,
+            teamValues: { [team]: 'Beat all' }
+          };
+        }
+      }
+      
+      // Calculate H2H win pct for each team
+      const teamValues = {};
+      teams.forEach(team => {
+        const myGames = h2hGames.filter(g => g.home === team || g.away === team);
+        const myWins = myGames.filter(g =>
+          (g.home === team && g.homeScore > g.awayScore) || (g.away === team && g.awayScore > g.homeScore)
+        ).length;
+        teamValues[team] = myGames.length > 0 ? `${myWins}-${myGames.length - myWins} (${(myWins / myGames.length).toFixed(3)})` : 'N/A';
+      });
+      
+      const sorted = teams.slice().sort((a, b) => {
+        const aGames = h2hGames.filter(g => g.home === a || g.away === a);
+        const aWins = aGames.filter(g => (g.home === a && g.homeScore > g.awayScore) || (g.away === a && g.awayScore > g.homeScore)).length;
+        const aPct = aGames.length > 0 ? aWins / aGames.length : 0;
+        const bGames = h2hGames.filter(g => g.home === b || g.away === b);
+        const bWins = bGames.filter(g => (g.home === b && g.homeScore > g.awayScore) || (g.away === b && g.awayScore > g.homeScore)).length;
+        const bPct = bGames.length > 0 ? bWins / bGames.length : 0;
+        return bPct - aPct;
+      });
+      
+      // Check if clear winner
+      const topGames = h2hGames.filter(g => g.home === sorted[0] || g.away === sorted[0]);
+      const topWins = topGames.filter(g => (g.home === sorted[0] && g.homeScore > g.awayScore) || (g.away === sorted[0] && g.awayScore > g.homeScore)).length;
+      const topPct = topGames.length > 0 ? topWins / topGames.length : 0;
+      const secGames = h2hGames.filter(g => g.home === sorted[1] || g.away === sorted[1]);
+      const secWins = secGames.filter(g => (g.home === sorted[1] && g.homeScore > g.awayScore) || (g.away === sorted[1] && g.awayScore > g.homeScore)).length;
+      const secPct = secGames.length > 0 ? secWins / secGames.length : 0;
+      
+      if (Math.abs(topPct - secPct) > 0.001) {
+        return { status: 'resolved', resolved: true, order: sorted, detail: 'H2H win % among tied teams', teamValues };
+      }
+      
+      return { status: 'tied', detail: 'Head-to-head inconclusive', teamValues };
+    }
+    
+    // --- Criterion 2: Win pct vs tournament teams ---
+    function evaluateVsTournamentTeams(teams, allDivGames, tournamentTeams, gender) {
+      const teamValues = {};
+      const pcts = [];
+      
+      teams.forEach(team => {
+        const vsGames = allDivGames.filter(g =>
+          ((g.home === team && tournamentTeams.has(g.away)) ||
+           (g.away === team && tournamentTeams.has(g.home)))
+        );
+        const wins = vsGames.filter(g =>
+          (g.home === team && g.homeScore > g.awayScore) || (g.away === team && g.awayScore > g.homeScore)
+        ).length;
+        const pct = vsGames.length > 0 ? wins / vsGames.length : 0;
+        teamValues[team] = vsGames.length > 0 ? `${wins}-${vsGames.length - wins} (${pct.toFixed(3)})` : 'N/A';
+        pcts.push({ team, pct, wins, games: vsGames.length });
+      });
+      
+      pcts.sort((a, b) => b.pct - a.pct);
+      
+      if (pcts.length >= 2 && Math.abs(pcts[0].pct - pcts[1].pct) > 0.001) {
+        return { status: 'resolved', resolved: true, order: pcts.map(p => p.team), detail: 'Win % vs tournament teams', teamValues };
+      }
+      
+      return { status: 'tied', detail: 'Win % vs tournament teams inconclusive', teamValues };
+    }
+    
+    // --- Criterion 3: Quality of wins ---
+    function evaluateQualityOfWins(teams, allDivGames, tournamentTeams, gender) {
+      const teamValues = {};
+      const rankings = [];
+      const tourneyArr = Array.from(tournamentTeams);
+      
+      teams.forEach(team => {
+        // Find tournament opponents this team played
+        const vsTourneyGames = allDivGames.filter(g =>
+          ((g.home === team && tournamentTeams.has(g.away)) || (g.away === team && tournamentTeams.has(g.home)))
+        );
+        
+        // Find beaten tournament opponents
+        const beatenOpps = new Set();
+        vsTourneyGames.forEach(g => {
+          const opp = g.home === team ? g.away : g.home;
+          const won = (g.home === team && g.homeScore > g.awayScore) || (g.away === team && g.awayScore > g.homeScore);
+          if (won) beatenOpps.add(opp);
+        });
+        
+        // Sum beaten opponents' wins vs tournament teams
+        let beatenOppWins = 0;
+        beatenOpps.forEach(opp => {
+          const oppGames = allDivGames.filter(g =>
+            ((g.home === opp && tournamentTeams.has(g.away)) || (g.away === opp && tournamentTeams.has(g.home)))
+          );
+          beatenOppWins += oppGames.filter(g =>
+            (g.home === opp && g.homeScore > g.awayScore) || (g.away === opp && g.awayScore > g.homeScore)
+          ).length;
+        });
+        
+        // Total tournament games played by all tournament opponents
+        let totalOppGames = 0;
+        const myTourneyOpps = new Set();
+        vsTourneyGames.forEach(g => {
+          myTourneyOpps.add(g.home === team ? g.away : g.home);
+        });
+        myTourneyOpps.forEach(opp => {
+          totalOppGames += allDivGames.filter(g =>
+            ((g.home === opp && tournamentTeams.has(g.away)) || (g.away === opp && tournamentTeams.has(g.home)))
+          ).length;
+        });
+        
+        const ranking = totalOppGames > 0 ? beatenOppWins / totalOppGames : 0;
+        teamValues[team] = totalOppGames > 0 ? `${beatenOppWins}/${totalOppGames} (${ranking.toFixed(3)})` : 'N/A';
+        rankings.push({ team, ranking });
+      });
+      
+      rankings.sort((a, b) => b.ranking - a.ranking);
+      
+      if (rankings.length >= 2 && Math.abs(rankings[0].ranking - rankings[1].ranking) > 0.001) {
+        return { status: 'resolved', resolved: true, order: rankings.map(r => r.team), detail: 'Quality of wins ranking', teamValues };
+      }
+      
+      return { status: 'tied', detail: 'Quality of wins inconclusive', teamValues };
+    }
+    
+    // --- Criteria 4 & 5: Home/Away win pct vs division ---
+    function evaluateHomeAwayVsDivision(teams, allDivGames, gender, homeOrAway) {
+      const teamValues = {};
+      const pcts = [];
+      
+      // Get all teams in this division for divisional game filtering
+      const divTeams = new Set(allStandings.filter(s => s.gender === gender && s.division === currentDivision).map(s => s.school));
+      
+      teams.forEach(team => {
+        let myGames;
+        if (homeOrAway === 'away') {
+          myGames = allDivGames.filter(g => g.away === team && divTeams.has(g.home));
+        } else {
+          myGames = allDivGames.filter(g => g.home === team && divTeams.has(g.away));
+        }
+        
+        const wins = myGames.filter(g =>
+          (g.home === team && g.homeScore > g.awayScore) || (g.away === team && g.awayScore > g.homeScore)
+        ).length;
+        const pct = myGames.length > 0 ? wins / myGames.length : 0;
+        teamValues[team] = myGames.length > 0 ? `${wins}-${myGames.length - wins} (${pct.toFixed(3)})` : 'N/A';
+        pcts.push({ team, pct });
+      });
+      
+      pcts.sort((a, b) => b.pct - a.pct);
+      
+      if (pcts.length >= 2 && Math.abs(pcts[0].pct - pcts[1].pct) > 0.001) {
+        return { status: 'resolved', resolved: true, order: pcts.map(p => p.team), detail: `${homeOrAway === 'away' ? 'Away' : 'Home'} win % vs division`, teamValues };
+      }
+      
+      return { status: 'tied', detail: `${homeOrAway === 'away' ? 'Away' : 'Home'} win % vs division inconclusive`, teamValues };
+    }
+    
+    // --- Criteria 6 & 7: Total home/away wins ---
+    function evaluateTotalHomeAwayWins(teams, allDivGames, gender, homeOrAway) {
+      const teamValues = {};
+      const counts = [];
+      
+      // Use ALL games (not just divisional) for this criterion
+      const allCompletedGames = allGames.filter(game => {
+        const hasScore = game.home_score !== null && game.home_score !== '' &&
+                        game.away_score !== null && game.away_score !== '';
+        const isBash = (game.specialevent || '').toLowerCase().includes('bash') ||
+                      (game.gamedescription || '').toLowerCase().includes('bash') ||
+                      (game.notes || '').toLowerCase().includes('bash');
+        return hasScore && !isBash && !game.is_playoff && game.gender === gender;
+      }).map(g => ({
+        home: normalizeTeamName(g.home_team || g.home),
+        away: normalizeTeamName(g.away_team || g.away),
+        homeScore: parseInt(g.home_score),
+        awayScore: parseInt(g.away_score)
+      }));
+      
+      teams.forEach(team => {
+        let wins;
+        if (homeOrAway === 'away') {
+          wins = allCompletedGames.filter(g => g.away === team && g.awayScore > g.homeScore).length;
+        } else {
+          wins = allCompletedGames.filter(g => g.home === team && g.homeScore > g.awayScore).length;
+        }
+        teamValues[team] = `${wins}`;
+        counts.push({ team, wins });
+      });
+      
+      counts.sort((a, b) => b.wins - a.wins);
+      
+      if (counts.length >= 2 && counts[0].wins !== counts[1].wins) {
+        return { status: 'resolved', resolved: true, order: counts.map(c => c.team), detail: `Total ${homeOrAway} wins`, teamValues };
+      }
+      
+      return { status: 'tied', detail: `Total ${homeOrAway} wins inconclusive`, teamValues };
+    }
+    
+    function formatDateShort(dateStr) {
+      if (!dateStr) return '';
+      const [y, m, d] = dateStr.split('-');
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return `${months[parseInt(m) - 1]} ${parseInt(d)}`;
+    }
+    
+    // --- Render tiebreaker panel HTML ---
+    function renderTiebreakerPanel(tieGroup) {
+      const res = tieGroup.resolution;
+      const teams = tieGroup.teams;
+      const steps = res.steps;
+      
+      let html = `<div class="tiebreaker-panel">`;
+      html += `<div class="tiebreaker-header">
+        <span>Tiebreaker: ${tieGroup.record.wins}-${tieGroup.record.losses} record</span>
+        <button class="close-btn" onclick="closeTiebreakerOverlay()">&times;</button>
+      </div>`;
+      
+      html += `<div class="tiebreaker-teams">`;
+      res.order.forEach((team, i) => {
+        html += `<div class="tiebreaker-team-chip">
+          <img src="${Ball603.getLogoUrl(team)}" alt="" onerror="this.style.display='none'">
+          <span>#${tieGroup.startRank + i} ${team}</span>
+        </div>`;
+      });
+      html += `</div>`;
+      
+      html += `<div class="tiebreaker-steps">`;
+      let resolved = false;
+      steps.forEach(step => {
+        if (resolved && step.status !== 'resolved') return;
+        
+        let icon, labelClass = '';
+        if (step.status === 'resolved') {
+          icon = '\u2705';
+          labelClass = 'resolved';
+          resolved = true;
+        } else {
+          icon = '\u2796';
+        }
+        
+        const iconClass = step.status === 'resolved' ? 'resolved' : step.status === 'tied' ? 'tied' : 'skipped';
+        const approxNote = step.approximate ? ' <span style="font-size:10px;color:#999;">(win % approx.)</span>' : '';
+        const criterionLabel = step.criterion === 0 ? step.label : `${step.criterion}. ${step.label}`;
+        
+        html += `<div class="tiebreaker-step">
+          <div class="step-icon ${iconClass}">${icon}</div>
+          <div class="step-content">
+            <div class="step-label ${labelClass}">${criterionLabel}${approxNote}</div>
+            <div class="step-detail">`;
+        
+        if (step.teamValues && Object.keys(step.teamValues).length > 0) {
+          const sortedTeams = res.order.length > 0 ? res.order : teams;
+          sortedTeams.forEach(team => {
+            if (step.teamValues[team] !== undefined) {
+              let resultClass = 'even';
+              if (step.status === 'resolved' && step.order && step.order[0] === team) resultClass = 'winner';
+              else if (step.status === 'resolved' && step.order && step.order[step.order.length - 1] === team) resultClass = 'loser';
+              html += `<span class="team-result ${resultClass}">${team}: ${step.teamValues[team]}</span> `;
+            }
+          });
+        }
+        
+        if (step.detail) {
+          html += `<br>${step.detail}`;
+        }
+        
+        html += `</div></div></div>`;
+      });
+      html += `</div>`;
+      
+      if (res.order.length > 0 && steps.some(s => s.status === 'resolved')) {
+        const resolvedStep = steps.find(s => s.status === 'resolved');
+        const resolvedLabel = resolvedStep.criterion === 0 ? 'Rating' : `Criterion ${resolvedStep.criterion}`;
+        html += `<div class="tiebreaker-result">\u2705 Resolved by ${resolvedLabel}: ${res.order.map((t, i) => `#${tieGroup.startRank + i} ${t}`).join(', ')}</div>`;
+      } else {
+        html += `<div class="tiebreaker-result" style="background:#fff3e0;color:#e65100;">Could not fully resolve \u2014 may require NHIAA committee</div>`;
+      }
+      
+      html += `<div class="tiebreaker-disclaimer">Tiebreakers use win % as a proxy for criteria requiring NHIAA Index rating (2, 4, 5). Official seedings determined by NHIAA.</div>`;
+      html += `</div>`;
+      
+      return html;
+    }
+    
+    let tiebreakerPanelsHtml = {};
+    
+    function openTiebreakerOverlay(panelKey) {
+      const overlay = document.getElementById('tiebreakerOverlay');
+      if (!overlay || !tiebreakerPanelsHtml[panelKey]) return;
+      overlay.innerHTML = tiebreakerPanelsHtml[panelKey];
+      overlay.classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+    
+    function closeTiebreakerOverlay() {
+      const overlay = document.getElementById('tiebreakerOverlay');
+      if (overlay) {
+        overlay.classList.remove('open');
+        document.body.style.overflow = '';
+      }
+    }
+    
     // ===== UI HANDLERS =====
     
     function selectSport(sport) {
@@ -1175,7 +2189,49 @@
         return;
       }
       
-      // Build table - add playoff columns if locked (basketball only)
+      // Run tiebreaker engine
+      resolveTiebreakers();
+      
+      // Build a map of team -> tieGroup for quick lookup
+      const tieGroupMap = {}; // team -> tieGroup
+      const tbKey = `${currentGender}-${currentDivision}`;
+      const tieGroups = tiebreakerResults[tbKey] || [];
+      tieGroups.forEach(tg => {
+        tg.teams.forEach(team => {
+          tieGroupMap[team] = tg;
+        });
+      });
+      
+      // Apply tiebreaker ordering to standings
+      // For each tie group, reorder the tied teams according to resolution
+      tieGroups.forEach(tg => {
+        if (!tg.resolution || !tg.resolution.order || tg.resolution.order.length === 0) return;
+        const startIdx = tg.startRank - 1;
+        const resolvedOrder = tg.resolution.order;
+        
+        // Save references to tied entries BEFORE overwriting
+        const tiedEntries = {};
+        for (let i = startIdx; i < startIdx + tg.teams.length && i < standings.length; i++) {
+          tiedEntries[standings[i].school] = standings[i];
+        }
+        
+        // Now replace in resolved order using saved references
+        for (let i = 0; i < resolvedOrder.length; i++) {
+          const entry = tiedEntries[resolvedOrder[i]];
+          if (entry && startIdx + i < standings.length) {
+            standings[startIdx + i] = entry;
+          }
+        }
+      });
+      
+      // Build tiebreaker panels for overlay
+      tiebreakerPanelsHtml = {};
+      tieGroups.forEach(tg => {
+        const panelKey = tg.teams.join('-').replace(/[^a-zA-Z0-9]/g, '');
+        tiebreakerPanelsHtml[panelKey] = renderTiebreakerPanel(tg);
+      });
+      
+      // Build table
       let html = `
         <table class="standings-table">
           <thead>
@@ -1215,6 +2271,15 @@
         if (isBye) rankClass += ' bye';
         else if (isPlayoffTeam) rankClass += ' playoff';
         
+        // Check if this team is in a tie group
+        const tieGroup = tieGroupMap[team.school];
+        let tieBadge = '';
+        let panelKey = '';
+        if (tieGroup) {
+          panelKey = tieGroup.teams.join('-').replace(/[^a-zA-Z0-9]/g, '');
+          tieBadge = `<span class="tie-badge" onclick="openTiebreakerOverlay('${panelKey}')" title="Click for tiebreaker details">TIE</span>`;
+        }
+        
         html += `
           <tr class="${isPlayoffLine ? 'playoff-line' : ''}">
             <td class="${rankClass} center">${rank}</td>
@@ -1222,6 +2287,7 @@
               <div class="team-cell">
                 <img class="team-logo" src="${Ball603.getLogoUrl(team.school)}" alt="" onerror="this.src='/logos/100px/Ball603-white.png'">
                 <a class="team-name" href="/${teamSlug}${sportParam}">${team.school}</a>
+                ${tieBadge}
               </div>
             </td>
             <td class="record-cell center">${team.wins}-${team.losses}</td>
