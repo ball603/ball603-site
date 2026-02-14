@@ -1071,6 +1071,16 @@
       const numTeams = seeds.length;
       const seedMap = new Map(seeds.map(s => [s.seed, s.team]));
       
+      // Get schedule for current tournament
+      const schedule = TOURNAMENT_SCHEDULE[currentGender]?.[currentDivision];
+      
+      // Format date for display
+      const formatDate = (dateStr) => {
+        if (!dateStr) return 'TBD';
+        const date = new Date(dateStr + 'T12:00:00');
+        return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+      };
+      
       // Standard 16-team bracket matchups
       const BRACKET_MATCHUPS = [
         { position: 1, high: 1, low: 16 },
@@ -1083,11 +1093,15 @@
         { position: 8, high: 6, low: 11 }
       ];
       
+      // Track which teams get byes and advance to quarters
+      const byeTeams = {}; // quarterPosition -> { team, seed }
+      
       const games = [];
       
       // Prelims
       for (const matchup of BRACKET_MATCHUPS) {
         const isBye = matchup.low > numTeams;
+        const quarterPos = Math.ceil(matchup.position / 2); // 1-2 -> Q1, 3-4 -> Q2, etc.
         
         if (isBye) {
           // BYE game - only high seed
@@ -1098,8 +1112,11 @@
             home_seed: matchup.high,
             away_team: null,
             away_seed: null,
+            date: schedule?.prelims?.date,
             time: 'BYE'
           });
+          // Track for quarters advancement
+          byeTeams[quarterPos] = { team: seedMap.get(matchup.high), seed: matchup.high };
         } else {
           // Regular matchup
           games.push({
@@ -1109,21 +1126,25 @@
             home_seed: matchup.high,
             away_team: seedMap.get(matchup.low),
             away_seed: matchup.low,
-            time: 'TBD'
+            date: schedule?.prelims?.date,
+            time: formatDate(schedule?.prelims?.date)
           });
         }
       }
       
-      // Quarters (4 games, TBD teams)
+      // Quarters (4 games) - populate bye team if applicable
       for (let pos = 1; pos <= 4; pos++) {
+        const byeTeam = byeTeams[pos];
         games.push({
           round: 'Quarters',
           bracket_position: pos,
-          home_team: null,
-          home_seed: null,
+          home_team: byeTeam ? byeTeam.team : null,
+          home_seed: byeTeam ? byeTeam.seed : null,
           away_team: null,
           away_seed: null,
-          time: 'TBD'
+          date: schedule?.quarters?.date,
+          time: formatDate(schedule?.quarters?.date),
+          is_bye_advance: !!byeTeam  // Flag to show this isn't a prelim bye
         });
       }
       
@@ -1136,7 +1157,8 @@
           home_seed: null,
           away_team: null,
           away_seed: null,
-          time: 'TBD'
+          date: schedule?.semis?.date,
+          time: formatDate(schedule?.semis?.date)
         });
       }
       
@@ -1148,7 +1170,8 @@
         home_seed: null,
         away_team: null,
         away_seed: null,
-        time: 'TBD'
+        date: schedule?.final?.date,
+        time: formatDate(schedule?.final?.date)
       });
       
       return games;
@@ -1244,7 +1267,7 @@
       return games.map(game => {
         const isLive = game.game_status && !game.game_status.includes('FINAL');
         const isFinal = game.game_status && game.game_status.includes('FINAL');
-        const hasScore = game.away_score !== null && game.home_score !== null;
+        const hasScore = game.away_score != null && game.home_score != null;
         
         // Determine winner
         let awayClass = '', homeClass = '';
@@ -1274,6 +1297,7 @@
           statusText = finalMap[game.game_status] || 'Final';
           statusClass = 'final';
         } else {
+          // Use time if set, otherwise show date or TBD
           statusText = game.time || 'TBD';
         }
         
@@ -1286,6 +1310,28 @@
         // Check for BYE (no away team but has home team)
         if (!game.away_team && game.home_team) {
           const homeSeed = seedMap.get(game.home_seed);
+          
+          // If this is a bye advance (quarters with one team already set), show differently
+          if (game.is_bye_advance) {
+            return `
+              <div class="matchup">
+                <div class="matchup-team">
+                  <span class="team-seed">#${game.home_seed}</span>
+                  <img src="/logos/100px/${getLogoFilename(game.home_team)}" class="team-logo" onerror="this.style.display='none'" alt="">
+                  ${getTeamNameHtml(game.home_team)}
+                </div>
+                <div class="matchup-team">
+                  <span class="team-seed">-</span>
+                  <span class="team-name">TBD</span>
+                </div>
+                <div class="matchup-footer">
+                  <span>${statusText}</span>
+                </div>
+              </div>
+            `;
+          }
+          
+          // Regular prelim BYE
           return `
             <div class="matchup bye">
               <div class="matchup-team">
