@@ -472,6 +472,85 @@ async function calculateVsPlayoffTeams(team, gender, division, season, qualifyin
   return { wins, losses };
 }
 
+// Project seeds (publish as projected, no games created)
+async function projectSeeds(gender, division, season, seeds) {
+  const numTeams = seeds.length;
+  if (numTeams < 14 || numTeams > 16) {
+    throw new Error(`Invalid number of teams: ${numTeams}. Expected 14-16.`);
+  }
+  
+  const now = new Date().toISOString();
+  
+  // Build set of qualifying teams for vs-playoff calculation
+  const qualifyingTeams = new Set(seeds.map(s => s.team));
+  
+  // Get current standings/RPI for each team to snapshot
+  const standingsData = await supabaseRequest(
+    `standings?season=eq.${season}&gender=eq.${gender}&division=eq.${division}`,
+    { headers: { 'Range': '0-99' } }
+  );
+  
+  const standingsMap = new Map();
+  standingsData.forEach(s => standingsMap.set(s.school, s));
+  
+  // Get RPI rankings
+  const rpiData = await supabaseRequest(
+    `rpi_rankings?gender=eq.${gender}&division=eq.${division}&order=week_of.desc`,
+    { headers: { 'Range': '0-99' } }
+  );
+  
+  const rpiMap = new Map();
+  rpiData.forEach(r => {
+    if (!rpiMap.has(r.team)) {
+      rpiMap.set(r.team, r);
+    }
+  });
+  
+  // Build seed records with frozen stats
+  const seedRecords = [];
+  
+  for (const seed of seeds) {
+    const standing = standingsMap.get(seed.team) || {};
+    const rpi = rpiMap.get(seed.team) || {};
+    const vsPlayoff = await calculateVsPlayoffTeams(seed.team, gender, division, season, qualifyingTeams);
+    
+    seedRecords.push({
+      season,
+      gender,
+      division,
+      seed: seed.seed,
+      team: seed.team,
+      reg_season_wins: standing.wins || 0,
+      reg_season_losses: standing.losses || 0,
+      final_rpi_rank: rpi.rank || null,
+      final_rating: standing.rating || null,
+      vs_playoff_wins: vsPlayoff.wins,
+      vs_playoff_losses: vsPlayoff.losses,
+      status: 'projected',
+      projected_at: now
+    });
+  }
+  
+  // Delete any existing seeds first (in case updating a projection)
+  await supabaseRequest(
+    `playoff_seeds?season=eq.${season}&gender=eq.${gender}&division=eq.${division}`,
+    { method: 'DELETE', prefer: 'return=minimal' }
+  );
+  
+  // Insert seed records
+  await supabaseRequest('playoff_seeds', {
+    method: 'POST',
+    body: JSON.stringify(seedRecords),
+    prefer: 'return=minimal'
+  });
+  
+  return {
+    success: true,
+    projected: seedRecords.length,
+    byes: 16 - numTeams
+  };
+}
+
 // Lock seeds and generate bracket games
 async function lockSeeds(gender, division, season, seeds) {
   const schedule = TOURNAMENT_SCHEDULE[gender]?.[division];
@@ -532,18 +611,25 @@ async function lockSeeds(gender, division, season, seeds) {
       final_rating: standing.rating || null,
       vs_playoff_wins: vsPlayoff.wins,
       vs_playoff_losses: vsPlayoff.losses,
+      status: 'locked',
       locked_at: now
     });
   }
   
-  // Step 3: Insert seed records
+  // Step 3: Delete any existing seeds (in case upgrading from projected)
+  await supabaseRequest(
+    `playoff_seeds?season=eq.${season}&gender=eq.${gender}&division=eq.${division}`,
+    { method: 'DELETE', prefer: 'return=minimal' }
+  );
+  
+  // Step 4: Insert seed records
   await supabaseRequest('playoff_seeds', {
     method: 'POST',
     body: JSON.stringify(seedRecords),
     prefer: 'return=minimal'
   });
   
-  // Step 4: Generate bracket games
+  // Step 5: Generate bracket games
   const games = [];
   const seedMap = new Map(seeds.map(s => [s.seed, s.team]));
   
@@ -718,11 +804,26 @@ async function getSeeds(gender, division, season) {
     `games?season=eq.${season}&gender=eq.${gender}&division=eq.${division}&is_playoff=eq.true&order=round.asc,bracket_position.asc`
   );
   
+  // Determine status: 'none', 'projected', or 'locked'
+  let status = 'none';
+  if (seeds.length > 0) {
+    // Check if any seed has status='projected' (or if status column exists)
+    const firstSeed = seeds[0];
+    if (firstSeed.status === 'projected') {
+      status = 'projected';
+    } else {
+      // Locked (either explicit status='locked' or legacy records without status column)
+      status = 'locked';
+    }
+  }
+  
   return {
-    locked: seeds.length > 0,
+    status,
+    locked: status === 'locked', // backward compatibility
     seeds,
     games,
-    lockedAt: seeds.length > 0 ? seeds[0].locked_at : null
+    lockedAt: seeds.length > 0 ? seeds[0].locked_at : null,
+    projectedAt: status === 'projected' && seeds.length > 0 ? seeds[0].projected_at : null
   };
 }
 
@@ -912,7 +1013,18 @@ export default async (request) => {
         return new Response(JSON.stringify(result), { status: 200, headers });
       }
       
-      if (action === 'unlock') {
+      if (action === 'project') {
+        if (!seeds || !Array.isArray(seeds) || seeds.length < 14) {
+          return new Response(JSON.stringify({ error: 'seeds array required (14-16 teams)' }), {
+            status: 400, headers
+          });
+        }
+        
+        const result = await projectSeeds(gender, division, season, seeds);
+        return new Response(JSON.stringify(result), { status: 200, headers });
+      }
+      
+      if (action === 'unlock' || action === 'unproject') {
         const result = await unlockBracket(gender, division, season);
         return new Response(JSON.stringify(result), { status: 200, headers });
       }
