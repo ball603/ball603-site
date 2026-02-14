@@ -783,70 +783,64 @@
         color: #bcaaa4;
       }
     }
-    
-    /* Mobile Dark Mode - Matchup Cards (DIRECT colors, not variables) */
+  </style>
+  
+  <!-- MOBILE DARK MODE FOR MATCHUPS - Separate style block for maximum priority -->
+  <style id="mobile-dark-overrides">
     @media screen and (max-width: 768px) {
-      .matchup {
+      /* Ultra-high specificity using ID selector */
+      #bracket .matchup,
+      #bracket .matchup.bye,
+      .bracket-container .matchup,
+      .playoffs-page .matchup,
+      div.matchup {
         background-color: #1e1e1e !important;
+        background: #1e1e1e !important;
         border-color: #333333 !important;
       }
       
-      .matchup-team {
+      #bracket .matchup-team,
+      .bracket-container .matchup-team,
+      div.matchup-team {
         border-bottom-color: #333333 !important;
       }
       
-      .matchup-footer {
+      #bracket .matchup-footer,
+      .bracket-container .matchup-footer,
+      div.matchup-footer {
         background-color: #1a1a1a !important;
+        background: #1a1a1a !important;
       }
       
-      .team-seed {
+      #bracket .team-seed,
+      .bracket-container .team-seed,
+      span.team-seed {
         background-color: #1a1a1a !important;
+        background: #1a1a1a !important;
         color: #b0b0b0 !important;
       }
       
-      .team-name {
-        color: #ffffff !important;
-      }
-      
+      #bracket .team-name,
+      .bracket-container .team-name,
+      span.team-name,
       a.team-name {
         color: #ffffff !important;
       }
       
-      .team-score {
+      #bracket .team-score,
+      .bracket-container .team-score,
+      span.team-score {
         color: #ffffff !important;
       }
       
-      .matchup-team.winner .team-seed {
+      #bracket .matchup-team.winner .team-seed {
         background-color: #f57c00 !important;
+        background: #f57c00 !important;
         color: white !important;
       }
       
-      .matchup-team.winner .team-score {
+      #bracket .matchup-team.winner .team-score {
         color: #4caf50 !important;
-      }
-      
-      /* Also fix other card elements */
-      .gender-btn {
-        background-color: #1e1e1e !important;
-        border-color: #333333 !important;
-      }
-      
-      .gender-btn.active {
-        background-color: #f57c00 !important;
-        border-color: #f57c00 !important;
-      }
-      
-      .division-tab.active {
-        background-color: #1e1e1e !important;
-      }
-      
-      .coverage-item {
-        background-color: #1e1e1e !important;
-        border-color: #333333 !important;
-      }
-      
-      .modal-content {
-        background-color: #1e1e1e !important;
       }
       
       .round-header {
@@ -969,6 +963,52 @@
     const SUPABASE_URL = 'https://suncdkxfqkwwnmhosxcf.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_hHSpgZPD327r11GaQG9iHw_uZbuaWmF';
     const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    
+    // Mobile Dark Mode: Apply inline styles directly (bulletproof override)
+    function applyMobileDarkMode() {
+      if (window.innerWidth > 768) return; // Only apply on mobile
+      
+      // Apply to all matchup elements
+      document.querySelectorAll('.matchup').forEach(el => {
+        el.style.setProperty('background-color', '#1e1e1e', 'important');
+        el.style.setProperty('background', '#1e1e1e', 'important');
+        el.style.setProperty('border-color', '#333333', 'important');
+      });
+      
+      document.querySelectorAll('.matchup-team').forEach(el => {
+        el.style.setProperty('border-bottom-color', '#333333', 'important');
+      });
+      
+      document.querySelectorAll('.matchup-footer').forEach(el => {
+        el.style.setProperty('background-color', '#1a1a1a', 'important');
+        el.style.setProperty('background', '#1a1a1a', 'important');
+      });
+      
+      document.querySelectorAll('.team-seed').forEach(el => {
+        el.style.setProperty('background-color', '#1a1a1a', 'important');
+        el.style.setProperty('background', '#1a1a1a', 'important');
+        el.style.setProperty('color', '#b0b0b0', 'important');
+      });
+      
+      document.querySelectorAll('.team-name').forEach(el => {
+        el.style.setProperty('color', '#ffffff', 'important');
+      });
+      
+      document.querySelectorAll('.team-score').forEach(el => {
+        el.style.setProperty('color', '#ffffff', 'important');
+      });
+      
+      // Handle winner states
+      document.querySelectorAll('.matchup-team.winner .team-seed').forEach(el => {
+        el.style.setProperty('background-color', '#f57c00', 'important');
+        el.style.setProperty('background', '#f57c00', 'important');
+        el.style.setProperty('color', 'white', 'important');
+      });
+      
+      document.querySelectorAll('.matchup-team.winner .team-score').forEach(el => {
+        el.style.setProperty('color', '#4caf50', 'important');
+      });
+    }
     
     // Tournament schedule data
     const TOURNAMENT_SCHEDULE = {
@@ -1124,6 +1164,7 @@
         document.getElementById('bracketContainer').classList.add('visible');
         
         renderBracket();
+        applyMobileDarkMode(); // Apply inline styles for mobile
         
         // Only show coverage section for locked brackets
         if (status === 'locked') {
