@@ -117,6 +117,325 @@ function teamSlug(name) {
   return name.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
+// Normalize team names
+function normalizeTeamName(name) {
+  const normalizations = {
+    'Coe-Brown Northwood': 'Coe-Brown',
+    'Coe-Brown Northwood Academy': 'Coe-Brown'
+  };
+  return normalizations[name] || name;
+}
+
+// ============================================
+// TIEBREAKER LOGIC (matches standings.html Seed Decoder)
+// ============================================
+
+// Criterion 0: Rating
+function evaluateRating(teams, teamRatings) {
+  const sorted = [...teams].sort((a, b) => teamRatings[b] - teamRatings[a]);
+  const allSame = teams.every(t => Math.abs(teamRatings[t] - teamRatings[teams[0]]) < 0.0005);
+  
+  if (allSame) {
+    return { status: 'tied' };
+  }
+  
+  const highestRating = teamRatings[sorted[0]];
+  const teamsWithHighest = sorted.filter(t => Math.abs(teamRatings[t] - highestRating) < 0.0005);
+  
+  if (teamsWithHighest.length === 1) {
+    if (teams.length === 2) {
+      return { status: 'resolved', resolved: true, order: sorted };
+    } else {
+      return { status: 'resolved', topTeam: sorted[0] };
+    }
+  }
+  
+  return { status: 'tied' };
+}
+
+// Criterion 1: Head-to-Head
+function evaluateHeadToHead(teams, games) {
+  const h2hGames = games.filter(g =>
+    teams.includes(g.home) && teams.includes(g.away)
+  );
+  
+  if (h2hGames.length === 0) {
+    return { status: 'skipped' };
+  }
+  
+  if (teams.length === 2) {
+    const t1 = teams[0], t2 = teams[1];
+    const gamesPlayed = h2hGames.filter(g =>
+      (g.home === t1 && g.away === t2) || (g.home === t2 && g.away === t1)
+    );
+    
+    if (gamesPlayed.length === 0) {
+      return { status: 'skipped' };
+    }
+    
+    let t1Wins = 0, t2Wins = 0;
+    gamesPlayed.forEach(g => {
+      const winner = g.homeScore > g.awayScore ? g.home : g.away;
+      if (winner === t1) t1Wins++;
+      else t2Wins++;
+    });
+    
+    if (t1Wins > t2Wins) {
+      return { status: 'resolved', resolved: true, order: [t1, t2] };
+    } else if (t2Wins > t1Wins) {
+      return { status: 'resolved', resolved: true, order: [t2, t1] };
+    }
+    return { status: 'tied' };
+  }
+  
+  // Multi-team tie: check if one team beat ALL others
+  for (const team of teams) {
+    const others = teams.filter(t => t !== team);
+    let beatAll = true;
+    for (const opp of others) {
+      const matchups = h2hGames.filter(g =>
+        (g.home === team && g.away === opp) || (g.home === opp && g.away === team)
+      );
+      const wins = matchups.filter(g =>
+        (g.home === team && g.homeScore > g.awayScore) || (g.away === team && g.awayScore > g.homeScore)
+      ).length;
+      const losses = matchups.filter(g =>
+        (g.home === team && g.homeScore < g.awayScore) || (g.away === team && g.awayScore < g.homeScore)
+      ).length;
+      if (losses > 0 || wins === 0) { beatAll = false; break; }
+    }
+    if (beatAll) {
+      return { status: 'resolved', topTeam: team };
+    }
+  }
+  
+  // Calculate H2H win pct for each team
+  const sorted = teams.slice().sort((a, b) => {
+    const aGames = h2hGames.filter(g => g.home === a || g.away === a);
+    const aWins = aGames.filter(g => (g.home === a && g.homeScore > g.awayScore) || (g.away === a && g.awayScore > g.homeScore)).length;
+    const aPct = aGames.length > 0 ? aWins / aGames.length : 0;
+    const bGames = h2hGames.filter(g => g.home === b || g.away === b);
+    const bWins = bGames.filter(g => (g.home === b && g.homeScore > g.awayScore) || (g.away === b && g.awayScore > g.homeScore)).length;
+    const bPct = bGames.length > 0 ? bWins / bGames.length : 0;
+    return bPct - aPct;
+  });
+  
+  const topGames = h2hGames.filter(g => g.home === sorted[0] || g.away === sorted[0]);
+  const topWins = topGames.filter(g => (g.home === sorted[0] && g.homeScore > g.awayScore) || (g.away === sorted[0] && g.awayScore > g.homeScore)).length;
+  const topPct = topGames.length > 0 ? topWins / topGames.length : 0;
+  const secGames = h2hGames.filter(g => g.home === sorted[1] || g.away === sorted[1]);
+  const secWins = secGames.filter(g => (g.home === sorted[1] && g.homeScore > g.awayScore) || (g.away === sorted[1] && g.awayScore > g.homeScore)).length;
+  const secPct = secGames.length > 0 ? secWins / secGames.length : 0;
+  
+  if (Math.abs(topPct - secPct) > 0.001) {
+    return { status: 'resolved', resolved: true, order: sorted };
+  }
+  
+  return { status: 'tied' };
+}
+
+// Criterion 2: Win pct vs tournament teams
+function evaluateVsTournamentTeams(teams, allDivGames, tournamentTeams) {
+  const pcts = [];
+  
+  teams.forEach(team => {
+    const vsGames = allDivGames.filter(g =>
+      ((g.home === team && tournamentTeams.has(g.away)) ||
+       (g.away === team && tournamentTeams.has(g.home)))
+    );
+    const wins = vsGames.filter(g =>
+      (g.home === team && g.homeScore > g.awayScore) || (g.away === team && g.awayScore > g.homeScore)
+    ).length;
+    const pct = vsGames.length > 0 ? wins / vsGames.length : 0;
+    pcts.push({ team, pct });
+  });
+  
+  pcts.sort((a, b) => b.pct - a.pct);
+  
+  if (pcts.length >= 2 && Math.abs(pcts[0].pct - pcts[1].pct) > 0.001) {
+    return { status: 'resolved', resolved: true, order: pcts.map(p => p.team) };
+  }
+  
+  return { status: 'tied' };
+}
+
+// Criterion 3: Quality of wins
+function evaluateQualityOfWins(teams, allDivGames, tournamentTeams) {
+  const rankings = [];
+  
+  teams.forEach(team => {
+    const vsTourneyGames = allDivGames.filter(g =>
+      ((g.home === team && tournamentTeams.has(g.away)) || (g.away === team && tournamentTeams.has(g.home)))
+    );
+    
+    const beatenOpps = new Set();
+    vsTourneyGames.forEach(g => {
+      const opp = g.home === team ? g.away : g.home;
+      const won = (g.home === team && g.homeScore > g.awayScore) || (g.away === team && g.awayScore > g.homeScore);
+      if (won) beatenOpps.add(opp);
+    });
+    
+    let beatenOppWins = 0;
+    beatenOpps.forEach(opp => {
+      const oppGames = allDivGames.filter(g =>
+        ((g.home === opp && tournamentTeams.has(g.away)) || (g.away === opp && tournamentTeams.has(g.home)))
+      );
+      beatenOppWins += oppGames.filter(g =>
+        (g.home === opp && g.homeScore > g.awayScore) || (g.away === opp && g.awayScore > g.homeScore)
+      ).length;
+    });
+    
+    let totalOppGames = 0;
+    const myTourneyOpps = new Set();
+    vsTourneyGames.forEach(g => {
+      myTourneyOpps.add(g.home === team ? g.away : g.home);
+    });
+    myTourneyOpps.forEach(opp => {
+      totalOppGames += allDivGames.filter(g =>
+        ((g.home === opp && tournamentTeams.has(g.away)) || (g.away === opp && tournamentTeams.has(g.home)))
+      ).length;
+    });
+    
+    const ranking = totalOppGames > 0 ? beatenOppWins / totalOppGames : 0;
+    rankings.push({ team, ranking });
+  });
+  
+  rankings.sort((a, b) => b.ranking - a.ranking);
+  
+  if (rankings.length >= 2 && Math.abs(rankings[0].ranking - rankings[1].ranking) > 0.001) {
+    return { status: 'resolved', resolved: true, order: rankings.map(r => r.team) };
+  }
+  
+  return { status: 'tied' };
+}
+
+// Criteria 4 & 5: Home/Away win pct vs division
+function evaluateHomeAwayVsDivision(teams, allDivGames, divTeams, homeOrAway) {
+  const pcts = [];
+  
+  teams.forEach(team => {
+    let myGames;
+    if (homeOrAway === 'away') {
+      myGames = allDivGames.filter(g => g.away === team && divTeams.has(g.home));
+    } else {
+      myGames = allDivGames.filter(g => g.home === team && divTeams.has(g.away));
+    }
+    
+    const wins = myGames.filter(g =>
+      (g.home === team && g.homeScore > g.awayScore) || (g.away === team && g.awayScore > g.homeScore)
+    ).length;
+    const pct = myGames.length > 0 ? wins / myGames.length : 0;
+    pcts.push({ team, pct });
+  });
+  
+  pcts.sort((a, b) => b.pct - a.pct);
+  
+  if (pcts.length >= 2 && Math.abs(pcts[0].pct - pcts[1].pct) > 0.001) {
+    return { status: 'resolved', resolved: true, order: pcts.map(p => p.team) };
+  }
+  
+  return { status: 'tied' };
+}
+
+// Criteria 6 & 7: Total home/away wins
+function evaluateTotalHomeAwayWins(teams, allGames, homeOrAway) {
+  const counts = [];
+  
+  teams.forEach(team => {
+    let wins;
+    if (homeOrAway === 'away') {
+      wins = allGames.filter(g => g.away === team && g.awayScore > g.homeScore).length;
+    } else {
+      wins = allGames.filter(g => g.home === team && g.homeScore > g.awayScore).length;
+    }
+    counts.push({ team, wins });
+  });
+  
+  counts.sort((a, b) => b.wins - a.wins);
+  
+  if (counts.length >= 2 && counts[0].wins !== counts[1].wins) {
+    return { status: 'resolved', resolved: true, order: counts.map(c => c.team) };
+  }
+  
+  return { status: 'tied' };
+}
+
+// Main tiebreaker resolution - one round
+function resolveOneRound(teams, allDivGames, allGames, tournamentTeams, divTeams, teamRatings) {
+  // Criterion 0: Rating
+  const ratingResult = evaluateRating(teams, teamRatings);
+  if (ratingResult.resolved) return { resolved: true, order: ratingResult.order };
+  if (ratingResult.topTeam) return { topTeam: ratingResult.topTeam };
+  
+  // Criterion 1: Head-to-head
+  const h2h = evaluateHeadToHead(teams, allDivGames);
+  if (h2h.resolved) return { resolved: true, order: h2h.order };
+  if (h2h.topTeam) return { topTeam: h2h.topTeam };
+  
+  // Criterion 2: Win pct vs tournament teams
+  const vsTourney = evaluateVsTournamentTeams(teams, allDivGames, tournamentTeams);
+  if (vsTourney.resolved) return { resolved: true, order: vsTourney.order };
+  
+  // Criterion 3: Quality of wins
+  const qualityWins = evaluateQualityOfWins(teams, allDivGames, tournamentTeams);
+  if (qualityWins.resolved) return { resolved: true, order: qualityWins.order };
+  
+  // Criterion 4: Away win pct vs division
+  const awayDiv = evaluateHomeAwayVsDivision(teams, allDivGames, divTeams, 'away');
+  if (awayDiv.resolved) return { resolved: true, order: awayDiv.order };
+  
+  // Criterion 5: Home win pct vs division
+  const homeDiv = evaluateHomeAwayVsDivision(teams, allDivGames, divTeams, 'home');
+  if (homeDiv.resolved) return { resolved: true, order: homeDiv.order };
+  
+  // Criterion 6: Total away wins
+  const awayWins = evaluateTotalHomeAwayWins(teams, allGames, 'away');
+  if (awayWins.resolved) return { resolved: true, order: awayWins.order };
+  
+  // Criterion 7: Total home wins
+  const homeWins = evaluateTotalHomeAwayWins(teams, allGames, 'home');
+  if (homeWins.resolved) return { resolved: true, order: homeWins.order };
+  
+  // Unresolved
+  return { resolved: false };
+}
+
+// Walk through tiebreakers for a group
+function walkTiebreakers(teams, allDivGames, allGames, tournamentTeams, divTeams, teamRatings) {
+  let remainingTeams = [...teams];
+  const finalOrder = [];
+  
+  while (remainingTeams.length > 1) {
+    const result = resolveOneRound(remainingTeams, allDivGames, allGames, tournamentTeams, divTeams, teamRatings);
+    if (result.resolved) {
+      result.order.forEach(t => {
+        if (!finalOrder.includes(t)) finalOrder.push(t);
+      });
+      break;
+    } else if (result.topTeam) {
+      finalOrder.push(result.topTeam);
+      remainingTeams = remainingTeams.filter(t => t !== result.topTeam);
+    } else {
+      // Couldn't resolve — push remaining in original order (by rating)
+      remainingTeams.sort((a, b) => teamRatings[b] - teamRatings[a]);
+      remainingTeams.forEach(t => {
+        if (!finalOrder.includes(t)) finalOrder.push(t);
+      });
+      break;
+    }
+  }
+  
+  if (remainingTeams.length === 1 && !finalOrder.includes(remainingTeams[0])) {
+    finalOrder.push(remainingTeams[0]);
+  }
+  
+  return finalOrder;
+}
+
+// ============================================
+// END TIEBREAKER LOGIC
+// ============================================
+
 // Generate a unique game_id for playoff games
 function generateGameId(season, gender, division, round, position) {
   const seasonSlug = season.replace('-', '');
@@ -409,11 +728,15 @@ async function getSeeds(gender, division, season) {
 
 // Get current standings (for pre-lock preview)
 async function getStandingsPreview(gender, division, season) {
-  // Get standings sorted by rating
+  // Get standings sorted by rating initially
   const standings = await supabaseRequest(
     `standings?season=eq.${season}&gender=eq.${gender}&division=eq.${division}&order=rating.desc`,
     { headers: { 'Range': '0-99' } }
   );
+  
+  if (standings.length === 0) {
+    return { tournamentSpots: 16, totalTeams: 0, bracketSize: 16, byes: 16, preview: [] };
+  }
   
   // Get RPI rankings
   const rpiData = await supabaseRequest(
@@ -429,10 +752,88 @@ async function getStandingsPreview(gender, division, season) {
   });
   
   // Determine tournament spots
-  const tournamentSpots = standings.length > 0 ? standings[0].tournament_spots : 16;
+  const tournamentSpots = standings[0].tournament_spots || 16;
+  
+  // Get ALL completed games for this gender (for tiebreakers)
+  const gamesData = await supabaseRequest(
+    `games?season=eq.${season}&gender=eq.${gender}&sport=eq.basketball&is_playoff=eq.false&home_score=not.is.null&away_score=not.is.null`,
+    { headers: { 'Range': '0-9999' } }
+  );
+  
+  // Filter out Bash games and normalize
+  const allGames = gamesData.filter(g => {
+    const isBash = (g.specialevent || '').toLowerCase().includes('bash') ||
+                  (g.gamedescription || '').toLowerCase().includes('bash') ||
+                  (g.notes || '').toLowerCase().includes('bash');
+    return !isBash;
+  }).map(g => ({
+    home: normalizeTeamName(g.home_team),
+    away: normalizeTeamName(g.away_team),
+    homeScore: parseInt(g.home_score),
+    awayScore: parseInt(g.away_score),
+    division: g.division
+  }));
+  
+  // Division teams set (for criteria 4 & 5)
+  const divTeams = new Set(standings.map(s => s.school));
+  
+  // Tournament teams set (top N by rating initially, will be refined)
+  const qualifyingStandings = standings.slice(0, tournamentSpots);
+  const tournamentTeams = new Set(qualifyingStandings.map(s => s.school));
+  
+  // Build ratings map
+  const teamRatings = {};
+  standings.forEach(s => {
+    teamRatings[s.school] = s.rating;
+  });
+  
+  // Find tie groups (teams with same W-L record)
+  const tieGroups = [];
+  let i = 0;
+  while (i < qualifyingStandings.length) {
+    let j = i + 1;
+    while (j < qualifyingStandings.length && 
+           qualifyingStandings[j].wins === qualifyingStandings[i].wins && 
+           qualifyingStandings[j].losses === qualifyingStandings[i].losses) {
+      j++;
+    }
+    if (j - i > 1) {
+      // Tie group found
+      tieGroups.push({
+        startIdx: i,
+        teams: qualifyingStandings.slice(i, j).map(s => s.school)
+      });
+    }
+    i = j;
+  }
+  
+  // Apply tiebreaker logic to each group
+  for (const group of tieGroups) {
+    const resolvedOrder = walkTiebreakers(
+      group.teams,
+      allGames,  // all games for H2H etc
+      allGames,  // all games for total home/away wins
+      tournamentTeams,
+      divTeams,
+      teamRatings
+    );
+    
+    // Reorder the qualifying standings at this position
+    const originalEntries = {};
+    for (let idx = group.startIdx; idx < group.startIdx + group.teams.length; idx++) {
+      originalEntries[qualifyingStandings[idx].school] = qualifyingStandings[idx];
+    }
+    
+    resolvedOrder.forEach((team, orderIdx) => {
+      const entry = originalEntries[team];
+      if (entry) {
+        qualifyingStandings[group.startIdx + orderIdx] = entry;
+      }
+    });
+  }
   
   // Build preview with seeds
-  const preview = standings.slice(0, tournamentSpots).map((team, index) => {
+  const preview = qualifyingStandings.map((team, index) => {
     const rpi = rpiMap.get(team.school) || {};
     return {
       seed: index + 1,
