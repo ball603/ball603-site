@@ -213,6 +213,54 @@
       margin-bottom: 8px;
     }
     
+    /* Projected Banner */
+    .projected-banner {
+      display: none;
+      background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+      border: 2px solid #ff9800;
+      border-radius: 12px;
+      padding: 16px 24px;
+      margin: 0 auto 20px;
+      max-width: 700px;
+      text-align: center;
+    }
+    
+    .projected-banner.visible {
+      display: block;
+    }
+    
+    .projected-banner .banner-icon {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+    
+    .projected-banner .banner-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #e65100;
+      margin-bottom: 4px;
+    }
+    
+    .projected-banner .banner-subtitle {
+      font-size: 14px;
+      color: #795548;
+    }
+    
+    @media (prefers-color-scheme: dark) {
+      .projected-banner {
+        background: linear-gradient(135deg, rgba(255, 152, 0, 0.15) 0%, rgba(255, 152, 0, 0.08) 100%);
+        border-color: rgba(255, 152, 0, 0.5);
+      }
+      
+      .projected-banner .banner-title {
+        color: #ffb74d;
+      }
+      
+      .projected-banner .banner-subtitle {
+        color: #bcaaa4;
+      }
+    }
+    
     /* Bracket Container */
     .bracket-container {
       display: none;
@@ -784,6 +832,13 @@
       <p>Seeds haven't been locked for this tournament yet. Check back when the bracket is announced.</p>
     </div>
     
+    <!-- Projected Banner -->
+    <div class="projected-banner" id="projectedBanner">
+      <div class="banner-icon">📊</div>
+      <div class="banner-title">Projected Bracket — Not Official</div>
+      <div class="banner-subtitle">Based on Seed Decoder analysis. Official bracket will be announced by NHIAA.</div>
+    </div>
+    
     <!-- Bracket Container -->
     <div class="bracket-container" id="bracketContainer">
       <div class="bracket" id="bracket">
@@ -971,18 +1026,28 @@
         const response = await fetch(`/.netlify/functions/playoff-seeds?gender=${currentGender}&division=${currentDivision}&season=${season}`);
         const data = await response.json();
         
-        if (!data.locked || !data.seeds || data.seeds.length === 0) {
-          // Not locked yet
+        const status = data.status || (data.locked ? 'locked' : 'none');
+        
+        // Hide all state elements first
+        document.getElementById('notLockedMessage').classList.remove('visible');
+        document.getElementById('projectedBanner').classList.remove('visible');
+        document.getElementById('bracketContainer').classList.remove('visible');
+        document.getElementById('coverageSection').classList.remove('visible');
+        
+        if (status === 'none' || !data.seeds || data.seeds.length === 0) {
+          // Not set yet
           document.getElementById('notLockedMessage').classList.add('visible');
-          document.getElementById('bracketContainer').classList.remove('visible');
-          document.getElementById('coverageSection').classList.remove('visible');
           return;
         }
         
         playoffSeeds = data.seeds;
         playoffGames = data.games || [];
         
-        document.getElementById('notLockedMessage').classList.remove('visible');
+        // Show projected banner if projected (not locked)
+        if (status === 'projected') {
+          document.getElementById('projectedBanner').classList.add('visible');
+        }
+        
         document.getElementById('bracketContainer').classList.add('visible');
         
         renderBracket();
