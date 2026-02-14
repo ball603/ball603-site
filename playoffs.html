@@ -768,60 +768,19 @@
       }
     }
     
-    /* Mobile Dark Mode - Higher specificity to override */
+    /* Mobile Dark Mode - Only for projected banner */
     @media (max-width: 768px) {
       .projected-banner {
-        background: linear-gradient(135deg, rgba(255, 152, 0, 0.15) 0%, rgba(255, 152, 0, 0.08) 100%) !important;
-        border-color: rgba(255, 152, 0, 0.5) !important;
+        background: linear-gradient(135deg, rgba(255, 152, 0, 0.15) 0%, rgba(255, 152, 0, 0.08) 100%);
+        border-color: rgba(255, 152, 0, 0.5);
       }
       
       .projected-banner .banner-title {
-        color: #ffb74d !important;
+        color: #ffb74d;
       }
       
       .projected-banner .banner-subtitle {
-        color: #bcaaa4 !important;
-      }
-      
-      .bracket-container .matchup,
-      .bracket .matchup,
-      .bracket-games .matchup {
-        background: #1e1e1e !important;
-        border-color: #333 !important;
-      }
-      
-      .bracket-container .matchup-team,
-      .bracket .matchup-team,
-      .bracket-games .matchup-team {
-        border-color: #333 !important;
-        background: transparent !important;
-      }
-      
-      .bracket-container .matchup-footer,
-      .bracket .matchup-footer,
-      .bracket-games .matchup-footer {
-        background: #1a1a1a !important;
-        color: #b0b0b0 !important;
-      }
-      
-      .bracket-container .team-seed,
-      .bracket .team-seed,
-      .bracket-games .team-seed {
-        background: #2a2a2a !important;
-        color: #b0b0b0 !important;
-      }
-      
-      .bracket-container .round-header,
-      .bracket .round-header,
-      .bracket-round .round-header {
-        border-color: #333 !important;
-        color: #b0b0b0 !important;
-      }
-      
-      .bracket-container .matchup.bye,
-      .bracket .matchup.bye,
-      .bracket-games .matchup.bye {
-        background: #1e1e1e !important;
+        color: #bcaaa4;
       }
     }
   </style>
@@ -1302,15 +1261,8 @@
     }
     
     function renderRoundGames(games, seedMap) {
-      // Check if mobile for inline dark mode styles
-      const isMobile = window.innerWidth <= 768;
-      const matchupStyle = isMobile ? 'background:#1e1e1e;border-color:#333;' : '';
-      const footerStyle = isMobile ? 'background:#1a1a1a;color:#b0b0b0;' : '';
-      const seedStyle = isMobile ? 'background:#2a2a2a;color:#b0b0b0;' : '';
-      const teamBorderStyle = isMobile ? 'border-color:#333;' : '';
-      
       if (!games || games.length === 0) {
-        return `<div class="matchup bye" style="${matchupStyle}"><div class="bye-text">TBD</div></div>`;
+        return '<div class="matchup bye"><div class="bye-text">TBD</div></div>';
       }
       
       return games.map(game => {
@@ -1363,17 +1315,17 @@
           // If this is a bye advance (quarters with one team already set), show differently
           if (game.is_bye_advance) {
             return `
-              <div class="matchup" style="${matchupStyle}">
-                <div class="matchup-team" style="${teamBorderStyle}">
-                  <span class="team-seed" style="${seedStyle}">#${game.home_seed}</span>
+              <div class="matchup">
+                <div class="matchup-team">
+                  <span class="team-seed">#${game.home_seed}</span>
                   <img src="/logos/100px/${getLogoFilename(game.home_team)}" class="team-logo" onerror="this.style.display='none'" alt="">
                   ${getTeamNameHtml(game.home_team)}
                 </div>
-                <div class="matchup-team" style="${teamBorderStyle}">
-                  <span class="team-seed" style="${seedStyle}">-</span>
+                <div class="matchup-team">
+                  <span class="team-seed">-</span>
                   <span class="team-name">TBD</span>
                 </div>
-                <div class="matchup-footer" style="${footerStyle}">
+                <div class="matchup-footer">
                   <span>${statusText}</span>
                 </div>
               </div>
@@ -1382,13 +1334,13 @@
           
           // Regular prelim BYE
           return `
-            <div class="matchup bye" style="${matchupStyle}">
-              <div class="matchup-team" style="${teamBorderStyle}">
-                <span class="team-seed" style="${seedStyle}">#${game.home_seed}</span>
+            <div class="matchup bye">
+              <div class="matchup-team">
+                <span class="team-seed">#${game.home_seed}</span>
                 <img src="/logos/100px/${getLogoFilename(game.home_team)}" class="team-logo" onerror="this.style.display='none'" alt="">
                 ${getTeamNameHtml(game.home_team)}
               </div>
-              <div class="matchup-footer" style="${footerStyle}">
+              <div class="matchup-footer">
                 <span>BYE</span>
               </div>
             </div>
@@ -1398,16 +1350,16 @@
         // Check for TBD matchup
         if (!game.away_team && !game.home_team) {
           return `
-            <div class="matchup" style="${matchupStyle}">
-              <div class="matchup-team" style="${teamBorderStyle}">
-                <span class="team-seed" style="${seedStyle}">-</span>
+            <div class="matchup">
+              <div class="matchup-team">
+                <span class="team-seed">-</span>
                 <span class="team-name">TBD</span>
               </div>
-              <div class="matchup-team" style="${teamBorderStyle}">
-                <span class="team-seed" style="${seedStyle}">-</span>
+              <div class="matchup-team">
+                <span class="team-seed">-</span>
                 <span class="team-name">TBD</span>
               </div>
-              <div class="matchup-footer" style="${footerStyle}">
+              <div class="matchup-footer">
                 <span>${statusText}</span>
               </div>
             </div>
@@ -1415,20 +1367,20 @@
         }
         
         return `
-          <div class="matchup ${isLive ? 'live' : ''} ${isFinal ? 'final' : ''}" style="${matchupStyle}" onclick="openMatchup('${game.game_id}')">
-            <div class="matchup-team ${awayClass}" style="${teamBorderStyle}">
-              <span class="team-seed" style="${seedStyle}">#${game.away_seed || '?'}</span>
+          <div class="matchup ${isLive ? 'live' : ''} ${isFinal ? 'final' : ''}" onclick="openMatchup('${game.game_id}')">
+            <div class="matchup-team ${awayClass}">
+              <span class="team-seed">#${game.away_seed || '?'}</span>
               <img src="/logos/100px/${getLogoFilename(game.away_team)}" class="team-logo" onerror="this.style.display='none'" alt="">
               ${getTeamNameHtml(game.away_team)}
               <span class="team-score">${hasScore ? game.away_score : ''}</span>
             </div>
-            <div class="matchup-team ${homeClass}" style="${teamBorderStyle}">
-              <span class="team-seed" style="${seedStyle}">#${game.home_seed || '?'}</span>
+            <div class="matchup-team ${homeClass}">
+              <span class="team-seed">#${game.home_seed || '?'}</span>
               <img src="/logos/100px/${getLogoFilename(game.home_team)}" class="team-logo" onerror="this.style.display='none'" alt="">
               ${getTeamNameHtml(game.home_team)}
               <span class="team-score">${hasScore ? game.home_score : ''}</span>
             </div>
-            <div class="matchup-footer" style="${footerStyle}">
+            <div class="matchup-footer">
               <span class="matchup-status ${statusClass}">${statusText}</span>
               ${isUpset ? '<span class="upset-indicator" title="Upset">⚡</span>' : ''}
               <div class="matchup-coverage">${coverageLinks.join('')}</div>
