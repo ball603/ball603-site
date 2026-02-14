@@ -1041,23 +1041,117 @@
         }
         
         playoffSeeds = data.seeds;
-        playoffGames = data.games || [];
         
-        // Show projected banner if projected (not locked)
+        // For projected brackets, generate virtual games from seeds
         if (status === 'projected') {
+          playoffGames = generateProjectedGames(playoffSeeds);
           document.getElementById('projectedBanner').classList.add('visible');
+        } else {
+          playoffGames = data.games || [];
         }
         
         document.getElementById('bracketContainer').classList.add('visible');
         
         renderBracket();
-        renderCoverage();
+        
+        // Only show coverage section for locked brackets
+        if (status === 'locked') {
+          renderCoverage();
+        }
         
       } catch (error) {
         console.error('Error loading playoffs:', error);
         document.getElementById('notLockedMessage').classList.add('visible');
         document.getElementById('bracketContainer').classList.remove('visible');
       }
+    }
+    
+    // Generate virtual games for projected bracket display
+    function generateProjectedGames(seeds) {
+      const numTeams = seeds.length;
+      const seedMap = new Map(seeds.map(s => [s.seed, s.team]));
+      
+      // Standard 16-team bracket matchups
+      const BRACKET_MATCHUPS = [
+        { position: 1, high: 1, low: 16 },
+        { position: 2, high: 8, low: 9 },
+        { position: 3, high: 4, low: 13 },
+        { position: 4, high: 5, low: 12 },
+        { position: 5, high: 2, low: 15 },
+        { position: 6, high: 7, low: 10 },
+        { position: 7, high: 3, low: 14 },
+        { position: 8, high: 6, low: 11 }
+      ];
+      
+      const games = [];
+      
+      // Prelims
+      for (const matchup of BRACKET_MATCHUPS) {
+        const isBye = matchup.low > numTeams;
+        
+        if (isBye) {
+          // BYE game - only high seed
+          games.push({
+            round: 'Prelims',
+            bracket_position: matchup.position,
+            home_team: seedMap.get(matchup.high),
+            home_seed: matchup.high,
+            away_team: null,
+            away_seed: null,
+            time: 'BYE'
+          });
+        } else {
+          // Regular matchup
+          games.push({
+            round: 'Prelims',
+            bracket_position: matchup.position,
+            home_team: seedMap.get(matchup.high),
+            home_seed: matchup.high,
+            away_team: seedMap.get(matchup.low),
+            away_seed: matchup.low,
+            time: 'TBD'
+          });
+        }
+      }
+      
+      // Quarters (4 games, TBD teams)
+      for (let pos = 1; pos <= 4; pos++) {
+        games.push({
+          round: 'Quarters',
+          bracket_position: pos,
+          home_team: null,
+          home_seed: null,
+          away_team: null,
+          away_seed: null,
+          time: 'TBD'
+        });
+      }
+      
+      // Semis (2 games, TBD teams)
+      for (let pos = 1; pos <= 2; pos++) {
+        games.push({
+          round: 'Semis',
+          bracket_position: pos,
+          home_team: null,
+          home_seed: null,
+          away_team: null,
+          away_seed: null,
+          time: 'TBD'
+        });
+      }
+      
+      // Final (1 game, TBD teams)
+      games.push({
+        round: 'Final',
+        bracket_position: 1,
+        home_team: null,
+        home_seed: null,
+        away_team: null,
+        away_seed: null,
+        time: 'TBD'
+      });
+      
+      return games;
     }
     
     function updateTournamentInfo() {
