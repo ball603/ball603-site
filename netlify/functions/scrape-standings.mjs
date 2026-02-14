@@ -1,5 +1,5 @@
 // Ball603 NHIAA Standings Scraper
-// Runs 3x daily via Netlify scheduled functions
+// Runs hourly during off-peak, every 5 minutes during game hours (6pm-midnight EST)
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -381,5 +381,8 @@ export default async (request) => {
 };
 
 export const config = {
-  schedule: "0 10,17,3 * * *"
+  schedule: [
+    "0 5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22 * * *",  // Hourly 5-22 UTC (midnight-5pm EST)
+    "*/5 23,0,1,2,3,4 * * *"  // Every 5 min 23-04 UTC (6pm-midnight EST)
+  ]
 };
