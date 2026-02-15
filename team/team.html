@@ -1843,23 +1843,42 @@
     async function loadFeaturesData() {
       if (!TEAM_CONFIG) return;
       
+      // Clean shortname for matching
       const schoolName = TEAM_CONFIG.name.toLowerCase()
         .replace(/\s+hs$/i, '')
         .replace(/\s+high\s+school$/i, '')
-        .replace(/\s+academy$/i, '')
-        .replace(/regional/i, '')
         .replace(/\s+/g, ' ')
         .trim();
       
+      // Clean fullName for fallback matching
+      const fullNameClean = TEAM_CONFIG.fullName ? TEAM_CONFIG.fullName.toLowerCase()
+        .replace(/\s+high\s+school$/i, '')
+        .replace(/\s+/g, ' ')
+        .trim() : null;
+      
       // Fetch 1K Scorers from Supabase
       try {
-        const { data: scorers, error: scorersError } = await db
+        // Try shortname first
+        let { data: scorers, error: scorersError } = await db
           .from('scorers_1k')
           .select('*')
           .ilike('school', schoolName)
           .order('points', { ascending: false, nullsFirst: false });
         
         if (scorersError) throw scorersError;
+        
+        // If no results and fullName is different, try fullName
+        if ((!scorers || scorers.length === 0) && fullNameClean && fullNameClean !== schoolName) {
+          const { data: scorersFull, error: fullError } = await db
+            .from('scorers_1k')
+            .select('*')
+            .ilike('school', fullNameClean)
+            .order('points', { ascending: false, nullsFirst: false });
+          
+          if (!fullError && scorersFull) {
+            scorers = scorersFull;
+          }
+        }
         
         teamData.scorers1K = scorers || [];
       } catch (err) {
