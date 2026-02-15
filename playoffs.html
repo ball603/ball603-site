@@ -785,66 +785,75 @@
     }
   </style>
   
-  <!-- MOBILE DARK MODE FOR MATCHUPS - Separate style block for maximum priority -->
-  <style id="mobile-dark-overrides">
-    @media screen and (max-width: 768px) {
-      /* Ultra-high specificity using ID selector */
-      #bracket .matchup,
-      #bracket .matchup.bye,
-      .bracket-container .matchup,
-      .playoffs-page .matchup,
-      div.matchup {
-        background-color: #1e1e1e !important;
+  <!-- CRITICAL: Mobile matchup dark mode - uses attribute selector for maximum specificity -->
+  <style>
+    /* Force dark mode on ALL matchup elements on mobile using every possible selector */
+    @media only screen and (max-width: 768px) {
+      /* Target by element + class with maximum specificity */
+      html body main .bracket-container .bracket .bracket-round .bracket-games div.matchup,
+      html body main div.matchup,
+      div[class*="matchup"]:not(.matchup-team):not(.matchup-footer):not(.matchup-status):not(.matchup-coverage) {
         background: #1e1e1e !important;
+        background-color: #1e1e1e !important;
         border-color: #333333 !important;
       }
       
-      #bracket .matchup-team,
-      .bracket-container .matchup-team,
-      div.matchup-team {
+      html body main .bracket-container .bracket .bracket-round .bracket-games div.matchup > div.matchup-team,
+      html body main div.matchup-team,
+      div[class="matchup-team"],
+      div[class*="matchup-team "],
+      div[class*=" matchup-team"] {
         border-bottom-color: #333333 !important;
       }
       
-      #bracket .matchup-footer,
-      .bracket-container .matchup-footer,
-      div.matchup-footer {
-        background-color: #1a1a1a !important;
+      html body main .bracket-container .bracket .bracket-round .bracket-games div.matchup > div.matchup-footer,
+      html body main div.matchup-footer,
+      div[class="matchup-footer"] {
         background: #1a1a1a !important;
+        background-color: #1a1a1a !important;
       }
       
-      #bracket .team-seed,
-      .bracket-container .team-seed,
-      span.team-seed {
-        background-color: #1a1a1a !important;
+      html body main .bracket-container span.team-seed,
+      html body main div.matchup span.team-seed,
+      span[class="team-seed"] {
         background: #1a1a1a !important;
+        background-color: #1a1a1a !important;
         color: #b0b0b0 !important;
       }
       
-      #bracket .team-name,
-      .bracket-container .team-name,
-      span.team-name,
-      a.team-name {
+      html body main .bracket-container span.team-name,
+      html body main .bracket-container a.team-name,
+      html body main div.matchup span.team-name,
+      html body main div.matchup a.team-name,
+      span[class="team-name"],
+      a[class="team-name"] {
         color: #ffffff !important;
       }
       
-      #bracket .team-score,
-      .bracket-container .team-score,
-      span.team-score {
+      html body main .bracket-container span.team-score,
+      html body main div.matchup span.team-score,
+      span[class="team-score"] {
         color: #ffffff !important;
       }
       
-      #bracket .matchup-team.winner .team-seed {
-        background-color: #f57c00 !important;
+      /* Winner overrides */
+      div.matchup-team.winner span.team-seed,
+      .matchup-team.winner span.team-seed {
         background: #f57c00 !important;
+        background-color: #f57c00 !important;
         color: white !important;
       }
       
-      #bracket .matchup-team.winner .team-score {
+      div.matchup-team.winner span.team-score,
+      .matchup-team.winner span.team-score {
         color: #4caf50 !important;
       }
       
-      .round-header {
+      /* Round header */
+      .bracket-round .round-header,
+      div.round-header {
         border-bottom-color: #333333 !important;
+        color: #b0b0b0 !important;
       }
     }
   </style>
@@ -965,48 +974,71 @@
     const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     
     // Mobile Dark Mode: Apply inline styles directly (bulletproof override)
+    // Mobile detection helper - returns inline style string if mobile
+    function getMobileStyle(type) {
+      const isMobile = window.innerWidth <= 768 || 
+                       window.matchMedia('(max-width: 768px)').matches ||
+                       /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      if (!isMobile) return '';
+      
+      const styles = {
+        matchup: 'background:#1e1e1e !important;border-color:#333 !important;',
+        matchupTeam: 'border-bottom-color:#333 !important;',
+        matchupFooter: 'background:#1a1a1a !important;',
+        teamSeed: 'background:#1a1a1a !important;color:#b0b0b0 !important;',
+        teamName: 'color:#fff !important;',
+        teamScore: 'color:#fff !important;'
+      };
+      return styles[type] || '';
+    }
+    
     function applyMobileDarkMode() {
-      if (window.innerWidth > 768) return; // Only apply on mobile
+      // Use multiple detection methods
+      const isMobile = window.innerWidth <= 768 || 
+                       window.matchMedia('(max-width: 768px)').matches ||
+                       /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      
+      if (!isMobile) return;
+      
+      console.log('[Ball603] Applying mobile dark mode styles...');
       
       // Apply to all matchup elements
       document.querySelectorAll('.matchup').forEach(el => {
-        el.style.setProperty('background-color', '#1e1e1e', 'important');
-        el.style.setProperty('background', '#1e1e1e', 'important');
-        el.style.setProperty('border-color', '#333333', 'important');
+        el.style.cssText += 'background:#1e1e1e !important;background-color:#1e1e1e !important;border-color:#333333 !important;';
       });
       
       document.querySelectorAll('.matchup-team').forEach(el => {
-        el.style.setProperty('border-bottom-color', '#333333', 'important');
+        el.style.cssText += 'border-bottom-color:#333333 !important;';
       });
       
       document.querySelectorAll('.matchup-footer').forEach(el => {
-        el.style.setProperty('background-color', '#1a1a1a', 'important');
-        el.style.setProperty('background', '#1a1a1a', 'important');
+        el.style.cssText += 'background:#1a1a1a !important;background-color:#1a1a1a !important;';
       });
       
       document.querySelectorAll('.team-seed').forEach(el => {
-        el.style.setProperty('background-color', '#1a1a1a', 'important');
-        el.style.setProperty('background', '#1a1a1a', 'important');
-        el.style.setProperty('color', '#b0b0b0', 'important');
+        // Skip winner seeds
+        if (!el.closest('.matchup-team.winner')) {
+          el.style.cssText += 'background:#1a1a1a !important;background-color:#1a1a1a !important;color:#b0b0b0 !important;';
+        }
       });
       
       document.querySelectorAll('.team-name').forEach(el => {
-        el.style.setProperty('color', '#ffffff', 'important');
+        el.style.cssText += 'color:#ffffff !important;';
       });
       
       document.querySelectorAll('.team-score').forEach(el => {
-        el.style.setProperty('color', '#ffffff', 'important');
+        if (!el.closest('.matchup-team.winner')) {
+          el.style.cssText += 'color:#ffffff !important;';
+        }
       });
       
       // Handle winner states
       document.querySelectorAll('.matchup-team.winner .team-seed').forEach(el => {
-        el.style.setProperty('background-color', '#f57c00', 'important');
-        el.style.setProperty('background', '#f57c00', 'important');
-        el.style.setProperty('color', 'white', 'important');
+        el.style.cssText += 'background:#f57c00 !important;background-color:#f57c00 !important;color:white !important;';
       });
       
       document.querySelectorAll('.matchup-team.winner .team-score').forEach(el => {
-        el.style.setProperty('color', '#4caf50', 'important');
+        el.style.cssText += 'color:#4caf50 !important;';
       });
     }
     
@@ -1077,6 +1109,31 @@
     let playoffGames = [];
     let currentGender = 'Boys';
     let currentDivision = 'D-III';
+    
+    // Inject mobile dark styles immediately if on mobile
+    (function() {
+      const isMobile = window.innerWidth <= 768 || 
+                       window.matchMedia('(max-width: 768px)').matches ||
+                       /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      if (isMobile) {
+        document.documentElement.classList.add('mobile-dark');
+        // Inject critical styles immediately
+        const style = document.createElement('style');
+        style.id = 'mobile-matchup-critical';
+        style.textContent = `
+          .mobile-dark .matchup { background: #1e1e1e !important; border-color: #333 !important; }
+          .mobile-dark .matchup-footer { background: #1a1a1a !important; }
+          .mobile-dark .team-seed { background: #1a1a1a !important; color: #b0b0b0 !important; }
+          .mobile-dark .team-name { color: #fff !important; }
+          .mobile-dark .team-score { color: #fff !important; }
+          .mobile-dark .matchup-team { border-bottom-color: #333 !important; }
+          .mobile-dark .matchup-team.winner .team-seed { background: #f57c00 !important; color: #fff !important; }
+          .mobile-dark .round-header { border-bottom-color: #333 !important; color: #b0b0b0 !important; }
+        `;
+        document.head.appendChild(style);
+        console.log('[Ball603] Mobile dark mode class added to html element');
+      }
+    })();
     
     // Initialize
     document.addEventListener('DOMContentLoaded', () => {
@@ -1165,6 +1222,10 @@
         
         renderBracket();
         applyMobileDarkMode(); // Apply inline styles for mobile
+        
+        // Re-apply after short delays in case of race conditions
+        setTimeout(applyMobileDarkMode, 100);
+        setTimeout(applyMobileDarkMode, 500);
         
         // Only show coverage section for locked brackets
         if (status === 'locked') {
