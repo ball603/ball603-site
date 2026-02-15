@@ -291,10 +291,10 @@
       gap: 12px;
     }
     
-    /* Matchup Card */
+    /* Matchup Card - DEFAULT IS DARK (mobile-first) */
     .matchup {
-      background: var(--bg-card);
-      border: 1px solid var(--border-color);
+      background: #1e1e1e;
+      border: 1px solid #333333;
       border-radius: 10px;
       overflow: hidden;
       cursor: pointer;
@@ -326,7 +326,7 @@
       align-items: center;
       padding: 10px 12px;
       gap: 10px;
-      border-bottom: 1px solid var(--border-color);
+      border-bottom: 1px solid #333333;
     }
     
     .matchup-team:last-of-type {
@@ -342,8 +342,8 @@
     }
     
     .team-seed {
-      background: var(--bg-secondary);
-      color: var(--text-secondary);
+      background: #1a1a1a;
+      color: #b0b0b0;
       font-size: 11px;
       font-weight: 700;
       padding: 3px 7px;
@@ -367,7 +367,7 @@
       flex: 1;
       font-size: 14px;
       font-weight: 500;
-      color: var(--text-primary);
+      color: #ffffff;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -375,7 +375,7 @@
     
     a.team-name {
       text-decoration: none;
-      color: var(--text-primary);
+      color: #ffffff;
     }
     
     a.team-name:hover {
@@ -386,7 +386,7 @@
     .team-score {
       font-size: 18px;
       font-weight: 700;
-      color: var(--text-primary);
+      color: #ffffff;
       min-width: 32px;
       text-align: right;
     }
@@ -400,13 +400,39 @@
       justify-content: space-between;
       align-items: center;
       padding: 8px 12px;
-      background: var(--bg-secondary);
+      background: #1a1a1a;
       font-size: 11px;
-      color: var(--text-secondary);
+      color: #b0b0b0;
     }
     
     .matchup-status {
       font-weight: 600;
+    }
+    
+    /* DESKTOP LIGHT MODE - override dark defaults */
+    @media (min-width: 769px) {
+      .matchup {
+        background: #ffffff;
+        border-color: #e0e0e0;
+      }
+      .matchup-team {
+        border-bottom-color: #e0e0e0;
+      }
+      .team-seed {
+        background: #f5f5f5;
+        color: #666666;
+      }
+      .team-name,
+      a.team-name {
+        color: #1a1a1a;
+      }
+      .team-score {
+        color: #1a1a1a;
+      }
+      .matchup-footer {
+        background: #f5f5f5;
+        color: #666666;
+      }
     }
     
     .matchup-status.live {
@@ -784,79 +810,6 @@
       }
     }
   </style>
-  
-  <!-- CRITICAL: Mobile matchup dark mode - uses attribute selector for maximum specificity -->
-  <style>
-    /* Force dark mode on ALL matchup elements on mobile using every possible selector */
-    @media only screen and (max-width: 768px) {
-      /* Target by element + class with maximum specificity */
-      html body main .bracket-container .bracket .bracket-round .bracket-games div.matchup,
-      html body main div.matchup,
-      div[class*="matchup"]:not(.matchup-team):not(.matchup-footer):not(.matchup-status):not(.matchup-coverage) {
-        background: #1e1e1e !important;
-        background-color: #1e1e1e !important;
-        border-color: #333333 !important;
-      }
-      
-      html body main .bracket-container .bracket .bracket-round .bracket-games div.matchup > div.matchup-team,
-      html body main div.matchup-team,
-      div[class="matchup-team"],
-      div[class*="matchup-team "],
-      div[class*=" matchup-team"] {
-        border-bottom-color: #333333 !important;
-      }
-      
-      html body main .bracket-container .bracket .bracket-round .bracket-games div.matchup > div.matchup-footer,
-      html body main div.matchup-footer,
-      div[class="matchup-footer"] {
-        background: #1a1a1a !important;
-        background-color: #1a1a1a !important;
-      }
-      
-      html body main .bracket-container span.team-seed,
-      html body main div.matchup span.team-seed,
-      span[class="team-seed"] {
-        background: #1a1a1a !important;
-        background-color: #1a1a1a !important;
-        color: #b0b0b0 !important;
-      }
-      
-      html body main .bracket-container span.team-name,
-      html body main .bracket-container a.team-name,
-      html body main div.matchup span.team-name,
-      html body main div.matchup a.team-name,
-      span[class="team-name"],
-      a[class="team-name"] {
-        color: #ffffff !important;
-      }
-      
-      html body main .bracket-container span.team-score,
-      html body main div.matchup span.team-score,
-      span[class="team-score"] {
-        color: #ffffff !important;
-      }
-      
-      /* Winner overrides */
-      div.matchup-team.winner span.team-seed,
-      .matchup-team.winner span.team-seed {
-        background: #f57c00 !important;
-        background-color: #f57c00 !important;
-        color: white !important;
-      }
-      
-      div.matchup-team.winner span.team-score,
-      .matchup-team.winner span.team-score {
-        color: #4caf50 !important;
-      }
-      
-      /* Round header */
-      .bracket-round .round-header,
-      div.round-header {
-        border-bottom-color: #333333 !important;
-        color: #b0b0b0 !important;
-      }
-    }
-  </style>
 </head>
 <body>
   
@@ -973,75 +926,6 @@
     const SUPABASE_ANON_KEY = 'sb_publishable_hHSpgZPD327r11GaQG9iHw_uZbuaWmF';
     const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     
-    // Mobile Dark Mode: Apply inline styles directly (bulletproof override)
-    // Mobile detection helper - returns inline style string if mobile
-    function getMobileStyle(type) {
-      const isMobile = window.innerWidth <= 768 || 
-                       window.matchMedia('(max-width: 768px)').matches ||
-                       /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      if (!isMobile) return '';
-      
-      const styles = {
-        matchup: 'background:#1e1e1e !important;border-color:#333 !important;',
-        matchupTeam: 'border-bottom-color:#333 !important;',
-        matchupFooter: 'background:#1a1a1a !important;',
-        teamSeed: 'background:#1a1a1a !important;color:#b0b0b0 !important;',
-        teamName: 'color:#fff !important;',
-        teamScore: 'color:#fff !important;'
-      };
-      return styles[type] || '';
-    }
-    
-    function applyMobileDarkMode() {
-      // Use multiple detection methods
-      const isMobile = window.innerWidth <= 768 || 
-                       window.matchMedia('(max-width: 768px)').matches ||
-                       /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      
-      if (!isMobile) return;
-      
-      console.log('[Ball603] Applying mobile dark mode styles...');
-      
-      // Apply to all matchup elements
-      document.querySelectorAll('.matchup').forEach(el => {
-        el.style.cssText += 'background:#1e1e1e !important;background-color:#1e1e1e !important;border-color:#333333 !important;';
-      });
-      
-      document.querySelectorAll('.matchup-team').forEach(el => {
-        el.style.cssText += 'border-bottom-color:#333333 !important;';
-      });
-      
-      document.querySelectorAll('.matchup-footer').forEach(el => {
-        el.style.cssText += 'background:#1a1a1a !important;background-color:#1a1a1a !important;';
-      });
-      
-      document.querySelectorAll('.team-seed').forEach(el => {
-        // Skip winner seeds
-        if (!el.closest('.matchup-team.winner')) {
-          el.style.cssText += 'background:#1a1a1a !important;background-color:#1a1a1a !important;color:#b0b0b0 !important;';
-        }
-      });
-      
-      document.querySelectorAll('.team-name').forEach(el => {
-        el.style.cssText += 'color:#ffffff !important;';
-      });
-      
-      document.querySelectorAll('.team-score').forEach(el => {
-        if (!el.closest('.matchup-team.winner')) {
-          el.style.cssText += 'color:#ffffff !important;';
-        }
-      });
-      
-      // Handle winner states
-      document.querySelectorAll('.matchup-team.winner .team-seed').forEach(el => {
-        el.style.cssText += 'background:#f57c00 !important;background-color:#f57c00 !important;color:white !important;';
-      });
-      
-      document.querySelectorAll('.matchup-team.winner .team-score').forEach(el => {
-        el.style.cssText += 'color:#4caf50 !important;';
-      });
-    }
-    
     // Tournament schedule data
     const TOURNAMENT_SCHEDULE = {
       'Boys': {
@@ -1109,31 +993,6 @@
     let playoffGames = [];
     let currentGender = 'Boys';
     let currentDivision = 'D-III';
-    
-    // Inject mobile dark styles immediately if on mobile
-    (function() {
-      const isMobile = window.innerWidth <= 768 || 
-                       window.matchMedia('(max-width: 768px)').matches ||
-                       /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      if (isMobile) {
-        document.documentElement.classList.add('mobile-dark');
-        // Inject critical styles immediately
-        const style = document.createElement('style');
-        style.id = 'mobile-matchup-critical';
-        style.textContent = `
-          .mobile-dark .matchup { background: #1e1e1e !important; border-color: #333 !important; }
-          .mobile-dark .matchup-footer { background: #1a1a1a !important; }
-          .mobile-dark .team-seed { background: #1a1a1a !important; color: #b0b0b0 !important; }
-          .mobile-dark .team-name { color: #fff !important; }
-          .mobile-dark .team-score { color: #fff !important; }
-          .mobile-dark .matchup-team { border-bottom-color: #333 !important; }
-          .mobile-dark .matchup-team.winner .team-seed { background: #f57c00 !important; color: #fff !important; }
-          .mobile-dark .round-header { border-bottom-color: #333 !important; color: #b0b0b0 !important; }
-        `;
-        document.head.appendChild(style);
-        console.log('[Ball603] Mobile dark mode class added to html element');
-      }
-    })();
     
     // Initialize
     document.addEventListener('DOMContentLoaded', () => {
@@ -1221,11 +1080,6 @@
         document.getElementById('bracketContainer').classList.add('visible');
         
         renderBracket();
-        applyMobileDarkMode(); // Apply inline styles for mobile
-        
-        // Re-apply after short delays in case of race conditions
-        setTimeout(applyMobileDarkMode, 100);
-        setTimeout(applyMobileDarkMode, 500);
         
         // Only show coverage section for locked brackets
         if (status === 'locked') {
