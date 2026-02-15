@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Ball603 Home Page v304 - Fixed mobile standings/RPI toggle contrast -->
+<!-- Ball603 Home Page v350 - Contributor spotlight orange border (mobile), infinite scroll for Latest Stories (past week), More Headlines shows older articles -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -824,6 +824,83 @@
       }
     }
     
+    /* ===== INLINE MORE HEADLINES (after infinite scroll) ===== */
+    .more-headlines-inline {
+      background: white;
+      border-radius: 12px;
+      border: 1px solid #e8e8e8;
+      margin-top: 24px;
+      overflow: hidden;
+    }
+    
+    .more-headlines-inline .headlines-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      background: #f8f8f8;
+      border-bottom: 1px solid #e8e8e8;
+    }
+    
+    .more-headlines-inline .headlines-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #1a1a1a;
+    }
+    
+    .more-headlines-inline .headlines-link {
+      font-size: 12px;
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 600;
+    }
+    
+    .more-headlines-inline .headlines-list {
+      padding: 12px 16px;
+    }
+    
+    .more-headlines-inline .headline-item {
+      padding: 10px 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .more-headlines-inline .headline-item:last-child {
+      border-bottom: none;
+    }
+    
+    .more-headlines-inline .headline-link {
+      color: #333;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 1.4;
+      display: block;
+    }
+    
+    .more-headlines-inline .headline-link:hover {
+      color: var(--accent);
+    }
+    
+    @media (max-width: 768px) {
+      .more-headlines-inline {
+        background: #1a1a1a;
+        border-color: #333;
+      }
+      .more-headlines-inline .headlines-header {
+        background: #252525;
+        border-bottom-color: #333;
+      }
+      .more-headlines-inline .headlines-title {
+        color: #fff;
+      }
+      .more-headlines-inline .headline-item {
+        border-bottom-color: #333;
+      }
+      .more-headlines-inline .headline-link {
+        color: #e0e0e0;
+      }
+    }
+
     /* ===== SIDEBAR ===== */
     .sidebar {
       display: flex;
@@ -1193,6 +1270,10 @@
       
       .spotlight-card .spotlight-content {
         background: #1a1a1a;
+      }
+      
+      .spotlight-card {
+        border: 1px solid #f57c00;
       }
       
       .spotlight-label {
@@ -2093,6 +2174,12 @@
           <div class="skeleton" style="height: 120px;"></div>
           <div class="skeleton" style="height: 120px;"></div>
         </div>
+        <div class="stories-loading" id="storiesLoading" style="display: none; text-align: center; padding: 20px; color: #999;">
+          Loading...
+        </div>
+        <div class="more-headlines-inline" id="moreHeadlinesInline" style="display: none;">
+          <!-- Filled by JS after infinite scroll ends -->
+        </div>
       </main>
       
       <!-- Sidebar -->
@@ -2261,7 +2348,7 @@
       
       if (articles.length > 0) {
         renderHero(articles);
-        renderStories(articles);
+        initInfiniteScroll(articles);
         renderMoreHeadlines(articles);
       } else {
         document.getElementById('heroFeatured').innerHTML = '<div class="empty-state"><p>No featured content yet</p></div>';
@@ -2918,7 +3005,166 @@
     }
     
     /**
-     * Render more headlines in sidebar
+     * Infinite scroll state and functions
+     */
+    let storiesOffset = 0;
+    let weeklyArticles = [];
+    let olderArticles = [];
+    let isLoadingStories = false;
+    let allStoriesLoaded = false;
+    let storiesObserver = null;
+    const STORIES_PER_LOAD = 5;
+    
+    function initInfiniteScroll(articles) {
+      const published = articles.filter(a => a.status === 'published').slice(3); // Skip hero articles
+      
+      // Split into weekly (past 7 days) and older
+      const now = new Date();
+      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      
+      weeklyArticles = published.filter(a => {
+        const articleDate = new Date(a.article_date || a.published_at);
+        return articleDate >= weekAgo;
+      });
+      
+      olderArticles = published.filter(a => {
+        const articleDate = new Date(a.article_date || a.published_at);
+        return articleDate < weekAgo;
+      });
+      
+      storiesOffset = 0;
+      allStoriesLoaded = false;
+      
+      // Render initial batch
+      renderStoriesInfinite(true);
+      
+      // Setup Intersection Observer
+      setupStoriesObserver();
+    }
+    
+    function renderStoriesInfinite(isInitial = false) {
+      const container = document.getElementById('storiesList');
+      const loadingEl = document.getElementById('storiesLoading');
+      
+      if (isInitial) {
+        container.innerHTML = '';
+      }
+      
+      const batch = weeklyArticles.slice(storiesOffset, storiesOffset + STORIES_PER_LOAD);
+      
+      if (batch.length === 0) {
+        allStoriesLoaded = true;
+        loadingEl.style.display = 'none';
+        renderMoreHeadlinesInline();
+        return;
+      }
+      
+      const html = batch.map(article => {
+        const photographer = article.photographer || article.game_data?.photographerName || '';
+        const displayDate = article.article_date || article.published_at?.split('T')[0] || '';
+        const excerptHtml = article.excerpt ? `<p class="story-excerpt">${article.excerpt}</p>` : '';
+        const photographerHtml = photographer ? `<span class="story-photographer">&#128247; ${photographer}</span>` : '';
+        return `
+          <article class="story-card" onclick="Ball603.goToArticle('${article.slug}')">
+            <div class="story-image-container">
+              <img src="${article.featured_image_url || PLACEHOLDER_IMG}" alt="" class="story-image">
+            </div>
+            <div class="story-content">
+              <h3 class="story-title">${article.title}</h3>
+              ${excerptHtml}
+              <div class="story-meta">
+                ${photographerHtml}
+                <span>&#128197; ${Ball603.formatDate(displayDate, 'short')}</span>
+              </div>
+            </div>
+          </article>
+        `;
+      }).join('');
+      
+      container.insertAdjacentHTML('beforeend', html);
+      storiesOffset += batch.length;
+      
+      // Check if we've loaded all weekly articles
+      if (storiesOffset >= weeklyArticles.length) {
+        allStoriesLoaded = true;
+        loadingEl.style.display = 'none';
+        renderMoreHeadlinesInline();
+      }
+      
+      isLoadingStories = false;
+    }
+    
+    function setupStoriesObserver() {
+      const loadingEl = document.getElementById('storiesLoading');
+      
+      if (storiesObserver) {
+        storiesObserver.disconnect();
+      }
+      
+      storiesObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting && !isLoadingStories && !allStoriesLoaded) {
+            loadMoreStories();
+          }
+        });
+      }, {
+        rootMargin: '100px'
+      });
+      
+      // Create a sentinel element at the bottom
+      let sentinel = document.getElementById('storiesSentinel');
+      if (!sentinel) {
+        sentinel = document.createElement('div');
+        sentinel.id = 'storiesSentinel';
+        sentinel.style.height = '1px';
+        loadingEl.parentNode.insertBefore(sentinel, loadingEl);
+      }
+      
+      storiesObserver.observe(sentinel);
+    }
+    
+    function loadMoreStories() {
+      if (isLoadingStories || allStoriesLoaded) return;
+      
+      isLoadingStories = true;
+      const loadingEl = document.getElementById('storiesLoading');
+      loadingEl.style.display = 'block';
+      
+      // Small delay for UX
+      setTimeout(() => {
+        renderStoriesInfinite(false);
+      }, 300);
+    }
+    
+    function renderMoreHeadlinesInline() {
+      const container = document.getElementById('moreHeadlinesInline');
+      
+      // Take first 10 older articles
+      const headlines = olderArticles.slice(0, 10);
+      
+      if (headlines.length === 0) {
+        container.style.display = 'none';
+        return;
+      }
+      
+      container.style.display = 'block';
+      container.innerHTML = `
+        <div class="headlines-header">
+          <h3 class="headlines-title">&#128240; More Headlines</h3>
+          <a href="/news" class="headlines-link">All News &#8594;</a>
+        </div>
+        <div class="headlines-list">
+          ${headlines.map(article => `
+            <div class="headline-item">
+              <a href="/article/${article.slug}" class="headline-link">${article.title}</a>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+    
+    /**
+     * Render more headlines in sidebar (keep for sidebar on desktop)
      */
     function renderMoreHeadlines(articles) {
       const container = document.getElementById('moreHeadlines');
