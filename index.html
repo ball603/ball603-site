@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Ball603 Home Page v351 - Mobile: spotlight orange border, infinite scroll, inline More Headlines at bottom -->
+<!-- Ball603 Home Page v351 - Infinite scroll for Latest Stories (desktop + mobile), inline More Headlines at bottom -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -1125,6 +1125,82 @@
       color: var(--accent);
     }
     
+    /* Inline More Headlines (at bottom after infinite scroll) */
+    #moreHeadlinesInline {
+      background: white;
+      border: 1px solid #e8e8e8;
+      border-radius: 12px;
+      margin-top: 24px;
+      overflow: hidden;
+    }
+    
+    #moreHeadlinesInline .headlines-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      background: #f8f8f8;
+      border-bottom: 1px solid #e8e8e8;
+    }
+    
+    #moreHeadlinesInline .headlines-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #1a1a1a;
+    }
+    
+    #moreHeadlinesInline .headlines-link {
+      font-size: 12px;
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 600;
+    }
+    
+    #moreHeadlinesInline .headlines-list {
+      padding: 8px 16px;
+    }
+    
+    #moreHeadlinesInline .headline-item {
+      padding: 10px 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    
+    #moreHeadlinesInline .headline-item:last-child {
+      border-bottom: none;
+    }
+    
+    #moreHeadlinesInline .headline-link {
+      color: #333;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 1.4;
+      display: block;
+    }
+    
+    #moreHeadlinesInline .headline-link:hover {
+      color: var(--accent);
+    }
+    
+    /* Stories List More (continued after first batch) */
+    #storiesListMore {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+      margin-top: 20px;
+    }
+    
+    /* Mobile spotlight slot - hidden on desktop */
+    #mobileSpotlightSlot {
+      display: none;
+    }
+    
+    @media (max-width: 600px) {
+      #storiesListMore {
+        grid-template-columns: 1fr;
+      }
+    }
+    
     /* Contributor Spotlight */
     .spotlight-card .spotlight-content {
       display: flex;
@@ -1966,6 +2042,7 @@
       
       /* Mobile spotlight slot */
       #mobileSpotlightSlot {
+        display: block;
         margin: 20px 0;
       }
       
@@ -2381,17 +2458,11 @@
       if (articles.length > 0) {
         renderHero(articles);
         
-        // Check if mobile
-        const isMobile = window.innerWidth <= 768;
+        // Use infinite scroll for both mobile and desktop
+        initInfiniteScroll(articles);
         
-        if (isMobile) {
-          // Mobile: Use infinite scroll with spotlight inserted after 3 stories
-          initMobileInfiniteScroll(articles);
-        } else {
-          // Desktop: Normal rendering
-          renderStories(articles);
-          renderMoreHeadlines(articles);
-        }
+        // Desktop sidebar still gets More Headlines
+        renderMoreHeadlines(articles);
       } else {
         document.getElementById('heroFeatured').innerHTML = '<div class="empty-state"><p>No featured content yet</p></div>';
         document.getElementById('storiesList').innerHTML = '<div class="empty-state"><p>No stories yet. Check back soon!</p></div>';
@@ -3067,92 +3138,95 @@
     }
     
     /**
-     * Mobile Infinite Scroll
+     * Infinite Scroll (works for both mobile and desktop)
      */
-    let mobileArticles = [];
-    let mobileWeeklyArticles = [];
-    let mobileOlderArticles = [];
-    let mobileStoriesOffset = 0;
-    let mobileAllLoaded = false;
-    let mobileIsLoading = false;
-    let mobileObserver = null;
-    const MOBILE_STORIES_PER_LOAD = 5;
+    let allArticles = [];
+    let weeklyArticles = [];
+    let olderArticles = [];
+    let storiesOffset = 0;
+    let allStoriesLoaded = false;
+    let isLoadingStories = false;
+    let scrollObserver = null;
+    const STORIES_PER_LOAD = 5;
     
-    function initMobileInfiniteScroll(articles) {
+    function initInfiniteScroll(articles) {
       const published = articles.filter(a => a.status === 'published').slice(3); // Skip hero articles
-      mobileArticles = published;
+      allArticles = published;
       
       // Split into weekly (past 7 days) and older
       const now = new Date();
       const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       
-      mobileWeeklyArticles = published.filter(a => {
+      weeklyArticles = published.filter(a => {
         const articleDate = new Date(a.article_date || a.published_at);
         return articleDate >= weekAgo;
       });
       
-      mobileOlderArticles = published.filter(a => {
+      olderArticles = published.filter(a => {
         const articleDate = new Date(a.article_date || a.published_at);
         return articleDate < weekAgo;
       });
       
-      mobileStoriesOffset = 0;
-      mobileAllLoaded = false;
+      storiesOffset = 0;
+      allStoriesLoaded = false;
       
-      // Render first 3 stories
-      renderMobileFirstStories();
+      const isMobile = window.innerWidth <= 768;
       
-      // Show spotlight slot (will be populated by spotlight loader)
-      document.getElementById('mobileSpotlightSlot').style.display = 'block';
-      
-      // Show more stories container
-      document.getElementById('storiesListMore').style.display = 'grid';
-      
-      // Render next batch of stories
-      renderMobileMoreStories();
+      if (isMobile) {
+        // Mobile: First 3 stories, then spotlight, then more stories
+        renderFirstStories(3);
+        document.getElementById('mobileSpotlightSlot').style.display = 'block';
+        document.getElementById('storiesListMore').style.display = 'grid';
+        renderMoreStories();
+      } else {
+        // Desktop: First 5 stories, then continue
+        renderFirstStories(5);
+        document.getElementById('storiesListMore').style.display = 'grid';
+        renderMoreStories();
+      }
       
       // Setup intersection observer for infinite scroll
-      setupMobileObserver();
+      setupScrollObserver();
     }
     
-    function renderMobileFirstStories() {
+    function renderFirstStories(count) {
       const container = document.getElementById('storiesList');
-      const firstThree = mobileWeeklyArticles.slice(0, 3);
+      const firstBatch = weeklyArticles.slice(0, count);
       
-      if (firstThree.length === 0) {
+      if (firstBatch.length === 0) {
         container.innerHTML = '<div class="empty-state"><p>No stories yet</p></div>';
         return;
       }
       
-      container.innerHTML = firstThree.map(article => buildStoryCard(article)).join('');
-      mobileStoriesOffset = 3;
+      container.innerHTML = firstBatch.map(article => buildStoryCard(article)).join('');
+      storiesOffset = count;
     }
     
-    function renderMobileMoreStories() {
+    function renderMoreStories() {
       const container = document.getElementById('storiesListMore');
       const loadingEl = document.getElementById('storiesLoading');
       
-      const batch = mobileWeeklyArticles.slice(mobileStoriesOffset, mobileStoriesOffset + MOBILE_STORIES_PER_LOAD);
+      const batch = weeklyArticles.slice(storiesOffset, storiesOffset + STORIES_PER_LOAD);
       
       if (batch.length === 0) {
-        mobileAllLoaded = true;
+        allStoriesLoaded = true;
         loadingEl.style.display = 'none';
-        renderMobileInlineHeadlines();
+        renderInlineHeadlines();
         return;
       }
       
       const html = batch.map(article => buildStoryCard(article)).join('');
       container.insertAdjacentHTML('beforeend', html);
-      mobileStoriesOffset += batch.length;
+      storiesOffset += batch.length;
       
       // Check if we've loaded all weekly articles
-      if (mobileStoriesOffset >= mobileWeeklyArticles.length) {
-        mobileAllLoaded = true;
+      if (storiesOffset >= weeklyArticles.length) {
+        allStoriesLoaded = true;
         loadingEl.style.display = 'none';
-        renderMobileInlineHeadlines();
+        renderInlineHeadlines();
       }
       
-      mobileIsLoading = false;
+      isLoadingStories = false;
     }
     
     function buildStoryCard(article) {
@@ -3177,49 +3251,49 @@
       `;
     }
     
-    function setupMobileObserver() {
+    function setupScrollObserver() {
       const loadingEl = document.getElementById('storiesLoading');
       
-      if (mobileObserver) {
-        mobileObserver.disconnect();
+      if (scrollObserver) {
+        scrollObserver.disconnect();
       }
       
-      mobileObserver = new IntersectionObserver((entries) => {
+      scrollObserver = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
-          if (entry.isIntersecting && !mobileIsLoading && !mobileAllLoaded) {
-            loadMobileMoreStories();
+          if (entry.isIntersecting && !isLoadingStories && !allStoriesLoaded) {
+            loadMoreStories();
           }
         });
       }, { rootMargin: '200px' });
       
       // Create sentinel element
-      let sentinel = document.getElementById('mobileStoriesSentinel');
+      let sentinel = document.getElementById('storiesSentinel');
       if (!sentinel) {
         sentinel = document.createElement('div');
-        sentinel.id = 'mobileStoriesSentinel';
+        sentinel.id = 'storiesSentinel';
         sentinel.style.height = '1px';
         const storiesMore = document.getElementById('storiesListMore');
         storiesMore.parentNode.insertBefore(sentinel, loadingEl);
       }
       
-      mobileObserver.observe(sentinel);
+      scrollObserver.observe(sentinel);
     }
     
-    function loadMobileMoreStories() {
-      if (mobileIsLoading || mobileAllLoaded) return;
+    function loadMoreStories() {
+      if (isLoadingStories || allStoriesLoaded) return;
       
-      mobileIsLoading = true;
+      isLoadingStories = true;
       const loadingEl = document.getElementById('storiesLoading');
       loadingEl.style.display = 'block';
       
       setTimeout(() => {
-        renderMobileMoreStories();
+        renderMoreStories();
       }, 300);
     }
     
-    function renderMobileInlineHeadlines() {
+    function renderInlineHeadlines() {
       const container = document.getElementById('moreHeadlinesInline');
-      const headlines = mobileOlderArticles.slice(0, 10);
+      const headlines = olderArticles.slice(0, 10);
       
       if (headlines.length === 0) {
         container.style.display = 'none';
