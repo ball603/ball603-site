@@ -737,6 +737,11 @@
       gap: 20px;
     }
     
+    /* Mobile spotlight - hidden on desktop */
+    .mobile-spotlight-container {
+      display: none !important;
+    }
+    
     .story-card {
       display: flex;
       flex-direction: column;
@@ -2034,6 +2039,109 @@
       .sponsor-cta {
         color: #aaa;
       }
+      
+      /* Hide sidebar spotlight and More Headlines on mobile */
+      .sidebar .spotlight-card,
+      .sidebar .sidebar-more-headlines {
+        display: none !important;
+      }
+      
+      /* Mobile spotlight container - shown on mobile */
+      .mobile-spotlight-container {
+        display: block !important;
+        margin: 24px 0;
+      }
+      
+      .mobile-spotlight-container .spotlight-card {
+        background: #1e1e1e;
+        border: 1px solid #f57c00 !important;
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      
+      .mobile-spotlight-container .sidebar-header {
+        background: #252525;
+        border-bottom: 1px solid #333;
+        padding: 14px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      
+      .mobile-spotlight-container .sidebar-title {
+        font-size: 14px;
+        font-weight: 700;
+        color: #fff;
+      }
+      
+      .mobile-spotlight-container .sidebar-link {
+        font-size: 12px;
+        color: var(--accent);
+        text-decoration: none;
+        font-weight: 600;
+      }
+      
+      .mobile-spotlight-container .spotlight-content {
+        display: flex;
+        align-items: stretch;
+        gap: 0;
+        padding: 0;
+        cursor: pointer;
+        min-height: 100px;
+        background: #1a1a1a;
+      }
+      
+      .mobile-spotlight-container .spotlight-headshot-wrap {
+        width: 28%;
+        flex-shrink: 0;
+        position: relative;
+        overflow: hidden;
+      }
+      
+      .mobile-spotlight-container .spotlight-headshot {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+      
+      .mobile-spotlight-container .spotlight-info {
+        flex: 1;
+        min-width: 0;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+      }
+      
+      .mobile-spotlight-container .spotlight-label {
+        font-size: 11px;
+        color: #aaa;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 4px;
+      }
+      
+      .mobile-spotlight-container .spotlight-name {
+        font-size: 16px;
+        font-weight: 700;
+        color: #fff;
+        margin: 0;
+        line-height: 1.3;
+      }
+      
+      .mobile-spotlight-container .spotlight-hint {
+        font-size: 11px;
+        color: var(--accent);
+        margin-top: 8px;
+      }
+      
+      /* Stories list continued (after spotlight) */
+      .stories-list-continued {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
     }
   </style>
 </head>
@@ -2174,6 +2282,13 @@
           <div class="skeleton" style="height: 120px;"></div>
           <div class="skeleton" style="height: 120px;"></div>
         </div>
+        <!-- Mobile Contributor Spotlight (injected after 3 stories via JS) -->
+        <div class="mobile-spotlight-container" id="mobileSpotlight" style="display: none;">
+          <!-- Filled by JS -->
+        </div>
+        <div class="stories-list stories-list-continued" id="storiesListContinued">
+          <!-- More stories after spotlight -->
+        </div>
         <div class="stories-loading" id="storiesLoading" style="display: none; text-align: center; padding: 20px; color: #999;">
           Loading...
         </div>
@@ -2227,8 +2342,8 @@
           </div>
         </div>
         
-        <!-- More Headlines -->
-        <div class="sidebar-card">
+        <!-- More Headlines (sidebar - hidden on mobile) -->
+        <div class="sidebar-card sidebar-more-headlines">
           <div class="sidebar-header">
             <h3 class="sidebar-title">&#128240; More Headlines</h3>
             <a href="/news" class="sidebar-link">All News &#8594;</a>
@@ -3035,22 +3150,54 @@
       storiesOffset = 0;
       allStoriesLoaded = false;
       
-      // Render initial batch
+      // Render initial batch (first 3 stories before spotlight)
+      renderFirstThreeStories();
+      
+      // Render continued stories after spotlight
       renderStoriesInfinite(true);
       
       // Setup Intersection Observer
       setupStoriesObserver();
     }
     
-    function renderStoriesInfinite(isInitial = false) {
+    function renderFirstThreeStories() {
       const container = document.getElementById('storiesList');
-      const loadingEl = document.getElementById('storiesLoading');
+      const firstThree = weeklyArticles.slice(0, 3);
       
-      if (isInitial) {
-        container.innerHTML = '';
+      if (firstThree.length === 0) {
+        container.innerHTML = '<div class="empty-state"><p>No stories yet</p></div>';
+        return;
       }
       
-      const batch = weeklyArticles.slice(storiesOffset, storiesOffset + STORIES_PER_LOAD);
+      container.innerHTML = firstThree.map(article => {
+        const photographer = article.photographer || article.game_data?.photographerName || '';
+        const displayDate = article.article_date || article.published_at?.split('T')[0] || '';
+        const excerptHtml = article.excerpt ? `<p class="story-excerpt">${article.excerpt}</p>` : '';
+        const photographerHtml = photographer ? `<span class="story-photographer">&#128247; ${photographer}</span>` : '';
+        return `
+          <article class="story-card" onclick="Ball603.goToArticle('${article.slug}')">
+            <div class="story-image-container">
+              <img src="${article.featured_image_url || PLACEHOLDER_IMG}" alt="" class="story-image">
+            </div>
+            <div class="story-content">
+              <h3 class="story-title">${article.title}</h3>
+              ${excerptHtml}
+              <div class="story-meta">
+                ${photographerHtml}
+                <span>&#128197; ${Ball603.formatDate(displayDate, 'short')}</span>
+              </div>
+            </div>
+          </article>
+        `;
+      }).join('');
+      
+      // Start offset after first 3
+      storiesOffset = 3;
+    }
+    
+    function renderStoriesInfinite(isInitial = false) {
+      const container = document.getElementById('storiesListContinued');
+      const loadingEl = document.getElementById('storiesLoading');
       
       if (batch.length === 0) {
         allStoriesLoaded = true;
@@ -3475,8 +3622,7 @@
         const c = spotlightContributor;
         if (!c) return;
         
-        const container = document.getElementById('spotlightContent');
-        container.innerHTML = `
+        const spotlightHtml = `
           <div class="spotlight-headshot-wrap">
             <img src="${escapeHtml(c.headshot_url)}" alt="${escapeHtml(c.name)}" class="spotlight-headshot">
           </div>
@@ -3487,9 +3633,30 @@
           </div>
         `;
         
+        // Render to sidebar spotlight
+        const container = document.getElementById('spotlightContent');
+        container.innerHTML = spotlightHtml;
+        
         container.onclick = function() {
           openSpotlightModal();
         };
+        
+        // Also render to mobile spotlight
+        const mobileContainer = document.getElementById('mobileSpotlight');
+        if (mobileContainer) {
+          mobileContainer.innerHTML = `
+            <div class="spotlight-card">
+              <div class="sidebar-header">
+                <h3 class="sidebar-title">&#128075; Contributor Spotlight</h3>
+                <a href="/our-team" class="sidebar-link">Our Team &#8594;</a>
+              </div>
+              <div class="spotlight-content" onclick="openSpotlightModal()">
+                ${spotlightHtml}
+              </div>
+            </div>
+          `;
+          mobileContainer.style.display = 'block';
+        }
       }
       
       function openSpotlightModal() {
