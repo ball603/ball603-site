@@ -84,6 +84,21 @@ export default async (request) => {
         queryParts.push(`status=eq.${encodeURIComponent(params.status)}`);
       }
       
+      // Filter by playoff status
+      if (params.is_playoff !== undefined) {
+        queryParts.push(`is_playoff=eq.${params.is_playoff}`);
+      }
+      
+      // Filter by round (Prelims, Quarters, Semis, Final)
+      if (params.round) {
+        queryParts.push(`round=eq.${encodeURIComponent(params.round)}`);
+      }
+      
+      // Filter by season
+      if (params.season) {
+        queryParts.push(`season=eq.${encodeURIComponent(params.season)}`);
+      }
+      
       // Filter by coverage assignment
       if (params.has_coverage === 'true') {
         queryParts.push(`or=(photog1.neq.,photog2.neq.,videog.neq.,writer.neq.)`);
