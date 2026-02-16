@@ -667,8 +667,7 @@ async function lockSeeds(gender, division, season, seeds) {
         location: null,
         is_playoff: true,
         round: 'Prelims',
-        bracket_position: matchup.position,
-        game_status: 'BYE'
+        bracket_position: matchup.position
       });
     } else {
       const lowTeam = seedMap.get(lowSeed);
