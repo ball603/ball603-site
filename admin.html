@@ -12389,15 +12389,16 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           const hasUrls = game.photos_url || game.recap_url || game.highlights_url || game.live_stream_url;
           const urlCount = [game.photos_url, game.recap_url, game.highlights_url, game.live_stream_url].filter(Boolean).length;
           const score = game.status === 'final' ? (game.away_score || 0) + '-' + (game.home_score || 0) : (game.time || '-');
-          const rowBg = isToday ? 'background: #e3f2fd;' : '';
+          const rowBg = isToday ? 'background: #e3f2fd;' : (game.is_playoff ? 'background: #fff8f0; border-left: 3px solid #f57c00;' : '');
           const cancelled = game.status === 'cancelled' ? 'opacity: 0.5; text-decoration: line-through;' : '';
+          const playoffBadge = game.is_playoff ? '<span style="font-size: 10px; margin-left: 3px;">🏆</span>' : '';
           
           html += '<div class="article-row" style="grid-template-columns: 90px 1fr 1fr 70px 80px 50px 80px 100px; ' + rowBg + cancelled + '">';
           html += '<div style="font-size: 12px;"><div>' + (game.time || 'TBD') + '</div><div style="font-size: 10px; color: #888;">' + (game.gender || '') + '</div></div>';
           html += '<div style="font-size: 13px;">' + (game.away_team || '-') + '</div>';
           html += '<div style="font-size: 13px; font-weight: 500;">' + (game.home_team || '-') + '</div>';
           html += '<div style="font-size: 12px; ' + (game.status === 'final' ? 'font-weight: 600;' : 'color: #888;') + '">' + score + '<button onclick="openQuickScore(' + game.id + ')" style="background: none; border: none; cursor: pointer; padding: 2px; margin-left: 3px; font-size: 11px; color: #1565c0;" title="Quick edit score">✏️</button></div>';
-          html += '<div style="font-size: 11px; color: #666;">' + (game.division || '-') + '</div>';
+          html += '<div style="font-size: 11px; color: #666;">' + playoffBadge + (game.division || '-') + (game.is_playoff && game.round ? ' <span style="font-size: 9px; color: #f57c00;">(' + game.round + ')</span>' : '') + '</div>';
           html += '<div style="text-align: center;"><button onclick="openUrlModal(' + game.id + ')" style="background: ' + (hasUrls ? '#f3e5f5' : '#f5f5f5') + '; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px;" title="' + (hasUrls ? urlCount + ' URL(s) set' : 'No URLs') + '">' + (hasUrls ? '🔗' : '○') + '</button></div>';
           html += '<div style="font-size: 14px;">' + (coverageIcons.join(' ') || '-') + '</div>';
           html += '<div class="article-actions"><button class="btn-edit" onclick="editGame(' + game.id + ')">Edit</button><button class="btn-delete" onclick="deleteGame(' + game.id + ')">Delete</button></div>';
