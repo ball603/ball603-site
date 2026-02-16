@@ -43,8 +43,17 @@ class ContributorSchedule {
     this.scorebookModal = null;
     this.currentScorebookGameId = null;
     
-    // Contributors loaded from database (was hardcoded)
-    this.CONTRIBUTORS = [];
+    this.CONTRIBUTORS = [
+      "Andy Romike", "Arinn Roy", "Betsy Hansen", "Cam Place", "Chris Laclair", "Chris Prangley",
+      "Christine Gilbert", "Chuck Swierad", "Cindy Lavigne", "Connor Chrusciel", "Danielle Cook",
+      "Dave Beliveau", "Frank V Fichera", "Greg Alnwick", "Hannah Smith", "Haven Deschenes",
+      "Heather Savage-Erickson", "Heidi Green", "Jeff Criss", "Jessica Bonnette", "Jessica Tate",
+      "Jill Stevens", "Jocelyn Sprague", "John Scott Sherburne", "KJ Cardinal", "Leo Cardinal", "LJ Hydock",
+      "Logan Paronto", "Marc Hoak", "Maverick Thivierge", "Michael Griffin", "Mike Whaley",
+      "Mindy Marcouillier", "Nate Ford", "Nichole Marrero", "Rick Wilson", "Sara Roberts",
+      "Shawna Hurlbert", "Shirley Nickles", "Simon Scott", "Stefan Duncan", "Tim Lee",
+      "Todd Grzywacz", "Tyson Thomas"
+    ].sort();
     
     this.MONTH_NAMES_SHORT = ['Jan.', 'Feb.', 'Mar.', 'Apr.', 'May', 'Jun.', 'Jul.', 'Aug.', 'Sep.', 'Oct.', 'Nov.', 'Dec.'];
     
@@ -175,47 +184,10 @@ class ContributorSchedule {
       return;
     }
     
-    // Load contributors from database first
-    await this.loadContributors();
-    
     this.render();
     this.createScorebookModal();
     this.bindEvents();
     await this.loadGames();
-  }
-  
-  // Load contributors from Supabase database
-  async loadContributors() {
-    try {
-      // Use the supabaseClient passed in config, or create one
-      const supabase = this.config.supabaseClient || window.supabase?.createClient(
-        'https://suncdkxfqkwwnmhosxcf.supabase.co',
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN1bmNka3hmcWt3d25taG9zeGNmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwNTk4MzIsImV4cCI6MjA4MDYzNTgzMn0.aT6V8Zx_YozqOh1ZnC6x-czI9vo-QhHKmP69PgY-8xw'
-      );
-      
-      if (!supabase) {
-        console.warn('ContributorSchedule: No Supabase client available, using empty contributors list');
-        return;
-      }
-      
-      const { data, error } = await supabase
-        .from('contributors')
-        .select('name')
-        .eq('active', true)
-        .order('name');
-      
-      if (error) {
-        console.error('ContributorSchedule: Error loading contributors:', error);
-        return;
-      }
-      
-      // Extract names and sort
-      this.CONTRIBUTORS = (data || []).map(c => c.name).filter(Boolean).sort();
-      console.log('ContributorSchedule: Loaded', this.CONTRIBUTORS.length, 'contributors from database');
-      
-    } catch (err) {
-      console.error('ContributorSchedule: Failed to load contributors:', err);
-    }
   }
   
   // Set contributor name programmatically
@@ -262,14 +234,14 @@ class ContributorSchedule {
         <div class="cs-modal-body">
           <div class="cs-scorebook-game-info"></div>
           <div class="cs-upload-area" id="cs-upload-area">
-            <div class="cs-upload-icon">📤</div>
+            <div class="cs-upload-icon">&#128228;</div>
             <p>Click to select or drag & drop</p>
             <p class="cs-upload-hint">Supports JPG, PNG, HEIC (max 10MB)</p>
             <input type="file" id="cs-scorebook-input" accept="image/*,.heic,.heif" style="display:none">
           </div>
           <div class="cs-upload-preview" id="cs-upload-preview" style="display:none">
             <img id="cs-preview-image" src="" alt="Preview">
-            <button class="cs-preview-remove" id="cs-preview-remove">✕ Remove</button>
+            <button class="cs-preview-remove" id="cs-preview-remove">&#10005; Remove</button>
           </div>
           <div class="cs-upload-status" id="cs-upload-status"></div>
         </div>
@@ -569,7 +541,7 @@ class ContributorSchedule {
     ` : '';
     
     this.container.innerHTML = `
-      ${this.config.showAlerts ? '<div class="cs-alert-banner" style="display: none;"><h3>⚠️ Schedule Changes</h3><div class="cs-alert-list"></div></div>' : ''}
+      ${this.config.showAlerts ? '<div class="cs-alert-banner" style="display: none;"><h3>&#9888;&#65039; Schedule Changes</h3><div class="cs-alert-list"></div></div>' : ''}
       
       ${contributorDropdownHTML}
       
@@ -580,7 +552,13 @@ class ContributorSchedule {
           <button class="cs-tab" data-tab="College">College</button>
         </div>
         <div class="cs-filters">
-          <button class="cs-today-btn" title="Jump to Today">📅 Today</button>
+          <button class="cs-today-btn" title="Jump to Today">&#128197; Today</button>
+          <select class="cs-sport-filter">
+            <option value="">Sport (All)</option>
+            <option value="basketball">&#127936; Basketball</option>
+            <option value="baseball">&#9918; Baseball</option>
+            <option value="volleyball">&#127952; Volleyball</option>
+          </select>
           <select class="cs-gender-filter">
             <option value="">Gender (All)</option>
             <option value="Boys">Boys</option>
@@ -635,6 +613,11 @@ class ContributorSchedule {
     });
     
     // Filter changes
+    this.container.querySelector('.cs-sport-filter').addEventListener('change', () => {
+      this.updateGenderOptions();
+      this.updateDivisionOptions();
+      this.renderGames();
+    });
     this.container.querySelector('.cs-gender-filter').addEventListener('change', () => {
       this.updateDivisionOptions();
       this.renderGames();
@@ -762,20 +745,43 @@ class ContributorSchedule {
     this.updateDivisionOptions();
   }
   
-  // Update gender options based on current tab
+  // Update gender options based on current tab and sport
   updateGenderOptions() {
     const select = this.container.querySelector('.cs-gender-filter');
     const currentValue = select.value;
+    const sport = this.container.querySelector('.cs-sport-filter').value;
     
     select.innerHTML = '<option value="">Gender (All)</option>';
     
-    if (this.currentTab === 'NHIAA') {
-      select.innerHTML += '<option value="Boys">Boys</option><option value="Girls">Girls</option>';
-    } else if (this.currentTab === 'College') {
-      select.innerHTML += '<option value="Men">Men</option><option value="Women">Women</option>';
+    // Sport-specific gender restrictions
+    if (sport === 'baseball') {
+      // Baseball is boys/men only
+      if (this.currentTab === 'College') {
+        select.innerHTML += '<option value="Men">Men</option>';
+      } else if (this.currentTab === 'NHIAA') {
+        select.innerHTML += '<option value="Boys">Boys</option>';
+      } else {
+        select.innerHTML += '<option value="Boys">Boys</option><option value="Men">Men</option>';
+      }
+    } else if (sport === 'volleyball') {
+      // Volleyball is girls/women only
+      if (this.currentTab === 'College') {
+        select.innerHTML += '<option value="Women">Women</option>';
+      } else if (this.currentTab === 'NHIAA') {
+        select.innerHTML += '<option value="Girls">Girls</option>';
+      } else {
+        select.innerHTML += '<option value="Girls">Girls</option><option value="Women">Women</option>';
+      }
     } else {
-      select.innerHTML += '<option value="Boys">Boys</option><option value="Girls">Girls</option>';
-      select.innerHTML += '<option value="Men">Men</option><option value="Women">Women</option>';
+      // Basketball or All sports - show all genders based on tab
+      if (this.currentTab === 'NHIAA') {
+        select.innerHTML += '<option value="Boys">Boys</option><option value="Girls">Girls</option>';
+      } else if (this.currentTab === 'College') {
+        select.innerHTML += '<option value="Men">Men</option><option value="Women">Women</option>';
+      } else {
+        select.innerHTML += '<option value="Boys">Boys</option><option value="Girls">Girls</option>';
+        select.innerHTML += '<option value="Men">Men</option><option value="Women">Women</option>';
+      }
     }
     
     const validOptions = Array.from(select.options).map(o => o.value);
@@ -1037,6 +1043,7 @@ class ContributorSchedule {
   // Render games table
   renderGames() {
     const search = this.container.querySelector('.cs-search-input').value.toLowerCase();
+    const sport = this.container.querySelector('.cs-sport-filter').value;
     const gender = this.container.querySelector('.cs-gender-filter').value;
     const division = this.container.querySelector('.cs-division-filter').value;
     const assignment = this.container.querySelector('.cs-assignment-filter').value;
@@ -1047,6 +1054,15 @@ class ContributorSchedule {
       if (this.currentTab !== 'all' && g.level !== this.currentTab) return false;
       if (search && !g.home?.toLowerCase().includes(search) && !g.away?.toLowerCase().includes(search)) return false;
       if (gender && g.gender !== gender) return false;
+      
+      // Sport filter - basketball includes null for legacy data
+      if (sport) {
+        if (sport === 'basketball') {
+          if (g.sport && g.sport !== 'basketball') return false;
+        } else {
+          if (g.sport !== sport) return false;
+        }
+      }
       
       if (division) {
         if (division === 'college-other') {
@@ -1099,6 +1115,7 @@ class ContributorSchedule {
       <table class="cs-table">
         <thead>
           <tr>
+            <th>Sport</th>
             <th>Date</th>
             <th>Time</th>
             <th>Away</th>
@@ -1107,7 +1124,7 @@ class ContributorSchedule {
             <th>Level</th>
             <th></th>
             <th>Coverage</th>
-            <th>✅</th>
+            <th>&#9989;</th>
             <th>Scorebook</th>
             <th>Notes</th>
           </tr>
@@ -1124,12 +1141,13 @@ class ContributorSchedule {
       
       html += `
         <tr data-id="${game.game_id}" data-date="${game.date}" class="${rowClass.trim()}">
+          <td class="cs-sport-cell">${this.getSportEmoji(game.sport)}</td>
           <td>${this.renderDateCell(game, isToday)}</td>
           <td>${this.formatTime(game.time)}</td>
           <td>${game.away || ''}</td>
           <td>${game.home || ''}</td>
           <td>${game.gender || ''}</td>
-          <td>${game.level || ''}</td>
+          <td>${game.is_playoff ? '🏆 ' : ''}${game.level || ''}</td>
           <td class="cs-no-fade">${this.renderClaimCell(game)}</td>
           <td class="cs-coverage-cell cs-no-fade">${this.renderCoverageCell(game)}</td>
           <td class="cs-confirm-cell cs-no-fade">${this.renderConfirmCell(game)}</td>
@@ -1172,9 +1190,9 @@ class ContributorSchedule {
   renderConfirmCell(game) {
     const isConfirmed = game.coverage_confirmed;
     if (isConfirmed) {
-      return `<button class="cs-confirm-btn confirmed" data-game-id="${game.game_id}" title="Click to unconfirm">✅</button>`;
+      return `<button class="cs-confirm-btn confirmed" data-game-id="${game.game_id}" title="Click to unconfirm">&#9989;</button>`;
     }
-    return `<button class="cs-confirm-btn" data-game-id="${game.game_id}" title="Click to confirm">○</button>`;
+    return `<button class="cs-confirm-btn" data-game-id="${game.game_id}" title="Click to confirm">&#9675;</button>`;
   }
   
   // Toggle coverage confirmed status
@@ -1205,9 +1223,9 @@ class ContributorSchedule {
   // Render scorebook cell
   renderScorebookCell(game) {
     if (game.scorebook_url) {
-      return `<button class="cs-scorebook-view" data-game-id="${game.game_id}">VIEW</button><button class="cs-scorebook-delete" data-game-id="${game.game_id}" title="Remove scorebook">✕</button>`;
+      return `<button class="cs-scorebook-view" data-game-id="${game.game_id}">VIEW</button><button class="cs-scorebook-delete" data-game-id="${game.game_id}" title="Remove scorebook">&#10005;</button>`;
     }
-    return `<button class="cs-scorebook-upload" data-game-id="${game.game_id}" title="Upload Scorebook">📤</button>`;
+    return `<button class="cs-scorebook-upload" data-game-id="${game.game_id}" title="Upload Scorebook">&#128228;</button>`;
   }
   
   renderDateCell(game, isToday = false) {
@@ -1244,6 +1262,16 @@ class ContributorSchedule {
     return time.replace(/^0/, '');
   }
   
+  // Get sport emoji HTML entity
+  getSportEmoji(sport) {
+    switch (sport) {
+      case 'baseball': return '&#9918;';
+      case 'volleyball': return '&#127952;';
+      case 'basketball':
+      default: return '&#127936;';
+    }
+  }
+  
   renderClaimCell(game) {
     const me = this.getContributor();
     if (!me) return '';
@@ -1256,12 +1284,12 @@ class ContributorSchedule {
     
     return `
       <div class="cs-claim-wrapper">
-        <button class="cs-claim-btn" data-game-id="${game.game_id}">➕</button>
+        <button class="cs-claim-btn" data-game-id="${game.game_id}">&#10133;</button>
         <div class="cs-claim-dropdown" id="cs-dropdown-${game.game_id}">
-          ${!game.photog1 ? `<div class="cs-claim-option" data-game-id="${game.game_id}" data-field="photog1">📸 Photographer</div>` : ''}
-          ${game.photog1 && !game.photog2 && game.photog1 !== me ? `<div class="cs-claim-option" data-game-id="${game.game_id}" data-field="photog2">📸 Photographer 2</div>` : ''}
-          ${!game.videog ? `<div class="cs-claim-option" data-game-id="${game.game_id}" data-field="videog">🎥 Videographer</div>` : ''}
-          ${!game.writer ? `<div class="cs-claim-option" data-game-id="${game.game_id}" data-field="writer">📝 Writer</div>` : ''}
+          ${!game.photog1 ? `<div class="cs-claim-option" data-game-id="${game.game_id}" data-field="photog1">&#128248; Photographer</div>` : ''}
+          ${game.photog1 && !game.photog2 && game.photog1 !== me ? `<div class="cs-claim-option" data-game-id="${game.game_id}" data-field="photog2">&#128248; Photographer 2</div>` : ''}
+          ${!game.videog ? `<div class="cs-claim-option" data-game-id="${game.game_id}" data-field="videog">&#127909; Videographer</div>` : ''}
+          ${!game.writer ? `<div class="cs-claim-option" data-game-id="${game.game_id}" data-field="writer">&#128221; Writer</div>` : ''}
         </div>
       </div>
     `;
@@ -1270,10 +1298,10 @@ class ContributorSchedule {
   renderCoverageCell(game) {
     const me = this.getContributor();
     const items = [
-      { field: 'photog1', emoji: '📸', name: game.photog1 },
-      { field: 'photog2', emoji: '📸', name: game.photog2 },
-      { field: 'videog', emoji: '🎥', name: game.videog },
-      { field: 'writer', emoji: '📝', name: game.writer }
+      { field: 'photog1', emoji: '&#128248;', name: game.photog1 },
+      { field: 'photog2', emoji: '&#128248;', name: game.photog2 },
+      { field: 'videog', emoji: '&#127909;', name: game.videog },
+      { field: 'writer', emoji: '&#128221;', name: game.writer }
     ].filter(item => item.name);
     
     if (items.length === 0) return '<span style="color:#999">-</span>';
@@ -1282,7 +1310,7 @@ class ContributorSchedule {
       <div class="cs-coverage-entry">
         <span>${item.emoji}</span>
         <span>${item.name}</span>
-        ${item.name === me ? `<button class="cs-coverage-remove" data-game-id="${game.game_id}" data-field="${item.field}">✕</button>` : ''}
+        ${item.name === me ? `<button class="cs-coverage-remove" data-game-id="${game.game_id}" data-field="${item.field}">&#10005;</button>` : ''}
       </div>
     `).join('');
   }
