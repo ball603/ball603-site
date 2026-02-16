@@ -23008,6 +23008,11 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       
       document.getElementById('playoffStatus').textContent = 'Loading...';
       
+      // Clear all tables immediately to prevent stale data
+      document.getElementById('playoffSeedsBody').innerHTML = '';
+      document.getElementById('playoffProjectedSeedsBody').innerHTML = '';
+      document.getElementById('playoffLockedSeeds').innerHTML = '';
+      
       try {
         // First, check current status (none, projected, or locked)
         const statusResponse = await fetch(`/.netlify/functions/playoff-seeds?gender=${gender}&division=${division}&season=${season}`);
@@ -23282,7 +23287,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         if (result.success) {
           showToast(`Seeds locked! Created ${result.gamesCreated} bracket games.`, 'success');
           closeLockSeedsModal();
-          loadPlayoffsData();
+          // Clear any cached data and force reload
+          playoffSeeds = [];
+          playoffGames = [];
+          await loadPlayoffsData();
         } else {
           throw new Error(result.error || 'Failed to lock seeds');
         }
