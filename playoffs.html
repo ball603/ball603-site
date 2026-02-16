@@ -472,6 +472,10 @@
       cursor: default;
     }
     
+    .matchup-team.bye-team {
+      opacity: 0.5;
+    }
+    
     .matchup.bye:hover {
       border-color: var(--border-color);
       box-shadow: none;
@@ -602,8 +606,9 @@
       display: grid;
       grid-template-columns: 1fr auto 1fr;
       gap: 16px;
-      padding: 20px;
+      padding: 24px 20px;
       align-items: center;
+      background: transparent;
     }
     
     .comparison-team {
@@ -615,6 +620,7 @@
       height: 64px;
       object-fit: contain;
       margin-bottom: 8px;
+      background: transparent;
     }
     
     .comparison-team .seed {
@@ -631,6 +637,7 @@
     .comparison-team .name {
       font-size: 16px;
       font-weight: 600;
+      color: var(--text-primary);
     }
     
     .comparison-vs {
@@ -652,11 +659,12 @@
     }
     
     .comparison-table th {
-      background: var(--bg-secondary);
+      background: var(--bg-card);
       font-size: 12px;
       font-weight: 600;
       color: var(--text-secondary);
       text-transform: uppercase;
+      border-bottom: 2px solid var(--border-color);
     }
     
     .comparison-table td {
@@ -680,7 +688,6 @@
     
     .head-to-head {
       padding: 16px 20px;
-      background: var(--bg-secondary);
       border-top: 1px solid var(--border-color);
     }
     
@@ -689,12 +696,38 @@
       font-weight: 600;
       text-transform: uppercase;
       color: var(--text-secondary);
-      margin-bottom: 8px;
+      margin-bottom: 12px;
     }
     
     .head-to-head-result {
       font-size: 14px;
       color: var(--text-primary);
+    }
+    
+    .previous-meeting {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .previous-meeting:last-child {
+      border-bottom: none;
+    }
+    
+    .meeting-date {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+    
+    .meeting-result {
+      font-size: 14px;
+      font-weight: 600;
+    }
+    
+    .meeting-winner {
+      color: var(--accent);
     }
     
     .modal-game-result {
@@ -1342,13 +1375,17 @@
             `;
           }
           
-          // Regular prelim BYE
+          // Regular prelim BYE - show as full matchup card
           return `
-            <div class="matchup bye">
+            <div class="matchup">
               <div class="matchup-team">
                 <span class="team-seed">#${game.home_seed}</span>
                 <img src="/logos/100px/${getLogoFilename(game.home_team)}" class="team-logo" onerror="this.style.display='none'" alt="">
                 ${getTeamNameHtml(game.home_team)}
+              </div>
+              <div class="matchup-team bye-team">
+                <span class="team-seed">-</span>
+                <span class="team-name">BYE</span>
               </div>
               <div class="matchup-footer">
                 <span>BYE</span>
@@ -1442,7 +1479,7 @@
       `).join('');
     }
     
-    function openMatchup(gameId) {
+    async function openMatchup(gameId) {
       const game = playoffGames.find(g => g.game_id === gameId);
       if (!game || !game.away_team || !game.home_team) return;
       
@@ -1487,6 +1524,54 @@
         `;
       }
       
+      // Fetch previous meetings
+      let previousMeetingsHtml = '';
+      try {
+        const team1 = encodeURIComponent(game.away_team);
+        const team2 = encodeURIComponent(game.home_team);
+        const response = await fetch(
+          `${Ball603.config.SUPABASE_URL}/rest/v1/games?` +
+          `season=eq.2025-26&gender=eq.${currentGender}&is_playoff=eq.false&` +
+          `or=(and(home_team.eq.${team1},away_team.eq.${team2}),and(home_team.eq.${team2},away_team.eq.${team1}))&` +
+          `home_score=not.is.null&order=date.asc`,
+          {
+            headers: {
+              'apikey': Ball603.config.SUPABASE_ANON_KEY
+            }
+          }
+        );
+        
+        if (response.ok) {
+          const meetings = await response.json();
+          if (meetings.length > 0) {
+            const meetingsContent = meetings.map(m => {
+              const date = new Date(m.date + 'T12:00:00');
+              const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+              const homeWon = m.home_score > m.away_score;
+              const winner = homeWon ? m.home_team : m.away_team;
+              const winScore = homeWon ? m.home_score : m.away_score;
+              const loseScore = homeWon ? m.away_score : m.home_score;
+              const loser = homeWon ? m.away_team : m.home_team;
+              return `
+                <div class="previous-meeting">
+                  <span class="meeting-date">${dateStr}</span>
+                  <span class="meeting-result"><span class="meeting-winner">${winner}</span> ${winScore}, ${loser} ${loseScore}</span>
+                </div>
+              `;
+            }).join('');
+            
+            previousMeetingsHtml = `
+              <div class="head-to-head">
+                <div class="head-to-head-title">Regular Season Meetings</div>
+                ${meetingsContent}
+              </div>
+            `;
+          }
+        }
+      } catch (e) {
+        console.error('Error fetching previous meetings:', e);
+      }
+      
       document.getElementById('modalContent').innerHTML = `
         <div class="comparison-teams">
           <div class="comparison-team">
@@ -1522,6 +1607,7 @@
         </table>
         
         ${resultSection}
+        ${previousMeetingsHtml}
       `;
       
       document.getElementById('comparisonModal').classList.add('open');
