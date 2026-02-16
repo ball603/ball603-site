@@ -20,52 +20,52 @@ const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const TOURNAMENT_SCHEDULE = {
   'Boys': {
     'D-I': {
-      prelims: { date: '2026-03-04', time: '7:00 PM', site: 'Higher Seed' },
-      quarters: { date: '2026-03-07', time: '7:00 PM', site: 'Higher Seed' },
+      prelims: { date: '2026-03-04', time: '6:00 PM', site: 'Higher Seed' },
+      quarters: { date: '2026-03-07', time: '6:00 PM', site: 'Higher Seed' },
       semis: { date: '2026-03-11', times: ['5:30 PM', '7:30 PM'], site: 'Rochester Rec Center' },
       final: { date: '2026-03-15', time: '4:00 PM', site: 'UNH' }
     },
     'D-II': {
-      prelims: { date: '2026-03-03', time: '7:00 PM', site: 'Higher Seed' },
-      quarters: { date: '2026-03-06', time: '7:00 PM', site: 'Higher Seed' },
+      prelims: { date: '2026-03-03', time: '6:00 PM', site: 'Higher Seed' },
+      quarters: { date: '2026-03-06', time: '6:00 PM', site: 'Higher Seed' },
       semis: { date: '2026-03-09', times: ['5:30 PM', '7:30 PM'], site: 'Rochester Rec Center' },
       final: { date: '2026-03-15', time: '12:00 PM', site: 'UNH' }
     },
     'D-III': {
-      prelims: { date: '2026-02-17', time: '7:00 PM', site: 'Higher Seed' },
-      quarters: { date: '2026-02-20', time: '7:00 PM', site: 'Higher Seed' },
+      prelims: { date: '2026-02-17', time: '6:00 PM', site: 'Higher Seed' },
+      quarters: { date: '2026-02-20', time: '6:00 PM', site: 'Higher Seed' },
       semis: { date: '2026-02-24', times: ['5:30 PM', '7:30 PM'], site: 'TBD' },
       final: { date: '2026-02-28', time: '4:00 PM', site: 'Keene State College' }
     },
     'D-IV': {
-      prelims: { date: '2026-02-23', time: '7:00 PM', site: 'Higher Seed' },
-      quarters: { date: '2026-02-26', time: '7:00 PM', site: 'Higher Seed' },
+      prelims: { date: '2026-02-23', time: '6:00 PM', site: 'Higher Seed' },
+      quarters: { date: '2026-02-26', time: '6:00 PM', site: 'Higher Seed' },
       semis: { date: '2026-03-02', times: ['5:30 PM', '7:30 PM'], site: 'TBD' },
       final: { date: '2026-03-07', time: '3:00 PM', site: 'Colby Sawyer College' }
     }
   },
   'Girls': {
     'D-I': {
-      prelims: { date: '2026-03-02', time: '7:00 PM', site: 'Higher Seed' },
-      quarters: { date: '2026-03-05', time: '7:00 PM', site: 'Higher Seed' },
+      prelims: { date: '2026-03-02', time: '6:00 PM', site: 'Higher Seed' },
+      quarters: { date: '2026-03-05', time: '6:00 PM', site: 'Higher Seed' },
       semis: { date: '2026-03-09', times: ['5:30 PM', '7:30 PM'], site: 'TBD' },
       final: { date: '2026-03-14', time: '4:00 PM', site: 'UNH' }
     },
     'D-II': {
-      prelims: { date: '2026-03-04', time: '7:00 PM', site: 'Higher Seed' },
-      quarters: { date: '2026-03-07', time: '7:00 PM', site: 'Higher Seed' },
+      prelims: { date: '2026-03-04', time: '6:00 PM', site: 'Higher Seed' },
+      quarters: { date: '2026-03-07', time: '6:00 PM', site: 'Higher Seed' },
       semis: { date: '2026-03-11', times: ['5:30 PM', '7:30 PM'], site: 'TBD' },
       final: { date: '2026-03-14', time: '12:00 PM', site: 'UNH' }
     },
     'D-III': {
-      prelims: { date: '2026-02-18', time: '7:00 PM', site: 'Higher Seed' },
-      quarters: { date: '2026-02-21', time: '7:00 PM', site: 'Higher Seed' },
+      prelims: { date: '2026-02-18', time: '6:00 PM', site: 'Higher Seed' },
+      quarters: { date: '2026-02-21', time: '6:00 PM', site: 'Higher Seed' },
       semis: { date: '2026-02-25', times: ['5:30 PM', '7:30 PM'], site: 'Bow High School' },
       final: { date: '2026-02-28', time: '1:00 PM', site: 'Keene State College' }
     },
     'D-IV': {
-      prelims: { date: '2026-02-24', time: '7:00 PM', site: 'Higher Seed' },
-      quarters: { date: '2026-02-27', time: '7:00 PM', site: 'Higher Seed' },
+      prelims: { date: '2026-02-24', time: '6:00 PM', site: 'Higher Seed' },
+      quarters: { date: '2026-02-27', time: '6:00 PM', site: 'Higher Seed' },
       semis: { date: '2026-03-03', times: ['5:30 PM', '7:30 PM'], site: 'TBD' },
       final: { date: '2026-03-07', time: '1:00 PM', site: 'Colby Sawyer College' }
     }
@@ -616,20 +616,26 @@ async function lockSeeds(gender, division, season, seeds) {
     });
   }
   
-  // Step 3: Delete any existing seeds (in case upgrading from projected)
+  // Step 3: Delete any existing playoff games for this bracket
+  await supabaseRequest(
+    `games?season=eq.${season}&gender=eq.${gender}&division=eq.${division}&is_playoff=eq.true`,
+    { method: 'DELETE', prefer: 'return=minimal' }
+  );
+  
+  // Step 4: Delete any existing seeds (in case upgrading from projected)
   await supabaseRequest(
     `playoff_seeds?season=eq.${season}&gender=eq.${gender}&division=eq.${division}`,
     { method: 'DELETE', prefer: 'return=minimal' }
   );
   
-  // Step 4: Insert seed records
+  // Step 5: Insert seed records
   await supabaseRequest('playoff_seeds', {
     method: 'POST',
     body: JSON.stringify(seedRecords),
     prefer: 'return=minimal'
   });
   
-  // Step 5: Generate bracket games
+  // Step 6: Generate bracket games
   const games = [];
   const seedMap = new Map(seeds.map(s => [s.seed, s.team]));
   
