@@ -144,7 +144,13 @@ export default async (request) => {
       highlights_url: game.highlights_url || '',
       live_stream_url: game.live_stream_url || '',
       gamedescription: game.game_description || '',
-      specialevent: game.special_event || ''
+      specialevent: game.special_event || '',
+      // Playoff fields
+      is_playoff: game.is_playoff || false,
+      round: game.round || null,
+      bracket_position: game.bracket_position || null,
+      home_seed: game.home_seed || null,
+      away_seed: game.away_seed || null
     }));
     
     return new Response(JSON.stringify({ games, teamsLoaded: Object.keys(teamsMap).length }), {
