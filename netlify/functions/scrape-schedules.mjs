@@ -896,9 +896,9 @@ async function syncWithNHIAA(scrapedGames) {
     // Build set of scraped game_ids for fast lookup
     const scrapedGameIds = new Set(scrapedGames.map(g => g.game_id));
     
-    // Fetch all NHIAA games from database for this sport/season
+    // Fetch all NHIAA games from database for this sport/season (excluding playoff games)
     const dbResponse = await fetch(
-      `${SUPABASE_URL}/rest/v1/games?level=eq.NHIAA&sport=eq.${SPORT}&season=eq.${SEASON}&select=game_id,date,home_team,away_team,gender,photog1,photog2,videog,writer`,
+      `${SUPABASE_URL}/rest/v1/games?level=eq.NHIAA&sport=eq.${SPORT}&season=eq.${SEASON}&is_playoff=eq.false&select=game_id,date,home_team,away_team,gender,photog1,photog2,videog,writer`,
       {
         headers: {
           'apikey': SUPABASE_SERVICE_KEY,
