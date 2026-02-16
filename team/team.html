@@ -1295,7 +1295,12 @@
             if (won) wins++; else losses++;
             lastResult = { won, teamScore, oppScore, isHome, opp: isHome ? g.away : g.home };
           } else if (gameDate >= today && !nextGame) {
-            nextGame = { date: g.date, isHome, opp: isHome ? g.away : g.home };
+            // Skip BYE games for next game display
+            const isByeGame = g.is_playoff && g.time === 'BYE';
+            if (!isByeGame) {
+              const opp = isHome ? g.away : g.home;
+              nextGame = { date: g.date, isHome, opp: opp || 'TBD', is_playoff: g.is_playoff, round: g.round };
+            }
           }
         });
         
@@ -1359,9 +1364,11 @@
       if (recordEl) recordEl.textContent = record;
       if (quickRecordEl) quickRecordEl.textContent = record;
       if (nextGameEl) {
-        if (upcomingGames.length > 0) {
-          const next = upcomingGames[0], opp = next.isHome ? next.away : next.home;
-          nextGameEl.textContent = `${formatShortDate(next.date)} ${next.isHome ? 'vs' : '@'} ${opp}`;
+        // Filter out BYE games for next game display
+        const nonByeUpcoming = upcomingGames.filter(g => !(g.is_playoff && g.time === 'BYE'));
+        if (nonByeUpcoming.length > 0) {
+          const next = nonByeUpcoming[0], opp = next.isHome ? next.away : next.home;
+          nextGameEl.textContent = `${formatShortDate(next.date)} ${next.isHome ? 'vs' : '@'} ${opp || 'TBD'}`;
         } else nextGameEl.textContent = '--';
       }
       if (lastResultEl) {
@@ -1386,9 +1393,9 @@
       
       container.innerHTML = allGames
         .filter(g => {
-          // Filter out BYE games (playoff games with no opponent)
-          const opp = g.isHome ? g.away : g.home;
-          if (g.is_playoff && !opp) return false;
+          // Filter out BYE games (playoff games with time='BYE')
+          // But keep Quarters/Semis/Finals with TBD opponents
+          if (g.is_playoff && g.time === 'BYE') return false;
           return true;
         })
         .map(g => {
@@ -1435,15 +1442,21 @@
         // Sport param for opponent links (only for sport-specific views)
         const oppSportParam = currentSport && currentSport !== 'all' ? `?sport=${currentSport}` : '';
         
+        // Opponent display - use TBD for null opponents (playoff games awaiting results)
+        const oppDisplay = opp || 'TBD';
+        const oppLink = opp 
+          ? `<a href="/${oppSlug}${oppSportParam}" class="schedule-opponent-link">
+              <img src="/logos/100px/${getLogoFilename(opp)}" onerror="this.style.display='none'" class="schedule-game-logo" alt="">
+              <span>${g.isHome ? 'vs' : '@'} ${oppSeedDisplay}${oppDisplay}</span>
+            </a>`
+          : `<span class="schedule-opponent-tbd">${g.isHome ? 'vs' : '@'} TBD</span>`;
+        
         return `
           <div class="schedule-game-item ${g.is_playoff ? 'playoff-game' : ''}">
             <div class="schedule-game-date">${formatShortDate(g.date)}</div>
             <div class="schedule-game-opponent">
               ${playoffPrefix}
-              <a href="/${oppSlug}${oppSportParam}" class="schedule-opponent-link">
-                <img src="/logos/100px/${getLogoFilename(opp)}" onerror="this.style.display='none'" class="schedule-game-logo" alt="">
-                <span>${g.isHome ? 'vs' : '@'} ${oppSeedDisplay}${opp || 'TBD'}</span>
-              </a>
+              ${oppLink}
             </div>
             <div class="schedule-game-result ${resultClass}">${
               g.hasScore && !isScheduled && g.game_id && gameArticleMap[g.game_id]
