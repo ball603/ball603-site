@@ -647,32 +647,52 @@ async function lockSeeds(gender, division, season, seeds) {
     // Check if this is a bye
     const isBye = lowSeed > numTeams;
     
-    // For byes: high seed gets bye, no game created for prelims
-    // They'll appear directly in quarters
-    if (isBye) continue;
-    
     const highTeam = seedMap.get(highSeed);
-    const lowTeam = seedMap.get(lowSeed);
     
-    // Higher seed is home team
-    games.push({
-      game_id: generateGameId(season, gender, division, 'prelims', matchup.position),
-      season,
-      sport: 'basketball',
-      level: 'NHIAA',
-      gender,
-      division,
-      date: schedule.prelims.date,
-      time: schedule.prelims.time,
-      home_team: highTeam,
-      away_team: lowTeam,
-      home_seed: highSeed,
-      away_seed: lowSeed,
-      location: `${highTeam} HS`,
-      is_playoff: true,
-      round: 'Prelims',
-      bracket_position: matchup.position
-    });
+    if (isBye) {
+      // Create a bye game entry (no away team)
+      games.push({
+        game_id: generateGameId(season, gender, division, 'prelims', matchup.position),
+        season,
+        sport: 'basketball',
+        level: 'NHIAA',
+        gender,
+        division,
+        date: schedule.prelims.date,
+        time: 'BYE',
+        home_team: highTeam,
+        away_team: null,
+        home_seed: highSeed,
+        away_seed: null,
+        location: null,
+        is_playoff: true,
+        round: 'Prelims',
+        bracket_position: matchup.position,
+        game_status: 'BYE'
+      });
+    } else {
+      const lowTeam = seedMap.get(lowSeed);
+      
+      // Higher seed is home team
+      games.push({
+        game_id: generateGameId(season, gender, division, 'prelims', matchup.position),
+        season,
+        sport: 'basketball',
+        level: 'NHIAA',
+        gender,
+        division,
+        date: schedule.prelims.date,
+        time: schedule.prelims.time,
+        home_team: highTeam,
+        away_team: lowTeam,
+        home_seed: highSeed,
+        away_seed: lowSeed,
+        location: `${highTeam} HS`,
+        is_playoff: true,
+        round: 'Prelims',
+        bracket_position: matchup.position
+      });
+    }
   }
   
   // Quarters
