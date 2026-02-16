@@ -182,6 +182,24 @@
       font-size: 15px;
     }
     
+    /* Playoff game styling */
+    .schedule-game-item.playoff-game {
+      border-left: 3px solid var(--accent);
+      padding-left: 12px;
+    }
+    
+    .playoff-round-label {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--accent);
+      background: rgba(245, 124, 0, 0.12);
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-bottom: 4px;
+    }
+    
   </style>
 </head>
 <body class="team-page">
@@ -1366,7 +1384,14 @@
         return { ...g, isHome, teamScore, oppScore, won, hasScore };
       });
       
-      container.innerHTML = allGames.map(g => {
+      container.innerHTML = allGames
+        .filter(g => {
+          // Filter out BYE games (playoff games with no opponent)
+          const opp = g.isHome ? g.away : g.home;
+          if (g.is_playoff && !opp) return false;
+          return true;
+        })
+        .map(g => {
         const opp = g.isHome ? g.away : g.home;
         const oppSlug = getTeamSlug(opp);
         const isScheduled = g.status && g.status.toLowerCase() === 'scheduled';
@@ -1843,42 +1868,23 @@
     async function loadFeaturesData() {
       if (!TEAM_CONFIG) return;
       
-      // Clean shortname for matching
       const schoolName = TEAM_CONFIG.name.toLowerCase()
         .replace(/\s+hs$/i, '')
         .replace(/\s+high\s+school$/i, '')
+        .replace(/\s+academy$/i, '')
+        .replace(/regional/i, '')
         .replace(/\s+/g, ' ')
         .trim();
       
-      // Clean fullName for fallback matching
-      const fullNameClean = TEAM_CONFIG.fullName ? TEAM_CONFIG.fullName.toLowerCase()
-        .replace(/\s+high\s+school$/i, '')
-        .replace(/\s+/g, ' ')
-        .trim() : null;
-      
       // Fetch 1K Scorers from Supabase
       try {
-        // Try shortname first
-        let { data: scorers, error: scorersError } = await db
+        const { data: scorers, error: scorersError } = await db
           .from('scorers_1k')
           .select('*')
           .ilike('school', schoolName)
           .order('points', { ascending: false, nullsFirst: false });
         
         if (scorersError) throw scorersError;
-        
-        // If no results and fullName is different, try fullName
-        if ((!scorers || scorers.length === 0) && fullNameClean && fullNameClean !== schoolName) {
-          const { data: scorersFull, error: fullError } = await db
-            .from('scorers_1k')
-            .select('*')
-            .ilike('school', fullNameClean)
-            .order('points', { ascending: false, nullsFirst: false });
-          
-          if (!fullError && scorersFull) {
-            scorers = scorersFull;
-          }
-        }
         
         teamData.scorers1K = scorers || [];
       } catch (err) {
