@@ -84,19 +84,22 @@ export default async (request) => {
         queryParts.push(`status=eq.${encodeURIComponent(params.status)}`);
       }
       
-      // Filter by playoff status
+      // Filter by playoff status (accepts ?is_playoff=true or ?is_playoff=eq.true)
       if (params.is_playoff !== undefined) {
-        queryParts.push(`is_playoff=eq.${params.is_playoff}`);
+        const val = params.is_playoff.replace(/^eq\./, '');
+        queryParts.push(`is_playoff=eq.${val}`);
       }
       
       // Filter by round (Prelims, Quarters, Semis, Final)
       if (params.round) {
-        queryParts.push(`round=eq.${encodeURIComponent(params.round)}`);
+        const val = params.round.replace(/^eq\./, '');
+        queryParts.push(`round=eq.${encodeURIComponent(val)}`);
       }
       
       // Filter by season
       if (params.season) {
-        queryParts.push(`season=eq.${encodeURIComponent(params.season)}`);
+        const val = params.season.replace(/^eq\./, '');
+        queryParts.push(`season=eq.${encodeURIComponent(val)}`);
       }
       
       // Filter by coverage assignment
