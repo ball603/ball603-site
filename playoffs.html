@@ -291,7 +291,21 @@
       gap: 12px;
     }
     
-    /* Matchup Card - playoff-specific additions only, base styles from styles.css */
+    /* Matchup Card */
+    .matchup {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .matchup:hover {
+      border-color: var(--accent);
+      box-shadow: 0 4px 12px rgba(245, 124, 0, 0.15);
+    }
+    
     .matchup.live {
       border-color: #e53935;
       border-width: 2px;
@@ -307,12 +321,46 @@
       border-color: #4caf50;
     }
     
+    .matchup-team {
+      display: flex;
+      align-items: center;
+      padding: 10px 12px;
+      gap: 10px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .matchup-team:last-of-type {
+      border-bottom: none;
+    }
+    
     .matchup-team.winner {
       background: rgba(76, 175, 80, 0.08);
     }
     
     .matchup-team.loser {
       opacity: 0.5;
+    }
+    
+    .preview-link {
+      color: var(--accent);
+      cursor: pointer;
+      font-weight: 600;
+      text-decoration: none;
+    }
+    
+    .preview-link:hover {
+      text-decoration: underline;
+    }
+    
+    .team-seed {
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 7px;
+      border-radius: 4px;
+      min-width: 28px;
+      text-align: center;
     }
     
     .matchup-team.winner .team-seed {
@@ -326,6 +374,16 @@
       object-fit: contain;
     }
     
+    .team-name {
+      flex: 1;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    
     a.team-name {
       text-decoration: none;
       color: var(--text-primary);
@@ -336,8 +394,26 @@
       text-decoration: underline;
     }
     
+    .team-score {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-primary);
+      min-width: 32px;
+      text-align: right;
+    }
+    
     .matchup-team.winner .team-score {
       color: #2e7d32;
+    }
+    
+    .matchup-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      background: var(--bg-secondary);
+      font-size: 11px;
+      color: var(--text-secondary);
     }
     
     .matchup-status {
@@ -393,7 +469,6 @@
     
     /* BYE styling */
     .matchup.bye {
-      opacity: 0.5;
       cursor: default;
     }
     
@@ -703,7 +778,7 @@
       }
     }
     
-    /* Mobile Dark Mode - Projected banner */
+    /* Mobile Dark Mode - Only for projected banner */
     @media (max-width: 768px) {
       .projected-banner {
         background: linear-gradient(135deg, rgba(255, 152, 0, 0.15) 0%, rgba(255, 152, 0, 0.08) 100%);
@@ -1301,15 +1376,18 @@
           `;
         }
         
+        // Show PREVIEW link only when both teams known and game not final
+        const showPreview = game.away_team && game.home_team && !isFinal;
+        
         return `
-          <div class="matchup ${isLive ? 'live' : ''} ${isFinal ? 'final' : ''}" onclick="openMatchup('${game.game_id}')">
-            <div class="matchup-team ${awayClass}">
+          <div class="matchup ${isLive ? 'live' : ''} ${isFinal ? 'final' : ''}">
+            <div class="matchup-team ${awayClass}" onclick="openMatchup('${game.game_id}')">
               <span class="team-seed">#${game.away_seed || '?'}</span>
               <img src="/logos/100px/${getLogoFilename(game.away_team)}" class="team-logo" onerror="this.style.display='none'" alt="">
               ${getTeamNameHtml(game.away_team)}
               <span class="team-score">${hasScore ? game.away_score : ''}</span>
             </div>
-            <div class="matchup-team ${homeClass}">
+            <div class="matchup-team ${homeClass}" onclick="openMatchup('${game.game_id}')">
               <span class="team-seed">#${game.home_seed || '?'}</span>
               <img src="/logos/100px/${getLogoFilename(game.home_team)}" class="team-logo" onerror="this.style.display='none'" alt="">
               ${getTeamNameHtml(game.home_team)}
@@ -1317,6 +1395,7 @@
             </div>
             <div class="matchup-footer">
               <span class="matchup-status ${statusClass}">${statusText}</span>
+              ${showPreview ? `<span class="preview-link" onclick="event.stopPropagation(); openMatchup('${game.game_id}')">PREVIEW</span>` : ''}
               ${isUpset ? '<span class="upset-indicator" title="Upset">⚡</span>' : ''}
               <div class="matchup-coverage">${coverageLinks.join('')}</div>
             </div>
