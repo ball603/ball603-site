@@ -1522,6 +1522,7 @@
       const steps = [];
       let remainingTeams = [...teams];
       const finalOrder = [];
+      let pendingBelowTeams = []; // Teams to add after current group is resolved
       
       // We need to resolve the entire group ordering
       // Process iteratively: find the top team, remove, repeat
@@ -1533,6 +1534,12 @@
             if (!finalOrder.includes(t)) finalOrder.push(t);
           });
           break;
+        } else if (result.partial) {
+          // Rating separated some teams - continue with only the top-rated teams
+          // Store the lower-rated teams to add after the top group is resolved
+          pendingBelowTeams = pendingBelowTeams.concat(result.resolvedBelow);
+          remainingTeams = result.continueWithTeams;
+          // Continue the loop with the reduced team set
         } else if (result.topTeam) {
           // Found the top team, continue with rest
           finalOrder.push(result.topTeam);
@@ -1551,6 +1558,25 @@
         finalOrder.push(remainingTeams[0]);
       }
       
+      // Add any teams that were separated by rating (they go after the resolved group)
+      // These teams may also need tiebreaking among themselves if there are multiple
+      if (pendingBelowTeams.length > 0) {
+        if (pendingBelowTeams.length === 1) {
+          finalOrder.push(pendingBelowTeams[0]);
+        } else {
+          // Multiple teams in the lower group - recursively resolve their ties
+          const subResult = walkTiebreakers(pendingBelowTeams, allDivGames, tournamentTeams, gender, startRank + finalOrder.length, teamRatings);
+          subResult.order.forEach(t => finalOrder.push(t));
+          // Merge sub-steps with a note
+          steps.push({
+            criterion: 'sub',
+            label: 'Lower-rated group tiebreaker',
+            detail: `Resolving ${pendingBelowTeams.join(', ')}`,
+            subSteps: subResult.steps
+          });
+        }
+      }
+      
       return { steps, order: finalOrder };
     }
     
@@ -1564,6 +1590,14 @@
       });
       if (ratingResult.resolved) return { resolved: true, order: ratingResult.order };
       if (ratingResult.topTeam) return { topTeam: ratingResult.topTeam };
+      if (ratingResult.status === 'partial') {
+        // Some teams separated by rating - continue with only the highest-rated teams
+        return { 
+          partial: true, 
+          continueWithTeams: ratingResult.continueWithTeams,
+          resolvedBelow: ratingResult.resolvedBelow
+        };
+      }
       
       // Criterion 1: Head-to-head
       const h2h = evaluateHeadToHead(teams, allDivGames);
@@ -1683,7 +1717,7 @@
             teamValues 
           };
         } else {
-          // Multi-team: rating resolves the top team
+          // Multi-team: rating resolves the top team, continue with others
           return { 
             status: 'resolved', 
             topTeam: sorted[0], 
@@ -1693,8 +1727,24 @@
         }
       }
       
-      // Multiple teams tied for highest rating - continue to next criterion
-      return { status: 'tied', detail: 'Multiple teams tied for highest rating', teamValues };
+      // Multiple teams tied for highest rating
+      // Check if there are OTHER teams with LOWER ratings that should be separated out
+      const teamsWithLower = sorted.filter(t => Math.abs(teamRatings[t] - highestRating) >= 0.0005);
+      
+      if (teamsWithLower.length > 0) {
+        // Some teams have lower ratings - separate them out
+        // Return that we should continue tiebreakers with ONLY the highest-rated teams
+        return { 
+          status: 'partial', 
+          continueWithTeams: teamsWithHighest,
+          resolvedBelow: teamsWithLower,
+          detail: `${teamsWithHighest.join(' & ')} tied for highest rating; ${teamsWithLower.join(', ')} settled below by rating`,
+          teamValues 
+        };
+      }
+      
+      // All teams tied for highest rating - continue to next criterion with all teams
+      return { status: 'tied', detail: 'All teams tied for highest rating', teamValues };
     }
     
     // --- Criterion 1: Head-to-Head ---
