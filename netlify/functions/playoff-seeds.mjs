@@ -17,6 +17,7 @@ import {
   normalizeTeamName,
   resolveTiebreakerOrder,
   findTieGroups,
+  buildTournamentTeamsSet,
   processGamesForTiebreakers
 } from './tiebreakers.mjs';
 
@@ -591,9 +592,9 @@ async function getStandingsPreview(gender, division, season) {
   // Division teams set (for criteria 4 & 5)
   const divTeams = new Set(standings.map(s => s.school));
   
-  // Tournament teams set (top N by rating initially, will be refined)
+  // Tournament teams set (includes all teams tied for last position per NHIAA rules)
   const qualifyingStandings = standings.slice(0, tournamentSpots);
-  const tournamentTeams = new Set(qualifyingStandings.map(s => s.school));
+  const tournamentTeams = buildTournamentTeamsSet(standings, tournamentSpots);
   
   // Build ratings map
   const teamRatings = {};

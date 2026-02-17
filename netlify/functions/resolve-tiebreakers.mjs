@@ -12,6 +12,7 @@ import {
   normalizeTeamName,
   walkTiebreakers,
   findTieGroups,
+  buildTournamentTeamsSet,
   processGamesForTiebreakers
 } from './tiebreakers.mjs';
 
@@ -93,8 +94,8 @@ async function resolveTiebreakersForDivision(gender, division, season, sport = '
   // Get division teams set
   const divTeams = new Set(standings.map(s => s.school));
   
-  // Get tournament teams set (top N by rating)
-  const tournamentTeams = new Set(standings.slice(0, playoffSpots).map(s => s.school));
+  // Get tournament teams set (includes all teams tied for last position per NHIAA rules)
+  const tournamentTeams = buildTournamentTeamsSet(standings, playoffSpots);
   
   // Build ratings map
   const teamRatings = {};

@@ -648,6 +648,49 @@ export function resolveTiebreakerOrder(teams, divGames, allGames, tournamentTeam
 }
 
 /**
+ * Build the set of tournament teams for tiebreaker calculations.
+ * 
+ * Per NHIAA rules, this includes:
+ * 1. All teams clearly qualifying (above the cutoff)
+ * 2. ALL teams involved in a tie for the last position (even those who will miss the cut)
+ * 
+ * @param {Object[]} standings - Sorted standings array with { school, wins, losses, rating }
+ * @param {number} playoffSpots - Number of playoff spots
+ * @returns {Set<string>} - Set of team names considered "tournament teams"
+ */
+export function buildTournamentTeamsSet(standings, playoffSpots) {
+  if (standings.length === 0) return new Set();
+  
+  // Start with all teams that clearly qualify
+  const tournamentTeams = new Set();
+  
+  // If we have fewer teams than spots, all teams are in
+  if (standings.length <= playoffSpots) {
+    standings.forEach(s => tournamentTeams.add(s.school));
+    return tournamentTeams;
+  }
+  
+  // Get the record of the last qualifying team (at the cutoff line)
+  const lastQualifier = standings[playoffSpots - 1];
+  const cutoffWins = lastQualifier.wins;
+  const cutoffLosses = lastQualifier.losses;
+  
+  // Include all teams that:
+  // 1. Are above the cutoff line, OR
+  // 2. Have the same record as the last qualifier (tied for last position)
+  standings.forEach((team, index) => {
+    const isAboveCutoff = index < playoffSpots;
+    const hasSameRecord = team.wins === cutoffWins && team.losses === cutoffLosses;
+    
+    if (isAboveCutoff || hasSameRecord) {
+      tournamentTeams.add(team.school);
+    }
+  });
+  
+  return tournamentTeams;
+}
+
+/**
  * Find all tie groups in standings (teams with same W-L record).
  * 
  * @param {Object[]} standings - Sorted standings array with { school, wins, losses, rating }
@@ -756,6 +799,7 @@ export default {
   walkTiebreakers,
   resolveTiebreakerOrder,
   findTieGroups,
+  buildTournamentTeamsSet,
   processGamesForTiebreakers,
   applyTiebreakerOrder
 };
