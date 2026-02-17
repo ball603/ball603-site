@@ -150,6 +150,18 @@ function evaluateRating(teams, teamRatings) {
     }
   }
   
+  // Multiple teams tied for highest rating - check if others have lower ratings
+  const teamsWithLower = sorted.filter(t => Math.abs(teamRatings[t] - highestRating) >= 0.0005);
+  
+  if (teamsWithLower.length > 0) {
+    // Some teams have lower ratings - separate them out
+    return { 
+      status: 'partial', 
+      continueWithTeams: teamsWithHighest,
+      resolvedBelow: teamsWithLower
+    };
+  }
+  
   return { status: 'tied' };
 }
 
@@ -366,6 +378,13 @@ function resolveOneRound(teams, allDivGames, allGames, tournamentTeams, divTeams
   const ratingResult = evaluateRating(teams, teamRatings);
   if (ratingResult.resolved) return { resolved: true, order: ratingResult.order };
   if (ratingResult.topTeam) return { topTeam: ratingResult.topTeam };
+  if (ratingResult.status === 'partial') {
+    return { 
+      partial: true, 
+      continueWithTeams: ratingResult.continueWithTeams,
+      resolvedBelow: ratingResult.resolvedBelow
+    };
+  }
   
   // Criterion 1: Head-to-head
   const h2h = evaluateHeadToHead(teams, allDivGames);
@@ -404,6 +423,7 @@ function resolveOneRound(teams, allDivGames, allGames, tournamentTeams, divTeams
 function walkTiebreakers(teams, allDivGames, allGames, tournamentTeams, divTeams, teamRatings) {
   let remainingTeams = [...teams];
   const finalOrder = [];
+  let pendingBelowTeams = [];
   
   while (remainingTeams.length > 1) {
     const result = resolveOneRound(remainingTeams, allDivGames, allGames, tournamentTeams, divTeams, teamRatings);
@@ -412,6 +432,10 @@ function walkTiebreakers(teams, allDivGames, allGames, tournamentTeams, divTeams
         if (!finalOrder.includes(t)) finalOrder.push(t);
       });
       break;
+    } else if (result.partial) {
+      // Rating separated some teams - continue with only the top-rated teams
+      pendingBelowTeams = pendingBelowTeams.concat(result.resolvedBelow);
+      remainingTeams = result.continueWithTeams;
     } else if (result.topTeam) {
       finalOrder.push(result.topTeam);
       remainingTeams = remainingTeams.filter(t => t !== result.topTeam);
@@ -427,6 +451,17 @@ function walkTiebreakers(teams, allDivGames, allGames, tournamentTeams, divTeams
   
   if (remainingTeams.length === 1 && !finalOrder.includes(remainingTeams[0])) {
     finalOrder.push(remainingTeams[0]);
+  }
+  
+  // Add teams that were separated by rating (they go after the resolved group)
+  if (pendingBelowTeams.length > 0) {
+    if (pendingBelowTeams.length === 1) {
+      finalOrder.push(pendingBelowTeams[0]);
+    } else {
+      // Multiple teams in lower group - recursively resolve
+      const subOrder = walkTiebreakers(pendingBelowTeams, allDivGames, allGames, tournamentTeams, divTeams, teamRatings);
+      subOrder.forEach(t => finalOrder.push(t));
+    }
   }
   
   return finalOrder;
