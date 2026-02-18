@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Ball603 Home Page v304 - Fixed mobile standings/RPI toggle contrast -->
+<!-- Ball603 Home Page v351 - Infinite scroll for Latest Stories (desktop 6, mobile 3 + spotlight) -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -1912,6 +1912,12 @@
         display: none;
       }
       
+      /* Hide sidebar spotlight on mobile (shown inline instead) */
+      .hide-mobile-spotlight,
+      .sidebar .spotlight-card {
+        display: none !important;
+      }
+      
       /* Mobile scrollbar for mobile standings */
       #standingsMiniMobile {
         max-height: 340px;
@@ -2093,6 +2099,23 @@
           <div class="skeleton" style="height: 120px;"></div>
           <div class="skeleton" style="height: 120px;"></div>
         </div>
+        
+        <!-- Mobile Spotlight Slot (inserted after first 3 stories on mobile) -->
+        <div id="mobileSpotlightSlot" style="display: none;"></div>
+        
+        <!-- More stories loaded via infinite scroll -->
+        <div class="stories-list" id="storiesListMore" style="display: none;"></div>
+        
+        <!-- Loading indicator -->
+        <div id="storiesLoading" style="display: none; text-align: center; padding: 20px; color: #888;">
+          Loading more stories...
+        </div>
+        
+        <!-- More Headlines (older articles) - shown at bottom after infinite scroll -->
+        <div id="inlineMoreHeadlines" class="inline-more-headlines" style="display: none;">
+          <h3 style="font-size: 16px; margin-bottom: 12px; color: #333;">More Headlines</h3>
+          <div id="inlineHeadlinesList"></div>
+        </div>
       </main>
       
       <!-- Sidebar -->
@@ -2261,7 +2284,11 @@
       
       if (articles.length > 0) {
         renderHero(articles);
-        renderStories(articles);
+        
+        // Use infinite scroll for both mobile and desktop
+        initInfiniteScroll(articles);
+        
+        // Desktop sidebar still gets More Headlines
         renderMoreHeadlines(articles);
       } else {
         document.getElementById('heroFeatured').innerHTML = '<div class="empty-state"><p>No featured content yet</p></div>';
@@ -2895,6 +2922,161 @@
     /**
      * Render stories list
      */
+    // Infinite scroll state
+    let allStoriesArticles = [];
+    let storiesLoadedCount = 0;
+    const STORIES_PER_BATCH = 6;
+    const RECENT_DAYS = 7;
+    let recentArticles = [];
+    let olderArticles = [];
+    
+    function initInfiniteScroll(articles) {
+      // Filter published articles (skip first 3 for hero)
+      allStoriesArticles = articles.filter(a => a.status === 'published').slice(3);
+      
+      // Split into recent (past 7 days) and older
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - RECENT_DAYS);
+      
+      recentArticles = allStoriesArticles.filter(a => {
+        const articleDate = new Date(a.article_date || a.published_at);
+        return articleDate >= cutoffDate;
+      });
+      
+      olderArticles = allStoriesArticles.filter(a => {
+        const articleDate = new Date(a.article_date || a.published_at);
+        return articleDate < cutoffDate;
+      });
+      
+      storiesLoadedCount = 0;
+      
+      const isMobile = window.innerWidth <= 768;
+      
+      if (isMobile) {
+        // Mobile: First 3 stories, then spotlight, then more
+        renderFirstStories(3);
+        setupMobileSpotlight();
+        document.getElementById('storiesListMore').style.display = 'grid';
+      } else {
+        // Desktop: First 6 stories (fills 3 rows of 2)
+        renderFirstStories(6);
+        document.getElementById('storiesListMore').style.display = 'grid';
+      }
+      
+      // Load more stories
+      renderMoreStories();
+      
+      // Set up intersection observer for infinite scroll
+      setupScrollObserver();
+    }
+    
+    function renderFirstStories(count) {
+      const container = document.getElementById('storiesList');
+      const stories = recentArticles.slice(0, count);
+      storiesLoadedCount = count;
+      
+      if (stories.length === 0) {
+        container.innerHTML = '<div class="empty-state"><p>No recent stories</p></div>';
+        return;
+      }
+      
+      container.innerHTML = stories.map(article => renderStoryCard(article)).join('');
+    }
+    
+    function renderMoreStories() {
+      const container = document.getElementById('storiesListMore');
+      const nextBatch = recentArticles.slice(storiesLoadedCount, storiesLoadedCount + STORIES_PER_BATCH);
+      
+      if (nextBatch.length === 0) {
+        // No more recent stories - show older headlines
+        showInlineMoreHeadlines();
+        document.getElementById('storiesLoading').style.display = 'none';
+        return;
+      }
+      
+      container.innerHTML += nextBatch.map(article => renderStoryCard(article)).join('');
+      storiesLoadedCount += nextBatch.length;
+      
+      // Check if we've loaded all recent articles
+      if (storiesLoadedCount >= recentArticles.length) {
+        showInlineMoreHeadlines();
+      }
+    }
+    
+    function renderStoryCard(article) {
+      const photographer = article.photographer || article.game_data?.photographerName || '';
+      const displayDate = article.article_date || article.published_at?.split('T')[0] || '';
+      const excerptHtml = article.excerpt ? `<p class="story-excerpt">${article.excerpt}</p>` : '';
+      const photographerHtml = photographer ? `<span class="story-photographer">&#128247; ${photographer}</span>` : '';
+      return `
+        <article class="story-card" onclick="Ball603.goToArticle('${article.slug}')">
+          <div class="story-image-container">
+            <img src="${article.featured_image_url || PLACEHOLDER_IMG}" alt="" class="story-image">
+          </div>
+          <div class="story-content">
+            <h3 class="story-title">${article.title}</h3>
+            ${excerptHtml}
+            <div class="story-meta">
+              ${photographerHtml}
+              <span>&#128197; ${Ball603.formatDate(displayDate, 'short')}</span>
+            </div>
+          </div>
+        </article>
+      `;
+    }
+    
+    function setupMobileSpotlight() {
+      const slot = document.getElementById('mobileSpotlightSlot');
+      const sidebarSpotlight = document.querySelector('.sidebar-card:has(#contributorSpotlight)');
+      
+      if (sidebarSpotlight) {
+        // Clone the spotlight for mobile
+        const clone = sidebarSpotlight.cloneNode(true);
+        clone.style.marginBottom = '20px';
+        clone.style.border = '1px solid #f47920';
+        clone.style.borderRadius = '8px';
+        slot.appendChild(clone);
+        slot.style.display = 'block';
+        
+        // Hide sidebar spotlight on mobile
+        sidebarSpotlight.classList.add('hide-mobile-spotlight');
+      }
+    }
+    
+    function setupScrollObserver() {
+      const loadingEl = document.getElementById('storiesLoading');
+      loadingEl.style.display = 'block';
+      
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting && storiesLoadedCount < recentArticles.length) {
+            renderMoreStories();
+          }
+        });
+      }, { rootMargin: '100px' });
+      
+      observer.observe(loadingEl);
+    }
+    
+    function showInlineMoreHeadlines() {
+      if (olderArticles.length === 0) return;
+      
+      const container = document.getElementById('inlineMoreHeadlines');
+      const listContainer = document.getElementById('inlineHeadlinesList');
+      
+      listContainer.innerHTML = olderArticles.slice(0, 15).map(article => `
+        <div class="headline-item" style="padding: 8px 0; border-bottom: 1px solid #eee;">
+          <a href="/article/${article.slug}" style="color: #333; text-decoration: none; font-size: 14px;">${article.title}</a>
+        </div>
+      `).join('');
+      
+      container.style.display = 'block';
+      container.style.marginTop = '30px';
+      container.style.padding = '20px';
+      container.style.background = '#f9f9f9';
+      container.style.borderRadius = '8px';
+    }
+    
     function renderStories(articles) {
       const container = document.getElementById('storiesList');
       const published = articles.filter(a => a.status === 'published').slice(3, 9);
