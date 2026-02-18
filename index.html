@@ -1912,9 +1912,8 @@
         display: none;
       }
       
-      /* Hide sidebar spotlight on mobile (shown inline instead) */
-      .hide-mobile-spotlight,
-      .sidebar .spotlight-card {
+      /* Hide sidebar spotlight on mobile after it's been cloned */
+      .hide-mobile-spotlight {
         display: none !important;
       }
       
@@ -2989,14 +2988,27 @@
     
     function setupMobileSpotlight() {
       const slot = document.getElementById('mobileSpotlightSlot');
-      const sidebarSpotlight = document.querySelector('.sidebar-card:has(#contributorSpotlight)');
+      const sidebarSpotlight = document.getElementById('contributorSpotlight');
       
-      if (sidebarSpotlight) {
+      if (sidebarSpotlight && sidebarSpotlight.style.display !== 'none') {
         // Clone the spotlight for mobile
         const clone = sidebarSpotlight.cloneNode(true);
+        clone.id = 'mobileContributorSpotlight'; // Change ID to avoid duplicates
         clone.style.marginBottom = '20px';
         clone.style.border = '1px solid #f47920';
         clone.style.borderRadius = '8px';
+        clone.style.display = 'block';
+        
+        // Re-add click handler to cloned content (event listeners aren't cloned)
+        const cloneContent = clone.querySelector('#spotlightContent');
+        if (cloneContent) {
+          cloneContent.id = 'mobileSpotlightContent';
+          cloneContent.style.cursor = 'pointer';
+          cloneContent.onclick = function() {
+            openSpotlightModal();
+          };
+        }
+        
         slot.appendChild(clone);
         slot.style.display = 'block';
         
