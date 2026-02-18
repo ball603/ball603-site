@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Ball603 Home Page v351 - Infinite scroll for Latest Stories (desktop 6, mobile 3 + spotlight) -->
+<!-- Ball603 Home Page v352 - Infinite scroll, no More Headlines, mobile spotlight under standings -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -2085,6 +2085,9 @@
     </div>
   </div>
   
+  <!-- Mobile Spotlight (shown under standings on mobile) -->
+  <div id="mobileSpotlightSlot" class="mobile-standings-section" style="display: none; padding: 0 16px 16px 16px;"></div>
+  
   <!-- ===== MAIN CONTENT ===== -->
   <div class="content-wrapper">
     <div class="content-grid">
@@ -2100,9 +2103,6 @@
           <div class="skeleton" style="height: 120px;"></div>
         </div>
         
-        <!-- Mobile Spotlight Slot (inserted after first 3 stories on mobile) -->
-        <div id="mobileSpotlightSlot" style="display: none;"></div>
-        
         <!-- More stories loaded via infinite scroll -->
         <div class="stories-list" id="storiesListMore" style="display: none;"></div>
         
@@ -2111,11 +2111,6 @@
           Loading more stories...
         </div>
         
-        <!-- More Headlines (older articles) - shown at bottom after infinite scroll -->
-        <div id="inlineMoreHeadlines" class="inline-more-headlines" style="display: none;">
-          <h3 style="font-size: 16px; margin-bottom: 12px; color: #333;">More Headlines</h3>
-          <div id="inlineHeadlinesList"></div>
-        </div>
       </main>
       
       <!-- Sidebar -->
@@ -2160,21 +2155,6 @@
           </div>
           <div class="spotlight-content" id="spotlightContent">
             <!-- Filled by JS -->
-          </div>
-        </div>
-        
-        <!-- More Headlines -->
-        <div class="sidebar-card">
-          <div class="sidebar-header">
-            <h3 class="sidebar-title">&#128240; More Headlines</h3>
-            <a href="/news" class="sidebar-link">All News &#8594;</a>
-          </div>
-          <div class="sidebar-content" id="moreHeadlines">
-            <div class="skeleton" style="height: 30px; margin-bottom: 8px;"></div>
-            <div class="skeleton" style="height: 30px; margin-bottom: 8px;"></div>
-            <div class="skeleton" style="height: 30px; margin-bottom: 8px;"></div>
-            <div class="skeleton" style="height: 30px; margin-bottom: 8px;"></div>
-            <div class="skeleton" style="height: 30px;"></div>
           </div>
         </div>
         
@@ -2287,9 +2267,6 @@
         
         // Use infinite scroll for both mobile and desktop
         initInfiniteScroll(articles);
-        
-        // Desktop sidebar still gets More Headlines
-        renderMoreHeadlines(articles);
       } else {
         document.getElementById('heroFeatured').innerHTML = '<div class="empty-state"><p>No featured content yet</p></div>';
         document.getElementById('storiesList').innerHTML = '<div class="empty-state"><p>No stories yet. Check back soon!</p></div>';
@@ -2926,42 +2903,28 @@
     let allStoriesArticles = [];
     let storiesLoadedCount = 0;
     const STORIES_PER_BATCH = 6;
-    const RECENT_DAYS = 7;
     let recentArticles = [];
-    let olderArticles = [];
     
     function initInfiniteScroll(articles) {
       // Filter published articles (skip first 3 for hero)
       allStoriesArticles = articles.filter(a => a.status === 'published').slice(3);
       
-      // Split into recent (past 7 days) and older
-      const cutoffDate = new Date();
-      cutoffDate.setDate(cutoffDate.getDate() - RECENT_DAYS);
-      
-      recentArticles = allStoriesArticles.filter(a => {
-        const articleDate = new Date(a.article_date || a.published_at);
-        return articleDate >= cutoffDate;
-      });
-      
-      olderArticles = allStoriesArticles.filter(a => {
-        const articleDate = new Date(a.article_date || a.published_at);
-        return articleDate < cutoffDate;
-      });
+      // All articles are now "recent" - no need to split
+      recentArticles = allStoriesArticles;
       
       storiesLoadedCount = 0;
       
       const isMobile = window.innerWidth <= 768;
       
       if (isMobile) {
-        // Mobile: First 3 stories, then spotlight, then more
+        // Mobile: First 3 stories
         renderFirstStories(3);
-        setupMobileSpotlight();
-        document.getElementById('storiesListMore').style.display = 'grid';
       } else {
         // Desktop: First 6 stories (fills 3 rows of 2)
         renderFirstStories(6);
-        document.getElementById('storiesListMore').style.display = 'grid';
       }
+      
+      document.getElementById('storiesListMore').style.display = 'grid';
       
       // Load more stories
       renderMoreStories();
@@ -2988,8 +2951,7 @@
       const nextBatch = recentArticles.slice(storiesLoadedCount, storiesLoadedCount + STORIES_PER_BATCH);
       
       if (nextBatch.length === 0) {
-        // No more recent stories - show older headlines
-        showInlineMoreHeadlines();
+        // No more stories
         document.getElementById('storiesLoading').style.display = 'none';
         return;
       }
@@ -2997,9 +2959,9 @@
       container.innerHTML += nextBatch.map(article => renderStoryCard(article)).join('');
       storiesLoadedCount += nextBatch.length;
       
-      // Check if we've loaded all recent articles
+      // Hide loading if we've loaded all
       if (storiesLoadedCount >= recentArticles.length) {
-        showInlineMoreHeadlines();
+        document.getElementById('storiesLoading').style.display = 'none';
       }
     }
     
@@ -3058,25 +3020,6 @@
       observer.observe(loadingEl);
     }
     
-    function showInlineMoreHeadlines() {
-      if (olderArticles.length === 0) return;
-      
-      const container = document.getElementById('inlineMoreHeadlines');
-      const listContainer = document.getElementById('inlineHeadlinesList');
-      
-      listContainer.innerHTML = olderArticles.slice(0, 15).map(article => `
-        <div class="headline-item" style="padding: 8px 0; border-bottom: 1px solid #eee;">
-          <a href="/article/${article.slug}" style="color: #333; text-decoration: none; font-size: 14px;">${article.title}</a>
-        </div>
-      `).join('');
-      
-      container.style.display = 'block';
-      container.style.marginTop = '30px';
-      container.style.padding = '20px';
-      container.style.background = '#f9f9f9';
-      container.style.borderRadius = '8px';
-    }
-    
     function renderStories(articles) {
       const container = document.getElementById('storiesList');
       const published = articles.filter(a => a.status === 'published').slice(3, 9);
@@ -3112,23 +3055,6 @@
     /**
      * Render more headlines in sidebar
      */
-    function renderMoreHeadlines(articles) {
-      const container = document.getElementById('moreHeadlines');
-      // Skip first 9 articles (3 hero + 6 stories), take next 10
-      const headlines = articles.filter(a => a.status === 'published').slice(9, 19);
-      
-      if (headlines.length === 0) {
-        container.innerHTML = '<p style="color: #999; text-align: center;">No more headlines</p>';
-        return;
-      }
-      
-      container.innerHTML = headlines.map(article => `
-        <div class="headline-item">
-          <a href="/article/${article.slug}" class="headline-link">${article.title}</a>
-        </div>
-      `).join('');
-    }
-    
     /**
      * Standings state and functions
      */
@@ -3411,6 +3337,11 @@
           
           // Setup modal events
           setupSpotlightModal();
+          
+          // Setup mobile spotlight (under standings)
+          if (window.innerWidth <= 768) {
+            setupMobileSpotlight();
+          }
           
         } catch (err) {
           console.error('[Spotlight] Error:', err);
