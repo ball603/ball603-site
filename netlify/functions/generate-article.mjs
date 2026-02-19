@@ -822,7 +822,8 @@ Include points/rebounds/assists for each player. The article should be 3-5 parag
   }
   
   const igHeader = `${winnerEmoji} 🏀 ${winner} ${winnerScore}, ${loser} ${loserScore} 🏀`;
-  const articleSentences = article.replace(/^[A-Z]+\s*[–-]\s*/, '').split(/(?<=[.!?])\s+/);
+  // Split on sentence endings but protect abbreviations like No., St., vs., Dr., Jr., Sr., etc.
+  const articleSentences = article.replace(/^[A-Z]+\s*[–-]\s*/, '').replace(/\b(No|St|vs|Dr|Jr|Sr|Mr|Mrs|Ms|Gov|Rep|Sen|Prof)\.\s+/g, (m, abbr) => abbr + '\x00').split(/(?<=[.!?])\s+/).map(s => s.replace(/\x00/g, '. '));
   const igLede = articleSentences.slice(0, 2).join(' ');
   const photogDisplay = photographerName || 'PHOTOGNAME';
   
@@ -943,7 +944,8 @@ Rules:
   const igHeader = `${winnerEmoji} 🏀 ${winner} ${winnerScore}, ${loser} ${loserScore} 🏀`;
   
   // Get lede from the edited article (first 2 sentences after dateline)
-  const articleSentences = article.replace(/^[A-Z]+,?\s*N\.?H\.?\s*[–-]\s*/i, '').split(/(?<=[.!?])\s+/);
+  // Split on sentence endings but protect abbreviations like No., St., vs., Dr., Jr., Sr., etc.
+  const articleSentences = article.replace(/^[A-Z]+,?\s*N\.?H\.?\s*[–-]\s*/i, '').replace(/\b(No|St|vs|Dr|Jr|Sr|Mr|Mrs|Ms|Gov|Rep|Sen|Prof)\.\s+/g, (m, abbr) => abbr + '\x00').split(/(?<=[.!?])\s+/).map(s => s.replace(/\x00/g, '. '));
   const igLede = articleSentences.slice(0, 2).join(' ');
   
   // Use photographer name if provided, otherwise use placeholder

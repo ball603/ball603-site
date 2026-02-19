@@ -233,35 +233,49 @@ async function postToInstagram(message, imageUrls, collaborators, scheduledTime)
       creationId = createData.id;
       
     } else {
-      // Carousel post - upload items with staggered start to avoid rate limits
-      console.log('Creating', imageUrls.length, 'Instagram carousel items (staggered parallel)...');
+      // Carousel post - sequential uploads with retry to ensure all items succeed
+      console.log('Creating', imageUrls.length, 'Instagram carousel items (sequential with retry)...');
       
-      const uploadPromises = imageUrls.map(async (url, index) => {
-        // Stagger each request by 100ms to avoid burst rate limiting
-        await new Promise(resolve => setTimeout(resolve, index * 100));
-        
-        const itemParams = new URLSearchParams({
-          image_url: url,
-          is_carousel_item: 'true',
-          access_token: accessToken
-        });
-        
-        const itemResponse = await fetch(
-          `https://graph.facebook.com/${API_VERSION}/${userId}/media`,
-          { method: 'POST', body: itemParams }
-        );
-        return itemResponse.json();
-      });
-      
-      const itemResults = await Promise.all(uploadPromises);
       let lastError = null;
       
-      for (const itemData of itemResults) {
-        if (itemData.error) {
-          console.error('Carousel item error:', itemData.error);
-          lastError = itemData.error.message;
-        } else if (itemData.id) {
-          childIds.push(itemData.id);
+      for (let index = 0; index < imageUrls.length; index++) {
+        const url = imageUrls[index];
+        let uploaded = false;
+        
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          const itemParams = new URLSearchParams({
+            image_url: url,
+            is_carousel_item: 'true',
+            access_token: accessToken
+          });
+          
+          const itemResponse = await fetch(
+            `https://graph.facebook.com/${API_VERSION}/${userId}/media`,
+            { method: 'POST', body: itemParams }
+          );
+          const itemData = await itemResponse.json();
+          
+          if (itemData.id) {
+            childIds.push(itemData.id);
+            console.log(`Carousel item ${index + 1}/${imageUrls.length} uploaded (attempt ${attempt})`);
+            uploaded = true;
+            break;
+          } else {
+            console.error(`Carousel item ${index + 1} attempt ${attempt} failed:`, itemData.error);
+            lastError = itemData.error?.message;
+            if (attempt < 3) {
+              await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+            }
+          }
+        }
+        
+        if (!uploaded) {
+          console.error(`Failed to upload carousel item ${index + 1} after 3 attempts`);
+        }
+        
+        // 300ms pause between items to avoid rate limiting
+        if (index < imageUrls.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 300));
         }
       }
       
