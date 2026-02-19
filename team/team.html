@@ -1284,11 +1284,11 @@
         games.forEach(g => {
           const gameDate = new Date(g.date + 'T12:00:00-05:00'); gameDate.setHours(0, 0, 0, 0);
           const isHome = isThisTeam(g.home);
-          const hs = String(g.home_score || '').trim(), as = String(g.away_score || '').trim();
+          const hs = String(g.home_score ?? '').trim(), as = String(g.away_score ?? '').trim();
           const hasScore = hs !== '' && as !== '';
-          const isScheduled = g.status && g.status.toLowerCase() === 'scheduled';
+          const isScheduled = !hasScore && g.status && g.status.toLowerCase() === 'scheduled';
           
-          if (hasScore && !isScheduled) {
+          if (hasScore) {
             const homeScore = parseInt(hs), awayScore = parseInt(as);
             const teamScore = isHome ? homeScore : awayScore, oppScore = isHome ? awayScore : homeScore;
             const won = teamScore > oppScore;
@@ -1346,12 +1346,12 @@
       games.forEach(g => {
         const gameDate = new Date(g.date + 'T12:00:00-05:00'); gameDate.setHours(0, 0, 0, 0);
         const isHome = isThisTeam(g.home);
-        const hs = String(g.home_score || '').trim(), as = String(g.away_score || '').trim();
+        const hs = String(g.home_score ?? '').trim(), as = String(g.away_score ?? '').trim();
         const hasScore = hs !== '' && as !== '';
-        const isScheduled = g.status && g.status.toLowerCase() === 'scheduled';
+        const isScheduled = !hasScore && g.status && g.status.toLowerCase() === 'scheduled';
         
-        // Treat as completed if has score AND not explicitly marked as scheduled
-        if (hasScore && !isScheduled) {
+        // Treat as completed if has score (score takes priority over status)
+        if (hasScore) {
           const homeScore = parseInt(hs), awayScore = parseInt(as);
           const teamScore = isHome ? homeScore : awayScore, oppScore = isHome ? awayScore : homeScore;
           const won = teamScore > oppScore;
@@ -1380,7 +1380,7 @@
       
       const allGames = games.map(g => {
         const isHome = isThisTeam(g.home);
-        const hs = String(g.home_score || '').trim(), as = String(g.away_score || '').trim();
+        const hs = String(g.home_score ?? '').trim(), as = String(g.away_score ?? '').trim();
         const hasScore = hs !== '' && as !== '';
         let teamScore, oppScore, won;
         if (hasScore) {
@@ -1401,18 +1401,18 @@
         .map(g => {
         const opp = g.isHome ? g.away : g.home;
         const oppSlug = getTeamSlug(opp);
-        const isScheduled = g.status && g.status.toLowerCase() === 'scheduled';
+        const isScheduled = !g.hasScore && g.status && g.status.toLowerCase() === 'scheduled';
         let resultClass = 'upcoming', resultText;
         
-        // Determine what to show - status takes priority
-        if (isScheduled) {
-          // Explicitly scheduled - show time, not score
-          const timeToShow = g.original_time || g.time;
-          resultText = (timeToShow && timeToShow.toUpperCase() !== 'FINAL') ? formatTime(timeToShow) : 'TBD';
-        } else if (g.hasScore) {
-          // Has score and not scheduled - show result
+        // Score takes priority - if game has a score, always show result
+        if (g.hasScore) {
+          // Has score - show result
           resultClass = g.won ? 'win' : 'loss';
           resultText = `${g.won ? 'W' : 'L'} ${g.teamScore}-${g.oppScore}`;
+        } else if (isScheduled) {
+          // Explicitly scheduled, no score - show time
+          const timeToShow = g.original_time || g.time;
+          resultText = (timeToShow && timeToShow.toUpperCase() !== 'FINAL') ? formatTime(timeToShow) : 'TBD';
         } else {
           // No score, show time
           const timeToShow = g.original_time || g.time;

@@ -243,7 +243,8 @@ export default async (request) => {
       updateData = {
         away_score: awayScoreInt,
         home_score: homeScoreInt,
-        game_status: status
+        game_status: status,
+        status: null  // Clear any 'scheduled' status so team pages show the score
       };
       
       // Set time field based on status for backward compatibility with schedule display
