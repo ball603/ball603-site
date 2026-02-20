@@ -9567,7 +9567,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       // Send to Instagram (start immediately, in parallel with FB)
       if (igPost) {
         // Instagram carousel uses two-step flow to stay under Netlify's 26s timeout:
-        // Step 1: ig-upload (uploads images, ~15-20s), Step 2: ig-publish (container + publish, ~5s)
+        // Carousel: upload each image individually via ig-upload-single, then publish via ig-publish
         socialPromises.push(
           (async () => {
             try {
@@ -9596,38 +9596,45 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
                   results.instagram = { success: false, error: `HTTP ${igResponse.status}` };
                 }
               } else {
-                // Carousel - use two-step flow
-                statusDiv.innerHTML = `⏳ Uploading ${imageUrls.length} images to Instagram...`;
+                // Carousel — upload one image at a time (each call ~2s, well under 26s Netlify limit)
+                const childIds = [];
+                let uploadFailed = false;
 
-                const uploadResponse = await fetch('/.netlify/functions/ig-upload', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ imageUrls })
-                });
-                const uploadData = await uploadResponse.json();
-
-                if (!uploadResponse.ok || !uploadData.childIds) {
-                  results.instagram = { success: false, error: uploadData.error || 'Image upload failed' };
-                  return;
+                for (let i = 0; i < imageUrls.length; i++) {
+                  statusDiv.innerHTML = `⏳ Uploading image ${i + 1} of ${imageUrls.length} to Instagram...`;
+                  const upRes = await fetch('/.netlify/functions/ig-upload-single', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ imageUrl: imageUrls[i] })
+                  });
+                  const upData = await upRes.json();
+                  if (!upRes.ok || !upData.childId) {
+                    results.instagram = { success: false, error: upData.error || `Failed on image ${i + 1}` };
+                    uploadFailed = true;
+                    break;
+                  }
+                  childIds.push(upData.childId);
                 }
 
-                statusDiv.innerHTML = `⏳ Publishing Instagram carousel (${uploadData.uploaded}/${imageUrls.length} images uploaded)...`;
+                if (!uploadFailed) {
+                  statusDiv.innerHTML = `⏳ Publishing carousel (${childIds.length}/${imageUrls.length} images uploaded)...`;
 
-                const publishResponse = await fetch('/.netlify/functions/ig-publish', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    childIds: uploadData.childIds,
-                    message: igPost,
-                    scheduledTime: scheduledTime
-                  })
-                });
-                const publishData = await publishResponse.json();
+                  const publishResponse = await fetch('/.netlify/functions/ig-publish', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      childIds,
+                      message: igPost,
+                      scheduledTime: scheduledTime
+                    })
+                  });
+                  const publishData = await publishResponse.json();
 
-                if (publishResponse.ok && publishData.success) {
-                  results.instagram = { success: true, postId: publishData.postId, imagesPosted: publishData.imagesPosted };
-                } else {
-                  results.instagram = { success: false, error: publishData.error || 'Publish failed' };
+                  if (publishResponse.ok && publishData.success) {
+                    results.instagram = { success: true, postId: publishData.postId, imagesPosted: publishData.imagesPosted };
+                  } else {
+                    results.instagram = { success: false, error: publishData.error || 'Publish failed' };
+                  }
                 }
               }
             } catch (err) {
@@ -9842,26 +9849,34 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             result = { success: false, error: `HTTP ${response.status}` };
           }
         } else {
-          // Carousel — two-step flow to stay under Netlify's 26s timeout
-          statusDiv.innerHTML = `⏳ Uploading ${imageUrls.length} images to Instagram...`;
+          // Carousel — upload one image at a time (each call ~2s, well under 26s Netlify limit)
+          const childIds = [];
+          let uploadFailed = false;
 
-          const uploadResponse = await fetch('/.netlify/functions/ig-upload', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ imageUrls })
-          });
-          const uploadData = await uploadResponse.json();
+          for (let i = 0; i < imageUrls.length; i++) {
+            statusDiv.innerHTML = `⏳ Uploading image ${i + 1} of ${imageUrls.length}...`;
+            const upRes = await fetch('/.netlify/functions/ig-upload-single', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ imageUrl: imageUrls[i] })
+            });
+            const upData = await upRes.json();
+            if (!upRes.ok || !upData.childId) {
+              result = { success: false, error: upData.error || `Failed on image ${i + 1}` };
+              uploadFailed = true;
+              break;
+            }
+            childIds.push(upData.childId);
+          }
 
-          if (!uploadResponse.ok || !uploadData.childIds) {
-            result = { success: false, error: uploadData.error || 'Image upload failed' };
-          } else {
-            statusDiv.innerHTML = `⏳ Publishing Instagram carousel (${uploadData.uploaded}/${imageUrls.length} images uploaded)...`;
+          if (!uploadFailed) {
+            statusDiv.innerHTML = `⏳ Publishing carousel (${childIds.length}/${imageUrls.length} images uploaded)...`;
 
             const publishResponse = await fetch('/.netlify/functions/ig-publish', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                childIds: uploadData.childIds,
+                childIds,
                 message: igPost,
                 scheduledTime: scheduledTime
               })
