@@ -987,7 +987,7 @@
         },
         'D-III': {
           prelims: { date: '2026-02-17', time: '6:00 PM', site: 'Higher Seed' },
-          quarters: { date: '2026-02-20', time: '6:00 PM', site: 'Higher Seed' },
+          quarters: { date: '2026-02-21', time: '6:00 PM', site: 'Higher Seed', dateDisplay: 'Sat, Feb. 21 / Sun, Feb. 22' },
           semis: { date: '2026-02-24', times: ['5:30 PM', '7:30 PM'], site: 'TBD' },
           final: { date: '2026-02-28', time: '4:00 PM', site: 'Keene State' }
         },
@@ -1268,22 +1268,22 @@
       document.getElementById('tournamentSchedule').innerHTML = `
         <div class="schedule-round">
           <div class="schedule-round-name">1st Round</div>
-          <div class="schedule-round-date">${formatDate(schedule.prelims.date)}</div>
+          <div class="schedule-round-date">${schedule.prelims.dateDisplay || formatDate(schedule.prelims.date)}</div>
           <div class="schedule-round-site">${schedule.prelims.site}</div>
         </div>
         <div class="schedule-round">
           <div class="schedule-round-name">Quarterfinals</div>
-          <div class="schedule-round-date">${formatDate(schedule.quarters.date)}</div>
+          <div class="schedule-round-date">${schedule.quarters.dateDisplay || formatDate(schedule.quarters.date)}</div>
           <div class="schedule-round-site">${schedule.quarters.site}</div>
         </div>
         <div class="schedule-round">
           <div class="schedule-round-name">Semifinals</div>
-          <div class="schedule-round-date">${formatDate(schedule.semis.date)}</div>
+          <div class="schedule-round-date">${schedule.semis.dateDisplay || formatDate(schedule.semis.date)}</div>
           <div class="schedule-round-site">${schedule.semis.site}</div>
         </div>
         <div class="schedule-round">
           <div class="schedule-round-name">Championship</div>
-          <div class="schedule-round-date">${formatDate(schedule.final.date)}</div>
+          <div class="schedule-round-date">${schedule.final.dateDisplay || formatDate(schedule.final.date)}</div>
           <div class="schedule-round-site">${schedule.final.site}</div>
         </div>
       `;
@@ -1373,8 +1373,14 @@
           statusText = finalMap[game.game_status] || 'Final';
           statusClass = 'final';
         } else {
-          // Use time if set, otherwise show date or TBD
-          statusText = game.time || 'TBD';
+          // Show date + time for upcoming games
+          if (game.date && game.time && game.time.toUpperCase() !== 'FINAL' && game.time.toUpperCase() !== 'BYE') {
+            const d = new Date(game.date + 'T12:00:00');
+            const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            statusText = `${dateStr}, ${game.time}`;
+          } else {
+            statusText = game.time || 'TBD';
+          }
         }
         
         // Coverage links
