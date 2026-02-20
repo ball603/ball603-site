@@ -9566,34 +9566,74 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       
       // Send to Instagram (start immediately, in parallel with FB)
       if (igPost) {
+        // Instagram carousel uses two-step flow to stay under Netlify's 26s timeout:
+        // Step 1: ig-upload (uploads images, ~15-20s), Step 2: ig-publish (container + publish, ~5s)
         socialPromises.push(
-          fetch('/.netlify/functions/social-post', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              platform: 'instagram',
-              message: igPost,
-              imageUrls: imageUrls,
-              collaborators: igCollaborators,
-              scheduledTime: scheduledTime
-            })
-          }).then(async (igResponse) => {
-            const contentType = igResponse.headers.get('content-type');
-            if (igResponse.status === 504) {
-              // 504 = Netlify timed out, but Instagram may have completed anyway.
-              // Treat as ambiguous — warn user to check IG rather than showing hard failure.
-              results.instagram = { success: null, error: 'Request timed out — check Instagram to confirm the post went through' };
-            } else if (contentType && contentType.includes('application/json')) {
-              const igData = await igResponse.json();
-              results.instagram = igData.results?.instagram || igData;
-            } else if (igResponse.ok) {
-              results.instagram = { success: true, note: 'Posted (non-JSON response)' };
-            } else {
-              results.instagram = { success: false, error: `HTTP ${igResponse.status}` };
+          (async () => {
+            try {
+              const isSingleImage = imageUrls.length === 1;
+
+              if (isSingleImage) {
+                // Single image - social-post.js handles this fine within timeout
+                const igResponse = await fetch('/.netlify/functions/social-post', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    platform: 'instagram',
+                    message: igPost,
+                    imageUrls: imageUrls,
+                    collaborators: igCollaborators,
+                    scheduledTime: scheduledTime
+                  })
+                });
+                const contentType = igResponse.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                  const igData = await igResponse.json();
+                  results.instagram = igData.results?.instagram || igData;
+                } else if (igResponse.ok) {
+                  results.instagram = { success: true };
+                } else {
+                  results.instagram = { success: false, error: `HTTP ${igResponse.status}` };
+                }
+              } else {
+                // Carousel - use two-step flow
+                statusDiv.innerHTML = `⏳ Uploading ${imageUrls.length} images to Instagram...`;
+
+                const uploadResponse = await fetch('/.netlify/functions/ig-upload', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ imageUrls })
+                });
+                const uploadData = await uploadResponse.json();
+
+                if (!uploadResponse.ok || !uploadData.childIds) {
+                  results.instagram = { success: false, error: uploadData.error || 'Image upload failed' };
+                  return;
+                }
+
+                statusDiv.innerHTML = `⏳ Publishing Instagram carousel (${uploadData.uploaded}/${imageUrls.length} images uploaded)...`;
+
+                const publishResponse = await fetch('/.netlify/functions/ig-publish', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    childIds: uploadData.childIds,
+                    message: igPost,
+                    scheduledTime: scheduledTime
+                  })
+                });
+                const publishData = await publishResponse.json();
+
+                if (publishResponse.ok && publishData.success) {
+                  results.instagram = { success: true, postId: publishData.postId, imagesPosted: publishData.imagesPosted };
+                } else {
+                  results.instagram = { success: false, error: publishData.error || 'Publish failed' };
+                }
+              }
+            } catch (err) {
+              results.instagram = { success: false, error: err.message };
             }
-          }).catch(err => {
-            results.instagram = { success: false, error: err.message };
-          })
+          })()
         );
       }
       
@@ -9617,15 +9657,11 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       }
       
       if (results.instagram) {
-        if (results.instagram.success === true) {
+        if (results.instagram.success) {
           const schedText = scheduledTime ? ' (scheduled)' : '';
           const imgCount = results.instagram.imagesPosted ? ` (${results.instagram.imagesPosted} images)` : '';
           statusMessages.push(`✅ Instagram: Posted successfully${imgCount}${schedText}`);
           hasSuccess = true;
-        } else if (results.instagram.success === null) {
-          // Ambiguous — timed out but may have succeeded
-          statusMessages.push(`⚠️ Instagram: ${results.instagram.error}`);
-          hasSuccess = true; // treat as partial success so UI shows yellow not red
         } else {
           statusMessages.push(`❌ Instagram: ${results.instagram.error || 'Failed'}`);
           hasError = true;
