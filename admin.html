@@ -9579,7 +9579,11 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             })
           }).then(async (igResponse) => {
             const contentType = igResponse.headers.get('content-type');
-            if (contentType && contentType.includes('application/json')) {
+            if (igResponse.status === 504) {
+              // 504 = Netlify timed out, but Instagram may have completed anyway.
+              // Treat as ambiguous — warn user to check IG rather than showing hard failure.
+              results.instagram = { success: null, error: 'Request timed out — check Instagram to confirm the post went through' };
+            } else if (contentType && contentType.includes('application/json')) {
               const igData = await igResponse.json();
               results.instagram = igData.results?.instagram || igData;
             } else if (igResponse.ok) {
@@ -9613,11 +9617,15 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       }
       
       if (results.instagram) {
-        if (results.instagram.success) {
+        if (results.instagram.success === true) {
           const schedText = scheduledTime ? ' (scheduled)' : '';
           const imgCount = results.instagram.imagesPosted ? ` (${results.instagram.imagesPosted} images)` : '';
           statusMessages.push(`✅ Instagram: Posted successfully${imgCount}${schedText}`);
           hasSuccess = true;
+        } else if (results.instagram.success === null) {
+          // Ambiguous — timed out but may have succeeded
+          statusMessages.push(`⚠️ Instagram: ${results.instagram.error}`);
+          hasSuccess = true; // treat as partial success so UI shows yellow not red
         } else {
           statusMessages.push(`❌ Instagram: ${results.instagram.error || 'Failed'}`);
           hasError = true;
