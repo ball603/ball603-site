@@ -712,7 +712,7 @@ async function migrateGameId(oldGame, newGameId) {
 async function getExistingGames() {
   // Fetch all NHIAA games from Supabase for this sport/season
   const response = await fetch(
-    `${SUPABASE_URL}/rest/v1/games?level=eq.NHIAA&sport=eq.${SPORT}&season=eq.${SEASON}&select=game_id,date,time,home_team,away_team,gender,division,away_score,home_score,photog1,photog2,videog,writer,notes,original_date,schedule_changed,photos_url,recap_url,highlights_url,live_stream_url,game_description,special_event,original_time,manual_override`,
+    `${SUPABASE_URL}/rest/v1/games?level=eq.NHIAA&sport=eq.${SPORT}&season=eq.${SEASON}&select=game_id,date,time,home_team,away_team,gender,division,away_score,home_score,photog1,photog2,videog,writer,notes,original_date,schedule_changed,photos_url,recap_url,highlights_url,live_stream_url,game_description,special_event,original_time,manual_override,lock_date,lock_time,lock_score`,
     {
       headers: {
         'apikey': SUPABASE_SERVICE_KEY,
@@ -752,11 +752,16 @@ async function updateSupabase(games) {
   const upsertData = games.map(g => {
     const existing = existingGames[g.game_id] || {};
     
-    // Skip games with manual_override — do not overwrite
+    // Skip games with manual_override — do not overwrite at all
     if (existing.manual_override) {
       console.log(`  🔒 Skipping locked game: ${g.home_team} vs ${g.away_team} on ${g.date}`);
       return null;
     }
+    
+    // Apply granular locks — preserve locked fields, allow others to update
+    const useDate = existing.lock_date ? existing.date : g.date;
+    const useTime = existing.lock_time ? existing.time : null; // time resolved below
+    const lockScore = existing.lock_score;
     
     // Check if this game duplicates a LOCKED game in the DB
     // (different game_id but same matchup/score — the deleted duplicate coming back)
@@ -784,11 +789,11 @@ async function updateSupabase(games) {
     // Check if this game has an assignment
     const hasAssignment = existing.photog1 || existing.photog2 || existing.videog || existing.writer;
     
-    // Detect schedule change
+    // Detect schedule change (only if date isn't locked — locked date means we intentionally changed it)
     let originalDate = existing.original_date || null;
     let scheduleChanged = existing.schedule_changed || false;
     
-    if (hasAssignment && existing.date && existing.date !== g.date) {
+    if (!existing.lock_date && hasAssignment && existing.date && existing.date !== g.date) {
       // Date changed for a claimed game!
       originalDate = existing.original_date || existing.date;
       scheduleChanged = true;
@@ -798,26 +803,29 @@ async function updateSupabase(games) {
     
     // If game was claimed but no original_date set yet, set it now
     if (hasAssignment && !originalDate) {
-      originalDate = g.date;
+      originalDate = useDate;
     }
     
-    // Preserve existing scores if scraper doesn't have one
-    // This prevents manual score entries from being wiped out
-    const awayScore = toIntOrNull(g.away_score) ?? toIntOrNull(existing.away_score);
-    const homeScore = toIntOrNull(g.home_score) ?? toIntOrNull(existing.home_score);
+    // Scores: if lock_score, preserve existing; otherwise use scraper value (falling back to existing)
+    const awayScore = lockScore ? toIntOrNull(existing.away_score) : (toIntOrNull(g.away_score) ?? toIntOrNull(existing.away_score));
+    const homeScore = lockScore ? toIntOrNull(existing.home_score) : (toIntOrNull(g.home_score) ?? toIntOrNull(existing.home_score));
     
-    // Determine time: if we have scores (from scraper or existing), mark as FINAL
-    // Otherwise use scraped time, or preserve existing time
-    let time = g.time || null;
-    if (awayScore !== null && homeScore !== null) {
-      time = 'FINAL';
-    } else if (!time && existing.time) {
-      time = existing.time;
+    // Time: if lock_time, preserve existing; otherwise resolve normally
+    let time;
+    if (existing.lock_time) {
+      time = existing.time; // fully locked
+    } else {
+      time = g.time || null;
+      if (awayScore !== null && homeScore !== null) {
+        time = 'FINAL';
+      } else if (!time && existing.time) {
+        time = existing.time;
+      }
     }
     
     return {
       game_id: g.game_id,
-      date: g.date,
+      date: useDate,
       time: time,
       away_team: g.away_team,
       home_team: g.home_team,
@@ -844,7 +852,12 @@ async function updateSupabase(games) {
       game_description: existing.game_description || null,
       special_event: existing.special_event || null,
       original_date: originalDate,
-      schedule_changed: scheduleChanged
+      schedule_changed: scheduleChanged,
+      // Preserve lock flags — never clear them during a scrape
+      manual_override: existing.manual_override || false,
+      lock_date: existing.lock_date || false,
+      lock_time: existing.lock_time || false,
+      lock_score: existing.lock_score || false
     };
   }).filter(Boolean); // Remove null entries (locked games)
   

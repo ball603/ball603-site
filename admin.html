@@ -1324,12 +1324,27 @@
             <textarea id="gameNotes" rows="2" placeholder="Internal notes..." style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; resize: vertical;"></textarea>
           </div>
           
-          <!-- Manual Override Lock -->
-          <div style="background: #fff8e1; border: 1px solid #ffe082; border-radius: 8px; padding: 12px 15px; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
-            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin: 0; font-size: 13px; color: #5d4037;">
-              <input type="checkbox" id="gameManualOverride" style="width: 18px; height: 18px; cursor: pointer;">
-              <span>🔒 <strong>Lock game</strong> — Scraper will not overwrite this game's data</span>
-            </label>
+          <!-- Manual Override Locks -->
+          <div style="background: #fff8e1; border: 1px solid #ffe082; border-radius: 8px; padding: 12px 15px; margin-bottom: 15px;">
+            <div style="font-size: 12px; font-weight: 600; color: #5d4037; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px;">🔒 Scraper Lock</div>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin: 0; font-size: 13px; color: #5d4037;">
+                <input type="checkbox" id="gameLockDate" style="width: 16px; height: 16px; cursor: pointer;">
+                <span><strong>Lock Date</strong> — Scraper won't change this game's date</span>
+              </label>
+              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin: 0; font-size: 13px; color: #5d4037;">
+                <input type="checkbox" id="gameLockTime" style="width: 16px; height: 16px; cursor: pointer;">
+                <span><strong>Lock Time</strong> — Scraper won't change this game's time</span>
+              </label>
+              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin: 0; font-size: 13px; color: #5d4037;">
+                <input type="checkbox" id="gameLockScore" style="width: 16px; height: 16px; cursor: pointer;">
+                <span><strong>Lock Score</strong> — Scraper won't change this game's score</span>
+              </label>
+              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin: 0; font-size: 13px; color: #5d4037; border-top: 1px solid #ffe082; padding-top: 8px; margin-top: 2px;">
+                <input type="checkbox" id="gameManualOverride" style="width: 16px; height: 16px; cursor: pointer;" onchange="if(this.checked){document.getElementById('gameLockDate').checked=true;document.getElementById('gameLockTime').checked=true;document.getElementById('gameLockScore').checked=true;}">
+                <span><strong>Lock All</strong> — Scraper won't touch this game at all</span>
+              </label>
+            </div>
           </div>
           
           <div style="display: flex; justify-content: flex-end; gap: 10px; padding-top: 15px; border-top: 1px solid #eee;">
@@ -12544,6 +12559,9 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('gameLocation').value = game?.location || '';
       document.getElementById('gameNotes').value = game?.notes || '';
       document.getElementById('gameManualOverride').checked = game?.manual_override || false;
+      document.getElementById('gameLockDate').checked = game?.lock_date || game?.manual_override || false;
+      document.getElementById('gameLockTime').checked = game?.lock_time || game?.manual_override || false;
+      document.getElementById('gameLockScore').checked = game?.lock_score || game?.manual_override || false;
     }
     
     function closeGameModal() {
@@ -12770,7 +12788,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         special_event: document.getElementById('gameSpecialEvent').value.trim() || null,
         location: document.getElementById('gameLocation').value.trim() || null,
         notes: document.getElementById('gameNotes').value.trim() || null,
-        manual_override: document.getElementById('gameManualOverride').checked
+        manual_override: document.getElementById('gameManualOverride').checked,
+        lock_date: document.getElementById('gameLockDate').checked || document.getElementById('gameManualOverride').checked,
+        lock_time: document.getElementById('gameLockTime').checked || document.getElementById('gameManualOverride').checked,
+        lock_score: document.getElementById('gameLockScore').checked || document.getElementById('gameManualOverride').checked
       };
       
       // Validation
@@ -12870,7 +12891,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         // Fetch all NHIAA games for current season
         const { data: games, error } = await db
           .from('games')
-          .select('id, game_id, date, home_team, away_team, home_score, away_score, gender, division, level, status, time, manual_override, sport, season')
+          .select('id, game_id, date, home_team, away_team, home_score, away_score, gender, division, level, status, time, manual_override, lock_date, lock_time, lock_score, sport, season')
           .eq('level', 'NHIAA')
           .order('date', { ascending: true });
         
@@ -12944,7 +12965,14 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             html += '<td style="padding: 8px; text-align: center;">' + g.away_score + '-' + g.home_score + '</td>';
             html += '<td style="padding: 8px; font-size: 11px; color: #888; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="' + g.game_id + '">' + g.game_id + '</td>';
             html += '<td style="padding: 8px; text-align: center;">' + (g.status || '—') + '</td>';
-            html += '<td style="padding: 8px; text-align: center;">' + (g.manual_override ? '🔒' : '—') + '</td>';
+            const lockParts = [];
+            if (g.manual_override) lockParts.push('All');
+            else {
+              if (g.lock_date) lockParts.push('Date');
+              if (g.lock_time) lockParts.push('Time');
+              if (g.lock_score) lockParts.push('Score');
+            }
+            html += '<td style="padding: 8px; text-align: center;">' + (lockParts.length ? '🔒 ' + lockParts.join(', ') : '—') + '</td>';
             html += '<td style="padding: 8px; text-align: center;">';
             if (!isFirst) {
               html += '<button onclick="deleteDuplicateGame(' + g.id + ', this)" style="padding: 4px 10px; background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; border-radius: 4px; cursor: pointer; font-size: 12px;">Delete</button>';
