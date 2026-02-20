@@ -9817,29 +9817,65 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       statusDiv.innerHTML = '⏳ Sending to Instagram...';
       
       try {
-        const response = await fetch('/.netlify/functions/social-post', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            platform: 'instagram',
-            message: igPost,
-            imageUrls: imageUrls,
-            collaborators: igCollaborators,
-            scheduledTime: scheduledTime
-          })
-        });
-        
-        const contentType = response.headers.get('content-type');
         let result;
-        if (contentType && contentType.includes('application/json')) {
-          const data = await response.json();
-          result = data.results?.instagram || data;
-        } else if (response.ok) {
-          result = { success: true };
+
+        if (imageUrls.length === 1) {
+          // Single image — fast enough for social-post.js
+          const response = await fetch('/.netlify/functions/social-post', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              platform: 'instagram',
+              message: igPost,
+              imageUrls: imageUrls,
+              collaborators: igCollaborators,
+              scheduledTime: scheduledTime
+            })
+          });
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const data = await response.json();
+            result = data.results?.instagram || data;
+          } else if (response.ok) {
+            result = { success: true };
+          } else {
+            result = { success: false, error: `HTTP ${response.status}` };
+          }
         } else {
-          result = { success: false, error: `HTTP ${response.status}` };
+          // Carousel — two-step flow to stay under Netlify's 26s timeout
+          statusDiv.innerHTML = `⏳ Uploading ${imageUrls.length} images to Instagram...`;
+
+          const uploadResponse = await fetch('/.netlify/functions/ig-upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ imageUrls })
+          });
+          const uploadData = await uploadResponse.json();
+
+          if (!uploadResponse.ok || !uploadData.childIds) {
+            result = { success: false, error: uploadData.error || 'Image upload failed' };
+          } else {
+            statusDiv.innerHTML = `⏳ Publishing Instagram carousel (${uploadData.uploaded}/${imageUrls.length} images uploaded)...`;
+
+            const publishResponse = await fetch('/.netlify/functions/ig-publish', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                childIds: uploadData.childIds,
+                message: igPost,
+                scheduledTime: scheduledTime
+              })
+            });
+            const publishData = await publishResponse.json();
+
+            if (publishResponse.ok && publishData.success) {
+              result = { success: true, postId: publishData.postId, imagesPosted: publishData.imagesPosted };
+            } else {
+              result = { success: false, error: publishData.error || 'Publish failed' };
+            }
+          }
         }
-        
+
         if (result.success) {
           const schedText = scheduledTime ? ' (scheduled)' : '';
           const imgText = result.imagesPosted ? ` (${result.imagesPosted} images)` : '';
