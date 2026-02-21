@@ -2,6 +2,73 @@
 // Supports three modes: 'extract' (read scorebook), 'write' (generate from scorebook data), 'boxscore' (parse pasted boxscore)
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
+
+// Fetch playoff context: seeds for both teams + next-round opponent
+async function getPlayoffContext(gender, division, season, awayTeam, homeTeam, round, bracketPosition) {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) return null;
+  try {
+    const headers = {
+      'apikey': SUPABASE_SERVICE_KEY,
+      'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`
+    };
+
+    // 1. Get seeds for this division
+    const seedsRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/playoff_seeds?season=eq.${encodeURIComponent(season)}&gender=eq.${encodeURIComponent(gender)}&division=eq.${encodeURIComponent(division)}&select=team,seed`,
+      { headers }
+    );
+    const seeds = seedsRes.ok ? await seedsRes.json() : [];
+    const seedMap = {};
+    seeds.forEach(s => { seedMap[s.team] = s.seed; });
+
+    const awaySeed = seedMap[awayTeam] || null;
+    const homeSeed = seedMap[homeTeam] || null;
+
+    // 2. Find next-round opponent using bracket_position
+    // Winners of adjacent positions meet next: (1,2), (3,4), (5,6), etc.
+    let nextOpponent = null;
+    let nextOpponentSeed = null;
+    if (bracketPosition && round && round !== 'Final') {
+      const pos = parseInt(bracketPosition);
+      const partnerPos = pos % 2 === 1 ? pos + 1 : pos - 1; // odd pairs with odd+1, even with even-1
+
+      const roundOrder = ['Prelims', 'Quarters', 'Semis', 'Final'];
+      const currentRoundIdx = roundOrder.indexOf(round);
+      const nextRound = currentRoundIdx >= 0 ? roundOrder[currentRoundIdx + 1] : null;
+
+      if (nextRound) {
+        // The next-round position is ceil(pos/2) — positions (1,2) → 1, (3,4) → 2, etc.
+        const nextPos = Math.ceil(pos / 2);
+        // Look up who currently occupies the partner bracket position in this round
+        const partnerRes = await fetch(
+          `${SUPABASE_URL}/rest/v1/games?season=eq.${encodeURIComponent(season)}&gender=eq.${encodeURIComponent(gender)}&division=eq.${encodeURIComponent(division)}&is_playoff=eq.true&round=eq.${encodeURIComponent(round)}&bracket_position=eq.${partnerPos}&select=home_team,away_team,home_score,away_score`,
+          { headers }
+        );
+        const partnerGames = partnerRes.ok ? await partnerRes.json() : [];
+        if (partnerGames.length > 0) {
+          const pg = partnerGames[0];
+          // If partner game is already decided, use the winner; otherwise note both possibilities
+          if (pg.home_score !== null && pg.away_score !== null) {
+            nextOpponent = parseInt(pg.home_score) >= parseInt(pg.away_score) ? pg.home_team : pg.away_team;
+          } else {
+            // Game not yet played — list both teams
+            nextOpponent = `the winner of ${pg.away_team}/${pg.home_team}`;
+          }
+          if (nextOpponent && seedMap[nextOpponent]) {
+            nextOpponentSeed = seedMap[nextOpponent];
+          }
+        }
+      }
+    }
+
+    return { awaySeed, homeSeed, seedMap, nextOpponent, nextOpponentSeed, round };
+  } catch (err) {
+    console.error('getPlayoffContext error:', err);
+    return null;
+  }
+}
 
 // Mascot to Emoji mapping
 const MASCOT_EMOJIS = {
@@ -501,6 +568,20 @@ async function handleWrite(body, headers) {
     gameFlowStory = `GAME FLOW: Competitive throughout with no single decisive run.`;
   }
 
+  // Fetch playoff context if this is a playoff game
+  let playoffCtx = null;
+  if (proofData.is_playoff && proofData.season && proofData.division && proofData.gender) {
+    playoffCtx = await getPlayoffContext(
+      proofData.gender,
+      proofData.division,
+      proofData.season,
+      proofData.awayTeam,
+      proofData.homeTeam,
+      proofData.round,
+      proofData.bracket_position
+    );
+  }
+
   const prompt = `You are a factual sports reporter for Ball603.com, covering New Hampshire high school basketball. Write a straightforward game recap based ONLY on the facts provided.
 
 === CRITICAL: TEAM NICKNAME DISAMBIGUATION ===
@@ -520,6 +601,9 @@ LOCATION: ${gameTown}, N.H.
 DATE: ${gameDay}
 GENDER: ${proofData.gender || 'Varsity'}
 DIVISION: ${proofData.division || ''}
+${playoffCtx ? `PLAYOFF ROUND: ${proofData.round || 'Playoff'}
+${playoffCtx.awaySeed ? `${proofData.awayTeam} SEED: #${playoffCtx.awaySeed}` : ''}
+${playoffCtx.homeSeed ? `${proofData.homeTeam} SEED: #${playoffCtx.homeSeed}` : ''}` : ''}
 
 SCORING BY QUARTER:
 ${proofData.awayTeam}: ${formatQuarters(proofData.awayQuarters)} = ${proofData.awayFinal}
@@ -583,11 +667,16 @@ TONE RULES:
 - No exclamation points
 - Let the numbers tell the story
 
-STRICT RULES - DO NOT:
+${proofData.is_playoff ? `PLAYOFF ARTICLE RULES:
+- This IS a playoff game — mention the round, seeds, and division naturally in the article
+- In the first paragraph, naturally work in the playoff context (e.g., "No. 7 Monadnock" not just "Monadnock")
+- Use the seed numbers when referring to teams (e.g., "No. 3 Bishop Brady", "the fourth-seeded Crusaders")
+- Reference the round (first round/quarterfinal/semifinal/championship) naturally where it fits
+- DO NOT include team records or the advancing/eliminated info — those will be added as a separate closing paragraph` : `STRICT RULES - DO NOT:
 - Mention playoffs, tournament implications, or postseason - it's too early in the season
 - Speculate about what the win/loss "means" for either team
 - Add commentary about team momentum or confidence
-- Write anything about "advancing" or "playoff positioning"
+- Write anything about "advancing" or "playoff positioning"`}
 
 DO NOT include a headline - just the article body starting with the dateline.`;
 
@@ -614,22 +703,41 @@ DO NOT include a headline - just the article body starting with the dateline.`;
   if (awayRecord && homeRecord) {
     let closingParagraph = '\n\n';
     
-    // Build record sentences
     const winnerRecord = awayWon ? awayRecord : homeRecord;
     const loserRecord = awayWon ? homeRecord : awayRecord;
     const winnerOpener = awayWon ? awaySeasonOpener : homeSeasonOpener;
     const loserOpener = awayWon ? homeSeasonOpener : awaySeasonOpener;
-    
-    if (winnerOpener) {
-      closingParagraph += `${winner} opens the season with a victory`;
+
+    if (proofData.is_playoff && playoffCtx) {
+      // Playoff closing: advances to next round + loser eliminated
+      const roundNames = { Prelims: 'quarterfinal', Quarters: 'semifinal', Semis: 'championship', Final: '' };
+      const nextRoundName = roundNames[proofData.round] || 'next round';
+
+      let winnerSeedStr = playoffCtx ? (playoffCtx.awaySeed && awayWon ? `No. ${playoffCtx.awaySeed} ` : playoffCtx.homeSeed && !awayWon ? `No. ${playoffCtx.homeSeed} ` : '') : '';
+      let loserSeedStr = playoffCtx ? (playoffCtx.awaySeed && !awayWon ? `No. ${playoffCtx.awaySeed} ` : playoffCtx.homeSeed && awayWon ? `No. ${playoffCtx.homeSeed} ` : '') : '';
+
+      if (proofData.round === 'Final') {
+        // Championship game
+        closingParagraph += `${winnerSeedStr}${winner} (${winnerRecord.wins}-${winnerRecord.losses}) wins the ${proofData.division} championship, while ${loserSeedStr}${loser}'s season ends at ${loserRecord.wins}-${loserRecord.losses}.`;
+      } else if (playoffCtx.nextOpponent) {
+        const oppSeedStr = playoffCtx.nextOpponentSeed ? `No. ${playoffCtx.nextOpponentSeed} ` : '';
+        closingParagraph += `${winnerSeedStr}${winner} (${winnerRecord.wins}-${winnerRecord.losses}) advances to the ${nextRoundName} to take on ${oppSeedStr}${playoffCtx.nextOpponent}, while ${loserSeedStr}${loser}'s season comes to a close at ${loserRecord.wins}-${loserRecord.losses}.`;
+      } else {
+        closingParagraph += `${winnerSeedStr}${winner} (${winnerRecord.wins}-${winnerRecord.losses}) advances to the ${nextRoundName}, while ${loserSeedStr}${loser}'s season comes to a close at ${loserRecord.wins}-${loserRecord.losses}.`;
+      }
     } else {
-      closingParagraph += `${winner} improves to ${winnerRecord.wins}-${winnerRecord.losses}`;
-    }
-    
-    if (loserOpener) {
-      closingParagraph += `, while ${loser} falls to 0-1 in their season opener.`;
-    } else {
-      closingParagraph += `, while ${loser} falls to ${loserRecord.wins}-${loserRecord.losses}${loserRecord.wins === 0 ? ' on the young season' : ''}.`;
+      // Regular season closing
+      if (winnerOpener) {
+        closingParagraph += `${winner} opens the season with a victory`;
+      } else {
+        closingParagraph += `${winner} improves to ${winnerRecord.wins}-${winnerRecord.losses}`;
+      }
+      
+      if (loserOpener) {
+        closingParagraph += `, while ${loser} falls to 0-1 in their season opener.`;
+      } else {
+        closingParagraph += `, while ${loser} falls to ${loserRecord.wins}-${loserRecord.losses}${loserRecord.wins === 0 ? ' on the young season' : ''}.`;
+      }
     }
     
     article += closingParagraph;
