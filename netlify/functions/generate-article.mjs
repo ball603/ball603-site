@@ -633,6 +633,11 @@ ARTICLE STRUCTURE:
 5. DO NOT include team records or gallery references - those will be added separately.
 6. LENGTH: Keep it concise. Only include pertinent information.
 
+=== OPENING PARAGRAPH RULE — CRITICAL ===
+In the FIRST PARAGRAPH ONLY, always refer to teams by SCHOOL NAME only (e.g. "Monadnock", "Bishop Brady").
+NEVER use mascot nicknames in the first paragraph (no "Huskies", "Giants", "Clippers", etc.).
+Mascot nicknames are only permitted starting from the second paragraph onward.
+
 === SCORER RULES - READ THIS CAREFULLY ===
 THIS IS MANDATORY - VIOLATING THESE RULES IS A SERIOUS ERROR:
 
