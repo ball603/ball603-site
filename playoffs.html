@@ -1089,6 +1089,25 @@
       url.searchParams.set('division', currentDivision.toLowerCase().replace('-', ''));
       window.history.replaceState({}, '', url);
       
+      // Fetch schedule overrides from DB and apply to TOURNAMENT_SCHEDULE
+      try {
+        const orRes = await fetch(`/.netlify/functions/tournament-schedule?season=${season}&gender=${currentGender}&division=${currentDivision}`);
+        const orData = await orRes.json();
+        if (Array.isArray(orData) && orData.length > 0) {
+          const sched = TOURNAMENT_SCHEDULE[currentGender]?.[currentDivision];
+          if (sched) {
+            const roundMap = { 'Prelims': 'prelims', 'Quarters': 'quarters', 'Semis': 'semis', 'Final': 'final' };
+            orData.forEach(r => {
+              const key = roundMap[r.round];
+              if (key && sched[key]) {
+                if (r.date_display) sched[key].dateDisplay = r.date_display;
+                if (r.site !== null && r.site !== undefined) sched[key].site = r.site;
+              }
+            });
+          }
+        }
+      } catch(e) { console.warn('Schedule overrides unavailable', e); }
+
       // Update tournament info
       updateTournamentInfo();
       
@@ -1253,48 +1272,6 @@
       return games;
     }
     
-    function editScheduleField(roundKey, field) {
-      const schedule = TOURNAMENT_SCHEDULE[currentGender]?.[currentDivision];
-      if (!schedule) return;
-
-      const roundSched = schedule[roundKey];
-      if (!roundSched) return;
-
-      const elemId = `sched-${field}-${roundKey}`;
-      const elem = document.getElementById(elemId);
-      if (!elem || elem.querySelector('input')) return; // already editing
-
-      const currentVal = field === 'date'
-        ? (roundSched.dateDisplay || roundSched.date || '')
-        : (roundSched.site || '');
-
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.value = currentVal;
-      input.style.cssText = 'background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.4); border-radius: 4px; color: inherit; font-size: inherit; font-weight: inherit; text-align: center; width: 100%; padding: 2px 4px; box-sizing: border-box;';
-      
-      const save = () => {
-        const newVal = input.value.trim();
-        if (field === 'date') {
-          roundSched.dateDisplay = newVal;
-        } else {
-          roundSched.site = newVal;
-        }
-        updateTournamentInfo(); // re-render the boxes
-      };
-
-      input.addEventListener('blur', save);
-      input.addEventListener('keydown', e => {
-        if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
-        if (e.key === 'Escape') { input.removeEventListener('blur', save); updateTournamentInfo(); }
-      });
-
-      elem.textContent = '';
-      elem.appendChild(input);
-      input.focus();
-      input.select();
-    }
-
     function updateTournamentInfo() {
       const schedule = TOURNAMENT_SCHEDULE[currentGender]?.[currentDivision];
       if (!schedule) return;
@@ -1319,20 +1296,8 @@
         return `
         <div class="schedule-round">
           <div class="schedule-round-name">${r.label}</div>
-          <div class="schedule-round-date" 
-               id="sched-date-${r.key}"
-               onclick="editScheduleField('${r.key}', 'date')" 
-               title="Click to edit date"
-               style="cursor:pointer; border-bottom: 1px dashed rgba(255,255,255,0.3);">
-            ${dateDisplay}
-          </div>
-          <div class="schedule-round-site"
-               id="sched-site-${r.key}"
-               onclick="editScheduleField('${r.key}', 'site')"
-               title="Click to edit site"
-               style="cursor:pointer; border-bottom: 1px dashed rgba(255,255,255,0.2);">
-            ${r.sched.site}
-          </div>
+          <div class="schedule-round-date">${dateDisplay}</div>
+          <div class="schedule-round-site">${r.sched.site}</div>
         </div>`;
       }).join('');
       

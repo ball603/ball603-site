@@ -23306,28 +23306,85 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
       };
       
-      document.getElementById('playoffScheduleDates').innerHTML = `
+      // Fetch any overrides from DB
+      let scheduleOverrides = {};
+      try {
+        const season = '2025-26';
+        const orRes = await fetch(`/.netlify/functions/tournament-schedule?season=${season}&gender=${gender}&division=${division}`);
+        const orData = await orRes.json();
+        if (Array.isArray(orData)) {
+          orData.forEach(r => { scheduleOverrides[r.round] = r; });
+        }
+      } catch(e) { console.warn('Could not load schedule overrides', e); }
+
+      const rounds = [
+        { key: 'prelims', label: 'Prelims', sched: schedule.prelims },
+        { key: 'quarters', label: 'Quarters', sched: schedule.quarters },
+        { key: 'semis', label: 'Semis', sched: schedule.semis },
+        { key: 'final', label: 'Final', sched: schedule.final }
+      ];
+
+      document.getElementById('playoffScheduleDates').innerHTML = rounds.map(r => {
+        const ov = scheduleOverrides[r.key.charAt(0).toUpperCase() + r.key.slice(1)] || scheduleOverrides[r.key] || {};
+        const dateDisplay = ov.date_display || r.sched.dateDisplay || formatDate(r.sched.date);
+        const siteDisplay = ov.site !== undefined ? ov.site : r.sched.site;
+        return `
         <div style="text-align: center;">
-          <div style="font-size: 12px; opacity: 0.7; margin-bottom: 4px;">Prelims</div>
-          <div style="font-weight: 600;">${formatDate(schedule.prelims.date)}</div>
-          <div style="font-size: 12px; opacity: 0.7; margin-top: 2px;">${schedule.prelims.site}</div>
-        </div>
-        <div style="text-align: center;">
-          <div style="font-size: 12px; opacity: 0.7; margin-bottom: 4px;">Quarters</div>
-          <div style="font-weight: 600;">${formatDate(schedule.quarters.date)}</div>
-          <div style="font-size: 12px; opacity: 0.7; margin-top: 2px;">${schedule.quarters.site}</div>
-        </div>
-        <div style="text-align: center;">
-          <div style="font-size: 12px; opacity: 0.7; margin-bottom: 4px;">Semis</div>
-          <div style="font-weight: 600;">${formatDate(schedule.semis.date)}</div>
-          <div style="font-size: 12px; opacity: 0.7; margin-top: 2px;">${schedule.semis.site}</div>
-        </div>
-        <div style="text-align: center;">
-          <div style="font-size: 12px; opacity: 0.7; margin-bottom: 4px;">Final</div>
-          <div style="font-weight: 600;">${formatDate(schedule.final.date)}</div>
-          <div style="font-size: 12px; opacity: 0.7; margin-top: 2px;">${schedule.final.site}</div>
-        </div>
-      `;
+          <div style="font-size: 12px; opacity: 0.7; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">${r.label}</div>
+          <input 
+            id="schedDate-${r.key}"
+            value="${dateDisplay}"
+            style="background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.25); border-radius: 5px; color: white; font-size: 13px; font-weight: 600; text-align: center; width: 100%; padding: 5px 4px; box-sizing: border-box; margin-bottom: 4px;"
+            placeholder="e.g. Mon, Feb 23"
+          >
+          <input 
+            id="schedSite-${r.key}"
+            value="${siteDisplay}"
+            style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 5px; color: rgba(255,255,255,0.75); font-size: 11px; text-align: center; width: 100%; padding: 4px; box-sizing: border-box;"
+            placeholder="Site"
+          >
+        </div>`;
+      }).join('');
+
+      // Save button
+      const existingBtn = document.getElementById('saveScheduleBtn');
+      if (!existingBtn) {
+        const saveBtn = document.createElement('div');
+        saveBtn.style.cssText = 'margin-top: 14px; text-align: right;';
+        saveBtn.innerHTML = `<button id="saveScheduleBtn" onclick="saveScheduleOverrides('${gender}','${division}')" style="padding: 8px 18px; background: #f57c00; color: white; border: none; border-radius: 5px; font-size: 13px; font-weight: 600; cursor: pointer;">💾 Save Schedule Changes</button> <span id="saveScheduleStatus" style="font-size: 12px; opacity: 0.7; margin-left: 8px;"></span>`;
+        document.getElementById('playoffScheduleDates').parentElement.appendChild(saveBtn);
+      } else {
+        existingBtn.parentElement.querySelector('button').setAttribute('onclick', `saveScheduleOverrides('${gender}','${division}')`);
+      }
+    }
+
+    async function saveScheduleOverrides(gender, division) {
+      const season = '2025-26';
+      const rounds = ['prelims', 'quarters', 'semis', 'final'];
+      const roundLabels = { prelims: 'Prelims', quarters: 'Quarters', semis: 'Semis', final: 'Final' };
+      const btn = document.getElementById('saveScheduleBtn');
+      const statusEl = document.getElementById('saveScheduleStatus');
+      btn.disabled = true;
+      btn.textContent = '⏳ Saving...';
+
+      try {
+        for (const key of rounds) {
+          const dateVal = document.getElementById(`schedDate-${key}`)?.value.trim();
+          const siteVal = document.getElementById(`schedSite-${key}`)?.value.trim();
+          await fetch('/.netlify/functions/tournament-schedule', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ season, gender, division, round: roundLabels[key], date_display: dateVal, site: siteVal })
+          });
+        }
+        btn.textContent = '✅ Saved!';
+        statusEl.textContent = 'Changes will appear on the playoffs page immediately.';
+        setTimeout(() => { btn.textContent = '💾 Save Schedule Changes'; btn.disabled = false; statusEl.textContent = ''; }, 3000);
+      } catch(err) {
+        btn.textContent = '❌ Error';
+        btn.disabled = false;
+        statusEl.textContent = err.message;
+      }
     }
     
     // Render seed preview table (pre-lock)
