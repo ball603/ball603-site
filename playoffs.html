@@ -1253,6 +1253,48 @@
       return games;
     }
     
+    function editScheduleField(roundKey, field) {
+      const schedule = TOURNAMENT_SCHEDULE[currentGender]?.[currentDivision];
+      if (!schedule) return;
+
+      const roundSched = schedule[roundKey];
+      if (!roundSched) return;
+
+      const elemId = `sched-${field}-${roundKey}`;
+      const elem = document.getElementById(elemId);
+      if (!elem || elem.querySelector('input')) return; // already editing
+
+      const currentVal = field === 'date'
+        ? (roundSched.dateDisplay || roundSched.date || '')
+        : (roundSched.site || '');
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = currentVal;
+      input.style.cssText = 'background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.4); border-radius: 4px; color: inherit; font-size: inherit; font-weight: inherit; text-align: center; width: 100%; padding: 2px 4px; box-sizing: border-box;';
+      
+      const save = () => {
+        const newVal = input.value.trim();
+        if (field === 'date') {
+          roundSched.dateDisplay = newVal;
+        } else {
+          roundSched.site = newVal;
+        }
+        updateTournamentInfo(); // re-render the boxes
+      };
+
+      input.addEventListener('blur', save);
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+        if (e.key === 'Escape') { input.removeEventListener('blur', save); updateTournamentInfo(); }
+      });
+
+      elem.textContent = '';
+      elem.appendChild(input);
+      input.focus();
+      input.select();
+    }
+
     function updateTournamentInfo() {
       const schedule = TOURNAMENT_SCHEDULE[currentGender]?.[currentDivision];
       if (!schedule) return;
@@ -1264,29 +1306,35 @@
         const date = new Date(dateStr + 'T12:00:00');
         return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
       };
-      
-      document.getElementById('tournamentSchedule').innerHTML = `
+
+      const rounds = [
+        { key: 'prelims', label: '1st Round', sched: schedule.prelims },
+        { key: 'quarters', label: 'Quarterfinals', sched: schedule.quarters },
+        { key: 'semis', label: 'Semifinals', sched: schedule.semis },
+        { key: 'final', label: 'Championship', sched: schedule.final }
+      ];
+
+      document.getElementById('tournamentSchedule').innerHTML = rounds.map(r => {
+        const dateDisplay = r.sched.dateDisplay || formatDate(r.sched.date);
+        return `
         <div class="schedule-round">
-          <div class="schedule-round-name">1st Round</div>
-          <div class="schedule-round-date">${formatDate(schedule.prelims.date)}</div>
-          <div class="schedule-round-site">${schedule.prelims.site}</div>
-        </div>
-        <div class="schedule-round">
-          <div class="schedule-round-name">Quarterfinals</div>
-          <div class="schedule-round-date">${formatDate(schedule.quarters.date)}</div>
-          <div class="schedule-round-site">${schedule.quarters.site}</div>
-        </div>
-        <div class="schedule-round">
-          <div class="schedule-round-name">Semifinals</div>
-          <div class="schedule-round-date">${formatDate(schedule.semis.date)}</div>
-          <div class="schedule-round-site">${schedule.semis.site}</div>
-        </div>
-        <div class="schedule-round">
-          <div class="schedule-round-name">Championship</div>
-          <div class="schedule-round-date">${formatDate(schedule.final.date)}</div>
-          <div class="schedule-round-site">${schedule.final.site}</div>
-        </div>
-      `;
+          <div class="schedule-round-name">${r.label}</div>
+          <div class="schedule-round-date" 
+               id="sched-date-${r.key}"
+               onclick="editScheduleField('${r.key}', 'date')" 
+               title="Click to edit date"
+               style="cursor:pointer; border-bottom: 1px dashed rgba(255,255,255,0.3);">
+            ${dateDisplay}
+          </div>
+          <div class="schedule-round-site"
+               id="sched-site-${r.key}"
+               onclick="editScheduleField('${r.key}', 'site')"
+               title="Click to edit site"
+               style="cursor:pointer; border-bottom: 1px dashed rgba(255,255,255,0.2);">
+            ${r.sched.site}
+          </div>
+        </div>`;
+      }).join('');
       
       // Update badge with correct team count
       const numTeams = PLAYOFF_TEAMS[currentGender][currentDivision];
@@ -1373,8 +1421,20 @@
           statusText = finalMap[game.game_status] || 'Final';
           statusClass = 'final';
         } else {
-          // Use time if set, otherwise show date or TBD
-          statusText = game.time || 'TBD';
+          // Show date + time for upcoming games
+          if (game.date && game.time && game.time !== 'TBD') {
+            const d = new Date(game.date + 'T12:00:00');
+            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            statusText = `${days[d.getDay()]}, ${months[d.getMonth()]} ${d.getDate()} · ${game.time}`;
+          } else if (game.date) {
+            const d = new Date(game.date + 'T12:00:00');
+            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            statusText = `${days[d.getDay()]}, ${months[d.getMonth()]} ${d.getDate()}`;
+          } else {
+            statusText = game.time || 'TBD';
+          }
         }
         
         // Coverage links
