@@ -1387,18 +1387,35 @@
           statusClass = 'final';
         } else {
           // Show date + time for upcoming games
-          if (game.date && game.time && game.time !== 'TBD') {
-            const d = new Date(game.date + 'T12:00:00');
+          const roundKey = { 'Prelims': 'prelims', 'Quarters': 'quarters', 'Semis': 'semis', 'Final': 'final' }[game.round];
+          const sched = roundKey ? TOURNAMENT_SCHEDULE[currentGender]?.[currentDivision]?.[roundKey] : null;
+
+          // For date: prefer TOURNAMENT_SCHEDULE (authoritative for playoff rounds) over game.date
+          let gameDate = (sched && sched.date) ? sched.date : game.date;
+
+          // For time: use game.time if it looks like a real time, otherwise fall back to schedule
+          let gameTime = game.time;
+          const looksLikeFinal = !gameTime || gameTime.includes('FINAL') || gameTime === 'TBD' || gameTime === 'BYE';
+          if (looksLikeFinal) {
+            if (sched) {
+              if (sched.time) {
+                gameTime = sched.time;
+              } else if (sched.times) {
+                gameTime = sched.times[(game.bracket_position - 1) % sched.times.length] || sched.times[0];
+              }
+            } else {
+              gameTime = null;
+            }
+          }
+
+          if (gameDate) {
+            const d = new Date(gameDate + 'T12:00:00');
             const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
             const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            statusText = `${days[d.getDay()]}, ${months[d.getMonth()]} ${d.getDate()} · ${game.time}`;
-          } else if (game.date) {
-            const d = new Date(game.date + 'T12:00:00');
-            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            statusText = `${days[d.getDay()]}, ${months[d.getMonth()]} ${d.getDate()}`;
+            const dateStr = `${days[d.getDay()]}, ${months[d.getMonth()]} ${d.getDate()}`;
+            statusText = gameTime ? `${dateStr} · ${gameTime}` : dateStr;
           } else {
-            statusText = game.time || 'TBD';
+            statusText = gameTime || 'TBD';
           }
         }
         
