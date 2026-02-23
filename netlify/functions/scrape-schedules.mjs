@@ -712,7 +712,7 @@ async function migrateGameId(oldGame, newGameId) {
 async function getExistingGames() {
   // Fetch all NHIAA games from Supabase for this sport/season
   const response = await fetch(
-    `${SUPABASE_URL}/rest/v1/games?level=eq.NHIAA&sport=eq.${SPORT}&season=eq.${SEASON}&select=game_id,date,time,home_team,away_team,gender,division,away_score,home_score,photog1,photog2,videog,writer,notes,original_date,schedule_changed,photos_url,recap_url,highlights_url,live_stream_url,game_description,special_event,original_time,manual_override,lock_date,lock_time,lock_score`,
+    `${SUPABASE_URL}/rest/v1/games?level=eq.NHIAA&sport=eq.${SPORT}&season=eq.${SEASON}&select=game_id,date,time,home_team,away_team,gender,division,away_score,home_score,photog1,photog2,videog,writer,notes,original_date,schedule_changed,photos_url,recap_url,highlights_url,live_stream_url,game_description,special_event,original_time,manual_override,lock_date,lock_time,lock_score,is_playoff`,
     {
       headers: {
         'apikey': SUPABASE_SERVICE_KEY,
@@ -755,6 +755,12 @@ async function updateSupabase(games) {
     // Skip games with manual_override — do not overwrite at all
     if (existing.manual_override) {
       console.log(`  🔒 Skipping locked game: ${g.home_team} vs ${g.away_team} on ${g.date}`);
+      return null;
+    }
+
+    // Skip playoff games — they are managed manually, not via scraper
+    if (existing.is_playoff) {
+      console.log(`  🏆 Skipping playoff game: ${g.home_team} vs ${g.away_team} on ${g.date}`);
       return null;
     }
     
