@@ -792,6 +792,9 @@ async function updateSupabase(games) {
     }
     
     // Apply granular locks — preserve locked fields, allow others to update
+    if (existing.lock_date || existing.lock_time || existing.lock_score) {
+      console.log(`  🔍 LOCK DEBUG: ${g.away_team} @ ${g.home_team} | lock_date=${existing.lock_date} lock_time=${existing.lock_time} lock_score=${existing.lock_score} | db_date=${existing.date} scraper_date=${g.date} | game_id_match=${existing.game_id === g.game_id}`);
+    }
     const useDate = existing.lock_date ? existing.date : g.date;
     const useTime = existing.lock_time ? existing.time : null; // time resolved below
     const lockScore = existing.lock_score;
