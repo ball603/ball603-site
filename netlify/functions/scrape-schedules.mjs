@@ -746,11 +746,38 @@ async function updateSupabase(games) {
   // Build list of locked games for cross-checking duplicates
   const lockedGames = Object.values(existingGames).filter(g => g.manual_override);
   
+  // Build secondary lookup by matchup (teams + gender, no date) for locked games only.
+  // This catches the case where a date-locked game has a different game_id than what
+  // the scraper generates (because game_id includes the date).
+  const lockedByMatchup = {};
+  for (const game of Object.values(existingGames)) {
+    if (game.manual_override || game.lock_date || game.lock_time || game.lock_score) {
+      const teams = [teamSlug(game.home_team), teamSlug(game.away_team)].sort();
+      const genderCode = game.gender === 'Boys' ? 'b' : 'g';
+      const key = `${teams[0]}_${teams[1]}_${genderCode}`;
+      lockedByMatchup[key] = game;
+    }
+  }
+  
   let changesDetected = 0;
   
   // Build upsert data, preserving assignments
   const upsertData = games.map(g => {
-    const existing = existingGames[g.game_id] || {};
+    let existing = existingGames[g.game_id] || {};
+    
+    // If no match by game_id, check if a locked version of this matchup exists.
+    // This happens when a date-locked game has a manually-changed date — its game_id
+    // no longer matches the NHIAA-generated game_id for the same matchup.
+    if (!existing.game_id) {
+      const teams = [teamSlug(g.home_team), teamSlug(g.away_team)].sort();
+      const genderCode = g.gender === 'Boys' ? 'b' : 'g';
+      const matchupKey = `${teams[0]}_${teams[1]}_${genderCode}`;
+      const lockedMatch = lockedByMatchup[matchupKey];
+      if (lockedMatch) {
+        console.log(`  🔒 Skipping scraper version of locked game: ${g.away_team} @ ${g.home_team} on ${g.date} (locked version has date ${lockedMatch.date})`);
+        return null;
+      }
+    }
     
     // Skip games with manual_override — do not overwrite at all
     if (existing.manual_override) {
