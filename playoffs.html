@@ -1390,22 +1390,23 @@
           const roundKey = { 'Prelims': 'prelims', 'Quarters': 'quarters', 'Semis': 'semis', 'Final': 'final' }[game.round];
           const sched = roundKey ? TOURNAMENT_SCHEDULE[currentGender]?.[currentDivision]?.[roundKey] : null;
 
-          // For date: prefer TOURNAMENT_SCHEDULE (authoritative for playoff rounds) over game.date
-          let gameDate = (sched && sched.date) ? sched.date : game.date;
+          // Date: use game.date from DB first, fall back to TOURNAMENT_SCHEDULE
+          const dateIsCorrupt = !game.date;
+          const gameDate = (!dateIsCorrupt) ? game.date : (sched && sched.date) ? sched.date : null;
 
-          // For time: use game.time if it looks like a real time, otherwise fall back to schedule
+          // Time: use game.time from DB first (respects manual edits), fall back to schedule only if missing/corrupted
           let gameTime = game.time;
-          const looksLikeFinal = !gameTime || gameTime.includes('FINAL') || gameTime === 'TBD' || gameTime === 'BYE';
-          if (looksLikeFinal) {
-            if (sched) {
-              if (sched.time) {
-                gameTime = sched.time;
-              } else if (sched.times) {
-                gameTime = sched.times[(game.bracket_position - 1) % sched.times.length] || sched.times[0];
-              }
+          const timeIsCorrupt = !gameTime || gameTime.includes('FINAL') || gameTime === 'TBD' || gameTime === 'BYE';
+          if (timeIsCorrupt && sched) {
+            if (sched.time) {
+              gameTime = sched.time;
+            } else if (sched.times) {
+              gameTime = sched.times[(game.bracket_position - 1) % sched.times.length] || sched.times[0];
             } else {
               gameTime = null;
             }
+          } else if (timeIsCorrupt) {
+            gameTime = null;
           }
 
           if (gameDate) {
