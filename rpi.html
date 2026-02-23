@@ -573,7 +573,6 @@
       <h1 class="rpi-title" id="rpiTitle">NHIAA Basketball RPI</h1>
       <p class="rpi-subtitle">Rating Percentage Index Rankings</p>
       <p class="rpi-updated" id="rpiUpdated"></p>
-      <p class="rpi-updated" style="margin-top: 2px; font-style: italic;">RPIs are finalized and locked at the end of regular-season play.</p>
     </div>
     
     <!-- Sport Filter -->
@@ -916,11 +915,38 @@
         }
       });
       
+      // Assign display ranks with tie handling
+      // Teams whose RPI rounds to the same 3 decimal places share the same rank
+      // e.g. 0.6233 and 0.6228 both round to 0.623 → both show as T-2, next team is #4
+      function assignDisplayRanks(data) {
+        let pos = 1;
+        for (let i = 0; i < data.length; i++) {
+          if (i === 0) {
+            data[i].displayRank = pos;
+          } else {
+            const prev = data[i - 1];
+            const prevRounded = Math.round(prev.rpi * 1000);
+            const currRounded = Math.round(data[i].rpi * 1000);
+            if (currRounded === prevRounded) {
+              data[i].displayRank = prev.displayRank;
+            } else {
+              pos = i + 1;
+              data[i].displayRank = pos;
+            }
+          }
+        }
+        // Flag ties: if multiple teams share a displayRank, mark them
+        const rankCounts = {};
+        data.forEach(r => { rankCounts[r.displayRank] = (rankCounts[r.displayRank] || 0) + 1; });
+        data.forEach(r => { r.isTied = rankCounts[r.displayRank] > 1; });
+      }
+
       // Apply current sort
       sortField = 'rpi';
       sortDir = 'desc';
       
       const sorted = sortData(rpiData, sortField, sortDir);
+      assignDisplayRanks(sorted);
       renderTable(sorted);
       highlightCol('rpi');
       updateCardHeader();
@@ -956,6 +982,12 @@
       }
       
       const sorted = sortData(rpiData, sortField, sortDir);
+      // Re-assign display ranks based on RPI order (ties always based on RPI rounding)
+      const rpiSorted = [...sorted].sort((a, b) => b.rpi - a.rpi);
+      assignDisplayRanks(rpiSorted);
+      // Copy displayRank and isTied back to sorted array
+      const rankMap = new Map(rpiSorted.map(r => [r.team, { displayRank: r.displayRank, isTied: r.isTied }]));
+      sorted.forEach(r => { const m = rankMap.get(r.team); r.displayRank = m.displayRank; r.isTied = m.isTied; });
       renderTable(sorted);
       highlightCol(field);
       updateCardHeader();
@@ -1024,8 +1056,9 @@
         const highClass = r.high_rank === r.rank ? 'track-high' : '';
         const lowClass = r.low_rank === r.rank ? 'track-low' : '';
         
+        const rankDisplay = r.isTied ? 'T-' + r.displayRank : r.displayRank;
         html += '<tr>' +
-          '<td class="rank-col center">' + r.rank + '</td>' +
+          '<td class="rank-col center">' + rankDisplay + '</td>' +
           '<td>' +
             '<div class="team-cell">' +
               '<img class="team-logo" src="' + logoUrl + '" onerror="this.src=\'/logos/100px/Ball603-white.png\'" alt="">' +
