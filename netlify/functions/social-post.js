@@ -313,9 +313,9 @@ async function postToInstagram(message, imageUrls, collaborators, scheduledTime)
     }
     
     // Step 3: Publish the media
-    // Brief wait for Instagram to process
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
+    // Retry publish up to 5 times with 500ms gaps — avoids the hard 2s wait
+    // that was causing Netlify 504 timeouts, while still handling cases where
+    // Instagram needs a moment to finish processing the media creation.
     const publishParams = new URLSearchParams({
       creation_id: creationId,
       access_token: accessToken
@@ -323,13 +323,27 @@ async function postToInstagram(message, imageUrls, collaborators, scheduledTime)
     
     console.log('Publishing IG media:', creationId);
     
-    const publishResponse = await fetch(
-      `https://graph.facebook.com/${API_VERSION}/${userId}/media_publish`,
-      { method: 'POST', body: publishParams }
-    );
-    
-    const publishData = await publishResponse.json();
-    console.log('IG publish response:', JSON.stringify(publishData));
+    let publishData = null;
+    for (let attempt = 1; attempt <= 5; attempt++) {
+      const publishResponse = await fetch(
+        `https://graph.facebook.com/${API_VERSION}/${userId}/media_publish`,
+        { method: 'POST', body: publishParams }
+      );
+      publishData = await publishResponse.json();
+      console.log(`IG publish attempt ${attempt}:`, JSON.stringify(publishData));
+      
+      if (publishData.id) break; // success
+      
+      // If media not ready yet, wait and retry
+      const errCode = publishData.error?.code;
+      const isNotReady = errCode === 9007 || errCode === 2207026 || 
+                         (publishData.error?.message || '').toLowerCase().includes('not ready');
+      if (isNotReady && attempt < 5) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        continue;
+      }
+      break; // real error — stop retrying
+    }
     
     if (publishData.error) {
       return { success: false, error: publishData.error.message };
