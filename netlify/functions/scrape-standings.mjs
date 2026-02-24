@@ -12,7 +12,9 @@ const SEASON = '2025-26';
 function normalizeTeamName(name) {
   const normalizations = {
     'Coe-Brown Northwood': 'Coe-Brown',
-    'Coe-Brown Northwood Academy': 'Coe-Brown'
+    'Coe-Brown Northwood Academy': 'Coe-Brown',
+    'Mascoma Valley': 'Mascoma',
+    'Mascoma Valley Regional High School': 'Mascoma'
   };
   return normalizations[name] || name;
 }
