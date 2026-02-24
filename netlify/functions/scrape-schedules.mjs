@@ -73,8 +73,7 @@ function normalizeTeamName(name) {
     'Manchester Memorial High School': 'Manchester Memorial',
     'Manchester West High School': 'Manchester West',
     'Mascenic Regional High School': 'Mascenic',
-    'Mascoma': 'Mascoma Valley',
-    'Mascoma Valley Regional High School': 'Mascoma Valley',
+    'Mascoma Valley Regional High School': 'Mascoma',
     'Merrimack High School': 'Merrimack',
     'Merrimack Valley High School': 'Merrimack Valley',
     'Milford High School': 'Milford',
@@ -181,7 +180,7 @@ function teamSlug(name) {
     'Manchester Memorial': 'manchestermemorial',
     'Manchester West': 'manchesterwest',
     'Mascenic': 'mascenic',
-    'Mascoma Valley': 'mascomavalley',
+    'Mascoma': 'mascoma',
     'Merrimack Valley': 'merrimackvalley',
     'Merrimack': 'merrimack',
     'Milford': 'milford',
@@ -792,9 +791,6 @@ async function updateSupabase(games) {
     }
     
     // Apply granular locks — preserve locked fields, allow others to update
-    if (existing.lock_date || existing.lock_time || existing.lock_score) {
-      console.log(`  🔍 LOCK DEBUG: ${g.away_team} @ ${g.home_team} | lock_date=${existing.lock_date} lock_time=${existing.lock_time} lock_score=${existing.lock_score} | db_date=${existing.date} scraper_date=${g.date} | game_id_match=${existing.game_id === g.game_id}`);
-    }
     const useDate = existing.lock_date ? existing.date : g.date;
     const useTime = existing.lock_time ? existing.time : null; // time resolved below
     const lockScore = existing.lock_score;
@@ -846,16 +842,23 @@ async function updateSupabase(games) {
     const awayScore = lockScore ? toIntOrNull(existing.away_score) : (toIntOrNull(g.away_score) ?? toIntOrNull(existing.away_score));
     const homeScore = lockScore ? toIntOrNull(existing.home_score) : (toIntOrNull(g.home_score) ?? toIntOrNull(existing.home_score));
     
-    // Time: if lock_time, preserve existing; otherwise resolve normally
+    // Time resolution:
+    // - lock_time=true: always preserve existing time
+    // - Any other lock set (game was manually touched): preserve existing time unless
+    //   scores are now present (allow FINAL to be applied), or existing time is null
+    // - No locks: use NHIAA's scraped time, falling back to existing
+    const anyLock = existing.lock_date || existing.lock_time || existing.lock_score || existing.manual_override;
     let time;
     if (existing.lock_time) {
-      time = existing.time; // fully locked
+      time = existing.time; // fully locked — never touch
     } else {
       time = g.time || null;
       if (awayScore !== null && homeScore !== null) {
-        time = 'FINAL';
+        time = 'FINAL'; // scores appeared — always apply FINAL regardless of locks
+      } else if (anyLock && existing.time) {
+        time = existing.time; // game was manually touched — don't overwrite user's time
       } else if (!time && existing.time) {
-        time = existing.time;
+        time = existing.time; // no scraped time — preserve existing
       }
     }
     
