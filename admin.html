@@ -9822,17 +9822,32 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       statusDiv.innerHTML = '⏳ Sending to Instagram...';
       
       try {
-        const response = await fetch('/.netlify/functions/social-post', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            platform: 'instagram',
-            message: igPost,
-            imageUrls: imageUrls,
-            collaborators: igCollaborators,
-            scheduledTime: scheduledTime
-          })
-        });
+        const controller = new AbortController();
+        const fetchTimeout = setTimeout(() => controller.abort(), 50000);
+        
+        let response;
+        try {
+          response = await fetch('/.netlify/functions/social-post', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: controller.signal,
+            body: JSON.stringify({
+              platform: 'instagram',
+              message: igPost,
+              imageUrls: imageUrls,
+              collaborators: igCollaborators,
+              scheduledTime: scheduledTime
+            })
+          });
+          clearTimeout(fetchTimeout);
+        } catch (fetchErr) {
+          clearTimeout(fetchTimeout);
+          // Network timeout or abort — post may have still gone through on Instagram's side
+          statusDiv.style.background = '#fff3e0';
+          statusDiv.style.border = '1px solid #f57c00';
+          statusDiv.innerHTML = `⚠️ Instagram: Request timed out — please check Instagram to confirm the post went through.`;
+          return;
+        }
         
         const contentType = response.headers.get('content-type');
         let result;
