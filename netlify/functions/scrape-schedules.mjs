@@ -72,6 +72,8 @@ function normalizeTeamName(name) {
     'Manchester Central High School': 'Manchester Central',
     'Manchester Memorial High School': 'Manchester Memorial',
     'Manchester West High School': 'Manchester West',
+    'Man. Central-Man. West': 'Central-West',
+    'Manchester Central-Manchester West': 'Central-West',
     'Mascenic Regional High School': 'Mascenic',
     'Mascoma Valley Regional High School': 'Mascoma',
     'Merrimack High School': 'Merrimack',

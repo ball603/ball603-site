@@ -14,7 +14,9 @@ function normalizeTeamName(name) {
     'Coe-Brown Northwood': 'Coe-Brown',
     'Coe-Brown Northwood Academy': 'Coe-Brown',
     'Mascoma Valley': 'Mascoma',
-    'Mascoma Valley Regional High School': 'Mascoma'
+    'Mascoma Valley Regional High School': 'Mascoma',
+    'Man. Central-Man. West': 'Central-West',
+    'Manchester Central-Manchester West': 'Central-West'
   };
   return normalizations[name] || name;
 }
