@@ -2084,8 +2084,26 @@
       // Featured media (video or image)
       let featuredHtml = '';
       if (article.youtube_url) {
-        const videoId = extractYouTubeId(article.youtube_url);
-        if (videoId) {
+        const isHudlStream = article.youtube_url.includes('hudl.com');
+        const videoId = !isHudlStream ? extractYouTubeId(article.youtube_url) : null;
+        
+        if (isHudlStream) {
+          // Live stream - autoplay muted iframe
+          const embedUrl = article.youtube_url.includes('?')
+            ? article.youtube_url + '&autoplay=1&mute=1'
+            : article.youtube_url + '?autoplay=1&mute=1';
+          featuredHtml = `
+            <div class="article-featured">
+              <div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;">
+                <iframe src="${embedUrl}"
+                  style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;overflow:hidden;"
+                  allow="autoplay; fullscreen"
+                  allowfullscreen>
+                </iframe>
+              </div>
+            </div>
+          `;
+        } else if (videoId) {
           // Store video data for restoration after playback ends
           articleVideoData = {
             videoId: videoId,
