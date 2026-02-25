@@ -180,8 +180,16 @@ async function fetchArticles(limit = 20) {
       return '1970-01-01';
     }
     
-    // Sort: pinned first (in pin order), then by date (newest first)
+    // Sort: live streams first, then pinned (in pin order), then by date (newest first)
+    const isStream = (a) => a.youtube_url && a.youtube_url.includes('hudl.com');
     const articles = (data || []).sort((a, b) => {
+      const aStream = isStream(a);
+      const bStream = isStream(b);
+      
+      // Live streams always come first
+      if (aStream && !bStream) return -1;
+      if (bStream && !aStream) return 1;
+      
       const aPinIndex = pinnedIds.indexOf(a.id);
       const bPinIndex = pinnedIds.indexOf(b.id);
       

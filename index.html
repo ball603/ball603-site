@@ -2785,8 +2785,34 @@
         
         // Check if this is a video feature
         const videoId = getYouTubeId(featured.youtube_url);
+        const isHudlStream = featured.youtube_url && featured.youtube_url.includes('hudl.com');
         
-        if (videoId) {
+        if (isHudlStream) {
+          // Live stream mode - autoplay muted iframe
+          const embedUrl = featured.youtube_url.includes('?') 
+            ? featured.youtube_url + '&autoplay=1&mute=1'
+            : featured.youtube_url + '?autoplay=1&mute=1';
+          
+          heroFeatured.classList.add('has-video');
+          heroFeatured.onclick = null;
+          heroFeatured.innerHTML = `
+            <div class="video-container">
+              <iframe src="${embedUrl}" 
+                width="100%" height="100%" 
+                allow="autoplay; fullscreen" 
+                style="border:0;overflow:hidden;" 
+                allowfullscreen>
+              </iframe>
+            </div>
+            <div class="video-overlay">
+              <a href="/article/${featured.slug}">
+                <span class="hero-tag">&#128250; Live</span>
+                <h2 class="hero-title">${featured.title}</h2>
+                <p class="hero-meta">${Ball603.formatDate(displayDate, 'short')}${showAuthor ? ` &#8226; ${featured.author}` : ''}</p>
+              </a>
+            </div>
+          `;
+        } else if (videoId) {
           // Video mode
           const autoplay = featured.video_autoplay;
           const standalone = featured.video_standalone;
@@ -3182,7 +3208,7 @@
       
       const standingsHtml = sorted.map((s, i) => {
         // Convert school name to URL slug (lowercase, no spaces/hyphens)
-        const slug = (s.school || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+        const slug = (s.school || '').toLowerCase().replace(/[\s\-]+/g, '');
         return `
         <div class="standings-row">
           <span class="standings-rank">${i + 1}</span>
@@ -3259,7 +3285,7 @@
       
       // Already sorted by rank from API
       const rpiHtml = filtered.slice(0, 10).map(r => {
-        const slug = (r.team || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+        const slug = (r.team || '').toLowerCase().replace(/[\s\-]+/g, '');
         return `
         <div class="standings-row">
           <span class="standings-rank">${r.rank}</span>
