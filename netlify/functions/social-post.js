@@ -312,10 +312,7 @@ async function postToInstagram(message, imageUrls, collaborators, scheduledTime)
       creationId = carouselData.id;
     }
     
-    // Step 3: Publish the media
-    // Retry publish up to 5 times with 500ms gaps — avoids the hard 2s wait
-    // that was causing Netlify 504 timeouts, while still handling cases where
-    // Instagram needs a moment to finish processing the media creation.
+    // Step 3: Publish the media with retry (no fixed delay - only wait if Instagram says not ready)
     const publishParams = new URLSearchParams({
       creation_id: creationId,
       access_token: accessToken
@@ -323,7 +320,7 @@ async function postToInstagram(message, imageUrls, collaborators, scheduledTime)
     
     console.log('Publishing IG media:', creationId);
     
-    let publishData = null;
+    let publishData;
     for (let attempt = 1; attempt <= 5; attempt++) {
       const publishResponse = await fetch(
         `https://graph.facebook.com/${API_VERSION}/${userId}/media_publish`,
@@ -332,17 +329,12 @@ async function postToInstagram(message, imageUrls, collaborators, scheduledTime)
       publishData = await publishResponse.json();
       console.log(`IG publish attempt ${attempt}:`, JSON.stringify(publishData));
       
-      if (publishData.id) break; // success
-      
-      // If media not ready yet, wait and retry
-      const errCode = publishData.error?.code;
-      const isNotReady = errCode === 9007 || errCode === 2207026 || 
-                         (publishData.error?.message || '').toLowerCase().includes('not ready');
-      if (isNotReady && attempt < 5) {
-        await new Promise(resolve => setTimeout(resolve, 500));
+      // If media not ready, wait and retry
+      if (publishData.error && (publishData.error.code === 9007 || publishData.error.code === 2207026)) {
+        if (attempt < 5) await new Promise(resolve => setTimeout(resolve, 500));
         continue;
       }
-      break; // real error — stop retrying
+      break;
     }
     
     if (publishData.error) {
