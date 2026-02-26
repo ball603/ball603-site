@@ -27,6 +27,7 @@ export default async (request) => {
       if (season) parts.push(`season=eq.${encodeURIComponent(season)}`);
       if (gender) parts.push(`gender=eq.${encodeURIComponent(gender)}`);
       if (division) parts.push(`division=eq.${encodeURIComponent(division)}`);
+      parts.push('order=updated_at.asc');
       query += parts.join('&');
 
       const res = await fetch(query, {
@@ -44,30 +45,47 @@ export default async (request) => {
         return new Response(JSON.stringify({ error: 'season, gender, division, round required' }), { status: 400, headers: CORS });
       }
 
-      const payload = {
-        season, gender, division, round,
-        date_display: date_display ?? null,
-        site: site ?? null,
-        updated_at: new Date().toISOString()
-      };
-
-      const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/tournament_schedule`,
-        {
-          method: 'POST',
-          headers: {
-            'apikey': SUPABASE_SERVICE_KEY,
-            'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
-            'Content-Type': 'application/json',
-            'Prefer': 'resolution=merge-duplicates,return=representation'
-          },
-          body: JSON.stringify(payload)
+      // Delete existing row for this (season, gender, division, round) first
+      const delUrl = `${SUPABASE_URL}/rest/v1/tournament_schedule?season=eq.${encodeURIComponent(season)}&gender=eq.${encodeURIComponent(gender)}&division=eq.${encodeURIComponent(division)}&round=eq.${encodeURIComponent(round)}`;
+      await fetch(delUrl, {
+        method: 'DELETE',
+        headers: {
+          'apikey': SUPABASE_SERVICE_KEY,
+          'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+          'Prefer': 'return=minimal'
         }
-      );
+      });
 
-      if (!res.ok) {
-        const err = await res.text();
-        return new Response(JSON.stringify({ error: err }), { status: 500, headers: CORS });
+      // Only insert if there's actually an override value to store
+      const hasOverride = (date_display !== null && date_display !== undefined && date_display !== '') ||
+                          (site !== null && site !== undefined && site !== '');
+
+      if (hasOverride) {
+        const payload = {
+          season, gender, division, round,
+          date_display: date_display || null,
+          site: site || null,
+          updated_at: new Date().toISOString()
+        };
+
+        const res = await fetch(
+          `${SUPABASE_URL}/rest/v1/tournament_schedule`,
+          {
+            method: 'POST',
+            headers: {
+              'apikey': SUPABASE_SERVICE_KEY,
+              'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+              'Content-Type': 'application/json',
+              'Prefer': 'return=minimal'
+            },
+            body: JSON.stringify(payload)
+          }
+        );
+
+        if (!res.ok) {
+          const err = await res.text();
+          return new Response(JSON.stringify({ error: err }), { status: 500, headers: CORS });
+        }
       }
 
       return new Response(JSON.stringify({ success: true }), { status: 200, headers: CORS });

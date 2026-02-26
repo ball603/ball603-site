@@ -23316,17 +23316,19 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           payload[f.dataset.field] = finalVal;
         });
         try {
-          await fetch('/.netlify/functions/tournament-schedule', {
+          const resp = await fetch('/.netlify/functions/tournament-schedule', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
           });
-          if (saveVal) {
-            showToast(`Updated ${roundKey} ${field === 'date_display' ? 'date' : 'location'}`, 'success');
+          if (!resp.ok) {
+            const errData = await resp.json().catch(() => ({}));
+            throw new Error(errData.error || `HTTP ${resp.status}`);
           }
+          showToast(`Updated ${roundKey} ${field === 'date_display' ? 'date' : 'location'}`, 'success');
         } catch(e) {
           console.error('Error saving schedule override:', e);
-          showToast('Error saving schedule change', 'error');
+          showToast('Error saving: ' + e.message, 'error');
         }
       };
       
