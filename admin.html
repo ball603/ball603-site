@@ -5753,7 +5753,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           
           <!-- Round Tabs -->
           <div style="display: flex; gap: 5px; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px;">
-            <button class="playoff-round-tab active" data-round="Prelims" onclick="showPlayoffRound('Prelims')">Prelims</button>
+            <button class="playoff-round-tab active" data-round="Prelims" onclick="showPlayoffRound('Prelims')">First Round</button>
             <button class="playoff-round-tab" data-round="Quarters" onclick="showPlayoffRound('Quarters')">Quarters</button>
             <button class="playoff-round-tab" data-round="Semis" onclick="showPlayoffRound('Semis')">Semis</button>
             <button class="playoff-round-tab" data-round="Final" onclick="showPlayoffRound('Final')">Final</button>
@@ -6108,6 +6108,9 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     }
     #playoffSeedsBody tr.drag-over {
       border-top: 3px solid #f57c00;
+    }
+    .sched-edit-field:hover {
+      background: rgba(255,255,255,0.12) !important;
     }
   </style>
 
@@ -23163,7 +23166,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         playoffGames = statusData.games || [];
         
         // Update schedule card
-        updateScheduleCard(gender, division);
+        await updateScheduleCard(gender, division);
         
         // Hide all views first
         document.getElementById('playoffsPreLock').style.display = 'none';
@@ -23224,7 +23227,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     }
     
     // Update the schedule card with tournament dates
-    function updateScheduleCard(gender, division) {
+    async function updateScheduleCard(gender, division) {
       const schedule = TOURNAMENT_SCHEDULE[gender]?.[division];
       if (!schedule) return;
       
@@ -23237,33 +23240,101 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         : '16-team bracket';
       document.getElementById('playoffBracketInfo').textContent = bracketInfo;
       
+      // Fetch existing overrides from DB
+      let overrides = {};
+      try {
+        const orRes = await fetch(`/.netlify/functions/tournament-schedule?season=2025-26&gender=${gender}&division=${division}`);
+        const orData = await orRes.json();
+        if (Array.isArray(orData)) {
+          orData.forEach(r => {
+            overrides[r.round] = { date_display: r.date_display || '', site: r.site || '' };
+          });
+        }
+      } catch(e) { console.warn('Schedule overrides unavailable:', e); }
+      
       const formatDate = (dateStr) => {
         const date = new Date(dateStr + 'T12:00:00');
         return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
       };
       
-      document.getElementById('playoffScheduleDates').innerHTML = `
+      const rounds = [
+        { key: 'prelims', dbRound: 'Prelims', label: 'First Round', sched: schedule.prelims },
+        { key: 'quarters', dbRound: 'Quarters', label: 'Quarters', sched: schedule.quarters },
+        { key: 'semis', dbRound: 'Semis', label: 'Semis', sched: schedule.semis },
+        { key: 'final', dbRound: 'Final', label: 'Final', sched: schedule.final }
+      ];
+      
+      document.getElementById('playoffScheduleDates').innerHTML = rounds.map(r => {
+        const or = overrides[r.dbRound] || {};
+        const dateVal = or.date_display || formatDate(r.sched.date);
+        const siteVal = or.site || r.sched.site;
+        return `
         <div style="text-align: center;">
-          <div style="font-size: 12px; opacity: 0.7; margin-bottom: 4px;">Prelims</div>
-          <div style="font-weight: 600;">${formatDate(schedule.prelims.date)}</div>
-          <div style="font-size: 12px; opacity: 0.7; margin-top: 2px;">${schedule.prelims.site}</div>
-        </div>
-        <div style="text-align: center;">
-          <div style="font-size: 12px; opacity: 0.7; margin-bottom: 4px;">Quarters</div>
-          <div style="font-weight: 600;">${formatDate(schedule.quarters.date)}</div>
-          <div style="font-size: 12px; opacity: 0.7; margin-top: 2px;">${schedule.quarters.site}</div>
-        </div>
-        <div style="text-align: center;">
-          <div style="font-size: 12px; opacity: 0.7; margin-bottom: 4px;">Semis</div>
-          <div style="font-weight: 600;">${formatDate(schedule.semis.date)}</div>
-          <div style="font-size: 12px; opacity: 0.7; margin-top: 2px;">${schedule.semis.site}</div>
-        </div>
-        <div style="text-align: center;">
-          <div style="font-size: 12px; opacity: 0.7; margin-bottom: 4px;">Final</div>
-          <div style="font-weight: 600;">${formatDate(schedule.final.date)}</div>
-          <div style="font-size: 12px; opacity: 0.7; margin-top: 2px;">${schedule.final.site}</div>
-        </div>
-      `;
+          <div style="font-size: 12px; opacity: 0.7; margin-bottom: 4px;">${r.label}</div>
+          <div class="sched-edit-field" data-round="${r.dbRound}" data-field="date_display" data-default="${formatDate(r.sched.date)}" 
+               style="font-weight: 600; cursor: pointer; padding: 2px 4px; border-radius: 4px; transition: background 0.2s;" 
+               title="Click to edit date" onclick="editScheduleField(this)">${dateVal}</div>
+          <div class="sched-edit-field" data-round="${r.dbRound}" data-field="site" data-default="${r.sched.site}" 
+               style="font-size: 12px; opacity: 0.7; margin-top: 2px; cursor: pointer; padding: 2px 4px; border-radius: 4px; transition: background 0.2s;" 
+               title="Click to edit location" onclick="editScheduleField(this)">${siteVal}</div>
+        </div>`;
+      }).join('');
+    }
+    
+    function editScheduleField(el) {
+      if (el.querySelector('input')) return; // already editing
+      const currentVal = el.textContent.trim();
+      const field = el.dataset.field;
+      const placeholder = field === 'date_display' ? 'e.g. Wed, Feb 18' : 'e.g. Higher Seed';
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = currentVal;
+      input.placeholder = placeholder;
+      input.style.cssText = 'width: 100%; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.4); border-radius: 4px; color: white; text-align: center; padding: 3px 6px; font-size: inherit; font-weight: inherit; font-family: inherit;';
+      el.textContent = '';
+      el.appendChild(input);
+      input.focus();
+      input.select();
+      
+      const save = async () => {
+        const newVal = input.value.trim();
+        const defaultVal = el.dataset.default;
+        // If cleared or matches default, save empty string to remove override
+        const saveVal = (newVal === '' || newVal === defaultVal) ? '' : newVal;
+        el.textContent = saveVal || defaultVal;
+        
+        // Save to DB - gather both fields for this round to avoid overwriting the other
+        const gender = document.getElementById('playoffGender').value;
+        const division = document.getElementById('playoffDivision').value;
+        const roundKey = el.dataset.round;
+        const allFields = document.querySelectorAll(`.sched-edit-field[data-round="${roundKey}"]`);
+        const payload = { season: '2025-26', gender, division, round: roundKey };
+        allFields.forEach(f => {
+          const val = f.querySelector('input') ? f.querySelector('input').value.trim() : f.textContent.trim();
+          const def = f.dataset.default;
+          const finalVal = (val === '' || val === def) ? null : val;
+          payload[f.dataset.field] = finalVal;
+        });
+        try {
+          await fetch('/.netlify/functions/tournament-schedule', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          if (saveVal) {
+            showToast(`Updated ${roundKey} ${field === 'date_display' ? 'date' : 'location'}`, 'success');
+          }
+        } catch(e) {
+          console.error('Error saving schedule override:', e);
+          showToast('Error saving schedule change', 'error');
+        }
+      };
+      
+      input.addEventListener('blur', save);
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+        if (e.key === 'Escape') { el.textContent = currentVal; }
+      });
     }
     
     // Render seed preview table (pre-lock)
@@ -24013,7 +24084,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         });
         
         // Set article fields
-        const roundNames = { Prelims: 'Prelims', Quarters: 'Quarterfinals', Semis: 'Semifinals', Final: 'Championship' };
+        const roundNames = { Prelims: 'First Round', Quarters: 'Quarterfinals', Semis: 'Semifinals', Final: 'Championship' };
         playoffState.articleFields.title = `${gender} ${division} ${roundNames[round] || round} Preview`;
         
         // Show warnings
