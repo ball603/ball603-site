@@ -865,14 +865,14 @@
   <main class="playoffs-page">
     <!-- Header -->
     <div class="playoffs-header">
-      <h1 class="playoffs-title">🏀 NHIAA Playoffs</h1>
+      <h1 class="playoffs-title">&#x1F3C0; NHIAA Playoffs</h1>
       <p class="playoffs-subtitle">Brackets, scores, and tournament coverage</p>
     </div>
     
     <!-- Gender Toggle -->
     <div class="gender-toggle">
-      <button class="gender-btn active" id="boysBtn" onclick="selectGender('Boys')">🏀 Boys</button>
-      <button class="gender-btn" id="girlsBtn" onclick="selectGender('Girls')">🏀 Girls</button>
+      <button class="gender-btn active" id="boysBtn" onclick="selectGender('Boys')">&#x1F3C0; Boys</button>
+      <button class="gender-btn" id="girlsBtn" onclick="selectGender('Girls')">&#x1F3C0; Girls</button>
     </div>
     
     <!-- Division Tabs -->
@@ -898,15 +898,15 @@
     
     <!-- Not Locked Message -->
     <div class="not-locked-message" id="notLockedMessage">
-      <div class="icon">📋</div>
+      <div class="icon">&#x1F4CB;</div>
       <h2>Bracket Not Yet Set</h2>
       <p>Seeds haven't been locked for this tournament yet. Check back when the bracket is announced.</p>
     </div>
     
     <!-- Projected Banner -->
     <div class="projected-banner" id="projectedBanner">
-      <div class="banner-icon">📊</div>
-      <div class="banner-title">Projected Bracket — Not Official</div>
+      <div class="banner-icon">&#x1F4CA;</div>
+      <div class="banner-title">Projected Bracket &mdash; Not Official</div>
       <div class="banner-subtitle">Based on Seed Decoder analysis. Official bracket will be announced by NHIAA.</div>
     </div>
     
@@ -1142,6 +1142,9 @@
         
         document.getElementById('bracketContainer').classList.add('visible');
         
+        // Client-side advancement: propagate winners from completed games to next round
+        propagateWinners();
+        
         renderBracket();
         
         // Only show coverage section for locked brackets
@@ -1306,6 +1309,82 @@
       document.getElementById('tournamentBadge').textContent = `${numTeams} Teams`;
     }
     
+    // Client-side bracket advancement
+    // Scans completed games and fills in winners in the next round if slots are empty
+    function propagateWinners() {
+      const ADVANCEMENT_MAP = {
+        'Prelims_1': { nextRound: 'Quarters', nextPosition: 1, slot: 'home' },
+        'Prelims_2': { nextRound: 'Quarters', nextPosition: 1, slot: 'away' },
+        'Prelims_3': { nextRound: 'Quarters', nextPosition: 2, slot: 'home' },
+        'Prelims_4': { nextRound: 'Quarters', nextPosition: 2, slot: 'away' },
+        'Prelims_5': { nextRound: 'Quarters', nextPosition: 3, slot: 'home' },
+        'Prelims_6': { nextRound: 'Quarters', nextPosition: 3, slot: 'away' },
+        'Prelims_7': { nextRound: 'Quarters', nextPosition: 4, slot: 'home' },
+        'Prelims_8': { nextRound: 'Quarters', nextPosition: 4, slot: 'away' },
+        'Quarters_1': { nextRound: 'Semis', nextPosition: 1, slot: 'home' },
+        'Quarters_2': { nextRound: 'Semis', nextPosition: 1, slot: 'away' },
+        'Quarters_3': { nextRound: 'Semis', nextPosition: 2, slot: 'home' },
+        'Quarters_4': { nextRound: 'Semis', nextPosition: 2, slot: 'away' },
+        'Semis_1': { nextRound: 'Final', nextPosition: 1, slot: 'home' },
+        'Semis_2': { nextRound: 'Final', nextPosition: 1, slot: 'away' }
+      };
+
+      // Build lookup for quick access to games by round+position
+      const gameMap = {};
+      playoffGames.forEach(g => {
+        gameMap[`${g.round}_${g.bracket_position}`] = g;
+      });
+
+      // Also handle bye advancement: if a prelim has only home_team (no away_team), that team advances
+      for (const game of playoffGames) {
+        const key = `${game.round}_${game.bracket_position}`;
+        const adv = ADVANCEMENT_MAP[key];
+        if (!adv) continue;
+
+        let winnerTeam = null;
+        let winnerSeed = null;
+
+        const isFinal = game.game_status && game.game_status.includes('FINAL');
+        const hasScore = game.away_score != null && game.home_score != null;
+        const isBye = !game.away_team && game.home_team;
+
+        if (isFinal && hasScore) {
+          // Completed game - determine winner
+          if (parseInt(game.home_score) > parseInt(game.away_score)) {
+            winnerTeam = game.home_team;
+            winnerSeed = game.home_seed;
+          } else {
+            winnerTeam = game.away_team;
+            winnerSeed = game.away_seed;
+          }
+        } else if (isBye) {
+          // Bye - team advances automatically
+          winnerTeam = game.home_team;
+          winnerSeed = game.home_seed;
+        }
+
+        if (!winnerTeam) continue;
+
+        // Find the next game
+        const nextKey = `${adv.nextRound}_${adv.nextPosition}`;
+        const nextGame = gameMap[nextKey];
+        if (!nextGame) continue;
+
+        // Fill in the slot if it's empty
+        if (adv.slot === 'home') {
+          if (!nextGame.home_team) {
+            nextGame.home_team = winnerTeam;
+            nextGame.home_seed = winnerSeed;
+          }
+        } else {
+          if (!nextGame.away_team) {
+            nextGame.away_team = winnerTeam;
+            nextGame.away_seed = winnerSeed;
+          }
+        }
+      }
+    }
+
     function renderBracket() {
       const bracket = document.getElementById('bracket');
       
@@ -1414,7 +1493,7 @@
             const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
             const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
             const dateStr = `${days[d.getDay()]}, ${months[d.getMonth()]} ${d.getDate()}`;
-            statusText = gameTime ? `${dateStr} · ${gameTime}` : dateStr;
+            statusText = gameTime ? `${dateStr} &middot; ${gameTime}` : dateStr;
           } else {
             statusText = gameTime || 'TBD';
           }
@@ -1422,9 +1501,9 @@
         
         // Coverage links
         const coverageLinks = [];
-        if (game.photos_url) coverageLinks.push(`<a href="${game.photos_url}" target="_blank" title="Photos">📷</a>`);
-        if (game.recap_url) coverageLinks.push(`<a href="${game.recap_url}" target="_blank" title="Recap">📝</a>`);
-        if (game.highlights_url) coverageLinks.push(`<a href="${game.highlights_url}" target="_blank" title="Highlights">🎬</a>`);
+        if (game.photos_url) coverageLinks.push(`<a href="${game.photos_url}" target="_blank" title="Photos">&#x1F4F7;</a>`);
+        if (game.recap_url) coverageLinks.push(`<a href="${game.recap_url}" target="_blank" title="Recap">&#x1F4DD;</a>`);
+        if (game.highlights_url) coverageLinks.push(`<a href="${game.highlights_url}" target="_blank" title="Highlights">&#x1F3AC;</a>`);
         
         // Check for BYE (no away team but has home team)
         if (!game.away_team && game.home_team) {
@@ -1508,7 +1587,7 @@
             <div class="matchup-footer">
               <span class="matchup-status ${statusClass}">${statusText}</span>
               ${showPreview ? `<span class="preview-link" onclick="event.stopPropagation(); openMatchup('${game.game_id}')">PREVIEW</span>` : ''}
-              ${isUpset ? '<span class="upset-indicator" title="Upset">⚡</span>' : ''}
+              ${isUpset ? '<span class="upset-indicator" title="Upset">&#x26A1;</span>' : ''}
               <div class="matchup-coverage">${coverageLinks.join('')}</div>
             </div>
           </div>
@@ -1527,13 +1606,13 @@
         const label = `${game.away_team} vs ${game.home_team}`;
         
         if (game.photos_url) {
-          coverage.push({ type: 'Photos', icon: '📷', label, url: game.photos_url, round: game.round });
+          coverage.push({ type: 'Photos', icon: '&#x1F4F7;', label, url: game.photos_url, round: game.round });
         }
         if (game.recap_url) {
-          coverage.push({ type: 'Recap', icon: '📝', label, url: game.recap_url, round: game.round });
+          coverage.push({ type: 'Recap', icon: '&#x1F4DD;', label, url: game.recap_url, round: game.round });
         }
         if (game.highlights_url) {
-          coverage.push({ type: 'Highlights', icon: '🎬', label, url: game.highlights_url, round: game.round });
+          coverage.push({ type: 'Highlights', icon: '&#x1F3AC;', label, url: game.highlights_url, round: game.round });
         }
       });
       
@@ -1587,9 +1666,9 @@
         const otText = game.game_status.includes('OT') ? ` (${game.game_status.replace('FINAL-', '')})` : '';
         
         const coverageLinks = [];
-        if (game.photos_url) coverageLinks.push(`<a href="${game.photos_url}" target="_blank">📷 Photos</a>`);
-        if (game.recap_url) coverageLinks.push(`<a href="${game.recap_url}" target="_blank">📝 Recap</a>`);
-        if (game.highlights_url) coverageLinks.push(`<a href="${game.highlights_url}" target="_blank">🎬 Highlights</a>`);
+        if (game.photos_url) coverageLinks.push(`<a href="${game.photos_url}" target="_blank">&#x1F4F7; Photos</a>`);
+        if (game.recap_url) coverageLinks.push(`<a href="${game.recap_url}" target="_blank">&#x1F4DD; Recap</a>`);
+        if (game.highlights_url) coverageLinks.push(`<a href="${game.highlights_url}" target="_blank">&#x1F3AC; Highlights</a>`);
         
         resultSection = `
           <div class="modal-game-result">
