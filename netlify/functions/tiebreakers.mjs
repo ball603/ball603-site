@@ -161,7 +161,7 @@ function evaluateHeadToHead(teams, games) {
     });
     
     const teamValues = { [t1]: `${t1Wins}-${t2Wins}`, [t2]: `${t2Wins}-${t1Wins}` };
-    const detail = gameDetails.join(' • ');
+    const detail = gameDetails.join(' \u2022 ');
     
     if (t1Wins > t2Wins) {
       return { status: 'resolved', resolved: true, order: [t1, t2], detail, teamValues };
@@ -440,6 +440,62 @@ function evaluateTotalHomeAwayWins(teams, allGames, homeOrAway) {
   };
 }
 
+/**
+ * Criterion 8: Highest Seeded Win
+ * The team that defeated the highest NHIAA seeded team in their division
+ * (includes both tournament and non-tournament teams) will be selected.
+ * Seeding = position in standings sorted by rating.
+ */
+function evaluateHighestSeededWin(teams, divGames, divStandings) {
+  // Build seed map from standings (rank 1 = highest rated)
+  const seedMap = {};
+  divStandings.forEach((s, i) => {
+    seedMap[s.school] = i + 1;
+  });
+  
+  const teamValues = {};
+  const bestWins = [];
+  
+  teams.forEach(team => {
+    const teamGames = divGames.filter(g => g.home === team || g.away === team);
+    let bestSeed = 999;
+    let bestOpp = null;
+    
+    teamGames.forEach(g => {
+      const winner = g.homeScore > g.awayScore ? g.home : (g.awayScore > g.homeScore ? g.away : null);
+      if (winner === team) {
+        const opp = g.home === team ? g.away : g.home;
+        const oppSeed = seedMap[opp] || 999;
+        if (oppSeed < bestSeed) {
+          bestSeed = oppSeed;
+          bestOpp = opp;
+        }
+      }
+    });
+    
+    teamValues[team] = bestOpp ? `#${bestSeed} ${bestOpp}` : 'No wins';
+    bestWins.push({ team, bestSeed, bestOpp });
+  });
+  
+  bestWins.sort((a, b) => a.bestSeed - b.bestSeed);
+  
+  if (bestWins.length >= 2 && bestWins[0].bestSeed !== bestWins[1].bestSeed) {
+    return { 
+      status: 'resolved', 
+      resolved: true, 
+      order: bestWins.map(b => b.team), 
+      detail: `${bestWins[0].team} defeated higher-seeded #${bestWins[0].bestSeed} ${bestWins[0].bestOpp}`, 
+      teamValues 
+    };
+  }
+  
+  return { 
+    status: 'tied', 
+    detail: 'Highest seeded win inconclusive', 
+    teamValues 
+  };
+}
+
 // ============================================
 // MAIN TIEBREAKER RESOLUTION
 // ============================================
@@ -452,7 +508,7 @@ function evaluateTotalHomeAwayWins(teams, allGames, homeOrAway) {
  * - { partial: true, continueWithTeams: [...], resolvedBelow: [...] } - Rating separated groups
  * - { resolved: false } - Could not resolve
  */
-function resolveOneRound(teams, divGames, allGames, tournamentTeams, divTeams, teamRatings, steps) {
+function resolveOneRound(teams, divGames, allGames, tournamentTeams, divTeams, teamRatings, divStandings, steps) {
   // Criterion 0: Rating (NHIAA power rating)
   const ratingResult = evaluateRating(teams, teamRatings);
   steps.push({
@@ -543,12 +599,22 @@ function resolveOneRound(teams, divGames, allGames, tournamentTeams, divTeams, t
   if (homeWins.resolved) return { resolved: true, order: homeWins.order };
   if (homeWins.topTeam) return { topTeam: homeWins.topTeam };
   
-  // Criterion 8: Committee / unresolved
+  // Criterion 8: Highest seeded win in division
+  const highestWin = evaluateHighestSeededWin(teams, divGames, divStandings);
   steps.push({
     criterion: 8,
+    label: 'Defeated Highest Seeded Team',
+    ...highestWin
+  });
+  if (highestWin.resolved) return { resolved: true, order: highestWin.order };
+  if (highestWin.topTeam) return { topTeam: highestWin.topTeam };
+  
+  // Criterion 9: Committee / unresolved
+  steps.push({
+    criterion: 9,
     label: 'Committee Decision',
     status: 'unresolved',
-    detail: 'Could not resolve with available data — would go to NHIAA committee',
+    detail: 'Could not resolve with available data -- would go to NHIAA committee',
     teamValues: {}
   });
   
@@ -564,9 +630,10 @@ function resolveOneRound(teams, divGames, allGames, tournamentTeams, divTeams, t
  * @param {Set<string>} tournamentTeams - Set of teams qualifying for tournament
  * @param {Set<string>} divTeams - Set of all teams in the division
  * @param {Object} teamRatings - Map of team name to rating
+ * @param {Object[]} divStandings - Full division standings sorted by rating (for Criterion 8)
  * @returns {{ steps: Object[], order: string[] }} - Resolution steps and final order
  */
-export function walkTiebreakers(teams, divGames, allGames, tournamentTeams, divTeams, teamRatings) {
+export function walkTiebreakers(teams, divGames, allGames, tournamentTeams, divTeams, teamRatings, divStandings) {
   const steps = [];
   let remainingTeams = [...teams];
   const finalOrder = [];
@@ -580,6 +647,7 @@ export function walkTiebreakers(teams, divGames, allGames, tournamentTeams, divT
       tournamentTeams, 
       divTeams, 
       teamRatings, 
+      divStandings || [],
       steps
     );
     
@@ -596,7 +664,7 @@ export function walkTiebreakers(teams, divGames, allGames, tournamentTeams, divT
       finalOrder.push(result.topTeam);
       remainingTeams = remainingTeams.filter(t => t !== result.topTeam);
     } else {
-      // Couldn't resolve — push remaining in original order (by rating)
+      // Couldn't resolve -- push remaining in original order (by rating)
       remainingTeams.sort((a, b) => (teamRatings[b] || 0) - (teamRatings[a] || 0));
       remainingTeams.forEach(t => {
         if (!finalOrder.includes(t)) finalOrder.push(t);
@@ -622,7 +690,8 @@ export function walkTiebreakers(teams, divGames, allGames, tournamentTeams, divT
         allGames, 
         tournamentTeams, 
         divTeams, 
-        teamRatings
+        teamRatings,
+        divStandings
       );
       subResult.order.forEach(t => finalOrder.push(t));
       // Merge sub-steps with a note
@@ -642,8 +711,8 @@ export function walkTiebreakers(teams, divGames, allGames, tournamentTeams, divT
  * Simplified version for server-side use (returns order only, no steps).
  * Used by playoff-seeds.mjs for bracket generation.
  */
-export function resolveTiebreakerOrder(teams, divGames, allGames, tournamentTeams, divTeams, teamRatings) {
-  const result = walkTiebreakers(teams, divGames, allGames, tournamentTeams, divTeams, teamRatings);
+export function resolveTiebreakerOrder(teams, divGames, allGames, tournamentTeams, divTeams, teamRatings, divStandings) {
+  const result = walkTiebreakers(teams, divGames, allGames, tournamentTeams, divTeams, teamRatings, divStandings);
   return result.order;
 }
 

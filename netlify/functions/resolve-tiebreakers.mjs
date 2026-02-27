@@ -114,7 +114,8 @@ async function resolveTiebreakersForDivision(gender, division, season, sport = '
       allGames,           // All games for total home/away wins
       tournamentTeams,
       divTeams,
-      group.teamRatings   // Use the tie group's local ratings
+      group.teamRatings,  // Use the tie group's local ratings
+      standings            // Full division standings for Criterion 8
     );
     
     return {

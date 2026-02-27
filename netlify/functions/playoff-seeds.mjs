@@ -569,59 +569,84 @@ async function getStandingsPreview(gender, division, season) {
   // Determine tournament spots
   const tournamentSpots = standings[0].tournament_spots || 16;
   
-  // Normalize team names in standings (must match tiebreaker game normalization)
-  standings.forEach(s => {
-    s.school = normalizeTeamName(s.school);
-  });
-  
   // Get ALL completed games for this gender (for tiebreakers)
   const gamesData = await supabaseRequest(
-    `games?season=eq.${season}&gender=eq.${gender}&sport=eq.basketball&home_score=not.is.null&away_score=not.is.null`,
+    `games?season=eq.${season}&gender=eq.${gender}&sport=eq.basketball&is_playoff=eq.false&home_score=not.is.null&away_score=not.is.null`,
     { headers: { 'Range': '0-9999' } }
   );
   
-  // Use shared game processing (filters Bash, playoffs, normalizes names)
-  const allGames = processGamesForTiebreakers(gamesData, gender);
+  // Filter out Bash games and normalize
+  const allGames = gamesData.filter(g => {
+    const isBash = (g.specialevent || '').toLowerCase().includes('bash') ||
+                  (g.gamedescription || '').toLowerCase().includes('bash') ||
+                  (g.notes || '').toLowerCase().includes('bash');
+    return !isBash;
+  }).map(g => ({
+    home: normalizeTeamName(g.home_team),
+    away: normalizeTeamName(g.away_team),
+    homeScore: parseInt(g.home_score),
+    awayScore: parseInt(g.away_score),
+    division: g.division
+  }));
   
   // Division teams set (for criteria 4 & 5)
   const divTeams = new Set(standings.map(s => s.school));
   
   // Tournament teams set (includes all teams tied for last position per NHIAA rules)
+  const qualifyingStandings = standings.slice(0, tournamentSpots);
   const tournamentTeams = buildTournamentTeamsSet(standings, tournamentSpots);
   
-  // Find tie groups across ALL standings (not just top N) so ties that
-  // span the playoff cutoff boundary are detected and resolved correctly
-  const tieGroups = findTieGroups(standings, tournamentSpots);
+  // Build ratings map
+  const teamRatings = {};
+  standings.forEach(s => {
+    teamRatings[s.school] = s.rating;
+  });
   
-  // Apply tiebreaker logic to each group, reordering the full standings array
+  // Find tie groups (teams with same W-L record)
+  const tieGroups = [];
+  let i = 0;
+  while (i < qualifyingStandings.length) {
+    let j = i + 1;
+    while (j < qualifyingStandings.length && 
+           qualifyingStandings[j].wins === qualifyingStandings[i].wins && 
+           qualifyingStandings[j].losses === qualifyingStandings[i].losses) {
+      j++;
+    }
+    if (j - i > 1) {
+      // Tie group found
+      tieGroups.push({
+        startIdx: i,
+        teams: qualifyingStandings.slice(i, j).map(s => s.school)
+      });
+    }
+    i = j;
+  }
+  
+  // Apply tiebreaker logic to each group
   for (const group of tieGroups) {
-    const startIdx = group.startRank - 1;
-    
     const resolvedOrder = resolveTiebreakerOrder(
       group.teams,
-      allGames,
-      allGames,
+      allGames,  // all games for H2H etc
+      allGames,  // all games for total home/away wins
       tournamentTeams,
       divTeams,
-      group.teamRatings
+      teamRatings,
+      standings  // Full division standings for Criterion 8
     );
     
-    // Save references to tied entries BEFORE overwriting
+    // Reorder the qualifying standings at this position
     const originalEntries = {};
-    for (let idx = startIdx; idx < startIdx + group.teams.length && idx < standings.length; idx++) {
-      originalEntries[standings[idx].school] = standings[idx];
+    for (let idx = group.startIdx; idx < group.startIdx + group.teams.length; idx++) {
+      originalEntries[qualifyingStandings[idx].school] = qualifyingStandings[idx];
     }
     
     resolvedOrder.forEach((team, orderIdx) => {
       const entry = originalEntries[team];
-      if (entry && startIdx + orderIdx < standings.length) {
-        standings[startIdx + orderIdx] = entry;
+      if (entry) {
+        qualifyingStandings[group.startIdx + orderIdx] = entry;
       }
     });
   }
-  
-  // Slice to tournament spots AFTER tiebreaker resolution
-  const qualifyingStandings = standings.slice(0, tournamentSpots);
   
   // Build preview with seeds
   const preview = qualifyingStandings.map((team, index) => {
