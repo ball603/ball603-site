@@ -23201,8 +23201,11 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           
         } else {
           // Get preview standings for pre-lock view
-          const previewResponse = await fetch(`/.netlify/functions/playoff-seeds?gender=${gender}&division=${division}&season=${season}&preview=true`);
+          const previewResponse = await fetch(`/.netlify/functions/playoff-seeds?gender=${gender}&division=${division}&season=${season}&preview=true&allTeams=true`);
           const previewData = await previewResponse.json();
+          
+          // Store tournament spots for qualification cutoff
+          window.playoffTournamentSpots = previewData.tournamentSpots || 16;
           
           if (!previewData.preview || previewData.preview.length === 0) {
             document.getElementById('playoffsNoData').style.display = 'block';
@@ -23235,8 +23238,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('playoffTournamentTitle').textContent = `${gender} ${division} Tournament`;
       
       // Calculate byes based on bracket size
-      const bracketInfo = playoffSeeds.length > 0 
-        ? `${playoffSeeds.length} teams, ${16 - playoffSeeds.length} byes`
+      const tournamentSpots = window.playoffTournamentSpots || 16;
+      const qualifyingCount = Math.min(playoffSeeds.length, tournamentSpots);
+      const bracketInfo = qualifyingCount > 0 
+        ? `${qualifyingCount} teams, ${16 - qualifyingCount} byes`
         : '16-team bracket';
       document.getElementById('playoffBracketInfo').textContent = bracketInfo;
       
@@ -23342,24 +23347,40 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     // Render seed preview table (pre-lock)
     function renderSeedPreview(data) {
       const tbody = document.getElementById('playoffSeedsBody');
+      const tournamentSpots = window.playoffTournamentSpots || 16;
       
       if (!data.preview || data.preview.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" style="padding: 40px; text-align: center; color: #888;">No qualifying teams found</td></tr>';
         return;
       }
       
-      tbody.innerHTML = data.preview.map((team, idx) => `
-        <tr draggable="true" data-seed="${team.seed}" data-team="${team.team}">
-          <td style="padding: 10px; text-align: center; font-weight: 700; color: #f57c00;">#${idx + 1}</td>
-          <td style="padding: 10px; font-weight: 500;">${team.team}</td>
+      tbody.innerHTML = data.preview.map((team, idx) => {
+        const qualifies = idx < tournamentSpots;
+        const rowStyle = qualifies 
+          ? '' 
+          : 'opacity: 0.5; background: #fafafa;';
+        const seedStyle = qualifies
+          ? 'padding: 10px; text-align: center; font-weight: 700; color: #f57c00;'
+          : 'padding: 10px; text-align: center; font-weight: 700; color: #999;';
+        const teamStyle = qualifies
+          ? 'padding: 10px; font-weight: 500;'
+          : 'padding: 10px; font-weight: 500; color: #999;';
+        // Add a separator row before the first non-qualifying team
+        const separator = (idx === tournamentSpots) 
+          ? `<tr style="pointer-events: none;"><td colspan="6" style="padding: 4px 10px; background: #fff3e0; text-align: center; font-size: 12px; font-weight: 600; color: #e65100; border-top: 2px solid #f57c00;">&#9660; Below playoff cutline &#9660;</td></tr>` 
+          : '';
+        return `${separator}
+        <tr draggable="true" data-seed="${team.seed}" data-team="${team.team}" style="${rowStyle}">
+          <td style="${seedStyle}">#${idx + 1}</td>
+          <td style="${teamStyle}">${team.team}</td>
           <td style="padding: 10px; text-align: center;">${team.wins}-${team.losses}</td>
           <td style="padding: 10px; text-align: center;">${team.rating ? team.rating.toFixed(1) : '-'}</td>
           <td style="padding: 10px; text-align: center;">${team.rpiRank || '-'}</td>
           <td style="padding: 10px; text-align: center;">
-            ${team.qualifies ? '<span style="color: #2e7d32;">&#x2713;</span>' : '<span style="color: #c62828;">&#x2717;</span>'}
+            ${qualifies ? '<span style="color: #2e7d32;">&#x2713;</span>' : '<span style="color: #c62828;">&#x2717;</span>'}
           </td>
-        </tr>
-      `).join('');
+        </tr>`;
+      }).join('');
       
       // Set up drag and drop
       setupSeedDragDrop();
@@ -23368,7 +23389,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     // Setup drag and drop for seed reordering
     function setupSeedDragDrop() {
       const tbody = document.getElementById('playoffSeedsBody');
-      const rows = tbody.querySelectorAll('tr');
+      const rows = tbody.querySelectorAll('tr[draggable]');
       
       rows.forEach(row => {
         row.addEventListener('dragstart', handleDragStart);
@@ -23389,7 +23410,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     
     function handleDragEnd(e) {
       this.classList.remove('dragging');
-      document.querySelectorAll('#playoffSeedsBody tr').forEach(row => {
+      document.querySelectorAll('#playoffSeedsBody tr[draggable]').forEach(row => {
         row.classList.remove('drag-over');
       });
     }
@@ -23412,7 +23433,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       
       if (draggedRow !== this) {
         const tbody = document.getElementById('playoffSeedsBody');
-        const allRows = Array.from(tbody.querySelectorAll('tr'));
+        const allRows = Array.from(tbody.querySelectorAll('tr[draggable]'));
         const draggedIdx = allRows.indexOf(draggedRow);
         const targetIdx = allRows.indexOf(this);
         
@@ -23428,15 +23449,44 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     }
     
     function renumberSeeds() {
-      const rows = document.querySelectorAll('#playoffSeedsBody tr');
+      const tbody = document.getElementById('playoffSeedsBody');
+      const tournamentSpots = window.playoffTournamentSpots || 16;
+      
+      // Remove old separator rows
+      tbody.querySelectorAll('tr[style*="pointer-events: none"]').forEach(r => r.remove());
+      
+      const rows = tbody.querySelectorAll('tr[draggable]');
       rows.forEach((row, idx) => {
+        const qualifies = idx < tournamentSpots;
         const seedCell = row.querySelector('td:first-child');
+        const teamCell = row.querySelector('td:nth-child(2)');
+        const qualifiesCell = row.querySelector('td:last-child');
+        
         if (seedCell) {
           seedCell.textContent = `#${idx + 1}`;
+          seedCell.style.color = qualifies ? '#f57c00' : '#999';
+        }
+        if (teamCell) {
+          teamCell.style.color = qualifies ? '' : '#999';
+        }
+        if (qualifiesCell) {
+          qualifiesCell.innerHTML = qualifies 
+            ? '<span style="color: #2e7d32;">&#x2713;</span>' 
+            : '<span style="color: #c62828;">&#x2717;</span>';
+        }
+        row.style.opacity = qualifies ? '' : '0.5';
+        row.style.background = qualifies ? '' : '#fafafa';
+        
+        // Insert separator before first non-qualifying team
+        if (idx === tournamentSpots) {
+          const sep = document.createElement('tr');
+          sep.style.pointerEvents = 'none';
+          sep.innerHTML = '<td colspan="6" style="padding: 4px 10px; background: #fff3e0; text-align: center; font-size: 12px; font-weight: 600; color: #e65100; border-top: 2px solid #f57c00;">&#9660; Below playoff cutline &#9660;</td>';
+          row.parentNode.insertBefore(sep, row);
         }
       });
       
-      // Update playoffSeeds array
+      // Update playoffSeeds array (only qualifying teams matter for lock)
       playoffSeeds = Array.from(rows).map((row, idx) => ({
         seed: idx + 1,
         team: row.dataset.team
@@ -23449,8 +23499,9 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     
     // Confirm lock seeds
     function confirmLockSeeds() {
-      // Build preview HTML
-      const previewHtml = playoffSeeds.slice(0, 16).map(s => 
+      const tournamentSpots = window.playoffTournamentSpots || 16;
+      // Build preview HTML (only qualifying teams)
+      const previewHtml = playoffSeeds.slice(0, tournamentSpots).map(s => 
         `<div style="padding: 4px 0; border-bottom: 1px solid #eee;"><strong>#${s.seed}</strong> ${s.team}</div>`
       ).join('');
       
@@ -23473,11 +23524,12 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       
       try {
         // Build seeds array from current order (check both tables)
-        let rows = document.querySelectorAll('#playoffSeedsBody tr');
+        let rows = document.querySelectorAll('#playoffSeedsBody tr[draggable]');
         if (rows.length === 0 || !rows[0].dataset.team) {
           rows = document.querySelectorAll('#playoffProjectedSeedsBody tr');
         }
-        const seeds = Array.from(rows).slice(0, 16).map((row, idx) => ({
+        const tournamentSpots = window.playoffTournamentSpots || 16;
+        const seeds = Array.from(rows).slice(0, tournamentSpots).map((row, idx) => ({
           seed: idx + 1,
           team: row.dataset.team
         }));

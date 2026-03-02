@@ -542,7 +542,7 @@ async function getSeeds(gender, division, season) {
 }
 
 // Get current standings (for pre-lock preview)
-async function getStandingsPreview(gender, division, season) {
+async function getStandingsPreview(gender, division, season, allTeams = false) {
   // Get standings sorted by rating, with secondary sorts for deterministic ordering
   const standings = await supabaseRequest(
     `standings?season=eq.${season}&gender=eq.${gender}&division=eq.${division}&order=rating.desc,wins.desc,losses.asc,school.asc`,
@@ -669,8 +669,11 @@ async function getStandingsPreview(gender, division, season) {
   // Trim back to exactly tournamentSpots after boundary ties are resolved
   qualifyingStandings = qualifyingStandings.slice(0, tournamentSpots);
   
+  // Choose which teams to show: all teams or just qualifiers
+  const teamsToShow = allTeams ? standings : qualifyingStandings;
+  
   // Build preview with seeds
-  const preview = qualifyingStandings.map((team, index) => {
+  const preview = teamsToShow.map((team, index) => {
     const rpi = rpiMap.get(team.school) || {};
     return {
       seed: index + 1,
@@ -679,7 +682,7 @@ async function getStandingsPreview(gender, division, season) {
       losses: team.losses,
       rating: team.rating,
       rpiRank: rpi.rank || null,
-      qualifies: team.qualifies
+      qualifies: index < tournamentSpots
     };
   });
   
@@ -712,6 +715,7 @@ export default async (request) => {
       const division = url.searchParams.get('division');
       const season = url.searchParams.get('season') || '2025-26';
       const preview = url.searchParams.get('preview') === 'true';
+      const allTeams = url.searchParams.get('allTeams') === 'true';
       
       if (!gender || !division) {
         return new Response(JSON.stringify({ error: 'gender and division required' }), {
@@ -720,7 +724,7 @@ export default async (request) => {
       }
       
       if (preview) {
-        const result = await getStandingsPreview(gender, division, season);
+        const result = await getStandingsPreview(gender, division, season, allTeams);
         return new Response(JSON.stringify(result), { status: 200, headers });
       }
       
