@@ -543,9 +543,9 @@ async function getSeeds(gender, division, season) {
 
 // Get current standings (for pre-lock preview)
 async function getStandingsPreview(gender, division, season) {
-  // Get standings sorted by rating initially
+  // Get standings sorted by rating, with secondary sorts for deterministic ordering
   const standings = await supabaseRequest(
-    `standings?season=eq.${season}&gender=eq.${gender}&division=eq.${division}&order=rating.desc`,
+    `standings?season=eq.${season}&gender=eq.${gender}&division=eq.${division}&order=rating.desc,wins.desc,losses.asc,school.asc`,
     { headers: { 'Range': '0-99' } }
   );
   
@@ -593,8 +593,26 @@ async function getStandingsPreview(gender, division, season) {
   const divTeams = new Set(standings.map(s => s.school));
   
   // Tournament teams set (includes all teams tied for last position per NHIAA rules)
-  const qualifyingStandings = standings.slice(0, tournamentSpots);
   const tournamentTeams = buildTournamentTeamsSet(standings, tournamentSpots);
+  
+  // Build qualifying standings - must include ALL teams tied at the boundary
+  // Per NHIAA: ties at the cutoff are resolved first to determine who qualifies
+  let qualifyingStandings = standings.slice(0, tournamentSpots);
+  
+  // Check if there are teams just outside the cutoff tied with the last qualifier
+  if (standings.length > tournamentSpots) {
+    const lastQualifier = standings[tournamentSpots - 1];
+    let expandTo = tournamentSpots;
+    while (expandTo < standings.length &&
+           standings[expandTo].wins === lastQualifier.wins &&
+           standings[expandTo].losses === lastQualifier.losses) {
+      expandTo++;
+    }
+    if (expandTo > tournamentSpots) {
+      // Expand to include all tied teams at the boundary
+      qualifyingStandings = standings.slice(0, expandTo);
+    }
+  }
   
   // Build ratings map
   const teamRatings = {};
@@ -602,7 +620,7 @@ async function getStandingsPreview(gender, division, season) {
     teamRatings[s.school] = s.rating;
   });
   
-  // Find tie groups (teams with same W-L record)
+  // Find tie groups (teams with same W-L record) within expanded qualifying
   const tieGroups = [];
   let i = 0;
   while (i < qualifyingStandings.length) {
@@ -647,6 +665,9 @@ async function getStandingsPreview(gender, division, season) {
       }
     });
   }
+  
+  // Trim back to exactly tournamentSpots after boundary ties are resolved
+  qualifyingStandings = qualifyingStandings.slice(0, tournamentSpots);
   
   // Build preview with seeds
   const preview = qualifyingStandings.map((team, index) => {

@@ -63,7 +63,7 @@ async function supabaseRequest(endpoint, options = {}) {
 async function resolveTiebreakersForDivision(gender, division, season, sport = 'basketball') {
   // Get standings sorted by rating
   const standings = await supabaseRequest(
-    `standings?season=eq.${season}&gender=eq.${gender}&division=eq.${division}&order=rating.desc,wins.desc,losses.asc`,
+    `standings?season=eq.${season}&gender=eq.${gender}&division=eq.${division}&order=rating.desc,wins.desc,losses.asc,school.asc`,
     { headers: { 'Range': '0-99' } }
   );
   
