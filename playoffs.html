@@ -1210,7 +1210,9 @@
             time: 'BYE'
           });
           // Track for quarters advancement
-          byeTeams[quarterPos] = { team: seedMap.get(matchup.high), seed: matchup.high };
+          // Odd position (top of pair) → away slot; Even position (bottom of pair) → home slot
+          const isOddPosition = matchup.position % 2 === 1;
+          byeTeams[quarterPos] = { team: seedMap.get(matchup.high), seed: matchup.high, slot: isOddPosition ? 'away' : 'home' };
         } else {
           // Regular matchup
           games.push({
@@ -1227,17 +1229,18 @@
         }
       }
       
-      // Quarters (4 games) - populate bye team if applicable
+      // Quarters (4 games) - populate bye team in correct slot based on bracket position
       for (let pos = 1; pos <= 4; pos++) {
         const byeTeam = byeTeams[pos];
+        const isAwaySlot = byeTeam && byeTeam.slot === 'away';
         games.push({
           game_id: `projected_quarters_${pos}`,
           round: 'Quarters',
           bracket_position: pos,
-          home_team: byeTeam ? byeTeam.team : null,
-          home_seed: byeTeam ? byeTeam.seed : null,
-          away_team: null,
-          away_seed: null,
+          away_team: (byeTeam && isAwaySlot) ? byeTeam.team : null,
+          away_seed: (byeTeam && isAwaySlot) ? byeTeam.seed : null,
+          home_team: (byeTeam && !isAwaySlot) ? byeTeam.team : null,
+          home_seed: (byeTeam && !isAwaySlot) ? byeTeam.seed : null,
           date: schedule?.quarters?.date,
           time: formatDate(schedule?.quarters?.date),
           is_bye_advance: !!byeTeam  // Flag to show this isn't a prelim bye
@@ -1313,18 +1316,18 @@
     // Scans completed games and fills in winners in the next round if slots are empty
     function propagateWinners() {
       const ADVANCEMENT_MAP = {
-        'Prelims_1': { nextRound: 'Quarters', nextPosition: 1, slot: 'home' },
-        'Prelims_2': { nextRound: 'Quarters', nextPosition: 1, slot: 'away' },
-        'Prelims_3': { nextRound: 'Quarters', nextPosition: 2, slot: 'home' },
-        'Prelims_4': { nextRound: 'Quarters', nextPosition: 2, slot: 'away' },
-        'Prelims_5': { nextRound: 'Quarters', nextPosition: 3, slot: 'home' },
-        'Prelims_6': { nextRound: 'Quarters', nextPosition: 3, slot: 'away' },
-        'Prelims_7': { nextRound: 'Quarters', nextPosition: 4, slot: 'home' },
-        'Prelims_8': { nextRound: 'Quarters', nextPosition: 4, slot: 'away' },
-        'Quarters_1': { nextRound: 'Semis', nextPosition: 1, slot: 'home' },
-        'Quarters_2': { nextRound: 'Semis', nextPosition: 1, slot: 'away' },
-        'Quarters_3': { nextRound: 'Semis', nextPosition: 2, slot: 'home' },
-        'Quarters_4': { nextRound: 'Semis', nextPosition: 2, slot: 'away' },
+        'Prelims_1': { nextRound: 'Quarters', nextPosition: 1, slot: 'away' },
+        'Prelims_2': { nextRound: 'Quarters', nextPosition: 1, slot: 'home' },
+        'Prelims_3': { nextRound: 'Quarters', nextPosition: 2, slot: 'away' },
+        'Prelims_4': { nextRound: 'Quarters', nextPosition: 2, slot: 'home' },
+        'Prelims_5': { nextRound: 'Quarters', nextPosition: 3, slot: 'away' },
+        'Prelims_6': { nextRound: 'Quarters', nextPosition: 3, slot: 'home' },
+        'Prelims_7': { nextRound: 'Quarters', nextPosition: 4, slot: 'away' },
+        'Prelims_8': { nextRound: 'Quarters', nextPosition: 4, slot: 'home' },
+        'Quarters_1': { nextRound: 'Semis', nextPosition: 1, slot: 'away' },
+        'Quarters_2': { nextRound: 'Semis', nextPosition: 1, slot: 'home' },
+        'Quarters_3': { nextRound: 'Semis', nextPosition: 2, slot: 'away' },
+        'Quarters_4': { nextRound: 'Semis', nextPosition: 2, slot: 'home' },
         'Semis_1': { nextRound: 'Final', nextPosition: 1, slot: 'away' },
         'Semis_2': { nextRound: 'Final', nextPosition: 1, slot: 'home' }
       };
@@ -1556,13 +1559,13 @@
             return `
               <div class="matchup">
                 <div class="matchup-team">
-                  <span class="team-seed">-</span>
-                  <span class="team-name">TBD</span>
-                </div>
-                <div class="matchup-team">
                   <span class="team-seed">#${game.away_seed}</span>
                   <img src="/logos/100px/${getLogoFilename(game.away_team)}" class="team-logo" onerror="this.style.display='none'" alt="">
                   ${getTeamNameHtml(game.away_team)}
+                </div>
+                <div class="matchup-team">
+                  <span class="team-seed">-</span>
+                  <span class="team-name">TBD</span>
                 </div>
                 <div class="matchup-footer">
                   <span>${statusText}</span>

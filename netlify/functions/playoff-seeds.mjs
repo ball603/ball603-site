@@ -399,17 +399,22 @@ async function lockSeeds(gender, division, season, seeds) {
     let homeTeam = null, homeSeed = null;
     let awayTeam = null, awaySeed = null;
     
-    // If matchup 1 is a bye, the high seed goes directly to quarters as home
+    // Matchup 1 (odd position = top of pair) → away (top line in bracket display)
     if (isBye1) {
-      homeTeam = seedMap.get(matchup1.high);
-      homeSeed = matchup1.high;
+      awayTeam = seedMap.get(matchup1.high);
+      awaySeed = matchup1.high;
     }
     
-    // If matchup 2 is a bye, that high seed is the away team
+    // Matchup 2 (even position = bottom of pair) → home (bottom line in bracket display)
     if (isBye2) {
-      awayTeam = seedMap.get(matchup2.high);
-      awaySeed = matchup2.high;
+      homeTeam = seedMap.get(matchup2.high);
+      homeSeed = matchup2.high;
     }
+    
+    // For quarters at higher seed's home: determine location from the higher seed present
+    const locationTeam = (awayTeam && homeTeam) 
+      ? ((awaySeed < homeSeed) ? awayTeam : homeTeam) 
+      : (awayTeam || homeTeam);
     
     games.push({
       game_id: generateGameId(season, gender, division, 'quarters', pos),
@@ -424,7 +429,7 @@ async function lockSeeds(gender, division, season, seeds) {
       away_team: awayTeam,
       home_seed: homeSeed,
       away_seed: awaySeed,
-      location: homeTeam ? `${homeTeam} HS` : 'TBD',
+      location: locationTeam ? `${locationTeam} HS` : 'TBD',
       is_playoff: true,
       round: 'Quarters',
       bracket_position: pos

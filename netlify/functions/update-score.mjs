@@ -25,25 +25,26 @@ function getOvertimeDisplay(status) {
 
 // Bracket advancement mapping
 // Maps (round, position) -> (next_round, next_position, slot)
-// slot: 'home' or 'away' in the next game
+// Rendering: away = TOP line, home = BOTTOM line
+// Odd positions (top bracket half) → away (top), Even positions (bottom half) → home (bottom)
 const ADVANCEMENT_MAP = {
   // Prelims -> Quarters
-  'Prelims_1': { nextRound: 'Quarters', nextPosition: 1, slot: 'home' },
-  'Prelims_2': { nextRound: 'Quarters', nextPosition: 1, slot: 'away' },
-  'Prelims_3': { nextRound: 'Quarters', nextPosition: 2, slot: 'home' },
-  'Prelims_4': { nextRound: 'Quarters', nextPosition: 2, slot: 'away' },
-  'Prelims_5': { nextRound: 'Quarters', nextPosition: 3, slot: 'home' },
-  'Prelims_6': { nextRound: 'Quarters', nextPosition: 3, slot: 'away' },
-  'Prelims_7': { nextRound: 'Quarters', nextPosition: 4, slot: 'home' },
-  'Prelims_8': { nextRound: 'Quarters', nextPosition: 4, slot: 'away' },
+  'Prelims_1': { nextRound: 'Quarters', nextPosition: 1, slot: 'away' },
+  'Prelims_2': { nextRound: 'Quarters', nextPosition: 1, slot: 'home' },
+  'Prelims_3': { nextRound: 'Quarters', nextPosition: 2, slot: 'away' },
+  'Prelims_4': { nextRound: 'Quarters', nextPosition: 2, slot: 'home' },
+  'Prelims_5': { nextRound: 'Quarters', nextPosition: 3, slot: 'away' },
+  'Prelims_6': { nextRound: 'Quarters', nextPosition: 3, slot: 'home' },
+  'Prelims_7': { nextRound: 'Quarters', nextPosition: 4, slot: 'away' },
+  'Prelims_8': { nextRound: 'Quarters', nextPosition: 4, slot: 'home' },
   // Quarters -> Semis
-  'Quarters_1': { nextRound: 'Semis', nextPosition: 1, slot: 'home' },
-  'Quarters_2': { nextRound: 'Semis', nextPosition: 1, slot: 'away' },
-  'Quarters_3': { nextRound: 'Semis', nextPosition: 2, slot: 'home' },
-  'Quarters_4': { nextRound: 'Semis', nextPosition: 2, slot: 'away' },
+  'Quarters_1': { nextRound: 'Semis', nextPosition: 1, slot: 'away' },
+  'Quarters_2': { nextRound: 'Semis', nextPosition: 1, slot: 'home' },
+  'Quarters_3': { nextRound: 'Semis', nextPosition: 2, slot: 'away' },
+  'Quarters_4': { nextRound: 'Semis', nextPosition: 2, slot: 'home' },
   // Semis -> Final
-  'Semis_1': { nextRound: 'Final', nextPosition: 1, slot: 'home' },
-  'Semis_2': { nextRound: 'Final', nextPosition: 1, slot: 'away' }
+  'Semis_1': { nextRound: 'Final', nextPosition: 1, slot: 'away' },
+  'Semis_2': { nextRound: 'Final', nextPosition: 1, slot: 'home' }
 };
 
 // Generate game_id for a playoff game
@@ -118,18 +119,18 @@ async function advanceWinner(game, winnerTeam, winnerSeed) {
     const newAwayTeam = updateData.away_team || nextGame.away_team;
     
     if (newHomeSeed && newAwaySeed && newHomeTeam && newAwayTeam) {
-      // Both teams known - higher seed (lower number) should be "home"
-      if (newAwaySeed < newHomeSeed) {
-        // Swap - away seed is actually higher (lower number = better seed)
-        updateData.home_team = newAwayTeam;
-        updateData.home_seed = newAwaySeed;
+      // Both teams known - higher seed (lower number) should be "away" (top line)
+      if (newHomeSeed < newAwaySeed) {
+        // Swap - home seed is actually higher (lower number = better seed), move to away (top)
         updateData.away_team = newHomeTeam;
         updateData.away_seed = newHomeSeed;
+        updateData.home_team = newAwayTeam;
+        updateData.home_seed = newAwaySeed;
       }
     }
   } else {
-    // For quarters, update location to winner's gym
-    if (advancement.slot === 'home') {
+    // For quarters, update location to higher seed winner's gym
+    if (advancement.slot === 'away') {
       updateData.location = `${winnerTeam} HS`;
     }
   }
