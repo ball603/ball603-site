@@ -203,6 +203,32 @@ function evaluateHeadToHead(teams, games) {
     }
   }
   
+  // NHIAA Rule: H2H only applies "providing they have played each other the same number of times"
+  // Check that all pairs of tied teams have played each other the same number of times
+  // (The "beat all" exception above is exempt from this requirement)
+  const pairGameCounts = [];
+  for (let a = 0; a < teams.length; a++) {
+    for (let b = a + 1; b < teams.length; b++) {
+      const count = h2hGames.filter(g =>
+        (g.home === teams[a] && g.away === teams[b]) || (g.home === teams[b] && g.away === teams[a])
+      ).length;
+      pairGameCounts.push({ pair: `${teams[a]} vs ${teams[b]}`, count });
+    }
+  }
+  
+  const uniqueCounts = new Set(pairGameCounts.map(p => p.count));
+  if (uniqueCounts.size > 1 || (uniqueCounts.size === 1 && uniqueCounts.has(0))) {
+    // Teams haven't played each other the same number of times (or haven't played at all)
+    // Per NHIAA: skip H2H, proceed to next criterion
+    const teamValues = {};
+    teams.forEach(t => teamValues[t] = 'N/A');
+    return { 
+      status: 'skipped', 
+      detail: `H2H skipped: teams have not played each other the same number of times (${pairGameCounts.map(p => `${p.pair}: ${p.count}`).join(', ')})`, 
+      teamValues 
+    };
+  }
+  
   // Calculate H2H win pct for each team among tied teams
   const teamValues = {};
   teams.forEach(team => {
@@ -739,19 +765,19 @@ export function buildTournamentTeamsSet(standings, playoffSpots) {
     return tournamentTeams;
   }
   
-  // Get the record of the last qualifying team (at the cutoff line)
+  // Get the RATING of the last qualifying team (at the cutoff line)
+  // Per NHIAA: ties are determined by Rating, not W-L record
   const lastQualifier = standings[playoffSpots - 1];
-  const cutoffWins = lastQualifier.wins;
-  const cutoffLosses = lastQualifier.losses;
+  const cutoffRating = lastQualifier.rating;
   
   // Include all teams that:
   // 1. Are above the cutoff line, OR
-  // 2. Have the same record as the last qualifier (tied for last position)
+  // 2. Have the same rating as the last qualifier (tied for last position per NHIAA)
   standings.forEach((team, index) => {
     const isAboveCutoff = index < playoffSpots;
-    const hasSameRecord = team.wins === cutoffWins && team.losses === cutoffLosses;
+    const hasSameRating = Math.abs(team.rating - cutoffRating) < RATING_TOLERANCE;
     
-    if (isAboveCutoff || hasSameRecord) {
+    if (isAboveCutoff || hasSameRating) {
       tournamentTeams.add(team.school);
     }
   });
@@ -772,10 +798,10 @@ export function findTieGroups(standings, playoffSpots) {
   
   while (i < standings.length) {
     let j = i + 1;
-    // Same record = same wins AND same losses
+    // Per NHIAA: A tie occurs when teams have the same Rating (not necessarily the same W-L)
+    // Rating = total points / total games using the NHIAA Index System
     while (j < standings.length && 
-           standings[j].wins === standings[i].wins && 
-           standings[j].losses === standings[i].losses) {
+           Math.abs(standings[j].rating - standings[i].rating) < RATING_TOLERANCE) {
       j++;
     }
     
@@ -790,6 +816,7 @@ export function findTieGroups(standings, playoffSpots) {
         startRank: i + 1,
         teams: standings.slice(i, j).map(s => s.school),
         record: { wins: standings[i].wins, losses: standings[i].losses },
+        rating: standings[i].rating,
         teamRatings: teamRatings,
         affectsPlayoff: (i + 1) <= playoffSpots + 1 && j > playoffSpots
       });

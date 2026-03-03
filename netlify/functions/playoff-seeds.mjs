@@ -23,6 +23,7 @@ import {
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
+const RATING_TOLERANCE = 0.0005; // Must match tiebreakers.mjs
 
 // Tournament schedule data (from NHIAA Winter 2025-26)
 const TOURNAMENT_SCHEDULE = {
@@ -600,16 +601,16 @@ async function getStandingsPreview(gender, division, season, allTeams = false) {
   let qualifyingStandings = standings.slice(0, tournamentSpots);
   
   // Check if there are teams just outside the cutoff tied with the last qualifier
+  // Per NHIAA: a "tie" is determined by Rating, not W-L record
   if (standings.length > tournamentSpots) {
     const lastQualifier = standings[tournamentSpots - 1];
     let expandTo = tournamentSpots;
     while (expandTo < standings.length &&
-           standings[expandTo].wins === lastQualifier.wins &&
-           standings[expandTo].losses === lastQualifier.losses) {
+           Math.abs(standings[expandTo].rating - lastQualifier.rating) < RATING_TOLERANCE) {
       expandTo++;
     }
     if (expandTo > tournamentSpots) {
-      // Expand to include all tied teams at the boundary
+      // Expand to include all teams tied by rating at the boundary
       qualifyingStandings = standings.slice(0, expandTo);
     }
   }
@@ -620,14 +621,14 @@ async function getStandingsPreview(gender, division, season, allTeams = false) {
     teamRatings[s.school] = s.rating;
   });
   
-  // Find tie groups (teams with same W-L record) within expanded qualifying
+  // Find tie groups (teams with same Rating) within expanded qualifying
+  // Per NHIAA: a "tie for any position" = same Rating, not necessarily same W-L
   const tieGroups = [];
   let i = 0;
   while (i < qualifyingStandings.length) {
     let j = i + 1;
     while (j < qualifyingStandings.length && 
-           qualifyingStandings[j].wins === qualifyingStandings[i].wins && 
-           qualifyingStandings[j].losses === qualifyingStandings[i].losses) {
+           Math.abs(qualifyingStandings[j].rating - qualifyingStandings[i].rating) < RATING_TOLERANCE) {
       j++;
     }
     if (j - i > 1) {

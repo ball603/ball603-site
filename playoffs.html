@@ -1370,14 +1370,14 @@
         const nextGame = gameMap[nextKey];
         if (!nextGame) continue;
 
-        // Fill in the slot if it's empty
+        // Fill in the slot if it's empty AND the team isn't already in the other slot
         if (adv.slot === 'home') {
-          if (!nextGame.home_team) {
+          if (!nextGame.home_team && nextGame.away_team !== winnerTeam) {
             nextGame.home_team = winnerTeam;
             nextGame.home_seed = winnerSeed;
           }
         } else {
-          if (!nextGame.away_team) {
+          if (!nextGame.away_team && nextGame.home_team !== winnerTeam) {
             nextGame.away_team = winnerTeam;
             nextGame.away_seed = winnerSeed;
           }
@@ -1550,7 +1550,29 @@
           `;
         }
         
-        // Check for TBD matchup
+        // Check for partial matchup: away team set but no home team (e.g., semi winner advanced but other semi not yet played)
+        if (game.away_team && !game.home_team) {
+          if (game.round !== 'Prelims') {
+            return `
+              <div class="matchup">
+                <div class="matchup-team">
+                  <span class="team-seed">-</span>
+                  <span class="team-name">TBD</span>
+                </div>
+                <div class="matchup-team">
+                  <span class="team-seed">#${game.away_seed}</span>
+                  <img src="/logos/100px/${getLogoFilename(game.away_team)}" class="team-logo" onerror="this.style.display='none'" alt="">
+                  ${getTeamNameHtml(game.away_team)}
+                </div>
+                <div class="matchup-footer">
+                  <span>${statusText}</span>
+                </div>
+              </div>
+            `;
+          }
+        }
+        
+        // Check for TBD matchup (neither team set)
         if (!game.away_team && !game.home_team) {
           return `
             <div class="matchup">
