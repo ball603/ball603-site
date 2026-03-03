@@ -110,29 +110,9 @@ async function advanceWinner(game, winnerTeam, winnerSeed) {
     updateData.away_seed = winnerSeed;
   }
   
-  // For semis and finals at neutral sites, check if we need to swap based on seed
-  if (advancement.nextRound === 'Semis' || advancement.nextRound === 'Final') {
-    // After updating, check if both teams are set
-    const newHomeSeed = updateData.home_seed || nextGame.home_seed;
-    const newAwaySeed = updateData.away_seed || nextGame.away_seed;
-    const newHomeTeam = updateData.home_team || nextGame.home_team;
-    const newAwayTeam = updateData.away_team || nextGame.away_team;
-    
-    if (newHomeSeed && newAwaySeed && newHomeTeam && newAwayTeam) {
-      // Both teams known - higher seed (lower number) should be "away" (top line)
-      if (newHomeSeed < newAwaySeed) {
-        // Swap - home seed is actually higher (lower number = better seed), move to away (top)
-        updateData.away_team = newHomeTeam;
-        updateData.away_seed = newHomeSeed;
-        updateData.home_team = newAwayTeam;
-        updateData.home_seed = newAwaySeed;
-      }
-    }
-  } else {
-    // For quarters, update location to higher seed winner's gym
-    if (advancement.slot === 'away') {
-      updateData.location = `${winnerTeam} HS`;
-    }
+  // For quarters, update location to higher seed winner's gym
+  if (advancement.nextRound === 'Quarters' && advancement.slot === 'away') {
+    updateData.location = `${winnerTeam} HS`;
   }
   
   // Update the next game
