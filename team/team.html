@@ -90,17 +90,31 @@
     }
     .history-timeline .timeline-item {
       display: grid !important;
-      grid-template-columns: 60px 60px 120px 70px 1fr !important;
+      grid-template-columns: 60px 60px 120px 70px 1fr auto !important;
       align-items: center !important;
       gap: 8px !important;
       padding: 12px 16px !important;
     }
-    /* For single-gender sports (no gender column) - 4 columns */
+    /* For single-gender sports (no gender column) - 5 columns */
     .history-timeline .timeline-item.no-gender {
-      grid-template-columns: 60px 120px 70px 1fr !important;
+      grid-template-columns: 60px 120px 70px 1fr auto !important;
     }
     .history-timeline .timeline-item > span {
       white-space: nowrap !important;
+    }
+    
+    .timeline-recap-link {
+      font-size: 11px;
+      color: #888;
+      text-decoration: none;
+      white-space: nowrap;
+      opacity: 0.8;
+      transition: opacity 0.2s, color 0.2s;
+    }
+    
+    .timeline-recap-link:hover {
+      opacity: 1;
+      color: #f57c00;
     }
     
     /* History + NCAA side-by-side grid for baseball */
@@ -2004,6 +2018,108 @@
           teamData.championships = { boys: [], girls: [], totalTitles: 0, totalRunnerUp: 0 };
         }
       }
+      
+      // Merge live Finals from current season games table
+      try {
+        const currentSeason = '2025-26';
+        const currentYear = 2026;
+        
+        const { data: finals, error } = await db
+          .from('games')
+          .select('*')
+          .eq('is_playoff', true)
+          .eq('round', 'Final')
+          .eq('season', currentSeason)
+          .or(`home.ilike.${schoolName},away.ilike.${schoolName},home_team.ilike.${schoolName},away_team.ilike.${schoolName}`);
+        
+        if (!error && finals && finals.length > 0) {
+          finals.forEach(g => {
+            const homeScore = parseInt(g.home_score);
+            const awayScore = parseInt(g.away_score);
+            if (isNaN(homeScore) || isNaN(awayScore)) return;
+            
+            const homeTeam = g.home_team || g.home;
+            const awayTeam = g.away_team || g.away;
+            const division = g.division || g.level;
+            const gender = g.gender || '';
+            
+            // Check if already in championship_history
+            const exists = [...(teamData.championships.boys || []), ...(teamData.championships.girls || [])]
+              .some(c => c.year === currentYear && (c.division === division) && (c.gender || '').toLowerCase() === gender.toLowerCase());
+            if (exists) return;
+            
+            const homeWon = homeScore > awayScore;
+            const champion = homeWon ? homeTeam : awayTeam;
+            const runnerUp = homeWon ? awayTeam : homeTeam;
+            const isChampion = champion.toLowerCase() === schoolName;
+            
+            const entry = {
+              year: currentYear,
+              gender: gender,
+              division: division,
+              champion: champion,
+              runner_up: runnerUp,
+              champion_score: homeWon ? homeScore : awayScore,
+              runner_up_score: homeWon ? awayScore : homeScore,
+              sport: 'basketball',
+              recap_url: g.recap_url || null,
+              result: isChampion ? 'champion' : 'runner_up',
+              live: true
+            };
+            
+            if (gender === 'Boys') {
+              teamData.championships.boys.push(entry);
+            } else {
+              teamData.championships.girls.push(entry);
+            }
+            
+            if (isChampion) {
+              teamData.championships.totalTitles++;
+            } else {
+              teamData.championships.totalRunnerUp++;
+            }
+          });
+        }
+      } catch (err) {
+        console.error('Error merging live championships:', err);
+      }
+      
+      // Enrich historical entries with recap URLs from games table
+      try {
+        const allEntries = [...(teamData.championships.boys || []), ...(teamData.championships.girls || [])];
+        const needsRecap = allEntries.filter(e => !e.recap_url);
+        
+        if (needsRecap.length > 0) {
+          const { data: recapGames, error } = await db
+            .from('games')
+            .select('home, away, home_team, away_team, home_score, away_score, gender, division, level, season, recap_url')
+            .eq('is_playoff', true)
+            .eq('round', 'Final')
+            .not('recap_url', 'is', null)
+            .or(`home.ilike.${schoolName},away.ilike.${schoolName},home_team.ilike.${schoolName},away_team.ilike.${schoolName}`);
+          
+          if (!error && recapGames) {
+            const recapLookup = {};
+            recapGames.forEach(g => {
+              if (!g.recap_url) return;
+              const seasonMatch = (g.season || '').match(/(\d{2})$/);
+              if (!seasonMatch) return;
+              const year = 2000 + parseInt(seasonMatch[1]);
+              const genderVal = (g.gender || '').toLowerCase();
+              const division = g.division || g.level;
+              recapLookup[`${year}-${genderVal}-${division}`] = g.recap_url;
+            });
+            
+            allEntries.forEach(e => {
+              if (e.recap_url) return;
+              const key = `${e.year}-${(e.gender || '').toLowerCase()}-${e.division}`;
+              if (recapLookup[key]) e.recap_url = recapLookup[key];
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Error enriching championship recaps:', err);
+      }
     }
 
     // ===== RENDER ALL =====
@@ -2093,7 +2209,7 @@
           const scoreText = isChamp ? formatScore(g.champion_score, g.runner_up_score, g.overtime) : formatScore(g.runner_up_score, g.champion_score, g.overtime);
           const genderHtml = isSingleGender ? '' : `<span class="timeline-gender">${g.gender || ''}</span>`;
           const noGenderClass = isSingleGender ? ' no-gender' : '';
-          return `<div class="timeline-item ${isChamp ? 'champion' : 'runner-up'}${noGenderClass}"><span class="timeline-year">${g.year}</span>${genderHtml}<span class="timeline-result">${isChamp ? '&#127942; Champion' : '&#129352; Runner-Up'}</span><span class="timeline-score">${scoreText}</span><span class="timeline-opponent">vs ${opp}</span></div>`;
+          return `<div class="timeline-item ${isChamp ? 'champion' : 'runner-up'}${noGenderClass}"><span class="timeline-year">${g.year}</span>${genderHtml}<span class="timeline-result">${isChamp ? '&#127942; Champion' : '&#129352; Runner-Up'}</span><span class="timeline-score">${scoreText}</span><span class="timeline-opponent">vs ${opp}</span>${g.recap_url ? `<a href="${g.recap_url}" class="timeline-recap-link">📰 Recap</a>` : ''}</div>`;
         }).join('')}</div></div>`;
       
       // For baseball, create side-by-side layout with NCAA box
