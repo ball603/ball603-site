@@ -2029,11 +2029,17 @@
           .select('*')
           .eq('is_playoff', true)
           .eq('round', 'Final')
-          .eq('season', currentSeason)
-          .or(`home.ilike.${schoolName},away.ilike.${schoolName}`);
+          .eq('season', currentSeason);
         
         if (!error && finals && finals.length > 0) {
-          finals.forEach(g => {
+          // Filter client-side for this team
+          const teamFinals = finals.filter(g => {
+            const h = (g.home || '').toLowerCase();
+            const a = (g.away || '').toLowerCase();
+            return h === schoolName || a === schoolName;
+          });
+          
+          teamFinals.forEach(g => {
             const homeScore = parseInt(g.home_score);
             const awayScore = parseInt(g.away_score);
             if (isNaN(homeScore) || isNaN(awayScore)) return;
@@ -2095,12 +2101,18 @@
             .select('home, away, home_score, away_score, gender, division, level, season, recap_url')
             .eq('is_playoff', true)
             .eq('round', 'Final')
-            .not('recap_url', 'is', null)
-            .or(`home.ilike.${schoolName},away.ilike.${schoolName}`);
+            .not('recap_url', 'is', null);
           
           if (!error && recapGames) {
+            // Filter client-side for this team
+            const teamRecaps = recapGames.filter(g => {
+              const h = (g.home || '').toLowerCase();
+              const a = (g.away || '').toLowerCase();
+              return h === schoolName || a === schoolName;
+            });
+            
             const recapLookup = {};
-            recapGames.forEach(g => {
+            teamRecaps.forEach(g => {
               if (!g.recap_url) return;
               const seasonMatch = (g.season || '').match(/(\d{2})$/);
               if (!seasonMatch) return;
