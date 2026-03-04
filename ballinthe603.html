@@ -152,6 +152,7 @@
         .b603-team-logo { width: 22px; height: 22px; border-radius: 3px; object-fit: contain; background: var(--logo-bg); flex-shrink: 0; }
         .b603-team-name { font-weight: 600; font-size: 0.95rem; color: var(--text-primary); text-align: left !important; white-space: nowrap; overflow: visible; flex: 0 0 auto !important; }
         .b603-home-badge { font-size: 0.5rem; font-weight: 700; color: var(--primary); text-transform: uppercase; background: rgba(245, 131, 31, 0.12); padding: 0.05rem 0.18rem; border-radius: 2px; flex-shrink: 0; margin-left: auto; }
+        .b603-neutral-badge { font-size: 0.5rem; font-weight: 700; color: #888; text-transform: uppercase; background: rgba(136, 136, 136, 0.12); padding: 0.05rem 0.18rem; border-radius: 2px; flex-shrink: 0; margin-left: auto; }
 
         .leaflet-popup-content-wrapper { background: var(--bg-card); color: var(--text-primary); border-radius: 6px; box-shadow: 0 4px 20px var(--shadow); border: 1px solid var(--border); }
         .leaflet-popup-tip { background: var(--bg-card); }
@@ -310,6 +311,36 @@
 
         // School coordinates loaded from API
         let schoolCoords = {};
+        
+        // Neutral venue coordinates for playoff Semis/Finals
+        const NEUTRAL_VENUES = {
+          'rochester-rec': { name: 'Rochester Rec Center', town: 'Rochester, NH', lat: 43.3009, lng: -70.9764 },
+          'unh': { name: 'UNH Lundholm Gym', town: 'Durham, NH', lat: 43.1339, lng: -70.9264 },
+          'bedford-hs': { name: 'Bedford High School', town: 'Bedford, NH', lat: 42.9469, lng: -71.5159 },
+          'keene-state': { name: 'Keene State College', town: 'Keene, NH', lat: 42.9345, lng: -72.2815 },
+          'colby-sawyer': { name: 'Colby-Sawyer College', town: 'New London, NH', lat: 43.4135, lng: -71.9858 },
+          'bow-hs': { name: 'Bow High School', town: 'Bow, NH', lat: 43.1321, lng: -71.5197 },
+          'white-mountains': { name: 'White Mountains Reg. HS', town: 'Whitefield, NH', lat: 44.3725, lng: -71.6097 }
+        };
+        
+        // Map gender + division + round → venue key
+        const PLAYOFF_VENUES = {
+          'boys-D-I-Semis': 'rochester-rec', 'boys-D-I-Final': 'unh',
+          'boys-D-II-Semis': 'rochester-rec', 'boys-D-II-Final': 'unh',
+          'boys-D-III-Semis': 'bedford-hs', 'boys-D-III-Final': 'keene-state',
+          'boys-D-IV-Final': 'colby-sawyer',
+          'girls-D-I-Final': 'unh',
+          'girls-D-II-Final': 'unh',
+          'girls-D-III-Semis': 'bow-hs', 'girls-D-III-Final': 'keene-state',
+          'girls-D-IV-Semis': 'white-mountains', 'girls-D-IV-Final': 'colby-sawyer'
+        };
+        
+        function getNeutralVenue(game) {
+          if (!game.is_playoff || (game.round !== 'Semis' && game.round !== 'Final')) return null;
+          const key = `${(game.gender || '').toLowerCase()}-${game.division || game.level}-${game.round}`;
+          const venueKey = PLAYOFF_VENUES[key];
+          return venueKey ? NEUTRAL_VENUES[venueKey] : null;
+        }
 
         // Normalize team names from database
         function normalizeTeamName(name) {
@@ -480,18 +511,26 @@
                     if (currentFilter === 'girls' && gender !== 'girls') return false;
                 }
                 if (currentRegion !== 'all') {
-                    const homeKey = getSchoolKey(game.home);
-                    if (!homeKey || !schoolCoords[homeKey] || schoolCoords[homeKey].region !== currentRegion) return false;
+                    // Neutral site games (Semis/Finals) always show regardless of region filter
+                    if (!getNeutralVenue(game)) {
+                        const homeKey = getSchoolKey(game.home);
+                        if (!homeKey || !schoolCoords[homeKey] || schoolCoords[homeKey].region !== currentRegion) return false;
+                    }
                 }
                 return true;
             });
             
             if (userLocation) {
                 filteredGames.forEach(game => {
-                    const homeKey = getSchoolKey(game.home);
-                    if (homeKey && schoolCoords[homeKey]) {
-                        const school = schoolCoords[homeKey];
-                        game.distance = getDistance(userLocation.lat, userLocation.lng, school.lat, school.lng);
+                    const venue = getNeutralVenue(game);
+                    if (venue) {
+                        game.distance = getDistance(userLocation.lat, userLocation.lng, venue.lat, venue.lng);
+                    } else {
+                        const homeKey = getSchoolKey(game.home);
+                        if (homeKey && schoolCoords[homeKey]) {
+                            const school = schoolCoords[homeKey];
+                            game.distance = getDistance(userLocation.lat, userLocation.lng, school.lat, school.lng);
+                        }
                     }
                 });
             }
@@ -501,10 +540,21 @@
             const gamesByLocation = {};
             filteredGames.forEach((game, idx) => {
                 game.id = idx;
-                const homeKey = getSchoolKey(game.home);
-                if (homeKey && schoolCoords[homeKey]) {
-                    if (!gamesByLocation[homeKey]) gamesByLocation[homeKey] = [];
-                    gamesByLocation[homeKey].push(game);
+                const venue = getNeutralVenue(game);
+                if (venue) {
+                    // Neutral site game - group by venue
+                    const venueKey = `venue_${venue.name.replace(/\s/g, '_')}`;
+                    if (!schoolCoords[venueKey]) {
+                        schoolCoords[venueKey] = { name: venue.name, town: venue.town, lat: venue.lat, lng: venue.lng, region: 'all' };
+                    }
+                    if (!gamesByLocation[venueKey]) gamesByLocation[venueKey] = [];
+                    gamesByLocation[venueKey].push(game);
+                } else {
+                    const homeKey = getSchoolKey(game.home);
+                    if (homeKey && schoolCoords[homeKey]) {
+                        if (!gamesByLocation[homeKey]) gamesByLocation[homeKey] = [];
+                        gamesByLocation[homeKey].push(game);
+                    }
                 }
             });
             
@@ -533,7 +583,9 @@
             games.forEach(game => {
                 const genderLabel = (game.gender || 'TBD').charAt(0).toUpperCase() + (game.gender || '').slice(1);
                 const sportEmoji = getSportEmoji(game.sport);
-                popupContent += `<div class="popup-game"><div class="popup-game-time">${formatTime(game.time)} • ${genderLabel} ${sportEmoji}</div><div class="popup-teams">${game.away}<span class="popup-vs">@</span>${game.home}</div></div>`;
+                const isNeutral = getNeutralVenue(game);
+                const vsSymbol = isNeutral ? 'vs.' : '@';
+                popupContent += `<div class="popup-game"><div class="popup-game-time">${formatTime(game.time)} • ${genderLabel} ${sportEmoji}</div><div class="popup-teams">${game.away}<span class="popup-vs">${vsSymbol}</span>${game.home}</div></div>`;
             });
             popupContent += '</div>';
             
@@ -551,14 +603,18 @@
             }
             
             container.innerHTML = games.map(game => {
+                const venue = getNeutralVenue(game);
                 const homeKey = getSchoolKey(game.home);
                 const school = homeKey ? schoolCoords[homeKey] : null;
-                const town = school ? school.town : '';
+                const locationKey = venue ? `venue_${venue.name.replace(/\s/g, '_')}` : homeKey;
+                const town = venue ? venue.town : (school ? school.town : '');
                 const distHtml = game.distance !== undefined ? `<span class="distance-badge">${game.distance.toFixed(1)} mi</span>` : '';
                 const genderClass = (game.gender || '').toLowerCase() === 'girls' ? 'girls' : '';
                 const genderLabel = (game.gender || 'TBD').toLowerCase();
                 
-                return `<div class="game-card ${activeGameId === game.id ? 'active' : ''}" data-game-id="${game.id}" data-school="${homeKey || ''}">
+                const homeBadge = venue ? '<span class="b603-neutral-badge">VS</span>' : '<span class="b603-home-badge">HOME</span>';
+                
+                return `<div class="game-card ${activeGameId === game.id ? 'active' : ''}" data-game-id="${game.id}" data-school="${locationKey || ''}">
                     <div class="game-meta-row">
                         <span class="game-type-badge ${genderClass}">${genderLabel}</span>
                         <span class="sport-emoji">${getSportEmoji(game.sport)}</span>
@@ -572,7 +628,7 @@
                     <div class="b603-team-row">
                         <img class="b603-team-logo" src="/logos/100px/${getLogoFilename(game.home)}" alt="" onerror="this.src='/logos/100px/Ball603-white.png'">
                         <span class="b603-team-name">${game.home}</span>
-                        <span class="b603-home-badge">HOME</span>
+                        ${homeBadge}
                     </div>
                 </div>`;
             }).join('');
