@@ -2030,7 +2030,7 @@
           .eq('is_playoff', true)
           .eq('round', 'Final')
           .eq('season', currentSeason)
-          .or(`home.ilike.${schoolName},away.ilike.${schoolName},home_team.ilike.${schoolName},away_team.ilike.${schoolName}`);
+          .or(`home.ilike.${schoolName},away.ilike.${schoolName}`);
         
         if (!error && finals && finals.length > 0) {
           finals.forEach(g => {
@@ -2038,8 +2038,8 @@
             const awayScore = parseInt(g.away_score);
             if (isNaN(homeScore) || isNaN(awayScore)) return;
             
-            const homeTeam = g.home_team || g.home;
-            const awayTeam = g.away_team || g.away;
+            const homeTeam = g.home;
+            const awayTeam = g.away;
             const division = g.division || g.level;
             const gender = g.gender || '';
             
@@ -2092,11 +2092,11 @@
         if (needsRecap.length > 0) {
           const { data: recapGames, error } = await db
             .from('games')
-            .select('home, away, home_team, away_team, home_score, away_score, gender, division, level, season, recap_url')
+            .select('home, away, home_score, away_score, gender, division, level, season, recap_url')
             .eq('is_playoff', true)
             .eq('round', 'Final')
             .not('recap_url', 'is', null)
-            .or(`home.ilike.${schoolName},away.ilike.${schoolName},home_team.ilike.${schoolName},away_team.ilike.${schoolName}`);
+            .or(`home.ilike.${schoolName},away.ilike.${schoolName}`);
           
           if (!error && recapGames) {
             const recapLookup = {};
