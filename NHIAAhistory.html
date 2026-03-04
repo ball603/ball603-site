@@ -617,6 +617,7 @@
           <div class="bracket-filter">
             <label for="bracketYear">Year</label>
             <select id="bracketYear">
+              <option value="2026" selected>2026</option>
               <option value="2025">2025</option>
               <option value="2024">2024</option>
               <option value="2023">2023</option>
@@ -677,7 +678,7 @@
     }
     
     // State
-    let selectedBracketYear = 2025;
+    let selectedBracketYear = 2026;
     let allChampionships = [];
     let currentSport = getCurrentSport();
     
@@ -1053,17 +1054,164 @@
       // Add event listener for year dropdown
       document.getElementById('bracketYear').addEventListener('change', function() {
         selectedBracketYear = parseInt(this.value);
+        liveBracketCache = {}; // Clear cache for fresh data
         renderBracket();
       });
       
       renderBracket();
     }
     
-    function renderBracket() {
+    // Cache for live bracket data so we don't re-fetch on every dropdown change
+    let liveBracketCache = {};
+    
+    async function fetchLiveBracket(gender, division) {
+      const cacheKey = `${gender}-${division}`;
+      if (liveBracketCache[cacheKey]) return liveBracketCache[cacheKey];
+      
+      // Map dropdown gender to DB gender
+      const dbGender = gender === 'boys' ? 'Boys' : 'Girls';
+      const season = '2025-26';
+      
+      try {
+        const { data: games, error } = await db
+          .from('games')
+          .select('*')
+          .eq('is_playoff', true)
+          .eq('season', season)
+          .eq('gender', dbGender)
+          .order('round')
+          .order('bracket_position');
+        
+        if (error || !games || games.length === 0) return null;
+        
+        // Filter by division (may be in 'division' or 'level' column)
+        const divGames = games.filter(g => 
+          (g.division === division) || (g.level === division)
+        );
+        
+        if (divGames.length === 0) return null;
+        
+        // Round name mapping: DB → bracket format
+        const roundMap = {
+          'Prelims': 'firstRound',
+          'Quarters': 'quarterFinals',
+          'Semis': 'semiFinals',
+          'Final': 'final'
+        };
+        
+        // Build games object by round
+        const bracketGames = {};
+        let championTeam = null, championSeed = null;
+        let runnerUpTeam = null, runnerUpSeed = null;
+        let finalScore = null;
+        
+        // Sort rounds in proper order
+        const roundOrder = ['Prelims', 'Quarters', 'Semis', 'Final'];
+        
+        roundOrder.forEach(dbRound => {
+          const roundKey = roundMap[dbRound];
+          const roundGames = divGames
+            .filter(g => g.round === dbRound)
+            .sort((a, b) => (a.bracket_position || 0) - (b.bracket_position || 0));
+          
+          if (roundGames.length === 0) return;
+          
+          bracketGames[roundKey] = roundGames.map(g => {
+            const homeScore = parseInt(g.home_score);
+            const awayScore = parseInt(g.away_score);
+            const hasScore = !isNaN(homeScore) && !isNaN(awayScore);
+            const homeTeam = g.home_team || g.home;
+            const awayTeam = g.away_team || g.away;
+            
+            // BYE game detection
+            if (!awayTeam || !homeTeam) {
+              const team = homeTeam || awayTeam;
+              const seed = homeTeam ? g.home_seed : g.away_seed;
+              return { winner: team, winnerSeed: seed, loser: 'Bye', loserSeed: null, winnerScore: null, loserScore: null };
+            }
+            
+            if (!hasScore) {
+              // Game not yet played — show matchup
+              return { 
+                winner: `#${g.away_seed || '?'} ${awayTeam} vs #${g.home_seed || '?'} ${homeTeam}`, 
+                winnerSeed: null, loser: null, loserSeed: null, 
+                winnerScore: null, loserScore: null, pending: true 
+              };
+            }
+            
+            const homeWon = homeScore > awayScore;
+            const winner = homeWon ? homeTeam : awayTeam;
+            const loser = homeWon ? awayTeam : homeTeam;
+            const winnerSeed = homeWon ? g.home_seed : g.away_seed;
+            const loserSeed = homeWon ? g.away_seed : g.home_seed;
+            const winnerScore = homeWon ? homeScore : awayScore;
+            const loserScore = homeWon ? awayScore : homeScore;
+            
+            // Track final game result
+            if (dbRound === 'Final') {
+              championTeam = winner;
+              championSeed = winnerSeed;
+              runnerUpTeam = loser;
+              runnerUpSeed = loserSeed;
+              finalScore = `${winnerScore}-${loserScore}`;
+            }
+            
+            return { winner, winnerSeed, loser, loserSeed, winnerScore, loserScore };
+          });
+        });
+        
+        if (Object.keys(bracketGames).length === 0) return null;
+        
+        // Determine bracket size from number of first-round or quarter-final games
+        const firstRoundCount = (bracketGames.firstRound || []).length;
+        const bracketSize = firstRoundCount > 8 ? 32 : 16;
+        
+        const bracket = {
+          champion: championTeam || 'TBD',
+          championSeed: championSeed,
+          runnerUp: runnerUpTeam || 'TBD',
+          runnerUpSeed: runnerUpSeed,
+          finalScore: finalScore || 'TBD',
+          bracketSize: bracketSize,
+          notes: championTeam ? '' : 'Tournament in progress',
+          games: bracketGames,
+          isLive: true
+        };
+        
+        liveBracketCache[cacheKey] = bracket;
+        return bracket;
+        
+      } catch (err) {
+        console.error('Error fetching live bracket:', err);
+        return null;
+      }
+    }
+    
+    async function renderBracket() {
       const gender = document.getElementById('bracketGender').value;
       const division = document.getElementById('bracketDivision').value;
       selectedBracketYear = parseInt(document.getElementById('bracketYear').value);
       const container = document.getElementById('bracketDisplay');
+      
+      // For current season (2026), fetch live from database
+      if (selectedBracketYear === 2026) {
+        container.innerHTML = '<div class="standings-loading" style="padding: 40px; text-align: center; color: #888;">Loading bracket...</div>';
+        
+        const liveBracket = await fetchLiveBracket(gender, division);
+        
+        if (!liveBracket) {
+          container.innerHTML = `
+            <div class="bracket-note">
+              <div class="bracket-note-icon">🏀</div>
+              <div class="bracket-note-text">No bracket data available yet for 2026 ${gender === 'boys' ? 'Boys' : 'Girls'} ${division}</div>
+            </div>
+          `;
+          return;
+        }
+        
+        renderBracketData(liveBracket, gender, division, container);
+        return;
+      }
       
       const yearData = TOURNAMENT_BRACKETS[selectedBracketYear];
       
@@ -1125,29 +1273,74 @@
         return;
       }
       
-      // Render bracket info
-      const upsets = getBracketUpsets(selectedBracketYear, gender, division);
+      renderBracketData(bracket, gender, division, container);
+    }
+    
+    function getUpsetsFromBracket(bracket) {
+      if (!bracket || !bracket.games) return [];
+      const upsets = [];
+      const rounds = ['firstRound', 'quarterFinals', 'semiFinals', 'final'];
+      for (const round of rounds) {
+        const games = bracket.games[round];
+        if (!games) continue;
+        for (const game of games) {
+          if (game.winnerSeed && game.loserSeed && game.winnerSeed > game.loserSeed) {
+            upsets.push({
+              round,
+              winner: game.winner,
+              winnerSeed: game.winnerSeed,
+              loser: game.loser,
+              loserSeed: game.loserSeed,
+              score: `${game.winnerScore}-${game.loserScore}`,
+              seedDifferential: game.winnerSeed - game.loserSeed
+            });
+          }
+        }
+      }
+      return upsets.sort((a, b) => b.seedDifferential - a.seedDifferential);
+    }
+    
+    function renderBracketData(bracket, gender, division, container) {
+      // Use inline upset detection (works for both static and live brackets)
+      const upsets = getUpsetsFromBracket(bracket);
+      const isInProgress = bracket.champion === 'TBD';
+      
+      let championHtml = '';
+      if (isInProgress) {
+        championHtml = `
+          <div class="bracket-info">
+            <div class="bracket-champion">
+              <div class="bracket-champion-label" style="color: var(--accent);">🏀 Tournament In Progress</div>
+            </div>
+            ${bracket.notes ? `<div class="bracket-story">${bracket.notes}</div>` : ''}
+          </div>
+        `;
+      } else {
+        championHtml = `
+          <div class="bracket-info">
+            <div class="bracket-champion">
+              <div class="bracket-champion-label">Champion</div>
+              <img src="/logos/100px/${bracket.champion.replace(/\s+/g, '')}.png" 
+                   alt="${bracket.champion}" 
+                   class="bracket-champion-logo"
+                   onerror="this.src='/logos/100px/Ball603-white.png'; this.style.opacity='0.5';">
+              <div class="bracket-champion-name">${bracket.champion}</div>
+              <div class="bracket-champion-seed">#${bracket.championSeed} Seed</div>
+            </div>
+            
+            <div class="bracket-final-score">
+              <div class="final-label">Championship Game</div>
+              <div class="final-score">${bracket.finalScore}</div>
+              <div class="final-vs">vs ${bracket.runnerUp} (#${bracket.runnerUpSeed})</div>
+            </div>
+            
+            ${bracket.notes ? `<div class="bracket-story">${bracket.notes}</div>` : ''}
+          </div>
+        `;
+      }
       
       container.innerHTML = `
-        <div class="bracket-info">
-          <div class="bracket-champion">
-            <div class="bracket-champion-label">Champion</div>
-            <img src="/logos/100px/${bracket.champion.replace(/\s+/g, '')}.png" 
-                 alt="${bracket.champion}" 
-                 class="bracket-champion-logo"
-                 onerror="this.src='/logos/100px/Ball603-white.png'; this.style.opacity='0.5';">
-            <div class="bracket-champion-name">${bracket.champion}</div>
-            <div class="bracket-champion-seed">#${bracket.championSeed} Seed</div>
-          </div>
-          
-          <div class="bracket-final-score">
-            <div class="final-label">Championship Game</div>
-            <div class="final-score">${bracket.finalScore}</div>
-            <div class="final-vs">vs ${bracket.runnerUp} (#${bracket.runnerUpSeed})</div>
-          </div>
-          
-          ${bracket.notes ? `<div class="bracket-story">${bracket.notes}</div>` : ''}
-        </div>
+        ${championHtml}
         
         ${upsets.length > 0 ? `
           <div class="bracket-upsets">
@@ -1187,6 +1380,15 @@
           <div class="round-games">
             ${games[round].map(g => {
               if (!g.winner || g.loser === 'Bye') return '';
+              if (g.pending) {
+                return `
+                  <div class="bracket-game" style="opacity: 0.6;">
+                    <div class="bracket-game-team" style="font-style: italic;">
+                      <span class="name">${g.winner}</span>
+                    </div>
+                  </div>
+                `;
+              }
               const isUpset = g.winnerSeed && g.loserSeed && g.winnerSeed > g.loserSeed;
               return `
                 <div class="bracket-game ${isUpset ? 'upset' : ''}">
