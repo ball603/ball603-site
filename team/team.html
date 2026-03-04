@@ -2098,14 +2098,14 @@
         if (needsRecap.length > 0) {
           const { data: recapGames, error } = await db
             .from('games')
-            .select('home, away, home_score, away_score, gender, division, level, season, recap_url')
+            .select('*')
             .eq('is_playoff', true)
-            .eq('round', 'Final')
-            .not('recap_url', 'is', null);
+            .eq('round', 'Final');
           
           if (!error && recapGames) {
-            // Filter client-side for this team
+            // Filter client-side for this team + has recap
             const teamRecaps = recapGames.filter(g => {
+              if (!g.recap_url) return false;
               const h = (g.home || '').toLowerCase();
               const a = (g.away || '').toLowerCase();
               return h === schoolName || a === schoolName;
