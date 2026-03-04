@@ -1297,22 +1297,26 @@
         
         games.forEach(g => {
           const gameDate = new Date(g.date + 'T12:00:00-05:00'); gameDate.setHours(0, 0, 0, 0);
-          const isHome = isThisTeam(g.home);
+          const isHome = actuallyHome(g);
           const hs = String(g.home_score ?? '').trim(), as = String(g.away_score ?? '').trim();
           const hasScore = hs !== '' && as !== '';
           const isScheduled = !hasScore && g.status && g.status.toLowerCase() === 'scheduled';
           
+          // For scores, always use DB home/away (actual scores), just flip perspective
+          const dbHome = isThisTeam(g.home);
+          
           if (hasScore) {
             const homeScore = parseInt(hs), awayScore = parseInt(as);
-            const teamScore = isHome ? homeScore : awayScore, oppScore = isHome ? awayScore : homeScore;
+            const teamScore = dbHome ? homeScore : awayScore, oppScore = dbHome ? awayScore : homeScore;
             const won = teamScore > oppScore;
             if (won) wins++; else losses++;
-            lastResult = { won, teamScore, oppScore, isHome, opp: isHome ? g.away : g.home };
+            const opp = dbHome ? g.away : g.home;
+            lastResult = { won, teamScore, oppScore, isHome, opp, is_playoff: g.is_playoff, round: g.round };
           } else if (gameDate >= today && !nextGame) {
             // Skip BYE games for next game display
             const isByeGame = g.is_playoff && g.time === 'BYE';
             if (!isByeGame) {
-              const opp = isHome ? g.away : g.home;
+              const opp = dbHome ? g.away : g.home;
               nextGame = { date: g.date, isHome, opp: opp || 'TBD', is_playoff: g.is_playoff, round: g.round };
             }
           }
@@ -1324,10 +1328,10 @@
         
         if (recordEl) recordEl.textContent = `${wins}-${losses}`;
         if (nextGameEl) {
-          nextGameEl.textContent = nextGame ? `${formatShortDate(nextGame.date)} ${nextGame.isHome ? 'vs' : '@'} ${nextGame.opp}` : '--';
+          nextGameEl.textContent = nextGame ? `${formatShortDate(nextGame.date)} ${matchupPrefix(nextGame)} ${nextGame.opp}` : '--';
         }
         if (lastResultEl) {
-          lastResultEl.textContent = lastResult ? `${lastResult.won ? 'W' : 'L'} ${lastResult.teamScore}-${lastResult.oppScore} ${lastResult.isHome ? 'vs' : '@'} ${lastResult.opp}` : '--';
+          lastResultEl.textContent = lastResult ? `${lastResult.won ? 'W' : 'L'} ${lastResult.teamScore}-${lastResult.oppScore} ${matchupPrefix(lastResult)} ${lastResult.opp}` : '--';
         }
       });
     }
@@ -1359,7 +1363,8 @@
       
       games.forEach(g => {
         const gameDate = new Date(g.date + 'T12:00:00-05:00'); gameDate.setHours(0, 0, 0, 0);
-        const isHome = isThisTeam(g.home);
+        const dbHome = isThisTeam(g.home);
+        const isHome = actuallyHome(g);
         const hs = String(g.home_score ?? '').trim(), as = String(g.away_score ?? '').trim();
         const hasScore = hs !== '' && as !== '';
         const isScheduled = !hasScore && g.status && g.status.toLowerCase() === 'scheduled';
@@ -1367,7 +1372,7 @@
         // Treat as completed if has score (score takes priority over status)
         if (hasScore) {
           const homeScore = parseInt(hs), awayScore = parseInt(as);
-          const teamScore = isHome ? homeScore : awayScore, oppScore = isHome ? awayScore : homeScore;
+          const teamScore = dbHome ? homeScore : awayScore, oppScore = dbHome ? awayScore : homeScore;
           const won = teamScore > oppScore;
           if (won) wins++; else losses++;
           completedGames.push({ ...g, isHome, teamScore, oppScore, won });
@@ -1381,28 +1386,29 @@
         // Filter out BYE games for next game display
         const nonByeUpcoming = upcomingGames.filter(g => !(g.is_playoff && g.time === 'BYE'));
         if (nonByeUpcoming.length > 0) {
-          const next = nonByeUpcoming[0], opp = next.isHome ? next.away : next.home;
-          nextGameEl.textContent = `${formatShortDate(next.date)} ${next.isHome ? 'vs' : '@'} ${opp || 'TBD'}`;
+          const next = nonByeUpcoming[0], opp = isThisTeam(next.home) ? next.away : next.home;
+          nextGameEl.textContent = `${formatShortDate(next.date)} ${matchupPrefix(next)} ${opp || 'TBD'}`;
         } else nextGameEl.textContent = '--';
       }
       if (lastResultEl) {
         if (completedGames.length > 0) {
-          const last = completedGames[completedGames.length - 1], opp = last.isHome ? last.away : last.home;
-          lastResultEl.textContent = `${last.won ? 'W' : 'L'} ${last.teamScore}-${last.oppScore} ${last.isHome ? 'vs' : '@'} ${opp}`;
+          const last = completedGames[completedGames.length - 1], opp = isThisTeam(last.home) ? last.away : last.home;
+          lastResultEl.textContent = `${last.won ? 'W' : 'L'} ${last.teamScore}-${last.oppScore} ${matchupPrefix(last)} ${opp}`;
         } else lastResultEl.textContent = '--';
       }
       
       const allGames = games.map(g => {
-        const isHome = isThisTeam(g.home);
+        const dbHome = isThisTeam(g.home);
+        const isHome = actuallyHome(g);
         const hs = String(g.home_score ?? '').trim(), as = String(g.away_score ?? '').trim();
         const hasScore = hs !== '' && as !== '';
         let teamScore, oppScore, won;
         if (hasScore) {
           const homeScore = parseInt(hs), awayScore = parseInt(as);
-          teamScore = isHome ? homeScore : awayScore; oppScore = isHome ? awayScore : homeScore;
+          teamScore = dbHome ? homeScore : awayScore; oppScore = dbHome ? awayScore : homeScore;
           won = teamScore > oppScore;
         }
-        return { ...g, isHome, teamScore, oppScore, won, hasScore };
+        return { ...g, isHome, dbHome, teamScore, oppScore, won, hasScore };
       });
       
       container.innerHTML = allGames
@@ -1413,7 +1419,7 @@
           return true;
         })
         .map(g => {
-        const opp = g.isHome ? g.away : g.home;
+        const opp = g.dbHome ? g.away : g.home;
         const oppSlug = getTeamSlug(opp);
         const isScheduled = !g.hasScore && g.status && g.status.toLowerCase() === 'scheduled';
         let resultClass = 'upcoming', resultText;
@@ -1446,8 +1452,8 @@
           const roundName = roundNames[g.round] || g.round;
           playoffPrefix = `<div class="playoff-round-label">${g.division} ${roundName}</div>`;
           
-          // Get opponent seed
-          const oppSeed = g.isHome ? g.away_seed : g.home_seed;
+          // Get opponent seed (use DB home/away, not display)
+          const oppSeed = g.dbHome ? g.away_seed : g.home_seed;
           if (oppSeed) {
             oppSeedDisplay = `#${oppSeed} `;
           }
@@ -1461,9 +1467,9 @@
         const oppLink = opp 
           ? `<a href="/${oppSlug}${oppSportParam}" class="schedule-opponent-link">
               <img src="/logos/100px/${getLogoFilename(opp)}" onerror="this.style.display='none'" class="schedule-game-logo" alt="">
-              <span>${g.isHome ? 'vs' : '@'} ${oppSeedDisplay}${oppDisplay}</span>
+              <span>${matchupPrefix(g)} ${oppSeedDisplay}${oppDisplay}</span>
             </a>`
-          : `<span class="schedule-opponent-tbd">${g.isHome ? 'vs' : '@'} TBD</span>`;
+          : `<span class="schedule-opponent-tbd">${matchupPrefix(g)} TBD</span>`;
         
         return `
           <div class="schedule-game-item ${g.is_playoff ? 'playoff-game' : ''}">
@@ -2272,6 +2278,28 @@
     }
 
     // ===== UTILITIES =====
+    // Determine if this team is actually home, accounting for bracket geography
+    // In Prelims/Quarters, the higher seed (lower number) hosts regardless of DB home/away
+    function actuallyHome(g) {
+      const teamNames = TEAM_CONFIG ? TEAM_CONFIG.nameVariations : [];
+      const dbHome = teamNames.some(n => n && g.home?.includes(n));
+      
+      if (g.is_playoff && (g.round === 'Prelims' || g.round === 'Quarters')) {
+        // For hosted rounds, higher seed (lower number) is the actual host
+        if (g.home_seed && g.away_seed) {
+          const thisTeamSeed = dbHome ? g.home_seed : g.away_seed;
+          const oppSeed = dbHome ? g.away_seed : g.home_seed;
+          return thisTeamSeed < oppSeed;
+        }
+      }
+      return dbHome;
+    }
+    
+    function matchupPrefix(g) {
+      // Semis and Finals are at neutral sites
+      if (g.is_playoff && (g.round === 'Semis' || g.round === 'Final')) return 'vs.';
+      return g.isHome ? 'vs' : '@';
+    }
     function formatDate(dateStr) {
       if (!dateStr) return '';
       const date = new Date(dateStr + 'T12:00:00-05:00');
