@@ -512,6 +512,14 @@
         background: #2d2d2d;
       }
       
+      .neutral-site-label {
+        text-align: center;
+        font-size: 11px;
+        color: #888;
+        padding: 0;
+        margin: -4px 0;
+      }
+      
       .game-team {
         display: flex;
         align-items: center;
@@ -1106,6 +1114,7 @@
         // For playoff prelims/quarters, higher seed (lower number) hosts
         // DB stores bracket geography (away=top, home=bottom), so swap display if needed
         const isHostedRound = isPlayoff && (g.round === 'Prelims' || g.round === 'Quarters');
+        const isNeutralSite = isPlayoff && (g.round === 'Semis' || g.round === 'Final');
         const needsDisplaySwap = isHostedRound && g.away_seed && g.home_seed && g.away_seed < g.home_seed;
         
         // Display variables (swapped for schedule, DB untouched)
@@ -1156,7 +1165,7 @@
         tableHtml += '<td class="col-level">'+roundBadge+(g.level||'')+'</td>';
         tableHtml += '<td class="col-gender">'+(g.gender||'')+'</td>';
         tableHtml += '<td class="col-away"><div class="away-team-cell">' + getTeamLink(dAway, getLogoFilename(dAway), aw, g.level, sportValue) + (isPlayoff && dAwaySeed ? ' <span class="playoff-round">#'+dAwaySeed+'</span>' : '') + '</div></td>';
-        tableHtml += '<td class="col-home"><div class="home-team-cell"><span class="matchup-at">@</span>' + getTeamLink(dHome, getLogoFilename(dHome), hw, g.level, sportValue) + (isPlayoff && dHomeSeed ? ' <span class="playoff-round">#'+dHomeSeed+'</span>' : '') + '</div></td>';
+        tableHtml += '<td class="col-home"><div class="home-team-cell"><span class="matchup-at">'+(isNeutralSite ? 'vs.' : '@')+'</span>' + getTeamLink(dHome, getLogoFilename(dHome), hw, g.level, sportValue) + (isPlayoff && dHomeSeed ? ' <span class="playoff-round">#'+dHomeSeed+'</span>' : '') + '</div></td>';
         tableHtml += '<td class="col-status">'+statusCell+'</td>';
         tableHtml += '<td class="col-coverage">'+(cov||'-')+'</td>';
         tableHtml += '</tr>';
@@ -1169,6 +1178,7 @@
         cardsHtml += '<div class="game-card-header"><span class="game-level"><span class="game-sport-emoji">'+getSportEmoji(g.sport || 'basketball')+'</span>'+playoffHeader+(g.gender||'')+' '+(g.level||'')+'</span><span class="game-time">'+td+'</span></div>';
         cardsHtml += '<div class="game-card-body">';
         cardsHtml += '<div class="game-team">'+getMobileTeamLink(dAway, getLogoFilename(dAway), isPlayoff && dAwaySeed ? '#'+dAwaySeed : dAwayRecord, g.level, sportValue)+(hasScore?'<div class="team-score'+(aw?' winner':'')+'">'+dAwayScore+'</div>':'')+'</div>';
+        if (isNeutralSite) cardsHtml += '<div class="neutral-site-label">vs.</div>';
         cardsHtml += '<div class="game-team">'+getMobileTeamLink(dHome, getLogoFilename(dHome), isPlayoff && dHomeSeed ? '#'+dHomeSeed : dHomeRecord, g.level, sportValue)+(hasScore?'<div class="team-score'+(hw?' winner':'')+'">'+dHomeScore+'</div>':'')+'</div>';
         cardsHtml += '</div>';
         if (cov) cardsHtml += '<div class="game-card-footer">'+cov+'</div>';
