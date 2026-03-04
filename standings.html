@@ -1087,6 +1087,14 @@
             <span class="tie-badge" style="cursor:default;margin-left:0;">TIE</span>
             <span>Click for tiebreaker breakdown</span>
           </div>
+          <div class="legend-item">
+            <span style="font-size: 14px;">&#x1F947;</span>
+            <span>#1 seed</span>
+          </div>
+          <div class="legend-item">
+            <span style="font-size: 14px;">&#x1F3C6;</span>
+            <span>Division champion</span>
+          </div>
         </div>
         <div class="standings-source">
           <span style="font-size: 11px; color: var(--text-muted);">Data from NHIAA.org • Tiebreakers use NHIAA By-Law Article XII criteria (win % approximation for criteria 2, 4, 5). Official seedings determined by NHIAA.</span>
@@ -1886,6 +1894,31 @@
         tiebreakerPanelsHtml[panelKey] = renderTiebreakerPanel(tg);
       });
       
+      // Determine #1 seed and champion for this division
+      let topSeedTeam = null;
+      let championTeam = null;
+      
+      if (isLocked && seeds && seeds.length > 0) {
+        const seed1 = seeds.find(s => s.seed === 1);
+        if (seed1) topSeedTeam = normalizeTeamName(seed1.team);
+      }
+      
+      // Find championship game for this division
+      const finalGame = allGames.find(g =>
+        g.is_playoff && g.round === 'Final' &&
+        g.gender === currentGender && g.division === currentDivision &&
+        g.home_score !== null && g.home_score !== '' &&
+        g.away_score !== null && g.away_score !== ''
+      );
+      if (finalGame) {
+        const homeScore = parseInt(finalGame.home_score);
+        const awayScore = parseInt(finalGame.away_score);
+        const winnerName = homeScore > awayScore
+          ? (finalGame.home_team || finalGame.home)
+          : (finalGame.away_team || finalGame.away);
+        if (winnerName) championTeam = normalizeTeamName(winnerName);
+      }
+      
       // Build table with grouped column headers
       let html = `
         <table class="standings-table">
@@ -1947,6 +1980,14 @@
           tieBadge = `<span class="tie-badge" onclick="openTiebreakerOverlay('${panelKey}')" title="Click for tiebreaker details">TIE</span>`;
         }
         
+        // Team badges
+        let teamBadges = '';
+        if (championTeam && team.school === championTeam) {
+          teamBadges += ' <span title="Division Champion" style="font-size: 14px; vertical-align: middle;">&#x1F3C6;</span>';
+        } else if (topSeedTeam && team.school === topSeedTeam) {
+          teamBadges += ' <span title="#1 Seed" style="font-size: 14px; vertical-align: middle;">&#x1F947;</span>';
+        }
+        
         html += `
           <tr class="${isPlayoffLine ? 'playoff-line' : ''}">
             <td class="${rankClass} center">${rank}</td>
@@ -1954,6 +1995,7 @@
               <div class="team-cell">
                 <img class="team-logo" src="${Ball603.getLogoUrl(team.school)}" alt="" onerror="this.src='/logos/100px/Ball603-white.png'">
                 <a class="team-name" href="/${teamSlug}${sportParam}">${team.school}</a>
+                ${teamBadges}
                 ${tieBadge}
               </div>
             </td>
