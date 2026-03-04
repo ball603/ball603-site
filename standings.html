@@ -303,44 +303,66 @@
       color: var(--accent);
     }
     
-    /* Grouped Column Headers */
-    .standings-table th .col-group {
-      display: block;
-      font-size: 9px;
+    /* Grouped Column Headers - top row */
+    .standings-table thead tr.group-row th {
+      font-size: 10px;
       font-weight: 800;
       text-transform: uppercase;
       letter-spacing: 0.8px;
-      margin-bottom: 2px;
+      padding: 10px 8px 6px;
+      text-align: center;
+      border-bottom: none;
+      vertical-align: bottom;
     }
     
-    .standings-table th .col-group.group-reg {
+    .standings-table thead tr.group-row th.group-reg {
       color: var(--accent);
+      border-left: 2px solid rgba(200, 200, 200, 0.25);
     }
     
-    .standings-table th .col-group.group-post {
-      color: #888;
+    .standings-table thead tr.group-row th.group-post {
+      color: var(--text-secondary);
+      border-left: 2px solid rgba(200, 200, 200, 0.25);
     }
     
-    .standings-table th .col-group.group-overall {
-      color: #888;
+    .standings-table thead tr.group-row th.group-overall {
+      color: var(--text-secondary);
+      border-left: 2px solid rgba(200, 200, 200, 0.25);
     }
     
-    .standings-table td.col-reg {
-      background: rgba(245, 124, 0, 0.03);
+    .standings-table thead tr.group-row th.group-spacer {
+      border-bottom: none;
     }
     
-    .standings-table td.col-post {
-      background: rgba(100, 100, 100, 0.02);
+    /* Sub-header row - column names */
+    .standings-table thead tr.sub-row th {
+      font-size: 11px;
+      padding: 4px 8px 10px;
     }
     
-    .standings-table td.col-overall {
-      /* no tint needed */
+    .standings-table thead tr.sub-row th.sub-reg {
+      border-left: 2px solid rgba(200, 200, 200, 0.25);
     }
     
-    /* Section divider borders */
-    .standings-table th.section-start,
-    .standings-table td.section-start {
-      border-left: 2px solid rgba(200, 200, 200, 0.3);
+    .standings-table thead tr.sub-row th.sub-post {
+      border-left: 2px solid rgba(200, 200, 200, 0.25);
+    }
+    
+    .standings-table thead tr.sub-row th.sub-overall-first {
+      border-left: 2px solid rgba(200, 200, 200, 0.25);
+    }
+    
+    /* Section borders on data cells */
+    .standings-table td.sec-reg {
+      border-left: 2px solid rgba(200, 200, 200, 0.25);
+    }
+    
+    .standings-table td.sec-post {
+      border-left: 2px solid rgba(200, 200, 200, 0.25);
+    }
+    
+    .standings-table td.sec-overall {
+      border-left: 2px solid rgba(200, 200, 200, 0.25);
     }
     
     /* Streak Cell */
@@ -544,8 +566,44 @@
         display: none;
       }
       
-      .standings-table th .col-group {
-        font-size: 7px;
+      .standings-table thead tr.group-row th {
+        font-size: 8px;
+        padding: 8px 4px 4px;
+      }
+      
+      .standings-table thead tr.sub-row th {
+        font-size: 9px;
+        padding: 3px 4px 8px;
+      }
+      
+      .standings-table thead tr.group-row th.group-reg {
+        color: var(--accent);
+        background: #252525;
+      }
+      
+      .standings-table thead tr.group-row th.group-post,
+      .standings-table thead tr.group-row th.group-overall {
+        color: #aaa;
+        background: #252525;
+      }
+      
+      .standings-table thead tr.group-row th.group-spacer {
+        background: #252525;
+      }
+      
+      .standings-table td.sec-reg,
+      .standings-table td.sec-post,
+      .standings-table td.sec-overall {
+        border-left-color: rgba(255, 255, 255, 0.08);
+      }
+      
+      .standings-table thead tr.group-row th.group-reg,
+      .standings-table thead tr.group-row th.group-post,
+      .standings-table thead tr.group-row th.group-overall,
+      .standings-table thead tr.sub-row th.sub-reg,
+      .standings-table thead tr.sub-row th.sub-post,
+      .standings-table thead tr.sub-row th.sub-overall-first {
+        border-left-color: rgba(255, 255, 255, 0.08);
       }
       
       /* Hide playoff line on mobile - override dashed line from styles.css */
@@ -1832,13 +1890,18 @@
       let html = `
         <table class="standings-table">
           <thead>
-            <tr>
-              <th class="center" style="width: 40px;">#</th>
-              <th>Team</th>
-              <th class="center section-start"><span class="col-group group-reg">Reg Season</span>Record</th>
+            <tr class="group-row">
+              <th class="center group-spacer" rowspan="2" style="width: 40px;">#</th>
+              <th class="group-spacer" rowspan="2">Team</th>
+              <th class="center group-reg" colspan="2">Regular Season</th>
+              <th class="center group-post" colspan="1">Postseason</th>
+              <th class="center group-overall" colspan="4">Overall</th>
+            </tr>
+            <tr class="sub-row">
+              <th class="center sub-reg">Record</th>
               <th class="center">Rating</th>
-              <th class="center section-start"><span class="col-group group-post">Postseason</span>Record</th>
-              <th class="center section-start"><span class="col-group group-overall">Overall</span>Record</th>
+              <th class="center sub-post">Record</th>
+              <th class="center sub-overall-first">Record</th>
               <th class="center hide-mobile">Home</th>
               <th class="center hide-mobile">Away</th>
               <th class="center">Streak</th>
@@ -1894,10 +1957,10 @@
                 ${tieBadge}
               </div>
             </td>
-            <td class="record-cell center col-reg section-start">${regRecord}</td>
-            <td class="rating-cell center col-reg">${team.rating.toFixed(3)}</td>
-            <td class="record-cell center col-post section-start">${playoffRecord}</td>
-            <td class="record-cell center section-start">${overallRecord}</td>
+            <td class="record-cell center sec-reg">${regRecord}</td>
+            <td class="rating-cell center">${team.rating.toFixed(3)}</td>
+            <td class="record-cell center sec-post">${playoffRecord}</td>
+            <td class="record-cell center sec-overall">${overallRecord}</td>
             <td class="record-cell home-away center hide-mobile">${homeRecord}</td>
             <td class="record-cell home-away center hide-mobile">${awayRecord}</td>
             <td class="center">
