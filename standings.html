@@ -303,6 +303,65 @@
       color: var(--accent);
     }
     
+    /* Grouped Column Headers */
+    .standings-table th.group-header {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      padding: 8px 16px 4px;
+      border-bottom: 1px solid var(--border-color);
+      vertical-align: bottom;
+    }
+    
+    .standings-table th.group-header.group-reg {
+      background: rgba(76, 175, 80, 0.06);
+      color: #4caf50;
+    }
+    
+    .standings-table th.group-header.group-post {
+      background: rgba(245, 124, 0, 0.06);
+      color: var(--accent);
+    }
+    
+    .standings-table th.group-header.group-overall {
+      background: rgba(100, 100, 100, 0.06);
+      color: var(--text-secondary);
+    }
+    
+    .standings-table th.group-header.group-empty {
+      background: transparent;
+    }
+    
+    .standings-table th.sub-header {
+      font-size: 11px;
+      padding: 6px 16px;
+    }
+    
+    .standings-table th.sub-reg {
+      background: rgba(76, 175, 80, 0.04);
+    }
+    
+    .standings-table th.sub-post {
+      background: rgba(245, 124, 0, 0.04);
+    }
+    
+    .standings-table th.sub-overall {
+      background: rgba(100, 100, 100, 0.04);
+    }
+    
+    .standings-table td.col-reg {
+      background: rgba(76, 175, 80, 0.03);
+    }
+    
+    .standings-table td.col-post {
+      background: rgba(245, 124, 0, 0.03);
+    }
+    
+    .standings-table td.col-overall {
+      background: rgba(100, 100, 100, 0.03);
+    }
+    
     /* Streak Cell */
     .streak-cell {
       display: inline-block;
@@ -502,6 +561,31 @@
       /* Hide columns on mobile */
       .hide-mobile {
         display: none;
+      }
+      
+      .standings-table th.group-header {
+        font-size: 9px;
+        padding: 6px 8px 2px;
+      }
+      
+      .standings-table th.sub-header {
+        font-size: 9px;
+        padding: 4px 8px;
+      }
+      
+      .standings-table th.group-header.group-reg,
+      .standings-table th.sub-reg {
+        background: rgba(76, 175, 80, 0.08);
+      }
+      
+      .standings-table th.group-header.group-post,
+      .standings-table th.sub-post {
+        background: rgba(245, 124, 0, 0.08);
+      }
+      
+      .standings-table th.group-header.group-overall,
+      .standings-table th.sub-overall {
+        background: rgba(100, 100, 100, 0.08);
       }
       
       /* Hide playoff line on mobile - override dashed line from styles.css */
@@ -1062,6 +1146,7 @@
     let teamStats = {}; // Calculated stats: home/away records, streaks
     let playoffStats = {}; // Calculated playoff records
     let lockedDivisions = {}; // Track which divisions have locked seeds
+    let divisionSeeds = {}; // Track playoff seed order per division
     
     // URL parameter overrides auto-detection
     const urlParams = new URLSearchParams(window.location.search);
@@ -1241,6 +1326,9 @@
               const data = await responses[i + 2].json();
               const key = `${divisions[i].gender}-${divisions[i].division}`;
               lockedDivisions[key] = data.locked || false;
+              if (data.seeds && data.seeds.length > 0) {
+                divisionSeeds[key] = data.seeds; // Store seed order for sorting
+              }
             } catch (e) {
               // If fetch fails, assume not locked
             }
@@ -1754,6 +1842,25 @@
         }
       });
       
+      // For locked divisions, sort by seed number from playoff_seeds
+      const seeds = divisionSeeds[divisionKey];
+      if (isLocked && seeds && seeds.length > 0) {
+        const seedOrder = new Map();
+        seeds.forEach(s => {
+          seedOrder.set(normalizeTeamName(s.team), s.seed);
+        });
+        
+        // Sort: seeded teams first (by seed), then non-seeded teams by rating
+        standings.sort((a, b) => {
+          const aSeed = seedOrder.get(a.school);
+          const bSeed = seedOrder.get(b.school);
+          if (aSeed !== undefined && bSeed !== undefined) return aSeed - bSeed;
+          if (aSeed !== undefined) return -1;
+          if (bSeed !== undefined) return 1;
+          return b.rating - a.rating || b.wins - a.wins || a.losses - b.losses;
+        });
+      }
+      
       // Build tiebreaker panels for overlay
       tiebreakerPanelsHtml = {};
       tieGroups.forEach(tg => {
@@ -1761,20 +1868,25 @@
         tiebreakerPanelsHtml[panelKey] = renderTiebreakerPanel(tg);
       });
       
-      // Build table
+      // Build table with grouped column headers
       let html = `
         <table class="standings-table">
           <thead>
             <tr>
-              <th class="center" style="width: 40px;">#</th>
-              <th>Team</th>
-              <th class="center">${isLocked ? 'Reg Season' : 'Overall'}</th>
-              ${isLocked ? '<th class="center playoff-col">Playoff</th>' : ''}
-              ${isLocked ? '<th class="center playoff-col">Overall</th>' : ''}
-              <th class="center hide-mobile">Home</th>
-              <th class="center hide-mobile">Away</th>
-              <th class="center">Streak</th>
-              <th class="center">Rating</th>
+              <th class="center group-header group-empty" rowspan="2" style="width: 40px;">#</th>
+              <th class="group-header group-empty" rowspan="2">Team</th>
+              <th class="center group-header group-reg" colspan="2">Regular Season</th>
+              <th class="center group-header group-post" colspan="1">Postseason</th>
+              <th class="center group-header group-overall" colspan="4">Overall</th>
+            </tr>
+            <tr>
+              <th class="center sub-header sub-reg">Record</th>
+              <th class="center sub-header sub-reg">Rating</th>
+              <th class="center sub-header sub-post">Record</th>
+              <th class="center sub-header sub-overall">Record</th>
+              <th class="center sub-header sub-overall hide-mobile">Home</th>
+              <th class="center sub-header sub-overall hide-mobile">Away</th>
+              <th class="center sub-header sub-overall">Streak</th>
             </tr>
           </thead>
           <tbody>
@@ -1792,9 +1904,17 @@
         const awayRecord = getAwayRecord(team.school, currentGender);
         const streakClass = streak.startsWith('W') ? 'win' : streak.startsWith('L') ? 'loss' : '';
         
-        // Playoff records (only if locked)
-        const playoffRecord = isLocked ? getPlayoffRecord(team.school, currentGender) : '';
-        const overallRecord = isLocked ? getOverallRecord(team.school, currentGender, team.wins, team.losses) : '';
+        // Calculate records
+        const pKey = `${team.school}-${currentGender}`;
+        const pStats = playoffStats[pKey];
+        const pWins = pStats ? pStats.wins : 0;
+        const pLosses = pStats ? pStats.losses : 0;
+        const regWins = team.wins - pWins;
+        const regLosses = team.losses - pLosses;
+        const playoffRecord = `${pWins}-${pLosses}`;
+        const overallRecord = `${team.wins}-${team.losses}`;
+        const regRecord = `${regWins}-${regLosses}`;
+        
         const sportParam = currentSport && currentSport !== 'all' ? `?sport=${currentSport}` : '';
         
         let rankClass = 'rank-cell';
@@ -1804,9 +1924,8 @@
         // Check if this team is in a tie group
         const tieGroup = tieGroupMap[team.school];
         let tieBadge = '';
-        let panelKey = '';
         if (tieGroup) {
-          panelKey = tieGroup.teams.join('-').replace(/[^a-zA-Z0-9]/g, '');
+          const panelKey = tieGroup.teams.join('-').replace(/[^a-zA-Z0-9]/g, '');
           tieBadge = `<span class="tie-badge" onclick="openTiebreakerOverlay('${panelKey}')" title="Click for tiebreaker details">TIE</span>`;
         }
         
@@ -1820,17 +1939,18 @@
                 ${tieBadge}
               </div>
             </td>
-            <td class="record-cell center">${team.wins}-${team.losses}</td>
-            ${isLocked ? `<td class="record-cell center playoff-col">${playoffRecord}</td>` : ''}
-            ${isLocked ? `<td class="record-cell center playoff-col">${overallRecord}</td>` : ''}
-            <td class="record-cell home-away center hide-mobile">${homeRecord}</td>
-            <td class="record-cell home-away center hide-mobile">${awayRecord}</td>
-            <td class="center">
+            <td class="record-cell center col-reg">${regRecord}</td>
+            <td class="rating-cell center col-reg">${team.rating.toFixed(3)}</td>
+            <td class="record-cell center col-post">${playoffRecord}</td>
+            <td class="record-cell center col-overall">${overallRecord}</td>
+            <td class="record-cell home-away center col-overall hide-mobile">${homeRecord}</td>
+            <td class="record-cell home-away center col-overall hide-mobile">${awayRecord}</td>
+            <td class="center col-overall">
               <span class="streak-cell ${streakClass}">${streak}</span>
             </td>
-            <td class="rating-cell center">${team.rating.toFixed(3)}</td>
           </tr>
         `;
+      });
       });
       
       html += '</tbody></table>';
