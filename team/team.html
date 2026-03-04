@@ -2021,21 +2021,35 @@
       
       // Merge live Finals from current season games table
       try {
-        const currentSeason = '2025-26';
-        const currentYear = 2026;
+        // Determine season based on sport
+        const now = new Date();
+        const year = now.getFullYear();
+        let currentSeason, currentYear;
+        if (currentSport === 'basketball') {
+          // Basketball season spans two years: 2025-26
+          currentSeason = `${year - 1}-${String(year).slice(2)}`;
+          currentYear = year;
+        } else if (currentSport === 'baseball') {
+          currentSeason = `${year}`;
+          currentYear = year;
+        } else {
+          currentSeason = `${year}`;
+          currentYear = year;
+        }
         
         const { data: finals, error } = await db
           .from('games')
           .select('*')
           .eq('is_playoff', true)
           .eq('round', 'Final')
+          .eq('sport', currentSport)
           .eq('season', currentSeason);
         
         if (!error && finals && finals.length > 0) {
           // Filter client-side for this team
           const teamFinals = finals.filter(g => {
-            const h = (g.home || '').toLowerCase();
-            const a = (g.away || '').toLowerCase();
+            const h = (g.home_team || '').toLowerCase();
+            const a = (g.away_team || '').toLowerCase();
             return h === schoolName || a === schoolName;
           });
           
@@ -2044,8 +2058,8 @@
             const awayScore = parseInt(g.away_score);
             if (isNaN(homeScore) || isNaN(awayScore)) return;
             
-            const homeTeam = g.home;
-            const awayTeam = g.away;
+            const homeTeam = g.home_team;
+            const awayTeam = g.away_team;
             const division = g.division || g.level;
             const gender = g.gender || '';
             
@@ -2067,7 +2081,7 @@
               runner_up: runnerUp,
               champion_score: homeWon ? homeScore : awayScore,
               runner_up_score: homeWon ? awayScore : homeScore,
-              sport: 'basketball',
+              sport: currentSport,
               recap_url: g.recap_url || null,
               result: isChampion ? 'champion' : 'runner_up',
               live: true
@@ -2106,8 +2120,8 @@
             // Filter client-side for this team + has recap
             const teamRecaps = recapGames.filter(g => {
               if (!g.recap_url) return false;
-              const h = (g.home || '').toLowerCase();
-              const a = (g.away || '').toLowerCase();
+              const h = (g.home_team || '').toLowerCase();
+              const a = (g.away_team || '').toLowerCase();
               return h === schoolName || a === schoolName;
             });
             
