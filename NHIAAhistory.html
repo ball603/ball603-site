@@ -69,6 +69,33 @@
       border-color: #f57c00;
     }
     
+    /* Bracket team links */
+    .bracket-team-link {
+      color: inherit;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    
+    .bracket-team-link:hover {
+      color: #f57c00;
+      text-decoration: underline;
+    }
+    
+    /* Bracket article link */
+    .bracket-article-link {
+      display: inline-block;
+      font-size: 12px;
+      text-decoration: none;
+      margin-top: 2px;
+      text-align: center;
+      opacity: 0.7;
+      transition: opacity 0.2s;
+    }
+    
+    .bracket-article-link:hover {
+      opacity: 1;
+    }
+    
     /* Sport filter background to match page content area */
     .sport-filter-wrapper {
       background: var(--bg-secondary);
@@ -1156,7 +1183,7 @@
               finalScore = `${winnerScore}-${loserScore}`;
             }
             
-            return { winner, winnerSeed, loser, loserSeed, winnerScore, loserScore };
+            return { winner, winnerSeed, loser, loserSeed, winnerScore, loserScore, recapUrl: g.recap_url || null };
           });
         });
         
@@ -1184,6 +1211,49 @@
       } catch (err) {
         console.error('Error fetching live bracket:', err);
         return null;
+      }
+    }
+    
+    // Fetch recap URLs for playoff games from DB (works for any season)
+    let recapCache = {};
+    
+    async function fetchPlayoffRecaps(year, gender, division) {
+      const cacheKey = `${year}-${gender}-${division}`;
+      if (recapCache[cacheKey]) return recapCache[cacheKey];
+      
+      const dbGender = gender === 'boys' ? 'Boys' : 'Girls';
+      // Season spans two years: 2025 tournament = "2024-25" season
+      const season = `${year - 1}-${String(year).slice(2)}`;
+      
+      try {
+        const { data: games, error } = await db
+          .from('games')
+          .select('home, away, home_team, away_team, home_score, away_score, round, recap_url, division, level')
+          .eq('is_playoff', true)
+          .eq('season', season)
+          .eq('gender', dbGender);
+        
+        if (error || !games) return {};
+        
+        // Filter by division and build lookup: "winner-loser" → recapUrl
+        const lookup = {};
+        games.filter(g => (g.division === division) || (g.level === division)).forEach(g => {
+          if (!g.recap_url) return;
+          const homeScore = parseInt(g.home_score);
+          const awayScore = parseInt(g.away_score);
+          if (isNaN(homeScore) || isNaN(awayScore)) return;
+          const homeTeam = g.home_team || g.home;
+          const awayTeam = g.away_team || g.away;
+          const winner = homeScore > awayScore ? homeTeam : awayTeam;
+          const loser = homeScore > awayScore ? awayTeam : homeTeam;
+          lookup[`${winner}-${loser}`] = g.recap_url;
+        });
+        
+        recapCache[cacheKey] = lookup;
+        return lookup;
+      } catch (err) {
+        console.error('Error fetching recaps:', err);
+        return {};
       }
     }
     
@@ -1243,7 +1313,7 @@
                          alt="${team}" 
                          class="co-champion-logo"
                          onerror="this.src='/logos/100px/Ball603-white.png'; this.style.opacity='0.5';">
-                    <div class="co-champion-name">${team}</div>
+                    <div class="co-champion-name"><a href="/${team.toLowerCase().replace(/[^a-z0-9]+/g, '')}" class="bracket-team-link">${team}</a></div>
                   </div>
                 `).join('<div class="co-champion-divider">&</div>')}
               </div>
@@ -1273,7 +1343,27 @@
         return;
       }
       
+      // Fetch and inject article URLs from DB before rendering
+      await injectRecapUrls(bracket, selectedBracketYear, gender, division);
+      
       renderBracketData(bracket, gender, division, container);
+    }
+    
+    // Inject recap URLs from DB into static bracket games
+    async function injectRecapUrls(bracket, year, gender, division) {
+      const recaps = await fetchPlayoffRecaps(year, gender, division);
+      if (!bracket.games || Object.keys(recaps).length === 0) return;
+      
+      const rounds = ['firstRound', 'quarterFinals', 'semiFinals', 'final'];
+      rounds.forEach(round => {
+        if (!bracket.games[round]) return;
+        bracket.games[round].forEach(g => {
+          if (g.winner && g.loser && g.loser !== 'Bye') {
+            const key = `${g.winner}-${g.loser}`;
+            if (recaps[key]) g.recapUrl = recaps[key];
+          }
+        });
+      });
     }
     
     function getUpsetsFromBracket(bracket) {
@@ -1324,14 +1414,14 @@
                    alt="${bracket.champion}" 
                    class="bracket-champion-logo"
                    onerror="this.src='/logos/100px/Ball603-white.png'; this.style.opacity='0.5';">
-              <div class="bracket-champion-name">${bracket.champion}</div>
+              <div class="bracket-champion-name"><a href="/${bracket.champion.toLowerCase().replace(/[^a-z0-9]+/g, '')}" class="bracket-team-link">${bracket.champion}</a></div>
               <div class="bracket-champion-seed">#${bracket.championSeed} Seed</div>
             </div>
             
             <div class="bracket-final-score">
               <div class="final-label">Championship Game</div>
               <div class="final-score">${bracket.finalScore}</div>
-              <div class="final-vs">vs ${bracket.runnerUp} (#${bracket.runnerUpSeed})</div>
+              <div class="final-vs">vs <a href="/${bracket.runnerUp.toLowerCase().replace(/[^a-z0-9]+/g, '')}" class="bracket-team-link">${bracket.runnerUp}</a> (#${bracket.runnerUpSeed})</div>
             </div>
             
             ${bracket.notes ? `<div class="bracket-story">${bracket.notes}</div>` : ''}
@@ -1348,9 +1438,9 @@
             <div class="upsets-list">
               ${upsets.slice(0, 5).map(u => `
                 <div class="upset-item">
-                  <span class="upset-winner">#${u.winnerSeed} ${u.winner}</span>
+                  <span class="upset-winner">#${u.winnerSeed} <a href="/${u.winner.toLowerCase().replace(/[^a-z0-9]+/g, '')}" class="bracket-team-link">${u.winner}</a></span>
                   <span class="upset-score">${u.score}</span>
-                  <span class="upset-loser">#${u.loserSeed} ${u.loser}</span>
+                  <span class="upset-loser">#${u.loserSeed} <a href="/${u.loser.toLowerCase().replace(/[^a-z0-9]+/g, '')}" class="bracket-team-link">${u.loser}</a></span>
                 </div>
               `).join('')}
             </div>
@@ -1363,6 +1453,14 @@
           </div>
         ` : ''}
       `;
+    }
+    
+    function teamSlug(name) {
+      return name.toLowerCase().replace(/[^a-z0-9]+/g, '');
+    }
+    
+    function teamLink(name) {
+      return `<a href="/${teamSlug(name)}" class="bracket-team-link">${name}</a>`;
     }
     
     function renderBracketRounds(games) {
@@ -1390,18 +1488,20 @@
                 `;
               }
               const isUpset = g.winnerSeed && g.loserSeed && g.winnerSeed > g.loserSeed;
+              const articleLink = g.recapUrl ? `<a href="${g.recapUrl}" class="bracket-article-link" title="Read recap">📰</a>` : '';
               return `
                 <div class="bracket-game ${isUpset ? 'upset' : ''}">
                   <div class="bracket-game-team winner">
                     <span class="seed">${g.winnerSeed || ''}</span>
-                    <span class="name">${g.winner}</span>
+                    <span class="name">${teamLink(g.winner)}</span>
                     <span class="score">${g.winnerScore || ''}</span>
                   </div>
                   <div class="bracket-game-team loser">
                     <span class="seed">${g.loserSeed || ''}</span>
-                    <span class="name">${g.loser}</span>
+                    <span class="name">${teamLink(g.loser)}</span>
                     <span class="score">${g.loserScore || ''}</span>
                   </div>
+                  ${articleLink}
                 </div>
               `;
             }).join('')}
