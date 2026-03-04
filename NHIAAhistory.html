@@ -99,6 +99,23 @@
       color: #f57c00;
     }
     
+    /* Championship recap link */
+    .championship-recap-link {
+      display: block;
+      font-size: 11px;
+      text-decoration: none;
+      text-align: center;
+      padding: 4px 0;
+      color: #888;
+      opacity: 0.8;
+      transition: opacity 0.2s, color 0.2s;
+    }
+    
+    .championship-recap-link:hover {
+      opacity: 1;
+      color: #f57c00;
+    }
+    
     /* Sport filter background to match page content area */
     .sport-filter-wrapper {
       background: var(--bg-secondary);
@@ -835,10 +852,122 @@
           sport: c.sport || 'basketball' // Default for any old records
         }));
         
+        // Now merge live Finals from games table for current season
+        await mergeLiveChampionships();
+        
+        // Enrich all championships with recap URLs from games table
+        await enrichChampionshipRecaps();
+        
       } catch (err) {
         console.error('Error loading from Supabase, using static data:', err);
         // Fallback to static data (basketball only)
         buildChampionshipListFromStatic();
+      }
+    }
+    
+    async function mergeLiveChampionships() {
+      try {
+        const currentSeason = '2025-26';
+        const currentYear = 2026;
+        
+        const { data: finals, error } = await db
+          .from('games')
+          .select('*')
+          .eq('is_playoff', true)
+          .eq('round', 'Final')
+          .eq('season', currentSeason);
+        
+        if (error || !finals) return;
+        
+        finals.forEach(g => {
+          const homeScore = parseInt(g.home_score);
+          const awayScore = parseInt(g.away_score);
+          if (isNaN(homeScore) || isNaN(awayScore)) return; // Game not finished
+          
+          const homeTeam = g.home_team || g.home;
+          const awayTeam = g.away_team || g.away;
+          const division = g.division || g.level;
+          const gender = (g.gender || '').toLowerCase();
+          
+          // Check if this championship is already in the history table
+          const exists = allChampionships.some(c => 
+            c.year === currentYear && 
+            c.gender === gender && 
+            c.division === division
+          );
+          
+          if (exists) return;
+          
+          const homeWon = homeScore > awayScore;
+          const champion = homeWon ? homeTeam : awayTeam;
+          const runnerUp = homeWon ? awayTeam : homeTeam;
+          const champScore = homeWon ? homeScore : awayScore;
+          const runnerScore = homeWon ? awayScore : homeScore;
+          
+          // Determine sport from season timing
+          const sport = 'basketball'; // Current season is basketball
+          
+          allChampionships.push({
+            year: currentYear,
+            gender: gender,
+            division: division,
+            champion: champion,
+            runner_up: runnerUp,
+            champion_score: champScore,
+            runner_up_score: runnerScore,
+            sport: sport,
+            notes: null,
+            overtime: null,
+            recap_url: g.recap_url || null,
+            live: true // Flag so we know this came from games table
+          });
+        });
+        
+        // Re-sort by year descending
+        allChampionships.sort((a, b) => b.year - a.year);
+        
+      } catch (err) {
+        console.error('Error merging live championships:', err);
+      }
+    }
+    
+    async function enrichChampionshipRecaps() {
+      try {
+        // Fetch all Final games that have recap_url
+        const { data: finals, error } = await db
+          .from('games')
+          .select('home, away, home_team, away_team, home_score, away_score, gender, division, level, season, recap_url')
+          .eq('is_playoff', true)
+          .eq('round', 'Final')
+          .not('recap_url', 'is', null);
+        
+        if (error || !finals || finals.length === 0) return;
+        
+        // Build lookup: "year-gender-division" → recap_url
+        const recapLookup = {};
+        finals.forEach(g => {
+          if (!g.recap_url) return;
+          // Extract year from season (e.g., "2024-25" → 2025)
+          const seasonMatch = (g.season || '').match(/(\d{2})$/);
+          if (!seasonMatch) return;
+          const year = 2000 + parseInt(seasonMatch[1]);
+          const gender = (g.gender || '').toLowerCase();
+          const division = g.division || g.level;
+          const key = `${year}-${gender}-${division}`;
+          recapLookup[key] = g.recap_url;
+        });
+        
+        // Match to championships
+        allChampionships.forEach(c => {
+          if (c.recap_url) return; // Already has one (live entries)
+          const key = `${c.year}-${c.gender}-${c.division}`;
+          if (recapLookup[key]) {
+            c.recap_url = recapLookup[key];
+          }
+        });
+        
+      } catch (err) {
+        console.error('Error enriching championship recaps:', err);
       }
     }
     
@@ -912,7 +1041,7 @@
                  class="dynasty-logo"
                  onerror="this.src='/logos/100px/Ball603-white.png'; this.style.opacity='0.5';">
             <div class="dynasty-info">
-              <div class="dynasty-name">${school.school}</div>
+              <div class="dynasty-name"><a href="/${school.school.toLowerCase().replace(/[^a-z0-9]+/g, '')}" class="bracket-team-link">${school.school}</a></div>
               <div class="dynasty-titles">${school.titles} Title${school.titles !== 1 ? 's' : ''}</div>
             </div>
           </div>
@@ -922,19 +1051,51 @@
     
     function renderRecentDynasties() {
       const container = document.getElementById('recentDynasties');
-      const dynasties = DYNASTIES_BY_SPORT[currentSport] || {};
+      const sportChampionships = getFilteredChampionships();
       
-      if (Object.keys(dynasties).length === 0) {
+      // Build dynasty data: find schools with 3+ titles in a 10-year window
+      const schoolTitles = {};
+      sportChampionships.forEach(c => {
+        const key = `${c.champion}-${c.gender}`;
+        if (!schoolTitles[key]) schoolTitles[key] = { school: c.champion, gender: c.gender, years: [] };
+        schoolTitles[key].years.push(c.year);
+      });
+      
+      // Find recent dynasties (3+ titles, most recent title within last 10 years)
+      const currentYear = new Date().getFullYear();
+      const dynasties = [];
+      
+      Object.values(schoolTitles).forEach(s => {
+        if (s.years.length < 3) return;
+        s.years.sort((a, b) => b - a);
+        const mostRecent = s.years[0];
+        if (mostRecent < currentYear - 10) return; // Only recent dynasties
+        
+        // Find the best consecutive/clustered run
+        const genderLabel = currentSport === 'baseball' ? '' : (s.gender === 'boys' ? 'Boys' : 'Girls');
+        const name = genderLabel ? `${s.school} ${genderLabel}` : s.school;
+        
+        dynasties.push({
+          name: name,
+          years: s.years.sort((a, b) => a - b),
+          titles: s.years.length,
+          school: s.school
+        });
+      });
+      
+      // Sort by title count descending, then most recent year
+      dynasties.sort((a, b) => b.titles - a.titles || b.years[b.years.length - 1] - a.years[a.years.length - 1]);
+      
+      if (dynasties.length === 0) {
         container.innerHTML = '<div class="empty-state"><div class="empty-text">No dynasty data available</div></div>';
         return;
       }
       
-      container.innerHTML = Object.entries(dynasties).map(([name, data]) => `
+      container.innerHTML = dynasties.slice(0, 6).map(d => `
         <div class="dynasty-highlight-card">
-          <div class="dynasty-highlight-title">${name}</div>
-          <div class="dynasty-highlight-years">${data.years.join(', ')}</div>
-          <div class="dynasty-highlight-count">${data.titles} Titles</div>
-          <div class="dynasty-highlight-notes">${data.notes}</div>
+          <div class="dynasty-highlight-title">${d.name}</div>
+          <div class="dynasty-highlight-years">${d.years.join(', ')}</div>
+          <div class="dynasty-highlight-count">${d.titles} Titles</div>
         </div>
       `).join('');
     }
@@ -1049,6 +1210,10 @@
                 ? c.division 
                 : `${c.gender === 'boys' ? 'Boys' : 'Girls'} ${c.division}`;
               
+              const champSlug = c.champion.toLowerCase().replace(/[^a-z0-9]+/g, '');
+              const runnerSlug = c.runner_up.toLowerCase().replace(/[^a-z0-9]+/g, '');
+              const recapLink = c.recap_url ? `<a href="${c.recap_url}" class="championship-recap-link">📰 Recap</a>` : '';
+              
               return `
               <div class="championship-card ${c.notes ? 'has-notes' : ''}" data-gender="${c.gender}" data-div="${divNum}">
                 <div class="championship-division">${divisionLabel}</div>
@@ -1058,13 +1223,13 @@
                          alt="${c.champion}" 
                          class="team-logo-small"
                          onerror="this.src='/logos/100px/Ball603-white.png'; this.style.opacity='0.5';">
-                    <span class="team-name">${c.champion}</span>
+                    <span class="team-name"><a href="/${champSlug}" class="bracket-team-link">${c.champion}</a></span>
                     ${showScores ? `<span class="team-score">${champScore}</span>` : ''}
                   </div>
                   <div class="championship-vs">vs</div>
                   <div class="championship-team loser">
                     ${showScores ? `<span class="team-score">${runnerScore}</span>` : ''}
-                    <span class="team-name">${c.runner_up}</span>
+                    <span class="team-name"><a href="/${runnerSlug}" class="bracket-team-link">${c.runner_up}</a></span>
                     <img src="/logos/100px/${c.runner_up.replace(/\s+/g, '')}.png" 
                          alt="${c.runner_up}" 
                          class="team-logo-small"
@@ -1072,6 +1237,7 @@
                   </div>
                 </div>
                 ${c.overtime ? '<div class="championship-ot">OT</div>' : ''}
+                ${recapLink}
                 ${c.notes ? `<div class="championship-notes">${c.notes}</div>` : ''}
               </div>
             `}).join('')}
