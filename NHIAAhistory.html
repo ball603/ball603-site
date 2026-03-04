@@ -868,15 +868,12 @@
     
     async function mergeLiveChampionships() {
       try {
-        const currentSeason = '2025-26';
-        const currentYear = 2026;
-        
+        // Fetch ALL Final playoff games (small dataset), derive year from season
         const { data: finals, error } = await db
           .from('games')
           .select('*')
           .eq('is_playoff', true)
-          .eq('round', 'Final')
-          .eq('season', currentSeason);
+          .eq('round', 'Final');
         
         if (error || !finals) return;
         
@@ -885,16 +882,30 @@
           const awayScore = parseInt(g.away_score);
           if (isNaN(homeScore) || isNaN(awayScore)) return; // Game not finished
           
-          const homeTeam = g.home;
-          const awayTeam = g.away;
+          const homeTeam = g.home_team;
+          const awayTeam = g.away_team;
+          if (!homeTeam || !awayTeam) return;
           const division = g.division || g.level;
           const gender = (g.gender || '').toLowerCase();
+          const sport = g.sport || 'basketball';
+          
+          // Derive year from season: "2025-26" → 2026, "2026" → 2026
+          let gameYear;
+          const seasonStr = g.season || '';
+          if (seasonStr.includes('-')) {
+            const endPart = seasonStr.split('-')[1];
+            gameYear = endPart.length === 2 ? 2000 + parseInt(endPart) : parseInt(endPart);
+          } else {
+            gameYear = parseInt(seasonStr);
+          }
+          if (!gameYear || isNaN(gameYear)) return;
           
           // Check if this championship is already in the history table
           const exists = allChampionships.some(c => 
-            c.year === currentYear && 
+            c.year === gameYear && 
             c.gender === gender && 
-            c.division === division
+            c.division === division &&
+            c.sport === sport
           );
           
           if (exists) return;
@@ -905,11 +916,8 @@
           const champScore = homeWon ? homeScore : awayScore;
           const runnerScore = homeWon ? awayScore : homeScore;
           
-          // Determine sport from season timing
-          const sport = 'basketball'; // Current season is basketball
-          
           allChampionships.push({
-            year: currentYear,
+            year: gameYear,
             gender: gender,
             division: division,
             champion: champion,
@@ -920,7 +928,7 @@
             notes: null,
             overtime: null,
             recap_url: g.recap_url || null,
-            live: true // Flag so we know this came from games table
+            live: true
           });
         });
         
@@ -937,10 +945,9 @@
         // Fetch all Final games that have recap_url
         const { data: finals, error } = await db
           .from('games')
-          .select('home, away, home_score, away_score, gender, division, level, season, recap_url')
+          .select('*')
           .eq('is_playoff', true)
-          .eq('round', 'Final')
-          .not('recap_url', 'is', null);
+          .eq('round', 'Final');
         
         if (error || !finals || finals.length === 0) return;
         
@@ -1317,8 +1324,8 @@
             const homeScore = parseInt(g.home_score);
             const awayScore = parseInt(g.away_score);
             const hasScore = !isNaN(homeScore) && !isNaN(awayScore);
-            const homeTeam = g.home;
-            const awayTeam = g.away;
+            const homeTeam = g.home_team;
+            const awayTeam = g.away_team;
             
             // BYE game detection
             if (!awayTeam || !homeTeam) {
@@ -1398,7 +1405,7 @@
       try {
         const { data: games, error } = await db
           .from('games')
-          .select('home, away, home_score, away_score, round, recap_url, division, level')
+          .select('*')
           .eq('is_playoff', true)
           .eq('season', season)
           .eq('gender', dbGender);
@@ -1412,8 +1419,8 @@
           const homeScore = parseInt(g.home_score);
           const awayScore = parseInt(g.away_score);
           if (isNaN(homeScore) || isNaN(awayScore)) return;
-          const homeTeam = g.home;
-          const awayTeam = g.away;
+          const homeTeam = g.home_team;
+          const awayTeam = g.away_team;
           const winner = homeScore > awayScore ? homeTeam : awayTeam;
           const loser = homeScore > awayScore ? awayTeam : homeTeam;
           lookup[`${winner}-${loser}`] = g.recap_url;
