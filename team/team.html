@@ -117,6 +117,38 @@
       color: #f57c00;
     }
     
+    .timeline-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .timeline-header h3 { margin: 0; }
+    .timeline-filters {
+      display: flex;
+      gap: 4px;
+    }
+    .timeline-filter-btn {
+      background: transparent;
+      border: 1px solid #444;
+      color: #999;
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+    .timeline-filter-btn:hover {
+      border-color: #666;
+      color: #ccc;
+    }
+    .timeline-filter-btn.active {
+      background: var(--accent, #f5831f);
+      border-color: var(--accent, #f5831f);
+      color: #fff;
+    }
+    
     /* History + NCAA side-by-side grid for baseball */
     .history-ncaa-grid {
       display: grid;
@@ -520,6 +552,7 @@
     
     function switchSport(sport) {
       currentSport = sport;
+      champGenderFilter = 'all';
       const url = new URL(window.location);
       if (sport === 'all') {
         url.searchParams.delete('sport');
@@ -2194,9 +2227,17 @@
         </div>`;
     }
 
-    function renderChampionshipHistory() {
+    let champGenderFilter = 'all';
+    
+    function renderChampionshipHistory(filter) {
+      if (filter !== undefined) champGenderFilter = filter;
       const container = document.getElementById('historyContent'), champs = teamData.championships;
-      let allGames = [...(champs.boys || []), ...(champs.girls || [])].sort((a, b) => b.year - a.year);
+      const allEntries = [...(champs.boys || []), ...(champs.girls || [])].sort((a, b) => b.year - a.year);
+      
+      // Apply gender filter
+      let allGames = allEntries;
+      if (champGenderFilter === 'boys') allGames = allEntries.filter(g => (g.gender || '').toLowerCase() === 'boys');
+      else if (champGenderFilter === 'girls') allGames = allEntries.filter(g => (g.gender || '').toLowerCase() === 'girls');
       
       // Handle empty state - but for baseball, still need to show NCAA box
       if (allGames.length === 0) {
@@ -2235,14 +2276,24 @@
       // For baseball, add emoji to timeline header since section header is hidden
       const timelineTitle = currentSport === 'baseball' ? '&#127942; Title Game Appearances' : 'All Title Game Appearances';
       
+      // Gender filter buttons (only for multi-gender sports like basketball)
+      const hasBoys = (champs.boys || []).length > 0;
+      const hasGirls = (champs.girls || []).length > 0;
+      const showFilters = !isSingleGender && hasBoys && hasGirls;
+      const filterHtml = showFilters ? `<div class="timeline-filters">
+        <button class="timeline-filter-btn ${champGenderFilter === 'all' ? 'active' : ''}" onclick="renderChampionshipHistory('all')">All</button>
+        <button class="timeline-filter-btn ${champGenderFilter === 'boys' ? 'active' : ''}" onclick="renderChampionshipHistory('boys')">Boys</button>
+        <button class="timeline-filter-btn ${champGenderFilter === 'girls' ? 'active' : ''}" onclick="renderChampionshipHistory('girls')">Girls</button>
+      </div>` : '';
+      
       const timelineHtml = `
-        <div class="history-timeline"><h3>${timelineTitle}</h3><div class="timeline-list">${allGames.map(g => {
+        <div class="history-timeline"><div class="timeline-header"><h3>${timelineTitle}</h3>${filterHtml}</div><div class="timeline-list">${allGames.length > 0 ? allGames.map(g => {
           const isChamp = g.result === 'champion', opp = isChamp ? g.runner_up : g.champion;
           const scoreText = isChamp ? formatScore(g.champion_score, g.runner_up_score, g.overtime) : formatScore(g.runner_up_score, g.champion_score, g.overtime);
           const genderHtml = isSingleGender ? '' : `<span class="timeline-gender">${g.gender || ''}</span>`;
           const noGenderClass = isSingleGender ? ' no-gender' : '';
           return `<div class="timeline-item ${isChamp ? 'champion' : 'runner-up'}${noGenderClass}"><span class="timeline-year">${g.year}</span>${genderHtml}<span class="timeline-result">${isChamp ? '&#127942; Champion' : '&#129352; Runner-Up'}</span><span class="timeline-score">${scoreText}</span><span class="timeline-opponent">vs ${opp}</span>${g.recap_url ? `<a href="${g.recap_url}" class="timeline-recap-link">📰 Recap</a>` : ''}</div>`;
-        }).join('')}</div></div>`;
+        }).join('') : '<div class="empty-state"><p>No title game appearances for this filter.</p></div>'}</div></div>`;
       
       // For baseball, create side-by-side layout with NCAA box
       if (currentSport === 'baseball') {
