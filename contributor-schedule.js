@@ -319,7 +319,7 @@ class ContributorSchedule {
     
     // Update game info in modal
     const gameInfo = this.scorebookModal.querySelector('.cs-scorebook-game-info');
-    gameInfo.innerHTML = `<strong>${game.away} @ ${game.home}</strong><br><span>${this.formatDate(game.date)} • ${game.gender || ''} ${game.level || ''}</span>`;
+    gameInfo.innerHTML = `<strong>${game.away} ${game._neutralSite ? 'vs.' : '@'} ${game.home}</strong><br><span>${this.formatDate(game.date)} • ${game.gender || ''} ${game.level || ''}</span>`;
     
     // Reset modal state
     this.clearScorebookPreview();
@@ -670,6 +670,39 @@ class ContributorSchedule {
         away: this.normalizeTeamName(g.away)
       }));
       
+      // Normalize playoff display: higher seed hosts Prelims/Quarters, Semis/Finals are neutral
+      games = games.map(g => {
+        if (!g.is_playoff) return g;
+        
+        const isHostedRound = g.round === 'Prelims' || g.round === 'Quarters';
+        const isNeutralSite = g.round === 'Semis' || g.round === 'Final';
+        
+        if (isHostedRound && g.home_seed && g.away_seed) {
+          const homeSeed = parseInt(g.home_seed);
+          const awaySeed = parseInt(g.away_seed);
+          // Higher seed (lower number) should be displayed as home
+          if (awaySeed < homeSeed) {
+            // Swap display: away team is actually the host
+            return {
+              ...g,
+              home: g.away,
+              away: g.home,
+              home_seed: g.away_seed,
+              away_seed: g.home_seed,
+              home_score: g.away_score,
+              away_score: g.home_score,
+              _displaySwapped: true
+            };
+          }
+        }
+        
+        if (isNeutralSite) {
+          return { ...g, _neutralSite: true };
+        }
+        
+        return g;
+      });
+      
       // Deduplicate inter-division games
       this.allGames = this.deduplicateGames(games);
       
@@ -927,7 +960,7 @@ class ContributorSchedule {
             <button class="cs-alert-btn deny" data-game-id="${game.game_id}" data-action="deny">✗ Decline</button>
           </div>
           <div class="cs-alert-info">
-            <div class="cs-alert-game">${game.away} @ ${game.home}</div>
+            <div class="cs-alert-game">${game.away} ${game._neutralSite ? 'vs.' : '@'} ${game.home}</div>
             <div class="cs-alert-change">
               ${changeDesc}
               ${this.isAdmin() ? `<span class="cs-alert-contributor">(${contributors.join(', ')})</span>` : ''}
