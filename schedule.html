@@ -636,6 +636,7 @@
       .playoff-round {
         color: #f57c00;
         font-weight: 600;
+        font-size: 12px;
       }
       
       /* Table playoff row */
@@ -1021,19 +1022,22 @@
       return l === 'D1' || l === 'D2' || l === 'D3' || l === 'D-I' || l === 'D-II' || l === 'D-III' || l === 'NAIA' || l === 'NJCAA' || l.includes('NCAA') || l.includes('COLLEGE');
     }
 
-    function getTeamLink(teamName, logoFilename, isWinner, level, gameSport) {
+    function getTeamLink(teamName, logoFilename, isWinner, level, gameSport, seed) {
       const slug = getTeamSlug(teamName);
       const sportParam = gameSport && gameSport !== 'all' ? `?sport=${gameSport}` : '';
+      const seedHtml = seed ? `<span class="playoff-round">#${seed}</span> ` : '';
       if (!slug || isCollegeGame(level)) {
-        return `<span class="matchup-team"><img class="matchup-logo" src="/logos/100px/${logoFilename}" onerror="this.src='/logos/100px/Ball603-white.png'"><span class="matchup-name${isWinner?' winner':''}">${teamName || 'TBD'}</span></span>`;
+        return `<span class="matchup-team"><img class="matchup-logo" src="/logos/100px/${logoFilename}" onerror="this.src='/logos/100px/Ball603-white.png'">${seedHtml}<span class="matchup-name${isWinner?' winner':''}">${teamName || 'TBD'}</span></span>`;
       }
-      return `<a href="/${slug}${sportParam}#schedules" class="team-link matchup-team"><img class="matchup-logo" src="/logos/100px/${logoFilename}" onerror="this.src='/logos/100px/Ball603-white.png'"><span class="matchup-name${isWinner?' winner':''}">${teamName}</span></a>`;
+      return `<a href="/${slug}${sportParam}#schedules" class="team-link matchup-team"><img class="matchup-logo" src="/logos/100px/${logoFilename}" onerror="this.src='/logos/100px/Ball603-white.png'">${seedHtml}<span class="matchup-name${isWinner?' winner':''}">${teamName}</span></a>`;
     }
 
-    function getMobileTeamLink(teamName, logoFilename, record, level, gameSport) {
+    function getMobileTeamLink(teamName, logoFilename, record, level, gameSport, seed) {
       const slug = getTeamSlug(teamName);
       const sportParam = gameSport && gameSport !== 'all' ? `?sport=${gameSport}` : '';
-      const teamInfoContent = `<div class="team-logo"><img src="/logos/100px/${logoFilename}" onerror="this.src='/logos/100px/Ball603-white.png'"></div><div><div class="team-name">${teamName || 'TBD'}</div>${record ? '<div class="team-record">'+record+'</div>' : ''}</div>`;
+      const displayName = seed ? `${seed} ${teamName || 'TBD'}` : (teamName || 'TBD');
+      const recordHtml = (!seed && record) ? '<div class="team-record">'+record+'</div>' : '';
+      const teamInfoContent = `<div class="team-logo"><img src="/logos/100px/${logoFilename}" onerror="this.src='/logos/100px/Ball603-white.png'"></div><div><div class="team-name">${displayName}</div>${recordHtml}</div>`;
       if (!slug || isCollegeGame(level)) {
         return `<div class="team-info">${teamInfoContent}</div>`;
       }
@@ -1164,8 +1168,8 @@
         tableHtml += '<td class="col-sport">'+sportEmoji+'</td>';
         tableHtml += '<td class="col-level">'+roundBadge+(g.level||'')+'</td>';
         tableHtml += '<td class="col-gender">'+(g.gender||'')+'</td>';
-        tableHtml += '<td class="col-away"><div class="away-team-cell">' + getTeamLink(dAway, getLogoFilename(dAway), aw, g.level, sportValue) + (isPlayoff && dAwaySeed ? ' <span class="playoff-round">#'+dAwaySeed+'</span>' : '') + '</div></td>';
-        tableHtml += '<td class="col-home"><div class="home-team-cell"><span class="matchup-at">'+(isNeutralSite ? 'vs.' : '@')+'</span>' + getTeamLink(dHome, getLogoFilename(dHome), hw, g.level, sportValue) + (isPlayoff && dHomeSeed ? ' <span class="playoff-round">#'+dHomeSeed+'</span>' : '') + '</div></td>';
+        tableHtml += '<td class="col-away"><div class="away-team-cell">' + getTeamLink(dAway, getLogoFilename(dAway), aw, g.level, sportValue, isPlayoff ? dAwaySeed : null) + '</div></td>';
+        tableHtml += '<td class="col-home"><div class="home-team-cell"><span class="matchup-at">'+(isNeutralSite ? 'vs.' : '@')+'</span>' + getTeamLink(dHome, getLogoFilename(dHome), hw, g.level, sportValue, isPlayoff ? dHomeSeed : null) + '</div></td>';
         tableHtml += '<td class="col-status">'+statusCell+'</td>';
         tableHtml += '<td class="col-coverage">'+(cov||'-')+'</td>';
         tableHtml += '</tr>';
@@ -1177,9 +1181,9 @@
         if (g.gamedescription) cardsHtml += '<div class="game-description">'+g.gamedescription+'</div>';
         cardsHtml += '<div class="game-card-header"><span class="game-level"><span class="game-sport-emoji">'+getSportEmoji(g.sport || 'basketball')+'</span>'+playoffHeader+(g.gender||'')+' '+(g.level||'')+'</span><span class="game-time">'+td+'</span></div>';
         cardsHtml += '<div class="game-card-body">';
-        cardsHtml += '<div class="game-team">'+getMobileTeamLink(dAway, getLogoFilename(dAway), isPlayoff && dAwaySeed ? '#'+dAwaySeed : dAwayRecord, g.level, sportValue)+(hasScore?'<div class="team-score'+(aw?' winner':'')+'">'+dAwayScore+'</div>':'')+'</div>';
+        cardsHtml += '<div class="game-team">'+getMobileTeamLink(dAway, getLogoFilename(dAway), isPlayoff ? null : dAwayRecord, g.level, sportValue, isPlayoff && dAwaySeed ? '#'+dAwaySeed : null)+(hasScore?'<div class="team-score'+(aw?' winner':'')+'">'+dAwayScore+'</div>':'')+'</div>';
         if (isNeutralSite) cardsHtml += '<div class="neutral-site-label">vs.</div>';
-        cardsHtml += '<div class="game-team">'+getMobileTeamLink(dHome, getLogoFilename(dHome), isPlayoff && dHomeSeed ? '#'+dHomeSeed : dHomeRecord, g.level, sportValue)+(hasScore?'<div class="team-score'+(hw?' winner':'')+'">'+dHomeScore+'</div>':'')+'</div>';
+        cardsHtml += '<div class="game-team">'+getMobileTeamLink(dHome, getLogoFilename(dHome), isPlayoff ? null : dHomeRecord, g.level, sportValue, isPlayoff && dHomeSeed ? '#'+dHomeSeed : null)+(hasScore?'<div class="team-score'+(hw?' winner':'')+'">'+dHomeScore+'</div>':'')+'</div>';
         cardsHtml += '</div>';
         if (cov) cardsHtml += '<div class="game-card-footer">'+cov+'</div>';
         cardsHtml += '</div>';
