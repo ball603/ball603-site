@@ -1312,6 +1312,19 @@
       document.getElementById('tournamentBadge').textContent = `${numTeams} Teams`;
     }
     
+    // Helper: treat a game as final if game_status contains 'FINAL' OR
+    // if game_status is null and the time field contains 'FINAL' (scraped games).
+    function isGameFinal(game) {
+      if (game.game_status && game.game_status.toUpperCase().includes('FINAL')) return true;
+      if (!game.game_status && game.time && game.time.toUpperCase().includes('FINAL')) return true;
+      return false;
+    }
+    function getGameOT(game) {
+      const src = game.game_status || '';
+      if (src.includes('OT')) return ` (${src.replace('FINAL-', '')})`;
+      return '';
+    }
+
     // Client-side bracket advancement
     // Scans completed games and fills in winners in the next round if slots are empty
     function propagateWinners() {
@@ -1347,7 +1360,7 @@
         let winnerTeam = null;
         let winnerSeed = null;
 
-        const isFinal = game.game_status && game.game_status.includes('FINAL');
+        const isFinal = isGameFinal(game);
         const hasScore = game.away_score != null && game.home_score != null;
         const isBye = !game.away_team && game.home_team && game.round === 'Prelims';
 
@@ -1438,8 +1451,8 @@
       }
       
       return games.map(game => {
-        const isLive = game.game_status && !game.game_status.includes('FINAL');
-        const isFinal = game.game_status && game.game_status.includes('FINAL');
+        const isLive = game.game_status && !game.game_status.toUpperCase().includes('FINAL');
+        const isFinal = isGameFinal(game);
         const hasScore = game.away_score != null && game.home_score != null;
         
         // Determine winner
@@ -1667,7 +1680,7 @@
       const awaySeed = playoffSeeds.find(s => s.team === game.away_team);
       const homeSeed = playoffSeeds.find(s => s.team === game.home_team);
       
-      const isFinal = game.game_status && game.game_status.includes('FINAL');
+      const isFinal = isGameFinal(game);
       const hasScore = game.away_score !== null && game.home_score !== null;
       
       let awayWon = false, homeWon = false;
@@ -1690,7 +1703,7 @@
         const winner = awayWon ? game.away_team : game.home_team;
         const winScore = awayWon ? game.away_score : game.home_score;
         const loseScore = awayWon ? game.home_score : game.away_score;
-        const otText = game.game_status.includes('OT') ? ` (${game.game_status.replace('FINAL-', '')})` : '';
+        const otText = getGameOT(game);
         
         const coverageLinks = [];
         if (game.photos_url) coverageLinks.push(`<a href="${game.photos_url}" target="_blank">&#x1F4F7; Photos</a>`);
