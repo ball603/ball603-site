@@ -1083,8 +1083,10 @@
           if (!matchingDivisions.includes(g.division)) return false;
         }
         if (search && !g.home.toLowerCase().includes(search) && !g.away.toLowerCase().includes(search)) return false;
-        // Filter out BYE games (playoff games with no opponent)
-        if (g.is_playoff && (!g.away || !g.home)) return false;
+        // Filter out BYE games (prelim-round single-team byes only), but keep later-round TBD matchups
+        if (g.is_playoff && g.round === 'Prelims' && (!g.away || !g.home)) return false;
+        // Hide playoff games where BOTH teams are still unknown
+        if (g.is_playoff && !g.away && !g.home) return false;
         return true;
       });
       games.sort((a,b) => {
