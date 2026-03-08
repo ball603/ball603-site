@@ -150,7 +150,8 @@ export default async (request) => {
       round: game.round || null,
       bracket_position: game.bracket_position || null,
       home_seed: game.home_seed || null,
-      away_seed: game.away_seed || null
+      away_seed: game.away_seed || null,
+      game_status: game.game_status || null
     }));
     
     return new Response(JSON.stringify({ games, teamsLoaded: Object.keys(teamsMap).length }), {
