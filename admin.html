@@ -6148,6 +6148,58 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     // Quill Editor
     let quillEditor = null;
     
+    // ── Custom Quill Blot: ArticleImage ──────────────────────────────────────
+    // Registers a block-level embed so Quill preserves the wrapper div with
+    // alignment/size/caption — without this, dangerouslyPasteHTML strips divs.
+    (function registerArticleImageBlot() {
+      const BlockEmbed = Quill.import('blots/block/embed');
+      class ArticleImageBlot extends BlockEmbed {
+        static create(value) {
+          const node = super.create();
+          node.setAttribute('contenteditable', 'false');
+          node.classList.add('article-image', `align-${value.align || 'center'}`, `size-${value.size || 'medium'}`);
+          const img = document.createElement('img');
+          img.src = value.url || '';
+          img.alt = value.caption || 'Article image';
+          if (value.link) {
+            const a = document.createElement('a');
+            a.href = value.link;
+            if (value.newWindow) { a.target = '_blank'; a.rel = 'noopener'; }
+            a.appendChild(img);
+            node.appendChild(a);
+          } else {
+            node.appendChild(img);
+          }
+          if (value.caption) {
+            const cap = document.createElement('div');
+            cap.className = 'caption';
+            cap.textContent = value.caption;
+            node.appendChild(cap);
+          }
+          return node;
+        }
+        static value(node) {
+          const img = node.querySelector('img');
+          const cap = node.querySelector('.caption');
+          const a = node.querySelector('a');
+          const align = [...node.classList].find(c => c.startsWith('align-'))?.replace('align-', '') || 'center';
+          const size  = [...node.classList].find(c => c.startsWith('size-'))?.replace('size-', '')  || 'medium';
+          return {
+            url: img?.src || '',
+            caption: cap?.textContent || '',
+            link: a?.href || '',
+            newWindow: a?.target === '_blank',
+            align, size
+          };
+        }
+      }
+      ArticleImageBlot.blotName = 'articleImage';
+      ArticleImageBlot.tagName  = 'div';
+      ArticleImageBlot.className = 'article-image';
+      Quill.register(ArticleImageBlot);
+    })();
+    // ─────────────────────────────────────────────────────────────────────────
+
     function initQuillEditor() {
       if (quillEditor) return; // Already initialized
       
@@ -6298,21 +6350,9 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const align = document.querySelector('input[name="imageAlign"]:checked').value;
       const size = document.querySelector('input[name="imageSize"]:checked').value;
       
-      // Build the HTML for the image block
-      let imgHtml = `<img src="${url}" alt="${caption || 'Article image'}">`;
-      
-      if (link) {
-        const target = newWindow ? ' target="_blank" rel="noopener"' : '';
-        imgHtml = `<a href="${link}"${target}>${imgHtml}</a>`;
-      }
-      
-      let captionHtml = caption ? `<div class="caption">${caption}</div>` : '';
-      
-      const imageBlock = `<div class="article-image align-${align} size-${size}" contenteditable="false">${imgHtml}${captionHtml}</div><p><br></p>`;
-      
-      // Insert at cursor position in Quill
       const range = quillEditor.getSelection(true);
-      quillEditor.clipboard.dangerouslyPasteHTML(range.index, imageBlock);
+      quillEditor.insertEmbed(range.index, 'articleImage', { url, caption, link, newWindow, align, size }, Quill.sources.USER);
+      quillEditor.setSelection(range.index + 1, Quill.sources.SILENT);
       
       closeInsertImageModal();
       showToast('Image inserted!', 'success');
