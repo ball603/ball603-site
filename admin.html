@@ -6524,6 +6524,12 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       if (quillEditor) {
         if (html) {
           quillEditor.root.innerHTML = html;
+          // Re-attach click handlers to any article-image nodes loaded from saved HTML
+          quillEditor.root.querySelectorAll('.article-image').forEach(node => {
+            node.removeEventListener('click', node._ietHandler);
+            node._ietHandler = function(e) { e.stopPropagation(); showImageEditToolbar(node); };
+            node.addEventListener('click', node._ietHandler);
+          });
         } else {
           quillEditor.setText('');
         }
