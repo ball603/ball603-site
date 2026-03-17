@@ -171,6 +171,14 @@
     
     /* Cropper Modal */
     .cropper-modal-content { max-width: 700px; }
+    /* Image Edit Toolbar buttons */
+    .iet-btn { padding: 5px 10px; border: 1px solid #ddd; border-radius: 6px; background: #f5f5f5; font-size: 12px; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+    .iet-btn:hover { background: #ffe0b2; border-color: #f57c00; }
+    .iet-btn.active { background: #f57c00; color: #fff; border-color: #e65100; }
+    .iet-btn-primary { background: #f57c00; color: #fff; border-color: #e65100; }
+    .iet-btn-primary:hover { background: #e65100; }
+    .iet-btn-danger { background: #fff; border-color: #f44336; color: #f44336; }
+    .iet-btn-danger:hover { background: #f44336; color: #fff; }
     .cropper-container-wrapper { max-height: 400px; overflow: hidden; background: #333; border-radius: 6px; }
     .cropper-container-wrapper img { max-width: 100%; display: block; }
     .crop-aspect-buttons { display: flex; gap: 8px; margin-bottom: 15px; flex-wrap: wrap; }
@@ -4879,7 +4887,39 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     </div>
   </div>
 
-  <!-- Image Cropper Modal -->
+  <!-- Floating Image Edit Toolbar (appears when clicking an inserted article image) -->
+  <div id="imageEditToolbar" style="display:none; position:fixed; z-index:9999;">
+    <div style="background:#fff; border:1px solid #ddd; border-radius:10px; box-shadow:0 4px 16px rgba(0,0,0,0.18); padding:10px 12px; display:flex; flex-direction:column; gap:8px; min-width:260px;">
+      <!-- Alignment -->
+      <div style="display:flex; gap:6px; align-items:center;">
+        <span style="font-size:11px; color:#888; width:56px;">Align</span>
+        <button onclick="setEditImageAlign('left')"  id="ietAlignLeft"   style="flex:1;" class="iet-btn">◀ Left</button>
+        <button onclick="setEditImageAlign('center')" id="ietAlignCenter" style="flex:1;" class="iet-btn">Center</button>
+        <button onclick="setEditImageAlign('right')" id="ietAlignRight"  style="flex:1;" class="iet-btn">Right ▶</button>
+      </div>
+      <!-- Size -->
+      <div style="display:flex; gap:6px; align-items:center;">
+        <span style="font-size:11px; color:#888; width:56px;">Size</span>
+        <button onclick="setEditImageSize('small')"  id="ietSizeSmall"  style="flex:1;" class="iet-btn">Small</button>
+        <button onclick="setEditImageSize('medium')" id="ietSizeMedium" style="flex:1;" class="iet-btn">Medium</button>
+        <button onclick="setEditImageSize('full')"   id="ietSizeFull"   style="flex:1;" class="iet-btn">Full</button>
+      </div>
+      <!-- Caption -->
+      <div style="display:flex; gap:6px; align-items:center;">
+        <span style="font-size:11px; color:#888; width:56px;">Caption</span>
+        <input id="ietCaptionInput" type="text" placeholder="Photo caption..." style="flex:1; padding:5px 8px; border:1px solid #ddd; border-radius:6px; font-size:13px;">
+        <button onclick="applyEditImageCaption()" class="iet-btn iet-btn-primary">Set</button>
+      </div>
+      <!-- Actions -->
+      <div style="display:flex; gap:6px; justify-content:flex-end; border-top:1px solid #eee; padding-top:8px; margin-top:2px;">
+        <button onclick="openInlineImageCrop()" class="iet-btn">✂️ Crop</button>
+        <button onclick="deleteEditImage()" class="iet-btn iet-btn-danger">🗑 Remove</button>
+        <button onclick="hideImageEditToolbar()" class="iet-btn">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Image Cropper Modal -->\n
   <div class="modal-overlay" id="cropperModal">
     <div class="modal cropper-modal-content">
       <div class="modal-header">
@@ -6176,6 +6216,11 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             cap.textContent = value.caption;
             node.appendChild(cap);
           }
+          // Click → show edit toolbar
+          node.addEventListener('click', function(e) {
+            e.stopPropagation();
+            showImageEditToolbar(node);
+          });
           return node;
         }
         static value(node) {
@@ -6198,6 +6243,114 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       ArticleImageBlot.className = 'article-image';
       Quill.register(ArticleImageBlot);
     })();
+
+    // ── Image Edit Toolbar ────────────────────────────────────────────────────
+    let currentEditingImageNode = null;
+
+    function showImageEditToolbar(node) {
+      currentEditingImageNode = node;
+      const toolbar = document.getElementById('imageEditToolbar');
+
+      // Populate current values
+      const align = [...node.classList].find(c => c.startsWith('align-'))?.replace('align-', '') || 'center';
+      const size  = [...node.classList].find(c => c.startsWith('size-'))?.replace('size-', '')  || 'medium';
+      const cap   = node.querySelector('.caption')?.textContent || '';
+      document.getElementById('ietCaptionInput').value = cap;
+
+      // Highlight active buttons
+      ['left','center','right'].forEach(a => document.getElementById('ietAlign'+a.charAt(0).toUpperCase()+a.slice(1))?.classList.toggle('active', a === align));
+      ['small','medium','full'].forEach(s => document.getElementById('ietSize'+s.charAt(0).toUpperCase()+s.slice(1))?.classList.toggle('active', s === size));
+
+      // Position near the image
+      const rect = node.getBoundingClientRect();
+      toolbar.style.display = 'block';
+      const tbRect = toolbar.getBoundingClientRect();
+      let top = rect.bottom + 8;
+      if (top + tbRect.height > window.innerHeight - 20) top = rect.top - tbRect.height - 8;
+      let left = rect.left;
+      if (left + 280 > window.innerWidth - 20) left = window.innerWidth - 300;
+      toolbar.style.top  = Math.max(8, top)  + 'px';
+      toolbar.style.left = Math.max(8, left) + 'px';
+    }
+
+    function hideImageEditToolbar() {
+      document.getElementById('imageEditToolbar').style.display = 'none';
+      currentEditingImageNode = null;
+    }
+
+    // Hide toolbar when clicking outside
+    document.addEventListener('click', function(e) {
+      const toolbar = document.getElementById('imageEditToolbar');
+      if (toolbar && !toolbar.contains(e.target) && currentEditingImageNode && !currentEditingImageNode.contains(e.target)) {
+        hideImageEditToolbar();
+      }
+    });
+
+    function setEditImageAlign(align) {
+      if (!currentEditingImageNode) return;
+      ['left','center','right'].forEach(a => currentEditingImageNode.classList.remove('align-'+a));
+      currentEditingImageNode.classList.add('align-'+align);
+      ['left','center','right'].forEach(a => document.getElementById('ietAlign'+a.charAt(0).toUpperCase()+a.slice(1))?.classList.toggle('active', a === align));
+    }
+
+    function setEditImageSize(size) {
+      if (!currentEditingImageNode) return;
+      ['small','medium','full'].forEach(s => currentEditingImageNode.classList.remove('size-'+s));
+      currentEditingImageNode.classList.add('size-'+size);
+      ['small','medium','full'].forEach(s => document.getElementById('ietSize'+s.charAt(0).toUpperCase()+s.slice(1))?.classList.toggle('active', s === size));
+    }
+
+    function applyEditImageCaption() {
+      if (!currentEditingImageNode) return;
+      const text = document.getElementById('ietCaptionInput').value.trim();
+      let cap = currentEditingImageNode.querySelector('.caption');
+      if (text) {
+        if (!cap) { cap = document.createElement('div'); cap.className = 'caption'; currentEditingImageNode.appendChild(cap); }
+        cap.textContent = text;
+      } else if (cap) {
+        cap.remove();
+      }
+      showToast('Caption updated', 'success');
+    }
+
+    function deleteEditImage() {
+      if (!currentEditingImageNode) return;
+      hideImageEditToolbar();
+      // Find blot and delete via Quill
+      const blot = Quill.find(currentEditingImageNode);
+      if (blot) {
+        const index = quillEditor.getIndex(blot);
+        quillEditor.deleteText(index, 1, Quill.sources.USER);
+      } else {
+        currentEditingImageNode.remove();
+      }
+    }
+
+    // Inline crop: load existing image URL into the cropper modal
+    let inlineImageCropNode = null;
+    function openInlineImageCrop() {
+      if (!currentEditingImageNode) return;
+      const img = currentEditingImageNode.querySelector('img');
+      if (!img || !img.src) return;
+      inlineImageCropNode = currentEditingImageNode;
+
+      const cropperImage = document.getElementById('cropperImage');
+      // Use crossOrigin so canvas can read Supabase-hosted images
+      cropperImage.crossOrigin = 'anonymous';
+      cropperImage.src = img.src + (img.src.includes('?') ? '&' : '?') + '_cb=' + Date.now();
+
+      if (cropper) { cropper.destroy(); cropper = null; }
+      document.getElementById('cropperModal').classList.add('open');
+
+      cropperImage.onload = function() {
+        cropper = new Cropper(cropperImage, { viewMode: 2, autoCropArea: 1, responsive: true, background: false });
+      };
+      document.querySelectorAll('.crop-aspect-buttons button').forEach(b => b.classList.remove('active'));
+      const freeBtn = document.getElementById('aspectFree');
+      if (freeBtn) freeBtn.classList.add('active');
+      hideImageEditToolbar();
+    }
+    // ─────────────────────────────────────────────────────────────────────────
     // ─────────────────────────────────────────────────────────────────────────
 
     function initQuillEditor() {
@@ -6656,61 +6809,55 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       if (!cropper) return;
       
       const statusEl = currentCropStatusEl;
-      if (statusEl.textContent !== undefined) {
+      if (statusEl && statusEl.textContent !== undefined) {
         statusEl.textContent = 'Processing...';
         statusEl.style.color = '#f57c00';
       }
       
       try {
         // Get cropped canvas
-        const canvas = cropper.getCroppedCanvas({
-          maxWidth: 2000,
-          maxHeight: 2000
-        });
+        const canvas = cropper.getCroppedCanvas({ maxWidth: 2000, maxHeight: 2000 });
         
         // Convert to blob
-        const blob = await new Promise(resolve => {
-          canvas.toBlob(resolve, 'image/jpeg', 0.9);
-        });
+        const blob = await new Promise(resolve => { canvas.toBlob(resolve, 'image/jpeg', 0.9); });
         
-        // Create file from blob
-        const croppedFile = new File([blob], currentCropFile.name.replace(/\.[^/.]+$/, '.jpg'), {
-          type: 'image/jpeg'
-        });
+        // Filename: use existing file name if cropping inline image, else use currentCropFile
+        const filename = inlineImageCropNode
+          ? ('cropped_' + Date.now() + '.jpg')
+          : (currentCropFile ? currentCropFile.name.replace(/\.[^/.]+$/, '.jpg') : 'image.jpg');
         
-        if (statusEl.textContent !== undefined) {
-          statusEl.textContent = 'Uploading...';
-        }
+        const croppedFile = new File([blob], filename, { type: 'image/jpeg' });
+        
+        if (statusEl && statusEl.textContent !== undefined) statusEl.textContent = 'Uploading...';
         
         // Upload
-        const url = await uploadImageToSupabase(croppedFile, currentCropFolder);
+        const url = await uploadImageToSupabase(croppedFile, 'articles');
         
-        // Update the appropriate fields
-        document.getElementById(currentCropUrlInput).value = url;
-        document.getElementById(currentCropPreviewImg).src = url;
-        document.getElementById(currentCropPreviewBox).style.display = 'block';
-        
-        // Handle featured image specific UI
-        if (currentCropIsFeatured) {
-          document.getElementById('featuredImageContainer').classList.add('has-image');
-          document.getElementById('featuredImagePlaceholder').style.display = 'none';
-          currentCropIsFeatured = false;
+        if (inlineImageCropNode) {
+          // Inline article image crop: update the blot's img src
+          const img = inlineImageCropNode.querySelector('img');
+          if (img) img.src = url;
+          inlineImageCropNode = null;
+          closeCropperModal();
+          showToast('Image cropped!', 'success');
+        } else {
+          // Standard featured image / insert modal crop
+          if (currentCropUrlInput) document.getElementById(currentCropUrlInput).value = url;
+          if (currentCropPreviewImg) document.getElementById(currentCropPreviewImg).src = url;
+          if (currentCropPreviewBox) document.getElementById(currentCropPreviewBox).style.display = 'block';
+          if (currentCropIsFeatured) {
+            document.getElementById('featuredImageContainer').classList.add('has-image');
+            document.getElementById('featuredImagePlaceholder').style.display = 'none';
+            currentCropIsFeatured = false;
+          }
+          if (statusEl && statusEl.textContent !== undefined) { statusEl.textContent = '\u2714 Uploaded'; statusEl.style.color = '#4CAF50'; }
+          closeCropperModal();
+          showToast('Image cropped and uploaded!', 'success');
         }
-        
-        if (statusEl.textContent !== undefined) {
-          statusEl.textContent = '\u{2714} Uploaded';
-          statusEl.style.color = '#4CAF50';
-        }
-        
-        closeCropperModal();
-        showToast('Image cropped and uploaded!', 'success');
         
       } catch (err) {
         console.error('Crop/upload failed:', err);
-        if (statusEl.textContent !== undefined) {
-          statusEl.textContent = '\u{270D}\u{FE0F}\u{2014} Failed';
-          statusEl.style.color = '#f44336';
-        }
+        if (statusEl && statusEl.textContent !== undefined) { statusEl.textContent = '\u270D\uFE0F\u2014 Failed'; statusEl.style.color = '#f44336'; }
         showToast('Image processing failed', 'error');
       }
     }
