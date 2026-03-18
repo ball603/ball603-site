@@ -2448,6 +2448,37 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             </div>
           </div>
           
+          <div class="sidebar-card" id="audioCard">
+  <h4>&#127911; Article Audio</h4>
+
+  <!-- Drop zone -->
+  <div id="audioDrop" style="border:1.5px dashed #ccc;border-radius:8px;padding:1rem;text-align:center;cursor:pointer;font-size:13px;color:#888;transition:border-color .18s;" onclick="document.getElementById('audioFileInput').click()" ondragover="event.preventDefault();this.style.borderColor='#1D9E75'" ondragleave="this.style.borderColor='#ccc'" ondrop="handleAudioDrop(event)">
+    <div style="font-size:22px;margin-bottom:6px;">&#127911;</div>
+    Drop ElevenLabs MP3 here<br>
+    <span style="font-size:11px;">or click to browse</span>
+    <input type="file" id="audioFileInput" accept=".mp3,audio/mpeg" style="display:none" onchange="handleAudioFile(this.files[0])">
+  </div>
+
+  <!-- Uploading -->
+  <div id="audioUploading" style="display:none;align-items:center;gap:8px;font-size:13px;color:#888;padding:.5rem 0;">
+    <div style="width:14px;height:14px;border:2px solid #ddd;border-top-color:#1D9E75;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0;"></div>
+    Uploading...
+  </div>
+
+  <!-- Preview -->
+  <div id="audioPreview" style="display:none;align-items:center;gap:8px;background:#f7fef9;border:1px solid #c6eedd;border-radius:6px;padding:.6rem .8rem;margin-top:.5rem;">
+    <span style="font-size:18px;">&#127911;</span>
+    <div style="flex:1;min-width:0;">
+      <div id="audioFileName" style="font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+      <div id="audioFileMeta" style="font-size:11px;color:#888;"></div>
+    </div>
+    <button type="button" onclick="removeAudio()" style="background:none;border:none;color:#aaa;cursor:pointer;font-size:16px;padding:2px;" title="Remove">&times;</button>
+  </div>
+
+  <input type="hidden" id="audioUrlField" name="audio_url" value="">
+  <small style="display:block;margin-top:.5rem;color:#999;">Readers will see a &ldquo;Listen to this article&rdquo; player.</small>
+</div>
+
           <div class="sidebar-card" id="socialPostsCard" style="display: none;">
             <h4> Social Posts</h4>
             <button onclick="viewSocialPosts()" style="width: 100%; padding: 10px; background: #9c27b0; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 13px;">
@@ -6459,6 +6490,44 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('featuredImagePreview').style.display = 'none';
       document.getElementById('featuredImageFileInput').value = '';
     }
+
+    async function handleAudioFile(file) {
+      if (!file || !file.type.startsWith('audio/')) { showToast('Please select an MP3 file', 'error'); return; }
+      document.getElementById('audioDrop').style.display = 'none';
+      document.getElementById('audioUploading').style.display = 'flex';
+      try {
+        const storyId = currentArticle?.id || 'new';
+        const path = 'articles/' + storyId + '_' + Date.now() + '.mp3';
+        const { error } = await db.storage.from('article-audio').upload(path, file, { contentType: 'audio/mpeg', upsert: true });
+        if (error) throw error;
+        const { data: urlData } = db.storage.from('article-audio').getPublicUrl(path);
+        document.getElementById('audioUrlField').value = urlData.publicUrl;
+        document.getElementById('audioFileName').textContent = file.name;
+        const audio = new Audio(urlData.publicUrl);
+        audio.addEventListener('loadedmetadata', function() {
+          const m = Math.floor(audio.duration/60), s = Math.floor(audio.duration%60);
+          document.getElementById('audioFileMeta').textContent = m+':'+(s<10?'0':'')+s+' · '+(file.size/1024/1024).toFixed(1)+' MB';
+        }, {once:true});
+        document.getElementById('audioUploading').style.display = 'none';
+        document.getElementById('audioPreview').style.display = 'flex';
+        showToast('Audio uploaded!', 'success');
+      } catch(err) {
+        showToast('Upload failed: ' + (err.message||err), 'error');
+        document.getElementById('audioUploading').style.display = 'none';
+        document.getElementById('audioDrop').style.display = 'block';
+      }
+    }
+    function handleAudioDrop(e) {
+      e.preventDefault();
+      document.getElementById('audioDrop').style.borderColor = '#ccc';
+      const file = e.dataTransfer.files[0];
+      if (file) handleAudioFile(file);
+    }
+    function removeAudio() {
+      document.getElementById('audioUrlField').value = '';
+      document.getElementById('audioPreview').style.display = 'none';
+      document.getElementById('audioDrop').style.display = 'block';
+    }
     
     // Inline Image Insert Functions
     function openInsertImageModal() {
@@ -9061,6 +9130,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       
       // Clear featured image
       removeFeaturedImage();
+      removeAudio();
       
       // Clear bonus galleries (silently)
       document.getElementById('bonusGallery1Url').value = '';
@@ -9227,6 +9297,18 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('bonusGallery2ThumbUrl').value = article.bonus_gallery_2_thumb || '';
       document.getElementById('bonusGallery2Photographer').value = article.bonus_gallery_2_photographer || '';
       updateBonusGalleryPreview(2);
+      
+      // Audio
+      const audioUrl = article.audio_url || '';
+      document.getElementById('audioUrlField').value = audioUrl;
+      if (audioUrl) {
+        document.getElementById('audioDrop').style.display = 'none';
+        document.getElementById('audioFileName').textContent = audioUrl.split('/').pop();
+        document.getElementById('audioFileMeta').textContent = 'Previously uploaded';
+        document.getElementById('audioPreview').style.display = 'flex';
+      } else {
+        removeAudio();
+      }
       
       // Handle scheduling
       if (article.scheduled_at) {
@@ -10157,6 +10239,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         social_posts: socialPosts,
         game_data: currentGameData || null,
         matchup_data: pendingMarqueeData || pendingPlayoffData || currentArticle?.matchup_data || null,
+        audio_url: document.getElementById('audioUrlField').value || null,
         status: 'draft',
         published_at: null, // Clear published_at when saving as draft
         updated_at: new Date().toISOString()
@@ -10241,6 +10324,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         sport: document.getElementById('articleSport').value || null,
         social_posts: socialPosts,
         scheduled_at: scheduledAt,
+        audio_url: document.getElementById('audioUrlField').value || null,
         status: currentArticle?.status || 'draft',  // Preserve existing status
         updated_at: new Date().toISOString()
       };
