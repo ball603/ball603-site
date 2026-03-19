@@ -193,8 +193,8 @@ export const handler = async (event) => {
       const pageSize = 100;
       let hasMore = true;
       
-      // Fetch up to 500 albums (5 pages)
-      while (hasMore && allAlbums.length < 500) {
+      // Fetch all albums with no cap
+      while (hasMore) {
         const endpoint = `/api/v2/user/ball603!albums?count=${pageSize}&start=${start}&SortDirection=Descending&SortMethod=LastUpdated`;
         const result = await smugmugRequest(endpoint);
         
