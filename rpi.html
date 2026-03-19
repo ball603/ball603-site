@@ -148,6 +148,20 @@
       background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
       color: white;
     }
+
+    .rpi-card-header .season-select {
+      background: rgba(255,255,255,0.12);
+      color: white;
+      border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 6px;
+      padding: 5px 10px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .rpi-card-header .season-select option {
+      background: #2d2d2d;
+      color: white;
+    }
     
     .rpi-card-title {
       font-size: 18px;
@@ -566,7 +580,7 @@
   <div id="site-header"></div>
   <div id="mobile-menu"></div>
   <script src="/includes/nav-loader.js"></script>
-  
+  <script src="/js/season-config.js"></script>  
   <main class="rpi-page">
     <!-- Header -->
     <div class="rpi-header">
@@ -608,6 +622,7 @@
           <span class="rpi-badge-dot"></span>
           <span>Sorted by RPI</span>
         </span>
+        <select class="filter-select season-select" id="rpiSeasonSelect" style="display:none;" title="Select season"></select>
       </div>
       
       <div class="rpi-table-wrapper">
@@ -701,7 +716,17 @@
     let sortField = 'rpi';
     let sortDir = 'desc';
     let calculatedAt = null;
-    
+    let currentSeason = getLatestSeason(currentSport);
+
+    // ===== SEASON SELECTOR =====
+    function refreshSeasonSelect() {
+      populateSeasonSelect('rpiSeasonSelect', currentSport, currentSeason, (season) => {
+        currentSeason = season;
+        allRpiCache = {}; // clear cache when season changes
+        loadRPIData();
+      });
+    }
+
     const DIVISION_LABELS = {
       'D-I': 'Division I',
       'D-II': 'Division II',
@@ -753,6 +778,8 @@
     
     function selectSport(sport) {
       currentSport = sport;
+      currentSeason = getLatestSeason(sport);
+      allRpiCache = {}; // clear cache when sport changes
       
       // Update sport buttons
       document.getElementById('basketballBtn').classList.toggle('active', sport === 'basketball');
@@ -789,6 +816,7 @@
       }
       
       updatePageTitle();
+      refreshSeasonSelect();
       loadRPIData();
     }
     
@@ -848,8 +876,8 @@
       tbody.innerHTML = '<tr><td colspan="13" class="loading-msg"><div class="loading-spinner"></div>Loading...</td></tr>';
       updateCardHeader();
       
-      // Cache key includes sport and gender
-      const cacheKey = `${currentSport}-${currentGender}`;
+      // Cache key includes sport, gender, and season
+      const cacheKey = `${currentSport}-${currentGender}-${currentSeason}`;
       
       // Check cache first
       if (allRpiCache[cacheKey]) {
@@ -858,8 +886,8 @@
       }
       
       try {
-        // Include sport in API call
-        const response = await fetch('/.netlify/functions/get-rpi?gender=' + encodeURIComponent(currentGender) + '&sport=' + encodeURIComponent(currentSport));
+        // Include sport and season in API call
+        const response = await fetch('/.netlify/functions/get-rpi?gender=' + encodeURIComponent(currentGender) + '&sport=' + encodeURIComponent(currentSport) + '&season=' + encodeURIComponent(currentSeason));
         const data = await response.json();
         
         const sportLabel = SPORT_NAMES[currentSport]?.toLowerCase() || 'sports';
@@ -1097,6 +1125,7 @@
     }
     
     updatePageTitle();
+    refreshSeasonSelect();
     loadRPIData();
     
     // ===== GROUP HEADER ROW =====

@@ -385,6 +385,6 @@ export default async (request) => {
 };
 
 export const config = {
-  // Every 5 minutes during basketball season (Nov-Mar)
-  schedule: "*/5 * * 1,2,3,11,12 *"
+  // DISABLED 2025-26 season complete — re-enable when 2026-27 season begins (Nov 2026)
+  // schedule: "*/5 * * 1,2,3,11,12 *"
 };

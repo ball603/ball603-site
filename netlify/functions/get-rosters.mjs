@@ -39,6 +39,7 @@ export async function handler(event, context) {
     const school = params.school;
     const gender = params.gender;
     const sport = params.sport;
+    const season = params.season; // Optional — if omitted, returns all seasons
 
     // Build Supabase REST API URL
     let url = `${supabaseUrl}/rest/v1/roster_submissions?status=eq.approved&select=id,school,gender,season,players_json,head_coach,assistant_coaches,managers,sport`;
@@ -50,7 +51,12 @@ export async function handler(event, context) {
     if (gender) {
       url += `&gender=eq.${encodeURIComponent(gender)}`;
     }
-    
+
+    // Season filtering — filter by specific season if provided
+    if (season) {
+      url += `&season=eq.${encodeURIComponent(season)}`;
+    }
+
     // Sport filtering:
     // - If sport param provided (e.g., 'baseball'), filter by that sport
     // - If no sport param, default to basketball (handles both NULL and 'basketball' values)

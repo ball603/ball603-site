@@ -180,6 +180,20 @@
       background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
       color: white;
     }
+
+    .standings-card-header .season-select {
+      background: rgba(255,255,255,0.12);
+      color: white;
+      border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 6px;
+      padding: 5px 10px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .standings-card-header .season-select option {
+      background: #2d2d2d;
+      color: white;
+    }
     
     .standings-card-title {
       font-size: 18px;
@@ -1012,6 +1026,7 @@
   <div id="site-header"></div>
   <div id="mobile-menu"></div>
   <script src="/includes/nav-loader.js"></script>
+  <script src="/js/season-config.js"></script>
   
   <main class="standings-page">
     <!-- Header -->
@@ -1062,6 +1077,7 @@
           <span class="playoff-indicator"></span>
           <span id="playoffText">Top 15 make playoffs</span>
         </span>
+        <select class="filter-select season-select" id="standingsSeasonSelect" style="display:none;" title="Select season"></select>
       </div>
       
       <div class="standings-table-wrapper">
@@ -1177,8 +1193,20 @@
     // URL parameter overrides auto-detection
     const urlParams = new URLSearchParams(window.location.search);
     const urlSport = urlParams.get('sport');
+    const urlSeason = urlParams.get('season');
     let currentSport = urlSport || getCurrentSport();
-    let currentSeason = getCurrentSeason(currentSport);
+    let currentSeason = urlSeason || getCurrentSeason(currentSport);
+
+    // ===== SEASON SELECTOR =====
+    function refreshSeasonSelect() {
+      populateSeasonSelect('standingsSeasonSelect', currentSport, currentSeason, (season) => {
+        currentSeason = season;
+        const p = new URLSearchParams(window.location.search);
+        p.set('season', season);
+        window.history.replaceState({}, '', '?' + p.toString());
+        loadData();
+      });
+    }
     
     // Gender defaults based on sport
     let currentGender = currentSport === 'volleyball' ? 'Girls' : 'Boys';
@@ -1740,6 +1768,9 @@
       
       // Update page title and header
       updatePageTitle();
+
+      // Refresh season selector for new sport
+      refreshSeasonSelect();
       
       // Reload data for selected sport
       loadData();
@@ -2042,6 +2073,9 @@
     
     // Update page title
     updatePageTitle();
+
+    // Initialize season selector
+    refreshSeasonSelect();
     
     // Load data on page load
     loadData();

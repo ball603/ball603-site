@@ -39,6 +39,20 @@
       text-align: center;
       margin-bottom: 24px;
     }
+
+    .rosters-header .season-select {
+      margin-top: 12px;
+      padding: 6px 12px;
+      font-size: 13px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background: white;
+      cursor: pointer;
+    }
+    .rosters-header .season-select:focus {
+      outline: none;
+      border-color: var(--brand-orange);
+    }
     
     .rosters-title {
       font-size: 28px;
@@ -301,6 +315,7 @@
     <div class="rosters-header">
       <h1 class="rosters-title">Team Rosters</h1>
       <p class="rosters-subtitle" id="rostersSubtitle">2025-26 New Hampshire High School Basketball</p>
+      <select class="filter-select season-select" id="rostersSeasonSelect" style="display:none;" title="Select season"></select>
     </div>
     
     <!-- Sport Filter -->
@@ -391,6 +406,7 @@
   
   <!-- Nav Loader -->
   <script src="/includes/nav-loader.js"></script>
+  <script src="/js/season-config.js"></script>
   
   <!-- Rosters Page JS -->
   <script>
@@ -406,8 +422,21 @@
     // ===== STATE =====
     let currentSport = getCurrentSport();
     let currentGender = currentSport === 'volleyball' ? 'Girls' : 'Boys';
+    let currentSeason = getLatestSeason(currentSport);
     let allTeams = [];
     let allRosters = [];
+
+    // ===== SEASON SELECTOR =====
+    function refreshSeasonSelect() {
+      populateSeasonSelect('rostersSeasonSelect', currentSport, currentSeason, (season) => {
+        currentSeason = season;
+        allRosters = []; // force reload when season changes
+        loadAllRosters().then(() => {
+          updatePageTitle();
+          populateTeamDropdown();
+        });
+      });
+    }
     
     // ===== INITIALIZATION =====
     document.addEventListener('DOMContentLoaded', async () => {
@@ -429,6 +458,7 @@
       await loadTeams();
       await loadAllRosters();
       updatePageTitle();
+      refreshSeasonSelect();
       populateTeamDropdown();
     });
     
@@ -452,11 +482,17 @@
     // ===== LOAD ALL ROSTERS =====
     async function loadAllRosters() {
       try {
-        const { data: rosters, error } = await supabaseClient
+        let query = supabaseClient
           .from('roster_submissions')
           .select('*')
           .eq('status', 'approved');
-        
+
+        // Filter by season if we have one
+        if (currentSeason) {
+          query = query.eq('season', currentSeason);
+        }
+
+        const { data: rosters, error } = await query;
         if (error) throw error;
         allRosters = rosters || [];
       } catch (err) {
@@ -467,6 +503,7 @@
     // ===== SELECT SPORT =====
     function selectSport(sport) {
       currentSport = sport;
+      currentSeason = getLatestSeason(sport);
       
       // Update sport buttons
       document.getElementById('basketballBtn').classList.toggle('active', sport === 'basketball');
@@ -493,7 +530,8 @@
       }
       
       updatePageTitle();
-      populateTeamDropdown();
+      refreshSeasonSelect();
+      loadAllRosters().then(() => populateTeamDropdown());
     }
     
     // ===== UPDATE PAGE TITLE =====
@@ -506,7 +544,7 @@
       const sportName = sportNames[currentSport] || 'Sports';
       
       document.getElementById('pageTitle').textContent = `${sportName} Rosters | Ball603`;
-      document.getElementById('rostersSubtitle').textContent = `2025-26 New Hampshire High School ${sportName}`;
+      document.getElementById('rostersSubtitle').textContent = `${currentSeason} New Hampshire High School ${sportName}`;
     }
     
     // ===== POPULATE TEAM DROPDOWN =====

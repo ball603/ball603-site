@@ -40,6 +40,20 @@
       text-align: center;
       margin-bottom: 24px;
     }
+
+    .playoffs-header .season-select {
+      margin-top: 12px;
+      padding: 6px 12px;
+      font-size: 13px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background: white;
+      cursor: pointer;
+    }
+    .playoffs-header .season-select:focus {
+      outline: none;
+      border-color: var(--brand-orange);
+    }
     
     .playoffs-title {
       font-size: 32px;
@@ -861,12 +875,13 @@
   <div id="site-header"></div>
   <div id="mobile-menu"></div>
   <script src="/includes/nav-loader.js"></script>
-  
+  <script src="/js/season-config.js"></script>  
   <main class="playoffs-page">
     <!-- Header -->
     <div class="playoffs-header">
       <h1 class="playoffs-title">&#x1F3C0; NHIAA Playoffs</h1>
       <p class="playoffs-subtitle">Brackets, scores, and tournament coverage</p>
+      <select class="filter-select season-select" id="playoffsSeasonSelect" style="display:none;" title="Select season"></select>
     </div>
     
     <!-- Gender Toggle -->
@@ -1037,6 +1052,15 @@
     let playoffGames = [];
     let currentGender = 'Boys';
     let currentDivision = 'D-I';
+    let currentSeason = getLatestSeason('basketball');
+
+    // ===== SEASON SELECTOR =====
+    function refreshSeasonSelect() {
+      populateSeasonSelect('playoffsSeasonSelect', 'basketball', currentSeason, (season) => {
+        currentSeason = season;
+        loadPlayoffs();
+      });
+    }
     
     // Initialize
     document.addEventListener('DOMContentLoaded', () => {
@@ -1053,7 +1077,8 @@
       // Update UI to match state
       updateGenderUI();
       updateDivisionUI();
-      
+
+      refreshSeasonSelect();
       loadPlayoffs();
     });
     
@@ -1081,7 +1106,7 @@
     }
     
     async function loadPlayoffs() {
-      const season = '2025-26';
+      const season = currentSeason;
       
       // Update URL
       const url = new URL(window.location);
@@ -1725,7 +1750,7 @@
         const team2 = encodeURIComponent(game.home_team);
         const response = await fetch(
           `${SUPABASE_URL}/rest/v1/games?` +
-          `season=eq.2025-26&gender=eq.${currentGender}&is_playoff=eq.false&` +
+          `season=eq.${currentSeason}&gender=eq.${currentGender}&is_playoff=eq.false&` +
           `or=(and(home_team.eq.${team1},away_team.eq.${team2}),and(home_team.eq.${team2},away_team.eq.${team1}))&` +
           `home_score=not.is.null&order=date.asc`,
           {
