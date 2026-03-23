@@ -8,6 +8,22 @@ const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const SPORT = 'basketball';
 const SEASON = '2025-26';
 
+// Check the seasons table — if scraper_active is false for this sport, exit early
+async function isScraperActive() {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/seasons?sport=eq.basketball&is_current=eq.true&select=scraper_active`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+    );
+    if (!res.ok) return true; // fail open — don't block scraper on DB error
+    const rows = await res.json();
+    if (!rows || rows.length === 0) return true; // no row = allow
+    return rows[0].scraper_active === true;
+  } catch {
+    return true; // fail open
+  }
+}
+
 // Normalize team names to match games table
 function normalizeTeamName(name) {
   const normalizations = {
@@ -349,6 +365,12 @@ async function updateRecordsFromGames() {
 
 export default async (request) => {
   console.log('Ball603 Standings Scraper - Starting...');
+
+  // Check DB flag — exit early if scraper is disabled for this season
+  if (!(await isScraperActive())) {
+    console.log('Standings scraper is disabled via Season Manager. Skipping.');
+    return new Response(JSON.stringify({ skipped: true, reason: 'scraper_active=false' }), { status: 200 });
+  }
   
   try {
     let allStandings = [];

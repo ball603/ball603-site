@@ -78,10 +78,37 @@ export default async (request) => {
     if (finalSettings.basketball_enabled) enabledSports.push('basketball');
     if (finalSettings.baseball_enabled) enabledSports.push('baseball');
     if (finalSettings.volleyball_enabled) enabledSports.push('volleyball');
+
+    // Fetch seasons from the seasons table for the frontend dropdown
+    let seasonsList = [];
+    try {
+      const seasonsRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/seasons?select=sport,season,is_current,scraper_active,finalized_at&order=sport.asc,created_at.desc`,
+        {
+          headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`
+          }
+        }
+      );
+      if (seasonsRes.ok) {
+        seasonsList = await seasonsRes.json();
+      }
+    } catch {
+      // Non-fatal — frontend falls back to season-config.js hardcoded values
+    }
+
+    // Group seasons by sport: { basketball: ['2025-26'], baseball: ['2026'], ... }
+    const seasonsBySport = {};
+    for (const row of seasonsList) {
+      if (!seasonsBySport[row.sport]) seasonsBySport[row.sport] = [];
+      seasonsBySport[row.sport].push(row.season);
+    }
     
     return new Response(JSON.stringify({
       settings: finalSettings,
       enabledSports,
+      seasons: seasonsBySport,
       timestamp: new Date().toISOString()
     }), {
       status: 200,

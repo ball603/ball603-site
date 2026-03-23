@@ -543,12 +543,39 @@ async function updateSupabase(games) {
   return { rowCount: totalUpserted, changesDetected, dbUpdated: true, updated, added };
 }
 
+// Check the seasons table — if scraper_active is false for basketball, exit early
+async function isScraperActive() {
+  try {
+    const res = await fetch(
+      `${process.env.SUPABASE_URL}/rest/v1/seasons?sport=eq.basketball&is_current=eq.true&select=scraper_active`,
+      {
+        headers: {
+          'apikey': process.env.SUPABASE_SERVICE_KEY,
+          'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_KEY}`
+        }
+      }
+    );
+    if (!res.ok) return true;
+    const rows = await res.json();
+    if (!rows || rows.length === 0) return true;
+    return rows[0].scraper_active === true;
+  } catch {
+    return true;
+  }
+}
+
 /**
  * Main handler - Netlify function entry point
  */
 export default async (request) => {
   console.log('Ball603 College ESPN Scraper (Supabase) - Starting...');
   console.log(`Timestamp: ${new Date().toISOString()}`);
+
+  // Check DB flag — exit early if scraper is disabled for this season
+  if (!(await isScraperActive())) {
+    console.log('ESPN scraper is disabled via Season Manager. Skipping.');
+    return new Response(JSON.stringify({ skipped: true, reason: 'scraper_active=false' }), { status: 200 });
+  }
   
   try {
     const allGames = [];

@@ -10,6 +10,22 @@ const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const SPORT = 'basketball';
 const SEASON = '2025-26';
 
+// Check the seasons table — if scraper_active is false for this sport, exit early
+async function isScraperActive() {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/seasons?sport=eq.basketball&is_current=eq.true&select=scraper_active`,
+      { headers: { 'apikey': SUPABASE_SERVICE_KEY, 'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}` } }
+    );
+    if (!res.ok) return true;
+    const rows = await res.json();
+    if (!rows || rows.length === 0) return true;
+    return rows[0].scraper_active === true;
+  } catch {
+    return true;
+  }
+}
+
 const SCHEDULE_URLS = [
   { url: 'https://www.nhiaa.org/sports/schedules/boys-basketball/division-1', gender: 'Boys', division: 'D-I' },
   { url: 'https://www.nhiaa.org/sports/schedules/boys-basketball/division-2', gender: 'Boys', division: 'D-II' },
@@ -1085,6 +1101,12 @@ async function syncWithNHIAA(scrapedGames) {
 
 export default async (request) => {
   console.log('Ball603 Schedule Scraper - Starting...');
+
+  // Check DB flag — exit early if scraper is disabled for this season
+  if (!(await isScraperActive())) {
+    console.log('Schedule scraper is disabled via Season Manager. Skipping.');
+    return new Response(JSON.stringify({ skipped: true, reason: 'scraper_active=false' }), { status: 200 });
+  }
   
   try {
     // Step 1: Clean up any existing duplicates and fix malformed IDs
