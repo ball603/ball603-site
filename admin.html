@@ -5388,6 +5388,52 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             <span id="smResultMsg" style="font-size:13px; font-weight:600;"></span>
           </div>
         </div>
+
+        <!-- Step 4: Post-create deploy checklist (new season only) -->
+        <div id="smStep4" style="display:none;">
+          <div style="background:#e8f5e9; border:2px solid #2e7d32; border-radius:10px; padding:20px; margin-bottom:20px;">
+            <p style="font-weight:700; font-size:15px; color:#2e7d32; margin:0 0 4px;">&#x2705; Season created in database!</p>
+            <p style="font-size:13px; color:#555; margin:0 0 16px;">The DB is updated and scrapers are armed. You still need a <strong>code deploy</strong> to complete the setup. Here's your checklist:</p>
+
+            <div style="background:#fff; border-radius:8px; padding:16px; margin-bottom:12px;">
+              <p style="font-weight:700; font-size:13px; color:#333; margin:0 0 10px; text-transform:uppercase; letter-spacing:.5px;">&#x1F6A7; Required code changes (1 deploy)</p>
+              <ol style="font-size:13px; color:#444; margin:0; padding-left:18px; line-height:2.2;">
+                <li>
+                  <strong>Uncomment the cron schedule</strong> in all 4 scraper files:<br>
+                  <code style="font-size:11px; background:#f5f5f5; padding:2px 6px; border-radius:4px;">scrape-standings.mjs</code>
+                  <code style="font-size:11px; background:#f5f5f5; padding:2px 6px; border-radius:4px;">scrape-schedules.mjs</code>
+                  <code style="font-size:11px; background:#f5f5f5; padding:2px 6px; border-radius:4px;">scrape-college-espn.mjs</code>
+                  <code style="font-size:11px; background:#f5f5f5; padding:2px 6px; border-radius:4px;">scrape-college-sidearm.mjs</code><br>
+                  <span style="font-size:11px; color:#888;">Each has a commented-out <code>schedule:</code> line in <code>export const config</code> at the bottom of the file.</span>
+                </li>
+                <li>
+                  <strong>Update <code>const SEASON</code></strong> near the top of:<br>
+                  <code style="font-size:11px; background:#f5f5f5; padding:2px 6px; border-radius:4px;">scrape-standings.mjs</code>
+                  <code style="font-size:11px; background:#f5f5f5; padding:2px 6px; border-radius:4px;">scrape-schedules.mjs</code><br>
+                  <span id="smStep4Season" style="font-size:11px; color:#f57c00; font-weight:600;"></span>
+                </li>
+                <li>
+                  <strong>Update SIDEARM schedule paths</strong> in <code style="font-size:11px; background:#f5f5f5; padding:2px 6px; border-radius:4px;">scrape-college-sidearm.mjs</code><br>
+                  <span style="font-size:11px; color:#888;">Each school config has a <code>mensPath</code> and <code>womensPath</code> with the season in the URL (e.g. <code>/schedule/2025-26</code>). Update all of them.</span>
+                </li>
+                <li>
+                  <strong>Update the fallback</strong> in <code style="font-size:11px; background:#f5f5f5; padding:2px 6px; border-radius:4px;">js/season-config.js</code><br>
+                  <span id="smStep4Fallback" style="font-size:11px; color:#f57c00; font-weight:600;"></span>
+                </li>
+              </ol>
+            </div>
+
+            <div style="background:#fff; border-radius:8px; padding:16px;">
+              <p style="font-weight:700; font-size:13px; color:#333; margin:0 0 10px; text-transform:uppercase; letter-spacing:.5px;">&#x1F4CB; After deploying</p>
+              <ul style="font-size:13px; color:#444; margin:0; padding-left:18px; line-height:2;">
+                <li>Scrapers will start running on their next cron fire</li>
+                <li>New season data will populate standings, RPI, and schedules automatically</li>
+                <li>The season archive dropdown will show both seasons once data exists</li>
+              </ul>
+            </div>
+          </div>
+          <button onclick="smReset()" style="padding:10px 24px; background:#f57c00; color:#fff; border:none; border-radius:8px; cursor:pointer; font-size:14px; font-weight:600;">Done &#x2713;</button>
+        </div>
       </div>
     </div>
   </div>
@@ -23735,6 +23781,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('smStep1').style.display = toStep === 1 ? '' : 'none';
       document.getElementById('smStep2').style.display = toStep === 2 ? '' : 'none';
       document.getElementById('smStep3').style.display = 'none';
+      document.getElementById('smStep4').style.display = 'none';
       document.getElementById('smResultMsg').textContent = '';
     }
 
@@ -23764,12 +23811,23 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           msgEl.style.color = '#2e7d32';
           showToast(data.message, 'success');
           await refreshSeasonStatus();
-          // Reset wizard after 2s
-          setTimeout(() => {
-            document.getElementById('smStep1').style.display = '';
+
+          if (smAction === 'new') {
+            // Show the deploy checklist (Step 4)
+            document.getElementById('smStep4Season').textContent =
+              `Change const SEASON = '${season}' (replacing the previous value)`;
+            document.getElementById('smStep4Fallback').textContent =
+              `Add '${season}' to the front of the ${sport} array in BALL603_SEASONS_FALLBACK`;
             document.getElementById('smStep3').style.display = 'none';
-            msgEl.textContent = '';
-          }, 2500);
+            document.getElementById('smStep4').style.display = '';
+          } else {
+            // Finalize — reset wizard after 2s
+            setTimeout(() => {
+              document.getElementById('smStep1').style.display = '';
+              document.getElementById('smStep3').style.display = 'none';
+              msgEl.textContent = '';
+            }, 2500);
+          }
         } else {
           msgEl.textContent = '✗ ' + (data.error || 'Unknown error');
           msgEl.style.color = '#c62828';
@@ -23781,6 +23839,15 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
 
       btn.disabled = false;
       btn.textContent = '✓ Confirm & Execute';
+    }
+
+    function smReset() {
+      smAction = null;
+      document.getElementById('smStep1').style.display = '';
+      document.getElementById('smStep2').style.display = 'none';
+      document.getElementById('smStep3').style.display = 'none';
+      document.getElementById('smStep4').style.display = 'none';
+      document.getElementById('smResultMsg').textContent = '';
     }
 
     let currentRound = 'Prelims';
