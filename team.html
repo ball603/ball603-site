@@ -1698,15 +1698,22 @@
             renderSponsors(uniqueSponsors);
             return;
           } else {
-            // Sport-specific view: filter sponsors that include the current sport
+            // Sport-specific view:
+            // Town tier sponsors show regardless of sport
+            // Sport tier sponsors only show if they include this sport
             const matchingSponsors = sponsors.filter(s => {
+              if (s.tier === 'town') return true;
               const sportList = (s.sport || 'basketball').split(',');
               return sportList.includes(currentSport);
             });
             
             if (matchingSponsors.length > 0) {
-              // Prefer sport-specific sponsor (one that lists fewer sports) over general sponsors
-              matchingSponsors.sort((a, b) => (a.sport || '').split(',').length - (b.sport || '').split(',').length);
+              // Prefer sport-specific sponsor over town sponsors when both exist
+              matchingSponsors.sort((a, b) => {
+                if (a.tier === 'town' && b.tier !== 'town') return 1;
+                if (b.tier === 'town' && a.tier !== 'town') return -1;
+                return (a.sport || '').split(',').length - (b.sport || '').split(',').length;
+              });
               teamData.sponsors = [matchingSponsors[0]];
               renderSponsors([matchingSponsors[0]]);
               return;

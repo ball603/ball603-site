@@ -2609,15 +2609,24 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
           <div class="form-group">
             <label>Tier</label>
-            <select id="sponsorTier" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
-              <option value="standard">Standard</option>
-              <option value="premium">Premium</option>
-              <option value="presenting">Presenting</option>
+            <select id="sponsorTier" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;" onchange="updateSponsorTierUI()">
+              <option value="sport">Sport — team page + sport-specific articles</option>
+              <option value="town">Town — team page + ALL school articles</option>
+              <option value="presenting">Presenting — homepage, sitewide bar &amp; footer</option>
             </select>
           </div>
           <div class="form-group">
             <label>Start Date</label>
             <input type="date" id="sponsorStartDate" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+          </div>
+        </div>
+
+        <!-- Page Placements (hidden for Presenting tier) -->
+        <div id="sponsorPagePlacementsWrap" class="form-group" style="margin-bottom: 15px;">
+          <label>Page Placements <span style="font-size:11px; color:#aaa; font-weight:normal;">(optional — sponsor banner on selected pages)</span></label>
+          <div style="display: flex; flex-wrap: wrap; gap: 10px; padding: 10px; background: #f9f9f9; border-radius: 8px; border: 1px solid #eee; margin-top: 6px;">
+            <div style="width: 100%; font-size: 11px; color: #888; margin-bottom: 4px;">Select which pages &amp; sports this sponsor banner appears on:</div>
+            <div id="sponsorPagePlacementRows" style="width:100%; display:flex; flex-direction:column; gap:10px;"></div>
           </div>
         </div>
         
@@ -19819,7 +19828,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             </div>
             <div style="font-size: 13px;">${sponsor.team_shortname}</div>
             <div style="font-size: 13px;">${getSportEmojis(sponsor.sport)}</div>
-            <div><span style="font-size: 11px; padding: 3px 8px; border-radius: 10px; background: ${sponsor.tier === 'premium' ? '#fff3e0' : sponsor.tier === 'presenting' ? '#e8f5e9' : '#f5f5f5'}; color: ${sponsor.tier === 'premium' ? '#e65100' : sponsor.tier === 'presenting' ? '#2e7d32' : '#666'};">${sponsor.tier || 'standard'}</span></div>
+            <div><span style="font-size: 11px; padding: 3px 8px; border-radius: 10px; background: ${sponsor.tier === 'town' ? '#fff3e0' : sponsor.tier === 'presenting' ? '#e8f5e9' : '#f5f5f5'}; color: ${sponsor.tier === 'town' ? '#e65100' : sponsor.tier === 'presenting' ? '#2e7d32' : '#666'};">${sponsor.tier || 'sport'}</span></div>
             <div><span class="article-status ${sponsor.active ? 'published' : 'draft'}">${sponsor.active ? 'Active' : 'Inactive'}</span></div>
             <div class="article-actions">
               <button class="btn-edit" onclick="editSponsor('${sponsor.id}')">Edit</button>
@@ -19859,7 +19868,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           cb.checked = sports.includes(cb.value);
         });
         
-        document.getElementById('sponsorTier').value = sponsor.tier || 'standard';
+        document.getElementById('sponsorTier').value = sponsor.tier || 'sport';
         document.getElementById('sponsorStartDate').value = sponsor.start_date || '';
         document.getElementById('sponsorEndDate').value = sponsor.end_date || '';
         document.getElementById('sponsorNotes').value = sponsor.notes || '';
@@ -19872,6 +19881,9 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         } else {
           document.getElementById('sponsorLogoPreview').style.display = 'none';
         }
+
+        buildPagePlacementsUI(sponsor.page_placements || '');
+        updateSponsorTierUI();
       } else {
         document.getElementById('sponsorId').value = '';
         document.getElementById('sponsorName').value = '';
@@ -19884,15 +19896,67 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           cb.checked = cb.value === 'basketball';
         });
         
-        document.getElementById('sponsorTier').value = 'standard';
+        document.getElementById('sponsorTier').value = 'sport';
         document.getElementById('sponsorStartDate').value = '';
         document.getElementById('sponsorEndDate').value = '';
         document.getElementById('sponsorNotes').value = '';
         document.getElementById('sponsorActive').checked = true;
         document.getElementById('sponsorLogoPreview').style.display = 'none';
+        buildPagePlacementsUI('');
+        updateSponsorTierUI();
       }
     }
     
+    function updateSponsorTierUI() {
+      const tier = document.getElementById('sponsorTier').value;
+      const teamWrap = document.getElementById('sponsorTeam').closest('.form-group');
+      const sportsWrap = document.getElementById('sponsorSportsCheckboxes').closest('.form-group');
+      const placementsWrap = document.getElementById('sponsorPagePlacementsWrap');
+      const isPresentingTier = tier === 'presenting';
+
+      // Presenting sponsors don't need team/sport
+      teamWrap.style.opacity = isPresentingTier ? '0.4' : '1';
+      teamWrap.style.pointerEvents = isPresentingTier ? 'none' : '';
+      sportsWrap.style.opacity = isPresentingTier ? '0.4' : '1';
+      sportsWrap.style.pointerEvents = isPresentingTier ? 'none' : '';
+
+      // Page placements only relevant for sport/town tiers
+      placementsWrap.style.display = isPresentingTier ? 'none' : '';
+
+      buildPagePlacementsUI();
+    }
+
+    function buildPagePlacementsUI(existingPlacements) {
+      const pages = [
+        { key: 'schedule',  label: 'Schedule' },
+        { key: 'standings', label: 'Standings' },
+        { key: 'rpi',       label: 'RPI' },
+        { key: 'playoffs',  label: 'Playoffs' },
+        { key: 'rosters',   label: 'Rosters' }
+      ];
+      const sports = [
+        { key: 'basketball', emoji: '🏀', label: 'Basketball' },
+        { key: 'baseball',   emoji: '⚾', label: 'Baseball' },
+        { key: 'volleyball', emoji: '🏐', label: 'Volleyball' }
+      ];
+
+      const existing = new Set((existingPlacements || '').split(',').filter(Boolean));
+      const container = document.getElementById('sponsorPagePlacementRows');
+
+      container.innerHTML = pages.map(page => `
+        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+          <span style="font-size:12px; font-weight:600; color:#555; width:72px;">${page.label}</span>
+          ${sports.map(sport => {
+            const val = `${page.key}:${sport.key}`;
+            return `<label style="display:flex; align-items:center; gap:5px; cursor:pointer; font-size:12px; color:#444;">
+              <input type="checkbox" name="sponsorPage" value="${val}" ${existing.has(val) ? 'checked' : ''} style="width:14px;height:14px;">
+              ${sport.emoji} ${sport.label}
+            </label>`;
+          }).join('')}
+        </div>
+      `).join('');
+    }
+
     function closeSponsorModal() {
       document.getElementById('sponsorModal').style.display = 'none';
     }
@@ -19917,13 +19981,31 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const sport = checkedSports.length > 0 ? checkedSports.join(',') : '';
       
       const tier = document.getElementById('sponsorTier').value;
+
+      // Collect page placements (page:sport pairs)
+      const placements = [];
+      document.querySelectorAll('input[name="sponsorPage"]:checked').forEach(cb => {
+        placements.push(cb.value);
+      });
+      const page_placements = placements.join(',');
+
       const startDate = document.getElementById('sponsorStartDate').value || null;
       const endDate = document.getElementById('sponsorEndDate').value || null;
       const notes = document.getElementById('sponsorNotes').value.trim();
       const active = document.getElementById('sponsorActive').checked;
       
-      if (!name || !logoUrl || !team || !sport) {
-        showToast('Please fill in Name, Logo URL, Team, and at least one Sport', 'error');
+      // Presenting tier doesn't require team or sport
+      const isPresentingTier = tier === 'presenting';
+      if (!name || !logoUrl) {
+        showToast('Please fill in Name and Logo URL', 'error');
+        return;
+      }
+      if (!isPresentingTier && !team) {
+        showToast('Please select a Team', 'error');
+        return;
+      }
+      if (!isPresentingTier && !sport) {
+        showToast('Please select at least one Sport', 'error');
         return;
       }
       
@@ -19931,9 +20013,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         name,
         logo_url: logoUrl,
         url: website || null,
-        team_shortname: team,
-        sport,
+        team_shortname: team || null,
+        sport: sport || null,
         tier,
+        page_placements: page_placements || null,
         start_date: startDate,
         end_date: endDate,
         notes: notes || null,

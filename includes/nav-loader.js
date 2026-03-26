@@ -410,6 +410,15 @@
     })
     .catch(err => console.error('Failed to load header:', err));
 
+  // Load presenting sponsor bar (injected after header)
+  fetch('/includes/presenting-bar.html')
+    .then(response => response.text())
+    .then(html => {
+      const header = document.querySelector('.site-header');
+      if (header) header.insertAdjacentHTML('afterend', html);
+    })
+    .catch(() => {}); // non-fatal
+
   // Load sport switcher (hidden by default, shown when multi-sport enabled)
   fetch('/includes/sport-switcher.html')
     .then(response => response.text())
@@ -1059,6 +1068,64 @@
     document.addEventListener('DOMContentLoaded', initPullToRefresh);
   } else {
     initPullToRefresh();
+  }
+
+  // ── Presenting sponsors in footer ────────────────────────────────────────
+  async function initFooterSponsors() {
+    const footer = document.querySelector('footer.site-footer');
+    if (!footer) return;
+
+    try {
+      const res = await fetch('/.netlify/functions/get-sponsors?tier=presenting');
+      const data = await res.json();
+      const sponsors = data.sponsors || [];
+      if (sponsors.length === 0) return;
+
+      const wrap = document.createElement('div');
+      wrap.id = 'footer-presenting-sponsors';
+      wrap.style.cssText = 'width:100%;text-align:center;padding:16px 0 4px;border-top:1px solid rgba(255,255,255,0.1);margin-top:12px;';
+
+      const label = document.createElement('div');
+      label.style.cssText = 'font-size:10px;font-weight:700;color:#888;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:10px;';
+      label.textContent = 'Presenting Sponsors';
+      wrap.appendChild(label);
+
+      const logosWrap = document.createElement('div');
+      logosWrap.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:24px;flex-wrap:wrap;';
+
+      sponsors.forEach(s => {
+        const a = document.createElement('a');
+        a.href = s.url || '#';
+        if (s.url) { a.target = '_blank'; a.rel = 'noopener'; }
+        a.title = s.name;
+        a.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:6px;text-decoration:none;';
+
+        if (s.logo_url) {
+          const img = document.createElement('img');
+          img.src = s.logo_url;
+          img.alt = s.name;
+          img.style.cssText = 'height:32px;max-width:110px;object-fit:contain;filter:brightness(0.9);';
+          img.onerror = () => img.style.display = 'none';
+          a.appendChild(img);
+        }
+
+        const name = document.createElement('span');
+        name.textContent = s.name;
+        name.style.cssText = 'font-size:11px;color:#aaa;';
+        a.appendChild(name);
+
+        logosWrap.appendChild(a);
+      });
+
+      wrap.appendChild(logosWrap);
+      footer.insertBefore(wrap, footer.firstChild);
+    } catch (e) {}
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initFooterSponsors);
+  } else {
+    initFooterSponsors();
   }
 
 })();
