@@ -407,17 +407,17 @@
       }
       headerLoaded = true;
       checkAndInit();
+
+      // Inject presenting sponsor bar now that .site-header exists in DOM
+      fetch('/includes/presenting-bar.html')
+        .then(r => r.text())
+        .then(barHtml => {
+          const header = document.querySelector('.site-header');
+          if (header) header.insertAdjacentHTML('afterend', barHtml);
+        })
+        .catch(() => {});
     })
     .catch(err => console.error('Failed to load header:', err));
-
-  // Load presenting sponsor bar (injected after header)
-  fetch('/includes/presenting-bar.html')
-    .then(response => response.text())
-    .then(html => {
-      const header = document.querySelector('.site-header');
-      if (header) header.insertAdjacentHTML('afterend', html);
-    })
-    .catch(() => {}); // non-fatal
 
   // Load sport switcher (hidden by default, shown when multi-sport enabled)
   fetch('/includes/sport-switcher.html')
