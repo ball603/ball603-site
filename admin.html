@@ -2582,13 +2582,19 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
           <div class="form-group">
-            <label>Team *</label>
-            <select id="sponsorTeam" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
-              <option value="">Select team...</option>
-            </select>
+            <label>Teams <span style="font-size:11px; color:#aaa; font-weight:normal;">(optional — leave blank for sitewide-only)</span></label>
+            <div id="sponsorTeamsTagBox" style="min-height:42px; padding:6px 8px; border:1px solid #ddd; border-radius:5px; display:flex; flex-wrap:wrap; gap:5px; cursor:text; background:#fff;" onclick="document.getElementById('sponsorTeamInput').focus()">
+              <div id="sponsorTeamTags" style="display:contents;"></div>
+              <input id="sponsorTeamInput" type="text" placeholder="Type team name..." autocomplete="off"
+                style="border:none; outline:none; font-size:13px; min-width:120px; flex:1; padding:2px 4px;"
+                oninput="sponsorTeamAutocomplete(this.value)"
+                onkeydown="sponsorTeamInputKey(event)">
+            </div>
+            <div id="sponsorTeamSuggestions" style="display:none; position:absolute; background:#fff; border:1px solid #ddd; border-radius:5px; max-height:180px; overflow-y:auto; z-index:1000; min-width:200px; box-shadow:0 4px 12px rgba(0,0,0,0.1);"></div>
+            <input type="hidden" id="sponsorTeams">
           </div>
           <div class="form-group">
-            <label>Sports *</label>
+            <label>Sports <span style="font-size:11px; color:#aaa; font-weight:normal;">(optional)</span></label>
             <div id="sponsorSportsCheckboxes" style="display: flex; flex-wrap: wrap; gap: 12px; padding: 8px 0;">
               <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
                 <input type="checkbox" name="sponsorSport" value="basketball" style="width: 16px; height: 16px;">
@@ -19708,7 +19714,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         const { data, error } = await db
           .from('sponsors')
           .select('*')
-          .order('team_shortname', { ascending: true });
+          .order('name', { ascending: true });
         
         if (error) throw error;
         
@@ -19726,39 +19732,34 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     
     function populateSponsorTeamFilter() {
       const teamFilter = document.getElementById('sponsorTeamFilter');
-      const teamSelect = document.getElementById('sponsorTeam');
-      
-      // Get unique teams from sponsors
-      const teamsWithSponsors = [...new Set(allSponsors.map(s => s.team_shortname))].sort();
-      
-      // Team filter dropdown
-      teamFilter.innerHTML = '<option value="">All Teams</option>' + 
+
+      // Get unique teams from all sponsors (teams is comma-separated)
+      const allTeamSet = new Set();
+      allSponsors.forEach(s => {
+        (s.teams || s.team_shortname || '').split(',').map(t => t.trim()).filter(Boolean).forEach(t => allTeamSet.add(t));
+      });
+      const teamsWithSponsors = [...allTeamSet].sort();
+
+      teamFilter.innerHTML = '<option value="">All Teams</option>' +
         teamsWithSponsors.map(t => `<option value="${t}">${t}</option>`).join('');
-      
-      // Team select in modal
-      teamSelect.innerHTML = '<option value="">Select team...</option>' + 
-        SPONSOR_TEAMS.map(t => `<option value="${t}">${t}</option>`).join('');
-      
-      // Article sponsor dropdown
+
       populateArticleSponsorDropdown();
     }
-    
+
     function populateArticleSponsorDropdown() {
       const dropdown = document.getElementById('manualSponsorId');
       if (!dropdown) return;
-      
       const activeSponsors = allSponsors.filter(s => s.active);
-      dropdown.innerHTML = '<option value="">Auto-detect from teams</option>' + 
-        activeSponsors.map(s => `<option value="${s.id}">${s.name} (${s.team_shortname})</option>`).join('');
+      dropdown.innerHTML = '<option value="">Auto-detect from teams</option>' +
+        activeSponsors.map(s => `<option value="${s.id}">${s.name}${s.teams ? ' (' + s.teams + ')' : ''}</option>`).join('');
     }
-    
+
     function populateBashSponsorDropdown(dropdownId) {
       const dropdown = document.getElementById(dropdownId);
       if (!dropdown) return;
-      
       const activeSponsors = allSponsors.filter(s => s.active);
-      dropdown.innerHTML = '<option value="">Auto-detect from teams</option>' + 
-        activeSponsors.map(s => `<option value="${s.id}">${s.name} (${s.team_shortname})</option>`).join('');
+      dropdown.innerHTML = '<option value="">Auto-detect from teams</option>' +
+        activeSponsors.map(s => `<option value="${s.id}">${s.name}${s.teams ? ' (' + s.teams + ')' : ''}</option>`).join('');
     }
     
     function filterSponsors() {
@@ -19771,27 +19772,30 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const teamFilter = document.getElementById('sponsorTeamFilter').value;
       const statusFilter = document.getElementById('sponsorStatusFilter').value;
       const searchFilter = document.getElementById('sponsorSearchBox').value.toLowerCase();
-      
+
       let filtered = allSponsors;
-      
+
       if (sportFilter) {
-        filtered = filtered.filter(s => s.sport === sportFilter);
+        filtered = filtered.filter(s => (s.sport || '').split(',').map(x => x.trim()).includes(sportFilter));
       }
-      
+
       if (teamFilter) {
-        filtered = filtered.filter(s => s.team_shortname === teamFilter);
+        filtered = filtered.filter(s => {
+          const t = (s.teams || s.team_shortname || '').split(',').map(x => x.trim());
+          return t.includes(teamFilter);
+        });
       }
-      
+
       if (statusFilter === 'active') {
         filtered = filtered.filter(s => s.active);
       } else if (statusFilter === 'inactive') {
         filtered = filtered.filter(s => !s.active);
       }
-      
+
       if (searchFilter) {
-        filtered = filtered.filter(s => 
+        filtered = filtered.filter(s =>
           s.name.toLowerCase().includes(searchFilter) ||
-          s.team_shortname.toLowerCase().includes(searchFilter)
+          (s.teams || s.team_shortname || '').toLowerCase().includes(searchFilter)
         );
       }
       
@@ -19839,7 +19843,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
               <div class="article-title" onclick="editSponsor('${sponsor.id}')">${sponsor.name}</div>
               ${sponsor.url ? `<div style="font-size: 11px; color: #888;"><a href="${sponsor.url}" target="_blank">${sponsor.url.replace('https://', '').substring(0, 30)}...</a></div>` : ''}
             </div>
-            <div style="font-size: 13px;">${sponsor.team_shortname}</div>
+            <div style="font-size: 13px;">${(sponsor.teams || sponsor.team_shortname || '—').split(',').map(t => t.trim()).join(', ')}</div>
             <div style="font-size: 13px;">${getSportEmojis(sponsor.sport)}</div>
             <div><span style="font-size: 11px; padding: 3px 8px; border-radius: 10px; background: ${sponsor.tier === 'town' ? '#fff3e0' : sponsor.tier === 'presenting' ? '#e8f5e9' : '#f5f5f5'}; color: ${sponsor.tier === 'town' ? '#e65100' : sponsor.tier === 'presenting' ? '#2e7d32' : '#666'};">${sponsor.tier || 'sport'}</span></div>
             <div><span class="article-status ${sponsor.active ? 'published' : 'draft'}">${sponsor.active ? 'Active' : 'Inactive'}</span></div>
@@ -19873,7 +19877,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         document.getElementById('sponsorName').value = sponsor.name || '';
         document.getElementById('sponsorLogoUrl').value = sponsor.logo_url || '';
         document.getElementById('sponsorWebsite').value = sponsor.url || '';
-        document.getElementById('sponsorTeam').value = sponsor.team_shortname || '';
+
+        // Load teams tags
+        const existingTeams = (sponsor.teams || sponsor.team_shortname || '').split(',').map(t => t.trim()).filter(Boolean);
+        setSponsorTeamTags(existingTeams);
         
         // Set sport checkboxes
         const sports = (sponsor.sport || 'basketball').split(',');
@@ -19902,7 +19909,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         document.getElementById('sponsorName').value = '';
         document.getElementById('sponsorLogoUrl').value = '';
         document.getElementById('sponsorWebsite').value = '';
-        document.getElementById('sponsorTeam').value = '';
+        setSponsorTeamTags([]);
         
         // Default to basketball checked
         document.querySelectorAll('input[name="sponsorSport"]').forEach(cb => {
@@ -19920,6 +19927,85 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       }
     }
     
+    // ── Team Tag Autocomplete ─────────────────────────────────────────────────
+    let _sponsorTeamTags = [];
+
+    function setSponsorTeamTags(tags) {
+      _sponsorTeamTags = tags.filter(Boolean);
+      renderSponsorTeamTags();
+    }
+
+    function renderSponsorTeamTags() {
+      const tagsEl = document.getElementById('sponsorTeamTags');
+      tagsEl.innerHTML = _sponsorTeamTags.map((t, i) => `
+        <span style="display:inline-flex;align-items:center;gap:4px;background:#fff3e0;color:#e65100;border:1px solid #ffcc80;border-radius:14px;padding:3px 10px;font-size:12px;font-weight:600;">
+          ${t}
+          <button type="button" onclick="removeSponsorTeamTag(${i})" style="background:none;border:none;cursor:pointer;color:#e65100;font-size:14px;line-height:1;padding:0 0 0 2px;">&times;</button>
+        </span>
+      `).join('');
+      document.getElementById('sponsorTeams').value = _sponsorTeamTags.join(',');
+      document.getElementById('sponsorTeamInput').placeholder = _sponsorTeamTags.length ? '' : 'Type team name...';
+    }
+
+    function removeSponsorTeamTag(i) {
+      _sponsorTeamTags.splice(i, 1);
+      renderSponsorTeamTags();
+    }
+
+    function addSponsorTeamTag(name) {
+      const clean = name.trim();
+      if (!clean || _sponsorTeamTags.includes(clean)) return;
+      _sponsorTeamTags.push(clean);
+      renderSponsorTeamTags();
+      document.getElementById('sponsorTeamInput').value = '';
+      document.getElementById('sponsorTeamSuggestions').style.display = 'none';
+    }
+
+    function sponsorTeamAutocomplete(val) {
+      const suggestions = document.getElementById('sponsorTeamSuggestions');
+      const q = val.trim().toLowerCase();
+      if (!q) { suggestions.style.display = 'none'; return; }
+
+      const matches = SPONSOR_TEAMS.filter(t =>
+        t.toLowerCase().includes(q) && !_sponsorTeamTags.includes(t)
+      ).slice(0, 8);
+
+      if (!matches.length) { suggestions.style.display = 'none'; return; }
+
+      // Position suggestions below the tag box
+      const box = document.getElementById('sponsorTeamsTagBox');
+      const rect = box.getBoundingClientRect();
+      suggestions.style.top = (rect.bottom + window.scrollY + 2) + 'px';
+      suggestions.style.left = rect.left + 'px';
+      suggestions.style.width = rect.width + 'px';
+
+      suggestions.innerHTML = matches.map(t =>
+        `<div onclick="addSponsorTeamTag('${t}')" style="padding:9px 14px;cursor:pointer;font-size:13px;" onmouseover="this.style.background='#fff3e0'" onmouseout="this.style.background=''">${t}</div>`
+      ).join('');
+      suggestions.style.display = 'block';
+
+      // Close on outside click
+      setTimeout(() => {
+        document.addEventListener('click', function closeSuggestions(e) {
+          if (!suggestions.contains(e.target)) {
+            suggestions.style.display = 'none';
+            document.removeEventListener('click', closeSuggestions);
+          }
+        });
+      }, 0);
+    }
+
+    function sponsorTeamInputKey(e) {
+      if (e.key === 'Enter' || e.key === ',') {
+        e.preventDefault();
+        const val = document.getElementById('sponsorTeamInput').value.trim();
+        if (val) addSponsorTeamTag(val);
+      } else if (e.key === 'Backspace' && !document.getElementById('sponsorTeamInput').value && _sponsorTeamTags.length) {
+        removeSponsorTeamTag(_sponsorTeamTags.length - 1);
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     function updateSponsorTierUI() {
       // All tiers have full access to team, sport, and page placements.
       // A presenting sponsor can also be a team/sport sponsor (e.g. Tropical Smoothie).
@@ -19973,7 +20059,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const name = document.getElementById('sponsorName').value.trim();
       const logoUrl = document.getElementById('sponsorLogoUrl').value.trim();
       const website = document.getElementById('sponsorWebsite').value.trim();
-      const team = document.getElementById('sponsorTeam').value;
+      const teams = document.getElementById('sponsorTeams').value.trim();
       
       // Collect checked sports
       const checkedSports = Array.from(document.querySelectorAll('input[name="sponsorSport"]:checked'))
@@ -20005,7 +20091,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         name,
         logo_url: logoUrl,
         url: website || null,
-        team_shortname: team || null,
+        teams: teams || null,
+        team_shortname: teams ? teams.split(',')[0].trim() : null, // keep for backward compat
         sport: sport || null,
         tier,
         page_placements: page_placements || null,

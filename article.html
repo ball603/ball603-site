@@ -1844,10 +1844,10 @@
         const articleSport = article.sport || 'basketball';
         
         // Query all active sponsors for these teams (sport + town tiers)
+        // teams column is comma-separated — fetch all and filter client-side
         const { data: sponsors, error } = await supabaseClient
           .from('sponsors')
           .select('*')
-          .in('team_shortname', teams)
           .eq('active', true)
           .in('tier', ['sport', 'town']);
         
@@ -1855,12 +1855,15 @@
           console.error('Error loading sponsors:', error);
           return [];
         }
-        
-        // Town tier: matches ALL articles for the school regardless of sport
-        // Sport tier: only matches articles for the specific sport
+
+        // Filter to sponsors whose teams list includes at least one article team
+        const teamSet = new Set(teams.map(t => t.toLowerCase().trim()));
         const matchingSponsors = (sponsors || []).filter(s => {
-          if (s.tier === 'town') return true; // town sponsors show on all school articles
-          const sportList = (s.sport || 'basketball').split(',');
+          const sponsorTeams = (s.teams || s.team_shortname || '').split(',').map(t => t.toLowerCase().trim());
+          const hasTeam = sponsorTeams.some(t => teamSet.has(t));
+          if (!hasTeam) return false;
+          if (s.tier === 'town') return true; // town shows for all article types
+          const sportList = (s.sport || 'basketball').split(',').map(t => t.trim());
           return sportList.includes(articleSport);
         });
         

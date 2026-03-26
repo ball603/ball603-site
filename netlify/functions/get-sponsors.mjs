@@ -36,7 +36,8 @@ export default async (request) => {
       queryUrl += `&tier=eq.${encodeURIComponent(tier)}`;
     }
     if (team) {
-      queryUrl += `&team_shortname=eq.${encodeURIComponent(team)}`;
+      // teams is comma-separated — use ilike to match any team in the list
+      queryUrl += `&teams=ilike.*${encodeURIComponent(team)}*`;
     }
 
     const res = await fetch(queryUrl, {
