@@ -19921,21 +19921,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     }
     
     function updateSponsorTierUI() {
-      const tier = document.getElementById('sponsorTier').value;
-      const teamWrap = document.getElementById('sponsorTeam').closest('.form-group');
-      const sportsWrap = document.getElementById('sponsorSportsCheckboxes').closest('.form-group');
-      const placementsWrap = document.getElementById('sponsorPagePlacementsWrap');
-      const isPresentingTier = tier === 'presenting';
-
-      // Presenting sponsors don't need team/sport
-      teamWrap.style.opacity = isPresentingTier ? '0.4' : '1';
-      teamWrap.style.pointerEvents = isPresentingTier ? 'none' : '';
-      sportsWrap.style.opacity = isPresentingTier ? '0.4' : '1';
-      sportsWrap.style.pointerEvents = isPresentingTier ? 'none' : '';
-
-      // Page placements only relevant for sport/town tiers
-      placementsWrap.style.display = isPresentingTier ? 'none' : '';
-
+      // All tiers have full access to team, sport, and page placements.
+      // A presenting sponsor can also be a team/sport sponsor (e.g. Tropical Smoothie).
       buildPagePlacementsUI();
     }
 
@@ -20006,22 +19993,14 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const endDate = document.getElementById('sponsorEndDate').value || null;
       const notes = document.getElementById('sponsorNotes').value.trim();
       const active = document.getElementById('sponsorActive').checked;
-      
-      // Presenting tier doesn't require team or sport
-      const isPresentingTier = tier === 'presenting';
+
+      // Name and logo are always required; team and sport are optional for all tiers
+      // (e.g. a presenting sponsor can also sponsor specific teams)
       if (!name || !logoUrl) {
         showToast('Please fill in Name and Logo URL', 'error');
         return;
       }
-      if (!isPresentingTier && !team) {
-        showToast('Please select a Team', 'error');
-        return;
-      }
-      if (!isPresentingTier && !sport) {
-        showToast('Please select at least one Sport', 'error');
-        return;
-      }
-      
+
       const sponsorData = {
         name,
         logo_url: logoUrl,
