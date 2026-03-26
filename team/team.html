@@ -1722,42 +1722,47 @@
     async function loadSponsor() {
       if (!TEAM_CONFIG) return;
       try {
-        // Query all active sponsors for this team
-        const { data: sponsors, error } = await db
+        const { data: allSponsors, error } = await db
           .from('sponsors')
           .select('*')
-          .eq('team_shortname', TEAM_CONFIG.shortname)
-          .eq('active', true);
-        
-        if (!error && sponsors && sponsors.length > 0) {
-          if (currentSport === 'all') {
-            // All Sports view: show all unique sponsors (deduplicated by id)
-            const uniqueSponsors = [...new Map(sponsors.map(s => [s.id, s])).values()];
-            teamData.sponsors = uniqueSponsors;
-            renderSponsors(uniqueSponsors);
-            return;
-          } else {
-            // Sport-specific view: filter sponsors that include the current sport
-            const matchingSponsors = sponsors.filter(s => {
-              const sportList = (s.sport || 'basketball').split(',');
-              return sportList.includes(currentSport);
-            });
-            
-            if (matchingSponsors.length > 0) {
-              // Prefer sport-specific sponsor (one that lists fewer sports) over general sponsors
-              matchingSponsors.sort((a, b) => (a.sport || '').split(',').length - (b.sport || '').split(',').length);
-              teamData.sponsors = [matchingSponsors[0]];
-              renderSponsors([matchingSponsors[0]]);
+          .eq('active', true)
+          .in('tier', ['sport', 'town']);
+
+        if (!error && allSponsors && allSponsors.length > 0) {
+          const myShortname = TEAM_CONFIG.shortname.toLowerCase().trim();
+          const sponsors = allSponsors.filter(s => {
+            const sponsorTeams = (s.teams || s.team_shortname || '').split(',').map(t => t.toLowerCase().trim());
+            return sponsorTeams.includes(myShortname);
+          });
+
+          if (sponsors.length > 0) {
+            if (currentSport === 'all') {
+              const uniqueSponsors = [...new Map(sponsors.map(s => [s.id, s])).values()];
+              teamData.sponsors = uniqueSponsors;
+              renderSponsors(uniqueSponsors);
               return;
+            } else {
+              const matchingSponsors = sponsors.filter(s => {
+                if (s.tier === 'town') return true;
+                const sportList = (s.sport || 'basketball').split(',').map(t => t.trim());
+                return sportList.includes(currentSport);
+              });
+              if (matchingSponsors.length > 0) {
+                matchingSponsors.sort((a, b) => {
+                  if (a.tier === 'town' && b.tier !== 'town') return 1;
+                  if (b.tier === 'town' && a.tier !== 'town') return -1;
+                  return (a.sport || '').split(',').length - (b.sport || '').split(',').length;
+                });
+                teamData.sponsors = [matchingSponsors[0]];
+                renderSponsors([matchingSponsors[0]]);
+                return;
+              }
             }
           }
         }
-        
-        // No sponsors found - show fallback
         teamData.sponsors = [];
         renderSponsorFallback();
-      } catch (err) { 
-        // Error - show fallback
+      } catch (err) {
         teamData.sponsors = [];
         renderSponsorFallback();
       }
