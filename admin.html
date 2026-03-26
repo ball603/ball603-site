@@ -2582,15 +2582,21 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
           <div class="form-group">
-            <label>Teams <span style="font-size:11px; color:#aaa; font-weight:normal;">(optional — leave blank for sitewide-only)</span></label>
-            <div id="sponsorTeamsTagBox" style="min-height:42px; padding:6px 8px; border:1px solid #ddd; border-radius:5px; display:flex; flex-wrap:wrap; gap:5px; cursor:text; background:#fff;" onclick="document.getElementById('sponsorTeamInput').focus()">
+            <label>Teams <span style="font-size:11px; color:#aaa; font-weight:normal;">(optional)</span></label>
+            <!-- Tag display -->
+            <div id="sponsorTeamsTagBox" style="min-height:38px; padding:5px 8px; border:1px solid #ddd; border-radius:5px 5px 0 0; display:flex; flex-wrap:wrap; gap:5px; background:#fff; border-bottom: none;">
               <div id="sponsorTeamTags" style="display:contents;"></div>
-              <input id="sponsorTeamInput" type="text" placeholder="Type team name..." autocomplete="off"
-                style="border:none; outline:none; font-size:13px; min-width:120px; flex:1; padding:2px 4px;"
-                oninput="sponsorTeamAutocomplete(this.value)"
-                onkeydown="sponsorTeamInputKey(event)">
             </div>
-            <div id="sponsorTeamSuggestions" style="display:none; position:absolute; background:#fff; border:1px solid #ddd; border-radius:5px; max-height:180px; overflow-y:auto; z-index:1000; min-width:200px; box-shadow:0 4px 12px rgba(0,0,0,0.1);"></div>
+            <!-- Search input -->
+            <div style="position:relative;">
+              <input id="sponsorTeamInput" type="text" placeholder="&#x1F50D; Search and select teams..." autocomplete="off"
+                style="width:100%; padding:8px 10px; border:1px solid #ddd; border-radius:0 0 5px 5px; font-size:13px; box-sizing:border-box;"
+                oninput="sponsorTeamAutocomplete(this.value)"
+                onfocus="sponsorTeamAutocomplete(this.value)"
+                onkeydown="sponsorTeamInputKey(event)">
+              <!-- Inline suggestions list -->
+              <div id="sponsorTeamSuggestions" style="display:none; border:1px solid #ddd; border-top:none; border-radius:0 0 5px 5px; max-height:180px; overflow-y:auto; background:#fff; z-index:100; position:relative;"></div>
+            </div>
             <input type="hidden" id="sponsorTeams">
           </div>
           <div class="form-group">
@@ -19959,40 +19965,27 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       renderSponsorTeamTags();
       document.getElementById('sponsorTeamInput').value = '';
       document.getElementById('sponsorTeamSuggestions').style.display = 'none';
+      // Re-show full list so they can add another team easily
+      setTimeout(() => sponsorTeamAutocomplete(''), 100);
     }
 
     function sponsorTeamAutocomplete(val) {
       const suggestions = document.getElementById('sponsorTeamSuggestions');
       const q = val.trim().toLowerCase();
-      if (!q) { suggestions.style.display = 'none'; return; }
 
+      // Show all teams when empty, filter when typing
       const matches = SPONSOR_TEAMS.filter(t =>
-        t.toLowerCase().includes(q) && !_sponsorTeamTags.includes(t)
-      ).slice(0, 8);
+        (!q || t.toLowerCase().includes(q)) && !_sponsorTeamTags.includes(t)
+      ).slice(0, 20);
 
       if (!matches.length) { suggestions.style.display = 'none'; return; }
 
-      // Position suggestions below the tag box
-      const box = document.getElementById('sponsorTeamsTagBox');
-      const rect = box.getBoundingClientRect();
-      suggestions.style.top = (rect.bottom + window.scrollY + 2) + 'px';
-      suggestions.style.left = rect.left + 'px';
-      suggestions.style.width = rect.width + 'px';
-
       suggestions.innerHTML = matches.map(t =>
-        `<div onclick="addSponsorTeamTag('${t}')" style="padding:9px 14px;cursor:pointer;font-size:13px;" onmouseover="this.style.background='#fff3e0'" onmouseout="this.style.background=''">${t}</div>`
+        `<div onclick="addSponsorTeamTag('${t.replace(/'/g, "\\'")}')"
+          style="padding:8px 12px; cursor:pointer; font-size:13px; border-bottom:1px solid #f5f5f5;"
+          onmouseover="this.style.background='#fff3e0'" onmouseout="this.style.background=''">${t}</div>`
       ).join('');
       suggestions.style.display = 'block';
-
-      // Close on outside click
-      setTimeout(() => {
-        document.addEventListener('click', function closeSuggestions(e) {
-          if (!suggestions.contains(e.target)) {
-            suggestions.style.display = 'none';
-            document.removeEventListener('click', closeSuggestions);
-          }
-        });
-      }, 0);
     }
 
     function sponsorTeamInputKey(e) {
