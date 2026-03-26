@@ -6660,16 +6660,29 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         const { error } = await db.storage.from('article-audio').upload(path, file, { contentType: 'audio/mpeg', upsert: true });
         if (error) throw error;
         const { data: urlData } = db.storage.from('article-audio').getPublicUrl(path);
-        document.getElementById('audioUrlField').value = urlData.publicUrl;
+        const publicUrl = urlData.publicUrl;
+        document.getElementById('audioUrlField').value = publicUrl;
         document.getElementById('audioFileName').textContent = file.name;
-        const audio = new Audio(urlData.publicUrl);
+        const audio = new Audio(publicUrl);
         audio.addEventListener('loadedmetadata', function() {
           const m = Math.floor(audio.duration/60), s = Math.floor(audio.duration%60);
           document.getElementById('audioFileMeta').textContent = m+':'+(s<10?'0':'')+s+' · '+(file.size/1024/1024).toFixed(1)+' MB';
         }, {once:true});
         document.getElementById('audioUploading').style.display = 'none';
         document.getElementById('audioPreview').style.display = 'flex';
-        showToast('Audio uploaded!', 'success');
+
+        // Auto-save audio_url immediately to DB so it persists without requiring Save/Publish
+        if (currentArticle?.id) {
+          const { error: saveErr } = await db.from('articles').update({ audio_url: publicUrl }).eq('id', currentArticle.id);
+          if (saveErr) {
+            showToast('Audio uploaded but failed to save URL — please click Save', 'error');
+          } else {
+            currentArticle.audio_url = publicUrl;
+            showToast('Audio uploaded & saved!', 'success');
+          }
+        } else {
+          showToast('Audio uploaded! Click Save to attach it to this article.', 'success');
+        }
       } catch(err) {
         showToast('Upload failed: ' + (err.message||err), 'error');
         document.getElementById('audioUploading').style.display = 'none';

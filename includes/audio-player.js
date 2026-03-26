@@ -46,12 +46,20 @@
 
       playBtn.addEventListener('click', function() {
         if (audio.paused) {
-          audio.play();
-          playBtn.classList.add('playing');
+          audio.play().then(function() {
+            playBtn.classList.add('playing');
+          }).catch(function(err) {
+            console.error('B603 Audio play error:', err);
+            playBtn.classList.remove('playing');
+          });
         } else {
           audio.pause();
           playBtn.classList.remove('playing');
         }
+      });
+
+      audio.addEventListener('error', function() {
+        console.error('B603 Audio load error — URL:', audioUrl);
       });
 
       progress.addEventListener('input', function() {
