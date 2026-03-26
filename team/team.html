@@ -253,6 +253,40 @@
   <!-- Header loaded from includes -->
   <div id="site-header"></div>
   
+  <!-- Team Sponsor Bar (injected by loadSponsor if team has a sponsor) -->
+  <div id="team-sponsor-bar" style="display:none;">
+    <style>
+      #team-sponsor-bar {
+        width: 100%;
+        background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+        border-bottom: 2px solid var(--brand-orange, #f57c00);
+        height: 110px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #team-sponsor-bar a {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        width: 100%;
+        text-decoration: none;
+      }
+      #team-sponsor-bar img {
+        height: 65px;
+        max-width: 220px;
+        object-fit: contain;
+        filter: brightness(1.1);
+      }
+      @media (max-width: 480px) {
+        #team-sponsor-bar { height: 80px; }
+        #team-sponsor-bar img { height: 46px; max-width: 160px; }
+      }
+    </style>
+    <div id="team-sponsor-bar-inner"></div>
+  </div>
+
   <!-- Mobile menu loaded from includes -->
   <div id="mobile-menu"></div>
 
@@ -1770,6 +1804,8 @@
     
     function renderSponsorFallback() {
       if (!TEAM_CONFIG) return;
+      // No sponsor — hide the top bar, show the fallback box in the section below
+      document.getElementById('team-sponsor-bar').style.display = 'none';
       const fullName = `${TEAM_CONFIG.name} ${TEAM_CONFIG.mascot || ''}`.trim();
       document.getElementById('sponsorBox').innerHTML = `
         <a href="mailto:kj@ball603.com?subject=Team Sponsorship Inquiry - ${encodeURIComponent(TEAM_CONFIG.name)}" class="sponsor-link sponsor-fallback">
@@ -1780,6 +1816,7 @@
           </div>
         </a>
       `;
+      document.getElementById('sponsor').style.display = '';
     }
 
     function renderSponsors(sponsors) {
@@ -1788,21 +1825,20 @@
         return;
       }
 
-      const sportLabel = currentSport === 'all' ? '' : ` ${currentSport.charAt(0).toUpperCase() + currentSport.slice(1)}`;
+      // Has a sponsor — show it in the top bar, hide the section below
+      const sponsor = sponsors[0];
+      const bar = document.getElementById('team-sponsor-bar');
+      const barInner = document.getElementById('team-sponsor-bar-inner');
 
-      const sponsorLogos = sponsors.map(sponsor => `
-        <a href="${sponsor.url || '#'}" class="sponsor-link" ${sponsor.url ? 'target="_blank"' : ''} title="${sponsor.name}">
-          <img src="${sponsor.logo_url}" alt="${sponsor.name}" class="sponsor-logo-img"
-               style="max-height:80px; max-width:240px; object-fit:contain;">
+      barInner.innerHTML = `
+        <a href="${sponsor.url || '#'}" ${sponsor.url ? 'target="_blank" rel="noopener"' : ''} title="${sponsor.name}">
+          <img src="${sponsor.logo_url}" alt="${sponsor.name}" onerror="this.style.display='none'">
         </a>
-      `).join('');
-
-      document.getElementById('sponsorBox').innerHTML = `
-        <div class="sponsor-header" style="font-size:11px; font-weight:700; letter-spacing:1.2px; text-transform:uppercase; color:#888; margin-bottom:10px;">
-          ${TEAM_CONFIG.shortname.toUpperCase()}${sportLabel} Coverage Presented By
-        </div>
-        <div class="sponsor-logos-grid">${sponsorLogos}</div>
       `;
+      bar.style.display = 'flex';
+
+      // Hide the sponsor section below — no need for it when sponsor is in the bar
+      document.getElementById('sponsor').style.display = 'none';
     }
 
     // ===== LOAD ROSTERS =====
