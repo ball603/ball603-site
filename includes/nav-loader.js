@@ -408,13 +408,16 @@
       headerLoaded = true;
       checkAndInit();
 
-      // Inject presenting sponsor bar now that .site-header exists in DOM
+      // Inject presenting sponsor bar — after ticker if it exists, otherwise after header
       fetch('/includes/presenting-bar.html')
         .then(r => r.text())
         .then(barHtml => {
+          // Ticker only exists on homepage — inject after it if present
+          const ticker = document.querySelector('.scores-ticker');
           const header = document.querySelector('.site-header');
-          if (header) {
-            header.insertAdjacentHTML('afterend', barHtml);
+          const target = ticker || header;
+          if (target) {
+            target.insertAdjacentHTML('afterend', barHtml);
             initPresentingBar();
           }
         })
