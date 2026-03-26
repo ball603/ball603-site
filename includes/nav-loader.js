@@ -1105,8 +1105,7 @@
       <a href="${s.url || '#'}" target="_blank" rel="noopener"
          class="psb-sponsor${i === 0 ? ' active' : ''}"
          id="psb-s-${i}" title="${s.name}">
-        ${s.logo_url ? `<img src="${s.logo_url}" alt="${s.name}" onerror="this.style.display='none'">` : ''}
-        <span class="psb-sponsor-name">${s.name}</span>
+        ${s.logo_url ? `<img src="${s.logo_url}" alt="${s.name}" onerror="this.style.display='none'">` : s.name}
       </a>
     `).join('');
 
