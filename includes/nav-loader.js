@@ -413,7 +413,10 @@
         .then(r => r.text())
         .then(barHtml => {
           const header = document.querySelector('.site-header');
-          if (header) header.insertAdjacentHTML('afterend', barHtml);
+          if (header) {
+            header.insertAdjacentHTML('afterend', barHtml);
+            initPresentingBar();
+          }
         })
         .catch(() => {});
     })
@@ -1071,6 +1074,60 @@
   }
 
   // ── Presenting sponsors in footer ────────────────────────────────────────
+  // ── Presenting sponsor bar ────────────────────────────────────────────────
+  async function initPresentingBar() {
+    let psbSponsors = [];
+    let psbIndex = 0;
+    let psbTimer = null;
+
+    try {
+      const res = await fetch('/.netlify/functions/get-sponsors?tier=presenting');
+      const data = await res.json();
+      psbSponsors = data.sponsors || [];
+    } catch (e) {
+      psbSponsors = [];
+    }
+
+    if (psbSponsors.length === 0) return;
+
+    const bar = document.getElementById('presenting-sponsor-bar');
+    const wrap = document.getElementById('psb-sponsors-wrap');
+    const dotsEl = document.getElementById('psb-dots');
+    if (!bar || !wrap || !dotsEl) return;
+
+    // Shuffle for variety
+    psbSponsors = psbSponsors.sort(() => Math.random() - 0.5);
+
+    wrap.innerHTML = psbSponsors.map((s, i) => `
+      <a href="${s.url || '#'}" target="_blank" rel="noopener"
+         class="psb-sponsor${i === 0 ? ' active' : ''}"
+         id="psb-s-${i}" title="${s.name}">
+        ${s.logo_url ? `<img src="${s.logo_url}" alt="${s.name}" onerror="this.style.display='none'">` : ''}
+        <span class="psb-sponsor-name">${s.name}</span>
+      </a>
+    `).join('');
+
+    if (psbSponsors.length > 1) {
+      dotsEl.innerHTML = psbSponsors.map((_, i) =>
+        `<div class="psb-dot${i === 0 ? ' active' : ''}" id="psb-dot-${i}"></div>`
+      ).join('');
+      psbTimer = setInterval(() => {
+        const prev = psbIndex;
+        psbIndex = (psbIndex + 1) % psbSponsors.length;
+        const prevEl = document.getElementById(`psb-s-${prev}`);
+        const nextEl = document.getElementById(`psb-s-${psbIndex}`);
+        const prevDot = document.getElementById(`psb-dot-${prev}`);
+        const nextDot = document.getElementById(`psb-dot-${psbIndex}`);
+        if (prevEl) prevEl.classList.remove('active');
+        if (nextEl) nextEl.classList.add('active');
+        if (prevDot) prevDot.classList.remove('active');
+        if (nextDot) nextDot.classList.add('active');
+      }, 5000);
+    }
+
+    bar.style.display = 'flex';
+  }
+
   async function initFooterSponsors() {
     const footer = document.querySelector('footer.site-footer');
     if (!footer) return;
