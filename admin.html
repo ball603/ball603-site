@@ -5729,6 +5729,11 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       <span id="ncaaCount" style="font-size: 13px; color: #2e7d32;">Loading...</span>
       <div style="display: flex; gap: 10px;">
         <input type="file" id="ncaaImportFile" accept=".csv" onchange="importNCAAPlayers(this)" style="display: none;">
+        <select id="ncaaImportSport" style="padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; background: #fff; cursor: pointer;">
+          <option value="basketball">Basketball</option>
+          <option value="baseball">Baseball</option>
+          <option value="volleyball">Volleyball</option>
+        </select>
         <button onclick="document.getElementById('ncaaImportFile').click()" style="padding: 6px 12px; background: #fff3e0; color: #e65100; border: none; border-radius: 4px; font-size: 12px; cursor: pointer;">Import CSV</button>
         <button onclick="exportNCAAPlayers()" style="padding: 6px 12px; background: #e3f2fd; color: #1565c0; border: none; border-radius: 4px; font-size: 12px; cursor: pointer;">Export CSV</button>
       </div>
@@ -20889,9 +20894,9 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       if (activeFilter === 'false') filtered = filtered.filter(p => p.active === false);
       
       const csv = [
-        'Name,High School,College,Gender,Division,Grad Year,Position,Active,Notes',
+        'Name,High School,College,Sport,Gender,Division,Grad Year,Position,Active,Notes',
         ...filtered.map(p => 
-          `"${p.name}","${p.high_school}","${p.college}",${p.gender || ''},${p.division || ''},${p.grad_year || ''},${p.position || ''},${p.active !== false ? 'Yes' : 'No'},"${(p.notes || '').replace(/"/g, '""')}"`
+          `"${p.name}","${p.high_school}","${p.college}",${p.sport || 'basketball'},${p.gender || ''},${p.division || ''},${p.grad_year || ''},${p.position || ''},${p.active !== false ? 'Yes' : 'No'},"${(p.notes || '').replace(/"/g, '""')}"`
         )
       ].join('\n');
       
@@ -20938,10 +20943,14 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           return;
         }
         
+        const importSport = document.getElementById('ncaaImportSport')?.value || 'basketball';
+        const sportIdx = headers.findIndex(h => h === 'sport');
+        
         const records = data.filter(row => row.length > 1 && row[nameIdx]).map(row => ({
           name: row[nameIdx]?.trim() || '',
           high_school: row[hsIdx]?.trim() || '',
           college: row[collegeIdx]?.trim() || '',
+          sport: sportIdx !== -1 && row[sportIdx]?.trim() ? row[sportIdx].trim() : importSport,
           gender: row[genderIdx]?.trim() || null,
           division: row[divisionIdx]?.trim() || null,
           grad_year: row[gradYearIdx] ? parseInt(row[gradYearIdx]) : null,
