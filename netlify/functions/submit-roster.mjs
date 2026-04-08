@@ -32,8 +32,8 @@ CLASS CONVERSIONS:
 - 7th grade → 7th
 
 POSITION FORMATTING:
-- Use abbreviations: G, F, C, G/F, F/C
-- Guard → G, Forward → F, Center → C
+Basketball: Use abbreviations: G, F, C, G/F, F/C. Guard → G, Forward → F, Center → C
+Baseball: Use standard abbreviations: P, C, 1B, 2B, 3B, SS, OF, DH. Multiple positions separated by slash (e.g. OF/2B/P, SS/P, 1B/C)
 
 NAME CAPITALIZATION RULES:
 Flag these for review (include in flagged_names array):
