@@ -190,10 +190,21 @@ export async function handler(event, context) {
       else if (['png', 'jpg', 'jpeg'].includes(ext)) submissionType = 'image';
     }
 
+    // Derive current season from sport
+    const sport = (data.sport || 'basketball').toLowerCase();
+    const CURRENT_SEASONS = {
+      basketball: '2025-26',
+      baseball: '2026',
+      volleyball: '2026'
+    };
+    const season = CURRENT_SEASONS[sport] || '2025-26';
+
     // Prepare the roster submission
     const submission = {
       school: data.school,
       gender: data.gender,
+      sport: sport,
+      season: season,
       division: data.division || null,
       submitted_by: data.submitted_by || data.coach_name || null,
       submitted_email: data.submitted_email || data.coach_email || null,

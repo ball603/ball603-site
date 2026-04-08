@@ -3092,7 +3092,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             </div>
             <div class="form-group">
               <label>Sport *</label>
-              <select id="rosterSport">
+              <select id="rosterSport" onchange="updateRosterSeason(this.value)">
                 <option value="basketball">Basketball</option>
                 <option value="baseball">Baseball</option>
                 <option value="volleyball">Volleyball</option>
@@ -3110,7 +3110,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             </div>
             <div class="form-group">
               <label>Season</label>
-              <input type="text" id="rosterSeason" placeholder="2025-26" value="2025-26">
+              <input type="text" id="rosterSeason" placeholder="2025-26">
             </div>
           </div>
           <datalist id="schoolsList"></datalist>
@@ -14224,6 +14224,20 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       }
     }
     
+    const ROSTER_SEASONS = {
+      basketball: '2025-26',
+      baseball: '2026',
+      volleyball: '2026'
+    };
+
+    function getRosterSeasonForSport(sport) {
+      return ROSTER_SEASONS[sport] || '2025-26';
+    }
+
+    function updateRosterSeason(sport) {
+      document.getElementById('rosterSeason').value = getRosterSeasonForSport(sport);
+    }
+
     function openRosterModal(id) {
       currentRoster = allRosterSubmissions.find(r => r.id == id);
       if (!currentRoster) {
@@ -14234,9 +14248,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('rosterId').value = id;
       document.getElementById('rosterSchool').value = currentRoster.school || '';
       document.getElementById('rosterGender').value = currentRoster.gender || 'Boys';
-      document.getElementById('rosterSport').value = currentRoster.sport || 'basketball';
+      const rosterSport = currentRoster.sport || 'basketball';
+      document.getElementById('rosterSport').value = rosterSport;
       document.getElementById('rosterDivision').value = currentRoster.division || '';
-      document.getElementById('rosterSeason').value = currentRoster.season || '2025-26';
+      document.getElementById('rosterSeason').value = currentRoster.season || getRosterSeasonForSport(rosterSport);
       document.getElementById('rosterHeadCoach').value = currentRoster.head_coach || '';
       document.getElementById('rosterAssistants').value = currentRoster.assistant_coaches || '';
       document.getElementById('rosterManagers').value = currentRoster.managers || '';
