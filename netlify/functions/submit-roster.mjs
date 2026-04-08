@@ -15,7 +15,13 @@ const headers = {
 };
 
 // Claude parsing prompt with all the rules
-const PARSING_PROMPT = `You are extracting basketball roster data from an uploaded document/image.
+function buildParsingPrompt(sport) {
+  const sportLabel = sport === 'baseball' ? 'baseball' : 'basketball';
+  const positionRules = sport === 'baseball'
+    ? 'Use standard baseball abbreviations: P, C, 1B, 2B, 3B, SS, OF, DH, UTIL. Multiple positions separated by slash (e.g. OF/2B/P, SS/P, 1B/C, IF/P). Preserve exactly as written on the roster.'
+    : 'Use abbreviations: G, F, C, G/F, F/C. Guard → G, Forward → F, Center → C';
+
+  return `You are extracting ${sportLabel} roster data from an uploaded document/image.
 
 EXTRACT THE FOLLOWING:
 1. All players with: jersey number, full name, class/grade, position
@@ -32,8 +38,7 @@ CLASS CONVERSIONS:
 - 7th grade → 7th
 
 POSITION FORMATTING:
-Basketball: Use abbreviations: G, F, C, G/F, F/C. Guard → G, Forward → F, Center → C
-Baseball: Use standard abbreviations: P, C, 1B, 2B, 3B, SS, OF, DH. Multiple positions separated by slash (e.g. OF/2B/P, SS/P, 1B/C)
+${positionRules}
 
 NAME CAPITALIZATION RULES:
 Flag these for review (include in flagged_names array):
@@ -123,6 +128,9 @@ export async function handler(event, context) {
       };
     }
 
+    // Derive sport early so it's available for AI parsing
+    const submissionSport = (data.sport || 'basketball').toLowerCase();
+
     // Handle file upload if present
     let fileUrl = null;
     let parsedPlayers = [];
@@ -157,7 +165,7 @@ export async function handler(event, context) {
           
           // Parse with Claude API if we have the key
           if (anthropicKey) {
-            const parseResult = await parseRosterWithClaude(fileBuffer, fileMimeType);
+            const parseResult = await parseRosterWithClaude(fileBuffer, fileMimeType, submissionSport);
             if (parseResult) {
               parsedPlayers = parseResult.players || [];
               parsedCoaches = {
@@ -191,19 +199,18 @@ export async function handler(event, context) {
     }
 
     // Derive current season from sport
-    const sport = (data.sport || 'basketball').toLowerCase();
     const CURRENT_SEASONS = {
       basketball: '2025-26',
       baseball: '2026',
       volleyball: '2026'
     };
-    const season = CURRENT_SEASONS[sport] || '2025-26';
+    const season = CURRENT_SEASONS[submissionSport] || '2025-26';
 
     // Prepare the roster submission
     const submission = {
       school: data.school,
       gender: data.gender,
-      sport: sport,
+      sport: submissionSport,
       season: season,
       division: data.division || null,
       submitted_by: data.submitted_by || data.coach_name || null,
@@ -294,7 +301,8 @@ export async function handler(event, context) {
 }
 
 // Parse roster with Claude API
-async function parseRosterWithClaude(fileBuffer, mimeType) {
+async function parseRosterWithClaude(fileBuffer, mimeType, sport = 'basketball') {
+  const PARSING_PROMPT = buildParsingPrompt(sport);
   try {
     const base64Data = fileBuffer.toString('base64');
     
