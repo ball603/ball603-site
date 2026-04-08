@@ -411,7 +411,7 @@
         </div>
         <div class="hero-stat">
           <span class="hero-stat-value" id="totalHighSchools">--</span>
-          <span class="hero-stat-label">High Schools</span>
+          <span class="hero-stat-label">NHIAA Schools</span>
         </div>
       </div>
     </div>
@@ -581,6 +581,39 @@
       updateStats();
     }
     
+    // Canonical NHIAA school names — used to filter the HS stat to NHIAA-only schools
+    // These match the normalized shortnames stored in ncaa_players.high_school
+    const NHIAA_SCHOOLS = new Set([
+      'Alvirne', 'Bedford', 'Belmont', 'Berlin', 'Bishop Brady', 'Bishop Guertin',
+      'Bow', 'Campbell', 'Canaan', 'Central West', 'Coe-Brown',
+      'Colebrook', 'Conant', 'Concord', 'Concord Christian', 'ConVal', 'Derryfield',
+      'Dover', 'Epping', 'Exeter', 'Fall Mountain', 'Farmington',
+      'Franklin', 'Gilford', 'Goffstown', 'Gorham', 'Groveton', 'Hanover',
+      'Hillsboro-Deering', 'Hinsdale', 'Hollis-Brookline',
+      'Holy Family', 'Hopkinton', 'Interlakes', 'John Stark', 'Kearsarge',
+      'Keene', 'Kennett', 'Kingswood', 'Laconia', 'Lebanon', 'Lin-Wood',
+      'Lisbon', 'Littleton', 'Londonderry', 'Manchester Central', 'Manchester Memorial',
+      'Manchester West', 'Mascenic', 'Mascoma', 'Merrimack', 'Merrimack Valley',
+      'Milford', 'Monadnock', 'Moultonborough', 'Mount Royal', 'Nashua North',
+      'Nashua South', 'Newfound', 'Newmarket', 'Newport', 'Nute', 'Oyster River',
+      'Pelham', 'Pembroke', 'Pinkerton', 'Pittsburg', 'Pittsburg-Canaan', 'Pittsfield',
+      'Plymouth', 'Portsmouth', 'Portsmouth Christian', 'Profile', 'Prospect Mountain',
+      'Raymond', 'Salem', 'Sanborn', 'Somersworth', 'Souhegan', 'Spaulding',
+      'Stevens', 'St. Thomas Aquinas', 'Sunapee', 'Timberlane', 'Trinity',
+      'White Mountains', 'Wilton-Lyndeborough', 'Windham', 'Winnacunnet',
+      'Winnisquam', 'Woodsville'
+    ].map(s => s.toLowerCase()));
+
+    function isNHIAASchool(hs) {
+      if (!hs) return false;
+      // Normalize: lowercase, strip common suffixes, handle hyphens/spaces
+      const normalized = hs.toLowerCase()
+        .replace(/\s*\/.*$/, '')       // strip anything after a slash (e.g. "Coe-Brown/Bridgton")
+        .replace(/\s+/g, ' ')
+        .trim();
+      return NHIAA_SCHOOLS.has(normalized);
+    }
+
     function updateStats() {
       // Filter players by current sport for stats (or all if 'all' selected)
       const sportPlayers = currentSport === 'all' 
@@ -589,11 +622,17 @@
       
       document.getElementById('totalPlayers').textContent = sportPlayers.length;
       
-      const colleges = new Set(sportPlayers.map(p => p.college));
+      const colleges = new Set(sportPlayers.map(p => p.college).filter(Boolean));
       document.getElementById('totalColleges').textContent = colleges.size;
       
-      const highSchools = new Set(sportPlayers.map(p => p.high_school));
-      document.getElementById('totalHighSchools').textContent = highSchools.size;
+      // Only count unique NHIAA high schools
+      const nhiaaSchools = new Set(
+        sportPlayers
+          .map(p => p.high_school)
+          .filter(isNHIAASchool)
+          .map(hs => hs.toLowerCase().replace(/\s*\/.*$/, '').trim())
+      );
+      document.getElementById('totalHighSchools').textContent = nhiaaSchools.size;
     }
     
     function setupEventListeners() {
