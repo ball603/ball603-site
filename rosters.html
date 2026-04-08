@@ -598,14 +598,26 @@
       // Only allow gender change for basketball
       if (currentSport !== 'basketball') return;
       
+      // Capture currently selected team before repopulating
+      const previousTeam = document.getElementById('teamSelect').value;
+      
       currentGender = gender;
       
       // Update buttons
       document.getElementById('boysBtn').classList.toggle('active', gender === 'Boys');
       document.getElementById('girlsBtn').classList.toggle('active', gender === 'Girls');
       
-      // Repopulate dropdown
+      // Repopulate dropdown, then restore team selection and reload if one was selected
       populateTeamDropdown();
+      if (previousTeam) {
+        const select = document.getElementById('teamSelect');
+        // Only restore if the team exists in the new gender's dropdown
+        const option = Array.from(select.options).find(o => o.value === previousTeam);
+        if (option) {
+          select.value = previousTeam;
+          loadRoster();
+        }
+      }
     }
     
     // ===== LOAD ROSTER =====
