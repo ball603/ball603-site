@@ -537,7 +537,19 @@
       updatePageTitle();
       refreshSeasonSelect();
       Ball603PageSponsor.load('page-sponsor-banner', 'rosters', sport, { basketball:'Basketball', baseball:'Baseball', volleyball:'Volleyball' }[sport] || '');
-      loadAllRosters().then(() => populateTeamDropdown());
+      // Capture current team, then reload and restore if it exists in new sport
+      const previousTeam = document.getElementById('teamSelect').value;
+      loadAllRosters().then(() => {
+        populateTeamDropdown();
+        if (previousTeam) {
+          const select = document.getElementById('teamSelect');
+          const option = Array.from(select.options).find(o => o.value === previousTeam);
+          if (option) {
+            select.value = previousTeam;
+            loadRoster();
+          }
+        }
+      });
     }
     
     // ===== UPDATE PAGE TITLE =====
