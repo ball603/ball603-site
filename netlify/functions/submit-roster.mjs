@@ -71,6 +71,7 @@ RESPOND WITH ONLY THIS JSON FORMAT (no markdown, no explanation):
 }
 
 Sort players by jersey number (ascending). If number is unclear, use empty string.`;
+}
 
 exports.handler = async function(event, context) {
   // Handle CORS preflight
