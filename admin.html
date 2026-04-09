@@ -6604,11 +6604,14 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         placeholder: 'Write your article...'
       });
 
-      // Paste handler: blank lines = new paragraph (spaced), single line breaks = br (tight)
-      // Uses delta ops directly to bypass Quill's HTML normalization
-      quillEditor.root.addEventListener('paste', function(e) {
+      // Override Quill's clipboard onPaste directly so we intercept before Quill processes
+      const _originalOnPaste = quillEditor.clipboard.onPaste.bind(quillEditor.clipboard);
+      quillEditor.clipboard.onPaste = function(e) {
         const plainText = (e.clipboardData || window.clipboardData).getData('text/plain');
-        if (!plainText) return;
+        if (!plainText) {
+          return _originalOnPaste(e);
+        }
+
         e.preventDefault();
         e.stopPropagation();
 
@@ -6622,12 +6625,12 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         const paragraphs = plainText.split(/\n\n+/);
         paragraphs.forEach(function(para, pIdx) {
           if (pIdx > 0) {
-            ops.push({ insert: '\n' }); // new <p> — gets margin-bottom spacing
+            ops.push({ insert: '\n' }); // new <p> with margin spacing
           }
           const lines = para.split('\n');
           lines.forEach(function(line, lIdx) {
             if (lIdx > 0) {
-              ops.push({ insert: { break: true } }); // <br> — tight, no spacing
+              ops.push({ insert: { break: true } }); // <br> tight line break
             }
             if (line.length > 0) {
               ops.push({ insert: line });
@@ -6638,7 +6641,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
 
         quillEditor.updateContents(new Delta(ops), 'user');
         quillEditor.setSelection(sel.index + plainText.replace(/\n\n+/g, '\n').length, 'silent');
-      }, true); // capture phase — fires before Quill's own paste handler
+      };
 
       // Add custom button styling
       const insertBtn = document.querySelector('.ql-insertImage');
