@@ -2294,8 +2294,12 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
               <span class="ql-formats">
                 <button class="ql-clean"></button>
               </span>
+              <span class="ql-formats">
+                <button id="htmlSourceBtn" title="Edit HTML Source" onclick="toggleHtmlSource()" style="width: auto; padding: 0 8px; font-size: 12px; font-family: monospace; font-weight: bold;">&lt;/&gt;</button>
+              </span>
             </div>
             <div id="articleContent"></div>
+            <textarea id="htmlSourceEditor" style="display: none; width: 100%; min-height: 350px; max-height: 700px; overflow-y: auto; font-family: monospace; font-size: 13px; line-height: 1.5; padding: 12px; border: none; outline: none; resize: vertical; box-sizing: border-box; background: #fff;"></textarea>
             </div><!-- /.ql-editor-wrap -->
           </div>
           
@@ -6606,6 +6610,33 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
 
 
 
+      // HTML Source toggle
+      let htmlSourceMode = false;
+      function toggleHtmlSource() {
+        const visualEditor = document.getElementById('articleContent');
+        const sourceEditor = document.getElementById('htmlSourceEditor');
+        const btn = document.getElementById('htmlSourceBtn');
+
+        if (!htmlSourceMode) {
+          // Switch to HTML source view
+          sourceEditor.value = quillEditor.root.innerHTML;
+          visualEditor.style.display = 'none';
+          sourceEditor.style.display = 'block';
+          btn.style.background = '#e8f0fe';
+          btn.style.color = '#1a73e8';
+          htmlSourceMode = true;
+        } else {
+          // Switch back to visual editor
+          quillEditor.root.innerHTML = sourceEditor.value;
+          sourceEditor.style.display = 'none';
+          visualEditor.style.display = 'block';
+          btn.style.background = '';
+          btn.style.color = '';
+          htmlSourceMode = false;
+          quillEditor.focus();
+        }
+      }
+
       // Add custom button styling
       const insertBtn = document.querySelector('.ql-insertImage');
       if (insertBtn) {
@@ -6796,6 +6827,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     
     // Helper to get Quill content as HTML
     function getEditorContent() {
+      // If HTML source mode is active, return the textarea value directly
+      if (typeof htmlSourceMode !== 'undefined' && htmlSourceMode) {
+        return document.getElementById('htmlSourceEditor').value;
+      }
       if (quillEditor) {
         return quillEditor.root.innerHTML;
       }
