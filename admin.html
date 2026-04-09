@@ -20,9 +20,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Covered+By+Your+Grace&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
-  <!-- Quill.js Rich Text Editor -->
-  <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
-  <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+  <!-- TipTap Editor loaded via ESM module script at bottom of body -->
   <!-- Cropper.js for image cropping -->
   <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
@@ -129,27 +127,40 @@
     .sidebar-card { background: #f9f9f9; border-radius: 8px; padding: 15px; }
     .sidebar-card h4 { font-size: 13px; font-weight: 600; margin-bottom: 12px; color: #555; }
     
-    /* Quill Editor Styles */
-    .ql-container { font-size: 15px; font-family: inherit; }
-    .ql-editor { min-height: 350px; line-height: 1.7; }
-    .ql-editor p { margin-bottom: 1em; }
-    .ql-toolbar.ql-snow { border-radius: 5px 5px 0 0; background: #fafafa; position: sticky; top: 0; z-index: 10; }
-    .ql-container.ql-snow { border-radius: 0 0 5px 5px; }
-    .ql-editor-wrap { border: 1px solid #ccc; border-radius: 5px; }
-    .ql-editor-wrap .ql-toolbar.ql-snow { border: none; border-bottom: 1px solid #ccc; }
-    .ql-editor-wrap .ql-container.ql-snow { border: none; max-height: 700px; overflow-y: auto; }
+    /* TipTap Editor Styles */
+    .tiptap-editor-wrap { border: 1px solid #ccc; border-radius: 5px; }
+    .tiptap-toolbar { border-bottom: 1px solid #ccc; padding: 6px 10px; background: #fafafa; border-radius: 5px 5px 0 0; display: flex; flex-wrap: wrap; gap: 3px; align-items: center; position: sticky; top: 0; z-index: 10; }
+    .tiptap-toolbar select { padding: 3px 6px; border: 1px solid #ddd; border-radius: 4px; background: white; cursor: pointer; font-size: 12px; height: 28px; font-family: inherit; }
+    .tiptap-toolbar button { padding: 0 8px; border: 1px solid transparent; border-radius: 4px; background: transparent; cursor: pointer; font-size: 13px; height: 28px; line-height: 28px; color: #333; }
+    .tiptap-toolbar button:hover { background: #f0f0f0; border-color: #ddd; }
+    .tiptap-toolbar button.is-active { background: #e8f0fe; color: #1a73e8; border-color: #c5d8f8; }
+    .tiptap-toolbar button.html-source-active { background: #e8f0fe; color: #1a73e8; }
+    .tt-formats { display: flex; gap: 2px; align-items: center; }
+    .tt-formats + .tt-formats { padding-left: 6px; border-left: 1px solid #ddd; margin-left: 3px; }
+    #articleContent { max-height: 700px; overflow-y: auto; border-radius: 0 0 5px 5px; }
+    .ProseMirror { min-height: 350px; padding: 12px 15px; line-height: 1.7; font-size: 15px; font-family: inherit; outline: none; }
+    .ProseMirror > * + * { margin-top: 0; }
+    .ProseMirror p { margin-bottom: 1em; }
+    .ProseMirror p:last-child { margin-bottom: 0; }
+    .ProseMirror p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: #aaa; pointer-events: none; float: left; height: 0; }
+    .ProseMirror h2 { font-size: 1.4em; font-weight: 700; margin: 1.2em 0 0.5em; }
+    .ProseMirror h3 { font-size: 1.2em; font-weight: 700; margin: 1em 0 0.4em; }
+    .ProseMirror blockquote { border-left: 3px solid #f57c00; padding-left: 12px; color: #666; margin: 1em 0; font-style: italic; }
+    .ProseMirror ul, .ProseMirror ol { padding-left: 1.5em; margin: 0.8em 0; }
+    .ProseMirror li { margin-bottom: 0.3em; }
+    .ProseMirror a { color: #1a73e8; text-decoration: underline; }
     
     /* Custom Image Styles in Editor */
-    .ql-editor .article-image { margin: 20px 0; }
-    .ql-editor .article-image.align-left { float: left; margin-right: 20px; margin-bottom: 10px; margin-top: 4px; clear: left; }
-    .ql-editor .article-image.align-right { float: right; margin-left: 20px; margin-bottom: 10px; margin-top: 4px; clear: right; }
-    .ql-editor .article-image.align-center { display: table; margin-left: auto; margin-right: auto; clear: both; }
-    .ql-editor .article-image.size-small { width: 25%; }
-    .ql-editor .article-image.size-medium { width: 45%; }
-    .ql-editor .article-image.size-full { width: 100%; }
-    .ql-editor .article-image img { width: 100%; height: auto; display: block; border-radius: 6px; margin: 0; }
-    .ql-editor .article-image .caption { background: #f5f5f5; border-left: 3px solid #f57c00; padding: 6px 10px; font-size: 13px; font-style: italic; color: #666; line-height: 1.4; border-radius: 0 0 6px 6px; }
-    .ql-editor .clearfix { clear: both; }
+    .ProseMirror .article-image { margin: 20px 0; }
+    .ProseMirror .article-image.align-left { float: left; margin-right: 20px; margin-bottom: 10px; margin-top: 4px; clear: left; }
+    .ProseMirror .article-image.align-right { float: right; margin-left: 20px; margin-bottom: 10px; margin-top: 4px; clear: right; }
+    .ProseMirror .article-image.align-center { display: table; margin-left: auto; margin-right: auto; clear: both; }
+    .ProseMirror .article-image.size-small { width: 25%; }
+    .ProseMirror .article-image.size-medium { width: 45%; }
+    .ProseMirror .article-image.size-full { width: 100%; }
+    .ProseMirror .article-image img { width: 100%; height: auto; display: block; border-radius: 6px; margin: 0; }
+    .ProseMirror .article-image .caption { background: #f5f5f5; border-left: 3px solid #f57c00; padding: 6px 10px; font-size: 13px; font-style: italic; color: #666; line-height: 1.4; border-radius: 0 0 6px 6px; }
+    .ProseMirror .clearfix { clear: both; }
     
     /* Featured Image */
     .featured-image-container { border: 2px dashed #ddd; border-radius: 8px; padding: 20px; text-align: center; margin-bottom: 15px; cursor: pointer; transition: all 0.2s; background: #fafafa; }
@@ -2263,44 +2274,44 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             <input type="hidden" id="featuredImageUrl">
           </div>
           
-          <!-- Story Editor (Quill) -->
+          <!-- Story Editor (TipTap) -->
           <div class="form-group">
             <label>Story</label>
-            <div class="ql-editor-wrap">
-            <div id="quillToolbar">
-              <span class="ql-formats">
-                <select class="ql-header">
-                  <option value="">Normal</option>
+            <div class="tiptap-editor-wrap">
+            <div id="tiptapToolbar" class="tiptap-toolbar">
+              <span class="tt-formats">
+                <select id="ttHeading" onchange="tiptapSetHeading(this.value)" title="Paragraph style">
+                  <option value="0">Normal</option>
                   <option value="2">Heading</option>
                   <option value="3">Subheading</option>
                 </select>
               </span>
-              <span class="ql-formats">
-                <button class="ql-bold"></button>
-                <button class="ql-italic"></button>
-                <button class="ql-underline"></button>
+              <span class="tt-formats">
+                <button type="button" id="ttBold" onclick="tiptapCmd('toggleBold')" title="Bold"><strong>B</strong></button>
+                <button type="button" id="ttItalic" onclick="tiptapCmd('toggleItalic')" title="Italic"><em>I</em></button>
+                <button type="button" id="ttUnderline" onclick="tiptapCmd('toggleUnderline')" title="Underline" style="text-decoration:underline;">U</button>
               </span>
-              <span class="ql-formats">
-                <button class="ql-list" value="ordered"></button>
-                <button class="ql-list" value="bullet"></button>
+              <span class="tt-formats">
+                <button type="button" id="ttOL" onclick="tiptapCmd('toggleOrderedList')" title="Numbered list">1.</button>
+                <button type="button" id="ttUL" onclick="tiptapCmd('toggleBulletList')" title="Bullet list">&#x2022;&#x2013;</button>
               </span>
-              <span class="ql-formats">
-                <button class="ql-link"></button>
-                <button class="ql-blockquote"></button>
+              <span class="tt-formats">
+                <button type="button" id="ttLink" onclick="tiptapSetLink()" title="Insert / edit link">&#x1F517;</button>
+                <button type="button" id="ttBlockquote" onclick="tiptapCmd('toggleBlockquote')" title="Blockquote">&ldquo;&rdquo;</button>
               </span>
-              <span class="ql-formats">
-                <button class="ql-insertImage" title="Insert Image">&#x1F5BC;&#xFE0F;</button>
+              <span class="tt-formats">
+                <button type="button" id="ttInsertImage" onclick="openInsertImageModal()" title="Insert image">&#x1F5BC;&#xFE0F;</button>
               </span>
-              <span class="ql-formats">
-                <button class="ql-clean"></button>
+              <span class="tt-formats">
+                <button type="button" id="ttClean" onclick="tiptapClean()" title="Clear formatting">&#x2715;</button>
               </span>
-              <span class="ql-formats">
-                <button id="htmlSourceBtn" title="Edit HTML Source" onclick="toggleHtmlSource()" style="width: auto; padding: 0 8px; font-size: 12px; font-family: monospace; font-weight: bold;">&lt;/&gt;</button>
+              <span class="tt-formats">
+                <button type="button" id="htmlSourceBtn" title="Edit HTML source" onclick="toggleHtmlSource()" style="font-size:12px;font-family:monospace;font-weight:bold;">&lt;/&gt;</button>
               </span>
             </div>
             <div id="articleContent"></div>
             <textarea id="htmlSourceEditor" style="display: none; width: 100%; min-height: 350px; max-height: 700px; overflow-y: auto; font-family: monospace; font-size: 13px; line-height: 1.5; padding: 12px; border: none; outline: none; resize: vertical; box-sizing: border-box; background: #fff;"></textarea>
-            </div><!-- /.ql-editor-wrap -->
+            </div><!-- /.tiptap-editor-wrap -->
           </div>
           
           <div class="form-group">
@@ -6387,64 +6398,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       twitterPost: null
     };
     
-    // Quill Editor
-    let quillEditor = null;
-    
-    // ── Custom Quill Blot: ArticleImage ──────────────────────────────────────
-    // Registers a block-level embed so Quill preserves the wrapper div with
-    // alignment/size/caption — without this, dangerouslyPasteHTML strips divs.
-    (function registerArticleImageBlot() {
-      const BlockEmbed = Quill.import('blots/block/embed');
-      class ArticleImageBlot extends BlockEmbed {
-        static create(value) {
-          const node = super.create();
-          node.setAttribute('contenteditable', 'false');
-          node.classList.add('article-image', `align-${value.align || 'center'}`, `size-${value.size || 'medium'}`);
-          const img = document.createElement('img');
-          img.src = value.url || '';
-          img.alt = value.caption || 'Article image';
-          if (value.link) {
-            const a = document.createElement('a');
-            a.href = value.link;
-            if (value.newWindow) { a.target = '_blank'; a.rel = 'noopener'; }
-            a.appendChild(img);
-            node.appendChild(a);
-          } else {
-            node.appendChild(img);
-          }
-          if (value.caption) {
-            const cap = document.createElement('div');
-            cap.className = 'caption';
-            cap.textContent = value.caption;
-            node.appendChild(cap);
-          }
-          // Click → show edit toolbar
-          node.addEventListener('click', function(e) {
-            e.stopPropagation();
-            showImageEditToolbar(node);
-          });
-          return node;
-        }
-        static value(node) {
-          const img = node.querySelector('img');
-          const cap = node.querySelector('.caption');
-          const a = node.querySelector('a');
-          const align = [...node.classList].find(c => c.startsWith('align-'))?.replace('align-', '') || 'center';
-          const size  = [...node.classList].find(c => c.startsWith('size-'))?.replace('size-', '')  || 'medium';
-          return {
-            url: img?.src || '',
-            caption: cap?.textContent || '',
-            link: a?.href || '',
-            newWindow: a?.target === '_blank',
-            align, size
-          };
-        }
-      }
-      ArticleImageBlot.blotName = 'articleImage';
-      ArticleImageBlot.tagName  = 'div';
-      ArticleImageBlot.className = 'article-image';
-      Quill.register(ArticleImageBlot);
-    })();
+    // TipTap Editor — instance lives on window.tiptapEditor (set by module script at bottom)
 
     // ── Image Edit Toolbar ────────────────────────────────────────────────────
     let currentEditingImageNode = null;
@@ -6518,14 +6472,29 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     function deleteEditImage() {
       if (!currentEditingImageNode) return;
       hideImageEditToolbar();
-      // Find blot and delete via Quill
-      const blot = Quill.find(currentEditingImageNode);
-      if (blot) {
-        const index = quillEditor.getIndex(blot);
-        quillEditor.deleteText(index, 1, Quill.sources.USER);
+      const editor = window.tiptapEditor;
+      if (editor) {
+        // Walk the document to find the matching articleImage node by its DOM element
+        let targetPos = null;
+        editor.state.doc.descendants((node, pos) => {
+          if (targetPos !== null) return false;
+          if (node.type.name === 'articleImage') {
+            const domNode = editor.view.nodeDOM(pos);
+            if (domNode === currentEditingImageNode || domNode?.contains(currentEditingImageNode)) {
+              targetPos = pos;
+              return false;
+            }
+          }
+        });
+        if (targetPos !== null) {
+          editor.chain().focus().deleteRange({ from: targetPos, to: targetPos + 1 }).run();
+        } else {
+          currentEditingImageNode.remove();
+        }
       } else {
         currentEditingImageNode.remove();
       }
+      currentEditingImageNode = null;
     }
 
     // Inline crop: load existing image URL into the cropper modal
@@ -6563,88 +6532,36 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const btn = document.getElementById('htmlSourceBtn');
 
       if (!htmlSourceMode) {
-        sourceEditor.value = quillEditor.root.innerHTML;
+        sourceEditor.value = window.tiptapEditor ? window.tiptapEditor.getHTML() : '';
         visualEditor.style.display = 'none';
         sourceEditor.style.display = 'block';
-        btn.style.background = '#e8f0fe';
-        btn.style.color = '#1a73e8';
+        btn.classList.add('html-source-active');
         htmlSourceMode = true;
       } else {
-        // Convert HTML to Quill delta so it's properly parsed (not raw innerHTML)
-        const delta = quillEditor.clipboard.convert(sourceEditor.value);
-        quillEditor.setContents(delta, 'silent');
+        if (window.tiptapEditor) {
+          window.tiptapEditor.commands.setContent(sourceEditor.value, false);
+          window.tiptapEditor.commands.focus();
+        }
         sourceEditor.style.display = 'none';
         visualEditor.style.display = 'block';
-        btn.style.background = '';
-        btn.style.color = '';
+        btn.classList.remove('html-source-active');
         htmlSourceMode = false;
-        quillEditor.focus();
       }
     }
 
-    function initQuillEditor() {
-      if (quillEditor) return; // Already initialized
-      
-      // Custom image insert button handler
-      const insertImageHandler = function() {
-        openInsertImageModal();
-      };
-      
-      quillEditor = new Quill('#articleContent', {
-        theme: 'snow',
-        modules: {
-          toolbar: {
-            container: '#quillToolbar',
-            handlers: {
-              'insertImage': insertImageHandler
-            }
-          },
-          keyboard: {
-            bindings: {
-              // Enter = soft line break (br within same paragraph, no spacing)
-              enter: {
-                key: 13,
-                shiftKey: false,
-                handler: function(range) {
-                  const Delta = Quill.import('delta');
-                  this.quill.updateContents(
-                    new Delta().retain(range.index).delete(range.length).insert({ break: true }),
-                    'user'
-                  );
-                  this.quill.setSelection(range.index + 1, 'silent');
-                  return false;
-                }
-              },
-              // Shift+Enter = new paragraph (with spacing)
-              shiftEnter: {
-                key: 13,
-                shiftKey: true,
-                handler: function(range) {
-                  const Delta = Quill.import('delta');
-                  this.quill.updateContents(
-                    new Delta().retain(range.index).delete(range.length).insert('\n'),
-                    'user'
-                  );
-                  this.quill.setSelection(range.index + 1, 'silent');
-                  return false;
-                }
-              }
-            }
-          }
-        },
-        placeholder: 'Write your article...'
-      });
-
-
-
-      // Add custom button styling
-      const insertBtn = document.querySelector('.ql-insertImage');
-      if (insertBtn) {
-        insertBtn.innerHTML = '&#x1F5BC;&#xFE0F;';
-        insertBtn.style.width = 'auto';
-        insertBtn.style.padding = '0 8px';
+    function initTipTapEditor() {
+      // Delegates to window.initTipTapEditor defined by the TipTap module script.
+      // Retries until the module has loaded (module scripts are deferred).
+      if (window._tiptapInitDone) return;
+      if (typeof window.initTipTapEditorModule === 'function') {
+        window.initTipTapEditorModule();
+        window._tiptapInitDone = true;
+      } else {
+        setTimeout(initTipTapEditor, 50);
       }
     }
+
+    // Add custom button styling (no-op for TipTap — toolbar is plain HTML)
     
     // Featured Image Functions
     // Featured image drag/drop handlers
@@ -6817,49 +6734,39 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const align = document.querySelector('input[name="imageAlign"]:checked').value;
       const size = document.querySelector('input[name="imageSize"]:checked').value;
       
-      const range = quillEditor.getSelection(true);
-      quillEditor.insertEmbed(range.index, 'articleImage', { url, caption, link, newWindow, align, size }, Quill.sources.USER);
-      quillEditor.setSelection(range.index + 1, Quill.sources.SILENT);
+      const editor = window.tiptapEditor;
+      if (!editor) { showToast('Editor not ready', 'error'); return; }
+      editor.chain().focus().insertContent({
+        type: 'articleImage',
+        attrs: { url, caption, link, newWindow, align, size },
+      }).run();
       
       closeInsertImageModal();
       showToast('Image inserted!', 'success');
     }
     
-    // Helper to get Quill content as HTML
+    // Helper to get TipTap content as HTML
     function getEditorContent() {
-      // If HTML source mode is active, return the textarea value directly
       if (typeof htmlSourceMode !== 'undefined' && htmlSourceMode) {
         return document.getElementById('htmlSourceEditor').value;
       }
-      if (quillEditor) {
-        return quillEditor.root.innerHTML;
-      }
-      return '';
+      return window.tiptapEditor ? window.tiptapEditor.getHTML() : '';
     }
-    
-    // Helper to set Quill content from HTML
+
+    // Helper to set TipTap content from HTML
+    // TipTap's NodeViews (addNodeView) re-create click handlers automatically on setContent.
     function setEditorContent(html) {
-      if (quillEditor) {
-        if (html) {
-          quillEditor.root.innerHTML = html;
-          // Re-attach click handlers to any article-image nodes loaded from saved HTML
-          quillEditor.root.querySelectorAll('.article-image').forEach(node => {
-            node.removeEventListener('click', node._ietHandler);
-            node._ietHandler = function(e) { e.stopPropagation(); showImageEditToolbar(node); };
-            node.addEventListener('click', node._ietHandler);
-          });
-        } else {
-          quillEditor.setText('');
-        }
+      if (!window.tiptapEditor) return;
+      if (html) {
+        window.tiptapEditor.commands.setContent(html, false);
+      } else {
+        window.tiptapEditor.commands.clearContent(true);
       }
     }
-    
-    // Helper to get plain text from Quill (for excerpts, social posts)
+
+    // Helper to get plain text from TipTap (for excerpts, social posts)
     function getEditorPlainText() {
-      if (quillEditor) {
-        return quillEditor.getText().trim();
-      }
-      return '';
+      return window.tiptapEditor ? window.tiptapEditor.getText().trim() : '';
     }
     
     // Author "Other" toggle
@@ -7244,9 +7151,9 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       populateAuthorDropdown();
       loadSponsors(); // Load sponsors for article dropdown
       
-      // Initialize Quill editor
+      // Initialize TipTap editor
       setTimeout(() => {
-        initQuillEditor();
+        initTipTapEditor();
       }, 100);
     }
     
@@ -9360,7 +9267,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       pendingPlayoffData = null;
       document.getElementById('editorTitle').textContent = 'New Article';
       document.getElementById('articleTitle').value = '';
-      setEditorContent(''); // Clear Quill editor
+      setEditorContent(''); // Clear editor
       document.getElementById('articleExcerpt').value = '';
       document.getElementById('selectedGameId').value = '';
       selectedGame = null;
@@ -9422,7 +9329,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       currentGameData = null;
       document.getElementById('editorTitle').textContent = 'New Bash Story';
       document.getElementById('articleTitle').value = '';
-      setEditorContent(''); // Clear Quill editor
+      setEditorContent(''); // Clear editor
       document.getElementById('articleExcerpt').value = '';
       document.getElementById('selectedGameId').value = '';
       selectedGame = null;
@@ -9502,7 +9409,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       pendingPlayoffData = null;
       document.getElementById('editorTitle').textContent = 'Edit Article';
       document.getElementById('articleTitle').value = article.title || '';
-      setEditorContent(article.content || ''); // Load into Quill editor
+      setEditorContent(article.content || ''); // Load into TipTap editor
       document.getElementById('articleExcerpt').value = article.excerpt || '';
       document.getElementById('selectedGameId').value = article.game_id || '';
       selectedGame = article.game_id ? games.find(g => g.game_id === article.game_id) : null;
@@ -10667,7 +10574,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         // Editing existing playoff preview article - preserve original rich HTML content
         contentToSave = currentArticle.content;
       } else {
-        // Regular article - use Quill editor content
+        // Regular article - use TipTap editor content
         contentToSave = getEditorContent();
       }
       
@@ -23455,7 +23362,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           // Keep featured image, author, photographer, etc. from currentArticle
         }
         
-        // Show a preview summary in Quill (the actual rich HTML will be used on publish)
+        // Show a preview summary in the editor (the actual rich HTML will be used on publish)
         const previewHtml = `
           <p><strong>&#x1F525; GAME OF THE NIGHT</strong></p>
           <p>${gotn ? `${gotn.gender} ${gotn.division}: ${gotn.awayTeam} at ${gotn.homeTeam}` : 'None selected'}</p>
@@ -25538,7 +25445,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         document.getElementById('socialPostsCard').style.display = 'none';
         removeFeaturedImage();
         
-        // Show preview in Quill
+        // Show preview in TipTap editor
         const previewHtml = `
           <p><strong>&#x1F3C6; ${data.gender} ${data.division} ${roundLabel} Preview</strong></p>
           <p>${data.roundDateFormatted}</p>
@@ -25666,6 +25573,251 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       <div id="playoffWarnings" class="playoff-warnings" style="display: none;"></div>
       <div id="playoffPreviewArea"></div>
     </div>
-  </div>
+  </div>  <!-- ═══════════════════════════════════════════════════════════════
+       TipTap Editor — loaded as ES module so we can use esm.sh CDN.
+       Exposes window.initTipTapEditorModule(), window.tiptapEditor,
+       window.tiptapCmd(), window.tiptapSetHeading(), window.tiptapSetLink(),
+       window.tiptapClean() for use by the non-module admin scripts.
+  ════════════════════════════════════════════════════════════════ -->
+  <script type="module">
+    import { Editor, Extension, Node, mergeAttributes } from 'https://esm.sh/@tiptap/core@2';
+    import StarterKit from 'https://esm.sh/@tiptap/starter-kit@2';
+    import Link from 'https://esm.sh/@tiptap/extension-link@2';
+    import Underline from 'https://esm.sh/@tiptap/extension-underline@2';
+    import HardBreak from 'https://esm.sh/@tiptap/extension-hard-break@2';
+    import { Plugin } from 'https://esm.sh/prosemirror-state@1';
+
+    // ── ArticleImage custom node ─────────────────────────────────────────────
+    // Mirrors the old Quill ArticleImageBlot. Atom = treated as single unit.
+    const ArticleImageNode = Node.create({
+      name: 'articleImage',
+      group: 'block',
+      atom: true,
+      draggable: true,
+
+      addAttributes() {
+        return {
+          url:       { default: '' },
+          caption:   { default: '' },
+          link:      { default: '' },
+          newWindow: { default: false },
+          align:     { default: 'center' },
+          size:      { default: 'medium' },
+        };
+      },
+
+      // Parse existing article-image divs from saved HTML
+      parseHTML() {
+        return [{
+          tag: 'div.article-image',
+          getAttrs(dom) {
+            const img = dom.querySelector('img');
+            const cap = dom.querySelector('.caption');
+            const a   = dom.querySelector('a');
+            return {
+              url:       img?.getAttribute('src') || '',
+              caption:   cap?.textContent || '',
+              link:      a?.getAttribute('href') || '',
+              newWindow: a?.getAttribute('target') === '_blank',
+              align:     [...dom.classList].find(c => c.startsWith('align-'))?.replace('align-', '') || 'center',
+              size:      [...dom.classList].find(c => c.startsWith('size-'))?.replace('size-', '')  || 'medium',
+            };
+          },
+        }];
+      },
+
+      // Serialise back to the same HTML structure article.html already renders
+      renderHTML({ node }) {
+        const { url, caption, link, newWindow, align, size } = node.attrs;
+        const divAttrs = {
+          class: `article-image align-${align} size-${size}`,
+          contenteditable: 'false',
+        };
+        const imgAttrs = { src: url, alt: caption || 'Article image' };
+        const imgEl = ['img', imgAttrs];
+        const capEl = caption ? ['div', { class: 'caption' }, caption] : null;
+
+        let inner;
+        if (link) {
+          const aAttrs = { href: link, ...(newWindow ? { target: '_blank', rel: 'noopener' } : {}) };
+          inner = capEl
+            ? [['a', aAttrs, imgEl], capEl]
+            : [['a', aAttrs, imgEl]];
+        } else {
+          inner = capEl ? [imgEl, capEl] : [imgEl];
+        }
+        // Build array form TipTap's renderHTML accepts
+        return ['div', divAttrs, ...inner];
+      },
+
+      // Live DOM node — re-creates click → image edit toolbar handler
+      addNodeView() {
+        return ({ node }) => {
+          const dom = document.createElement('div');
+          dom.className = `article-image align-${node.attrs.align} size-${node.attrs.size}`;
+          dom.setAttribute('contenteditable', 'false');
+
+          const img = document.createElement('img');
+          img.src = node.attrs.url;
+          img.alt = node.attrs.caption || 'Article image';
+
+          if (node.attrs.link) {
+            const a = document.createElement('a');
+            a.href = node.attrs.link;
+            if (node.attrs.newWindow) { a.target = '_blank'; a.rel = 'noopener'; }
+            a.appendChild(img);
+            dom.appendChild(a);
+          } else {
+            dom.appendChild(img);
+          }
+
+          if (node.attrs.caption) {
+            const cap = document.createElement('div');
+            cap.className = 'caption';
+            cap.textContent = node.attrs.caption;
+            dom.appendChild(cap);
+          }
+
+          dom.addEventListener('click', e => {
+            e.stopPropagation();
+            if (typeof window.showImageEditToolbar === 'function') {
+              window.showImageEditToolbar(dom);
+            }
+          });
+
+          return { dom };
+        };
+      },
+    });
+
+    // ── Keyboard overrides: Enter = <br>, Shift+Enter = new paragraph ────────
+    // TipTap default is the opposite; we swap them here with higher priority.
+    const SwappedEnter = Extension.create({
+      name: 'swappedEnter',
+      priority: 1001, // beats default HardBreak (1000) and Paragraph (100)
+      addKeyboardShortcuts() {
+        return {
+          'Enter': () => this.editor.commands.setHardBreak(),
+          'Shift-Enter': () => this.editor.commands.splitBlock(),
+        };
+      },
+    });
+
+    // ── Plain-text paste: blank lines → paragraphs, single \n → <br> ─────────
+    const SmartPaste = Extension.create({
+      name: 'smartPaste',
+      addProseMirrorPlugins() {
+        const editorRef = this.editor;
+        return [
+          new Plugin({
+            props: {
+              handlePaste(view, event) {
+                const html  = event.clipboardData?.getData('text/html') || '';
+                const plain = event.clipboardData?.getData('text/plain') || '';
+
+                // Only intercept when the clipboard carries plain text only
+                if (html.trim() || !plain.trim()) return false;
+
+                event.preventDefault();
+                // Blank lines → paragraph splits; single \n → hard break
+                const converted = plain
+                  .split(/\n{2,}/)
+                  .map(para => `<p>${para.replace(/\n/g, '<br>')}</p>`)
+                  .join('');
+                editorRef.commands.insertContent(converted);
+                return true;
+              },
+            },
+          }),
+        ];
+      },
+    });
+
+    // ── Toolbar state sync ───────────────────────────────────────────────────
+    function updateTiptapToolbar(editor) {
+      if (!editor) return;
+      document.getElementById('ttBold')      ?.classList.toggle('is-active', editor.isActive('bold'));
+      document.getElementById('ttItalic')    ?.classList.toggle('is-active', editor.isActive('italic'));
+      document.getElementById('ttUnderline') ?.classList.toggle('is-active', editor.isActive('underline'));
+      document.getElementById('ttOL')        ?.classList.toggle('is-active', editor.isActive('orderedList'));
+      document.getElementById('ttUL')        ?.classList.toggle('is-active', editor.isActive('bulletList'));
+      document.getElementById('ttBlockquote')?.classList.toggle('is-active', editor.isActive('blockquote'));
+      document.getElementById('ttLink')      ?.classList.toggle('is-active', editor.isActive('link'));
+
+      const sel = document.getElementById('ttHeading');
+      if (sel) {
+        if      (editor.isActive('heading', { level: 2 })) sel.value = '2';
+        else if (editor.isActive('heading', { level: 3 })) sel.value = '3';
+        else sel.value = '0';
+      }
+    }
+
+    // ── Editor factory ───────────────────────────────────────────────────────
+    window.initTipTapEditorModule = function () {
+      if (window.tiptapEditor) return;
+
+      window.tiptapEditor = new Editor({
+        element: document.querySelector('#articleContent'),
+        extensions: [
+          StarterKit.configure({
+            hardBreak: false,       // We add our own below with swapped keys
+            heading:   { levels: [2, 3] },
+            codeBlock: false,       // Not needed in article CMS
+          }),
+          HardBreak,                // Restored without default Shift-Enter shortcut;
+                                    // SwappedEnter (priority 1001) intercepts Enter first.
+          SwappedEnter,
+          SmartPaste,
+          Link.configure({
+            openOnClick:    false,
+            HTMLAttributes: { rel: 'noopener' },
+          }),
+          Underline,
+          ArticleImageNode,
+        ],
+        onUpdate:         ({ editor }) => updateTiptapToolbar(editor),
+        onSelectionUpdate: ({ editor }) => updateTiptapToolbar(editor),
+        editorProps: {
+          attributes: { 'data-placeholder': 'Write your article...' },
+        },
+        content: '',
+      });
+    };
+
+    // ── Global helpers called by toolbar onclick attrs ───────────────────────
+
+    window.tiptapCmd = function (cmd) {
+      window.tiptapEditor?.chain().focus()[cmd]().run();
+    };
+
+    window.tiptapSetHeading = function (level) {
+      const editor = window.tiptapEditor;
+      if (!editor) return;
+      const lvl = parseInt(level, 10);
+      if (lvl === 0) {
+        editor.chain().focus().setParagraph().run();
+      } else {
+        editor.chain().focus().toggleHeading({ level: lvl }).run();
+      }
+    };
+
+    window.tiptapSetLink = function () {
+      const editor = window.tiptapEditor;
+      if (!editor) return;
+      const prev = editor.getAttributes('link').href || '';
+      const url  = window.prompt('Enter URL (leave blank to remove link):', prev);
+      if (url === null) return; // cancelled
+      if (!url.trim()) {
+        editor.chain().focus().extendMarkRange('link').unsetLink().run();
+      } else {
+        editor.chain().focus().extendMarkRange('link').setLink({ href: url.trim() }).run();
+      }
+    };
+
+    window.tiptapClean = function () {
+      window.tiptapEditor?.chain().focus().clearNodes().unsetAllMarks().run();
+    };
+  </script>
+
 </body>
 </html>
