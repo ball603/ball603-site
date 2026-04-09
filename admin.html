@@ -6604,36 +6604,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         placeholder: 'Write your article...'
       });
 
-      // Tell Quill's clipboard to preserve <br> as an inline break embed
-      // instead of converting it to a new paragraph
-      quillEditor.clipboard.addMatcher('BR', function(node, delta) {
-        const Delta = Quill.import('delta');
-        return new Delta().insert({ break: true });
-      });
 
-      // Override Quill's clipboard onPaste to convert plain text correctly:
-      // blank lines → separate <p> (spaced), single line breaks → <br> (tight)
-      const _originalOnPaste = quillEditor.clipboard.onPaste.bind(quillEditor.clipboard);
-      quillEditor.clipboard.onPaste = function(e) {
-        let plainText = (e.clipboardData || window.clipboardData).getData('text/plain');
-        if (!plainText) return _originalOnPaste(e);
-
-        e.preventDefault();
-        e.stopPropagation();
-
-        // Normalize line endings (Mac TextEdit uses \r\n or \r)
-        plainText = plainText.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-
-        // Build HTML: blank lines → new <p>, single line breaks → <br>
-        const html = plainText.split(/\n{2,}/).map(function(para) {
-          return '<p>' + para.split('\n').map(function(line) {
-            return line.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-          }).join('<br>') + '</p>';
-        }).join('');
-
-        const sel = quillEditor.getSelection(true);
-        quillEditor.clipboard.dangerouslyPasteHTML(sel.index, html);
-      };
 
       // Add custom button styling
       const insertBtn = document.querySelector('.ql-insertImage');
