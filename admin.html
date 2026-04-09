@@ -6567,38 +6567,88 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             handlers: {
               'insertImage': insertImageHandler
             }
+          },
+          keyboard: {
+            bindings: {
+              // Enter = soft line break (br within same paragraph, no spacing)
+              enter: {
+                key: 13,
+                shiftKey: false,
+                handler: function(range) {
+                  const currentLeaf = this.quill.getLeaf(range.index)[0];
+                  const nextLeaf = this.quill.getLeaf(range.index + 1)[0];
+                  this.quill.insertEmbed(range.index, 'break', true, 'user');
+                  if (nextLeaf === null || currentLeaf.parent !== nextLeaf.parent) {
+                    this.quill.insertEmbed(range.index + 1, 'break', true, 'user');
+                  }
+                  this.quill.setSelection(range.index + 1, 'silent');
+                  return false;
+                }
+              },
+              // Shift+Enter = new paragraph (with spacing)
+              shiftEnter: {
+                key: 13,
+                shiftKey: true,
+                handler: function(range) {
+                  const Delta = Quill.import('delta');
+                  this.quill.updateContents(
+                    new Delta().retain(range.index).delete(range.length).insert('\n'),
+                    'user'
+                  );
+                  this.quill.setSelection(range.index + 1, 'silent');
+                  return false;
+                }
+              }
+            }
           }
         },
         placeholder: 'Write your article...'
       });
-      
-      // Custom paste handler: blank lines become paragraph breaks with spacing,
-      // single line breaks stay tight within the same paragraph using <br>
-      quillEditor.root.addEventListener('paste', function(e) {
-        const clipboardData = e.clipboardData || window.clipboardData;
-        const plainText = clipboardData.getData('text/plain');
-        if (!plainText) return;
 
+      // Paste handler: blank lines = new paragraph (spaced), single line breaks = br (tight)
+      quillEditor.root.addEventListener('paste', function(e) {
+        const plainText = (e.clipboardData || window.clipboardData).getData('text/plain');
+        if (!plainText) return;
         e.preventDefault();
         e.stopPropagation();
 
-        // Convert plain text to HTML:
-        // - Blank lines (double newline) → separate <p> tags (gets margin-bottom spacing)
-        // - Single line breaks → <br> within same <p> (stays tight)
-        const html = plainText
-          .split(/\n\n+/)
-          .map(function(para) {
-            const escaped = para
-              .replace(/&/g, '&amp;')
-              .replace(/</g, '&lt;')
-              .replace(/>/g, '&gt;')
-              .replace(/\n/g, '<br>');
-            return '<p>' + escaped + '</p>';
-          })
-          .join('');
+        const Delta = Quill.import('delta');
+        const sel = quillEditor.getSelection(true);
+        let idx = sel.index;
 
-        const selection = quillEditor.getSelection(true);
-        quillEditor.clipboard.dangerouslyPasteHTML(selection.index, html, 'user');
+        if (sel.length > 0) {
+          quillEditor.deleteText(sel.index, sel.length, 'user');
+        }
+
+        const paragraphs = plainText.split(/\n\n+/);
+
+        paragraphs.forEach(function(para, pIdx) {
+          if (pIdx > 0) {
+            // Paragraph break = new <p> with margin spacing
+            quillEditor.updateContents(new Delta().retain(idx).insert('\n'), 'user');
+            idx += 1;
+          }
+          const lines = para.split('\n');
+          lines.forEach(function(line, lIdx) {
+            if (lIdx > 0) {
+              // Single line break = <br> within same <p>, tight
+              const curLeaf = quillEditor.getLeaf(idx)[0];
+              const nxtLeaf = quillEditor.getLeaf(idx + 1)[0];
+              quillEditor.insertEmbed(idx, 'break', true, 'user');
+              if (nxtLeaf === null || (curLeaf && nxtLeaf && curLeaf.parent !== nxtLeaf.parent)) {
+                quillEditor.insertEmbed(idx + 1, 'break', true, 'user');
+                idx += 1;
+              }
+              idx += 1;
+            }
+            if (line.length > 0) {
+              quillEditor.insertText(idx, line, 'user');
+              idx += line.length;
+            }
+          });
+        });
+
+        quillEditor.setSelection(idx, 'silent');
       });
 
       // Add custom button styling
