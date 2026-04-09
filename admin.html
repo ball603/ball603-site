@@ -132,7 +132,7 @@
     /* Quill Editor Styles */
     .ql-container { font-size: 15px; font-family: inherit; }
     .ql-editor { min-height: 350px; line-height: 1.7; }
-    .ql-editor p { margin-bottom: 0; }
+    .ql-editor p { margin-bottom: 1em; }
     .ql-toolbar.ql-snow { border-radius: 5px 5px 0 0; background: #fafafa; position: sticky; top: 0; z-index: 10; }
     .ql-container.ql-snow { border-radius: 0 0 5px 5px; }
     .ql-editor-wrap { border: 1px solid #ccc; border-radius: 5px; }
@@ -6559,6 +6559,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         openInsertImageModal();
       };
       
+      const Delta = Quill.import('delta');
       quillEditor = new Quill('#articleContent', {
         theme: 'snow',
         modules: {
@@ -6567,6 +6568,17 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             handlers: {
               'insertImage': insertImageHandler
             }
+          },
+          clipboard: {
+            matchers: [
+              ['p', function(node, delta) {
+                // Remove empty paragraphs that Quill inserts for blank lines on paste
+                if (node.innerText && node.innerText.trim() === '') {
+                  return new Delta();
+                }
+                return delta;
+              }]
+            ]
           }
         },
         placeholder: 'Write your article...'
