@@ -6575,12 +6575,11 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
                 key: 13,
                 shiftKey: false,
                 handler: function(range) {
-                  const currentLeaf = this.quill.getLeaf(range.index)[0];
-                  const nextLeaf = this.quill.getLeaf(range.index + 1)[0];
-                  this.quill.insertEmbed(range.index, 'break', true, 'user');
-                  if (nextLeaf === null || currentLeaf.parent !== nextLeaf.parent) {
-                    this.quill.insertEmbed(range.index + 1, 'break', true, 'user');
-                  }
+                  const Delta = Quill.import('delta');
+                  this.quill.updateContents(
+                    new Delta().retain(range.index).delete(range.length).insert({ break: true }),
+                    'user'
+                  );
                   this.quill.setSelection(range.index + 1, 'silent');
                   return false;
                 }
@@ -6606,6 +6605,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       });
 
       // Paste handler: blank lines = new paragraph (spaced), single line breaks = br (tight)
+      // Uses delta ops directly to bypass Quill's HTML normalization
       quillEditor.root.addEventListener('paste', function(e) {
         const plainText = (e.clipboardData || window.clipboardData).getData('text/plain');
         if (!plainText) return;
@@ -6614,41 +6614,30 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
 
         const Delta = Quill.import('delta');
         const sel = quillEditor.getSelection(true);
-        let idx = sel.index;
+        const ops = [];
 
-        if (sel.length > 0) {
-          quillEditor.deleteText(sel.index, sel.length, 'user');
-        }
+        if (sel.index > 0) ops.push({ retain: sel.index });
+        if (sel.length > 0) ops.push({ delete: sel.length });
 
         const paragraphs = plainText.split(/\n\n+/);
-
         paragraphs.forEach(function(para, pIdx) {
           if (pIdx > 0) {
-            // Paragraph break = new <p> with margin spacing
-            quillEditor.updateContents(new Delta().retain(idx).insert('\n'), 'user');
-            idx += 1;
+            ops.push({ insert: '\n' }); // new <p> — gets margin-bottom spacing
           }
           const lines = para.split('\n');
           lines.forEach(function(line, lIdx) {
             if (lIdx > 0) {
-              // Single line break = <br> within same <p>, tight
-              const curLeaf = quillEditor.getLeaf(idx)[0];
-              const nxtLeaf = quillEditor.getLeaf(idx + 1)[0];
-              quillEditor.insertEmbed(idx, 'break', true, 'user');
-              if (nxtLeaf === null || (curLeaf && nxtLeaf && curLeaf.parent !== nxtLeaf.parent)) {
-                quillEditor.insertEmbed(idx + 1, 'break', true, 'user');
-                idx += 1;
-              }
-              idx += 1;
+              ops.push({ insert: { break: true } }); // <br> — tight, no spacing
             }
             if (line.length > 0) {
-              quillEditor.insertText(idx, line, 'user');
-              idx += line.length;
+              ops.push({ insert: line });
             }
           });
         });
+        ops.push({ insert: '\n' }); // close final paragraph
 
-        quillEditor.setSelection(idx, 'silent');
+        quillEditor.updateContents(new Delta(ops), 'user');
+        quillEditor.setSelection(sel.index + plainText.replace(/\n\n+/g, '\n').length, 'silent');
       });
 
       // Add custom button styling
