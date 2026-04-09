@@ -132,11 +132,7 @@
     /* Quill Editor Styles */
     .ql-container { font-size: 15px; font-family: inherit; }
     .ql-editor { min-height: 350px; line-height: 1.7; }
-    .ql-editor p { margin-bottom: 0; }
-    .ql-editor p:empty,
-    .ql-editor p:has(> br:only-child) { line-height: 0; margin: 0; padding: 0; height: 0; }
-    .ql-editor p:empty + p,
-    .ql-editor p:has(> br:only-child) + p { margin-top: 1em; }
+    .ql-editor p { margin-bottom: 1em; }
     .ql-toolbar.ql-snow { border-radius: 5px 5px 0 0; background: #fafafa; position: sticky; top: 0; z-index: 10; }
     .ql-container.ql-snow { border-radius: 0 0 5px 5px; }
     .ql-editor-wrap { border: 1px solid #ccc; border-radius: 5px; }
@@ -6563,7 +6559,6 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         openInsertImageModal();
       };
       
-      const Delta = Quill.import('delta');
       quillEditor = new Quill('#articleContent', {
         theme: 'snow',
         modules: {
@@ -6572,20 +6567,13 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             handlers: {
               'insertImage': insertImageHandler
             }
-          },
-          clipboard: {
-            matchers: [
-              [Node.TEXT_NODE, function(node, delta) {
-                return delta;
-              }]
-            ]
           }
         },
         placeholder: 'Write your article...'
       });
       
-      // Custom paste handler: preserve source spacing
-      // Blank lines → paragraph breaks, single line breaks → <br> within same paragraph
+      // Custom paste handler: blank lines become paragraph breaks with spacing,
+      // single line breaks stay tight within the same paragraph using <br>
       quillEditor.root.addEventListener('paste', function(e) {
         const clipboardData = e.clipboardData || window.clipboardData;
         const plainText = clipboardData.getData('text/plain');
@@ -6594,38 +6582,23 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         e.preventDefault();
         e.stopPropagation();
 
-        // Split on double line breaks (paragraph breaks)
-        const paragraphs = plainText.split(/\n\n+/);
+        // Convert plain text to HTML:
+        // - Blank lines (double newline) → separate <p> tags (gets margin-bottom spacing)
+        // - Single line breaks → <br> within same <p> (stays tight)
+        const html = plainText
+          .split(/\n\n+/)
+          .map(function(para) {
+            const escaped = para
+              .replace(/&/g, '&amp;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;')
+              .replace(/\n/g, '<br>');
+            return '<p>' + escaped + '</p>';
+          })
+          .join('');
 
-        const Delta = Quill.import('delta');
-        let delta = new Delta();
         const selection = quillEditor.getSelection(true);
-
-        paragraphs.forEach(function(para, pIndex) {
-          if (pIndex > 0) {
-            // Insert a real paragraph break between paragraphs
-            delta = delta.insert('\n');
-          }
-          // Within each paragraph, single line breaks become <br>
-          const lines = para.split('\n');
-          lines.forEach(function(line, lIndex) {
-            if (lIndex > 0) {
-              delta = delta.insert('\n', { 'br': true });
-            }
-            if (line.length > 0) {
-              delta = delta.insert(line);
-            }
-          });
-        });
-
-        // End with paragraph break
-        delta = delta.insert('\n');
-
-        quillEditor.updateContents(
-          new Delta().retain(selection.index).delete(selection.length).concat(delta),
-          'user'
-        );
-        quillEditor.setSelection(selection.index + delta.length() - 1, 0, 'silent');
+        quillEditor.clipboard.dangerouslyPasteHTML(selection.index, html, 'user');
       });
 
       // Add custom button styling
