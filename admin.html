@@ -25712,14 +25712,17 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           new Plugin({
             props: {
               handlePaste(view, event) {
-                const html  = event.clipboardData?.getData('text/html') || '';
                 const plain = event.clipboardData?.getData('text/plain') || '';
 
-                // Only intercept when the clipboard carries plain text only
-                if (html.trim() || !plain.trim()) return false;
+                // Always drive paste from plain text so we control line-break
+                // behaviour regardless of source (TextEdit, Word, Google Docs,
+                // etc. all put HTML on the clipboard which would otherwise make
+                // every line a separate spaced paragraph).
+                // Blank lines  → new paragraph (spaced)
+                // Single \n    → <br> (tight, same paragraph)
+                if (!plain.trim()) return false;
 
                 event.preventDefault();
-                // Blank lines → paragraph splits; single \n → hard break
                 const converted = plain
                   .split(/\n{2,}/)
                   .map(para => `<p>${para.replace(/\n/g, '<br>')}</p>`)
