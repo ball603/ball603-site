@@ -443,10 +443,21 @@
       <button class="btn btn-primary" onclick="checkPassword()">Enter</button>
     </div>
     
-    <!-- Gender Selection Page -->
-    <div class="page" id="genderPage">
+    <!-- Sport Selection Page -->
+    <div class="page" id="sportPage">
       <img src="/logo.png" alt="Ball603" class="logo">
       <h1 class="page-title">Let's choose your game.</h1>
+      <div class="gender-buttons">
+        <button class="gender-btn" onclick="selectSport('baseball')">&#9918; Baseball</button>
+        <button class="gender-btn" onclick="selectSport('basketball')">&#127936; Basketball</button>
+      </div>
+    </div>
+
+    <!-- Gender Selection Page -->
+    <div class="page" id="genderPage">
+      <button class="back-btn" onclick="goToSport()">&#8592; Back</button>
+      <img src="/logo.png" alt="Ball603" class="logo">
+      <h1 class="page-title">Boys or Girls?</h1>
       <div class="gender-buttons">
         <button class="gender-btn" onclick="selectGender('Boys')">&#127936; Boys</button>
         <button class="gender-btn" onclick="selectGender('Girls')">&#127936; Girls</button>
@@ -455,7 +466,7 @@
     
     <!-- Games List Page -->
     <div class="page" id="gamesPage">
-      <button class="back-btn" onclick="goToGender()">&#8592; Back</button>
+      <button class="back-btn" id="gamesBackBtn" onclick="goBack()">&#8592; Back</button>
       <h2 class="games-header" id="gamesHeader">Boys: December 15, 2024</h2>
       <div class="games-list" id="gamesList">
         <div class="loading">Loading games...</div>
@@ -481,14 +492,22 @@
           </div>
           <input type="number" id="homeScore" class="score-input" value="0" min="0" inputmode="numeric" pattern="[0-9]*">
         </div>
-        <select id="gameStatus" class="status-select">
+        <!-- Basketball: OT options -->
+        <select id="gameStatusBasketball" class="status-select" style="display:none;">
           <option value="FINAL">Final</option>
-          <option value="FINAL (OT)">Final (OT)</option>
-          <option value="FINAL (2OT)">Final (2OT)</option>
-          <option value="FINAL (3OT)">Final (3OT)</option>
-          <option value="FINAL (4OT)">Final (4OT)</option>
-          <option value="FINAL (5OT)">Final (5OT)</option>
+          <option value="FINAL-OT">Final (OT)</option>
+          <option value="FINAL-2OT">Final (2OT)</option>
+          <option value="FINAL-3OT">Final (3OT)</option>
+          <option value="FINAL-4OT">Final (4OT)</option>
+          <option value="FINAL-5OT">Final (5OT)</option>
         </select>
+        <!-- Baseball: innings input -->
+        <div id="gameStatusBaseball" style="display:none; align-items:center; gap:10px; background:#2a2a2a; border-radius:10px; padding:14px 16px;">
+          <span style="color:#aaa; font-size:15px;">Final —</span>
+          <input type="number" id="inningsInput" value="9" min="1" max="25" inputmode="numeric"
+            style="width:60px; background:#1a1a1a; border:1px solid #444; border-radius:8px; color:#fff; font-size:18px; font-weight:700; text-align:center; padding:8px;">
+          <span style="color:#aaa; font-size:15px;">innings</span>
+        </div>
         <div class="submit-section">
           <button class="btn btn-primary" onclick="submitScore()">Submit Score</button>
         </div>
@@ -538,6 +557,7 @@
     
     const PASSWORD = 'assist';
     let allGames = [];
+    let selectedSport = null;
     let selectedGender = null;
     let selectedGame = null;
     
@@ -583,7 +603,7 @@
       
       if (input.toLowerCase() === PASSWORD) {
         errorEl.style.display = 'none';
-        showPage('genderPage');
+        showPage('sportPage');
         loadGames();
       } else {
         errorEl.textContent = 'Incorrect password';
@@ -611,6 +631,18 @@
       }
     }
     
+    // Select sport
+    function selectSport(sport) {
+      selectedSport = sport;
+      if (sport === 'baseball') {
+        selectedGender = 'Boys';
+        renderGames();
+        showPage('gamesPage');
+      } else {
+        showPage('genderPage');
+      }
+    }
+
     // Select gender
     function selectGender(gender) {
       selectedGender = gender;
@@ -622,15 +654,32 @@
     function renderGames() {
       const today = getESTDate();
       const dateStr = getDateString(today);
-      
-      document.getElementById('gamesHeader').textContent = `${selectedGender}: ${formatDate(today)}`;
-      
-      // Filter to today's NHIAA games for selected gender
-      let games = allGames.filter(g => 
-        g.date === dateStr && 
-        g.gender === selectedGender &&
-        g.level !== 'College'
-      );
+
+      // Update header
+      if (selectedSport === 'baseball') {
+        document.getElementById('gamesHeader').textContent = `Baseball: ${formatDate(today)}`;
+      } else {
+        document.getElementById('gamesHeader').textContent = `${selectedGender} Basketball: ${formatDate(today)}`;
+      }
+
+      // Show/hide sport-specific status controls on score page
+      const bbEl = document.getElementById('gameStatusBasketball');
+      const bsEl = document.getElementById('gameStatusBaseball');
+      if (selectedSport === 'baseball') {
+        if (bbEl) bbEl.style.display = 'none';
+        if (bsEl) bsEl.style.display = 'flex';
+      } else {
+        if (bbEl) bbEl.style.display = '';
+        if (bsEl) bsEl.style.display = 'none';
+      }
+
+      // Filter to today's NHIAA games for selected sport/gender
+      let games = allGames.filter(g => {
+        if (g.date !== dateStr) return false;
+        if (g.level === 'College') return false;
+        if (selectedSport === 'baseball') return g.sport === 'baseball';
+        return g.sport === 'basketball' && g.gender === selectedGender;
+      });
       
       // Sort alphabetically by away team
       games.sort((a, b) => (a.away || '').localeCompare(b.away || ''));
@@ -640,8 +689,8 @@
       if (games.length === 0) {
         listEl.innerHTML = `
           <div class="empty-state">
-            <div class="empty-state-icon">&#127936;</div>
-            <div>No ${selectedGender.toLowerCase()} games today</div>
+            <div class="empty-state-icon">${selectedSport === 'baseball' ? '&#9918;' : '&#127936;'}</div>
+            <div>No ${selectedSport === 'baseball' ? 'baseball' : selectedGender.toLowerCase() + ' basketball'} games today</div>
           </div>
         `;
         return;
@@ -683,7 +732,11 @@
       document.getElementById('homeName').textContent = selectedGame.home;
       document.getElementById('awayScore').value = '0';
       document.getElementById('homeScore').value = '0';
-      document.getElementById('gameStatus').value = 'FINAL';
+      if (selectedSport === 'baseball') {
+        document.getElementById('inningsInput').value = '9';
+      } else {
+        document.getElementById('gameStatusBasketball').value = 'FINAL';
+      }
       
       showPage('scorePage');
     }
@@ -699,16 +752,32 @@
       document.getElementById('homeName').textContent = selectedGame.home;
       document.getElementById('awayScore').value = selectedGame.away_score || '0';
       document.getElementById('homeScore').value = selectedGame.home_score || '0';
-      document.getElementById('gameStatus').value = selectedGame.time || 'FINAL';
+      if (selectedSport === 'baseball') {
+        // Parse innings from stored status e.g. "FINAL (7 inn)" -> 7
+        const stored = selectedGame.time || 'FINAL';
+        const inningsMatch = stored.match(/\((\d+) inn\)/);
+        document.getElementById('inningsInput').value = inningsMatch ? inningsMatch[1] : '9';
+      } else {
+        document.getElementById('gameStatusBasketball').value = selectedGame.time || 'FINAL';
+      }
       
       showPage('scorePage');
     }
     
+    // Get current status string based on sport
+    function getGameStatus() {
+      if (selectedSport === 'baseball') {
+        const innings = parseInt(document.getElementById('inningsInput').value) || 9;
+        return innings === 9 ? 'FINAL' : `FINAL (${innings} inn)`;
+      }
+      return document.getElementById('gameStatusBasketball').value;
+    }
+
     // Submit score (go to confirmation)
     function submitScore() {
       const awayScore = parseInt(document.getElementById('awayScore').value) || 0;
       const homeScore = parseInt(document.getElementById('homeScore').value) || 0;
-      const status = document.getElementById('gameStatus').value;
+      const status = getGameStatus();
       
       // Set confirmation page
       document.getElementById('confirmAwayLogo').src = `/logos/100px/${getLogoFilename(selectedGame.away)}`;
@@ -730,7 +799,7 @@
     async function confirmScore() {
       const awayScore = parseInt(document.getElementById('awayScore').value) || 0;
       const homeScore = parseInt(document.getElementById('homeScore').value) || 0;
-      const status = document.getElementById('gameStatus').value;
+      const status = getGameStatus();
       
       // Prepare data for API
       let requestData;
@@ -795,10 +864,19 @@
     }
     
     // Navigation
-    function goToGender() {
-      showPage('genderPage');
+    function goToSport() {
+      showPage('sportPage');
     }
-    
+
+    function goBack() {
+      // From games page: baseball goes to sport, basketball goes to gender
+      if (selectedSport === 'baseball') {
+        showPage('sportPage');
+      } else {
+        showPage('genderPage');
+      }
+    }
+
     function goToGames() {
       renderGames();
       showPage('gamesPage');
@@ -810,7 +888,9 @@
     
     function startOver() {
       selectedGame = null;
-      showPage('genderPage');
+      selectedSport = null;
+      selectedGender = null;
+      showPage('sportPage');
     }
   </script>
 </body>
