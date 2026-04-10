@@ -880,17 +880,22 @@
   <main class="playoffs-page">
     <!-- Header -->
     <div class="playoffs-header">
-      <h1 class="playoffs-title">&#x1F3C0; NHIAA Playoffs</h1>
+      <h1 class="playoffs-title">NHIAA Playoffs</h1>
       <p class="playoffs-subtitle">Brackets, scores, and tournament coverage</p>
       <select class="filter-select season-select" id="playoffsSeasonSelect" style="display:none;" title="Select season"></select>
     </div>
     
-    <!-- Gender Toggle -->
     <!-- Page Sponsor Banner -->
     <div id="page-sponsor-banner" style="display:none;"></div>
-    <div class="gender-toggle">
-      <button class="gender-btn active" id="boysBtn" onclick="selectGender('Boys')">&#x1F3C0; Boys</button>
-      <button class="gender-btn" id="girlsBtn" onclick="selectGender('Girls')">&#x1F3C0; Girls</button>
+    <!-- Sport Selector -->
+    <div class="gender-toggle" id="sportToggle">
+      <button class="gender-btn active" id="baseballBtn" onclick="selectSport('baseball')">&#x26BE; Baseball</button>
+      <button class="gender-btn" id="basketballBtn" onclick="selectSport('basketball')">&#x1F3C0; Basketball</button>
+    </div>
+    <!-- Gender Toggle (hidden for baseball) -->
+    <div class="gender-toggle" id="genderToggle">
+      <button class="gender-btn active" id="boysBtn" onclick="selectGender('Boys')">Boys</button>
+      <button class="gender-btn" id="girlsBtn" onclick="selectGender('Girls')">Girls</button>
     </div>
     
     <!-- Division Tabs -->
@@ -988,9 +993,38 @@
     const SUPABASE_ANON_KEY = 'sb_publishable_hHSpgZPD327r11GaQG9iHw_uZbuaWmF';
     const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     
-    // Tournament schedule data
+    // Tournament schedule data - keyed by sport, then gender, then division
     const TOURNAMENT_SCHEDULE = {
-      'Boys': {
+      'baseball': {
+        'Boys': {
+          'D-I': {
+            prelims: { date: '2026-06-03', time: '4:00 PM', site: 'Home of Higher Seed' },
+            quarters: { date: '2026-06-06', time: '4:00 PM', site: 'Home of Higher Seed' },
+            semis: { date: '2026-06-10', times: ['4:00 PM', '7:00 PM'], site: 'Holman Stadium (Nashua, NH)' },
+            final: { date: '2026-06-13', time: 'TBA', site: 'Northeast Delta Dental Stadium' }
+          },
+          'D-II': {
+            prelims: { date: '2026-06-03', time: '4:00 PM', site: 'Home of Higher Seed' },
+            quarters: { date: '2026-06-06', time: '4:00 PM', site: 'Home of Higher Seed' },
+            semis: { date: '2026-06-10', times: ['4:00 PM', '7:00 PM'], site: 'Memorial Field (Concord, NH)' },
+            final: { date: '2026-06-13', time: 'TBA', site: 'Northeast Delta Dental Stadium' }
+          },
+          'D-III': {
+            prelims: { date: '2026-06-03', time: '4:00 PM', site: 'Home of Higher Seed' },
+            quarters: { date: '2026-06-06', time: '4:00 PM', site: 'Home of Higher Seed' },
+            semis: { date: '2026-06-09', times: ['4:00 PM', '7:00 PM'], site: 'Robbie Mills Park (Laconia, NH)' },
+            final: { date: '2026-06-13', time: 'TBA', site: 'Northeast Delta Dental Stadium' }
+          },
+          'D-IV': {
+            prelims: { date: '2026-06-03', time: '4:00 PM', site: 'Home of Higher Seed' },
+            quarters: { date: '2026-06-06', time: '4:00 PM', site: 'Home of Higher Seed' },
+            semis: { date: '2026-06-10', times: ['4:00 PM', '7:00 PM'], site: 'Robbie Mills Park (Laconia, NH)' },
+            final: { date: '2026-06-13', time: 'TBA', site: 'Northeast Delta Dental Stadium' }
+          }
+        }
+      },
+      'basketball': {
+        'Boys': {
         'D-I': {
           prelims: { date: '2026-03-04', time: '6:00 PM', site: 'Higher Seed' },
           quarters: { date: '2026-03-07', time: '6:00 PM', site: 'Higher Seed' },
@@ -1042,24 +1076,31 @@
           final: { date: '2026-03-07', time: '1:00 PM', site: 'Colby Sawyer (New London, NH)' }
         }
       }
+      }  // end basketball
     };
     
-    // 2025-26 NHIAA Basketball Playoff Teams
+    // NHIAA Playoff Teams by sport
     const PLAYOFF_TEAMS = {
-      Boys: { 'D-I': 15, 'D-II': 14, 'D-III': 15, 'D-IV': 16 },
-      Girls: { 'D-I': 16, 'D-II': 14, 'D-III': 14, 'D-IV': 16 }
+      basketball: {
+        Boys: { 'D-I': 15, 'D-II': 14, 'D-III': 15, 'D-IV': 16 },
+        Girls: { 'D-I': 16, 'D-II': 14, 'D-III': 14, 'D-IV': 16 }
+      },
+      baseball: {
+        Boys: { 'D-I': 16, 'D-II': 16, 'D-III': 16, 'D-IV': 16 }
+      }
     };
     
     // State
     let playoffSeeds = [];
     let playoffGames = [];
+    let currentSport = 'baseball';
     let currentGender = 'Boys';
     let currentDivision = 'D-I';
-    let currentSeason = getLatestSeason('basketball');
+    let currentSeason = getLatestSeason(currentSport);
 
     // ===== SEASON SELECTOR =====
     function refreshSeasonSelect() {
-      populateSeasonSelect('playoffsSeasonSelect', 'basketball', currentSeason, (season) => {
+      populateSeasonSelect('playoffsSeasonSelect', currentSport, currentSeason, (season) => {
         currentSeason = season;
         loadPlayoffs();
       });
@@ -1081,11 +1122,27 @@
       updateGenderUI();
       updateDivisionUI();
 
+      // Default to baseball, hide gender toggle
+      document.getElementById('genderToggle').style.display = 'none';
       refreshSeasonSelect();
-      Ball603PageSponsor.load('page-sponsor-banner', 'playoffs', 'basketball', 'Basketball');
+      Ball603PageSponsor.load('page-sponsor-banner', 'playoffs', currentSport, currentSport === 'baseball' ? 'Baseball' : 'Basketball');
       loadPlayoffs();
     });
     
+    function selectSport(sport) {
+      currentSport = sport;
+      currentSeason = getLatestSeason(sport);
+      // Baseball is boys-only — hide gender toggle
+      document.getElementById('genderToggle').style.display = sport === 'baseball' ? 'none' : '';
+      if (sport === 'baseball') currentGender = 'Boys';
+      // Update sport buttons
+      document.getElementById('baseballBtn').classList.toggle('active', sport === 'baseball');
+      document.getElementById('basketballBtn').classList.toggle('active', sport === 'basketball');
+      refreshSeasonSelect();
+      Ball603PageSponsor.load('page-sponsor-banner', 'playoffs', sport, sport === 'baseball' ? 'Baseball' : 'Basketball');
+      loadPlayoffs();
+    }
+
     function selectGender(gender) {
       currentGender = gender;
       updateGenderUI();
@@ -1120,7 +1177,7 @@
       
       // Fetch schedule overrides from DB and apply to TOURNAMENT_SCHEDULE
       try {
-        const orRes = await fetch(`/.netlify/functions/tournament-schedule?season=${season}&gender=${currentGender}&division=${currentDivision}`);
+        const orRes = await fetch(`/.netlify/functions/tournament-schedule?sport=${currentSport}&season=${season}&gender=${currentGender}&division=${currentDivision}`);
         const orData = await orRes.json();
         if (Array.isArray(orData) && orData.length > 0) {
           const sched = TOURNAMENT_SCHEDULE[currentGender]?.[currentDivision];
@@ -1142,7 +1199,7 @@
       
       try {
         // Fetch seeds and games
-        const response = await fetch(`/.netlify/functions/playoff-seeds?gender=${currentGender}&division=${currentDivision}&season=${season}`);
+        const response = await fetch(`/.netlify/functions/playoff-seeds?sport=${currentSport}&gender=${currentGender}&division=${currentDivision}&season=${season}`);
         const data = await response.json();
         
         const status = data.status || (data.locked ? 'locked' : 'none');
@@ -1308,11 +1365,12 @@
     }
     
     function updateTournamentInfo() {
-      const schedule = TOURNAMENT_SCHEDULE[currentGender]?.[currentDivision];
+      const schedule = TOURNAMENT_SCHEDULE[currentSport]?.[currentGender]?.[currentDivision];
       if (!schedule) return;
       
       document.getElementById('tournamentInfo').classList.add('visible');
-      document.getElementById('tournamentName').textContent = `${currentGender} ${currentDivision} Tournament`;
+      const nameLabel = currentSport === 'baseball' ? `${currentDivision} Tournament` : `${currentGender} ${currentDivision} Tournament`;
+      document.getElementById('tournamentName').textContent = nameLabel;
       
       const formatDate = (dateStr) => {
         const date = new Date(dateStr + 'T12:00:00');
@@ -1337,7 +1395,7 @@
       }).join('');
       
       // Update badge with correct team count
-      const numTeams = PLAYOFF_TEAMS[currentGender][currentDivision];
+      const numTeams = (PLAYOFF_TEAMS[currentSport]?.[currentGender]?.[currentDivision]) || 16;
       document.getElementById('tournamentBadge').textContent = `${numTeams} Teams`;
     }
     
