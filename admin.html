@@ -8423,65 +8423,28 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       console.log('Looking for:', { sport, gender, awayName, homeName });
       
       try {
-        // Fetch all rosters for this gender — we'll pick the best sport match
-        const { data: rosters, error } = await db
-          .from('roster_submissions')
-          .select('*')
-          .eq('gender', gender);
-        
-        if (error) {
-          console.error('Error fetching rosters:', error);
-          return { away: null, home: null };
-        }
-        
-        console.log('Found', rosters?.length || 0, 'rosters for gender:', gender);
-        console.log('Available schools:', rosters?.map(r => `${r.school} (${r.status})`).join(', '));
-        
-        // Find matching rosters — prefer sport+approved, fall back to any match
-        const findRoster = (teamName) => {
-          if (!rosters || !teamName) return null;
-          const normalizedTeam = teamName.toLowerCase().trim();
-          const matchesName = (r) => (r.school || '').toLowerCase().trim() === normalizedTeam;
-          const matchesSport = (r) => !r.sport || r.sport.toLowerCase() === sport;
+        // Use get-rosters function — same as team page, handles NULL sport for legacy rosters
+        const sportParam = (sport !== 'basketball') ? `&sport=${encodeURIComponent(sport)}` : '';
 
-          // Priority 1: approved + correct sport
-          let match = rosters.find(r => r.status === 'approved' && matchesName(r) && matchesSport(r));
-          // Priority 2: any status + correct sport
-          if (!match) match = rosters.find(r => matchesName(r) && matchesSport(r));
-          // Priority 3: approved + any sport (handles legacy rosters with no sport field)
-          if (!match) match = rosters.find(r => r.status === 'approved' && matchesName(r));
-          // Priority 4: any match at all
-          if (!match) match = rosters.find(r => matchesName(r));
-          
-          if (match) {
-            console.log('Found roster for', teamName, ':', match.school, '(status:', match.status + ')');
-          } else {
-            console.log('No roster found for:', teamName);
+        const fetchRoster = async (schoolName) => {
+          const url = `/.netlify/functions/get-rosters?school=${encodeURIComponent(schoolName)}&gender=${encodeURIComponent(gender)}${sportParam}`;
+          const res = await fetch(url);
+          const data = await res.json();
+          if (data.success && data.rosters && data.rosters.length > 0) {
+            const r = data.rosters[0];
+            console.log('Found roster for', schoolName, ':', r.school, 'sport:', r.sport);
+            return { school: r.school, gender: r.gender, players: r.players_json || [], head_coach: r.head_coach, assistant_coaches: r.assistant_coaches };
           }
-          
-          return match;
+          console.log('No roster found for:', schoolName);
+          return null;
         };
-        
-        const awayRoster = findRoster(awayName);
-        const homeRoster = findRoster(homeName);
-        
-        // Convert database format to expected format
-        const formatRoster = (r) => {
-          if (!r) return null;
-          return {
-            school: r.school,
-            gender: r.gender,
-            players: r.players_json || [],
-            head_coach: r.head_coach,
-            assistant_coaches: r.assistant_coaches,
-            managers: r.managers
-          };
-        };
-        
-        return { 
-          away: formatRoster(awayRoster), 
-          home: formatRoster(homeRoster) 
-        };
+
+        const [awayRoster, homeRoster] = await Promise.all([
+          fetchRoster(awayName),
+          fetchRoster(homeName)
+        ]);
+
+        return { away: awayRoster, home: homeRoster };
         
       } catch (err) {
         console.error('Error in getTeamRosters:', err);
