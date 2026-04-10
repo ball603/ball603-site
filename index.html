@@ -2392,29 +2392,12 @@
       const now = new Date();
       const todayStr = now.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
       
-      const yesterday = new Date(now);
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayStr = yesterday.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
-      
-      const tomorrow = new Date(now);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const tomorrowStr = tomorrow.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
-      
-      // Time-based logic: before noon show yesterday, noon+ hide yesterday
-      const currentHour = getESTHour();
-      const showYesterdayByTime = currentHour < 12;
-      
-      // Build list of dates to show
+      // Build ±4 day window around today
       const datesToShow = [];
-      if (tickerSettings.mode === 'auto') {
-        // Auto mode: use time-based logic
-        if (showYesterdayByTime) datesToShow.push(yesterdayStr);
-        datesToShow.push(todayStr);
-      } else {
-        // Manual mode: use CMS settings
-        if (tickerSettings.showYesterday) datesToShow.push(yesterdayStr);
-        if (tickerSettings.showToday) datesToShow.push(todayStr);
-        if (tickerSettings.showTomorrow) datesToShow.push(tomorrowStr);
+      for (let offset = -4; offset <= 4; offset++) {
+        const d = new Date(now);
+        d.setDate(d.getDate() + offset);
+        datesToShow.push(d.toLocaleDateString('en-CA', { timeZone: 'America/New_York' }));
       }
       
       // Filter games for selected dates
