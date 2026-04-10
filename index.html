@@ -2362,13 +2362,16 @@
       return '/schedule?date=' + game.date;
     }
     
-    // Refresh just the game data for ticker
+    // Ticker maintains its own game list fetching all sports/seasons
+    let tickerAllGames = [];
+
     async function refreshTickerData() {
       try {
+        // Fetch all current seasons across all sports for the ticker
         const response = await fetch('/.netlify/functions/get-games');
         const data = await response.json();
         if (data.games) {
-          Ball603.state.games = data.games;
+          tickerAllGames = data.games;
           renderTicker();
           console.log('[Ticker] Refreshed at', new Date().toLocaleTimeString());
         }
@@ -2385,7 +2388,7 @@
     
     function renderTicker() {
       const container = document.getElementById('tickerScroll');
-      const games = Ball603.state?.games || [];
+      const games = tickerAllGames.length > 0 ? tickerAllGames : (Ball603.state?.games || []);
       const filter = loadTickerFilter();
       
       // Get date strings in EST
@@ -2620,8 +2623,9 @@
       }, 3500);
     }
     
-    // Start polling when page loads
+    // Start polling when page loads, and fetch immediately
     document.addEventListener('ball603:ready', () => {
+      refreshTickerData();
       startTickerPolling();
     });
     
