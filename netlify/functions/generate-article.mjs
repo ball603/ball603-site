@@ -1102,6 +1102,13 @@ async function handleBaseballWrite(body, headers) {
   const winnerScore = Math.max(awayScore, homeScore);
   const loserScore  = Math.min(awayScore, homeScore);
 
+  const awayRecord = proofData.awayRecord;
+  const homeRecord = proofData.homeRecord;
+  const winnerRecord = awayWon ? awayRecord : homeRecord;
+  const loserRecord  = awayWon ? homeRecord : awayRecord;
+  const winnerRecordStr = winnerRecord ? `${winnerRecord.wins}-${winnerRecord.losses}` : null;
+  const loserRecordStr  = loserRecord  ? `${loserRecord.wins}-${loserRecord.losses}` : null;
+
   const awaySchoolInfo = schoolData?.away || {};
   const homeSchoolInfo = schoolData?.home || {};
   const gameTown = homeSchoolInfo.town || proofData.homeTeam;
@@ -1157,6 +1164,8 @@ GAME RESULT: ${winner} ${winnerScore}, ${loser} ${loserScore}
 LOCATION: ${gameTown}, N.H.
 DATE: ${gameDay}
 DIVISION: ${proofData.division || 'N/A'}${proofData.is_playoff ? ` | PLAYOFF ROUND: ${proofData.round || 'Playoff'}` : ''}
+RECORDS AFTER THIS GAME: ${winner} is ${winnerRecordStr || 'unknown'}, ${loser} is ${loserRecordStr || 'unknown'}${proofData.awaySeasonOpener || proofData.homeSeasonOpener ? `
+SEASON OPENER: ${proofData.awaySeasonOpener ? proofData.awayTeam : proofData.homeTeam} is opening their season` : ''}
 
 INNING-BY-INNING:
 ${formatInningLine(proofData.awayTeam, awayInnings, awayScore)}
@@ -1185,6 +1194,7 @@ WRITING INSTRUCTIONS:
 - Highlight standout individual performances (multi-hit games, big RBI days, dominant pitching)
 - If inning data shows a big inning (3+ runs), mention it
 - Do NOT mention stats that weren't provided
+- End the article with each team's record, e.g. '${winner} improved to ${winnerRecordStr || 'X-X'} while ${loser} fell to ${loserRecordStr || 'X-X'}'
 - Keep it 150-220 words
 - End with a dateline format: CITY, N.H. — (first word of article)...
 - Do not include a headline in the article body

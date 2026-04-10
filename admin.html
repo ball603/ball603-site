@@ -8928,6 +8928,29 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         const awaySchoolInfo = getSchoolInfo(gsSelectedGame.away);
         const homeSchoolInfo = getSchoolInfo(gsSelectedGame.home);
 
+        // Calculate team records from games data (same approach as basketball)
+        const awayWon = awayFinal > homeFinal;
+        const getBaseballRecord = (teamName, beforeDate) => {
+          let wins = 0, losses = 0;
+          games.forEach(g => {
+            if ((g.sport || 'basketball') !== 'baseball') return;
+            if (g.date >= beforeDate) return;
+            if (!g.away_score || !g.home_score) return;
+            const as = parseInt(g.away_score) || 0;
+            const hs = parseInt(g.home_score) || 0;
+            if (as === 0 && hs === 0) return;
+            if (g.away === teamName) { as > hs ? wins++ : losses++; }
+            else if (g.home === teamName) { hs > as ? wins++ : losses++; }
+          });
+          return { wins, losses };
+        };
+        const awayRecordBefore = getBaseballRecord(gsSelectedGame.away, gsSelectedGame.date);
+        const homeRecordBefore = getBaseballRecord(gsSelectedGame.home, gsSelectedGame.date);
+        const awayRecord = { wins: awayRecordBefore.wins + (awayWon ? 1 : 0), losses: awayRecordBefore.losses + (awayWon ? 0 : 1) };
+        const homeRecord = { wins: homeRecordBefore.wins + (awayWon ? 0 : 1), losses: homeRecordBefore.losses + (awayWon ? 1 : 0) };
+        const awaySeasonOpener = awayRecordBefore.wins === 0 && awayRecordBefore.losses === 0;
+        const homeSeasonOpener = homeRecordBefore.wins === 0 && homeRecordBefore.losses === 0;
+
         const proofData = {
           sport: 'baseball',
           awayTeam: gsSelectedGame.away,
@@ -8940,6 +8963,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           homeBatters,
           awayPitchers,
           homePitchers,
+          awayRecord,
+          homeRecord,
+          awaySeasonOpener,
+          homeSeasonOpener,
           gender: 'Boys',
           division: gsSelectedGame.division || '',
           date: gsSelectedGame.date || '',
