@@ -387,6 +387,11 @@ async function handleWrite(body, headers) {
   if (!proofData) {
     return { statusCode: 400, headers, body: JSON.stringify({ error: 'Proof data required' }) };
   }
+
+  // Route baseball to its own handler
+  if (proofData.sport === 'baseball') {
+    return await handleBaseballWrite(body, headers);
+  }
   
   function getPlayerInfo(name, roster) {
     if (!roster?.players) return null;
@@ -1081,6 +1086,151 @@ Rules:
       instagramPost, 
       twitterPost,
       winnerEmoji
+    })
+  };
+}
+
+// ── Baseball story generator ─────────────────────────────────────────────────
+async function handleBaseballWrite(body, headers) {
+  const { proofData, schoolData, photographerName } = body;
+
+  const awayScore = parseInt(proofData.awayFinal) || 0;
+  const homeScore = parseInt(proofData.homeFinal) || 0;
+  const awayWon = awayScore > homeScore;
+  const winner = awayWon ? proofData.awayTeam : proofData.homeTeam;
+  const loser  = awayWon ? proofData.homeTeam : proofData.awayTeam;
+  const winnerScore = Math.max(awayScore, homeScore);
+  const loserScore  = Math.min(awayScore, homeScore);
+
+  const awaySchoolInfo = schoolData?.away || {};
+  const homeSchoolInfo = schoolData?.home || {};
+  const gameTown = homeSchoolInfo.town || proofData.homeTeam;
+
+  function formatGameDate(dateStr) {
+    if (!dateStr) return 'Tuesday afternoon';
+    try {
+      const d = new Date(dateStr + 'T12:00:00');
+      const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+      return days[d.getDay()];
+    } catch { return 'Tuesday'; }
+  }
+  const gameDay = formatGameDate(proofData.date);
+
+  const awayInnings = proofData.awayInnings || [];
+  const homeInnings = proofData.homeInnings || [];
+
+  function formatInningLine(team, innings, final) {
+    return `${team}: ${innings.join('-')} | Final: ${final}`;
+  }
+
+  function formatBatters(batters) {
+    if (!batters || batters.length === 0) return 'No batter stats provided.';
+    return batters.map(b => {
+      const parts = [`${b.name}: ${b.h}H`];
+      if (b.d > 0) parts.push(`${b.d} 2B`);
+      if (b.t > 0) parts.push(`${b.t} 3B`);
+      if (b.hr > 0) parts.push(`${b.hr} HR`);
+      if (b.rbi > 0) parts.push(`${b.rbi} RBI`);
+      return parts.join(', ');
+    }).join('\n');
+  }
+
+  function formatPitchers(pitchers) {
+    if (!pitchers || pitchers.length === 0) return 'No pitcher stats provided.';
+    return pitchers.map(p => `${p.name}: ${p.ip} IP, ${p.k} K, ${p.er} ER`).join('\n');
+  }
+
+  const winnerBatters  = awayWon ? proofData.awayBatters  : proofData.homeBatters;
+  const loserBatters   = awayWon ? proofData.homeBatters  : proofData.awayBatters;
+  const winnerPitchers = awayWon ? proofData.awayPitchers : proofData.homePitchers;
+  const loserPitchers  = awayWon ? proofData.homePitchers : proofData.awayPitchers;
+
+  const hasBatterStats = (proofData.awayBatters?.length > 0 || proofData.homeBatters?.length > 0);
+  const hasPitcherStats = (proofData.awayPitchers?.length > 0 || proofData.homePitchers?.length > 0);
+
+  const awayMascot = awaySchoolInfo.mascot ? `(${awaySchoolInfo.mascot})` : '';
+  const homeMascot = homeSchoolInfo.mascot ? `(${homeSchoolInfo.mascot})` : '';
+
+  const prompt = `You are a factual sports reporter for Ball603.com, covering New Hampshire high school baseball. Write a straightforward game recap based ONLY on the facts provided. Do not invent statistics, plays, or details not listed below.
+
+GAME RESULT: ${winner} ${winnerScore}, ${loser} ${loserScore}
+LOCATION: ${gameTown}, N.H.
+DATE: ${gameDay}
+DIVISION: ${proofData.division || 'N/A'}${proofData.is_playoff ? ` | PLAYOFF ROUND: ${proofData.round || 'Playoff'}` : ''}
+
+INNING-BY-INNING:
+${formatInningLine(proofData.awayTeam, awayInnings, awayScore)}
+${formatInningLine(proofData.homeTeam, homeInnings, homeScore)}
+
+${winner} BATTERS (away team is ${proofData.awayTeam} ${awayMascot}, home team is ${proofData.homeTeam} ${homeMascot}):
+${formatBatters(winnerBatters)}
+
+${loser} BATTERS:
+${formatBatters(loserBatters)}
+
+${winner} PITCHERS:
+${formatPitchers(winnerPitchers)}
+
+${loser} PITCHERS:
+${formatPitchers(loserPitchers)}
+
+${proofData.notes ? `GAME NOTES: ${proofData.notes}` : ''}
+${photographerName ? `PHOTOGRAPHER: ${photographerName}` : ''}
+
+WRITING INSTRUCTIONS:
+- Write in AP style, past tense, third person
+- Lead with the most compelling fact: dominant pitcher, big offensive game, comeback, shutout, etc.
+- Use baseball terminology naturally: runs, innings, strikeouts, hits, RBIs, earned runs
+- If a pitcher threw a complete game or near-complete game, mention it
+- Highlight standout individual performances (multi-hit games, big RBI days, dominant pitching)
+- If inning data shows a big inning (3+ runs), mention it
+- Do NOT mention stats that weren't provided
+- Keep it 150-220 words
+- End with a dateline format: CITY, N.H. — (first word of article)...
+- Do not include a headline in the article body
+
+Respond with JSON only in this exact format:
+{"headline": "...", "article": "...", "excerpt": "..."}
+
+The headline should be 8-12 words, punchy, no quotes. The excerpt should be 1-2 sentences summarizing the game.`;
+
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': anthropicKey,
+      'anthropic-version': '2023-06-01'
+    },
+    body: JSON.stringify({
+      model: 'claude-opus-4-5',
+      max_tokens: 1024,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+
+  if (!response.ok) {
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'AI generation failed' }) };
+  }
+
+  const aiData = await response.json();
+  const rawText = aiData.content?.[0]?.text || '';
+
+  let parsed;
+  try {
+    parsed = JSON.parse(rawText.replace(/```json|```/g, '').trim());
+  } catch(e) {
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to parse AI response', raw: rawText }) };
+  }
+
+  return {
+    statusCode: 200,
+    headers,
+    body: JSON.stringify({
+      success: true,
+      headline: parsed.headline || '',
+      article:  parsed.article || '',
+      excerpt:  parsed.excerpt || ''
     })
   };
 }
