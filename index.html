@@ -2160,8 +2160,8 @@
         
         <!-- Sponsor CTA -->
         <a href="/cdn-cgi/l/email-protection#cda6a78dafaca1a1fbfdfee3aea2a0f2beb8afa7a8aeb9f09ebda2a3bea2bfbea5a4bde8fffd84a3bcb8a4bfb4" class="sidebar-card sponsor-card">
-          <img src="/logos/400px/Ball603-BasketballintheGraniteState-400px.png" alt="Ball603" class="sponsor-logo">
-          <p class="sponsor-headline">Enjoying our coverage of Basketball in the Granite State?</p>
+          <img src="https://ball603.com/logos/400px/Ball603-new-BLACK%20copy-400px.png" alt="Ball603" class="sponsor-logo">
+          <p class="sponsor-headline">Enjoying our coverage?</p>
           <p class="sponsor-cta">Click to inquire about more details on our sponsorship offerings</p>
         </a>
       </aside>
@@ -3093,6 +3093,7 @@
      * Standings state and functions
      */
     let standingsGender = 'Boys';
+    let standingsSport = 'baseball';
     let standingsDivision = 'D-I';
     let allStandings = [];
     let allRpiData = [];
@@ -3158,9 +3159,14 @@
     async function renderStandings() {
       const container = document.getElementById('standingsMini');
       const mobileContainer = document.getElementById('standingsMiniMobile');
+
+      // Hide gender toggle for baseball (boys only)
+      document.querySelectorAll('.standings-gender-toggle').forEach(el => {
+        el.style.display = standingsSport === 'baseball' ? 'none' : '';
+      });
       
       try {
-        const response = await fetch('/.netlify/functions/get-standings');
+        const response = await fetch(`/.netlify/functions/get-standings?sport=${standingsSport}`);
         const data = await response.json();
         
         if (data.standings && data.standings.length > 0) {
@@ -3186,9 +3192,9 @@
       const container = document.getElementById('standingsMini');
       const mobileContainer = document.getElementById('standingsMiniMobile');
       
-      // Filter standings by gender and division
+      // Filter standings by division (and gender for basketball)
       const filtered = allStandings.filter(s => 
-        s.gender === standingsGender && 
+        (standingsSport === 'baseball' || s.gender === standingsGender) && 
         s.division === standingsDivision
       );
       
@@ -3209,7 +3215,7 @@
         <div class="standings-row">
           <span class="standings-rank">${i + 1}</span>
           <img class="standings-logo" src="${Ball603.getLogoUrl(s.school)}" alt="" onerror="this.src='/logos/100px/Ball603-white.png'">
-          <a href="/${slug}?sport=basketball" class="standings-team-link">${Ball603.getShortName(s.school)}</a>
+          <a href="/${slug}?sport=${standingsSport}" class="standings-team-link">${Ball603.getShortName(s.school)}</a>
           <span class="standings-record">${s.wins || 0}-${s.losses || 0}</span>
         </div>
       `}).join('');
@@ -3231,7 +3237,7 @@
       if (mobileContainer) mobileContainer.innerHTML = loadingHtml;
       
       try {
-        const response = await fetch('/.netlify/functions/get-rpi?sport=basketball');
+        const response = await fetch(`/.netlify/functions/get-rpi?sport=${standingsSport}`);
         const data = await response.json();
         console.log('[Ball603] RPI data loaded:', data);
         
@@ -3293,7 +3299,7 @@
         <div class="standings-row">
           <span class="standings-rank">${r.rank}</span>
           <img class="standings-logo" src="${Ball603.getLogoUrl(teamName)}" alt="" onerror="this.src='/logos/100px/Ball603-white.png'">
-          <a href="/${slug}?sport=basketball" class="standings-team-link">${Ball603.getShortName(teamName)}</a>
+          <a href="/${slug}?sport=${standingsSport}" class="standings-team-link">${Ball603.getShortName(teamName)}</a>
           <span class="standings-record">${r.rpi ? r.rpi.toFixed(3) : '—'}</span>
         </div>
       `}).join('');
