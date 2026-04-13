@@ -26293,20 +26293,125 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     window.tiptapSetLink = function () {
       const editor = window.tiptapEditor;
       if (!editor) return;
-      const prev = editor.getAttributes('link').href || '';
-      const url  = window.prompt('Enter URL (leave blank to remove link):', prev);
-      if (url === null) return; // cancelled
-      if (!url.trim()) {
+
+      // Extend to full link range if cursor is inside one
+      editor.chain().focus().extendMarkRange('link').run();
+
+      // Get current link attributes
+      const attrs = editor.getAttributes('link');
+      const existingHref = attrs.href || '';
+      const existingTarget = attrs.target || '';
+      const existingRel = attrs.rel || '';
+
+      // Pre-fill modal
+      document.getElementById('linkModalUrl').value = existingHref;
+      document.getElementById('linkModalText').value = '';
+      document.getElementById('linkModalNewTab').checked = existingTarget === '_blank';
+      document.getElementById('linkModalNoFollow').checked = existingRel.includes('nofollow');
+
+      // Show/hide Remove button based on whether a link exists
+      document.getElementById('linkModalRemoveBtn').style.display = existingHref ? '' : 'none';
+
+      // Show modal
+      const overlay = document.getElementById('linkEditorOverlay');
+      overlay.style.display = 'flex';
+      setTimeout(() => document.getElementById('linkModalUrl').focus(), 50);
+
+      // Close on overlay click
+      overlay.onclick = function(e) { if (e.target === overlay) closeLinkModal(); };
+
+      // Enter key applies
+      document.getElementById('linkModalUrl').onkeydown = function(e) {
+        if (e.key === 'Enter') applyLinkModal();
+      };
+    };
+
+    window.applyLinkModal = function() {
+      const editor = window.tiptapEditor;
+      if (!editor) return;
+      const url = document.getElementById('linkModalUrl').value.trim();
+      const text = document.getElementById('linkModalText').value.trim();
+      const newTab = document.getElementById('linkModalNewTab').checked;
+      const noFollow = document.getElementById('linkModalNoFollow').checked;
+
+      if (!url) {
         editor.chain().focus().extendMarkRange('link').unsetLink().run();
-      } else {
-        editor.chain().focus().extendMarkRange('link').setLink({ href: url.trim() }).run();
+        closeLinkModal();
+        return;
       }
+
+      // Build rel attribute
+      const relParts = [];
+      if (newTab) relParts.push('noopener', 'noreferrer');
+      if (noFollow) relParts.push('nofollow');
+      const rel = relParts.length ? relParts.join(' ') : null;
+
+      // If link text was provided, insert/replace text too
+      if (text) {
+        editor.chain().focus()
+          .extendMarkRange('link')
+          .insertContent(`<a href="${url}"${newTab ? ' target="_blank"' : ''}${rel ? ` rel="${rel}"` : ''}>${text}</a>`)
+          .run();
+      } else {
+        editor.chain().focus()
+          .extendMarkRange('link')
+          .setLink({ href: url, target: newTab ? '_blank' : null, rel: rel || null })
+          .run();
+      }
+
+      closeLinkModal();
+    };
+
+    window.removeLinkModal = function() {
+      window.tiptapEditor?.chain().focus().extendMarkRange('link').unsetLink().run();
+      closeLinkModal();
+    };
+
+    window.closeLinkModal = function() {
+      document.getElementById('linkEditorOverlay').style.display = 'none';
     };
 
     window.tiptapClean = function () {
       window.tiptapEditor?.chain().focus().clearNodes().unsetAllMarks().run();
     };
   </script>
+
+  <!-- Link Editor Modal -->
+  <div id="linkEditorOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:#fff; border-radius:10px; padding:24px; width:420px; max-width:95vw; box-shadow:0 8px 30px rgba(0,0,0,0.2);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <h3 style="margin:0; font-size:15px; font-weight:600;">&#x1F517; Insert / Edit Link</h3>
+        <button onclick="closeLinkModal()" style="background:none; border:none; font-size:20px; cursor:pointer; color:#666; line-height:1;">&times;</button>
+      </div>
+
+      <div style="margin-bottom:14px;">
+        <label style="font-size:12px; font-weight:600; color:#555; display:block; margin-bottom:5px;">URL</label>
+        <input type="url" id="linkModalUrl" placeholder="https://" style="width:100%; padding:9px 12px; border:1px solid #ddd; border-radius:6px; font-size:13px; box-sizing:border-box;">
+      </div>
+
+      <div style="margin-bottom:14px;">
+        <label style="font-size:12px; font-weight:600; color:#555; display:block; margin-bottom:5px;">Link Text</label>
+        <input type="text" id="linkModalText" placeholder="Display text (leave blank to keep selection)" style="width:100%; padding:9px 12px; border:1px solid #ddd; border-radius:6px; font-size:13px; box-sizing:border-box;">
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:20px; padding:12px; background:#f9f9f9; border-radius:6px;">
+        <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-size:13px;">
+          <input type="checkbox" id="linkModalNewTab" style="width:16px; height:16px; cursor:pointer;">
+          Open in new tab (<code style="font-size:11px;">target="_blank"</code>)
+        </label>
+        <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-size:13px;">
+          <input type="checkbox" id="linkModalNoFollow" style="width:16px; height:16px; cursor:pointer;">
+          No follow (<code style="font-size:11px;">rel="nofollow"</code>) — use for sponsored/external links
+        </label>
+      </div>
+
+      <div style="display:flex; gap:8px;">
+        <button onclick="applyLinkModal()" style="flex:1; background:#f57c00; color:#fff; border:none; padding:10px; border-radius:6px; font-size:14px; font-weight:600; cursor:pointer;">Apply Link</button>
+        <button id="linkModalRemoveBtn" onclick="removeLinkModal()" style="background:#fce4ec; color:#c62828; border:1px solid #ef9a9a; padding:10px 16px; border-radius:6px; font-size:13px; cursor:pointer;">Remove Link</button>
+        <button onclick="closeLinkModal()" style="background:#f0f0f0; color:#333; border:none; padding:10px 16px; border-radius:6px; font-size:13px; cursor:pointer;">Cancel</button>
+      </div>
+    </div>
+  </div>
 
 </body>
 </html>
