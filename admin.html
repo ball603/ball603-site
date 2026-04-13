@@ -12542,24 +12542,49 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       }
     }
     
-    function loadOurTeamOrder() {
-      // Get active contributors, sorted by display_order then name
-      const activeContribs = allContributors
-        .filter(c => c.active)
-        .sort((a, b) => {
-          // Founder first
+    async function loadOurTeamOrder() {
+      // Re-fetch from DB so we always have fresh display_order values
+      try {
+        const { data, error } = await db
+          .from('contributors')
+          .select('*')
+          .eq('active', true)
+          .order('display_order', { ascending: true, nullsFirst: false });
+        if (error) throw error;
+
+        // Merge fresh display_order values back into allContributors cache
+        (data || []).forEach(fresh => {
+          const cached = allContributors.find(c => c.id === fresh.id);
+          if (cached) cached.display_order = fresh.display_order;
+        });
+
+        const activeContribs = (data || []).sort((a, b) => {
           if (a.is_founder && !b.is_founder) return -1;
           if (!a.is_founder && b.is_founder) return 1;
-          // Then by display_order (nulls go to end)
           const orderA = a.display_order ?? 9999;
           const orderB = b.display_order ?? 9999;
           if (orderA !== orderB) return orderA - orderB;
-          // Then alphabetically
           return (a.name || '').localeCompare(b.name || '');
         });
-      
-      ourTeamOrderData = activeContribs.map(c => c.id);
-      renderOurTeamOrderList(activeContribs);
+
+        ourTeamOrderData = activeContribs.map(c => c.id);
+        renderOurTeamOrderList(activeContribs);
+      } catch (err) {
+        console.error('Error loading order:', err);
+        // Fallback to in-memory
+        const activeContribs = allContributors
+          .filter(c => c.active)
+          .sort((a, b) => {
+            if (a.is_founder && !b.is_founder) return -1;
+            if (!a.is_founder && b.is_founder) return 1;
+            const orderA = a.display_order ?? 9999;
+            const orderB = b.display_order ?? 9999;
+            if (orderA !== orderB) return orderA - orderB;
+            return (a.name || '').localeCompare(b.name || '');
+          });
+        ourTeamOrderData = activeContribs.map(c => c.id);
+        renderOurTeamOrderList(activeContribs);
+      }
     }
     
     function renderOurTeamOrderList(contributors) {
