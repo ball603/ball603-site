@@ -327,9 +327,16 @@ function formatDate(dateStr, format = 'long') {
  */
 function formatTime(time) {
   if (!time) return 'TBD';
-  if (time.toUpperCase() === 'FINAL') return 'Final';
-  if (time.toUpperCase() === 'TBD' || time.toUpperCase() === 'TBA') return 'TBD';
-  // Remove leading zero
+  const t = time.toUpperCase();
+  if (t === 'TBD' || t === 'TBA') return 'TBD';
+  if (t === 'FINAL') return 'Final';
+  // Baseball: strip standard 7-inning label, keep non-standard
+  if (t.startsWith('FINAL')) {
+    const innMatch = time.match(/FINAL \((\d+) inn\)/i);
+    if (innMatch) return innMatch[1] === '7' ? 'Final' : `Final (${innMatch[1]} inn)`;
+    return 'Final';
+  }
+  // Remove leading zero from time
   return time.replace(/^0/, '');
 }
 

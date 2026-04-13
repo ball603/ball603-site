@@ -1152,9 +1152,21 @@
         if (g.highlights_url) cov += '<a href="'+g.highlights_url+'" class="coverage-link" title="Video">&#127909;</a>';
         
         // Desktop table row
+        // Clean status — strip standard 7-inning label for baseball
+        function cleanStatus(timeStr) {
+          if (!timeStr) return 'TBD';
+          const t = timeStr.toUpperCase();
+          if (t.startsWith('FINAL')) {
+            const innMatch = timeStr.match(/FINAL \((\d+) inn\)/i);
+            if (innMatch) return innMatch[1] === '7' ? 'Final' : 'Final (' + innMatch[1] + ' inn)';
+            return 'Final';
+          }
+          return formatTime(timeStr);
+        }
         let statusCell = '';
         if (isFinal) {
-          statusCell = '<span class="matchup-score'+(aw?' winner':'')+'">'+dAwayScore+'</span> - <span class="matchup-score'+(hw?' winner':'')+'">'+dHomeScore+'</span> <span class="final-badge">Final</span>';
+          const statusLabel = cleanStatus(g.time || g.game_status || 'FINAL');
+          statusCell = '<span class="matchup-score'+(aw?' winner':'')+'">'+dAwayScore+'</span> - <span class="matchup-score'+(hw?' winner':'')+'">'+dHomeScore+'</span> <span class="final-badge">'+statusLabel+'</span>';
         } else {
           statusCell = '<span class="game-time">'+formatTime(g.time)+'</span>';
         }

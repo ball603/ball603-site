@@ -2409,7 +2409,17 @@
       const date = new Date(dateStr + 'T12:00:00-05:00');
       return isNaN(date) ? dateStr : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' });
     }
-    function formatTime(timeStr) { return timeStr ? timeStr.replace(/^0(\d)/, '$1') : 'TBD'; }
+    function formatTime(timeStr) {
+      if (!timeStr) return 'TBD';
+      const t = timeStr.toUpperCase();
+      if (t === 'TBD' || t === 'TBA') return 'TBD';
+      if (t.startsWith('FINAL')) {
+        const innMatch = timeStr.match(/FINAL \((\d+) inn\)/i);
+        if (innMatch) return innMatch[1] === '7' ? 'Final' : 'Final (' + innMatch[1] + ' inn)';
+        return 'Final';
+      }
+      return timeStr.replace(/^0(\d)/, '$1');
+    }
   </script>
 </body>
 </html>
