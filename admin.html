@@ -12753,30 +12753,23 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     
     async function saveOurTeamOrder() {
       const items = document.querySelectorAll('.our-team-order-item');
-      
+      const orders = Array.from(items).map((item, idx) => ({
+        id: parseInt(item.dataset.id),
+        display_order: idx + 1
+      }));
+
       try {
-        // Update sequentially to avoid race conditions
-        let errorCount = 0;
-        for (let idx = 0; idx < items.length; idx++) {
-          const id = parseInt(items[idx].dataset.id);
-          const { data, error, status, statusText } = await db
-            .from('contributors')
-            .update({ display_order: idx + 1 })
-            .eq('id', id)
-            .select('id, display_order');
-          console.log(`id=${id} order=${idx+1} status=${status} data=`, data, 'error=', error);
-          if (error) {
-            console.error(`Error saving order for id ${id}:`, error);
-            errorCount++;
-          }
-        }
-        
-        if (errorCount > 0) {
-          showToast(`Saved with ${errorCount} errors — check console`, 'error');
-        } else {
+        const res = await fetch('/.netlify/functions/save-contributor-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orders })
+        });
+        const data = await res.json();
+        if (data.success) {
           showToast('Order saved!', 'success');
-          // Reload the list from DB to confirm
           await loadOurTeamOrder();
+        } else {
+          showToast(data.error || 'Error saving order', 'error');
         }
       } catch (err) {
         console.error('Error saving order:', err);
