@@ -346,7 +346,7 @@ ONLY include players who scored (TP > 0). Points must be NUMBERS not strings.`;
       'anthropic-version': '2023-06-01'
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 1500,
       system: systemPrompt,
       messages: [{ role: 'user', content: messageContent }]
@@ -693,7 +693,7 @@ DO NOT include a headline - just the article body starting with the dateline.`;
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1500, messages: [{ role: 'user', content: prompt }] })
+    body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1500, messages: [{ role: 'user', content: prompt }] })
   });
   
   if (!response.ok) {
@@ -772,7 +772,7 @@ DO NOT include a headline - just the article body starting with the dateline.`;
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 50,
       messages: [{ role: 'user', content: `Write a headline under 45 characters for this basketball game. Use school name not mascot. No score in headline. Just the headline text, no quotes.
 
@@ -865,7 +865,7 @@ Include points/rebounds/assists for each player. The article should be 3-5 parag
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 3000, messages: [{ role: 'user', content: combinedPrompt }] })
+    body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 3000, messages: [{ role: 'user', content: combinedPrompt }] })
   });
   
   if (!response.ok) {
@@ -1026,7 +1026,7 @@ Rules:
     const extractResponse = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 500, messages: [{ role: 'user', content: extractPrompt }] })
+      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 500, messages: [{ role: 'user', content: extractPrompt }] })
     });
     
     if (extractResponse.ok) {
@@ -1213,7 +1213,7 @@ The headline should be 8-12 words, punchy, no quotes. The excerpt should be 1-2 
       'anthropic-version': '2023-06-01'
     },
     body: JSON.stringify({
-      model: 'claude-opus-4-5',
+      model: 'claude-sonnet-4-6',
       max_tokens: 1024,
       messages: [{ role: 'user', content: prompt }]
     })
