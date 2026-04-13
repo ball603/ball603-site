@@ -103,6 +103,7 @@ exports.handler = async function(event, context) {
       fileBuffer = parsed.file?.buffer;
       fileFilename = parsed.file?.filename;
       fileMimeType = parsed.file?.contentType;
+      console.log(`Multipart parsed: fields=${Object.keys(parsed.fields).join(',')}, file=${fileFilename || 'none'}, isBase64=${event.isBase64Encoded}`);
     } else if (contentType.includes('application/x-www-form-urlencoded')) {
       data = parseUrlEncoded(event.body);
     } else {
@@ -140,6 +141,7 @@ exports.handler = async function(event, context) {
     let flaggedNames = [];
 
     if (fileBuffer && fileFilename) {
+      console.log(`File received: ${fileFilename}, size: ${fileBuffer.length} bytes, type: ${fileMimeType}`);
       try {
         const timestamp = Date.now();
         const safeName = data.school.toLowerCase().replace(/[^a-z0-9]/g, '-');
@@ -424,13 +426,28 @@ function parseMultipartForm(body, contentType, isBase64Encoded) {
   if (!boundaryMatch) {
     return { fields, file };
   }
-  const boundary = boundaryMatch[1] || boundaryMatch[2];
+  const boundary = (boundaryMatch[1] || boundaryMatch[2]).trim();
 
+  // Netlify always base64-encodes bodies containing binary data.
+  // Treat as base64 if flagged OR if the body looks like valid base64
+  // (no raw binary chars). Fall back to latin1 binary otherwise.
   let bodyBuffer;
   if (isBase64Encoded) {
     bodyBuffer = Buffer.from(body, 'base64');
   } else {
-    bodyBuffer = Buffer.from(body, 'binary');
+    // Attempt base64 decode — Netlify sometimes omits isBase64Encoded flag
+    // for multipart even when the body is base64-encoded
+    try {
+      const decoded = Buffer.from(body, 'base64');
+      // Heuristic: if decoded buffer contains the boundary string it's valid
+      if (decoded.toString('binary').includes(boundary)) {
+        bodyBuffer = decoded;
+      } else {
+        bodyBuffer = Buffer.from(body, 'binary');
+      }
+    } catch {
+      bodyBuffer = Buffer.from(body, 'binary');
+    }
   }
 
   const bodyStr = bodyBuffer.toString('binary');
