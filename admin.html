@@ -12753,28 +12753,29 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     
     async function saveOurTeamOrder() {
       const items = document.querySelectorAll('.our-team-order-item');
-      const updates = [];
-      
-      items.forEach((item, idx) => {
-        const id = parseInt(item.dataset.id);
-        updates.push(
-          db.from('contributors')
-            .update({ display_order: idx + 1 })
-            .eq('id', id)
-        );
-      });
       
       try {
-        await Promise.all(updates);
+        // Update sequentially to avoid race conditions
+        let errorCount = 0;
+        for (let idx = 0; idx < items.length; idx++) {
+          const id = parseInt(items[idx].dataset.id);
+          const { error } = await db
+            .from('contributors')
+            .update({ display_order: idx + 1 })
+            .eq('id', id);
+          if (error) {
+            console.error(`Error saving order for id ${id}:`, error);
+            errorCount++;
+          }
+        }
         
-        // Update local data
-        items.forEach((item, idx) => {
-          const id = parseInt(item.dataset.id);
-          const contrib = allContributors.find(c => c.id === id);
-          if (contrib) contrib.display_order = idx + 1;
-        });
-        
-        showToast('Order saved!', 'success');
+        if (errorCount > 0) {
+          showToast(`Saved with ${errorCount} errors — check console`, 'error');
+        } else {
+          showToast('Order saved!', 'success');
+          // Reload the list from DB to confirm
+          await loadOurTeamOrder();
+        }
       } catch (err) {
         console.error('Error saving order:', err);
         showToast('Error saving order', 'error');
