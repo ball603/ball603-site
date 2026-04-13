@@ -12759,10 +12759,12 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         let errorCount = 0;
         for (let idx = 0; idx < items.length; idx++) {
           const id = parseInt(items[idx].dataset.id);
-          const { error } = await db
+          const { data, error, status, statusText } = await db
             .from('contributors')
             .update({ display_order: idx + 1 })
-            .eq('id', id);
+            .eq('id', id)
+            .select('id, display_order');
+          console.log(`id=${id} order=${idx+1} status=${status} data=`, data, 'error=', error);
           if (error) {
             console.error(`Error saving order for id ${id}:`, error);
             errorCount++;
