@@ -2552,7 +2552,19 @@
           statusClass = 'live';
         } else if (hasScore) {
           // Completed game — show OT variant if applicable
-          statusText = (game.game_status && statusMap[game.game_status]) ? statusMap[game.game_status] : 'Final';
+          if (game.game_status && statusMap[game.game_status]) {
+            statusText = statusMap[game.game_status];
+          } else if (game.game_status && game.game_status.startsWith('FINAL')) {
+            // Baseball innings: show "Final (X inn)" only if not standard 7
+            const innMatch = game.game_status.match(/FINAL \((\d+) inn\)/i);
+            if (innMatch && innMatch[1] !== '7') {
+              statusText = `Final (${innMatch[1]} inn)`;
+            } else {
+              statusText = 'Final';
+            }
+          } else {
+            statusText = 'Final';
+          }
           statusClass = 'final';
         } else if (game.game_status && statusMap[game.game_status]) {
           // Has status but no score yet (edge case)
