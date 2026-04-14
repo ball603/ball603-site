@@ -132,7 +132,30 @@ export default async (request) => {
     }
     
     console.log(`  Calculated records for ${teamRecords.size} teams`);
-    
+
+    // Step 3b: Zero out W-L records for all sports present in this update
+    // This ensures teams that haven't played yet show 0-0, not stale data
+    const sportsInGames = [...new Set([...teamRecords.values()].map(r => r.sport))];
+    for (const sport of sportsInGames) {
+      const sportFilter = sport === 'basketball'
+        ? 'or=(sport.eq.basketball,sport.is.null)'
+        : `sport=eq.${encodeURIComponent(sport)}`;
+      const zeroResp = await fetch(
+        `${SUPABASE_URL}/rest/v1/standings?${sportFilter}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal'
+          },
+          body: JSON.stringify({ wins: 0, losses: 0, ties: 0, games_played: 0, win_pct: '0.000' })
+        }
+      );
+      console.log(`  Zeroed standings for sport=${sport}: ${zeroResp.status}`);
+    }
+
     // Step 4: Update standings table with calculated records
     const now = new Date().toISOString();
     let updatedCount = 0;
