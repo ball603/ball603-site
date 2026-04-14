@@ -24,7 +24,7 @@ export default async (request) => {
   try {
     // Step 1: Fetch existing standings to get each team's actual division
     const standingsResponse = await fetch(
-      `${SUPABASE_URL}/rest/v1/standings?select=school,gender,division`,
+      `${SUPABASE_URL}/rest/v1/standings?select=school,gender,division,sport`,
       {
         headers: {
           'apikey': SUPABASE_KEY,
@@ -38,14 +38,17 @@ export default async (request) => {
     
     // Build lookup map: "TeamName_Gender" -> actual division
     const teamDivisionMap = new Map();
+    const teamSportMap = new Map();
     for (const s of existingStandings) {
-      teamDivisionMap.set(`${s.school}_${s.gender}`, s.division);
+      const sportVal = s.sport || 'basketball';
+      teamDivisionMap.set(`${s.school}_${s.gender}_${sportVal}`, s.division);
+      teamSportMap.set(`${s.school}_${s.gender}`, sportVal);
     }
     console.log(`  Loaded ${teamDivisionMap.size} team divisions from standings`);
     
     // Step 2: Fetch all completed NHIAA games
     const gamesResponse = await fetch(
-      `${SUPABASE_URL}/rest/v1/games?level=eq.NHIAA&select=home_team,away_team,home_score,away_score,gender,division,date&or=(home_score.not.is.null,away_score.not.is.null)`,
+      `${SUPABASE_URL}/rest/v1/games?level=eq.NHIAA&select=home_team,away_team,home_score,away_score,gender,division,date,sport&or=(home_score.not.is.null,away_score.not.is.null)`,
       {
         headers: {
           'apikey': SUPABASE_KEY,
@@ -75,20 +78,22 @@ export default async (request) => {
       const homeScore = parseInt(game.home_score);
       const awayScore = parseInt(game.away_score);
       const gender = game.gender;
-      
+      const gameSport = game.sport || 'basketball';
+
       // Look up each team's actual division from standings (fall back to game division)
-      const homeDivision = teamDivisionMap.get(`${homeTeam}_${gender}`) || game.division;
+      const homeDivision = teamDivisionMap.get(`${homeTeam}_${gender}_${gameSport}`) || game.division;
       const awayDivision = teamDivisionMap.get(`${awayTeam}_${gender}`) || game.division;
       
       // Initialize team records if needed - using their ACTUAL division
-      const homeKey = `${homeTeam}_${gender}_${homeDivision}`;
-      const awayKey = `${awayTeam}_${gender}_${awayDivision}`;
+      const homeKey = `${homeTeam}_${gender}_${homeDivision}_${gameSport}`;
+      const awayKey = `${awayTeam}_${gender}_${awayDivision}_${gameSport}`;
       
       if (!teamRecords.has(homeKey)) {
         teamRecords.set(homeKey, {
           school: homeTeam,
           gender: gender,
           division: homeDivision,
+          sport: gameSport,
           wins: 0,
           losses: 0,
           ties: 0
@@ -100,6 +105,7 @@ export default async (request) => {
           school: awayTeam,
           gender: gender,
           division: awayDivision,
+          sport: gameSport,
           wins: 0,
           losses: 0,
           ties: 0
@@ -137,7 +143,7 @@ export default async (request) => {
       
       // Update only W-L-T fields, not rating/points
       const updateResponse = await fetch(
-        `${SUPABASE_URL}/rest/v1/standings?school=eq.${encodeURIComponent(record.school)}&gender=eq.${encodeURIComponent(record.gender)}&division=eq.${encodeURIComponent(record.division)}`,
+        `${SUPABASE_URL}/rest/v1/standings?school=eq.${encodeURIComponent(record.school)}&gender=eq.${encodeURIComponent(record.gender)}&division=eq.${encodeURIComponent(record.division)}${record.sport === 'basketball' ? '&or=(sport.eq.basketball,sport.is.null)' : '&sport=eq.' + encodeURIComponent(record.sport)}`,
         {
           method: 'PATCH',
           headers: {
