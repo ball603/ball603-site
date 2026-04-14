@@ -46,9 +46,11 @@ export default async (request) => {
     }
     console.log(`  Loaded ${teamDivisionMap.size} team divisions from standings`);
     
-    // Step 2: Fetch all completed NHIAA games
+    // Step 2: Fetch all completed NHIAA non-basketball games
+    // IMPORTANT: Basketball standings are finalized — never touch them here.
+    // Basketball W-L is managed by scrape-standings.mjs during basketball season only.
     const gamesResponse = await fetch(
-      `${SUPABASE_URL}/rest/v1/games?level=eq.NHIAA&select=home_team,away_team,home_score,away_score,gender,division,date,sport&or=(home_score.not.is.null,away_score.not.is.null)`,
+      `${SUPABASE_URL}/rest/v1/games?level=eq.NHIAA&sport=not.is.null&sport=neq.basketball&select=home_team,away_team,home_score,away_score,gender,division,date,sport&or=(home_score.not.is.null,away_score.not.is.null)`,
       {
         headers: {
           'apikey': SUPABASE_KEY,
