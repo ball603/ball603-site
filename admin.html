@@ -9281,10 +9281,9 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       }
     }
 
-    function saveBbsStory() {
+    async function saveBbsStory() {
       const headline = document.getElementById('bbsHeadline').value.trim();
       const articleEl = document.getElementById('bbsArticle');
-      // Use textarea value if editing, otherwise read from display
       const article = articleEl.style.display !== 'none'
         ? articleEl.value.trim()
         : (document.getElementById('bbsArticleDisplay').innerText || '').trim();
@@ -9292,7 +9291,37 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       if (!headline) { showToast('Please enter a headline', 'error'); return; }
       if (!article)  { showToast('Article is empty', 'error'); return; }
 
-      // Open article editor pre-populated — same as Scorebook Story
+      const btn = document.getElementById('bbsSaveBtn');
+      btn.disabled = true;
+      btn.textContent = '\u23F3 Generating social posts...';
+
+      try {
+        // Generate social posts — same as scorebook story
+        const socialResponse = await fetch('/.netlify/functions/generate-article', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mode: 'social',
+            article,
+            headline,
+            proofData: { sport: 'baseball', awayTeam: bbsSelectedGame.away, homeTeam: bbsSelectedGame.home, gender: 'Boys' },
+            schoolData: { away: getSchoolInfo(bbsSelectedGame.away), home: getSchoolInfo(bbsSelectedGame.home) },
+            photographerName: null,
+            galleryUrl: null
+          })
+        });
+        const socialData = await socialResponse.json();
+        generatedSocialPosts = socialData.success ? {
+          facebookPost: socialData.facebookPost || null,
+          instagramPost: socialData.instagramPost || null,
+          twitterPost: socialData.twitterPost || null
+        } : { facebookPost: null, instagramPost: null, twitterPost: null };
+      } catch (e) {
+        console.warn('Social post generation failed:', e);
+        generatedSocialPosts = { facebookPost: null, instagramPost: null, twitterPost: null };
+      }
+
+      // Open article editor pre-populated
       closeBbsModal();
 
       currentArticle = null;
@@ -9315,8 +9344,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       scheduledTime = null;
       document.getElementById('scheduledDateTime').value = '';
       updateScheduleButton();
+      document.getElementById('socialPostsCard').style.display = 'block';
 
-      // Tags
       currentTags = ['baseball'];
       if (bbsSelectedGame.away) currentTags.push(bbsSelectedGame.away.toLowerCase().replace(/\s+/g, '-'));
       if (bbsSelectedGame.home) currentTags.push(bbsSelectedGame.home.toLowerCase().replace(/\s+/g, '-'));
@@ -9324,9 +9353,11 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
 
       document.getElementById('articlesPanel').style.display = 'none';
       document.getElementById('editorPanel').style.display = 'block';
-
       renderGameSelector();
-      showToast('Story ready — add images and publish when ready.', 'success');
+      showToast('Social posts generated! Add images and publish when ready.', 'success');
+
+      btn.disabled = false;
+      btn.innerHTML = '&#9998; Open in Article Editor';
     }
 
     async function generateGameStory() {
