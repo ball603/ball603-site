@@ -82,7 +82,7 @@ export default async (request) => {
 
       // Look up each team's actual division from standings (fall back to game division)
       const homeDivision = teamDivisionMap.get(`${homeTeam}_${gender}_${gameSport}`) || game.division;
-      const awayDivision = teamDivisionMap.get(`${awayTeam}_${gender}`) || game.division;
+      const awayDivision = teamDivisionMap.get(`${awayTeam}_${gender}_${gameSport}`) || game.division;
       
       // Initialize team records if needed - using their ACTUAL division
       const homeKey = `${homeTeam}_${gender}_${homeDivision}_${gameSport}`;
@@ -140,8 +140,10 @@ export default async (request) => {
       const sportFilter = sport === 'basketball'
         ? 'or=(sport.eq.basketball,sport.is.null)'
         : `sport=eq.${encodeURIComponent(sport)}`;
+      // Also determine the season for this sport
+      const sportSeason = sport === 'basketball' ? '2025-26' : '2026';
       const zeroResp = await fetch(
-        `${SUPABASE_URL}/rest/v1/standings?${sportFilter}`,
+        `${SUPABASE_URL}/rest/v1/standings?${sportFilter}&season=eq.${sportSeason}`,
         {
           method: 'PATCH',
           headers: {
@@ -166,7 +168,7 @@ export default async (request) => {
       
       // Update only W-L-T fields, not rating/points
       const updateResponse = await fetch(
-        `${SUPABASE_URL}/rest/v1/standings?school=eq.${encodeURIComponent(record.school)}&gender=eq.${encodeURIComponent(record.gender)}&division=eq.${encodeURIComponent(record.division)}${record.sport === 'basketball' ? '&or=(sport.eq.basketball,sport.is.null)' : '&sport=eq.' + encodeURIComponent(record.sport)}`,
+        `${SUPABASE_URL}/rest/v1/standings?school=eq.${encodeURIComponent(record.school)}&gender=eq.${encodeURIComponent(record.gender)}&division=eq.${encodeURIComponent(record.division)}&season=eq.${encodeURIComponent(record.sport === 'basketball' ? '2025-26' : '2026')}${record.sport === 'basketball' ? '&or=(sport.eq.basketball,sport.is.null)' : '&sport=eq.' + encodeURIComponent(record.sport)}`,
         {
           method: 'PATCH',
           headers: {
