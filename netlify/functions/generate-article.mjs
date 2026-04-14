@@ -248,6 +248,8 @@ export const handler = async (event) => {
       return await handleWrite(body, headers);
     } else if (mode === 'boxscore') {
       return await handleBoxscore(body, headers);
+    } else if (mode === 'baseball-boxscore') {
+      return await handleBaseballBoxscore(body, headers);
     } else if (mode === 'social') {
       return await handleSocial(body, headers);
     } else {
@@ -1167,9 +1169,9 @@ DIVISION: ${proofData.division || 'N/A'}${proofData.is_playoff ? ` | PLAYOFF ROU
 RECORDS AFTER THIS GAME: ${winner} is ${winnerRecordStr || 'unknown'}, ${loser} is ${loserRecordStr || 'unknown'}${proofData.awaySeasonOpener || proofData.homeSeasonOpener ? `
 SEASON OPENER: ${proofData.awaySeasonOpener ? proofData.awayTeam : proofData.homeTeam} is opening their season` : ''}
 
-INNING-BY-INNING:
-${formatInningLine(proofData.awayTeam, awayInnings, awayScore)}
-${formatInningLine(proofData.homeTeam, homeInnings, homeScore)}
+INNING-BY-INNING (R/H/E):
+${formatInningLine(proofData.awayTeam, awayInnings, awayScore)}${proofData.awayHits ? ' H:'+proofData.awayHits : ''}${proofData.awayErrors ? ' E:'+proofData.awayErrors : ''}
+${formatInningLine(proofData.homeTeam, homeInnings, homeScore)}${proofData.homeHits ? ' H:'+proofData.homeHits : ''}${proofData.homeErrors ? ' E:'+proofData.homeErrors : ''}
 
 ${winner} BATTERS (away team is ${proofData.awayTeam} ${awayMascot}, home team is ${proofData.homeTeam} ${homeMascot}):
 ${formatBatters(winnerBatters)}
@@ -1241,6 +1243,210 @@ The headline should be 8-12 words, punchy, no quotes. The excerpt should be 1-2 
       headline: parsed.headline || '',
       article:  parsed.article || '',
       excerpt:  parsed.excerpt || ''
+    })
+  };
+}
+
+// ── Baseball Boxscore Image Handler ──────────────────────────────────────────
+async function handleBaseballBoxscore(body, headers) {
+  const { fileBase64, fileMimeType, gameData, notes, photographerName, schoolData } = body;
+
+  if (!fileBase64 || !gameData) {
+    return { statusCode: 400, headers, body: JSON.stringify({ error: 'fileBase64 and gameData required' }) };
+  }
+
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  const awaySchoolInfo = schoolData?.away || {};
+  const homeSchoolInfo = schoolData?.home || {};
+  const gameTown = homeSchoolInfo.town || gameData.homeTeam;
+
+  function formatGameDate(dateStr) {
+    if (!dateStr) return 'Tuesday';
+    try {
+      const d = new Date(dateStr + 'T12:00:00');
+      return ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][d.getDay()];
+    } catch { return 'Tuesday'; }
+  }
+  const gameDay = formatGameDate(gameData.date);
+
+  // Determine media type
+  let mediaType = fileMimeType;
+  if (!mediaType || mediaType === 'application/octet-stream') {
+    if (fileBase64.startsWith('JVBERi')) mediaType = 'application/pdf';
+    else if (fileBase64.startsWith('/9j/')) mediaType = 'image/jpeg';
+    else mediaType = 'image/png';
+  }
+
+  // Step 1: Extract data from image
+  const extractPrompt = `You are reading a baseball boxscore image. Extract ALL of the following data and respond ONLY with valid JSON.
+
+Extract:
+1. Inning-by-inning scores (array of runs per inning for each team)
+2. R/H/E line (runs, hits, errors for each team)
+3. Batting stats for each player: name, position, AB, R, H, RBI, BB, SO
+4. Pitching stats for each pitcher: name, IP, H, R, ER, BB, SO, decision (W/L/S if shown)
+5. Any team notes shown (2B, 3B, HR, SB, etc.)
+
+JSON format:
+{
+  "awayTeam": "${gameData.awayTeam}",
+  "homeTeam": "${gameData.homeTeam}",
+  "awayInnings": [0,0,0,0,0,0,0],
+  "homeInnings": [0,0,0,0,0,0,0],
+  "awayR": 0, "awayH": 0, "awayE": 0,
+  "homeR": 0, "homeH": 0, "homeE": 0,
+  "awayBatters": [{"name":"","pos":"","ab":0,"r":0,"h":0,"rbi":0,"bb":0,"so":0}],
+  "homeBatters": [{"name":"","pos":"","ab":0,"r":0,"h":0,"rbi":0,"bb":0,"so":0}],
+  "awayPitchers": [{"name":"","ip":"","h":0,"r":0,"er":0,"bb":0,"so":0,"decision":""}],
+  "homePitchers": [{"name":"","ip":"","h":0,"r":0,"er":0,"bb":0,"so":0,"decision":""}],
+  "awayNotes": "",
+  "homeNotes": ""
+}`;
+
+  const content = mediaType === 'application/pdf'
+    ? [{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: fileBase64 } }, { type: 'text', text: extractPrompt }]
+    : [{ type: 'image', source: { type: 'base64', media_type: mediaType, data: fileBase64 } }, { type: 'text', text: extractPrompt }];
+
+  const extractRes = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': anthropicKey, 'anthropic-version': '2023-06-01' },
+    body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 2000, messages: [{ role: 'user', content }] })
+  });
+
+  if (!extractRes.ok) {
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to read boxscore image' }) };
+  }
+
+  const extractData = await extractRes.json();
+  let stats;
+  try {
+    let raw = extractData.content?.[0]?.text || '';
+    raw = raw.replace(/```json|```/g, '').trim();
+    stats = JSON.parse(raw);
+  } catch (e) {
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to parse boxscore data' }) };
+  }
+
+  const awayFinal = stats.awayR ?? (stats.awayInnings || []).reduce((s, v) => s + v, 0);
+  const homeFinal = stats.homeR ?? (stats.homeInnings || []).reduce((s, v) => s + v, 0);
+  const awayWon = awayFinal > homeFinal;
+  const winner = awayWon ? gameData.awayTeam : gameData.homeTeam;
+  const loser  = awayWon ? gameData.homeTeam : gameData.awayTeam;
+  const winnerStats = awayWon ? { r: stats.awayR, h: stats.awayH, e: stats.awayE } : { r: stats.homeR, h: stats.homeH, e: stats.homeE };
+  const loserStats  = awayWon ? { r: stats.homeR, h: stats.homeH, e: stats.homeE } : { r: stats.awayR, h: stats.awayH, e: stats.awayE };
+
+  // Build R/H/E score box HTML
+  const awayInnings = stats.awayInnings || [];
+  const homeInnings = stats.homeInnings || [];
+  const inningHeaders = awayInnings.map((_, i) => `<th style="padding:6px 8px; text-align:center; color:#666; font-weight:500;">${i+1}</th>`).join('');
+  const scoreBoxHtml = `
+    <table style="width:100%; border-collapse:collapse; font-size:13px; text-align:center;">
+      <thead>
+        <tr style="border-bottom:2px solid #ddd;">
+          <th style="text-align:left; padding:8px 10px; font-weight:600;">Team</th>
+          ${inningHeaders}
+          <th style="padding:6px 8px; font-weight:700; border-left:2px solid #ccc;">R</th>
+          <th style="padding:6px 8px; font-weight:500; color:#666;">H</th>
+          <th style="padding:6px 8px; font-weight:500; color:#666;">E</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="text-align:left; padding:10px; font-weight:600;">${gameData.awayTeam}</td>
+          ${awayInnings.map(v => `<td style="padding:8px;">${v}</td>`).join('')}
+          <td style="padding:8px; font-weight:700; font-size:15px; border-left:2px solid #ccc; color:${awayWon?'#2e7d32':'#333'}">${stats.awayR}</td>
+          <td style="padding:8px;">${stats.awayH}</td>
+          <td style="padding:8px;">${stats.awayE}</td>
+        </tr>
+        <tr style="border-top:1px solid #eee;">
+          <td style="text-align:left; padding:10px; font-weight:600;">${gameData.homeTeam}</td>
+          ${homeInnings.map(v => `<td style="padding:8px;">${v}</td>`).join('')}
+          <td style="padding:8px; font-weight:700; font-size:15px; border-left:2px solid #ccc; color:${!awayWon?'#2e7d32':'#333'}">${stats.homeR}</td>
+          <td style="padding:8px;">${stats.homeH}</td>
+          <td style="padding:8px;">${stats.homeE}</td>
+        </tr>
+      </tbody>
+    </table>`;
+
+  // Step 2: Generate article
+  const winnerBatters  = (awayWon ? stats.awayBatters : stats.homeBatters) || [];
+  const loserBatters   = (awayWon ? stats.homeBatters : stats.awayBatters) || [];
+  const winnerPitchers = (awayWon ? stats.awayPitchers : stats.homePitchers) || [];
+  const loserPitchers  = (awayWon ? stats.homePitchers : stats.awayPitchers) || [];
+
+  const formatBatter = b => `${b.name}${b.pos ? ' ('+b.pos+')' : ''}: ${b.ab} AB, ${b.r} R, ${b.h} H, ${b.rbi} RBI, ${b.bb} BB, ${b.so} SO`;
+  const formatPitcher = p => `${p.name}${p.decision ? ' ('+p.decision+')' : ''}: ${p.ip} IP, ${p.h} H, ${p.r} R, ${p.er} ER, ${p.bb} BB, ${p.so} SO`;
+
+  const articlePrompt = `You are a factual sports reporter for Ball603.com covering New Hampshire high school baseball. Write a detailed game recap based ONLY on the stats provided. Do not invent anything.
+
+GAME: ${winner} ${awayFinal > homeFinal ? awayFinal : homeFinal}, ${loser} ${awayFinal > homeFinal ? homeFinal : awayFinal}
+LOCATION: ${gameTown}, N.H.
+DATE: ${gameDay}
+DIVISION: ${gameData.division || 'N/A'}${gameData.is_playoff ? ` | PLAYOFF: ${gameData.round || 'Playoff'}` : ''}
+
+LINE SCORE:
+${gameData.awayTeam}: ${awayInnings.join('-')} | R:${stats.awayR} H:${stats.awayH} E:${stats.awayE}
+${gameData.homeTeam}: ${homeInnings.join('-')} | R:${stats.homeR} H:${stats.homeH} E:${stats.homeE}
+
+${winner} BATTING:
+${winnerBatters.map(formatBatter).join('\n') || 'Not available'}
+${winner} NOTES: ${(awayWon ? stats.awayNotes : stats.homeNotes) || 'None'}
+
+${loser} BATTING:
+${loserBatters.map(formatBatter).join('\n') || 'Not available'}
+${loser} NOTES: ${(awayWon ? stats.homeNotes : stats.awayNotes) || 'None'}
+
+${winner} PITCHING:
+${winnerPitchers.map(formatPitcher).join('\n') || 'Not available'}
+
+${loser} PITCHING:
+${loserPitchers.map(formatPitcher).join('\n') || 'Not available'}
+
+${notes ? 'GAME NOTES: ' + notes : ''}
+${photographerName ? 'PHOTOGRAPHER: ' + photographerName : ''}
+
+WRITING INSTRUCTIONS:
+- AP style, past tense, third person
+- Lead with the most compelling stat: dominant pitcher, multi-hit game, big inning, shutout, etc.
+- Highlight standout individual performances (multi-hit, big RBI day, strikeout totals)
+- Mention any notable team stats (2B, HR, SB from notes if available)
+- Note winning/losing pitchers by name with their line
+- 180-280 words
+- End with a dateline: CITY, N.H. —
+
+Respond ONLY with JSON:
+{"headline": "...", "article": "...", "excerpt": "..."}`;
+
+  const storyRes = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': anthropicKey, 'anthropic-version': '2023-06-01' },
+    body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1500, messages: [{ role: 'user', content: articlePrompt }] })
+  });
+
+  if (!storyRes.ok) {
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to generate story' }) };
+  }
+
+  const storyData = await storyRes.json();
+  let parsed;
+  try {
+    let raw = storyData.content?.[0]?.text || '';
+    raw = raw.replace(/```json|```/g, '').trim();
+    parsed = JSON.parse(raw);
+  } catch (e) {
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to parse story response' }) };
+  }
+
+  return {
+    statusCode: 200,
+    headers,
+    body: JSON.stringify({
+      success: true,
+      headline: parsed.headline || '',
+      article: parsed.article || '',
+      excerpt: parsed.excerpt || '',
+      scoreBoxHtml,
+      stats
     })
   };
 }
