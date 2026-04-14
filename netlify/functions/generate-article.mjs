@@ -1256,8 +1256,11 @@ async function handleBaseballBoxscore(body, headers) {
   }
 
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  const awaySchoolInfo = schoolData?.away || {};
   const homeSchoolInfo = schoolData?.home || {};
   const gameTown = homeSchoolInfo.town || gameData.homeTeam;
+  const awayMascot = awaySchoolInfo.mascot || '';
+  const homeMascot = homeSchoolInfo.mascot || '';
 
   function formatGameDate(dateStr) {
     if (!dateStr) return 'Tuesday';
@@ -1282,21 +1285,29 @@ TASK 1: Read this boxscore image and extract all stats.
 TASK 2: Write a detailed game recap article using those stats.
 
 GAME INFO:
-- Away: ${gameData.awayTeam}
-- Home: ${gameData.homeTeam}
+- Away: ${gameData.awayTeam}${awayMascot ? ' (' + awayMascot + ')' : ''}
+- Home: ${gameData.homeTeam}${homeMascot ? ' (' + homeMascot + ')' : ''}
 - Location: ${gameTown}, N.H.
 - Date: ${gameDay}
 - Division: ${gameData.division || 'N/A'}${gameData.is_playoff ? ' | PLAYOFF: ' + (gameData.round || 'Playoff') : ''}
 ${notes ? '- Notes: ' + notes : ''}
 ${photographerName ? '- Photographer: ' + photographerName : ''}
 
+CRITICAL EXTRACTION RULES:
+1. LINE SCORE (inning-by-inning): Look for a summary row at the TOP or BOTTOM of the boxscore that shows runs scored per inning (labeled 1,2,3,4,5,6,7 etc). This is NOT the player stats table. Extract ONLY these inning run totals into awayInnings/homeInnings arrays. A standard NH high school game is 7 innings. Do NOT use AB, H, R, RBI, BB, or SO columns from the player batting table as inning scores.
+2. R/H/E: The runs (R), hits (H), and errors (E) totals for each team. R should equal the sum of awayInnings/homeInnings. If no line score is visible, set awayInnings/homeInnings to empty arrays [] and derive R from the final score.
+3. BATTING STATS: From the individual player rows — AB, R, H, RBI, BB, SO per player.
+4. PITCHING STATS: IP, H, R, ER, BB, SO per pitcher. Note W/L/Save decisions.
+5. If any data is not clearly visible, use 0 for numbers and "" for strings. Do NOT guess.
+
 ARTICLE REQUIREMENTS:
 - AP style, past tense, third person
+- Use ONLY the mascot shown in parentheses above. Do not invent or guess mascots.
+- Mascot nicknames only from second paragraph onward — use school name in the first sentence
 - Lead with most compelling stat (dominant pitcher, big inning, multi-hit game, shutout)
 - Name winning/losing pitchers with their line
 - Highlight standout individual performances
 - 180-280 words
-- End with each team's record if derivable, otherwise omit
 
 Respond ONLY with this JSON (no markdown, no explanation):
 {
