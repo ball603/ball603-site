@@ -2366,8 +2366,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           </div>
 
           <!-- Publish -->
-          <button onclick="saveBbsStory()" id="bbsSaveBtn" style="width:100%; background:#2e7d32; color:white; border:none; padding:15px; border-radius:6px; font-size:14px; font-weight:600; cursor:pointer;">
-            &#10004; Publish &amp; Generate Social Posts
+          <button onclick="saveBbsStory()" id="bbsSaveBtn" style="width:100%; background:#f57c00; color:white; border:none; padding:15px; border-radius:6px; font-size:14px; font-weight:600; cursor:pointer;">
+            &#9998; Open in Article Editor
           </button>
         </div>
 
@@ -9281,68 +9281,52 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       }
     }
 
-    async function saveBbsStory() {
+    function saveBbsStory() {
       const headline = document.getElementById('bbsHeadline').value.trim();
       const articleEl = document.getElementById('bbsArticle');
+      // Use textarea value if editing, otherwise read from display
       const article = articleEl.style.display !== 'none'
         ? articleEl.value.trim()
-        : document.getElementById('bbsArticleDisplay').innerText.trim();
+        : (document.getElementById('bbsArticleDisplay').innerText || '').trim();
 
       if (!headline) { showToast('Please enter a headline', 'error'); return; }
       if (!article)  { showToast('Article is empty', 'error'); return; }
 
-      const btn = document.getElementById('bbsSaveBtn');
-      btn.disabled = true;
-      btn.textContent = '⏳ Publishing...';
+      // Open article editor pre-populated — same as Scorebook Story
+      closeBbsModal();
 
-      try {
-        // Reuse the generateGameStory save path by creating article directly
-        const awaySchoolInfo = getSchoolInfo(bbsSelectedGame.away);
-        const homeSchoolInfo = getSchoolInfo(bbsSelectedGame.home);
+      currentArticle = null;
+      document.getElementById('editorTitle').textContent = 'New Article';
+      document.getElementById('articleTitle').value = headline;
 
-        const tags = ['baseball'];
-        if (bbsSelectedGame.division) tags.push(bbsSelectedGame.division.toLowerCase().replace(/\s+/g, '-'));
-        [bbsSelectedGame.away, bbsSelectedGame.home].forEach(t => {
-          if (t) tags.push(t.toLowerCase().replace(/\s+/g, '-'));
-        });
+      const articleHtml = article.split('\n\n').map(p => `<p>${p.trim()}</p>`).join('');
+      setEditorContent(articleHtml);
 
-        const articleData = {
-          title: headline,
-          slug: headline.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + Date.now(),
-          content: '<p>' + article.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>') + '</p>',
-          excerpt: bbsGeneratedData?.excerpt || article.substring(0, 200),
-          sport: 'baseball',
-          tags,
-          game_id: bbsSelectedGame.game_id || null,
-          status: 'published',
-          published_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        };
+      document.getElementById('articleExcerpt').value = bbsGeneratedData?.excerpt || '';
+      document.getElementById('selectedGameId').value = bbsSelectedGame.game_id || '';
+      selectedGame = bbsSelectedGame;
+      document.getElementById('articleSport').value = 'baseball';
+      document.getElementById('smugmugUrl').value = '';
+      document.getElementById('smugmugThumbUrl').value = '';
+      document.getElementById('youtubeUrl').value = '';
+      setAuthorValue('Ball603 Staff');
+      document.getElementById('articleDate').value = getTodayEST();
+      isScheduled = false;
+      scheduledTime = null;
+      document.getElementById('scheduledDateTime').value = '';
+      updateScheduleButton();
 
-        const { data: savedArticle, error } = await db
-          .from('articles')
-          .insert([articleData])
-          .select()
-          .single();
+      // Tags
+      currentTags = ['baseball'];
+      if (bbsSelectedGame.away) currentTags.push(bbsSelectedGame.away.toLowerCase().replace(/\s+/g, '-'));
+      if (bbsSelectedGame.home) currentTags.push(bbsSelectedGame.home.toLowerCase().replace(/\s+/g, '-'));
+      renderTags();
 
-        if (error) throw error;
+      document.getElementById('articlesPanel').style.display = 'none';
+      document.getElementById('editorPanel').style.display = 'block';
 
-        // Link to game
-        if (bbsSelectedGame.game_id && savedArticle?.id) {
-          await db.from('games').update({ recap_link: `/article.html?id=${savedArticle.id}` })
-            .eq('game_id', bbsSelectedGame.game_id);
-        }
-
-        showToast('Story published!', 'success');
-        closeBbsModal();
-        loadArticles();
-      } catch (err) {
-        console.error('Save error:', err);
-        showToast('Error publishing story', 'error');
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = '&#10004; Publish &amp; Generate Social Posts';
-      }
+      renderGameSelector();
+      showToast('Story ready — add images and publish when ready.', 'success');
     }
 
     async function generateGameStory() {
