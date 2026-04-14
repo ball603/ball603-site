@@ -9177,22 +9177,36 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         const guestPhotog = document.getElementById('bbsGuestPhotographer')?.value.trim();
         if (guestPhotog) photogs.push(guestPhotog);
 
-        // Convert file to base64
-        const base64 = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = e => resolve(e.target.result.split(',')[1]);
-          reader.onerror = reject;
-          reader.readAsDataURL(bbsSelectedFile);
+        // Compress image client-side before sending (max 1200px, 75% quality)
+        // This keeps the payload small enough for Netlify's timeout
+        const { base64, mimeType: compressedMime } = await new Promise((resolve, reject) => {
+          if (bbsSelectedFile.type === 'application/pdf') {
+            // PDFs can't be compressed via canvas — read as-is
+            const reader = new FileReader();
+            reader.onload = e => resolve({ base64: e.target.result.split(',')[1], mimeType: 'application/pdf' });
+            reader.onerror = reject;
+            reader.readAsDataURL(bbsSelectedFile);
+            return;
+          }
+          const img = new Image();
+          const url = URL.createObjectURL(bbsSelectedFile);
+          img.onload = () => {
+            URL.revokeObjectURL(url);
+            const MAX = 1400;
+            let w = img.width, h = img.height;
+            if (w > MAX || h > MAX) {
+              if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+              else       { w = Math.round(w * MAX / h); h = MAX; }
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = w; canvas.height = h;
+            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+            resolve({ base64: dataUrl.split(',')[1], mimeType: 'image/jpeg' });
+          };
+          img.onerror = reject;
+          img.src = url;
         });
-
-        // Check payload size — Netlify limit is ~6MB
-        const payloadSize = base64.length * 0.75; // approximate bytes
-        if (payloadSize > 4 * 1024 * 1024) {
-          showToast('Image is too large. Please use a compressed JPG under 4MB.', 'error');
-          btn.disabled = false;
-          btn.innerHTML = '&#x2728; Read Boxscore &amp; Generate Story';
-          return;
-        }
 
         const response = await fetch('/.netlify/functions/generate-article', {
           method: 'POST',
@@ -9200,7 +9214,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           body: JSON.stringify({
             mode: 'baseball-boxscore',
             fileBase64: base64,
-            fileMimeType: bbsSelectedFile.type,
+            fileMimeType: compressedMime || bbsSelectedFile.type,
             gameData: {
               awayTeam: bbsSelectedGame.away,
               homeTeam: bbsSelectedGame.home,
