@@ -9185,6 +9185,15 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           reader.readAsDataURL(bbsSelectedFile);
         });
 
+        // Check payload size — Netlify limit is ~6MB
+        const payloadSize = base64.length * 0.75; // approximate bytes
+        if (payloadSize > 4 * 1024 * 1024) {
+          showToast('Image is too large. Please use a compressed JPG under 4MB.', 'error');
+          btn.disabled = false;
+          btn.innerHTML = '&#x2728; Read Boxscore &amp; Generate Story';
+          return;
+        }
+
         const response = await fetch('/.netlify/functions/generate-article', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
