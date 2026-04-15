@@ -2666,7 +2666,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           <div class="sidebar-card">
             <h4>&#x1F3DF;&#xFE0F; Sport</h4>
             <div class="form-group">
-              <select id="articleSport" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px;">
+              <select id="articleSport" onchange="toggleBaseballScoreCard()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px;">
                 <option value="basketball">&#x1F3C0; Basketball</option>
                 <option value="baseball">&#x26BE; Baseball</option>
                 <option value="volleyball">&#x1F3D0; Volleyball</option>
@@ -2676,6 +2676,63 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             </div>
           </div>
           
+          <!-- Baseball Line Score Card -->
+          <div class="sidebar-card" id="baseballScoreCard" style="display:none;">
+            <h4>&#9918; Line Score</h4>
+            <div style="overflow-x:auto;">
+              <table style="width:100%; font-size:11px; border-collapse:collapse; margin-bottom:8px;">
+                <thead>
+                  <tr style="background:#f5f5f5;">
+                    <th style="padding:4px 6px; text-align:left; min-width:70px;">Team</th>
+                    <th style="padding:4px 3px; width:26px; text-align:center;">1</th>
+                    <th style="padding:4px 3px; width:26px; text-align:center;">2</th>
+                    <th style="padding:4px 3px; width:26px; text-align:center;">3</th>
+                    <th style="padding:4px 3px; width:26px; text-align:center;">4</th>
+                    <th style="padding:4px 3px; width:26px; text-align:center;">5</th>
+                    <th style="padding:4px 3px; width:26px; text-align:center;">6</th>
+                    <th style="padding:4px 3px; width:26px; text-align:center;">7</th>
+                    <th id="lsExtraHeaders"></th>
+                    <th style="padding:4px 3px; width:26px; text-align:center; border-left:2px solid #ccc;">R</th>
+                    <th style="padding:4px 3px; width:26px; text-align:center;">H</th>
+                    <th style="padding:4px 3px; width:26px; text-align:center;">E</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><input type="text" id="lsAwayName" placeholder="Away" style="width:100%; padding:3px; border:1px solid #ddd; border-radius:3px; font-size:11px; box-sizing:border-box;"></td>
+                    <td><input type="text" id="lsAwayI1" inputmode="numeric" class="ls-inn" style="width:26px; padding:3px; border:1px solid #ddd; border-radius:3px; font-size:11px; text-align:center; box-sizing:border-box;" onchange="calcLsR('away')"></td>
+                    <td><input type="text" id="lsAwayI2" inputmode="numeric" class="ls-inn" style="width:26px; padding:3px; border:1px solid #ddd; border-radius:3px; font-size:11px; text-align:center; box-sizing:border-box;" onchange="calcLsR('away')"></td>
+                    <td><input type="text" id="lsAwayI3" inputmode="numeric" class="ls-inn" style="width:26px; padding:3px; border:1px solid #ddd; border-radius:3px; font-size:11px; text-align:center; box-sizing:border-box;" onchange="calcLsR('away')"></td>
+                    <td><input type="text" id="lsAwayI4" inputmode="numeric" class="ls-inn" style="width:26px; padding:3px; border:1px solid #ddd; border-radius:3px; font-size:11px; text-align:center; box-sizing:border-box;" onchange="calcLsR('away')"></td>
+                    <td><input type="text" id="lsAwayI5" inputmode="numeric" class="ls-inn" style="width:26px; padding:3px; border:1px solid #ddd; border-radius:3px; font-size:11px; text-align:center; box-sizing:border-box;" onchange="calcLsR('away')"></td>
+                    <td><input type="text" id="lsAwayI6" inputmode="numeric" class="ls-inn" style="width:26px; padding:3px; border:1px solid #ddd; border-radius:3px; font-size:11px; text-align:center; box-sizing:border-box;" onchange="calcLsR('away')"></td>
+                    <td><input type="text" id="lsAwayI7" inputmode="numeric" class="ls-inn" style="width:26px; padding:3px; border:1px solid #ddd; border-radius:3px; font-size:11px; text-align:center; box-sizing:border-box;" onchange="calcLsR('away')"></td>
+                    <td id="lsAwayExtraInnings"></td>
+                    <td style="border-left:2px solid #ccc;"><input type="text" id="lsAwayR" inputmode="numeric" style="width:26px; padding:3px; border:1px solid #f57c00; border-radius:3px; font-size:11px; text-align:center; font-weight:600; box-sizing:border-box;"></td>
+                    <td><input type="text" id="lsAwayH" inputmode="numeric" style="width:26px; padding:3px; border:1px solid #ddd; border-radius:3px; font-size:11px; text-align:center; box-sizing:border-box;"></td>
+                    <td><input type="text" id="lsAwayE" inputmode="numeric" style="width:26px; padding:3px; border:1px solid #ddd; border-radius:3px; font-size:11px; text-align:center; box-sizing:border-box;"></td>
+                  </tr>
+                  <tr>
+                    <td><input type="text" id="lsHomeName" placeholder="Home" style="width:100%; padding:3px; border:1px solid #ddd; border-radius:3px; font-size:11px; box-sizing:border-box;"></td>
+                    <td><input type="text" id="lsHomeI1" inputmode="numeric" class="ls-inn" style="width:26px; padding:3px; border:1px solid #ddd; border-radius:3px; font-size:11px; text-align:center; box-sizing:border-box;" onchange="calcLsR('home')"></td>
+                    <td><input type="text" id="lsHomeI2" inputmode="numeric" class="ls-inn" style="width:26px; padding:3px; border:1px solid #ddd; border-radius:3px; font-size:11px; text-align:center; box-sizing:border-box;" onchange="calcLsR('home')"></td>
+                    <td><input type="text" id="lsHomeI3" inputmode="numeric" class="ls-inn" style="width:26px; padding:3px; border:1px solid #ddd; border-radius:3px; font-size:11px; text-align:center; box-sizing:border-box;" onchange="calcLsR('home')"></td>
+                    <td><input type="text" id="lsHomeI4" inputmode="numeric" class="ls-inn" style="width:26px; padding:3px; border:1px solid #ddd; border-radius:3px; font-size:11px; text-align:center; box-sizing:border-box;" onchange="calcLsR('home')"></td>
+                    <td><input type="text" id="lsHomeI5" inputmode="numeric" class="ls-inn" style="width:26px; padding:3px; border:1px solid #ddd; border-radius:3px; font-size:11px; text-align:center; box-sizing:border-box;" onchange="calcLsR('home')"></td>
+                    <td><input type="text" id="lsHomeI6" inputmode="numeric" class="ls-inn" style="width:26px; padding:3px; border:1px solid #ddd; border-radius:3px; font-size:11px; text-align:center; box-sizing:border-box;" onchange="calcLsR('home')"></td>
+                    <td><input type="text" id="lsHomeI7" inputmode="numeric" class="ls-inn" style="width:26px; padding:3px; border:1px solid #ddd; border-radius:3px; font-size:11px; text-align:center; box-sizing:border-box;" onchange="calcLsR('home')"></td>
+                    <td id="lsHomeExtraInnings"></td>
+                    <td style="border-left:2px solid #ccc;"><input type="text" id="lsHomeR" inputmode="numeric" style="width:26px; padding:3px; border:1px solid #f57c00; border-radius:3px; font-size:11px; text-align:center; font-weight:600; box-sizing:border-box;"></td>
+                    <td><input type="text" id="lsHomeH" inputmode="numeric" style="width:26px; padding:3px; border:1px solid #ddd; border-radius:3px; font-size:11px; text-align:center; box-sizing:border-box;"></td>
+                    <td><input type="text" id="lsHomeE" inputmode="numeric" style="width:26px; padding:3px; border:1px solid #ddd; border-radius:3px; font-size:11px; text-align:center; box-sizing:border-box;"></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <button onclick="addLsExtraInning()" style="font-size:11px; background:#eee; border:1px solid #ccc; padding:3px 8px; border-radius:3px; cursor:pointer; margin-bottom:8px;">+ Extra Innings</button>
+            <small style="color:#888; display:block;">R auto-totals from innings. Edit directly if needed.</small>
+          </div>
+
           <div class="sidebar-card">
             <h4>&#x1F4E4; Distribution</h4>
             <div class="form-group">
@@ -7439,6 +7496,111 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       }
     }
 
+    // ── Baseball Line Score Card (editor sidebar) ──────────────────────────
+    let lsExtraInnings = 0;
+
+    function toggleBaseballScoreCard() {
+      const sport = document.getElementById('articleSport').value;
+      const card = document.getElementById('baseballScoreCard');
+      if (card) card.style.display = sport === 'baseball' ? 'block' : 'none';
+    }
+
+    function calcLsR(team) {
+      let total = 0;
+      const prefix = team === 'away' ? 'lsAway' : 'lsHome';
+      for (let i = 1; i <= 7 + lsExtraInnings; i++) {
+        const val = parseInt(document.getElementById(prefix + 'I' + i)?.value) || 0;
+        total += val;
+      }
+      document.getElementById(prefix + 'R').value = total || '';
+    }
+
+    function addLsExtraInning() {
+      lsExtraInnings++;
+      const n = 7 + lsExtraInnings;
+      // Add header
+      const hdr = document.getElementById('lsExtraHeaders');
+      const th = document.createElement('th');
+      th.style.cssText = 'padding:4px 3px; width:26px; text-align:center;';
+      th.textContent = n;
+      hdr.parentNode.insertBefore(th, hdr);
+      // Add cells for each team
+      ['Away', 'Home'].forEach(t => {
+        const extraCell = document.getElementById('ls' + t + 'ExtraInnings');
+        const td = document.createElement('td');
+        const prefix = 'ls' + t;
+        td.innerHTML = `<input type="text" id="${prefix}I${n}" inputmode="numeric" style="width:26px; padding:3px; border:1px solid #ddd; border-radius:3px; font-size:11px; text-align:center; box-sizing:border-box;" onchange="calcLsR('${t.toLowerCase()}')">`;
+        extraCell.parentNode.insertBefore(td, extraCell);
+      });
+    }
+
+    function getLsGameData() {
+      // Collect current line score values into game_data format
+      const awayInnings = [], homeInnings = [];
+      for (let i = 1; i <= 7 + lsExtraInnings; i++) {
+        awayInnings.push(parseInt(document.getElementById('lsAwayI' + i)?.value) || 0);
+        homeInnings.push(parseInt(document.getElementById('lsHomeI' + i)?.value) || 0);
+      }
+      const awayName = document.getElementById('lsAwayName').value.trim();
+      const homeName = document.getElementById('lsHomeName').value.trim();
+      if (!awayName && !homeName && awayInnings.every(v => v === 0) && homeInnings.every(v => v === 0)) return null;
+      return {
+        sport: 'baseball',
+        awayTeam: awayName,
+        homeTeam: homeName,
+        awayInnings,
+        homeInnings,
+        awayR: parseInt(document.getElementById('lsAwayR').value) || 0,
+        awayH: parseInt(document.getElementById('lsAwayH').value) || 0,
+        awayE: parseInt(document.getElementById('lsAwayE').value) || 0,
+        homeR: parseInt(document.getElementById('lsHomeR').value) || 0,
+        homeH: parseInt(document.getElementById('lsHomeH').value) || 0,
+        homeE: parseInt(document.getElementById('lsHomeE').value) || 0,
+      };
+    }
+
+    function populateLsFromGameData(gd) {
+      if (!gd || gd.sport !== 'baseball') return;
+      document.getElementById('lsAwayName').value = gd.awayTeam || '';
+      document.getElementById('lsHomeName').value = gd.homeTeam || '';
+      // Populate innings
+      const awayInnings = gd.awayInnings || [];
+      const homeInnings = gd.homeInnings || [];
+      const maxI = Math.max(awayInnings.length, homeInnings.length, 7);
+      // Add extra inning columns if needed
+      while (7 + lsExtraInnings < maxI) addLsExtraInning();
+      for (let i = 0; i < maxI; i++) {
+        const n = i + 1;
+        const awayEl = document.getElementById('lsAwayI' + n);
+        const homeEl = document.getElementById('lsHomeI' + n);
+        if (awayEl) awayEl.value = awayInnings[i] ?? '';
+        if (homeEl) homeEl.value = homeInnings[i] ?? '';
+      }
+      document.getElementById('lsAwayR').value = gd.awayR ?? '';
+      document.getElementById('lsAwayH').value = gd.awayH ?? '';
+      document.getElementById('lsAwayE').value = gd.awayE ?? '';
+      document.getElementById('lsHomeR').value = gd.homeR ?? '';
+      document.getElementById('lsHomeH').value = gd.homeH ?? '';
+      document.getElementById('lsHomeE').value = gd.homeE ?? '';
+    }
+
+    function clearLsCard() {
+      lsExtraInnings = 0;
+      document.getElementById('lsExtraHeaders').innerHTML = '';
+      document.getElementById('lsAwayExtraInnings').innerHTML = '';
+      document.getElementById('lsHomeExtraInnings').innerHTML = '';
+      ['lsAwayName','lsHomeName','lsAwayR','lsAwayH','lsAwayE','lsHomeR','lsHomeH','lsHomeE'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+      });
+      for (let i = 1; i <= 7; i++) {
+        ['lsAwayI','lsHomeI'].forEach(prefix => {
+          const el = document.getElementById(prefix + i);
+          if (el) el.value = '';
+        });
+      }
+    }
+
     function showTab(tab, evt) {
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
       const evtTarget = evt?.target || (typeof event !== 'undefined' ? event?.target : null);
@@ -8836,6 +8998,25 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         if (data.success) {
           // Close modal and open editor with generated content
           closeGameStory();
+
+          // Populate baseball line score card from scorebook data
+          if (gsSelectedGame?.sport === 'baseball' && gsGeneratedData?.proofData) {
+            const pd = gsGeneratedData.proofData;
+            clearLsCard();
+            populateLsFromGameData({
+              sport: 'baseball',
+              awayTeam: pd.awayTeam,
+              homeTeam: pd.homeTeam,
+              awayInnings: pd.awayInnings || [],
+              homeInnings: pd.homeInnings || [],
+              awayR: pd.awayFinal || 0,
+              awayH: parseInt(pd.awayHits) || 0,
+              awayE: parseInt(pd.awayErrors) || 0,
+              homeR: pd.homeFinal || 0,
+              homeH: parseInt(pd.homeHits) || 0,
+              homeE: parseInt(pd.homeErrors) || 0,
+            });
+          }
           
           // Store generated social posts
           generatedSocialPosts = {
@@ -9371,6 +9552,23 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('selectedGameId').value = bbsSelectedGame.game_id || '';
       selectedGame = bbsSelectedGame;
       document.getElementById('articleSport').value = 'baseball';
+      toggleBaseballScoreCard();
+      // Pre-populate line score from BBS stats
+      if (bbsGeneratedData?.stats) {
+        populateLsFromGameData({
+          sport: 'baseball',
+          awayTeam: bbsSelectedGame.away,
+          homeTeam: bbsSelectedGame.home,
+          awayInnings: bbsGeneratedData.stats.awayInnings || [],
+          homeInnings: bbsGeneratedData.stats.homeInnings || [],
+          awayR: bbsGeneratedData.stats.awayR || 0,
+          awayH: bbsGeneratedData.stats.awayH || 0,
+          awayE: bbsGeneratedData.stats.awayE || 0,
+          homeR: bbsGeneratedData.stats.homeR || 0,
+          homeH: bbsGeneratedData.stats.homeH || 0,
+          homeE: bbsGeneratedData.stats.homeE || 0,
+        });
+      }
       document.getElementById('smugmugUrl').value = '';
       document.getElementById('smugmugThumbUrl').value = '';
       document.getElementById('youtubeUrl').value = '';
@@ -10218,6 +10416,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     function newArticle() {
       currentArticle = null;
       currentGameData = null;
+      clearLsCard();
+      toggleBaseballScoreCard();
       pendingMarqueeContent = null; // Clear any pending marquee content
       pendingMarqueeData = null; // Clear any pending marquee data
       pendingPlayoffContent = null;
@@ -10462,6 +10662,12 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       
       // Handle game data (quarter scores, player stats)
       currentGameData = article.game_data || null;
+      // Populate baseball line score card if applicable
+      clearLsCard();
+      if (article.sport === 'baseball' && article.game_data) {
+        populateLsFromGameData(article.game_data);
+      }
+      toggleBaseballScoreCard();
       
       document.getElementById('articlesPanel').style.display = 'none';
       document.getElementById('editorPanel').style.display = 'block';
@@ -11355,7 +11561,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         sport: document.getElementById('articleSport').value || null,
         scheduled_at: scheduledAt,
         social_posts: socialPosts,
-        game_data: currentGameData || null,
+        game_data: (document.getElementById('articleSport')?.value === 'baseball' ? getLsGameData() : null) || currentGameData || null,
         matchup_data: pendingMarqueeData || pendingPlayoffData || currentArticle?.matchup_data || null,
         audio_url: document.getElementById('audioUrlField').value || null,
         status: 'draft',
