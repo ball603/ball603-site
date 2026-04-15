@@ -427,6 +427,16 @@
     .quarter-scores-table .team-name-link:hover {
       color: var(--accent);
     }
+
+    /* Baseball R/H/E divider column */
+    .quarter-scores-table .rhe-divider {
+      border-left: 2px solid var(--border-color);
+      font-weight: var(--font-weight-bold);
+    }
+    .quarter-scores-table th.rhe-divider {
+      font-weight: var(--font-weight-semibold);
+      color: var(--text-muted);
+    }
     
     /* Sponsor Box - Desktop (fixed right sidebar) */
     .sponsor-sidebar {
@@ -2009,6 +2019,62 @@
       const articleSport = article.sport || 'basketball';
       const sportParam = `?sport=${articleSport}`;
       
+      // Helper: build baseball line score HTML from game_data
+      function buildBaseballLineScore(gd, sportParam, inSection) {
+        if (!gd || gd.sport !== 'baseball') return '';
+        const awayWins = (gd.awayR || 0) > (gd.homeR || 0);
+        const homeWins = (gd.homeR || 0) > (gd.awayR || 0);
+        const innings = gd.awayInnings || [];
+        const homeInnings = gd.homeInnings || innings.map(() => 0);
+        const hasInnings = innings.length > 0;
+        const awayLink = `<a href="/${getTeamSlug(gd.awayTeam)}${sportParam}" class="team-name-link">${gd.awayTeam}</a>`;
+        const homeLink = `<a href="/${getTeamSlug(gd.homeTeam)}${sportParam}" class="team-name-link">${gd.homeTeam}</a>`;
+
+        let headerCells = '<th style="text-align:left;">Team</th>';
+        let awayCells  = `<td style="text-align:left;">${awayLink}</td>`;
+        let homeCells  = `<td style="text-align:left;">${homeLink}</td>`;
+
+        if (hasInnings) {
+          innings.forEach((_, i) => {
+            headerCells += `<th>${i + 1}</th>`;
+            awayCells   += `<td>${innings[i] !== undefined ? innings[i] : '-'}</td>`;
+            homeCells   += `<td>${homeInnings[i] !== undefined ? homeInnings[i] : '-'}</td>`;
+          });
+        }
+
+        // R/H/E with divider
+        const showH = gd.awayH !== undefined || gd.homeH !== undefined;
+        const showE = gd.awayE !== undefined || gd.homeE !== undefined;
+        headerCells += `<th class="rhe-divider">R</th>`;
+        awayCells   += `<td class="rhe-divider ${awayWins ? 'winner-final' : ''}">${gd.awayR ?? '-'}</td>`;
+        homeCells   += `<td class="rhe-divider ${homeWins ? 'winner-final' : ''}">${gd.homeR ?? '-'}</td>`;
+        if (showH) {
+          headerCells += `<th>H</th>`;
+          awayCells   += `<td>${gd.awayH ?? '-'}</td>`;
+          homeCells   += `<td>${gd.homeH ?? '-'}</td>`;
+        }
+        if (showE) {
+          headerCells += `<th>E</th>`;
+          awayCells   += `<td>${gd.awayE ?? '-'}</td>`;
+          homeCells   += `<td>${gd.homeE ?? '-'}</td>`;
+        }
+
+        const table = `
+          <table class="quarter-scores-table" style="min-width:${hasInnings ? '420px' : '220px'};">
+            <thead><tr>${headerCells}</tr></thead>
+            <tbody>
+              <tr>${awayCells}</tr>
+              <tr>${homeCells}</tr>
+            </tbody>
+          </table>`;
+
+        if (inSection) {
+          return `<div class="quarter-scores-section" style="overflow-x:auto;">${table}</div>`;
+        } else {
+          return `<div class="quarter-scores-box" style="overflow-x:auto;">${table}</div>`;
+        }
+      }
+
       // Build game box HTML if linked game exists
       let gameBoxHtml = '';
       if (linkedGame) {
@@ -2020,9 +2086,11 @@
         const awayWins = hasScore && parseInt(awayScore) > parseInt(homeScore);
         const homeWins = hasScore && parseInt(homeScore) > parseInt(awayScore);
         
-        // Build quarter scores section if game_data exists
+        // Build score section — baseball line score OR basketball quarters
         let quarterScoresSection = '';
-        if (article.game_data && article.game_data.awayQuarters && article.game_data.homeQuarters) {
+        if (article.sport === 'baseball' && article.game_data && article.game_data.sport === 'baseball') {
+          quarterScoresSection = buildBaseballLineScore(article.game_data, sportParam, true);
+        } else if (article.game_data && article.game_data.awayQuarters && article.game_data.homeQuarters) {
           const gd = article.game_data;
           const gdAwayWins = gd.awayFinal > gd.homeFinal;
           const gdHomeWins = gd.homeFinal > gd.awayFinal;
@@ -2091,9 +2159,11 @@
         `;
       }
       
-      // Build quarter scores box HTML if game_data exists but no linked game
+      // Build standalone score box — baseball line score OR basketball quarters
       let quarterScoresHtml = '';
-      if (!linkedGame && article.game_data && article.game_data.awayQuarters && article.game_data.homeQuarters) {
+      if (!linkedGame && article.sport === 'baseball' && article.game_data?.sport === 'baseball') {
+        quarterScoresHtml = buildBaseballLineScore(article.game_data, sportParam, false);
+      } else if (!linkedGame && article.game_data && article.game_data.awayQuarters && article.game_data.homeQuarters) {
         const gd = article.game_data;
         const awayWins = gd.awayFinal > gd.homeFinal;
         const homeWins = gd.homeFinal > gd.awayFinal;
