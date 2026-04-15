@@ -7503,6 +7503,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const sport = document.getElementById('articleSport').value;
       const card = document.getElementById('baseballScoreCard');
       if (card) card.style.display = sport === 'baseball' ? 'block' : 'none';
+      if (sport === 'baseball') autoPopulateLsTeams();
     }
 
     function calcLsR(team) {
@@ -8229,6 +8230,18 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       }
     }
     
+    function autoPopulateLsTeams() {
+      const card = document.getElementById('baseballScoreCard');
+      if (!card || card.style.display === 'none') return;
+      const awayEl = document.getElementById('lsAwayName');
+      const homeEl = document.getElementById('lsHomeName');
+      if (awayEl.value || homeEl.value) return; // don't overwrite existing values
+      if (selectedGame) {
+        awayEl.value = selectedGame.away || selectedGame.away_team || '';
+        homeEl.value = selectedGame.home || selectedGame.home_team || '';
+      }
+    }
+
     function renderGameSelector(filter = '') {
       const selector = document.getElementById('gameSelector');
       if (!selector) return; // Element doesn't exist on this page/state
@@ -8271,6 +8284,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     function selectGame(gameId, label) {
       document.getElementById('selectedGameId').value = gameId;
       selectedGame = games.find(g => g.game_id === gameId) || null;
+      autoPopulateLsTeams();
       renderGameSelector();
     }
     
@@ -10664,8 +10678,15 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       currentGameData = article.game_data || null;
       // Populate baseball line score card if applicable
       clearLsCard();
-      if (article.sport === 'baseball' && article.game_data) {
-        populateLsFromGameData(article.game_data);
+      if (article.sport === 'baseball') {
+        if (article.game_data) {
+          populateLsFromGameData(article.game_data);
+        }
+        // Auto-fill team names from linked game if not in game_data
+        if (!article.game_data?.awayTeam && selectedGame) {
+          document.getElementById('lsAwayName').value = selectedGame.away || selectedGame.away_team || '';
+          document.getElementById('lsHomeName').value = selectedGame.home || selectedGame.home_team || '';
+        }
       }
       toggleBaseballScoreCard();
       
@@ -11786,7 +11807,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         article_date: document.getElementById('articleDate').value || null,
         sport: document.getElementById('articleSport').value || null,
         social_posts: socialPosts,
-        game_data: currentGameData || currentArticle?.game_data || null,
+        game_data: (document.getElementById('articleSport')?.value === 'baseball' ? getLsGameData() : null) || currentGameData || currentArticle?.game_data || null,
         matchup_data: pendingMarqueeData || pendingPlayoffData || currentArticle?.matchup_data || null,
         scheduled_at: scheduledAt,
         status: isScheduled ? 'scheduled' : 'published',
