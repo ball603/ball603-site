@@ -437,6 +437,23 @@
       font-weight: var(--font-weight-semibold);
       color: var(--text-muted);
     }
+    /* Baseball: H and E columns should NOT be bold/big (override td:last-child) */
+    .quarter-scores-table .rhe-normal {
+      font-weight: var(--font-weight-regular, 400);
+      font-size: var(--font-size-sm);
+    }
+    /* Team name cell with logo */
+    .qs-team-cell {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .qs-team-logo {
+      width: 24px;
+      height: 24px;
+      object-fit: contain;
+      flex-shrink: 0;
+    }
     
     /* Sponsor Box - Desktop (fixed right sidebar) */
     .sponsor-sidebar {
@@ -2027,8 +2044,10 @@
         const innings = gd.awayInnings || [];
         const homeInnings = gd.homeInnings || innings.map(() => 0);
         const hasInnings = innings.length > 0;
-        const awayLink = `<a href="/${getTeamSlug(gd.awayTeam)}${sportParam}" class="team-name-link">${gd.awayTeam}</a>`;
-        const homeLink = `<a href="/${getTeamSlug(gd.homeTeam)}${sportParam}" class="team-name-link">${gd.homeTeam}</a>`;
+        const awayLogoUrl = Ball603.getLogoUrl ? Ball603.getLogoUrl(gd.awayTeam) : '/logos/100px/Ball603-white.png';
+        const homeLogoUrl = Ball603.getLogoUrl ? Ball603.getLogoUrl(gd.homeTeam) : '/logos/100px/Ball603-white.png';
+        const awayLink = `<div class="qs-team-cell"><img class="qs-team-logo" src="${awayLogoUrl}" alt="" onerror="this.src='/logos/100px/Ball603-white.png'"><a href="/${getTeamSlug(gd.awayTeam)}${sportParam}" class="team-name-link">${gd.awayTeam}</a></div>`;
+        const homeLink = `<div class="qs-team-cell"><img class="qs-team-logo" src="${homeLogoUrl}" alt="" onerror="this.src='/logos/100px/Ball603-white.png'"><a href="/${getTeamSlug(gd.homeTeam)}${sportParam}" class="team-name-link">${gd.homeTeam}</a></div>`;
 
         let headerCells = '<th style="text-align:left;">Team</th>';
         let awayCells  = `<td style="text-align:left;">${awayLink}</td>`;
@@ -2049,14 +2068,14 @@
         awayCells   += `<td class="rhe-divider ${awayWins ? 'winner-final' : ''}">${gd.awayR ?? '-'}</td>`;
         homeCells   += `<td class="rhe-divider ${homeWins ? 'winner-final' : ''}">${gd.homeR ?? '-'}</td>`;
         if (showH) {
-          headerCells += `<th>H</th>`;
-          awayCells   += `<td>${gd.awayH ?? '-'}</td>`;
-          homeCells   += `<td>${gd.homeH ?? '-'}</td>`;
+          headerCells += `<th class="rhe-normal">H</th>`;
+          awayCells   += `<td class="rhe-normal">${gd.awayH ?? '-'}</td>`;
+          homeCells   += `<td class="rhe-normal">${gd.homeH ?? '-'}</td>`;
         }
         if (showE) {
-          headerCells += `<th>E</th>`;
-          awayCells   += `<td>${gd.awayE ?? '-'}</td>`;
-          homeCells   += `<td>${gd.homeE ?? '-'}</td>`;
+          headerCells += `<th class="rhe-normal">E</th>`;
+          awayCells   += `<td class="rhe-normal">${gd.awayE ?? '-'}</td>`;
+          homeCells   += `<td class="rhe-normal">${gd.homeE ?? '-'}</td>`;
         }
 
         const table = `
