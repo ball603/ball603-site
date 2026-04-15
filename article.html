@@ -2079,6 +2079,25 @@
           homeCells   += `<td class="rhe-normal">${gd.homeE ?? '-'}</td>`;
         }
 
+        // Build header line: date + FINAL + playoff round
+        const dateStr = gd.date || linkedGame?.date || article?.date || '';
+        let headerParts = [];
+        if (dateStr) {
+          try {
+            const d = new Date(dateStr + 'T12:00:00');
+            const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+            const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            headerParts.push(`${days[d.getDay()]}, ${months[d.getMonth()]} ${d.getDate()}`);
+          } catch(e) {}
+        }
+        headerParts.push('FINAL');
+        if (gd.is_playoff && gd.round && gd.division) {
+          const roundNames = { 'Prelims': '1st Round', 'Quarters': 'Quarterfinal', 'Semis': 'Semifinal', 'Final': 'Championship' };
+          const roundLabel = roundNames[gd.round] || gd.round;
+          headerParts.push(`${gd.division} ${roundLabel}`);
+        }
+        const headerHtml = `<div style="text-align:center; font-size:var(--font-size-xs,11px); font-weight:600; color:var(--text-muted); letter-spacing:0.5px; text-transform:uppercase; margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid var(--border-color);">${headerParts.join(' · ')}</div>`;
+
         const table = `
           <table class="quarter-scores-table" style="min-width:${hasInnings ? '420px' : '220px'};">
             <thead><tr>${headerCells}</tr></thead>
@@ -2089,9 +2108,9 @@
           </table>`;
 
         if (inSection) {
-          return `<div class="quarter-scores-section" style="overflow-x:auto;">${table}</div>`;
+          return `<div class="quarter-scores-section" style="overflow-x:auto;">${headerHtml}${table}</div>`;
         } else {
-          return `<div class="quarter-scores-box" style="overflow-x:auto;">${table}</div>`;
+          return `<div class="quarter-scores-box" style="overflow-x:auto;">${headerHtml}${table}</div>`;
         }
       }
 
