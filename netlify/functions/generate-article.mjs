@@ -1294,7 +1294,7 @@ ${notes ? '- Notes: ' + notes : ''}
 ${photographerName ? '- Photographer: ' + photographerName : ''}
 
 CRITICAL EXTRACTION RULES:
-1. LINE SCORE (inning-by-inning): Look for a summary row at the TOP or BOTTOM of the boxscore that shows runs scored per inning (labeled 1,2,3,4,5,6,7 etc). This is NOT the player stats table. Extract ONLY these inning run totals into awayInnings/homeInnings arrays. A standard NH high school game is 7 innings. Do NOT use AB, H, R, RBI, BB, or SO columns from the player batting table as inning scores.
+1. LINE SCORE (inning-by-inning): Look for a summary row at the TOP or BOTTOM of the boxscore that shows runs scored per inning (labeled 1,2,3,4,5,6,7 etc). This is NOT the player stats table. Extract ONLY the innings that were actually played — do NOT pad to 7 if the game ended early (e.g. a 5-inning game returns 5 values, a 6-inning game returns 6). Do NOT use AB, H, R, RBI, BB, or SO columns from the player batting table as inning scores.
 2. R/H/E: The runs (R), hits (H), and errors (E) totals for each team. R should equal the sum of awayInnings/homeInnings. If no line score is visible, set awayInnings/homeInnings to empty arrays [] and derive R from the final score.
 3. BATTING STATS: From the individual player rows — AB, R, H, RBI, BB, SO per player.
 4. PITCHING STATS: IP, H, R, ER, BB, SO per pitcher. Note W/L/Save decisions.
