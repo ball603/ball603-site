@@ -7510,8 +7510,9 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       let total = 0;
       const prefix = team === 'away' ? 'lsAway' : 'lsHome';
       for (let i = 1; i <= 7 + lsExtraInnings; i++) {
-        const val = parseInt(document.getElementById(prefix + 'I' + i)?.value) || 0;
-        total += val;
+        const raw = document.getElementById(prefix + 'I' + i)?.value || '';
+        if (raw.trim() === '-') continue; // skip dash cells
+        total += parseInt(raw) || 0;
       }
       document.getElementById(prefix + 'R').value = total || '';
     }
@@ -7539,8 +7540,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       // Collect current line score values into game_data format
       const awayInnings = [], homeInnings = [];
       for (let i = 1; i <= 7 + lsExtraInnings; i++) {
-        awayInnings.push(parseInt(document.getElementById('lsAwayI' + i)?.value) || 0);
-        homeInnings.push(parseInt(document.getElementById('lsHomeI' + i)?.value) || 0);
+        const aRaw = (document.getElementById('lsAwayI' + i)?.value || '').trim();
+        const hRaw = (document.getElementById('lsHomeI' + i)?.value || '').trim();
+        awayInnings.push(aRaw === '-' ? '-' : (parseInt(aRaw) || 0));
+        homeInnings.push(hRaw === '-' ? '-' : (parseInt(hRaw) || 0));
       }
       const awayName = document.getElementById('lsAwayName').value.trim();
       const homeName = document.getElementById('lsHomeName').value.trim();
@@ -7579,8 +7582,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         const n = i + 1;
         const awayEl = document.getElementById('lsAwayI' + n);
         const homeEl = document.getElementById('lsHomeI' + n);
-        if (awayEl) awayEl.value = awayInnings[i] ?? '';
-        if (homeEl) homeEl.value = homeInnings[i] ?? '';
+        if (awayEl) awayEl.value = awayInnings[i] === '-' ? '-' : (awayInnings[i] ?? '');
+        if (homeEl) homeEl.value = homeInnings[i] === '-' ? '-' : (homeInnings[i] ?? '');
       }
       document.getElementById('lsAwayR').value = gd.awayR ?? '';
       document.getElementById('lsAwayH').value = gd.awayH ?? '';
