@@ -9538,25 +9538,27 @@ Respond ONLY with valid JSON:
         }
 
         // Post-process: fix walk-off X inning misread
-        // If home team has X in innings and the last inning value equals homeR,
-        // that last value is the R total mistakenly read as an inning — remove it
-        function fixWalkoffInnings(innings, rTotal) {
-          if (!innings || innings.length === 0) return innings;
-          const xIdx = innings.findIndex(v => v === 'X' || v === 'x');
-          if (xIdx === -1) return innings;
-          // X should be the last entry; if there are values after X, remove them
-          // (they are R/H/E totals misread as innings)
-          return innings.slice(0, xIdx + 1);
+        // Claude often reads the R total as a final inning value when home team has X
+        // e.g. reads [0,2,6,0,3,X,11] when correct is [0,2,6,0,3,0,X] with R=11
+        function fixWalkoffInnings(homeInnings, awayInnings) {
+          if (!homeInnings || homeInnings.length === 0) return homeInnings;
+          const xIdx = homeInnings.findIndex(v => v === 'X' || v === 'x');
+          if (xIdx === -1) return homeInnings;
+          // Step 1: strip everything after X (misread R/H/E values)
+          let fixed = homeInnings.slice(0, xIdx + 1);
+          // Step 2: if home now has fewer innings than away, insert 0s before X
+          // (Claude skipped inning values that were 0)
+          const awayLen = (awayInnings || []).length;
+          while (fixed.length < awayLen) {
+            fixed.splice(fixed.length - 1, 0, 0);
+          }
+          return fixed;
         }
-        stats.homeInnings = fixWalkoffInnings(stats.homeInnings, stats.homeR);
-        // Also verify R matches sum (excluding X)
+        stats.homeInnings = fixWalkoffInnings(stats.homeInnings, stats.awayInnings);
         function sumInnings(innings) {
-          return (innings || []).reduce((s, v) => s + (v === 'X' || v === 'x' ? 0 : (parseInt(v) || 0)), 0);
+          return (innings||[]).reduce((s,v) => s + (v==='X'||v==='x' ? 0 : (parseInt(v)||0)), 0);
         }
-        // If awayR doesn't match sum, trust the explicit R value (already stored)
-        // Just log for debugging
-        console.log('Away innings sum:', sumInnings(stats.awayInnings), 'awayR:', stats.awayR);
-        console.log('Home innings sum:', sumInnings(stats.homeInnings), 'homeR:', stats.homeR);
+        console.log('After fix — Away:', stats.awayInnings, 'R:'+stats.awayR, '| Home:', stats.homeInnings, 'R:'+stats.homeR);
 
         const awayInnings = stats.awayInnings || [];
         const homeInnings = stats.homeInnings || [];
