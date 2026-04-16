@@ -2313,7 +2313,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
                ondrop="bbsHandleDrop(event)">
             <div style="font-size:36px; margin-bottom:8px;">&#128247;</div>
             <div style="font-weight:600; color:#e65100; margin-bottom:4px;">Click or drag to upload boxscore image</div>
-            <div style="font-size:12px; color:#888;">JPG, PNG, or PDF &bull; Official boxscore photo</div>
+            <div style="font-size:12px; color:#888;">JPG or PNG &bull; Crop to just the boxscore table for best results</div>
             <div id="bbsFileName" style="display:none; margin-top:10px; font-size:13px; color:#333; font-weight:500;"></div>
           </div>
           <input type="file" id="bbsFileInput" accept=".jpg,.jpeg,.png,.pdf" style="display:none;" onchange="bbsFileSelected(this.files[0])">
@@ -9431,7 +9431,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           const url = URL.createObjectURL(bbsSelectedFile);
           img.onload = () => {
             URL.revokeObjectURL(url);
-            const MAX = 1400;
+            // Aggressive compression — boxscore images need to be small to avoid timeout
+            const MAX = 600;
             let w = img.width, h = img.height;
             if (w > MAX || h > MAX) {
               if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
@@ -9440,8 +9441,16 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             const canvas = document.createElement('canvas');
             canvas.width = w; canvas.height = h;
             canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
-            resolve({ base64: dataUrl.split(',')[1], mimeType: 'image/jpeg' });
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.60);
+            const kb = Math.round(dataUrl.length * 0.75 / 1024);
+            console.log(`Compressed to ${w}x${h}, ~${kb}KB`);
+            if (kb > 500) {
+              // Try even harder
+              const dataUrl2 = canvas.toDataURL('image/jpeg', 0.40);
+              resolve({ base64: dataUrl2.split(',')[1], mimeType: 'image/jpeg' });
+            } else {
+              resolve({ base64: dataUrl.split(',')[1], mimeType: 'image/jpeg' });
+            }
           };
           img.onerror = reject;
           img.src = url;
