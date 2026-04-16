@@ -9451,28 +9451,97 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           img.src = url;
         });
 
-        const response = await fetch('/.netlify/functions/baseball-boxscore', {
+        // Fetch API key and call Claude directly from browser (no Netlify timeout)
+        const keyRes = await fetch('/.netlify/functions/get-ai-key');
+        const { key: anthropicKey } = await keyRes.json();
+
+        const awayMascot = awaySchoolInfo?.mascot || '';
+        const homeMascot = homeSchoolInfo?.mascot || '';
+        const gameTown = homeSchoolInfo?.town || bbsSelectedGame.home;
+
+        const mediaType = compressedMime || bbsSelectedFile.type;
+        const msgContent = mediaType === 'application/pdf'
+          ? [{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } }, { type: 'text', text: buildBbsPrompt() }]
+          : [{ type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } }, { type: 'text', text: buildBbsPrompt() }];
+
+        function buildBbsPrompt() {
+          const gameDay = (() => { try { const d = new Date((bbsSelectedGame.date||'')+'T12:00:00'); return ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][d.getDay()]; } catch(e) { return 'Tuesday'; } })();
+          return `You are a sports data reader and AP-style reporter for Ball603.com covering NH high school baseball.
+
+TASK 1: Extract all stats from this boxscore image.
+TASK 2: Write a detailed game recap article.
+
+GAME INFO:
+- Away: ${bbsSelectedGame.away}${awayMascot ? ' ('+awayMascot+')' : ''}
+- Home: ${bbsSelectedGame.home}${homeMascot ? ' ('+homeMascot+')' : ''}
+- Location: ${gameTown}, N.H.
+- Date: ${gameDay}
+- Division: ${bbsSelectedGame.division || 'N/A'}${bbsSelectedGame.is_playoff ? ' | PLAYOFF: '+(bbsSelectedGame.round||'Playoff') : ''}
+${document.getElementById('bbsNotes').value.trim() ? '- Notes: '+document.getElementById('bbsNotes').value.trim() : ''}
+${photogs.join(' & ') ? '- Photographer: '+photogs.join(' & ') : ''}
+
+LINE SCORE EXTRACTION:
+- The line score is the compact summary at the TOP of the image showing: team | 1 2 3 4 5 6 7 | R | H | E
+- awayR, awayH, awayE, homeR, homeH, homeE come ONLY from this line score — NOT from the batting table
+- Extract only innings actually played (do not pad to 7)
+- "X" in an inning = home team did not bat, store as "X"
+- Verify: awayR matches the away final score, homeR matches home final score
+
+BATTING TABLE: Extract per-player: name, pos, AB, R, H, RBI, BB, SO
+PITCHING TABLE: Extract per-pitcher: name, IP, H, R, ER, BB, SO, decision (W/L/S)
+
+ARTICLE: AP style, past tense, 180-280 words, lead with best stat, name pitchers with their line.
+
+Respond ONLY with valid JSON:
+{"awayInnings":[],"homeInnings":[],"awayR":0,"awayH":0,"awayE":0,"homeR":0,"homeH":0,"homeE":0,"awayBatters":[{"name":"","pos":"","ab":0,"r":0,"h":0,"rbi":0,"bb":0,"so":0}],"homeBatters":[{"name":"","pos":"","ab":0,"r":0,"h":0,"rbi":0,"bb":0,"so":0}],"awayPitchers":[{"name":"","ip":"","h":0,"r":0,"er":0,"bb":0,"so":0,"decision":""}],"homePitchers":[{"name":"","ip":"","h":0,"r":0,"er":0,"bb":0,"so":0,"decision":""}],"awayNotes":"","homeNotes":"","headline":"","article":"","excerpt":""}`;
+        }
+
+        btn.textContent = '⏳ Reading boxscore...';
+        const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': anthropicKey,
+            'anthropic-version': '2023-06-01',
+            'anthropic-dangerous-direct-browser-access': 'true'
+          },
           body: JSON.stringify({
-            fileBase64: base64,
-            fileMimeType: compressedMime || bbsSelectedFile.type,
-            gameData: {
-              awayTeam: bbsSelectedGame.away,
-              homeTeam: bbsSelectedGame.home,
-              date: bbsSelectedGame.date,
-              division: bbsSelectedGame.division || '',
-              is_playoff: bbsSelectedGame.is_playoff || false,
-              round: bbsSelectedGame.round || null,
-              season: bbsSelectedGame.season || '2026'
-            },
-            notes: document.getElementById('bbsNotes').value.trim(),
-            photographerName: photogs.join(' & ') || null,
-            schoolData: { away: awaySchoolInfo, home: homeSchoolInfo }
+            model: 'claude-sonnet-4-6',
+            max_tokens: 3000,
+            messages: [{ role: 'user', content: msgContent }]
           })
         });
 
-        const data = await response.json();
+        if (!claudeRes.ok) {
+          const errText = await claudeRes.text();
+          console.error('Claude error:', errText);
+          showToast('Claude API error: ' + claudeRes.status, 'error');
+          btn.disabled = false;
+          btn.innerHTML = '&#x2728; Read Boxscore &amp; Generate Story';
+          return;
+        }
+
+        const aiData = await claudeRes.json();
+        let stats;
+        try {
+          let raw = aiData.content?.[0]?.text || '';
+          raw = raw.replace(/```json|```/g, '').trim();
+          stats = JSON.parse(raw);
+        } catch(e) {
+          console.error('Parse error:', aiData.content?.[0]?.text?.substring(0, 300));
+          showToast('Failed to parse response — check console', 'error');
+          btn.disabled = false;
+          btn.innerHTML = '&#x2728; Read Boxscore &amp; Generate Story';
+          return;
+        }
+
+        const awayInnings = stats.awayInnings || [];
+        const homeInnings = stats.homeInnings || [];
+        const awayWon = (stats.awayR||0) > (stats.homeR||0);
+        const inningHeaders = awayInnings.map((_,i) => `<th style="padding:6px 8px;text-align:center;color:#666;font-weight:500;">${i+1}</th>`).join('');
+        const scoreBoxHtml = `<table style="width:100%;border-collapse:collapse;font-size:13px;text-align:center;"><thead><tr style="border-bottom:2px solid #ddd;"><th style="text-align:left;padding:8px 10px;font-weight:600;">Team</th>${inningHeaders}<th style="padding:6px 8px;font-weight:700;border-left:2px solid #ccc;">R</th><th style="padding:6px 8px;font-weight:500;color:#666;">H</th><th style="padding:6px 8px;font-weight:500;color:#666;">E</th></tr></thead><tbody><tr><td style="text-align:left;padding:10px;font-weight:600;">${bbsSelectedGame.away}</td>${awayInnings.map(v=>`<td style="padding:8px;">${v}</td>`).join('')}<td style="padding:8px;font-weight:700;font-size:15px;border-left:2px solid #ccc;color:${awayWon?'#f57c00':'#333'}">${stats.awayR}</td><td style="padding:8px;">${stats.awayH}</td><td style="padding:8px;">${stats.awayE}</td></tr><tr style="border-top:1px solid #eee;"><td style="text-align:left;padding:10px;font-weight:600;">${bbsSelectedGame.home}</td>${homeInnings.map(v=>`<td style="padding:8px;">${v}</td>`).join('')}<td style="padding:8px;font-weight:700;font-size:15px;border-left:2px solid #ccc;color:${!awayWon?'#f57c00':'#333'}">${stats.homeR}</td><td style="padding:8px;">${stats.homeH}</td><td style="padding:8px;">${stats.homeE}</td></tr></tbody></table>`;
+
+        const data = { success: true, headline: stats.headline||'', article: stats.article||'', excerpt: stats.excerpt||'', scoreBoxHtml, stats };
 
         if (data.success) {
           bbsGeneratedData = data;
