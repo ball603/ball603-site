@@ -1294,8 +1294,8 @@ ${notes ? '- Notes: ' + notes : ''}
 ${photographerName ? '- Photographer: ' + photographerName : ''}
 
 CRITICAL EXTRACTION RULES:
-1. LINE SCORE (inning-by-inning): Look for a summary row at the TOP or BOTTOM of the boxscore that shows runs scored per inning (labeled 1,2,3,4,5,6,7 etc). This is NOT the player stats table. Extract ONLY the innings that were actually played — do NOT pad to 7 if the game ended early (e.g. a 5-inning game returns 5 values, a 6-inning game returns 6). Do NOT use AB, H, R, RBI, BB, or SO columns from the player batting table as inning scores.
-2. R/H/E: The runs (R), hits (H), and errors (E) totals for each team. R should equal the sum of awayInnings/homeInnings. If no line score is visible, set awayInnings/homeInnings to empty arrays [] and derive R from the final score.
+1. LINE SCORE (inning-by-inning): Find the summary line score row — it has numbered inning columns (1, 2, 3...) followed by R, H, E columns. Extract ONLY the runs scored per inning (the values under the numbered columns). Do NOT pad to 7 if the game ended early — a 5-inning game returns 5 values, a 6-inning game returns 6.
+2. R/H/E: These are LABELED columns in the line score header — R (total runs), H (total hits), E (total errors). Read the values from the correct labeled columns. R must match the final score. Do NOT confuse inning run values with H or E values. If the line score header shows "1 2 3 4 5 R H E", then for a 5-inning game there are exactly 5 inning values, then R, then H, then E — in that exact order. Double-check: awayR + homeR should match the game's final score.
 3. BATTING STATS: From the individual player rows — AB, R, H, RBI, BB, SO per player.
 4. PITCHING STATS: IP, H, R, ER, BB, SO per pitcher. Note W/L/Save decisions.
 5. If any data is not clearly visible, use 0 for numbers and "" for strings. Do NOT guess.
