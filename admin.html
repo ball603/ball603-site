@@ -9481,11 +9481,13 @@ ${document.getElementById('bbsNotes').value.trim() ? '- Notes: '+document.getEle
 ${photogs.join(' & ') ? '- Photographer: '+photogs.join(' & ') : ''}
 
 LINE SCORE EXTRACTION:
-- The line score is the compact summary at the TOP of the image showing: team | 1 2 3 4 5 6 7 | R | H | E
-- awayR, awayH, awayE, homeR, homeH, homeE come ONLY from this line score — NOT from the batting table
-- Extract only innings actually played (do not pad to 7)
-- "X" in an inning = home team did not bat, store as "X"
-- Verify: awayR matches the away final score, homeR matches home final score
+- The line score at the TOP shows: team abbrev | inning columns (1 2 3 4 5 6 7) | R | H | E
+- awayR, awayH, awayE, homeR, homeH, homeE come ONLY from the R/H/E columns — NEVER from the batting table
+- CRITICAL: "X" means the home team did not bat that inning (game over, home team won). The X is the LAST inning entry. Any number immediately after X in that row is the R total — NOT another inning. Do not include the R total value as an inning.
+- Example: "0 2 6 0 3 X | 11 9 0" means homeInnings=[0,2,6,0,3,"X"], homeR=11, homeH=9, homeE=0
+- The away team always bats all innings. The home team may have one fewer inning (replaced by X) if they won.
+- awayInnings and homeInnings arrays should have the same length (X counts as one entry)
+- Verify: sum of non-X inning values must equal R for each team
 
 BATTING TABLE: Extract per-player: name, pos, AB, R, H, RBI, BB, SO
 PITCHING TABLE: Extract per-pitcher: name, IP, H, R, ER, BB, SO, decision (W/L/S)
