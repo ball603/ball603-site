@@ -143,8 +143,11 @@ Respond ONLY with valid JSON (no markdown):
       raw = raw.replace(/```json|```/g, '').trim();
       stats = JSON.parse(raw);
     } catch (e) {
-      console.error('Parse error:', e, 'Raw:', aiData.content?.[0]?.text?.substring(0, 200));
-      return new Response(JSON.stringify({ error: 'Failed to parse Claude response' }), { status: 500, headers });
+      const rawText = aiData.content?.[0]?.text || '';
+      console.error('Parse error:', e.message);
+      console.error('Raw response (first 500):', rawText.substring(0, 500));
+      // Return the raw text so we can debug from the browser
+      return new Response(JSON.stringify({ error: 'Failed to parse Claude response', raw: rawText.substring(0, 300) }), { status: 500, headers });
     }
 
     const awayInnings = stats.awayInnings || [];

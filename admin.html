@@ -9432,7 +9432,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           img.onload = () => {
             URL.revokeObjectURL(url);
             // Aggressive compression — boxscore images need to be small to avoid timeout
-            const MAX = 600;
+            // Need enough resolution to read text, but not so large it times out
+            const MAX = 1200;
             let w = img.width, h = img.height;
             if (w > MAX || h > MAX) {
               if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
@@ -9441,16 +9442,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             const canvas = document.createElement('canvas');
             canvas.width = w; canvas.height = h;
             canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.60);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
             const kb = Math.round(dataUrl.length * 0.75 / 1024);
             console.log(`Compressed to ${w}x${h}, ~${kb}KB`);
-            if (kb > 500) {
-              // Try even harder
-              const dataUrl2 = canvas.toDataURL('image/jpeg', 0.40);
-              resolve({ base64: dataUrl2.split(',')[1], mimeType: 'image/jpeg' });
-            } else {
-              resolve({ base64: dataUrl.split(',')[1], mimeType: 'image/jpeg' });
-            }
+            resolve({ base64: dataUrl.split(',')[1], mimeType: 'image/jpeg' });
           };
           img.onerror = reject;
           img.src = url;
@@ -9492,7 +9487,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           document.getElementById('bbsStep2').style.display = 'none';
           document.getElementById('bbsStep3').style.display = 'block';
         } else {
-          showToast(data.error || 'Error generating story', 'error');
+          console.error('API error:', data.error, data.raw || '');
+          showToast((data.error || 'Error generating story') + (data.raw ? ': ' + data.raw.substring(0,80) : ''), 'error');
         }
       } catch (err) {
         console.error('BBS error:', err);
