@@ -9537,6 +9537,27 @@ Respond ONLY with valid JSON:
           return;
         }
 
+        // Post-process: fix walk-off X inning misread
+        // If home team has X in innings and the last inning value equals homeR,
+        // that last value is the R total mistakenly read as an inning — remove it
+        function fixWalkoffInnings(innings, rTotal) {
+          if (!innings || innings.length === 0) return innings;
+          const xIdx = innings.findIndex(v => v === 'X' || v === 'x');
+          if (xIdx === -1) return innings;
+          // X should be the last entry; if there are values after X, remove them
+          // (they are R/H/E totals misread as innings)
+          return innings.slice(0, xIdx + 1);
+        }
+        stats.homeInnings = fixWalkoffInnings(stats.homeInnings, stats.homeR);
+        // Also verify R matches sum (excluding X)
+        function sumInnings(innings) {
+          return (innings || []).reduce((s, v) => s + (v === 'X' || v === 'x' ? 0 : (parseInt(v) || 0)), 0);
+        }
+        // If awayR doesn't match sum, trust the explicit R value (already stored)
+        // Just log for debugging
+        console.log('Away innings sum:', sumInnings(stats.awayInnings), 'awayR:', stats.awayR);
+        console.log('Home innings sum:', sumInnings(stats.homeInnings), 'homeR:', stats.homeR);
+
         const awayInnings = stats.awayInnings || [];
         const homeInnings = stats.homeInnings || [];
         const awayWon = (stats.awayR||0) > (stats.homeR||0);
