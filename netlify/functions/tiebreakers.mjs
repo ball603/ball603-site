@@ -798,10 +798,12 @@ export function findTieGroups(standings, playoffSpots) {
   
   while (i < standings.length) {
     let j = i + 1;
-    // Per NHIAA: A tie occurs when teams have the same Rating (not necessarily the same W-L)
-    // Rating = total points / total games using the NHIAA Index System
+    // Per NHIAA: A tie occurs when teams have the same Rating AND same number of wins
+    // Teams with the same rating but different win totals are NOT tied —
+    // a 4-0 team ranks above a 3-0 team even at the same rating
     while (j < standings.length && 
-           Math.abs(standings[j].rating - standings[i].rating) < RATING_TOLERANCE) {
+           Math.abs(standings[j].rating - standings[i].rating) < RATING_TOLERANCE &&
+           standings[j].wins === standings[i].wins) {
       j++;
     }
     
