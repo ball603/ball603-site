@@ -61,9 +61,13 @@ async function supabaseRequest(endpoint, options = {}) {
  * Resolve tiebreakers for a given gender/division
  */
 async function resolveTiebreakersForDivision(gender, division, season, sport = 'basketball') {
-  // Get standings sorted by rating
+  // Get standings sorted by rating — filter by sport
+  // Basketball legacy rows may have sport=null so include both
+  const sportFilter = sport === 'basketball'
+    ? `or=(sport.eq.basketball,sport.is.null)`
+    : `sport=eq.${encodeURIComponent(sport)}`;
   const standings = await supabaseRequest(
-    `standings?season=eq.${season}&gender=eq.${gender}&division=eq.${division}&order=rating.desc,wins.desc,losses.asc,school.asc`,
+    `standings?season=eq.${season}&gender=eq.${gender}&division=eq.${division}&${sportFilter}&order=rating.desc,wins.desc,losses.asc,school.asc`,
     { headers: { 'Range': '0-99' } }
   );
   
