@@ -786,6 +786,27 @@
           nameVariations.push('Mascoma', 'Mascoma Valley');
         }
 
+        // Check if this team is a component of a combined team for any sport
+        // e.g. Manchester Central → combined into Central-West for baseball
+        const teamId = team.id;
+        let combinedTeamInfo = null;
+        const combinedTeams = teams.filter(t => t.combined_team === true || t.combined_team === 'true');
+        for (const ct of combinedTeams) {
+          const combinedWith = ct.combined_with || [];
+          if (combinedWith.includes(teamId)) {
+            // Find the other component team(s)
+            const otherIds = combinedWith.filter(id => id !== teamId);
+            const otherTeams = teams.filter(t => otherIds.includes(t.id));
+            const otherNames = [...new Set(otherTeams.map(t => t.shortname))];
+            combinedTeamInfo = {
+              combinedShortname: ct.shortname,
+              combinedSlug: ct.shortname.toLowerCase().replace(/[^a-z0-9]/g, ''),
+              otherTeams: otherNames
+            };
+            break;
+          }
+        }
+
         TEAM_CONFIG = {
           slug: slug,
           name: team.shortname,
@@ -804,7 +825,8 @@
           nameVariations: nameVariations,
           hasBoys: hasBoys,
           hasGirls: hasGirls,
-          isCombinedTeam: isCombinedTeam
+          isCombinedTeam: isCombinedTeam,
+          combinedTeamInfo: combinedTeamInfo
         };
 
         console.log('Loaded TEAM_CONFIG:', TEAM_CONFIG);
@@ -961,21 +983,49 @@
         if (girlsStatsGroup) girlsStatsGroup.style.display = 'none';
         if (girlsScheduleCard) girlsScheduleCard.style.display = 'none';
         if (girlsRosterCard) girlsRosterCard.style.display = 'none';
-        // Show boys
-        if (boysStatsGroup) boysStatsGroup.style.display = '';
-        if (boysScheduleCard) boysScheduleCard.style.display = '';
-        if (boysRosterCard) boysRosterCard.style.display = '';
-        
-        // Move boys roster into schedules grid for side-by-side layout
-        const schedulesGrid = document.querySelector('.schedules-grid');
-        if (schedulesGrid && boysRosterCard && !schedulesGrid.contains(boysRosterCard)) {
-          schedulesGrid.appendChild(boysRosterCard);
+
+        // Check if this team combines with others for baseball
+        const cti = TEAM_CONFIG?.combinedTeamInfo;
+        const isComponentTeam = !!cti;
+
+        // Remove any existing combined notice
+        document.getElementById('combinedTeamNotice')?.remove();
+
+        if (isComponentTeam) {
+          // Hide schedule and roster — they play under the combined team
+          if (boysStatsGroup) boysStatsGroup.style.display = 'none';
+          if (boysScheduleCard) boysScheduleCard.style.display = 'none';
+          if (boysRosterCard) boysRosterCard.style.display = 'none';
+          if (rostersSection) rostersSection.style.display = 'none';
+          if (rostersMenuItem) rostersMenuItem.style.display = 'none';
+
+          // Show notice
+          const otherList = cti.otherTeams.join(' and ');
+          const notice = document.createElement('div');
+          notice.id = 'combinedTeamNotice';
+          notice.style.cssText = 'background:#fff3e0; border:1px solid #f57c00; border-radius:8px; padding:14px 18px; margin:16px 0; font-size:14px; color:#333; line-height:1.5;';
+          notice.innerHTML = `&#9918; <strong>${TEAM_CONFIG.shortname}</strong> combines with <strong>${otherList}</strong> to form <a href="/${cti.combinedSlug}" style="color:#e65100; font-weight:600; text-decoration:none;">${cti.combinedShortname}</a> for baseball.`;
+          const schedulesSection = document.getElementById('schedules');
+          if (schedulesSection) schedulesSection.insertBefore(notice, schedulesSection.firstChild);
+        } else {
+          // Show boys normally
+          if (boysStatsGroup) boysStatsGroup.style.display = '';
+          if (boysScheduleCard) boysScheduleCard.style.display = '';
+          if (boysRosterCard) boysRosterCard.style.display = '';
+
+          // Move boys roster into schedules grid for side-by-side layout
+          const schedulesGrid = document.querySelector('.schedules-grid');
+          if (schedulesGrid && boysRosterCard && !schedulesGrid.contains(boysRosterCard)) {
+            schedulesGrid.appendChild(boysRosterCard);
+          }
+          // Hide rosters section (roster card moved to schedules grid)
+          if (rostersSection) rostersSection.style.display = 'none';
+          if (rostersMenuItem) rostersMenuItem.style.display = 'none';
         }
-        // Hide rosters section (roster card moved to schedules grid)
-        if (rostersSection) rostersSection.style.display = 'none';
-        if (rostersMenuItem) rostersMenuItem.style.display = 'none';
         // Note: NCAA box is moved to history section in renderChampionshipHistory()
       } else if (sport === 'volleyball') {
+        // Remove combined team notice if switching away from baseball
+        document.getElementById('combinedTeamNotice')?.remove();
         // Volleyball = girls only - hide boys
         if (boysStatsGroup) boysStatsGroup.style.display = 'none';
         if (boysScheduleCard) boysScheduleCard.style.display = 'none';
@@ -1004,6 +1054,8 @@
         // Restore NCAA box to features-grid if it was moved
         restoreCollegeBox();
       } else {
+        // Remove combined team notice if switching away from baseball
+        document.getElementById('combinedTeamNotice')?.remove();
         // Basketball - restore based on team gender availability
         if (girlsStatsGroup) girlsStatsGroup.style.display = '';
         if (boysStatsGroup) boysStatsGroup.style.display = '';
