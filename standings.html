@@ -1589,7 +1589,7 @@
      * The API handles all tiebreaker logic server-side for consistency
      */
     async function resolveTiebreakers() {
-      const key = `${currentGender}-${currentDivision}`;
+      const key = `${currentSport}-${currentGender}-${currentDivision}`;
       
       // Check cache first
       if (tiebreakerCache[key]) {
@@ -1879,18 +1879,12 @@
         return;
       }
       
-      // Run tiebreaker engine (async API call) — basketball only
-      if (currentSport === 'basketball') {
-        await resolveTiebreakers();
-      } else {
-        // Clear any stale tiebreaker data for non-basketball sports
-        const tbKey = `${currentGender}-${currentDivision}`;
-        tiebreakerResults[tbKey] = [];
-      }
+      // Run tiebreaker engine (async API call)
+      await resolveTiebreakers();
       
       // Build a map of team -> tieGroup for quick lookup
       const tieGroupMap = {}; // team -> tieGroup
-      const tbKey = `${currentGender}-${currentDivision}`;
+      const tbKey = `${currentSport}-${currentGender}-${currentDivision}`;
       const tieGroups = tiebreakerResults[tbKey] || [];
       tieGroups.forEach(tg => {
         tg.teams.forEach(team => {
