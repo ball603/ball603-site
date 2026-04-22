@@ -3217,8 +3217,13 @@
         return;
       }
       
-      // Sort by power rating (descending)
-      const sorted = filtered.sort((a, b) => (b.power_rating || 0) - (a.power_rating || 0));
+      // Sort by rating desc, then wins desc, then losses asc
+      const sorted = filtered.sort((a, b) => {
+        const rDiff = (b.rating || b.power_rating || 0) - (a.rating || a.power_rating || 0);
+        if (rDiff !== 0) return rDiff;
+        if (b.wins !== a.wins) return (b.wins || 0) - (a.wins || 0);
+        return (a.losses || 0) - (b.losses || 0);
+      });
       
       const standingsHtml = sorted.map((s, i) => {
         // Convert school name to URL slug (lowercase, no spaces/hyphens)

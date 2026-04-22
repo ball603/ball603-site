@@ -1866,7 +1866,11 @@
       // Filter standings by current selections
       let standings = allStandings
         .filter(s => s.gender === currentGender && s.division === currentDivision)
-        .sort((a, b) => b.rating - a.rating || b.wins - a.wins || a.losses - b.losses);
+        .sort((a, b) => {
+          if (b.rating !== a.rating) return b.rating - a.rating;
+          if (b.wins !== a.wins) return b.wins - a.wins;
+          return a.losses - b.losses;
+        });
       
       if (standings.length === 0) {
         const sportLabel = sportName.toLowerCase();
@@ -1875,8 +1879,14 @@
         return;
       }
       
-      // Run tiebreaker engine (async API call)
-      await resolveTiebreakers();
+      // Run tiebreaker engine (async API call) — basketball only
+      if (currentSport === 'basketball') {
+        await resolveTiebreakers();
+      } else {
+        // Clear any stale tiebreaker data for non-basketball sports
+        const tbKey = `${currentGender}-${currentDivision}`;
+        tiebreakerResults[tbKey] = [];
+      }
       
       // Build a map of team -> tieGroup for quick lookup
       const tieGroupMap = {}; // team -> tieGroup
@@ -1925,7 +1935,9 @@
           if (aSeed !== undefined && bSeed !== undefined) return aSeed - bSeed;
           if (aSeed !== undefined) return -1;
           if (bSeed !== undefined) return 1;
-          return b.rating - a.rating || b.wins - a.wins || a.losses - b.losses;
+          if (b.rating !== a.rating) return b.rating - a.rating;
+          if (b.wins !== a.wins) return b.wins - a.wins;
+          return a.losses - b.losses;
         });
       }
       
