@@ -4,10 +4,17 @@
 
 export default async (request, context) => {
   const url = new URL(request.url);
-  const articleId = url.searchParams.get('id');
+  
+  // Support both /article.html?id=xxx and /article/slug formats
+  let articleId = url.searchParams.get('id');
+  let articleSlug = null;
+  
+  const slugMatch = url.pathname.match(/^\/article\/(.+)$/);
+  if (slugMatch) {
+    articleSlug = slugMatch[1];
+  }
 
-  // Only intercept article pages with an ID
-  if (!articleId) {
+  if (!articleId && !articleSlug) {
     return context.next();
   }
 
@@ -43,7 +50,13 @@ export default async (request, context) => {
   }
 
   try {
-    const apiUrl = `${supabaseUrl}/rest/v1/articles?id=eq.${encodeURIComponent(articleId)}&select=title,excerpt,featured_image_url,slug,published_at&limit=1`;
+    let apiUrl;
+    if (articleSlug) {
+      // Slug may have a timestamp suffix — try exact match first, then strip suffix
+      apiUrl = `${supabaseUrl}/rest/v1/articles?slug=eq.${encodeURIComponent(articleSlug)}&select=title,excerpt,featured_image_url,slug,id&limit=1`;
+    } else {
+      apiUrl = `${supabaseUrl}/rest/v1/articles?id=eq.${encodeURIComponent(articleId)}&select=title,excerpt,featured_image_url,slug,id&limit=1`;
+    }
     const articleRes = await fetch(apiUrl, {
       headers: {
         'apikey': supabaseKey,
@@ -60,7 +73,9 @@ export default async (request, context) => {
     const title = article.title || 'Ball603';
     const description = article.excerpt || 'New Hampshire sports coverage from Ball603.com';
     const image = article.featured_image_url || 'https://ball603.com/logo.png';
-    const pageUrl = `https://ball603.com/article.html?id=${articleId}`;
+    const pageUrl = article.slug 
+      ? `https://ball603.com/article/${article.slug}`
+      : `https://ball603.com/article.html?id=${articleId}`;
 
     // Read the HTML and inject updated meta tags
     let html = await response.text();
@@ -123,5 +138,5 @@ function escapeHtml(str) {
 }
 
 export const config = {
-  path: '/article.html'
+  path: ['/article.html', '/article/*']
 };
