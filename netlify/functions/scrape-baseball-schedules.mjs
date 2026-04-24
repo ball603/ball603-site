@@ -41,6 +41,8 @@ function normalizeTeamName(name) {
     'Epping Middle High School': 'Epping',
     'Exeter High School': 'Exeter',
     'Fall Mountain Regional High School': 'Fall Mountain',
+    'Fall Mountain Reg': 'Fall Mountain',
+    'Fall Mountain Reg.': 'Fall Mountain',
     'Farmington High School': 'Farmington',
     'Franklin High School': 'Franklin',
     'Gilford High School': 'Gilford',
