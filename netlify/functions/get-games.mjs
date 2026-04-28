@@ -141,6 +141,7 @@ export default async (request) => {
       schedule_changed: game.schedule_changed ? 'YES' : '',
       photos_url: game.photos_url || '',
       recap_url: game.recap_url || '',
+      recap_link: game.recap_link || null,
       highlights_url: game.highlights_url || '',
       live_stream_url: game.live_stream_url || '',
       gamedescription: game.game_description || '',
