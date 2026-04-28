@@ -2692,6 +2692,19 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             </div>
           </div>
           
+          <!-- Linked Game Card -->
+          <div class="sidebar-card" id="linkedGameCard">
+            <h4>&#x1F517; Linked Game</h4>
+            <input type="text" id="gameSearchFilter" placeholder="Search teams or date..." oninput="renderGameSelector(this.value)" style="width:100%; padding:6px 8px; border:1px solid #ddd; border-radius:4px; font-size:12px; box-sizing:border-box; margin-bottom:8px;">
+            <div id="gameSelector" class="game-selector"></div>
+            <div id="linkedGamePreview" style="display:none; margin-top:8px; padding:8px; background:#fff8f0; border:1px solid #f57c00; border-radius:6px; font-size:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span id="linkedGameLabel" style="font-weight:600; color:#e65100;"></span>
+                <button onclick="clearLinkedGame()" style="background:none; border:none; color:#999; cursor:pointer; font-size:14px; line-height:1;">&#x2715;</button>
+              </div>
+            </div>
+          </div>
+
           <!-- Baseball Line Score Card -->
           <div class="sidebar-card" id="baseballScoreCard" style="display:none;">
             <h4>&#9918; Line Score</h4>
@@ -8254,6 +8267,26 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       }
     }
     
+    function clearLinkedGame() {
+      selectedGame = null;
+      document.getElementById('selectedGameId').value = '';
+      document.getElementById('linkedGamePreview').style.display = 'none';
+      renderGameSelector();
+    }
+
+    function updateLinkedGamePreview() {
+      const preview = document.getElementById('linkedGamePreview');
+      const label = document.getElementById('linkedGameLabel');
+      if (selectedGame) {
+        const away = selectedGame.away || selectedGame.away_team || '';
+        const home = selectedGame.home || selectedGame.home_team || '';
+        label.textContent = `${away} @ ${home} · ${selectedGame.date || ''}`;
+        preview.style.display = 'block';
+      } else {
+        preview.style.display = 'none';
+      }
+    }
+
     function autoPopulateLsTeams() {
       const card = document.getElementById('baseballScoreCard');
       if (!card || card.style.display === 'none') return;
@@ -8309,6 +8342,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('selectedGameId').value = gameId;
       selectedGame = games.find(g => g.game_id === gameId) || null;
       autoPopulateLsTeams();
+      updateLinkedGamePreview();
       renderGameSelector();
     }
     
@@ -10584,6 +10618,7 @@ Respond ONLY with valid JSON:
       document.getElementById('articleExcerpt').value = '';
       document.getElementById('selectedGameId').value = '';
       selectedGame = null;
+      if (typeof updateLinkedGamePreview === 'function') updateLinkedGamePreview();
       document.getElementById('smugmugUrl').value = '';
       document.getElementById('smugmugThumbUrl').value = '';
       document.getElementById('youtubeUrl').value = '';
@@ -10821,6 +10856,13 @@ Respond ONLY with valid JSON:
       
       // Handle game data (quarter scores, player stats)
       currentGameData = article.game_data || null;
+      // Restore linked game from article
+      if (article.game_id) {
+        selectedGame = (games || []).find(g => g.game_id === article.game_id) || null;
+      } else {
+        selectedGame = null;
+      }
+      updateLinkedGamePreview();
       // Populate baseball line score card if applicable
       clearLsCard();
       if (article.sport === 'baseball') {
@@ -11990,6 +12032,7 @@ Respond ONLY with valid JSON:
         const smugmugThumbUrl = document.getElementById('smugmugThumbUrl').value || null;
         
         gameUpdate.recap_url = articleUrl;
+        gameUpdate.recap_link = `/article/${slug}`;
         if (smugmugUrl) gameUpdate.photos_url = smugmugUrl;
         if (smugmugThumbUrl) gameUpdate.photos_thumb_url = smugmugThumbUrl;
         if (youtubeUrl) gameUpdate.highlights_url = youtubeUrl;
