@@ -1341,8 +1341,9 @@
             const isHome = matchesTeamName(g.home, teamNames);
             const opponent = isHome ? g.away : g.home;
             const normalizedOpp = normalizeForDedupe(opponent);
-            // Create unique key: date + normalized opponent only
-            const key = `${g.date}|${normalizedOpp}`;
+            // For doubleheaders, game_id includes _g2/_g3 suffix making it unique
+            // Use game_id if available, otherwise fall back to date+opponent
+            const key = g.game_id || `${g.date}|${normalizedOpp}`;
             if (seen.has(key)) {
               console.log('Deduped game:', g.date, opponent, '(key:', key, ')');
               return false;
