@@ -2695,7 +2695,12 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           <!-- Linked Game Card -->
           <div class="sidebar-card" id="linkedGameCard">
             <h4>&#x1F517; Linked Game</h4>
-            <input type="text" id="gameSearchFilter" placeholder="Search teams or date..." oninput="renderGameSelector(this.value)" style="width:100%; padding:6px 8px; border:1px solid #ddd; border-radius:4px; font-size:12px; box-sizing:border-box; margin-bottom:8px;">
+            <div style="display:flex; align-items:center; gap:4px; margin-bottom:6px;">
+              <button onclick="gameSelectorPrevDay()" style="background:#fff; border:1px solid #ddd; border-radius:4px; padding:4px 8px; cursor:pointer; font-size:13px;">&lt;</button>
+              <span id="gameSelectorDateLabel" style="flex:1; text-align:center; font-size:12px; font-weight:600; color:#333;"></span>
+              <button onclick="gameSelectorNextDay()" style="background:#fff; border:1px solid #ddd; border-radius:4px; padding:4px 8px; cursor:pointer; font-size:13px;">&gt;</button>
+            </div>
+            <input type="text" id="gameSearchFilter" placeholder="Search teams..." oninput="renderGameSelector(this.value)" style="width:100%; padding:6px 8px; border:1px solid #ddd; border-radius:4px; font-size:12px; box-sizing:border-box; margin-bottom:8px;">
             <div id="gameSelector" class="game-selector"></div>
             <div id="linkedGamePreview" style="display:none; margin-top:8px; padding:8px; background:#fff8f0; border:1px solid #f57c00; border-radius:6px; font-size:12px;">
               <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -8299,19 +8304,42 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       }
     }
 
+    let gameSelectorDate = new Date();
+
+    function gameSelectorPrevDay() {
+      gameSelectorDate.setDate(gameSelectorDate.getDate() - 1);
+      renderGameSelectorDateLabel();
+      renderGameSelector(document.getElementById('gameSearchFilter')?.value || '');
+    }
+
+    function gameSelectorNextDay() {
+      gameSelectorDate.setDate(gameSelectorDate.getDate() + 1);
+      renderGameSelectorDateLabel();
+      renderGameSelector(document.getElementById('gameSearchFilter')?.value || '');
+    }
+
+    function renderGameSelectorDateLabel() {
+      const el = document.getElementById('gameSelectorDateLabel');
+      if (!el) return;
+      const opts = { weekday: 'short', month: 'short', day: 'numeric' };
+      el.textContent = gameSelectorDate.toLocaleDateString('en-US', opts);
+    }
+
     function renderGameSelector(filter = '') {
       const selector = document.getElementById('gameSelector');
       if (!selector) return; // Element doesn't exist on this page/state
       
+      const dateStr = gameSelectorDate.toLocaleDateString('en-CA'); // YYYY-MM-DD
       let filtered = games.filter(g => {
+        if (g.date !== dateStr) return false;
         if (filter) {
           const search = filter.toLowerCase();
-          return g.away?.toLowerCase().includes(search) || 
+          return g.away?.toLowerCase().includes(search) ||
                  g.home?.toLowerCase().includes(search) ||
                  g.round?.toLowerCase().includes(search);
         }
         return true;
-      }).slice(0, 30);
+      }).slice(0, 50);
       
       if (filtered.length === 0) {
         selector.innerHTML = '<div style="padding: 10px; color: #999;">No games found</div>';
@@ -10618,6 +10646,8 @@ Respond ONLY with valid JSON:
       document.getElementById('articleExcerpt').value = '';
       document.getElementById('selectedGameId').value = '';
       selectedGame = null;
+      gameSelectorDate = new Date();
+      renderGameSelectorDateLabel();
       if (typeof updateLinkedGamePreview === 'function') updateLinkedGamePreview();
       document.getElementById('smugmugUrl').value = '';
       document.getElementById('smugmugThumbUrl').value = '';
@@ -10856,6 +10886,8 @@ Respond ONLY with valid JSON:
       
       // Handle game data (quarter scores, player stats)
       currentGameData = article.game_data || null;
+      gameSelectorDate = new Date();
+      renderGameSelectorDateLabel();
       // Restore linked game from article
       if (article.game_id) {
         selectedGame = (games || []).find(g => g.game_id === article.game_id) || null;
