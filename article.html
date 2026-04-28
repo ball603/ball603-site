@@ -2050,6 +2050,12 @@
       // Helper: build baseball line score HTML from game_data
       function buildBaseballLineScore(gd, sportParam, inSection) {
         if (!gd || gd.sport !== 'baseball') return '';
+        // Don't render if all values are zero or empty
+        const allZeroOrEmpty = (gd.awayR || 0) === 0 && (gd.homeR || 0) === 0 &&
+          (gd.awayH || 0) === 0 && (gd.homeH || 0) === 0 &&
+          (!gd.awayInnings || gd.awayInnings.every(v => !v || v === 0)) &&
+          (!gd.homeInnings || gd.homeInnings.every(v => !v || v === 0));
+        if (allZeroOrEmpty) return '';
         const awayWins = (gd.awayR || 0) > (gd.homeR || 0);
         const homeWins = (gd.homeR || 0) > (gd.awayR || 0);
         const innings = gd.awayInnings || [];

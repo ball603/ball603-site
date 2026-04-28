@@ -2611,6 +2611,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           </div>
           
           <input type="hidden" id="selectedGameId">
+          <input type="hidden" id="selectedGameIds" value="[]">
           
           <div class="sidebar-card">
             <h4>&#x270D;&#xFE0F; Author</h4>
@@ -8274,7 +8275,9 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     
     function clearLinkedGame() {
       selectedGame = null;
+      selectedGameIds = [];
       document.getElementById('selectedGameId').value = '';
+      document.getElementById('selectedGameIds').value = '[]';
       document.getElementById('linkedGamePreview').style.display = 'none';
       renderGameSelector();
     }
@@ -8282,10 +8285,14 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     function updateLinkedGamePreview() {
       const preview = document.getElementById('linkedGamePreview');
       const label = document.getElementById('linkedGameLabel');
-      if (selectedGame) {
-        const away = selectedGame.away || selectedGame.away_team || '';
-        const home = selectedGame.home || selectedGame.home_team || '';
-        label.textContent = `${away} @ ${home} · ${selectedGame.date || ''}`;
+      if (selectedGameIds.length > 0) {
+        const linkedGames = selectedGameIds.map(id => games.find(g => g.game_id === id)).filter(Boolean);
+        label.innerHTML = linkedGames.map((g, i) => {
+          const away = g.away || g.away_team || '';
+          const home = g.home || g.home_team || '';
+          const star = i === 0 ? '★ ' : '✓ ';
+          return `<div style="font-size:11px; ${i > 0 ? 'color:#555; font-weight:400;' : ''}">${star}${away} @ ${home} · ${g.date || ''}</div>`;
+        }).join('');
         preview.style.display = 'block';
       } else {
         preview.style.display = 'none';
@@ -8352,11 +8359,16 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         const seedInfo = isPlayoff && (g.away_seed || g.home_seed) ? 
           `#${g.away_seed || '?'} vs #${g.home_seed || '?'}` : '';
         
+        const isSelected = selectedGameIds.includes(g.game_id);
+        const isPrimary = selectedGameIds[0] === g.game_id;
         return `
-        <div class="game-option ${g.game_id === document.getElementById('selectedGameId').value ? 'selected' : ''}" 
+        <div class="game-option ${isSelected ? 'selected' : ''}"
              onclick="selectGame('${g.game_id}', '${(g.away || 'TBD')} @ ${(g.home || 'TBD')}')"
-             style="${isPlayoff ? 'background: #fff8f0; border-left: 3px solid #f57c00;' : ''}">
-          <div class="teams">${playoffBadge}${g.away || 'TBD'} @ ${g.home || 'TBD'}</div>
+             style="${isPlayoff ? 'background: #fff8f0; border-left: 3px solid #f57c00;' : ''}${isSelected ? 'border-left: 3px solid #2e7d32;' : ''}">
+          <div class="teams" style="display:flex; align-items:center; gap:6px;">
+            ${isSelected ? `<span style="color:#2e7d32; font-weight:700; font-size:13px;">${isPrimary ? '★' : '✓'}</span>` : ''}
+            ${playoffBadge}${g.away || 'TBD'} @ ${g.home || 'TBD'}
+          </div>
           <div class="meta">${g.date} &bull; ${g.gender} ${g.division || ''} ${seedInfo}</div>
         </div>
       `}).join('');
@@ -8366,9 +8378,20 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       renderGameSelector(value);
     }
     
+    let selectedGameIds = [];
+
     function selectGame(gameId, label) {
-      document.getElementById('selectedGameId').value = gameId;
-      selectedGame = games.find(g => g.game_id === gameId) || null;
+      const idx = selectedGameIds.indexOf(gameId);
+      if (idx > -1) {
+        selectedGameIds.splice(idx, 1);
+      } else {
+        selectedGameIds.push(gameId);
+      }
+      // Primary game = first selected
+      const primaryId = selectedGameIds[0] || '';
+      document.getElementById('selectedGameId').value = primaryId;
+      document.getElementById('selectedGameIds').value = JSON.stringify(selectedGameIds);
+      selectedGame = primaryId ? (games.find(g => g.game_id === primaryId) || null) : null;
       autoPopulateLsTeams();
       updateLinkedGamePreview();
       renderGameSelector();
@@ -10645,7 +10668,9 @@ Respond ONLY with valid JSON:
       setEditorContent(''); // Clear editor
       document.getElementById('articleExcerpt').value = '';
       document.getElementById('selectedGameId').value = '';
+      document.getElementById('selectedGameIds').value = '[]';
       selectedGame = null;
+      selectedGameIds = [];
       gameSelectorDate = new Date();
       renderGameSelectorDateLabel();
       if (typeof updateLinkedGamePreview === 'function') updateLinkedGamePreview();
@@ -10888,12 +10913,15 @@ Respond ONLY with valid JSON:
       currentGameData = article.game_data || null;
       gameSelectorDate = new Date();
       renderGameSelectorDateLabel();
-      // Restore linked game from article
+      // Restore linked game(s) from article
       if (article.game_id) {
         selectedGame = (games || []).find(g => g.game_id === article.game_id) || null;
+        selectedGameIds = article.game_ids ? JSON.parse(article.game_ids) : (article.game_id ? [article.game_id] : []);
       } else {
         selectedGame = null;
+        selectedGameIds = [];
       }
+      document.getElementById('selectedGameIds').value = JSON.stringify(selectedGameIds);
       updateLinkedGamePreview();
       // Populate baseball line score card if applicable
       clearLsCard();
@@ -12065,6 +12093,15 @@ Respond ONLY with valid JSON:
         
         gameUpdate.recap_url = articleUrl;
         gameUpdate.recap_link = `/article/${slug}`;
+        // Also write recap_link to any additional linked games
+        const allLinkedIds = JSON.parse(document.getElementById('selectedGameIds')?.value || '[]');
+        for (const extraId of allLinkedIds) {
+          if (extraId !== gameId) {
+            db.from('games').update({ recap_link: `/article/${slug}`, recap_url: articleUrl })
+              .eq('game_id', extraId)
+              .catch(e => console.error('recap_link update failed for', extraId, e));
+          }
+        }
         if (smugmugUrl) gameUpdate.photos_url = smugmugUrl;
         if (smugmugThumbUrl) gameUpdate.photos_thumb_url = smugmugThumbUrl;
         if (youtubeUrl) gameUpdate.highlights_url = youtubeUrl;
