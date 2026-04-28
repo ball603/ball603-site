@@ -338,13 +338,26 @@ function parseSchedulePage(html, gender, division) {
       const genderCode = gender === 'Boys' ? 'b' : 'g';
       const dateStr = isoDate.replace(/-/g, '');
       const baseGameId = `nhiaa_${sortedTeams[0]}_${genderCode}_${dateStr}_${sortedTeams[1]}`;
-      // Handle doubleheaders: if same base ID already used, append _g2, _g3 etc.
+      // Handle same game seen from both teams vs true doubleheader
       let gameId = baseGameId;
-      const existingIds = games.map(g => g.game_id);
-      if (existingIds.includes(baseGameId)) {
-        let n = 2;
-        while (existingIds.includes(`${baseGameId}_g${n}`)) n++;
-        gameId = `${baseGameId}_g${n}`;
+      const existingWithSameId = games.filter(g => g.game_id === baseGameId || g.game_id.startsWith(baseGameId + '_g'));
+      if (existingWithSameId.some(g => g.game_id === baseGameId)) {
+        // Base ID exists — check if it's the same game or a true doubleheader
+        const existing = existingWithSameId.find(g => g.game_id === baseGameId);
+        // Primary check: different scheduled times = true doubleheader
+        const hasTime = time && time !== 'FINAL' && time !== 'TBD' && time !== '';
+        const existingHasTime = existing.time && existing.time !== 'FINAL' && existing.time !== 'TBD' && existing.time !== '';
+        const differentTimes = hasTime && existingHasTime && time !== existing.time;
+        if (differentTimes) {
+          // Different times = true doubleheader
+          let n = 2;
+          while (existingWithSameId.some(g => g.game_id === `${baseGameId}_g${n}`)) n++;
+          gameId = `${baseGameId}_g${n}`;
+        } else {
+          // Same or unknown time = same game seen from other team's schedule
+          // Reuse base ID so dedup keeps the best version
+          gameId = baseGameId;
+        }
       }
       
       games.push({
