@@ -14550,7 +14550,16 @@ Respond ONLY with valid JSON:
         const genderCode = gameData.gender === 'Boys' ? 'b' : gameData.gender === 'Girls' ? 'g' : gameData.gender === 'Men' ? 'm' : 'w';
         const dateStr = gameData.date.replace(/-/g, '');
         const levelPrefix = gameData.level === 'NHIAA' ? 'nhiaa' : gameData.level === 'College' ? 'college' : 'prep';
-        gameData.game_id = `${levelPrefix}_${homeSlug}_${genderCode}_${dateStr}_${awaySlug}`;
+        const baseGameId = `${levelPrefix}_${homeSlug}_${genderCode}_${dateStr}_${awaySlug}`;
+        // Check if this game_id already exists (doubleheader) — append _g2, _g3 etc.
+        const existingIds = (games || []).map(g => g.game_id);
+        if (existingIds.includes(baseGameId)) {
+          let n = 2;
+          while (existingIds.includes(`${baseGameId}_g${n}`)) n++;
+          gameData.game_id = `${baseGameId}_g${n}`;
+        } else {
+          gameData.game_id = baseGameId;
+        }
       }
       
       try {
