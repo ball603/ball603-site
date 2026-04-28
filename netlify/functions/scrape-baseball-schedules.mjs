@@ -337,7 +337,15 @@ function parseSchedulePage(html, gender, division) {
       const sortedTeams = [team1, team2].sort();
       const genderCode = gender === 'Boys' ? 'b' : 'g';
       const dateStr = isoDate.replace(/-/g, '');
-      const gameId = `nhiaa_${sortedTeams[0]}_${genderCode}_${dateStr}_${sortedTeams[1]}`;
+      const baseGameId = `nhiaa_${sortedTeams[0]}_${genderCode}_${dateStr}_${sortedTeams[1]}`;
+      // Handle doubleheaders: if same base ID already used, append _g2, _g3 etc.
+      let gameId = baseGameId;
+      const existingIds = games.map(g => g.game_id);
+      if (existingIds.includes(baseGameId)) {
+        let n = 2;
+        while (existingIds.includes(`${baseGameId}_g${n}`)) n++;
+        gameId = `${baseGameId}_g${n}`;
+      }
       
       games.push({
         game_id: gameId,
@@ -568,6 +576,14 @@ async function cleanupDuplicates() {
       const dateStr = sampleGame.date.replace(/-/g, '');
       const correctGameId = `nhiaa_${sortedTeams[0]}_${genderCode}_${dateStr}_${sortedTeams[1]}`;
       
+      // If ALL games in this group have distinct _g2/_g3 suffixes, they're intentional doubleheaders
+      const isDoubleheader = gameGroup.length > 1 && 
+        gameGroup.every(g => g.game_id && (g.game_id === correctGameId || g.game_id.match(/_g\d+$/)));
+      if (isDoubleheader) {
+        // All games are legitimate doubleheader entries — skip duplicate processing
+        continue;
+      }
+
       if (gameGroup.length > 1) {
         // DUPLICATES FOUND
         console.log(`  Found ${gameGroup.length} duplicates for: ${key}`);
