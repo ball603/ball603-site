@@ -14040,13 +14040,16 @@ Respond ONLY with valid JSON:
         return;
       }
       
-      const { error } = await db
-        .from('contributors')
-        .update(updateData)
-        .eq('id', id);
+      // Use service key function to bypass RLS
+      const res = await fetch('/.netlify/functions/save-contributor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, updateData })
+      });
+      const result = await res.json();
       
-      if (error) {
-        showToast('Error saving contributor', 'error');
+      if (!res.ok || !result.success) {
+        showToast('Error saving contributor: ' + (result.error || 'Unknown error'), 'error');
         return;
       }
       
