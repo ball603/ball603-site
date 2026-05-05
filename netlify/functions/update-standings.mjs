@@ -3,6 +3,25 @@
 // Called after manual score entry or on demand
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
+
+// Normalize team names to canonical form (matches scraper normalization)
+function normalizeTeamName(name) {
+  if (!name) return name;
+  const normalizations = {
+    'Man. Central-Man. West': 'Central-West',
+    'Manchester Central-Manchester West': 'Central-West',
+    'Manchester Central/West': 'Central-West',
+    'Mascoma Valley': 'Mascoma',
+    'Mascoma Valley Regional High School': 'Mascoma',
+    'Manchester Central High School': 'Manchester Central',
+    'Manchester Memorial High School': 'Manchester Memorial',
+    'Manchester West High School': 'Manchester West',
+    'Fall Mountain Regional High School': 'Fall Mountain',
+    'Fall Mountain Reg': 'Fall Mountain',
+    'Fall Mountain Reg.': 'Fall Mountain',
+  };
+  return normalizations[name] || name;
+}
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
 // No team name mapping needed - both games and standings tables
@@ -75,8 +94,8 @@ export default async (request) => {
       if (game.home_score === null || game.away_score === null) continue;
       
       // Team names already normalized at scrape time
-      const homeTeam = game.home_team;
-      const awayTeam = game.away_team;
+      const homeTeam = normalizeTeamName(game.home_team);
+      const awayTeam = normalizeTeamName(game.away_team);
       const homeScore = parseInt(game.home_score);
       const awayScore = parseInt(game.away_score);
       const gender = game.gender;
