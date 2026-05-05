@@ -1420,7 +1420,12 @@
         let wins = 0, losses = 0;
         let lastResult = null, nextGame = null;
         
-        games.sort((a, b) => new Date(a.date) - new Date(b.date));
+        games.sort((a, b) => {
+          const dateDiff = new Date(a.date) - new Date(b.date);
+          if (dateDiff !== 0) return dateDiff;
+          const pt = t => { if (!t || t==='FINAL'||t==='TBD'||t==='TBA') return 9999; const m=t.match(/(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?/i); if (!m) return 9998; let h=parseInt(m[1]),min=parseInt(m[2]||'0'); if ((m[3]||'').toUpperCase()==='PM'&&h!==12) h+=12; if ((m[3]||'').toUpperCase()==='AM'&&h===12) h=0; return h*60+min; };
+          return pt(a.time) - pt(b.time);
+        });
         
         games.forEach(g => {
           const gameDate = new Date(g.date + 'T12:00:00-05:00'); gameDate.setHours(0, 0, 0, 0);
@@ -1481,7 +1486,12 @@
       
       const teamNames = TEAM_CONFIG.nameVariations;
       const isThisTeam = (name) => teamNames.some(n => n && name?.includes(n));
-      games.sort((a, b) => new Date(a.date) - new Date(b.date));
+      games.sort((a, b) => {
+      const dateDiff = new Date(a.date) - new Date(b.date);
+      if (dateDiff !== 0) return dateDiff;
+      const pt = t => { if (!t || t==='FINAL'||t==='TBD'||t==='TBA') return 9999; const m=t.match(/(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?/i); if (!m) return 9998; let h=parseInt(m[1]),min=parseInt(m[2]||'0'); if ((m[3]||'').toUpperCase()==='PM'&&h!==12) h+=12; if ((m[3]||'').toUpperCase()==='AM'&&h===12) h=0; return h*60+min; };
+      return pt(a.time) - pt(b.time);
+        });
       
       let wins = 0, losses = 0;
       const completedGames = [], upcomingGames = [];
