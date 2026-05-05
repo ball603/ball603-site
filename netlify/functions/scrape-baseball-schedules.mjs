@@ -350,9 +350,19 @@ function parseSchedulePage(html, gender, division) {
         const differentTimes = hasTime && existingHasTime && time !== existing.time;
         if (differentTimes) {
           // Different times = true doubleheader
-          let n = 2;
-          while (existingWithSameId.some(g => g.game_id === `${baseGameId}_g${n}`)) n++;
-          gameId = `${baseGameId}_g${n}`;
+          // First check if a _g2/_g3 entry already exists with the SAME time (same game seen again)
+          const sameTimeEntry = existingWithSameId.find(g =>
+            g.game_id !== baseGameId && g.time === time
+          );
+          if (sameTimeEntry) {
+            // Same time already exists — reuse that ID (same game from other team's schedule)
+            gameId = sameTimeEntry.game_id;
+          } else {
+            // Genuinely new time = new doubleheader game
+            let n = 2;
+            while (existingWithSameId.some(g => g.game_id === `${baseGameId}_g${n}`)) n++;
+            gameId = `${baseGameId}_g${n}`;
+          }
         } else {
           // Same or unknown time = same game seen from other team's schedule
           // Reuse base ID so dedup keeps the best version
