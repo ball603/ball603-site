@@ -179,6 +179,27 @@ export default async (request) => {
       console.log(`  Zeroed standings for sport=${sport}: ${zeroResp.status}`);
     }
 
+    // Step 3c: Delete any standings rows with un-normalized team names
+    // (created by old scraper versions before normalization was added)
+    const badNames = [
+      'Man. Central-Man. West', 'Manchester Central-Manchester West', 'Manchester Central/West',
+      'Mascoma Valley', 'Mascoma Valley Regional High School',
+      'Fall Mountain Reg', 'Fall Mountain Reg.', 'Fall Mountain Regional High School'
+    ];
+    for (const badName of badNames) {
+      await fetch(
+        `${SUPABASE_URL}/rest/v1/standings?school=eq.${encodeURIComponent(badName)}&sport=not.eq.basketball`,
+        {
+          method: 'DELETE',
+          headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
+            'Prefer': 'return=minimal'
+          }
+        }
+      );
+    }
+
     // Step 4: Update standings table with calculated records
     const now = new Date().toISOString();
     let updatedCount = 0;
