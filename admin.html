@@ -14682,6 +14682,20 @@ Respond ONLY with valid JSON:
         // Check if this game_id already exists (doubleheader) — append _g2, _g3 etc.
         const existingIds = (games || []).map(g => g.game_id);
         if (existingIds.includes(baseGameId)) {
+          const existing = (games || []).find(g => g.game_id === baseGameId);
+          const aScore = existing?.away_score ?? '-';
+          const hScore = existing?.home_score ?? '-';
+          const isDH = confirm(
+            `A game already exists for this matchup on this date:\n\n` +
+            `  ${existing.away_team} ${aScore} @ ${existing.home_team} ${hScore}\n\n` +
+            `Is this a DOUBLEHEADER (a separate, second game played the same day)?\n\n` +
+            `OK = Create as doubleheader Game 2 (_g2)\n` +
+            `Cancel = Stop saving (edit the existing game from the list instead)`
+          );
+          if (!isDH) {
+            showToast('Save cancelled. Edit the existing game from the list.', 'warning');
+            return;
+          }
           let n = 2;
           while (existingIds.includes(`${baseGameId}_g${n}`)) n++;
           gameData.game_id = `${baseGameId}_g${n}`;
