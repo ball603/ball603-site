@@ -476,6 +476,77 @@ async function updateRecordsFromGames() {
   return updatedCount;
 }
 
+// Delete standings rows for this sport/season whose school name isn't in the
+// freshly-scraped set. Scoped per (gender, division) so a failed scrape of one
+// division doesn't wipe out data from another. Only runs for divisions that
+// successfully returned at least one row in this scrape.
+async function cleanupStaleStandings(freshStandings) {
+  console.log('Step 1.5: Cleaning up stale standings rows...');
+  
+  // Group fresh schools by gender+division
+  const freshByDivision = new Map();
+  for (const s of freshStandings) {
+    const key = `${s.gender}|${s.division}`;
+    if (!freshByDivision.has(key)) freshByDivision.set(key, new Set());
+    freshByDivision.get(key).add(s.school);
+  }
+  
+  // Fetch existing rows for this sport/season
+  const existingResponse = await fetch(
+    `${SUPABASE_URL}/rest/v1/standings?select=school,gender,division&sport=eq.${SPORT}&season=eq.${SEASON}`,
+    {
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Range': '0-9999'
+      }
+    }
+  );
+  
+  if (!existingResponse.ok) {
+    console.error('  Failed to fetch existing standings for cleanup');
+    return 0;
+  }
+  
+  const existing = await existingResponse.json();
+  let deleted = 0;
+  
+  for (const row of existing) {
+    const key = `${row.gender}|${row.division}`;
+    const freshSet = freshByDivision.get(key);
+    
+    // Safety net: only delete from divisions that the scrape returned data for.
+    // If a division failed to scrape, leave its old data alone.
+    if (!freshSet) continue;
+    if (freshSet.has(row.school)) continue;
+    
+    const deleteUrl = `${SUPABASE_URL}/rest/v1/standings` +
+      `?school=eq.${encodeURIComponent(row.school)}` +
+      `&gender=eq.${encodeURIComponent(row.gender)}` +
+      `&division=eq.${encodeURIComponent(row.division)}` +
+      `&sport=eq.${SPORT}` +
+      `&season=eq.${SEASON}`;
+    
+    const delResponse = await fetch(deleteUrl, {
+      method: 'DELETE',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`
+      }
+    });
+    
+    if (delResponse.ok) {
+      deleted++;
+      console.log(`  Deleted stale row: ${row.school} (${row.gender} ${row.division})`);
+    } else {
+      console.error(`  Failed to delete stale row ${row.school}: ${delResponse.status}`);
+    }
+  }
+  
+  console.log(`  Removed ${deleted} stale standings rows`);
+  return deleted;
+}
+
 export default async (request) => {
   console.log('Ball603 Baseball Standings Scraper - Starting...');
   
@@ -496,6 +567,10 @@ export default async (request) => {
     
     const rowCount = await updateSupabase(allStandings);
     
+    // Remove any stale rows (e.g. from prior name-normalization fixes) so the
+    // standings table only contains teams from this run's scrape.
+    const staleDeleted = await cleanupStaleStandings(allStandings);
+    
     // Now update W-L records from our games table
     console.log('Step 2: Updating W-L records from baseball games...');
     const recordsUpdated = await updateRecordsFromGames();
@@ -504,6 +579,7 @@ export default async (request) => {
       success: true,
       teamsScraped: allStandings.length,
       recordsUpdated: recordsUpdated,
+      staleRowsDeleted: staleDeleted,
       timestamp: new Date().toISOString()
     }), { status: 200 });
     
