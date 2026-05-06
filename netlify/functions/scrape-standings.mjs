@@ -24,15 +24,106 @@ async function isScraperActive() {
   }
 }
 
-// Normalize team names to match games table
+// Normalize team names to match games table (mirrors scrape-baseball-schedules.mjs)
 function normalizeTeamName(name) {
+  if (!name) return name;
   const normalizations = {
+    'Alvirne High School': 'Alvirne',
+    'Bedford High School': 'Bedford',
+    'Belmont High School': 'Belmont',
+    'Berlin Middle High School': 'Berlin',
+    'Bishop Brady High School': 'Bishop Brady',
+    'Bishop Guertin High School': 'Bishop Guertin',
+    'Bow High School': 'Bow',
+    'Campbell High School': 'Campbell',
     'Coe-Brown Northwood': 'Coe-Brown',
     'Coe-Brown Northwood Academy': 'Coe-Brown',
+    'Colebrook Academy': 'Colebrook',
+    'ConVal Regional High School': 'ConVal',
+    'Conant Middle High School': 'Conant',
+    'Concord Christian Academy': 'Concord Christian',
+    'Concord High School': 'Concord',
+    'Derryfield School': 'Derryfield',
+    'Dover High School': 'Dover',
+    'Epping Middle High School': 'Epping',
+    'Exeter High School': 'Exeter',
+    'Fall Mountain Regional High School': 'Fall Mountain',
+    'Fall Mountain Reg': 'Fall Mountain',
+    'Fall Mountain Reg.': 'Fall Mountain',
+    'Farmington High School': 'Farmington',
+    'Franklin High School': 'Franklin',
+    'Gilford High School': 'Gilford',
+    'Goffstown High School': 'Goffstown',
+    'Gorham High School': 'Gorham',
+    'Groveton High School': 'Groveton',
+    'Hanover High School': 'Hanover',
+    'Hillsboro-Deering High School': 'Hillsboro-Deering',
+    'Hinsdale High School': 'Hinsdale',
+    'Hollis-Brookline High School': 'Hollis-Brookline',
+    'Holy Family Academy': 'Holy Family',
+    'Hopkinton Middle High School': 'Hopkinton',
+    'Inter-Lakes Middle High School': 'Inter-Lakes',
+    'John Stark Regional High School': 'John Stark',
+    'Kearsarge Regional High School': 'Kearsarge',
+    'Keene High School': 'Keene',
+    'Kennett High School': 'Kennett',
+    'Kingswood Regional High School': 'Kingswood',
+    'Laconia High School': 'Laconia',
+    'Lebanon High School': 'Lebanon',
+    'Lin-Wood Public School': 'Lin-Wood',
+    'Lisbon Regional School': 'Lisbon',
+    'Littleton High School': 'Littleton',
+    'Londonderry High School': 'Londonderry',
+    'Manchester Central High School': 'Manchester Central',
+    'Manchester Memorial High School': 'Manchester Memorial',
+    'Manchester West High School': 'Manchester West',
+    'Man. Central-Man. West': 'Central-West',
+    'Manchester Central-Manchester West': 'Central-West',
+    'Manchester Central/West': 'Central-West',
+    'Mascenic Regional High School': 'Mascenic',
     'Mascoma Valley': 'Mascoma',
     'Mascoma Valley Regional High School': 'Mascoma',
-    'Man. Central-Man. West': 'Central-West',
-    'Manchester Central-Manchester West': 'Central-West'
+    'Merrimack High School': 'Merrimack',
+    'Merrimack Valley High School': 'Merrimack Valley',
+    'Milford High School': 'Milford',
+    'Monadnock Regional High School': 'Monadnock',
+    'Moultonborough Academy': 'Moultonborough',
+    'Mount Royal Academy': 'Mount Royal',
+    'Nashua High School North': 'Nashua North',
+    'Nashua High School South': 'Nashua South',
+    'Newfound Regional High School': 'Newfound',
+    'Newmarket Jr/Sr': 'Newmarket',
+    'Newmarket Senior High School': 'Newmarket',
+    'Newport High School': 'Newport',
+    'Nute High School': 'Nute',
+    'Oyster River High School': 'Oyster River',
+    'Pelham High School': 'Pelham',
+    'Pembroke Academy': 'Pembroke',
+    'Pinkerton Academy': 'Pinkerton',
+    'Pittsburg High School': 'Pittsburg',
+    'Pittsburg-Canaan': 'Pittsburg-Canaan',
+    'Plymouth Regional High School': 'Plymouth',
+    'Portsmouth Christian Academy': 'Portsmouth Christian',
+    'Portsmouth High School': 'Portsmouth',
+    'Profile School': 'Profile',
+    'Prospect Mountain High School': 'Prospect Mountain',
+    'Raymond High School': 'Raymond',
+    'Saint Thomas Aquinas High School': 'St. Thomas Aquinas',
+    'Salem High School': 'Salem',
+    'Sanborn Regional High School': 'Sanborn',
+    'Somersworth High School': 'Somersworth',
+    'Souhegan High School': 'Souhegan',
+    'Spaulding High School': 'Spaulding',
+    'Stevens High School': 'Stevens',
+    'Sunapee High School': 'Sunapee',
+    'Timberlane Regional High School': 'Timberlane',
+    'Trinity High School': 'Trinity',
+    'White Mountains Regional High School': 'White Mountains',
+    'Wilton-Lyndeborough High School': 'Wilton-Lyndeborough',
+    'Windham High School': 'Windham',
+    'Winnacunnet High School': 'Winnacunnet',
+    'Winnisquam Regional High School': 'Winnisquam',
+    'Woodsville High School': 'Woodsville',
   };
   return normalizations[name] || name;
 }
@@ -363,6 +454,77 @@ async function updateRecordsFromGames() {
   return updatedCount;
 }
 
+// Delete standings rows for this sport/season whose school name isn't in the
+// freshly-scraped set. Scoped per (gender, division) so a failed scrape of one
+// division doesn't wipe out data from another. Only runs for divisions that
+// successfully returned at least one row in this scrape.
+async function cleanupStaleStandings(freshStandings) {
+  console.log('Step 1.5: Cleaning up stale standings rows...');
+  
+  // Group fresh schools by gender+division
+  const freshByDivision = new Map();
+  for (const s of freshStandings) {
+    const key = `${s.gender}|${s.division}`;
+    if (!freshByDivision.has(key)) freshByDivision.set(key, new Set());
+    freshByDivision.get(key).add(s.school);
+  }
+  
+  // Fetch existing rows for this sport/season
+  const existingResponse = await fetch(
+    `${SUPABASE_URL}/rest/v1/standings?select=school,gender,division&sport=eq.${SPORT}&season=eq.${SEASON}`,
+    {
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Range': '0-9999'
+      }
+    }
+  );
+  
+  if (!existingResponse.ok) {
+    console.error('  Failed to fetch existing standings for cleanup');
+    return 0;
+  }
+  
+  const existing = await existingResponse.json();
+  let deleted = 0;
+  
+  for (const row of existing) {
+    const key = `${row.gender}|${row.division}`;
+    const freshSet = freshByDivision.get(key);
+    
+    // Safety net: only delete from divisions that the scrape returned data for.
+    // If a division failed to scrape, leave its old data alone.
+    if (!freshSet) continue;
+    if (freshSet.has(row.school)) continue;
+    
+    const deleteUrl = `${SUPABASE_URL}/rest/v1/standings` +
+      `?school=eq.${encodeURIComponent(row.school)}` +
+      `&gender=eq.${encodeURIComponent(row.gender)}` +
+      `&division=eq.${encodeURIComponent(row.division)}` +
+      `&sport=eq.${SPORT}` +
+      `&season=eq.${SEASON}`;
+    
+    const delResponse = await fetch(deleteUrl, {
+      method: 'DELETE',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`
+      }
+    });
+    
+    if (delResponse.ok) {
+      deleted++;
+      console.log(`  Deleted stale row: ${row.school} (${row.gender} ${row.division})`);
+    } else {
+      console.error(`  Failed to delete stale row ${row.school}: ${delResponse.status}`);
+    }
+  }
+  
+  console.log(`  Removed ${deleted} stale standings rows`);
+  return deleted;
+}
+
 export default async (request) => {
   console.log('Ball603 Standings Scraper - Starting...');
 
@@ -389,6 +551,10 @@ export default async (request) => {
     
     const rowCount = await updateSupabase(allStandings);
     
+    // Remove any stale rows (e.g. from prior name-normalization fixes) so the
+    // standings table only contains teams from this run's scrape.
+    const staleDeleted = await cleanupStaleStandings(allStandings);
+    
     // Now update W-L records from our games table
     console.log('Step 2: Updating W-L records from games...');
     const recordsUpdated = await updateRecordsFromGames();
@@ -397,6 +563,7 @@ export default async (request) => {
       success: true,
       teamsScraped: allStandings.length,
       recordsUpdated: recordsUpdated,
+      staleRowsDeleted: staleDeleted,
       timestamp: new Date().toISOString()
     }), { status: 200 });
     
