@@ -8523,7 +8523,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       let html = '';
       
       filtered.forEach(g => {
-        const hasRecap = g.recap_link && g.recap_link.trim() !== '';
+        const hasRecap = g.recap_url && g.recap_url.trim() !== '';
         const hasScore = g.away_score !== null && g.home_score !== null;
         const statusColor = hasRecap ? '#4caf50' : (hasScore ? '#ff9800' : '#ccc');
         const statusText = hasRecap ? 'Published' : (hasScore ? 'Has Score' : 'Pending');
@@ -9422,7 +9422,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         return;
       }
 
-      const hasRecap = g => g.recap_link && g.recap_link.trim();
+      const hasRecap = g => g.recap_url && g.recap_url.trim();
       const hasScore = g => g.away_score !== null && g.home_score !== null;
       container.innerHTML = filtered.map(g => {
         const color = hasRecap(g) ? '#4caf50' : hasScore(g) ? '#ff9800' : '#ccc';
@@ -10438,7 +10438,7 @@ Respond ONLY with valid JSON:
       let html = '';
       
       filtered.forEach(g => {
-        const hasRecap = g.recap_link && g.recap_link.trim() !== '';
+        const hasRecap = g.recap_url && g.recap_url.trim() !== '';
         const rowStyle = hasRecap 
           ? 'background: #f9f9f9; color: #bbb; cursor: not-allowed;' 
           : 'cursor: pointer;';
@@ -12092,14 +12092,13 @@ Respond ONLY with valid JSON:
         const smugmugThumbUrl = document.getElementById('smugmugThumbUrl').value || null;
         
         gameUpdate.recap_url = articleUrl;
-        gameUpdate.recap_link = `/article/${slug}`;
-        // Also write recap_link to any additional linked games
+        // Also write recap_url to any additional linked games
         const allLinkedIds = JSON.parse(document.getElementById('selectedGameIds')?.value || '[]');
         for (const extraId of allLinkedIds) {
           if (extraId !== gameId) {
-            db.from('games').update({ recap_link: `/article/${slug}`, recap_url: articleUrl })
+            db.from('games').update({ recap_url: articleUrl })
               .eq('game_id', extraId)
-              .catch(e => console.error('recap_link update failed for', extraId, e));
+              .catch(e => console.error('recap_url update failed for', extraId, e));
           }
         }
         if (smugmugUrl) gameUpdate.photos_url = smugmugUrl;
