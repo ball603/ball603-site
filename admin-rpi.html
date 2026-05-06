@@ -227,6 +227,36 @@
       color: #fff;
     }
     
+    .sport-selector {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin: 15px 0 25px;
+    }
+    
+    .sport-btn {
+      padding: 10px 24px;
+      background: #2a2a2a;
+      color: #ccc;
+      border: 1px solid #444;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    
+    .sport-btn.active {
+      background: #f57c00;
+      color: white;
+      border-color: #f57c00;
+    }
+    
+    .sport-btn:hover:not(.active) {
+      background: #333;
+      color: #fff;
+    }
+    
     .page-footer {
       text-align: center;
       color: #555;
@@ -253,8 +283,13 @@
   
   <div class="page-header">
     <img src="/Ball603wide-white-200px.png" alt="Ball603">
-    <h1>NHIAA RPI Rankings</h1>
+    <h1 id="pageTitle">NHIAA RPI Rankings</h1>
     <div class="subtitle" id="updatedAt">Loading...</div>
+  </div>
+  
+  <div class="sport-selector">
+    <button class="sport-btn" id="basketballBtn" onclick="selectSport('basketball')">&#x1F3C0; Basketball</button>
+    <button class="sport-btn" id="baseballBtn" onclick="selectSport('baseball')">&#x26BE; Baseball</button>
   </div>
   
   <!-- Boys -->
@@ -476,21 +511,90 @@
     container.innerHTML = html;
   }
 
+  // ===== SPORT-AWARE STATE =====
+  let currentSport = 'basketball';
+  
+  function getCurrentSeason(sport) {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+    
+    if (sport === 'basketball') {
+      // Basketball season spans two years (e.g. "2025-26")
+      // Apr-Jul: previous completed season; Aug-Mar: current/upcoming
+      if (month >= 4 && month <= 7) {
+        return `${year - 1}-${String(year).slice(-2)}`;
+      }
+      return `${year}-${String(year + 1).slice(-2)}`;
+    }
+    // Baseball: single year (e.g. "2026")
+    return String(year);
+  }
+  
+  function selectSport(sport) {
+    if (sport === currentSport) return;
+    currentSport = sport;
+    
+    // Update URL without reload (so screenshots/bookmarks reflect current sport)
+    const newUrl = sport === 'basketball'
+      ? window.location.pathname
+      : `${window.location.pathname}?sport=${sport}`;
+    window.history.replaceState({}, '', newUrl);
+    
+    applySportToUI();
+    loadAllRPI();
+  }
+  
+  function applySportToUI() {
+    const isBaseball = currentSport === 'baseball';
+    const emoji = isBaseball ? '\u26BE' : '\uD83C\uDFC0';
+    
+    // Toggle button active state
+    document.getElementById('basketballBtn').classList.toggle('active', !isBaseball);
+    document.getElementById('baseballBtn').classList.toggle('active', isBaseball);
+    
+    // Page title emoji
+    document.getElementById('pageTitle').textContent = `NHIAA ${isBaseball ? 'Baseball' : 'Basketball'} RPI Rankings`;
+    
+    // Update Boys section title
+    document.querySelector('#boysSection .gender-title').innerHTML = `${emoji} Boys`;
+    
+    // Hide girls section for baseball (boys-only sport)
+    document.getElementById('girlsSection').style.display = isBaseball ? 'none' : '';
+    if (!isBaseball) {
+      document.querySelector('#girlsSection .gender-title').innerHTML = `${emoji} Girls`;
+    }
+    
+    // Reset card content to loading state
+    document.querySelectorAll('.division-card').forEach(card => {
+      const header = card.querySelector('.division-header').textContent;
+      card.innerHTML = `<div class="division-header">${header}</div><div class="loading-msg">Loading...</div>`;
+    });
+    document.getElementById('risingTable').innerHTML = '<div class="loading-msg">Loading...</div>';
+    document.getElementById('fallingTable').innerHTML = '<div class="loading-msg">Loading...</div>';
+    document.getElementById('updatedAt').textContent = 'Loading...';
+  }
+
   async function loadAllRPI() {
     try {
-      // Fetch all genders via get-rpi (no gender filter = returns all)
-      const boysRes = await fetch('/.netlify/functions/get-rpi?gender=Boys');
-      const girlsRes = await fetch('/.netlify/functions/get-rpi?gender=Girls');
+      const sport = currentSport;
+      const season = getCurrentSeason(sport);
+      const isBaseball = sport === 'baseball';
+      const qs = `&sport=${encodeURIComponent(sport)}&season=${encodeURIComponent(season)}`;
       
-      if (!boysRes.ok || !girlsRes.ok) throw new Error('Failed to fetch RPI data');
+      // Fetch boys (always); fetch girls only when not baseball (boys-only sport)
+      const boysRes = await fetch(`/.netlify/functions/get-rpi?gender=Boys${qs}`);
+      const girlsRes = isBaseball ? null : await fetch(`/.netlify/functions/get-rpi?gender=Girls${qs}`);
+      
+      if (!boysRes.ok || (girlsRes && !girlsRes.ok)) throw new Error('Failed to fetch RPI data');
       
       const boysData = await boysRes.json();
-      const girlsData = await girlsRes.json();
+      const girlsData = girlsRes ? await girlsRes.json() : { rankings: [], calculatedAt: null };
       
       const allRankings = [...(boysData.rankings || []), ...(girlsData.rankings || [])];
       
       if (allRankings.length === 0) {
-        document.getElementById('updatedAt').textContent = 'No RPI data available';
+        document.getElementById('updatedAt').textContent = `No ${sport} RPI data available for ${season}`;
         return;
       }
       
@@ -505,7 +609,7 @@
       }
       
       // Render each division
-      const genders = ['Boys', 'Girls'];
+      const genders = isBaseball ? ['Boys'] : ['Boys', 'Girls'];
       const divisions = ['D-I', 'D-II', 'D-III', 'D-IV'];
       
       for (const gender of genders) {
@@ -548,7 +652,16 @@
     }
   }
 
-  loadAllRPI();
+  // Initialize: read sport from URL, apply UI, load data
+  (function init() {
+    const params = new URLSearchParams(window.location.search);
+    const urlSport = params.get('sport');
+    if (urlSport === 'baseball' || urlSport === 'basketball') {
+      currentSport = urlSport;
+    }
+    applySportToUI();
+    loadAllRPI();
+  })();
 </script>
 </body>
 </html>
