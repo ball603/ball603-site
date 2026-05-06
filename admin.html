@@ -22729,7 +22729,8 @@ Respond ONLY with valid JSON:
         }
         
         // Second pass: Calculate OWP for each team (excluding games vs the team)
-        // Non-NHIAA opponents and cross-division opponents are excluded entirely
+        // Non-NHIAA opponents contribute .500 to the average (per Ball603 RPI policy);
+        // cross-division NHIAA opponents are excluded entirely.
         const teamOWP = new Map();
         
         for (const teamName of nhiaaTeams) {
@@ -22743,9 +22744,13 @@ Respond ONLY with valid JSON:
           let owpSum = 0, owpCount = 0;
           
           for (const { opp } of playedData.opponents) {
-            // Non-NHIAA opponent: exclude from OWP entirely
-            if (!nhiaaTeams.has(opp)) continue;
-            // Cross-division opponent: exclude from OWP
+            // Non-NHIAA opponent: contribute .500 to OWP average
+            if (!nhiaaTeams.has(opp)) {
+              owpSum += 0.5;
+              owpCount++;
+              continue;
+            }
+            // Cross-division NHIAA opponent: exclude from OWP
             if (teamDivisions.get(`${opp}_${gender}`) !== teamDiv) continue;
             
             // Calculate opponent's win % excluding games against this team
@@ -22783,7 +22788,8 @@ Respond ONLY with valid JSON:
         }
         
         // Third pass: Calculate OOWP for each team
-        // Non-NHIAA and cross-division opponents excluded entirely
+        // Non-NHIAA opponents contribute .500 (no NHIAA OWP available);
+        // cross-division NHIAA opponents are excluded entirely.
         const teamOOWP = new Map();
         
         for (const teamName of nhiaaTeams) {
@@ -22797,8 +22803,13 @@ Respond ONLY with valid JSON:
           let oowpSum = 0, oowpCount = 0;
           
           for (const { opp } of playedData.opponents) {
-            // Non-NHIAA or cross-division opponent: exclude from OOWP entirely
-            if (!nhiaaTeams.has(opp)) continue;
+            // Non-NHIAA opponent: contribute .500 to OOWP average
+            if (!nhiaaTeams.has(opp)) {
+              oowpSum += 0.5;
+              oowpCount++;
+              continue;
+            }
+            // Cross-division NHIAA opponent: exclude from OOWP
             if (teamDivisions.get(`${opp}_${gender}`) !== teamDiv) continue;
             const oppOWP = teamOWP.get(opp);
             if (oppOWP !== undefined) {
@@ -23188,7 +23199,7 @@ Respond ONLY with valid JSON:
             teamWeightedWP.set(teamName, total > 0 ? weightedWins / total : 0);
           }
           
-          // Calculate OWP (non-NHIAA and cross-division opponents excluded entirely)
+          // Calculate OWP — non-NHIAA opponents contribute .500; cross-division NHIAA excluded
           const teamOWP = new Map();
           for (const teamName of nhiaaTeams) {
             const playedData = teamsPlayedMap.get(teamName);
@@ -23199,7 +23210,11 @@ Respond ONLY with valid JSON:
             const teamDiv = teamDivisions.get(`${teamName}_${gender}`);
             let owpSum = 0, owpCount = 0;
             for (const { opp } of playedData.opponents) {
-              if (!nhiaaTeams.has(opp)) continue;
+              if (!nhiaaTeams.has(opp)) {
+                owpSum += 0.5;
+                owpCount++;
+                continue;
+              }
               if (teamDivisions.get(`${opp}_${gender}`) !== teamDiv) continue;
               let oppWins = 0, oppLosses = 0;
               for (const game of completedGames) {
@@ -23224,7 +23239,7 @@ Respond ONLY with valid JSON:
             teamOWP.set(teamName, owpCount > 0 ? owpSum / owpCount : 0);
           }
           
-          // Calculate OOWP (non-NHIAA and cross-division opponents excluded entirely)
+          // Calculate OOWP — non-NHIAA opponents contribute .500; cross-division NHIAA excluded
           const teamOOWP = new Map();
           for (const teamName of nhiaaTeams) {
             const playedData = teamsPlayedMap.get(teamName);
@@ -23235,7 +23250,11 @@ Respond ONLY with valid JSON:
             const teamDiv = teamDivisions.get(`${teamName}_${gender}`);
             let oowpSum = 0, oowpCount = 0;
             for (const { opp } of playedData.opponents) {
-              if (!nhiaaTeams.has(opp)) continue;
+              if (!nhiaaTeams.has(opp)) {
+                oowpSum += 0.5;
+                oowpCount++;
+                continue;
+              }
               if (teamDivisions.get(`${opp}_${gender}`) !== teamDiv) continue;
               const oppOWP = teamOWP.get(opp);
               if (oppOWP !== undefined) {
