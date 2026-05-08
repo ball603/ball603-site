@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NEC Front Row | The Official Video Network of the Northeast Conference</title>
+  <meta name="description" content="The official video network of the Northeast Conference. Watch live and on-demand NEC sports.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="tagline-bar">
+    <span class="tagline">The Official Video Network of the Northeast Conference</span>
+  </div>
+
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="index.html" class="logo-link" aria-label="NEC Front Row home">
+        <img src="images/logo.png" alt="NEC Front Row" class="logo-img"
+             onerror="this.style.display='none'; document.getElementById('logo-fallback').style.display='inline-block';">
+        <span id="logo-fallback" class="logo-fallback">NEC <em>FRONT ROW</em></span>
+      </a>
+    </div>
+    <div class="header-stripe"></div>
+  </header>
+
+  <main class="container">
+    <section class="games-section">
+      <div class="section-head">
+        <h1 class="section-title">Today's Games</h1>
+        <p class="section-date" id="todays-date"></p>
+      </div>
+      <div class="games-grid" id="games-grid"></div>
+      <p class="empty-state" id="empty-state" hidden>No games scheduled today. Check back soon.</p>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>&copy; <span id="footer-year"></span> Northeast Conference. All rights reserved.</p>
+  </footer>
+
+  <script src="games.js"></script>
+  <script>
+    (function () {
+      var grid = document.getElementById('games-grid');
+      var emptyState = document.getElementById('empty-state');
+      var dateEl = document.getElementById('todays-date');
+      var yearEl = document.getElementById('footer-year');
+
+      var now = new Date();
+      yearEl.textContent = now.getFullYear();
+
+      var dateOpts = { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' };
+      dateEl.textContent = now.toLocaleDateString('en-US', dateOpts);
+
+      // Filter to games happening today (in viewer's local timezone)
+      var todayStr = now.toDateString();
+      var todaysGames = window.NEC_GAMES.filter(function (g) {
+        return new Date(g.datetime).toDateString() === todayStr;
+      });
+
+      // If no games today, fall back to showing whatever is in the file
+      var gamesToShow = todaysGames.length > 0 ? todaysGames : window.NEC_GAMES;
+
+      if (gamesToShow.length === 0) {
+        emptyState.hidden = false;
+        return;
+      }
+
+      // Sort chronologically
+      gamesToShow.sort(function (a, b) {
+        return new Date(a.datetime) - new Date(b.datetime);
+      });
+
+      var html = gamesToShow.map(function (game) {
+        var start = new Date(game.datetime);
+        var timeStr = start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        var status = getStatus(start, now);
+
+        return ''
+          + '<a class="game-card" href="game.html?id=' + encodeURIComponent(game.id) + '">'
+          +   '<div class="game-card-top">'
+          +     '<span class="sport-label">' + escapeHtml(game.sport) + '</span>'
+          +     '<span class="status-pill status-' + status.key + '">' + status.label + '</span>'
+          +   '</div>'
+          +   '<h2 class="game-title">' + escapeHtml(game.title) + '</h2>'
+          +   '<div class="game-meta">'
+          +     '<span class="game-time">' + timeStr + '</span>'
+          +     '<span class="game-site">' + escapeHtml(game.site || '') + '</span>'
+          +   '</div>'
+          +   '<span class="watch-cta">Watch &rarr;</span>'
+          + '</a>';
+      }).join('');
+
+      grid.innerHTML = html;
+
+      function getStatus(start, current) {
+        var diffMin = (current - start) / 60000;
+        if (diffMin < 0) return { key: 'upcoming', label: 'Upcoming' };
+        if (diffMin < 210) return { key: 'live', label: '\u25CF LIVE' };
+        return { key: 'ended', label: 'Ended' };
+      }
+
+      function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, function (c) {
+          return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

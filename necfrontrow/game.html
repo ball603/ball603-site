@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title id="page-title">NEC Front Row</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="tagline-bar">
+    <span class="tagline">The Official Video Network of the Northeast Conference</span>
+  </div>
+
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="index.html" class="logo-link" aria-label="NEC Front Row home">
+        <img src="images/logo.png" alt="NEC Front Row" class="logo-img"
+             onerror="this.style.display='none'; document.getElementById('logo-fallback').style.display='inline-block';">
+        <span id="logo-fallback" class="logo-fallback">NEC <em>FRONT ROW</em></span>
+      </a>
+    </div>
+    <div class="header-stripe"></div>
+  </header>
+
+  <main class="container game-detail">
+    <a href="index.html" class="back-link">&larr; Back to All Games</a>
+
+    <div id="game-content">
+      <p class="loading">Loading game&hellip;</p>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <p>&copy; <span id="footer-year"></span> Northeast Conference. All rights reserved.</p>
+  </footer>
+
+  <script src="games.js"></script>
+  <script>
+    (function () {
+      var content = document.getElementById('game-content');
+      var titleEl = document.getElementById('page-title');
+      document.getElementById('footer-year').textContent = new Date().getFullYear();
+
+      var params = new URLSearchParams(window.location.search);
+      var id = params.get('id');
+      var game = id ? window.getGameById(id) : null;
+
+      if (!game) {
+        content.innerHTML = ''
+          + '<div class="not-found">'
+          +   '<h1>Game not found</h1>'
+          +   '<p>That game ID does not match anything in our schedule.</p>'
+          +   '<a href="index.html" class="btn-primary">View Today\'s Games</a>'
+          + '</div>';
+        return;
+      }
+
+      var start = new Date(game.datetime);
+      var now = new Date();
+      var dateStr = start.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+      var timeStr = start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+      var status = getStatus(start, now);
+      var embedUrl = window.getEmbedUrl(game);
+
+      titleEl.textContent = game.title + ' | NEC Front Row';
+
+      content.innerHTML = ''
+        + '<div class="game-header">'
+        +   '<div class="game-header-top">'
+        +     '<span class="sport-label">' + escapeHtml(game.sport) + '</span>'
+        +     '<span class="status-pill status-' + status.key + '">' + status.label + '</span>'
+        +   '</div>'
+        +   '<h1 class="game-title-lg">' + escapeHtml(game.title) + '</h1>'
+        +   '<p class="game-meta-lg">'
+        +     '<span>' + dateStr + '</span>'
+        +     '<span class="dot">&bull;</span>'
+        +     '<span>' + timeStr + '</span>'
+        +     '<span class="dot">&bull;</span>'
+        +     '<span>' + escapeHtml(game.site || '') + '</span>'
+        +   '</p>'
+        + '</div>'
+        + '<div class="player-wrap">'
+        +   '<iframe src="' + embedUrl + '" allow="fullscreen;" allowfullscreen></iframe>'
+        + '</div>';
+
+      function getStatus(start, current) {
+        var diffMin = (current - start) / 60000;
+        if (diffMin < 0) return { key: 'upcoming', label: 'Upcoming' };
+        if (diffMin < 210) return { key: 'live', label: '\u25CF LIVE' };
+        return { key: 'ended', label: 'Ended' };
+      }
+
+      function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, function (c) {
+          return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+        });
+      }
+    })();
+  </script>
+</body>
+</html>
