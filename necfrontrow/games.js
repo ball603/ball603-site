@@ -48,27 +48,6 @@ window.NEC_GAMES = [
 
   /* ---------- Today: May 9, 2026 ---------- */
   {
-    id: "4021701",
-    sport: "Softball",
-    title: "Game 6 - CCSU vs. Wagner",
-    datetime: "2026-05-09T09:00:00-04:00",
-    site: "NEC & Associate Schools"
-  },
-  {
-    id: "4021704",
-    sport: "Softball",
-    title: "Game 7 (If Necessary) - CCSU vs. Wagner",
-    datetime: "2026-05-09T11:30:00-04:00",
-    site: "NEC & Associate Schools"
-  },
-  {
-    id: "3640663",
-    sport: "Baseball",
-    title: "Coppin State at Wagner",
-    datetime: "2026-05-09T13:00:00-04:00",
-    site: "Wagner (NY)"
-  },
-  {
     id: "4021707",
     sport: "Baseball",
     title: "Central Connecticut at Mercyhurst",
@@ -78,9 +57,16 @@ window.NEC_GAMES = [
   {
     id: "4021709",
     sport: "Baseball",
-    title: "UMES at Le Moyne",
+    title: "Maryland Eastern Shore at Le Moyne",
     datetime: "2026-05-09T13:00:00-04:00",
     site: "Le Moyne (NY)"
+  },
+  {
+    id: "3640663",
+    sport: "Baseball",
+    title: "Coppin State at Wagner",
+    datetime: "2026-05-09T13:00:00-04:00",
+    site: "Wagner (NY)"
   },
 
   /* ---------- Upcoming ---------- */
