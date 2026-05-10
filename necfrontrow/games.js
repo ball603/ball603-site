@@ -9,44 +9,7 @@
    ============================================================ */
 
 window.NEC_GAMES = [
-  /* ---------- Yesterday: May 8, 2026 (kept for URL access) ---------- */
-  {
-    id: "4018936",
-    sport: "Baseball",
-    title: "Stonehill at LIU",
-    datetime: "2026-05-08T12:00:00-04:00",
-    site: "LIU (NY)"
-  },
-  {
-    id: "4018937",
-    sport: "Baseball",
-    title: "Delaware State at New Haven",
-    datetime: "2026-05-08T12:00:00-04:00",
-    site: "New Haven (CT)"
-  },
-  {
-    id: "3640656",
-    sport: "Baseball",
-    title: "Coppin State at Wagner",
-    datetime: "2026-05-08T15:00:00-04:00",
-    site: "Wagner (NY)"
-  },
-  {
-    id: "4018938",
-    sport: "Baseball",
-    title: "Central Connecticut at Mercyhurst",
-    datetime: "2026-05-08T15:00:00-04:00",
-    site: "Mercyhurst (PA)"
-  },
-  {
-    id: "4018940",
-    sport: "Baseball",
-    title: "UMES at Le Moyne",
-    datetime: "2026-05-08T15:00:00-04:00",
-    site: "Le Moyne (NY)"
-  },
-
-  /* ---------- Today: May 9, 2026 ---------- */
+  /* ---------- Yesterday: May 9, 2026 (kept for URL access) ---------- */
   {
     id: "4021707",
     sport: "Baseball",
@@ -69,7 +32,21 @@ window.NEC_GAMES = [
     site: "Wagner (NY)"
   },
 
-  /* ---------- Upcoming ---------- */
+  /* ---------- Today: May 10, 2026 ---------- */
+  {
+    id: "4024931",
+    sport: "Baseball",
+    title: "Central Connecticut at Mercyhurst",
+    datetime: "2026-05-10T11:00:00-04:00",
+    site: "Mercyhurst (PA)"
+  },
+  {
+    id: "4024930",
+    sport: "Baseball",
+    title: "Delaware State at New Haven",
+    datetime: "2026-05-10T12:00:00-04:00",
+    site: "New Haven (CT)"
+  },
   {
     id: "3640667",
     sport: "Baseball",
@@ -77,6 +54,15 @@ window.NEC_GAMES = [
     datetime: "2026-05-10T12:00:00-04:00",
     site: "Wagner (NY)"
   },
+  {
+    id: "4024932",
+    sport: "Baseball",
+    title: "Stonehill at LIU",
+    datetime: "2026-05-10T13:00:00-04:00",
+    site: "LIU (NY)"
+  },
+
+  /* ---------- Upcoming ---------- */
   {
     id: "3640678",
     sport: "Baseball",
