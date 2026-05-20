@@ -345,27 +345,41 @@ function parseSchedulePage(html, gender, division) {
         // Base ID exists — check if it's the same game or a true doubleheader
         const existing = existingWithSameId.find(g => g.game_id === baseGameId);
         // Primary check: different scheduled times = true doubleheader
-        const hasTime = time && time !== 'FINAL' && time !== 'TBD' && time !== '';
-        const existingHasTime = existing.time && existing.time !== 'FINAL' && existing.time !== 'TBD' && existing.time !== '';
-        const differentTimes = hasTime && existingHasTime && time !== existing.time;
+        const parseTimeToMins = t => {
+          if (!t || t === 'FINAL' || t === 'TBD' || t === 'TBA' || t === '') return null;
+          const m = t.match(/(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?/i);
+          if (!m) return null;
+          let h = parseInt(m[1]), min = parseInt(m[2] || '0');
+          const ampm = (m[3] || '').toUpperCase();
+          if (ampm === 'PM' && h !== 12) h += 12;
+          if (ampm === 'AM' && h === 12) h = 0;
+          return h * 60 + min;
+        };
+        const newMins = parseTimeToMins(time);
+        const existingMins = parseTimeToMins(existing.time);
+        // True doubleheader = times differ by MORE than 30 minutes
+        const timeDiff = (newMins !== null && existingMins !== null) ? Math.abs(newMins - existingMins) : null;
+        const differentTimes = timeDiff !== null && timeDiff > 30;
         if (differentTimes) {
-          // Different times = true doubleheader
-          // First check if a _g2/_g3 entry already exists with the SAME time (same game seen again)
-          const sameTimeEntry = existingWithSameId.find(g =>
-            g.game_id !== baseGameId && g.time === time
-          );
-          if (sameTimeEntry) {
-            // Same time already exists — reuse that ID (same game from other team's schedule)
-            gameId = sameTimeEntry.game_id;
+          // True doubleheader — check if _g2/_g3 already exists within 30 mins of new time
+          const closeTimeEntry = existingWithSameId.find(g => {
+            if (g.game_id === baseGameId) return false;
+            const gMins = parseTimeToMins(g.time);
+            return gMins !== null && newMins !== null && Math.abs(gMins - newMins) <= 30;
+          });
+          if (closeTimeEntry) {
+            gameId = closeTimeEntry.game_id;
+            if (newMins < parseTimeToMins(closeTimeEntry.time)) closeTimeEntry.time = time;
           } else {
-            // Genuinely new time = new doubleheader game
             let n = 2;
             while (existingWithSameId.some(g => g.game_id === `${baseGameId}_g${n}`)) n++;
             gameId = `${baseGameId}_g${n}`;
           }
         } else {
-          // Same or unknown time = same game seen from other team's schedule
-          // Reuse base ID so dedup keeps the best version
+          // Same or close times — same game, prefer earlier time
+          if (newMins !== null && existingMins !== null && newMins < existingMins) {
+            existing.time = time;
+          }
           gameId = baseGameId;
         }
       }
