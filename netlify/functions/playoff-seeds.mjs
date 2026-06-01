@@ -25,61 +25,114 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const RATING_TOLERANCE = 0.0005; // Must match tiebreakers.mjs
 
-// Tournament schedule data (from NHIAA Winter 2025-26)
+// Tournament schedule data, keyed by sport then gender then division.
+// Baseball dates are PLACEHOLDERS — update with actual NHIAA dates when announced.
 const TOURNAMENT_SCHEDULE = {
-  'Boys': {
-    'D-I': {
-      prelims: { date: '2026-03-04', time: '6:00 PM', site: 'Higher Seed' },
-      quarters: { date: '2026-03-07', time: '6:00 PM', site: 'Higher Seed' },
-      semis: { date: '2026-03-11', times: ['5:30 PM', '7:30 PM'], site: 'Rochester Rec Center' },
-      final: { date: '2026-03-15', time: '4:00 PM', site: 'UNH' }
+  basketball: {
+    'Boys': {
+      'D-I': {
+        prelims: { date: '2026-03-04', time: '6:00 PM', site: 'Higher Seed' },
+        quarters: { date: '2026-03-07', time: '6:00 PM', site: 'Higher Seed' },
+        semis: { date: '2026-03-11', times: ['5:30 PM', '7:30 PM'], site: 'Rochester Rec Center' },
+        final: { date: '2026-03-15', time: '4:00 PM', site: 'UNH' }
+      },
+      'D-II': {
+        prelims: { date: '2026-03-03', time: '6:00 PM', site: 'Higher Seed' },
+        quarters: { date: '2026-03-06', time: '6:00 PM', site: 'Higher Seed' },
+        semis: { date: '2026-03-09', times: ['5:30 PM', '7:30 PM'], site: 'Rochester Rec Center' },
+        final: { date: '2026-03-15', time: '12:00 PM', site: 'UNH' }
+      },
+      'D-III': {
+        prelims: { date: '2026-02-17', time: '6:00 PM', site: 'Higher Seed' },
+        quarters: { date: '2026-02-20', time: '6:00 PM', site: 'Higher Seed' },
+        semis: { date: '2026-02-24', times: ['5:30 PM', '7:30 PM'], site: 'TBD' },
+        final: { date: '2026-02-28', time: '4:00 PM', site: 'Keene State College' }
+      },
+      'D-IV': {
+        prelims: { date: '2026-02-23', time: '6:00 PM', site: 'Higher Seed' },
+        quarters: { date: '2026-02-26', time: '6:00 PM', site: 'Higher Seed' },
+        semis: { date: '2026-03-02', times: ['5:30 PM', '7:30 PM'], site: 'TBD' },
+        final: { date: '2026-03-07', time: '3:00 PM', site: 'Colby Sawyer College' }
+      }
     },
-    'D-II': {
-      prelims: { date: '2026-03-03', time: '6:00 PM', site: 'Higher Seed' },
-      quarters: { date: '2026-03-06', time: '6:00 PM', site: 'Higher Seed' },
-      semis: { date: '2026-03-09', times: ['5:30 PM', '7:30 PM'], site: 'Rochester Rec Center' },
-      final: { date: '2026-03-15', time: '12:00 PM', site: 'UNH' }
-    },
-    'D-III': {
-      prelims: { date: '2026-02-17', time: '6:00 PM', site: 'Higher Seed' },
-      quarters: { date: '2026-02-20', time: '6:00 PM', site: 'Higher Seed' },
-      semis: { date: '2026-02-24', times: ['5:30 PM', '7:30 PM'], site: 'TBD' },
-      final: { date: '2026-02-28', time: '4:00 PM', site: 'Keene State College' }
-    },
-    'D-IV': {
-      prelims: { date: '2026-02-23', time: '6:00 PM', site: 'Higher Seed' },
-      quarters: { date: '2026-02-26', time: '6:00 PM', site: 'Higher Seed' },
-      semis: { date: '2026-03-02', times: ['5:30 PM', '7:30 PM'], site: 'TBD' },
-      final: { date: '2026-03-07', time: '3:00 PM', site: 'Colby Sawyer College' }
+    'Girls': {
+      'D-I': {
+        prelims: { date: '2026-03-02', time: '6:00 PM', site: 'Higher Seed' },
+        quarters: { date: '2026-03-05', time: '6:00 PM', site: 'Higher Seed' },
+        semis: { date: '2026-03-09', times: ['5:30 PM', '7:30 PM'], site: 'TBD' },
+        final: { date: '2026-03-14', time: '4:00 PM', site: 'UNH' }
+      },
+      'D-II': {
+        prelims: { date: '2026-03-04', time: '6:00 PM', site: 'Higher Seed' },
+        quarters: { date: '2026-03-07', time: '6:00 PM', site: 'Higher Seed' },
+        semis: { date: '2026-03-11', times: ['5:30 PM', '7:30 PM'], site: 'TBD' },
+        final: { date: '2026-03-14', time: '12:00 PM', site: 'UNH' }
+      },
+      'D-III': {
+        prelims: { date: '2026-02-18', time: '6:00 PM', site: 'Higher Seed' },
+        quarters: { date: '2026-02-21', time: '6:00 PM', site: 'Higher Seed' },
+        semis: { date: '2026-02-25', times: ['5:30 PM', '7:30 PM'], site: 'Bow High School' },
+        final: { date: '2026-02-28', time: '1:00 PM', site: 'Keene State College' }
+      },
+      'D-IV': {
+        prelims: { date: '2026-02-24', time: '6:00 PM', site: 'Higher Seed' },
+        quarters: { date: '2026-02-27', time: '6:00 PM', site: 'Higher Seed' },
+        semis: { date: '2026-03-03', times: ['5:30 PM', '7:30 PM'], site: 'TBD' },
+        final: { date: '2026-03-07', time: '1:00 PM', site: 'Colby Sawyer College' }
+      }
     }
   },
-  'Girls': {
-    'D-I': {
-      prelims: { date: '2026-03-02', time: '6:00 PM', site: 'Higher Seed' },
-      quarters: { date: '2026-03-05', time: '6:00 PM', site: 'Higher Seed' },
-      semis: { date: '2026-03-09', times: ['5:30 PM', '7:30 PM'], site: 'TBD' },
-      final: { date: '2026-03-14', time: '4:00 PM', site: 'UNH' }
-    },
-    'D-II': {
-      prelims: { date: '2026-03-04', time: '6:00 PM', site: 'Higher Seed' },
-      quarters: { date: '2026-03-07', time: '6:00 PM', site: 'Higher Seed' },
-      semis: { date: '2026-03-11', times: ['5:30 PM', '7:30 PM'], site: 'TBD' },
-      final: { date: '2026-03-14', time: '12:00 PM', site: 'UNH' }
-    },
-    'D-III': {
-      prelims: { date: '2026-02-18', time: '6:00 PM', site: 'Higher Seed' },
-      quarters: { date: '2026-02-21', time: '6:00 PM', site: 'Higher Seed' },
-      semis: { date: '2026-02-25', times: ['5:30 PM', '7:30 PM'], site: 'Bow High School' },
-      final: { date: '2026-02-28', time: '1:00 PM', site: 'Keene State College' }
-    },
-    'D-IV': {
-      prelims: { date: '2026-02-24', time: '6:00 PM', site: 'Higher Seed' },
-      quarters: { date: '2026-02-27', time: '6:00 PM', site: 'Higher Seed' },
-      semis: { date: '2026-03-03', times: ['5:30 PM', '7:30 PM'], site: 'TBD' },
-      final: { date: '2026-03-07', time: '1:00 PM', site: 'Colby Sawyer College' }
+  baseball: {
+    'Boys': {
+      'D-I': {
+        prelims: { date: '2026-06-03', time: '4:00 PM', site: 'Home of Higher Seed' },
+        quarters: { date: '2026-06-06', time: '4:00 PM', site: 'Home of Higher Seed' },
+        semis: { date: '2026-06-10', times: ['4:00 PM', '7:00 PM'], site: 'Holman Stadium (Nashua, NH)' },
+        final: { date: '2026-06-13', time: 'TBA', site: 'Northeast Delta Dental Stadium' }
+      },
+      'D-II': {
+        prelims: { date: '2026-06-03', time: '4:00 PM', site: 'Home of Higher Seed' },
+        quarters: { date: '2026-06-06', time: '4:00 PM', site: 'Home of Higher Seed' },
+        semis: { date: '2026-06-10', times: ['4:00 PM', '7:00 PM'], site: 'Memorial Field (Concord, NH)' },
+        final: { date: '2026-06-13', time: 'TBA', site: 'Northeast Delta Dental Stadium' }
+      },
+      'D-III': {
+        prelims: { date: '2026-06-03', time: '4:00 PM', site: 'Home of Higher Seed' },
+        quarters: { date: '2026-06-06', time: '4:00 PM', site: 'Home of Higher Seed' },
+        semis: { date: '2026-06-09', times: ['4:00 PM', '7:00 PM'], site: 'Robbie Mills Park (Laconia, NH)' },
+        final: { date: '2026-06-13', time: 'TBA', site: 'Northeast Delta Dental Stadium' }
+      },
+      'D-IV': {
+        prelims: { date: '2026-06-03', time: '4:00 PM', site: 'Home of Higher Seed' },
+        quarters: { date: '2026-06-06', time: '4:00 PM', site: 'Home of Higher Seed' },
+        semis: { date: '2026-06-10', times: ['4:00 PM', '7:00 PM'], site: 'Robbie Mills Park (Laconia, NH)' },
+        final: { date: '2026-06-13', time: 'TBA', site: 'Northeast Delta Dental Stadium' }
+      }
     }
   }
 };
+
+// Helper: lookup tournament schedule for sport/gender/division with a clear error
+function getTournamentSchedule(sport, gender, division) {
+  const schedule = TOURNAMENT_SCHEDULE[sport]?.[gender]?.[division];
+  if (!schedule) {
+    throw new Error(`No tournament schedule found for ${sport} ${gender} ${division}`);
+  }
+  return schedule;
+}
+
+// Helper: default season per sport (baseball uses single-year, basketball uses span)
+function defaultSeasonForSport(sport) {
+  return sport === 'baseball' ? '2026' : '2025-26';
+}
+
+// Helper: backward-compatible sport filter for games queries.
+// Basketball games may have null sport (legacy), so use OR. Baseball is strict.
+function gameSportFilter(sport) {
+  return sport === 'basketball'
+    ? 'or=(sport.eq.basketball,sport.is.null)'
+    : `sport=eq.${sport}`;
+}
 
 // Standard 16-team bracket matchups (seed vs seed)
 // Position 1-8 for prelims, each position feeds into quarters
@@ -136,10 +189,11 @@ function generateGameId(season, gender, division, round, position) {
 }
 
 // Calculate vs playoff teams record for a team
-async function calculateVsPlayoffTeams(team, gender, division, season, qualifyingTeams) {
+async function calculateVsPlayoffTeams(team, gender, division, season, qualifyingTeams, sport) {
+  const sportFilter = gameSportFilter(sport);
   // Get all completed games for this team
   const games = await supabaseRequest(
-    `games?season=eq.${season}&gender=eq.${gender}&is_playoff=eq.false&or=(home_team.eq.${encodeURIComponent(team)},away_team.eq.${encodeURIComponent(team)})&home_score=not.is.null&away_score=not.is.null`,
+    `games?season=eq.${season}&gender=eq.${gender}&${sportFilter}&is_playoff=eq.false&or=(home_team.eq.${encodeURIComponent(team)},away_team.eq.${encodeURIComponent(team)})&home_score=not.is.null&away_score=not.is.null`,
     { headers: { 'Range': '0-999' } }
   );
   
@@ -163,7 +217,7 @@ async function calculateVsPlayoffTeams(team, gender, division, season, qualifyin
 }
 
 // Project seeds (publish as projected, no games created)
-async function projectSeeds(gender, division, season, seeds) {
+async function projectSeeds(gender, division, season, seeds, sport) {
   const numTeams = seeds.length;
   if (numTeams < 14 || numTeams > 16) {
     throw new Error(`Invalid number of teams: ${numTeams}. Expected 14-16.`);
@@ -202,7 +256,7 @@ async function projectSeeds(gender, division, season, seeds) {
   for (const seed of seeds) {
     const standing = standingsMap.get(seed.team) || {};
     const rpi = rpiMap.get(seed.team) || {};
-    const vsPlayoff = await calculateVsPlayoffTeams(seed.team, gender, division, season, qualifyingTeams);
+    const vsPlayoff = await calculateVsPlayoffTeams(seed.team, gender, division, season, qualifyingTeams, sport);
     
     seedRecords.push({
       season,
@@ -242,11 +296,8 @@ async function projectSeeds(gender, division, season, seeds) {
 }
 
 // Lock seeds and generate bracket games
-async function lockSeeds(gender, division, season, seeds) {
-  const schedule = TOURNAMENT_SCHEDULE[gender]?.[division];
-  if (!schedule) {
-    throw new Error(`No schedule found for ${gender} ${division}`);
-  }
+async function lockSeeds(gender, division, season, seeds, sport) {
+  const schedule = getTournamentSchedule(sport, gender, division);
   
   const numTeams = seeds.length;
   if (numTeams < 14 || numTeams > 16) {
@@ -287,7 +338,7 @@ async function lockSeeds(gender, division, season, seeds) {
   for (const seed of seeds) {
     const standing = standingsMap.get(seed.team) || {};
     const rpi = rpiMap.get(seed.team) || {};
-    const vsPlayoff = await calculateVsPlayoffTeams(seed.team, gender, division, season, qualifyingTeams);
+    const vsPlayoff = await calculateVsPlayoffTeams(seed.team, gender, division, season, qualifyingTeams, sport);
     
     seedRecords.push({
       season,
@@ -344,7 +395,7 @@ async function lockSeeds(gender, division, season, seeds) {
       games.push({
         game_id: generateGameId(season, gender, division, 'prelims', matchup.position),
         season,
-        sport: 'basketball',
+        sport,
         level: 'NHIAA',
         gender,
         division,
@@ -366,7 +417,7 @@ async function lockSeeds(gender, division, season, seeds) {
       games.push({
         game_id: generateGameId(season, gender, division, 'prelims', matchup.position),
         season,
-        sport: 'basketball',
+        sport,
         level: 'NHIAA',
         gender,
         division,
@@ -419,7 +470,7 @@ async function lockSeeds(gender, division, season, seeds) {
     games.push({
       game_id: generateGameId(season, gender, division, 'quarters', pos),
       season,
-      sport: 'basketball',
+      sport,
       level: 'NHIAA',
       gender,
       division,
@@ -444,7 +495,7 @@ async function lockSeeds(gender, division, season, seeds) {
     games.push({
       game_id: generateGameId(season, gender, division, 'semis', pos),
       season,
-      sport: 'basketball',
+      sport,
       level: 'NHIAA',
       gender,
       division,
@@ -465,7 +516,7 @@ async function lockSeeds(gender, division, season, seeds) {
   games.push({
     game_id: generateGameId(season, gender, division, 'final', 1),
     season,
-    sport: 'basketball',
+    sport,
     level: 'NHIAA',
     gender,
     division,
@@ -548,7 +599,7 @@ async function getSeeds(gender, division, season) {
 }
 
 // Get current standings (for pre-lock preview)
-async function getStandingsPreview(gender, division, season, allTeams = false) {
+async function getStandingsPreview(gender, division, season, allTeams = false, sport = 'basketball') {
   // Get standings sorted by rating, with secondary sorts for deterministic ordering
   const standings = await supabaseRequest(
     `standings?season=eq.${season}&gender=eq.${gender}&division=eq.${division}&order=rating.desc,wins.desc,losses.asc,school.asc`,
@@ -577,7 +628,7 @@ async function getStandingsPreview(gender, division, season, allTeams = false) {
   
   // Get ALL completed games for this gender (for tiebreakers)
   const gamesData = await supabaseRequest(
-    `games?season=eq.${season}&gender=eq.${gender}&sport=eq.basketball&is_playoff=eq.false&home_score=not.is.null&away_score=not.is.null`,
+    `games?season=eq.${season}&gender=eq.${gender}&${gameSportFilter(sport)}&is_playoff=eq.false&home_score=not.is.null&away_score=not.is.null`,
     { headers: { 'Range': '0-9999' } }
   );
   
@@ -719,7 +770,8 @@ export default async (request) => {
     if (request.method === 'GET') {
       const gender = url.searchParams.get('gender');
       const division = url.searchParams.get('division');
-      const season = url.searchParams.get('season') || '2025-26';
+      const sport = url.searchParams.get('sport') || 'basketball';
+      const season = url.searchParams.get('season') || defaultSeasonForSport(sport);
       const preview = url.searchParams.get('preview') === 'true';
       const allTeams = url.searchParams.get('allTeams') === 'true';
       
@@ -730,7 +782,7 @@ export default async (request) => {
       }
       
       if (preview) {
-        const result = await getStandingsPreview(gender, division, season, allTeams);
+        const result = await getStandingsPreview(gender, division, season, allTeams, sport);
         return new Response(JSON.stringify(result), { status: 200, headers });
       }
       
@@ -740,7 +792,9 @@ export default async (request) => {
     
     if (request.method === 'POST') {
       const body = await request.json();
-      const { action, gender, division, season = '2025-26', seeds } = body;
+      const sport = body.sport || 'basketball';
+      const { action, gender, division, seeds } = body;
+      const season = body.season || defaultSeasonForSport(sport);
       
       if (!gender || !division) {
         return new Response(JSON.stringify({ error: 'gender and division required' }), {
@@ -755,7 +809,7 @@ export default async (request) => {
           });
         }
         
-        const result = await lockSeeds(gender, division, season, seeds);
+        const result = await lockSeeds(gender, division, season, seeds, sport);
         return new Response(JSON.stringify(result), { status: 200, headers });
       }
       
@@ -766,7 +820,7 @@ export default async (request) => {
           });
         }
         
-        const result = await projectSeeds(gender, division, season, seeds);
+        const result = await projectSeeds(gender, division, season, seeds, sport);
         return new Response(JSON.stringify(result), { status: 200, headers });
       }
       
