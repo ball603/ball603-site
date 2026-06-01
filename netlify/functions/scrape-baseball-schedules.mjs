@@ -1099,8 +1099,9 @@ async function syncWithNHIAA(scrapedGames) {
     
     // Fetch all NHIAA games from database for this sport/season.
     // Include ALL transferable content fields, not just coverage assignments.
+    // Also include manual_override so we can skip locked orphans (mirrors basketball behavior).
     const dbResponse = await fetch(
-      `${SUPABASE_URL}/rest/v1/games?level=eq.NHIAA&sport=eq.${SPORT}&season=eq.${SEASON}&select=game_id,date,home_team,away_team,gender,photog1,photog2,videog,writer,notes,photos_url,recap_url,highlights_url,live_stream_url,game_description,special_event`,
+      `${SUPABASE_URL}/rest/v1/games?level=eq.NHIAA&sport=eq.${SPORT}&season=eq.${SEASON}&select=game_id,date,home_team,away_team,gender,photog1,photog2,videog,writer,notes,photos_url,recap_url,highlights_url,live_stream_url,game_description,special_event,manual_override`,
       {
         headers: {
           'apikey': SUPABASE_SERVICE_KEY,
@@ -1117,8 +1118,18 @@ async function syncWithNHIAA(scrapedGames) {
     
     const dbGames = await dbResponse.json();
     
-    // Find orphaned games (in DB but not in scrape)
-    const orphanedGames = dbGames.filter(g => !scrapedGameIds.has(g.game_id));
+    // Find orphaned games (in DB but not in scrape).
+    // Exclude games with manual_override — never auto-delete an admin-locked row
+    // (e.g. doubleheaders inserted manually because NHIAA exposes no distinct times).
+    const allOrphanedGames = dbGames.filter(g => !scrapedGameIds.has(g.game_id));
+    const lockedOrphans = allOrphanedGames.filter(g => g.manual_override);
+    const orphanedGames = allOrphanedGames.filter(g => !g.manual_override);
+
+    if (lockedOrphans.length > 0) {
+      for (const g of lockedOrphans) {
+        console.log(`  🔒 Preserving locked orphan: ${g.away_team} @ ${g.home_team} on ${g.date} (manual_override=true)`);
+      }
+    }
     
     if (orphanedGames.length === 0) {
       console.log('  No orphaned games found - DB in sync with NHIAA');
