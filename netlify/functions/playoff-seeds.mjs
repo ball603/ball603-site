@@ -219,8 +219,8 @@ async function calculateVsPlayoffTeams(team, gender, division, season, qualifyin
 // Project seeds (publish as projected, no games created)
 async function projectSeeds(gender, division, season, seeds, sport) {
   const numTeams = seeds.length;
-  if (numTeams < 14 || numTeams > 16) {
-    throw new Error(`Invalid number of teams: ${numTeams}. Expected 14-16.`);
+  if (numTeams < 13 || numTeams > 16) {
+    throw new Error(`Invalid number of teams: ${numTeams}. Expected 13-16.`);
   }
   
   const now = new Date().toISOString();
@@ -300,8 +300,8 @@ async function lockSeeds(gender, division, season, seeds, sport) {
   const schedule = getTournamentSchedule(sport, gender, division);
   
   const numTeams = seeds.length;
-  if (numTeams < 14 || numTeams > 16) {
-    throw new Error(`Invalid number of teams: ${numTeams}. Expected 14-16.`);
+  if (numTeams < 13 || numTeams > 16) {
+    throw new Error(`Invalid number of teams: ${numTeams}. Expected 13-16.`);
   }
   
   const byes = 16 - numTeams;
@@ -803,8 +803,8 @@ export default async (request) => {
       }
       
       if (action === 'lock') {
-        if (!seeds || !Array.isArray(seeds) || seeds.length < 14) {
-          return new Response(JSON.stringify({ error: 'seeds array required (14-16 teams)' }), {
+        if (!seeds || !Array.isArray(seeds) || seeds.length < 13) {
+          return new Response(JSON.stringify({ error: 'seeds array required (13-16 teams)' }), {
             status: 400, headers
           });
         }
@@ -814,8 +814,8 @@ export default async (request) => {
       }
       
       if (action === 'project') {
-        if (!seeds || !Array.isArray(seeds) || seeds.length < 14) {
-          return new Response(JSON.stringify({ error: 'seeds array required (14-16 teams)' }), {
+        if (!seeds || !Array.isArray(seeds) || seeds.length < 13) {
+          return new Response(JSON.stringify({ error: 'seeds array required (13-16 teams)' }), {
             status: 400, headers
           });
         }
