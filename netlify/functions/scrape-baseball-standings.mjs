@@ -177,13 +177,13 @@ function calculatePlayoffPicture(standings) {
   // D-I: 22 teams → 15 playoff spots
   // D-II: 19 teams → 13 playoff spots
   // D-III: 22 teams → 15 playoff spots
-  // D-IV: 22 teams → 15 playoff spots
+  // D-IV: 22 teams → 14 playoff spots
   
   const PLAYOFF_SPOTS = {
     'D-I': 15,
     'D-II': 13,
     'D-III': 15,
-    'D-IV': 15
+    'D-IV': 14
   };
   
   // Group by division (baseball is boys-only)
