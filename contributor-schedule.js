@@ -43,17 +43,9 @@ class ContributorSchedule {
     this.scorebookModal = null;
     this.currentScorebookGameId = null;
     
-    this.CONTRIBUTORS = [
-      "Andy Romike", "Arinn Roy", "Betsy Hansen", "Cam Place", "Chris Laclair", "Chris Prangley",
-      "Christine Gilbert", "Chuck Swierad", "Cindy Lavigne", "Connor Chrusciel", "Danielle Cook",
-      "Dave Beliveau", "Frank V Fichera", "Greg Alnwick", "Hannah Smith", "Haven Deschenes",
-      "Heather Savage-Erickson", "Heidi Green", "Jeff Criss", "Jessica Bonnette", "Jessica Tate",
-      "Jill Stevens", "Jocelyn Sprague", "John Scott Sherburne", "KJ Cardinal", "Leo Cardinal", "LJ Hydock",
-      "Logan Paronto", "Marc Hoak", "Maverick Thivierge", "Michael Griffin", "Mike Whaley",
-      "Mindy Marcouillier", "Nate Ford", "Nichole Marrero", "Rick Wilson", "Sara Roberts",
-      "Shawna Hurlbert", "Shirley Nickles", "Simon Scott", "Stefan Duncan", "Tim Lee",
-      "Todd Grzywacz", "Tyson Thomas"
-    ].sort();
+    // Contributors loaded from Supabase `contributors` table at init time
+    // (was hardcoded — see loadContributors())
+    this.CONTRIBUTORS = [];
     
     this.MONTH_NAMES_SHORT = ['Jan.', 'Feb.', 'Mar.', 'Apr.', 'May', 'Jun.', 'Jul.', 'Aug.', 'Sep.', 'Oct.', 'Nov.', 'Dec.'];
     
@@ -184,10 +176,47 @@ class ContributorSchedule {
       return;
     }
     
+    // Load active contributors from Supabase before rendering the dropdown.
+    // If the fetch fails the page still works — the dropdown will just be empty
+    // and a console error will surface the issue.
+    if (this.config.showContributorDropdown) {
+      await this.loadContributors();
+    }
+    
     this.render();
     this.createScorebookModal();
     this.bindEvents();
     await this.loadGames();
+  }
+  
+  // Fetch active contributors from Supabase. Populates this.CONTRIBUTORS
+  // with an alphabetized list of names. Falls back to empty list on error.
+  async loadContributors() {
+    const supabase = this.config.supabaseClient || window.supabase;
+    if (!supabase) {
+      console.error('ContributorSchedule: Supabase client not available; contributor dropdown will be empty.');
+      this.CONTRIBUTORS = [];
+      return;
+    }
+    
+    try {
+      const { data, error } = await supabase
+        .from('contributors')
+        .select('name')
+        .eq('active', true)
+        .order('name', { ascending: true });
+      
+      if (error) throw error;
+      
+      this.CONTRIBUTORS = (data || []).map(r => r.name).filter(Boolean);
+      
+      if (this.CONTRIBUTORS.length === 0) {
+        console.warn('ContributorSchedule: Loaded 0 active contributors from Supabase.');
+      }
+    } catch (err) {
+      console.error('ContributorSchedule: Failed to load contributors from Supabase:', err);
+      this.CONTRIBUTORS = [];
+    }
   }
   
   // Set contributor name programmatically
