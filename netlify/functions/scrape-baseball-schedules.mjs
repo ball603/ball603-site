@@ -608,6 +608,10 @@ async function cleanupDuplicates() {
     
     // Process groups - fix IDs and remove duplicates
     const idsToDelete = [];
+    // Pairs of (old_game_id, new_game_id) for non-keeper duplicates whose linked content
+    // must be re-pointed to the surviving keeper BEFORE deletion.
+    // (Keeper migrations already cascade inside migrateGameId().)
+    const nonKeeperCascadePairs = [];
     let migratedCount = 0;
     
     for (const [key, gameGroup] of groups) {
@@ -656,21 +660,34 @@ async function cleanupDuplicates() {
         
         console.log(`    Correct ID should be: ${correctGameId}`);
         console.log(`    Keeping: ${keeper.game_id} (score: ${scored[0].score})`);
-        
-        // If keeper has wrong ID, migrate it
+
+        // Track keeper's final ID so non-keepers cascade to the right target.
+        let keeperFinalId = (keeper.game_id === correctGameId) ? correctGameId : null;
+        let keeperMigrationFailed = false;
+
+        // If keeper has wrong ID, migrate it (migrateGameId cascades its own articles/bash_content)
         if (keeper.game_id !== correctGameId) {
           console.log(`    Migrating to correct ID: ${correctGameId}`);
           const migrated = await migrateGameId(keeper, correctGameId);
           if (migrated) {
             migratedCount++;
             idsToDelete.push(keeper.game_id); // Delete old record
+            keeperFinalId = correctGameId;
+          } else {
+            keeperMigrationFailed = true;
+            console.error(`    Keeper migration failed — skipping non-keeper cascade for this group to avoid orphaning content`);
           }
         }
-        
-        // Delete all other duplicates
-        for (let i = 1; i < scored.length; i++) {
-          console.log(`    Deleting: ${scored[i].game.game_id} (score: ${scored[i].score})`);
-          idsToDelete.push(scored[i].game.game_id);
+
+        // Mark non-keeper duplicates for deletion ONLY if keeper migration succeeded (or wasn't needed).
+        // Otherwise leave them all in place; next scrape will retry.
+        if (!keeperMigrationFailed && keeperFinalId) {
+          for (let i = 1; i < scored.length; i++) {
+            const dupId = scored[i].game.game_id;
+            console.log(`    Deleting: ${dupId} (score: ${scored[i].score})`);
+            nonKeeperCascadePairs.push({ oldId: dupId, newId: keeperFinalId });
+            idsToDelete.push(dupId);
+          }
         }
         
       } else {
@@ -685,6 +702,23 @@ async function cleanupDuplicates() {
           }
         }
       }
+    }
+
+    // Cascade article + bash_content references for non-keeper duplicates BEFORE deleting.
+    // If any cascade fails, drop that old ID from the delete list so we don't orphan its links.
+    if (nonKeeperCascadePairs.length > 0) {
+      console.log(`  Cascading linked-content references for ${nonKeeperCascadePairs.length} non-keeper duplicate(s)...`);
+      const safeToDelete = new Set(idsToDelete);
+      for (const { oldId, newId } of nonKeeperCascadePairs) {
+        const cr = await cascadeGameIdReferences(oldId, newId);
+        if (!cr.success) {
+          console.error(`  Removing ${oldId} from delete list (cascade failed — preserving to keep linked content alive)`);
+          safeToDelete.delete(oldId);
+        }
+      }
+      // Reduce idsToDelete to only entries still safe to delete
+      idsToDelete.length = 0;
+      safeToDelete.forEach(id => idsToDelete.push(id));
     }
     
     // Delete old records
@@ -726,10 +760,14 @@ async function cleanupDuplicates() {
   }
 }
 
-// Migrate a game to a new game_id, preserving all data
+// Migrate a game to a new game_id, preserving all data AND linked content references.
+// Order: (1) insert new game row, (2) cascade articles/bash_content to new ID, (3) return.
+// The caller then deletes the OLD game_id row — by which point nothing references it.
 async function migrateGameId(oldGame, newGameId) {
   try {
-    // Create new record with correct ID and all existing data
+    const oldGameId = oldGame.game_id;
+
+    // Step 1: Create new record with correct ID and all existing data
     const newGame = { ...oldGame, game_id: newGameId };
     delete newGame.id; // Remove any auto-generated id field
     
@@ -751,12 +789,144 @@ async function migrateGameId(oldGame, newGameId) {
       console.error(`Failed to create migrated game:`, await insertResponse.text());
       return false;
     }
+
+    // Step 2: Cascade article + bash_content references from old → new ID.
+    // If this fails, return false so caller does NOT delete the old row (would orphan links).
+    const cascadeResult = await cascadeGameIdReferences(oldGameId, newGameId);
+    if (!cascadeResult.success) {
+      console.error(`Cascade failed during migration ${oldGameId} → ${newGameId}; aborting (old row will NOT be deleted to preserve linked content)`);
+      return false;
+    }
     
     return true;
   } catch (error) {
     console.error(`Error migrating game:`, error.message);
     return false;
   }
+}
+
+// Cascade UPDATE on tables that reference games.game_id (articles, bash_content).
+// MUST be called BEFORE deleting an old game row so linked content never points at a dead game_id.
+// Returns { success, articlesUpdated, bashUpdated, errors } — caller should abort deletion if !success.
+async function cascadeGameIdReferences(oldGameId, newGameId) {
+  const result = { success: true, articlesUpdated: 0, bashUpdated: 0, errors: [] };
+
+  // Defensive no-op
+  if (!oldGameId || !newGameId || oldGameId === newGameId) {
+    return result;
+  }
+
+  // 1. articles
+  try {
+    const r = await fetch(
+      `${SUPABASE_URL}/rest/v1/articles?game_id=eq.${encodeURIComponent(oldGameId)}`,
+      {
+        method: 'PATCH',
+        headers: {
+          'apikey': SUPABASE_SERVICE_KEY,
+          'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify({ game_id: newGameId })
+      }
+    );
+    if (!r.ok) {
+      result.success = false;
+      result.errors.push(`articles PATCH ${r.status}: ${await r.text()}`);
+    } else {
+      const rows = await r.json();
+      result.articlesUpdated = Array.isArray(rows) ? rows.length : 0;
+      if (result.articlesUpdated > 0) {
+        console.log(`    🔗 Re-linked ${result.articlesUpdated} article(s): ${oldGameId} → ${newGameId}`);
+      }
+    }
+  } catch (err) {
+    result.success = false;
+    result.errors.push(`articles PATCH error: ${err.message}`);
+  }
+
+  // 2. bash_content
+  try {
+    const r = await fetch(
+      `${SUPABASE_URL}/rest/v1/bash_content?game_id=eq.${encodeURIComponent(oldGameId)}`,
+      {
+        method: 'PATCH',
+        headers: {
+          'apikey': SUPABASE_SERVICE_KEY,
+          'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify({ game_id: newGameId })
+      }
+    );
+    if (!r.ok) {
+      result.success = false;
+      result.errors.push(`bash_content PATCH ${r.status}: ${await r.text()}`);
+    } else {
+      const rows = await r.json();
+      result.bashUpdated = Array.isArray(rows) ? rows.length : 0;
+      if (result.bashUpdated > 0) {
+        console.log(`    🔗 Re-linked ${result.bashUpdated} bash_content row(s): ${oldGameId} → ${newGameId}`);
+      }
+    }
+  } catch (err) {
+    result.success = false;
+    result.errors.push(`bash_content PATCH error: ${err.message}`);
+  }
+
+  if (!result.success) {
+    console.error(`    ❌ Cascade FAILED ${oldGameId} → ${newGameId}:`, result.errors.join('; '));
+  }
+  return result;
+}
+
+// Returns a Set of game_ids (from the given list) that have at least one row in
+// articles or bash_content. Used to "protect" orphan games with linked content
+// from being silently deleted when NHIAA changes the schedule.
+async function getLinkedGameIds(gameIds) {
+  const linked = new Set();
+  if (!gameIds || gameIds.length === 0) return linked;
+
+  // Batch lookups in chunks of 30 to stay under URL length limits
+  const BATCH = 30;
+  const headers = {
+    'apikey': SUPABASE_SERVICE_KEY,
+    'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+    'Range': '0-9999'
+  };
+
+  for (let i = 0; i < gameIds.length; i += BATCH) {
+    const chunk = gameIds.slice(i, i + BATCH);
+    const inFilter = `in.(${chunk.map(id => `"${id}"`).join(',')})`;
+
+    try {
+      const r1 = await fetch(`${SUPABASE_URL}/rest/v1/articles?game_id=${inFilter}&select=game_id`, { headers });
+      if (r1.ok) {
+        const rows = await r1.json();
+        rows.forEach(r => { if (r.game_id) linked.add(r.game_id); });
+      } else {
+        console.error('  articles lookup failed:', r1.status, await r1.text());
+      }
+    } catch (err) {
+      console.error('  articles lookup error:', err.message);
+    }
+
+    try {
+      const r2 = await fetch(`${SUPABASE_URL}/rest/v1/bash_content?game_id=${inFilter}&select=game_id`, { headers });
+      if (r2.ok) {
+        const rows = await r2.json();
+        rows.forEach(r => { if (r.game_id) linked.add(r.game_id); });
+      } else {
+        console.error('  bash_content lookup failed:', r2.status, await r2.text());
+      }
+    } catch (err) {
+      console.error('  bash_content lookup error:', err.message);
+    }
+  }
+
+  return linked;
 }
 
 async function getExistingGames() {
@@ -931,21 +1101,29 @@ async function updateSupabase(games) {
   return { rowCount: totalUpserted, changesDetected };
 }
 
-// Sync database with NHIAA - remove games not in scrape, transfer coverage for rescheduled games
+// Sync database with NHIAA.
+// For each game in DB but NOT in latest scrape ("orphan"):
+//   (a) If there's a rescheduled match (same teams + gender, different date): cascade
+//       articles/bash_content links to the new game_id, transfer FULL content fields
+//       (assignments + content URLs), then delete the old row.
+//   (b) If no reschedule match but the game has linked content (article/bash): PRESERVE
+//       (do not delete). It will appear in the audit page for manual review.
+//   (c) If no reschedule match and no linked content: delete (legacy behavior).
 async function syncWithNHIAA(scrapedGames) {
   try {
     // Safeguard: if scrape returned too few games, NHIAA might be down
     if (scrapedGames.length < 1000) {
       console.log(`  Scrape only returned ${scrapedGames.length} games - skipping sync to avoid accidental deletion`);
-      return { orphansRemoved: 0, coverageTransferred: 0 };
+      return { orphansRemoved: 0, coverageTransferred: 0, preservedWithLinks: 0, cascadesPerformed: 0 };
     }
     
     // Build set of scraped game_ids for fast lookup
     const scrapedGameIds = new Set(scrapedGames.map(g => g.game_id));
     
-    // Fetch all NHIAA games from database for this sport/season
+    // Fetch all NHIAA games from database for this sport/season.
+    // Include ALL transferable content fields, not just coverage assignments.
     const dbResponse = await fetch(
-      `${SUPABASE_URL}/rest/v1/games?level=eq.NHIAA&sport=eq.${SPORT}&season=eq.${SEASON}&select=game_id,date,home_team,away_team,gender,photog1,photog2,videog,writer`,
+      `${SUPABASE_URL}/rest/v1/games?level=eq.NHIAA&sport=eq.${SPORT}&season=eq.${SEASON}&select=game_id,date,home_team,away_team,gender,photog1,photog2,videog,writer,notes,photos_url,recap_url,highlights_url,live_stream_url,game_description,special_event`,
       {
         headers: {
           'apikey': SUPABASE_SERVICE_KEY,
@@ -957,7 +1135,7 @@ async function syncWithNHIAA(scrapedGames) {
     
     if (!dbResponse.ok) {
       console.error('Failed to fetch DB games for sync:', dbResponse.status);
-      return { orphansRemoved: 0, coverageTransferred: 0 };
+      return { orphansRemoved: 0, coverageTransferred: 0, preservedWithLinks: 0, cascadesPerformed: 0 };
     }
     
     const dbGames = await dbResponse.json();
@@ -967,10 +1145,18 @@ async function syncWithNHIAA(scrapedGames) {
     
     if (orphanedGames.length === 0) {
       console.log('  No orphaned games found - DB in sync with NHIAA');
-      return { orphansRemoved: 0, coverageTransferred: 0 };
+      return { orphansRemoved: 0, coverageTransferred: 0, preservedWithLinks: 0, cascadesPerformed: 0 };
     }
     
     console.log(`  Found ${orphanedGames.length} orphaned games not in NHIAA scrape`);
+
+    // Pre-fetch which orphan game_ids have linked articles or bash_content rows.
+    // These get special treatment: cascade on reschedule, or preserve if no reschedule.
+    const orphanIds = orphanedGames.map(g => g.game_id);
+    const linkedIds = await getLinkedGameIds(orphanIds);
+    if (linkedIds.size > 0) {
+      console.log(`  ${linkedIds.size} orphan(s) have linked articles/bash_content — extra care will be taken`);
+    }
     
     // Build lookup for scraped games by team matchup (for finding rescheduled games)
     const scrapedByMatchup = new Map();
@@ -984,25 +1170,54 @@ async function syncWithNHIAA(scrapedGames) {
     }
     
     let coverageTransferred = 0;
-    
-    // Process orphaned games - transfer coverage if they have assignments
+    let cascadesPerformed = 0;
+    let preservedWithLinks = 0;
+    const idsToDelete = [];
+
+    // Process orphaned games
     for (const orphan of orphanedGames) {
-      const hasCoverage = orphan.photog1 || orphan.photog2 || orphan.videog || orphan.writer;
+      const isLinked = linkedIds.has(orphan.game_id);
       
-      if (hasCoverage) {
-        // Look for matching rescheduled game
-        const teams = [teamSlug(orphan.home_team), teamSlug(orphan.away_team)].sort();
-        const matchupKey = `${teams[0]}_${teams[1]}_${orphan.gender}`;
-        const matchingGames = scrapedByMatchup.get(matchupKey) || [];
+      // Look for matching rescheduled game
+      const teams = [teamSlug(orphan.home_team), teamSlug(orphan.away_team)].sort();
+      const matchupKey = `${teams[0]}_${teams[1]}_${orphan.gender}`;
+      const matchingGames = scrapedByMatchup.get(matchupKey) || [];
+      const rescheduledGame = matchingGames.find(g => g.date !== orphan.date);
+      
+      if (rescheduledGame) {
+        console.log(`  📅 Rescheduled: ${orphan.away_team} @ ${orphan.home_team} moved from ${orphan.date} to ${rescheduledGame.date}`);
+
+        // 1. Cascade article + bash_content references if any exist
+        if (isLinked) {
+          const cr = await cascadeGameIdReferences(orphan.game_id, rescheduledGame.game_id);
+          if (!cr.success) {
+            console.error(`  ❌ Cascade failed for ${orphan.game_id} → ${rescheduledGame.game_id}; PRESERVING orphan to keep linked content alive`);
+            preservedWithLinks++;
+            continue; // skip transfer + delete
+          }
+          cascadesPerformed++;
+        }
+
+        // 2. Transfer full content fields (assignments + content URLs + notes)
+        const transferBody = {};
+        if (orphan.photog1) transferBody.photog1 = orphan.photog1;
+        if (orphan.photog2) transferBody.photog2 = orphan.photog2;
+        if (orphan.videog) transferBody.videog = orphan.videog;
+        if (orphan.writer) transferBody.writer = orphan.writer;
+        if (orphan.notes) transferBody.notes = orphan.notes;
+        if (orphan.photos_url) transferBody.photos_url = orphan.photos_url;
+        if (orphan.recap_url) transferBody.recap_url = orphan.recap_url;
+        if (orphan.highlights_url) transferBody.highlights_url = orphan.highlights_url;
+        if (orphan.live_stream_url) transferBody.live_stream_url = orphan.live_stream_url;
+        if (orphan.game_description) transferBody.game_description = orphan.game_description;
+        if (orphan.special_event) transferBody.special_event = orphan.special_event;
         
-        // Find a game with different date (the rescheduled game)
-        const rescheduledGame = matchingGames.find(g => g.date !== orphan.date);
-        
-        if (rescheduledGame) {
-          console.log(`  📅 Rescheduled: ${orphan.away_team} @ ${orphan.home_team} moved from ${orphan.date} to ${rescheduledGame.date}`);
-          console.log(`     Transferring coverage: photog1=${orphan.photog1 || '-'}, photog2=${orphan.photog2 || '-'}, videog=${orphan.videog || '-'}, writer=${orphan.writer || '-'}`);
+        if (Object.keys(transferBody).length > 0) {
+          transferBody.schedule_changed = true;
+          transferBody.original_date = orphan.date;
           
-          // Transfer coverage to rescheduled game
+          console.log(`     Transferring fields: ${Object.keys(transferBody).join(', ')}`);
+          
           const transferResponse = await fetch(
             `${SUPABASE_URL}/rest/v1/games?game_id=eq.${encodeURIComponent(rescheduledGame.game_id)}`,
             {
@@ -1013,35 +1228,42 @@ async function syncWithNHIAA(scrapedGames) {
                 'Content-Type': 'application/json',
                 'Prefer': 'return=minimal'
               },
-              body: JSON.stringify({
-                photog1: orphan.photog1 || null,
-                photog2: orphan.photog2 || null,
-                videog: orphan.videog || null,
-                writer: orphan.writer || null,
-                schedule_changed: true,
-                original_date: orphan.date
-              })
+              body: JSON.stringify(transferBody)
             }
           );
           
           if (transferResponse.ok) {
             coverageTransferred++;
           } else {
-            console.error(`  Failed to transfer coverage for ${orphan.game_id}`);
+            console.error(`  Failed to transfer content for ${orphan.game_id}: ${await transferResponse.text()}`);
           }
-        } else {
-          console.log(`  ⚠️ Orphaned with coverage but no reschedule found: ${orphan.away_team} @ ${orphan.home_team} on ${orphan.date}`);
         }
+
+        // 3. Mark old game for deletion (now safe: references cascaded, content transferred)
+        idsToDelete.push(orphan.game_id);
+
       } else {
-        console.log(`  🗑️ Removing: ${orphan.away_team} @ ${orphan.home_team} on ${orphan.date}`);
+        // No rescheduled match
+        if (isLinked) {
+          // Has linked content but NHIAA has no replacement — preserve, do not delete.
+          preservedWithLinks++;
+          console.log(`  🔒 Preserving orphan with linked content (no NHIAA match): ${orphan.away_team} @ ${orphan.home_team} on ${orphan.date} [${orphan.game_id}]`);
+        } else {
+          // No content, no match — safe to remove
+          console.log(`  🗑️ Removing: ${orphan.away_team} @ ${orphan.home_team} on ${orphan.date}`);
+          idsToDelete.push(orphan.game_id);
+        }
       }
     }
     
-    // Delete all orphaned games
-    const orphanIds = orphanedGames.map(g => g.game_id);
-    
+    // Delete only orphans marked for deletion (preserved ones stay)
+    if (idsToDelete.length === 0) {
+      console.log(`  ✅ Nothing to delete. Preserved ${preservedWithLinks} orphan(s) with linked content.`);
+      return { orphansRemoved: 0, coverageTransferred, preservedWithLinks, cascadesPerformed };
+    }
+
     const deleteResponse = await fetch(
-      `${SUPABASE_URL}/rest/v1/games?game_id=in.(${orphanIds.map(id => `"${id}"`).join(',')})`,
+      `${SUPABASE_URL}/rest/v1/games?game_id=in.(${idsToDelete.map(id => `"${id}"`).join(',')})`,
       {
         method: 'DELETE',
         headers: {
@@ -1054,15 +1276,15 @@ async function syncWithNHIAA(scrapedGames) {
     
     if (!deleteResponse.ok) {
       console.error('Failed to delete orphaned games:', await deleteResponse.text());
-      return { orphansRemoved: 0, coverageTransferred };
+      return { orphansRemoved: 0, coverageTransferred, preservedWithLinks, cascadesPerformed };
     }
     
-    console.log(`  ✅ Removed ${orphanedGames.length} orphaned games, transferred ${coverageTransferred} coverage assignments`);
-    return { orphansRemoved: orphanedGames.length, coverageTransferred };
+    console.log(`  ✅ Removed ${idsToDelete.length} orphan(s), transferred ${coverageTransferred} content payload(s), cascaded ${cascadesPerformed} link(s), preserved ${preservedWithLinks} orphan(s) with linked content`);
+    return { orphansRemoved: idsToDelete.length, coverageTransferred, preservedWithLinks, cascadesPerformed };
     
   } catch (error) {
     console.error('Error syncing with NHIAA:', error.message);
-    return { orphansRemoved: 0, coverageTransferred: 0 };
+    return { orphansRemoved: 0, coverageTransferred: 0, preservedWithLinks: 0, cascadesPerformed: 0 };
   }
 }
 
@@ -1100,9 +1322,10 @@ export default async (request) => {
       postponedGames.forEach(g => console.log(`  - ${g.away_team} @ ${g.home_team} on ${g.date}`));
     }
     
-    // Step 4: Sync with NHIAA - remove orphans, transfer coverage for rescheduled games
+    // Step 4: Sync with NHIAA - remove orphans, transfer coverage for rescheduled games,
+    // cascade article/bash_content references, and preserve orphans with linked content.
     console.log('Step 4: Syncing database with NHIAA...');
-    const { orphansRemoved, coverageTransferred } = await syncWithNHIAA(activeGames);
+    const { orphansRemoved, coverageTransferred, preservedWithLinks, cascadesPerformed } = await syncWithNHIAA(activeGames);
     
     // Step 5: Upsert to database
     console.log('Step 5: Upserting to Supabase...');
@@ -1117,6 +1340,8 @@ export default async (request) => {
       gameIdsMigrated: gameIdsMigrated || 0,
       orphansRemoved: orphansRemoved,
       coverageTransferred: coverageTransferred || 0,
+      cascadesPerformed: cascadesPerformed || 0,
+      preservedWithLinks: preservedWithLinks || 0,
       scheduleChanges: changesDetected,
       timestamp: new Date().toISOString()
     }), { 
