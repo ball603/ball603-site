@@ -1111,11 +1111,28 @@ async function updateSupabase(games) {
 //   (c) If no reschedule match and no linked content: delete (legacy behavior).
 async function syncWithNHIAA(scrapedGames) {
   try {
-    // Safeguard: if scrape returned too few games, NHIAA might be down
-    if (scrapedGames.length < 1000) {
-      console.log(`  Scrape only returned ${scrapedGames.length} games - skipping sync to avoid accidental deletion`);
+    // Safeguard: if scrape returned dramatically fewer games than the DB has, NHIAA might be down.
+    // Baseball typically scrapes ~600-800 games per run (4 divisions, ~140 teams, ~16 games each).
+    // Compare to DB count rather than absolute number, so the safeguard adapts to the season.
+    // Skip if scrape count < 50% of DB count (and DB has >100 games — first runs always proceed).
+    const dbCountResp = await fetch(
+      `${SUPABASE_URL}/rest/v1/games?level=eq.NHIAA&sport=eq.${SPORT}&season=eq.${SEASON}&select=game_id`,
+      {
+        headers: {
+          'apikey': SUPABASE_SERVICE_KEY,
+          'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+          'Prefer': 'count=exact',
+          'Range': '0-0'
+        }
+      }
+    );
+    const dbCountHeader = dbCountResp.headers.get('content-range') || '';
+    const dbCount = parseInt(dbCountHeader.split('/').pop()) || 0;
+    if (dbCount > 100 && scrapedGames.length < dbCount * 0.5) {
+      console.log(`  Scrape returned ${scrapedGames.length} games vs ${dbCount} in DB (<50%) — skipping sync to avoid accidental mass deletion`);
       return { orphansRemoved: 0, coverageTransferred: 0, preservedWithLinks: 0, cascadesPerformed: 0 };
     }
+    console.log(`  Sync safeguard OK: scrape ${scrapedGames.length} vs DB ${dbCount}`);
     
     // Build set of scraped game_ids for fast lookup
     const scrapedGameIds = new Set(scrapedGames.map(g => g.game_id));
