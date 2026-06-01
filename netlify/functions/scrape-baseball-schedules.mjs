@@ -665,7 +665,7 @@ async function cleanupDuplicates() {
         let keeperFinalId = (keeper.game_id === correctGameId) ? correctGameId : null;
         let keeperMigrationFailed = false;
 
-        // If keeper has wrong ID, migrate it (migrateGameId cascades its own articles/bash_content)
+        // If keeper has wrong ID, migrate it (migrateGameId cascades its own articles)
         if (keeper.game_id !== correctGameId) {
           console.log(`    Migrating to correct ID: ${correctGameId}`);
           const migrated = await migrateGameId(keeper, correctGameId);
@@ -704,7 +704,7 @@ async function cleanupDuplicates() {
       }
     }
 
-    // Cascade article + bash_content references for non-keeper duplicates BEFORE deleting.
+    // Cascade article references for non-keeper duplicates BEFORE deleting.
     // If any cascade fails, drop that old ID from the delete list so we don't orphan its links.
     if (nonKeeperCascadePairs.length > 0) {
       console.log(`  Cascading linked-content references for ${nonKeeperCascadePairs.length} non-keeper duplicate(s)...`);
@@ -761,7 +761,7 @@ async function cleanupDuplicates() {
 }
 
 // Migrate a game to a new game_id, preserving all data AND linked content references.
-// Order: (1) insert new game row, (2) cascade articles/bash_content to new ID, (3) return.
+// Order: (1) insert new game row, (2) cascade articles.game_id to new ID, (3) return.
 // The caller then deletes the OLD game_id row — by which point nothing references it.
 async function migrateGameId(oldGame, newGameId) {
   try {
@@ -790,7 +790,7 @@ async function migrateGameId(oldGame, newGameId) {
       return false;
     }
 
-    // Step 2: Cascade article + bash_content references from old → new ID.
+    // Step 2: Cascade article references from old → new ID.
     // If this fails, return false so caller does NOT delete the old row (would orphan links).
     const cascadeResult = await cascadeGameIdReferences(oldGameId, newGameId);
     if (!cascadeResult.success) {
@@ -805,18 +805,20 @@ async function migrateGameId(oldGame, newGameId) {
   }
 }
 
-// Cascade UPDATE on tables that reference games.game_id (articles, bash_content).
+// Cascade UPDATE on tables that reference games.game_id (currently: articles only).
 // MUST be called BEFORE deleting an old game row so linked content never points at a dead game_id.
-// Returns { success, articlesUpdated, bashUpdated, errors } — caller should abort deletion if !success.
+// NOTE: bash_content.game_id is UUID-typed and references a separate Bash Tournament data model,
+// NOT the NHIAA games table. The NHIAA scrapers do not touch bash_content.
+// Returns { success, articlesUpdated, errors } — caller should abort deletion if !success.
 async function cascadeGameIdReferences(oldGameId, newGameId) {
-  const result = { success: true, articlesUpdated: 0, bashUpdated: 0, errors: [] };
+  const result = { success: true, articlesUpdated: 0, errors: [] };
 
   // Defensive no-op
   if (!oldGameId || !newGameId || oldGameId === newGameId) {
     return result;
   }
 
-  // 1. articles
+  // articles.game_id is text-typed and matches games.game_id directly
   try {
     const r = await fetch(
       `${SUPABASE_URL}/rest/v1/articles?game_id=eq.${encodeURIComponent(oldGameId)}`,
@@ -846,45 +848,15 @@ async function cascadeGameIdReferences(oldGameId, newGameId) {
     result.errors.push(`articles PATCH error: ${err.message}`);
   }
 
-  // 2. bash_content
-  try {
-    const r = await fetch(
-      `${SUPABASE_URL}/rest/v1/bash_content?game_id=eq.${encodeURIComponent(oldGameId)}`,
-      {
-        method: 'PATCH',
-        headers: {
-          'apikey': SUPABASE_SERVICE_KEY,
-          'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
-          'Content-Type': 'application/json',
-          'Prefer': 'return=representation'
-        },
-        body: JSON.stringify({ game_id: newGameId })
-      }
-    );
-    if (!r.ok) {
-      result.success = false;
-      result.errors.push(`bash_content PATCH ${r.status}: ${await r.text()}`);
-    } else {
-      const rows = await r.json();
-      result.bashUpdated = Array.isArray(rows) ? rows.length : 0;
-      if (result.bashUpdated > 0) {
-        console.log(`    🔗 Re-linked ${result.bashUpdated} bash_content row(s): ${oldGameId} → ${newGameId}`);
-      }
-    }
-  } catch (err) {
-    result.success = false;
-    result.errors.push(`bash_content PATCH error: ${err.message}`);
-  }
-
   if (!result.success) {
     console.error(`    ❌ Cascade FAILED ${oldGameId} → ${newGameId}:`, result.errors.join('; '));
   }
   return result;
 }
 
-// Returns a Set of game_ids (from the given list) that have at least one row in
-// articles or bash_content. Used to "protect" orphan games with linked content
-// from being silently deleted when NHIAA changes the schedule.
+// Returns a Set of game_ids (from the given list) that have at least one row in articles.
+// Used to "protect" orphan games with linked content from being silently deleted when
+// NHIAA changes the schedule.
 async function getLinkedGameIds(gameIds) {
   const linked = new Set();
   if (!gameIds || gameIds.length === 0) return linked;
@@ -902,27 +874,15 @@ async function getLinkedGameIds(gameIds) {
     const inFilter = `in.(${chunk.map(id => `"${id}"`).join(',')})`;
 
     try {
-      const r1 = await fetch(`${SUPABASE_URL}/rest/v1/articles?game_id=${inFilter}&select=game_id`, { headers });
-      if (r1.ok) {
-        const rows = await r1.json();
-        rows.forEach(r => { if (r.game_id) linked.add(r.game_id); });
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/articles?game_id=${inFilter}&select=game_id`, { headers });
+      if (r.ok) {
+        const rows = await r.json();
+        rows.forEach(row => { if (row.game_id) linked.add(row.game_id); });
       } else {
-        console.error('  articles lookup failed:', r1.status, await r1.text());
+        console.error('  articles lookup failed:', r.status, await r.text());
       }
     } catch (err) {
       console.error('  articles lookup error:', err.message);
-    }
-
-    try {
-      const r2 = await fetch(`${SUPABASE_URL}/rest/v1/bash_content?game_id=${inFilter}&select=game_id`, { headers });
-      if (r2.ok) {
-        const rows = await r2.json();
-        rows.forEach(r => { if (r.game_id) linked.add(r.game_id); });
-      } else {
-        console.error('  bash_content lookup failed:', r2.status, await r2.text());
-      }
-    } catch (err) {
-      console.error('  bash_content lookup error:', err.message);
     }
   }
 
@@ -1104,7 +1064,7 @@ async function updateSupabase(games) {
 // Sync database with NHIAA.
 // For each game in DB but NOT in latest scrape ("orphan"):
 //   (a) If there's a rescheduled match (same teams + gender, different date): cascade
-//       articles/bash_content links to the new game_id, transfer FULL content fields
+//       article links to the new game_id, transfer FULL content fields
 //       (assignments + content URLs), then delete the old row.
 //   (b) If no reschedule match but the game has linked content (article/bash): PRESERVE
 //       (do not delete). It will appear in the audit page for manual review.
@@ -1167,12 +1127,12 @@ async function syncWithNHIAA(scrapedGames) {
     
     console.log(`  Found ${orphanedGames.length} orphaned games not in NHIAA scrape`);
 
-    // Pre-fetch which orphan game_ids have linked articles or bash_content rows.
+    // Pre-fetch which orphan game_ids have linked articles.
     // These get special treatment: cascade on reschedule, or preserve if no reschedule.
     const orphanIds = orphanedGames.map(g => g.game_id);
     const linkedIds = await getLinkedGameIds(orphanIds);
     if (linkedIds.size > 0) {
-      console.log(`  ${linkedIds.size} orphan(s) have linked articles/bash_content — extra care will be taken`);
+      console.log(`  ${linkedIds.size} orphan(s) have linked articles — extra care will be taken`);
     }
     
     // Build lookup for scraped games by team matchup (for finding rescheduled games)
@@ -1195,16 +1155,25 @@ async function syncWithNHIAA(scrapedGames) {
     for (const orphan of orphanedGames) {
       const isLinked = linkedIds.has(orphan.game_id);
       
-      // Look for matching rescheduled game
+      // Look for matching rescheduled game (same teams + gender, different date, within 14 days)
       const teams = [teamSlug(orphan.home_team), teamSlug(orphan.away_team)].sort();
       const matchupKey = `${teams[0]}_${teams[1]}_${orphan.gender}`;
       const matchingGames = scrapedByMatchup.get(matchupKey) || [];
-      const rescheduledGame = matchingGames.find(g => g.date !== orphan.date);
+      const orphanDate = new Date(orphan.date + 'T12:00:00');
+      const rescheduleCandidates = matchingGames
+        .filter(g => g.date !== orphan.date)
+        .map(g => ({
+          game: g,
+          distanceDays: Math.abs((new Date(g.date + 'T12:00:00') - orphanDate) / 86400000)
+        }))
+        .filter(c => c.distanceDays <= 14)
+        .sort((a, b) => a.distanceDays - b.distanceDays);
+      const rescheduledGame = rescheduleCandidates[0]?.game;
       
       if (rescheduledGame) {
         console.log(`  📅 Rescheduled: ${orphan.away_team} @ ${orphan.home_team} moved from ${orphan.date} to ${rescheduledGame.date}`);
 
-        // 1. Cascade article + bash_content references if any exist
+        // 1. Cascade article references if any exist
         if (isLinked) {
           const cr = await cascadeGameIdReferences(orphan.game_id, rescheduledGame.game_id);
           if (!cr.success) {
@@ -1340,7 +1309,7 @@ export default async (request) => {
     }
     
     // Step 4: Sync with NHIAA - remove orphans, transfer coverage for rescheduled games,
-    // cascade article/bash_content references, and preserve orphans with linked content.
+    // cascade article references, and preserve orphans with linked content.
     console.log('Step 4: Syncing database with NHIAA...');
     const { orphansRemoved, coverageTransferred, preservedWithLinks, cascadesPerformed } = await syncWithNHIAA(activeGames);
     
