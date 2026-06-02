@@ -407,6 +407,7 @@ async function lockSeeds(gender, division, season, seeds, sport) {
         away_seed: null,
         location: null,
         is_playoff: true,
+        manual_override: true,
         round: 'Prelims',
         bracket_position: matchup.position
       });
@@ -429,6 +430,7 @@ async function lockSeeds(gender, division, season, seeds, sport) {
         away_seed: lowSeed,
         location: `${highTeam} HS`,
         is_playoff: true,
+        manual_override: true,
         round: 'Prelims',
         bracket_position: matchup.position
       });
@@ -482,6 +484,7 @@ async function lockSeeds(gender, division, season, seeds, sport) {
       away_seed: awaySeed,
       location: locationTeam ? `${locationTeam} HS` : 'TBD',
       is_playoff: true,
+        manual_override: true,
       round: 'Quarters',
       bracket_position: pos
     });
@@ -507,6 +510,7 @@ async function lockSeeds(gender, division, season, seeds, sport) {
       away_seed: null,
       location: schedule.semis.site,
       is_playoff: true,
+        manual_override: true,
       round: 'Semis',
       bracket_position: pos
     });
@@ -528,6 +532,7 @@ async function lockSeeds(gender, division, season, seeds, sport) {
     away_seed: null,
     location: schedule.final.site,
     is_playoff: true,
+        manual_override: true,
     round: 'Final',
     bracket_position: 1
   });
@@ -562,6 +567,184 @@ async function unlockBracket(gender, division, season) {
   );
   
   return { success: true };
+}
+
+// Recovery action: rebuilds the bracket games from existing playoff_seeds.
+// Does NOT touch seed records or frozen stats. Use this when the games were
+// wiped (e.g. by a scraper run before manual_override was being set).
+async function regenerateGamesFromSeeds(gender, division, season, sport) {
+  // Step 1: Read existing seeds
+  const seedRows = await supabaseRequest(
+    `playoff_seeds?season=eq.${season}&gender=eq.${gender}&division=eq.${division}&order=seed.asc`,
+    { headers: { 'Range': '0-99' } }
+  );
+  
+  if (!seedRows || seedRows.length === 0) {
+    throw new Error(`No playoff_seeds found for ${gender} ${division} ${season}. Nothing to regenerate.`);
+  }
+  
+  if (seedRows.length < 13 || seedRows.length > 16) {
+    throw new Error(`Invalid seed count: ${seedRows.length}. Expected 13-16.`);
+  }
+  
+  // Build the seeds array in the format the bracket builder expects
+  const seeds = seedRows.map(r => ({ seed: r.seed, team: r.team }));
+  
+  // Step 2: Delete any existing playoff games for this bracket (in case of
+  // partial leftovers from a previous broken run)
+  await supabaseRequest(
+    `games?season=eq.${season}&gender=eq.${gender}&division=eq.${division}&is_playoff=eq.true`,
+    { method: 'DELETE', prefer: 'return=minimal' }
+  );
+  
+  // Step 3: Build and insert the bracket games (with manual_override=true)
+  const games = buildBracketGames(sport, gender, division, season, seeds);
+  
+  await supabaseRequest('games', {
+    method: 'POST',
+    body: JSON.stringify(games),
+    prefer: 'return=minimal'
+  });
+  
+  return {
+    success: true,
+    gamesCreated: games.length,
+    seedsUsed: seeds.length,
+    byes: 16 - seeds.length
+  };
+}
+
+// Shared bracket-build helper. Returns the array of game records (with
+// manual_override=true) for prelims, quarters, semis, and final, given a
+// sorted-by-seed list of teams.
+function buildBracketGames(sport, gender, division, season, seeds) {
+  const schedule = getTournamentSchedule(sport, gender, division);
+  const numTeams = seeds.length;
+  const seedMap = new Map(seeds.map(s => [s.seed, s.team]));
+  const games = [];
+  
+  // Prelims
+  for (const matchup of BRACKET_MATCHUPS) {
+    const highSeed = matchup.high;
+    const lowSeed = matchup.low;
+    const isBye = lowSeed > numTeams;
+    const highTeam = seedMap.get(highSeed);
+    
+    if (isBye) {
+      games.push({
+        game_id: generateGameId(season, gender, division, 'prelims', matchup.position),
+        season, sport, level: 'NHIAA', gender, division,
+        date: schedule.prelims.date,
+        time: 'BYE',
+        home_team: highTeam,
+        away_team: null,
+        home_seed: highSeed,
+        away_seed: null,
+        location: null,
+        is_playoff: true,
+        manual_override: true,
+        round: 'Prelims',
+        bracket_position: matchup.position
+      });
+    } else {
+      const lowTeam = seedMap.get(lowSeed);
+      games.push({
+        game_id: generateGameId(season, gender, division, 'prelims', matchup.position),
+        season, sport, level: 'NHIAA', gender, division,
+        date: schedule.prelims.date,
+        time: schedule.prelims.time,
+        home_team: highTeam,
+        away_team: lowTeam,
+        home_seed: highSeed,
+        away_seed: lowSeed,
+        location: `${highTeam} HS`,
+        is_playoff: true,
+        manual_override: true,
+        round: 'Prelims',
+        bracket_position: matchup.position
+      });
+    }
+  }
+  
+  // Quarters
+  for (let pos = 1; pos <= 4; pos++) {
+    const prelimPos1 = (pos - 1) * 2 + 1;
+    const prelimPos2 = (pos - 1) * 2 + 2;
+    const matchup1 = BRACKET_MATCHUPS.find(m => m.position === prelimPos1);
+    const matchup2 = BRACKET_MATCHUPS.find(m => m.position === prelimPos2);
+    const isBye1 = matchup1.low > numTeams;
+    const isBye2 = matchup2.low > numTeams;
+    
+    let homeTeam = null, homeSeed = null;
+    let awayTeam = null, awaySeed = null;
+    
+    if (isBye1) {
+      awayTeam = seedMap.get(matchup1.high);
+      awaySeed = matchup1.high;
+    }
+    if (isBye2) {
+      homeTeam = seedMap.get(matchup2.high);
+      homeSeed = matchup2.high;
+    }
+    
+    const locationTeam = (awayTeam && homeTeam) 
+      ? ((awaySeed < homeSeed) ? awayTeam : homeTeam) 
+      : (awayTeam || homeTeam);
+    
+    games.push({
+      game_id: generateGameId(season, gender, division, 'quarters', pos),
+      season, sport, level: 'NHIAA', gender, division,
+      date: schedule.quarters.date,
+      time: schedule.quarters.time,
+      home_team: homeTeam,
+      away_team: awayTeam,
+      home_seed: homeSeed,
+      away_seed: awaySeed,
+      location: locationTeam ? `${locationTeam} HS` : 'TBD',
+      is_playoff: true,
+      manual_override: true,
+      round: 'Quarters',
+      bracket_position: pos
+    });
+  }
+  
+  // Semis
+  for (let pos = 1; pos <= 2; pos++) {
+    games.push({
+      game_id: generateGameId(season, gender, division, 'semis', pos),
+      season, sport, level: 'NHIAA', gender, division,
+      date: schedule.semis.date,
+      time: schedule.semis.times[pos - 1],
+      home_team: null,
+      away_team: null,
+      home_seed: null,
+      away_seed: null,
+      location: schedule.semis.site,
+      is_playoff: true,
+      manual_override: true,
+      round: 'Semis',
+      bracket_position: pos
+    });
+  }
+  
+  // Final
+  games.push({
+    game_id: generateGameId(season, gender, division, 'final', 1),
+    season, sport, level: 'NHIAA', gender, division,
+    date: schedule.final.date,
+    time: schedule.final.time,
+    home_team: null,
+    away_team: null,
+    home_seed: null,
+    away_seed: null,
+    location: schedule.final.site,
+    is_playoff: true,
+    manual_override: true,
+    round: 'Final',
+    bracket_position: 1
+  });
+  
+  return games;
 }
 
 // Get seeds for a tournament
@@ -826,6 +1009,14 @@ export default async (request) => {
       
       if (action === 'unlock' || action === 'unproject') {
         const result = await unlockBracket(gender, division, season);
+        return new Response(JSON.stringify(result), { status: 200, headers });
+      }
+      
+      if (action === 'regenerate-games') {
+        // Recovery action: reads existing playoff_seeds, rebuilds games with
+        // manual_override=true. Does NOT touch seed records. Use after a scraper
+        // wipe to restore brackets without recomputing frozen stats.
+        const result = await regenerateGamesFromSeeds(gender, division, season, sport);
         return new Response(JSON.stringify(result), { status: 200, headers });
       }
       
