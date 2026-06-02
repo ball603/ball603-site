@@ -22575,20 +22575,50 @@ Respond ONLY with valid JSON:
       loadSOSData();
     }
     
+    // Returns true if today is before that sport's RPI season start date.
+    //   baseball:   first Monday of May
+    //   volleyball: third Monday of September
+    function isBeforeSeasonStart(sport) {
+      const today = new Date();
+      const year = today.getFullYear();
+      let startDate;
+      
+      if (sport === 'baseball') {
+        // First Monday of May
+        const may1 = new Date(year, 4, 1);
+        const offset = (8 - may1.getDay()) % 7;  // days until next Monday (0 if May 1 is Monday)
+        startDate = new Date(year, 4, 1 + offset);
+      } else if (sport === 'volleyball') {
+        // Third Monday of September
+        const sep1 = new Date(year, 8, 1);
+        const offset = (8 - sep1.getDay()) % 7;
+        const firstMonday = 1 + offset;
+        startDate = new Date(year, 8, firstMonday + 14);
+      } else {
+        return false;
+      }
+      
+      // Compare date-only (ignore time)
+      today.setHours(0, 0, 0, 0);
+      startDate.setHours(0, 0, 0, 0);
+      return today < startDate;
+    }
+    
     async function loadSOSData() {
       const sport = document.getElementById('sosSport')?.value || 'basketball';
       const gender = document.getElementById('sosGender').value;
       const division = document.getElementById('sosDivision').value;
       const tbody = document.getElementById('sosTableBody');
       
-      // Show message for sports that aren't active yet
-      if (sport === 'baseball') {
+      // Show message for sports that aren't active yet.
+      // Gates auto-disengage once the season has started.
+      if (sport === 'baseball' && isBeforeSeasonStart('baseball')) {
         tbody.innerHTML = '<tr><td colspan="11" style="padding: 40px; text-align: center; color: #666;"><span style="font-size: 24px;">&#x26BE;</span><br><br><strong>Baseball RPI begins the first Monday of May</strong><br><span style="color: #888;">Check back when the season is underway!</span></td></tr>';
         document.getElementById('sosLastUpdated').textContent = '';
         return;
       }
       
-      if (sport === 'volleyball') {
+      if (sport === 'volleyball' && isBeforeSeasonStart('volleyball')) {
         tbody.innerHTML = '<tr><td colspan="11" style="padding: 40px; text-align: center; color: #666;"><span style="font-size: 24px;">&#x1F3D0;</span><br><br><strong>Volleyball RPI begins the third Monday in September</strong><br><span style="color: #888;">Check back when the season is underway!</span></td></tr>';
         document.getElementById('sosLastUpdated').textContent = '';
         return;
