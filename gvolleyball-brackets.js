@@ -48,7 +48,7 @@ const GVOLLEYBALL_BRACKETS = {
             { winner: 'Pinkerton', winnerSeed: 1, loser: 'Nashua North', loserSeed: 5, winnerScore: 3, loserScore: 1 },
             { winner: 'Dover',     winnerSeed: 6, loser: 'Londonderry',  loserSeed: 2, winnerScore: 3, loserScore: 2 }
           ],
-          final: { winner: 'Pinkerton', winnerSeed: 1, loser: 'Dover', loserSeed: 6, winnerScore: 3, loserScore: 0 }
+          final: [ { winner: 'Pinkerton', winnerSeed: 1, loser: 'Dover', loserSeed: 6, winnerScore: 3, loserScore: 0 } ]
         }
       },
       'D-II': {
@@ -77,7 +77,7 @@ const GVOLLEYBALL_BRACKETS = {
             { winner: 'Oyster River', winnerSeed: 1, loser: 'Milford',    loserSeed: 4, winnerScore: 3, loserScore: 1 },
             { winner: 'Somersworth',  winnerSeed: 3, loser: 'Kingswood',  loserSeed: 7, winnerScore: 3, loserScore: 1 }
           ],
-          final: { winner: 'Oyster River', winnerSeed: 1, loser: 'Somersworth', loserSeed: 3, winnerScore: 3, loserScore: 1 }
+          final: [ { winner: 'Oyster River', winnerSeed: 1, loser: 'Somersworth', loserSeed: 3, winnerScore: 3, loserScore: 1 } ]
         }
       },
       'D-III': {
@@ -106,7 +106,7 @@ const GVOLLEYBALL_BRACKETS = {
             { winner: 'Inter-Lakes', winnerSeed: 1, loser: 'Belmont', loserSeed: 4, winnerScore: 3, loserScore: 1 },
             { winner: 'Farmington',  winnerSeed: 2, loser: 'Trinity', loserSeed: 3, winnerScore: 3, loserScore: 1 }
           ],
-          final: { winner: 'Inter-Lakes', winnerSeed: 1, loser: 'Farmington', loserSeed: 2, winnerScore: 3, loserScore: 0 }
+          final: [ { winner: 'Inter-Lakes', winnerSeed: 1, loser: 'Farmington', loserSeed: 2, winnerScore: 3, loserScore: 0 } ]
         }
       }
     }
@@ -143,7 +143,7 @@ const GVOLLEYBALL_BRACKETS = {
             { winner: 'Bedford',   winnerSeed: 1, loser: 'Bishop Guertin', loserSeed: 4, winnerScore: 3, loserScore: 2 },
             { winner: 'Pinkerton', winnerSeed: 3, loser: 'Goffstown',      loserSeed: 2, winnerScore: 3, loserScore: 2 }
           ],
-          final: { winner: 'Bedford', winnerSeed: 1, loser: 'Pinkerton', loserSeed: 3, winnerScore: 3, loserScore: 0 }
+          final: [ { winner: 'Bedford', winnerSeed: 1, loser: 'Pinkerton', loserSeed: 3, winnerScore: 3, loserScore: 0 } ]
         }
       },
       'D-II': {
@@ -172,7 +172,7 @@ const GVOLLEYBALL_BRACKETS = {
             { winner: 'Somersworth', winnerSeed: 1, loser: 'Oyster River',        loserSeed: 4, winnerScore: 3, loserScore: 0 },
             { winner: 'Milford',     winnerSeed: 3, loser: 'Coe-Brown Northwood', loserSeed: 2, winnerScore: 3, loserScore: 2 }
           ],
-          final: { winner: 'Somersworth', winnerSeed: 1, loser: 'Milford', loserSeed: 3, winnerScore: 3, loserScore: 1 }
+          final: [ { winner: 'Somersworth', winnerSeed: 1, loser: 'Milford', loserSeed: 3, winnerScore: 3, loserScore: 1 } ]
         }
       },
       'D-III': {
@@ -201,7 +201,7 @@ const GVOLLEYBALL_BRACKETS = {
             { winner: 'Inter-Lakes',       winnerSeed: 1, loser: 'Portsmouth Christian', loserSeed: 4, winnerScore: 3, loserScore: 2 },
             { winner: 'Concord Christian', winnerSeed: 2, loser: 'Trinity',              loserSeed: 3, winnerScore: 3, loserScore: 0 }
           ],
-          final: { winner: 'Inter-Lakes', winnerSeed: 1, loser: 'Concord Christian', loserSeed: 2, winnerScore: 3, loserScore: 1 }
+          final: [ { winner: 'Inter-Lakes', winnerSeed: 1, loser: 'Concord Christian', loserSeed: 2, winnerScore: 3, loserScore: 1 } ]
         }
       }
     }
@@ -238,7 +238,7 @@ const GVOLLEYBALL_BRACKETS = {
             { winner: 'Bedford',          winnerSeed: 1, loser: 'Dover',      loserSeed: 4, winnerScore: 3, loserScore: 0 },
             { winner: 'Hollis-Brookline', winnerSeed: 2, loser: 'Portsmouth', loserSeed: 6, winnerScore: 3, loserScore: 0 }
           ],
-          final: { winner: 'Bedford', winnerSeed: 1, loser: 'Hollis-Brookline', loserSeed: 2, winnerScore: 3, loserScore: 0 }
+          final: [ { winner: 'Bedford', winnerSeed: 1, loser: 'Hollis-Brookline', loserSeed: 2, winnerScore: 3, loserScore: 0 } ]
         }
       },
       'D-II': {
@@ -267,7 +267,7 @@ const GVOLLEYBALL_BRACKETS = {
             { winner: 'Oyster River',        winnerSeed: 1, loser: 'Campbell', loserSeed: 5, winnerScore: 3, loserScore: 0 },
             { winner: 'Coe-Brown Northwood', winnerSeed: 2, loser: 'Souhegan', loserSeed: 3, winnerScore: 3, loserScore: 0 }
           ],
-          final: { winner: 'Oyster River', winnerSeed: 1, loser: 'Coe-Brown Northwood', loserSeed: 2, winnerScore: 3, loserScore: 2 }
+          final: [ { winner: 'Oyster River', winnerSeed: 1, loser: 'Coe-Brown Northwood', loserSeed: 2, winnerScore: 3, loserScore: 2 } ]
         }
       },
       'D-III': {
@@ -296,7 +296,7 @@ const GVOLLEYBALL_BRACKETS = {
             { winner: 'Somersworth', winnerSeed: 1, loser: 'Portsmouth Christian', loserSeed: 4, winnerScore: 3, loserScore: 2 },
             { winner: 'Inter-Lakes', winnerSeed: 2, loser: 'Concord Christian',    loserSeed: 6, winnerScore: 3, loserScore: 0 }
           ],
-          final: { winner: 'Inter-Lakes', winnerSeed: 2, loser: 'Somersworth', loserSeed: 1, winnerScore: 3, loserScore: 0 }
+          final: [ { winner: 'Inter-Lakes', winnerSeed: 2, loser: 'Somersworth', loserSeed: 1, winnerScore: 3, loserScore: 0 } ]
         }
       }
     }
@@ -333,7 +333,7 @@ const GVOLLEYBALL_BRACKETS = {
             { winner: 'Bedford',          winnerSeed: 1, loser: 'Exeter',      loserSeed: 4, winnerScore: 3, loserScore: 0 },
             { winner: 'Hollis-Brookline', winnerSeed: 2, loser: 'Londonderry', loserSeed: 3, winnerScore: 3, loserScore: 1 }
           ],
-          final: { winner: 'Bedford', winnerSeed: 1, loser: 'Hollis-Brookline', loserSeed: 2, winnerScore: 3, loserScore: 2 }
+          final: [ { winner: 'Bedford', winnerSeed: 1, loser: 'Hollis-Brookline', loserSeed: 2, winnerScore: 3, loserScore: 2 } ]
         }
       },
       'D-II': {
@@ -362,7 +362,7 @@ const GVOLLEYBALL_BRACKETS = {
             { winner: 'Oyster River',        winnerSeed: 1, loser: 'Campbell',   loserSeed: 4, winnerScore: 3, loserScore: 0 },
             { winner: 'Coe-Brown Northwood', winnerSeed: 2, loser: 'John Stark', loserSeed: 3, winnerScore: 3, loserScore: 0 }
           ],
-          final: { winner: 'Oyster River', winnerSeed: 1, loser: 'Coe-Brown Northwood', loserSeed: 2, winnerScore: 3, loserScore: 2 }
+          final: [ { winner: 'Oyster River', winnerSeed: 1, loser: 'Coe-Brown Northwood', loserSeed: 2, winnerScore: 3, loserScore: 2 } ]
         }
       },
       'D-III': {
@@ -391,7 +391,7 @@ const GVOLLEYBALL_BRACKETS = {
             { winner: 'Inter-Lakes', winnerSeed: 4, loser: 'Mascenic',  loserSeed: 1, winnerScore: 3, loserScore: 1 },
             { winner: 'Somersworth', winnerSeed: 2, loser: 'Newfound',  loserSeed: 3, winnerScore: 3, loserScore: 0 }
           ],
-          final: { winner: 'Somersworth', winnerSeed: 2, loser: 'Inter-Lakes', loserSeed: 4, winnerScore: 3, loserScore: 1 }
+          final: [ { winner: 'Somersworth', winnerSeed: 2, loser: 'Inter-Lakes', loserSeed: 4, winnerScore: 3, loserScore: 1 } ]
         }
       }
     }
@@ -428,7 +428,7 @@ const GVOLLEYBALL_BRACKETS = {
             { winner: 'Bedford',          winnerSeed: 1, loser: 'Pinkerton', loserSeed: 4, winnerScore: 3, loserScore: 0 },
             { winner: 'Hollis-Brookline', winnerSeed: 2, loser: 'Windham',   loserSeed: 3, winnerScore: 3, loserScore: 0 }
           ],
-          final: { winner: 'Bedford', winnerSeed: 1, loser: 'Hollis-Brookline', loserSeed: 2, winnerScore: 3, loserScore: 0 }
+          final: [ { winner: 'Bedford', winnerSeed: 1, loser: 'Hollis-Brookline', loserSeed: 2, winnerScore: 3, loserScore: 0 } ]
         }
       },
       'D-II': {
@@ -457,7 +457,7 @@ const GVOLLEYBALL_BRACKETS = {
             { winner: 'Milford',             winnerSeed: 4, loser: 'Gilford',      loserSeed: 1, winnerScore: 3, loserScore: 2 },
             { winner: 'Coe-Brown Northwood', winnerSeed: 2, loser: 'Oyster River', loserSeed: 3, winnerScore: 3, loserScore: 0 }
           ],
-          final: { winner: 'Coe-Brown Northwood', winnerSeed: 2, loser: 'Milford', loserSeed: 4, winnerScore: 3, loserScore: 0 }
+          final: [ { winner: 'Coe-Brown Northwood', winnerSeed: 2, loser: 'Milford', loserSeed: 4, winnerScore: 3, loserScore: 0 } ]
         }
       },
       'D-III': {
@@ -486,7 +486,7 @@ const GVOLLEYBALL_BRACKETS = {
             { winner: 'Newfound', winnerSeed: 1, loser: 'Portsmouth Christian', loserSeed: 4, winnerScore: 3, loserScore: 0 },
             { winner: 'Mascenic', winnerSeed: 2, loser: 'Inter-Lakes',          loserSeed: 6, winnerScore: 3, loserScore: 0 }
           ],
-          final: { winner: 'Newfound', winnerSeed: 1, loser: 'Mascenic', loserSeed: 2, winnerScore: 3, loserScore: 0 }
+          final: [ { winner: 'Newfound', winnerSeed: 1, loser: 'Mascenic', loserSeed: 2, winnerScore: 3, loserScore: 0 } ]
         }
       }
     }
@@ -509,7 +509,7 @@ const GVOLLEYBALL_BRACKETS = {
             { winner: 'Hollis-Brookline', winnerSeed: 1, loser: 'Londonderry', loserSeed: 4, winnerScore: 3, loserScore: 1 },
             { winner: 'Bedford',          winnerSeed: 2, loser: 'Spaulding',   loserSeed: 3, winnerScore: 3, loserScore: 0 }
           ],
-          final: { winner: 'Bedford', winnerSeed: 2, loser: 'Hollis-Brookline', loserSeed: 1, winnerScore: 3, loserScore: 0 }
+          final: [ { winner: 'Bedford', winnerSeed: 2, loser: 'Hollis-Brookline', loserSeed: 1, winnerScore: 3, loserScore: 0 } ]
         }
       },
       'D-II': {
@@ -524,7 +524,7 @@ const GVOLLEYBALL_BRACKETS = {
             { winner: 'John Stark', winnerSeed: 4, loser: 'Saint Thomas Aquinas', loserSeed: 1, winnerScore: 3, loserScore: 0 },
             { winner: 'Gilford',    winnerSeed: 2, loser: 'Campbell',             loserSeed: 3, winnerScore: 3, loserScore: 0 }
           ],
-          final: { winner: 'Gilford', winnerSeed: 2, loser: 'John Stark', loserSeed: 4, winnerScore: 3, loserScore: 0 }
+          final: [ { winner: 'Gilford', winnerSeed: 2, loser: 'John Stark', loserSeed: 4, winnerScore: 3, loserScore: 0 } ]
         }
       },
       'D-III': {
@@ -539,7 +539,7 @@ const GVOLLEYBALL_BRACKETS = {
             { winner: 'Trinity',  winnerSeed: 4, loser: 'Sunapee',    loserSeed: 1, winnerScore: 3, loserScore: 2 },
             { winner: 'Newfound', winnerSeed: 3, loser: 'Farmington', loserSeed: 2, winnerScore: 3, loserScore: 2 }
           ],
-          final: { winner: 'Newfound', winnerSeed: 3, loser: 'Trinity', loserSeed: 4, winnerScore: 3, loserScore: 0 }
+          final: [ { winner: 'Newfound', winnerSeed: 3, loser: 'Trinity', loserSeed: 4, winnerScore: 3, loserScore: 0 } ]
         }
       }
     }
@@ -576,7 +576,7 @@ const GVOLLEYBALL_BRACKETS = {
             { winner: 'Nashua South', winnerSeed: 1, loser: 'Winnacunnet', loserSeed: 4, winnerScore: 3, loserScore: 0 },
             { winner: 'Dover',        winnerSeed: 6, loser: 'Portsmouth',  loserSeed: 7, winnerScore: 3, loserScore: 2 }
           ],
-          final: { winner: 'Nashua South', winnerSeed: 1, loser: 'Dover', loserSeed: 6, winnerScore: 3, loserScore: 0 }
+          final: [ { winner: 'Nashua South', winnerSeed: 1, loser: 'Dover', loserSeed: 6, winnerScore: 3, loserScore: 0 } ]
         }
       },
       'D-II': {
@@ -605,7 +605,7 @@ const GVOLLEYBALL_BRACKETS = {
             { winner: 'Gilford',             winnerSeed: 1, loser: 'Plymouth', loserSeed: 5, winnerScore: 3, loserScore: 1 },
             { winner: 'Coe-Brown Northwood', winnerSeed: 6, loser: 'Milford',  loserSeed: 2, winnerScore: 3, loserScore: 1 }
           ],
-          final: { winner: 'Gilford', winnerSeed: 1, loser: 'Coe-Brown Northwood', loserSeed: 6, winnerScore: 3, loserScore: 1 }
+          final: [ { winner: 'Gilford', winnerSeed: 1, loser: 'Coe-Brown Northwood', loserSeed: 6, winnerScore: 3, loserScore: 1 } ]
         }
       },
       'D-III': {
@@ -634,7 +634,7 @@ const GVOLLEYBALL_BRACKETS = {
             { winner: 'Inter-Lakes', winnerSeed: 1, loser: 'Newfound', loserSeed: 4, winnerScore: 3, loserScore: 0 },
             { winner: 'Mascenic',    winnerSeed: 6, loser: 'Campbell', loserSeed: 7, winnerScore: 3, loserScore: 0 }
           ],
-          final: { winner: 'Inter-Lakes', winnerSeed: 1, loser: 'Mascenic', loserSeed: 6, winnerScore: 3, loserScore: 1 }
+          final: [ { winner: 'Inter-Lakes', winnerSeed: 1, loser: 'Mascenic', loserSeed: 6, winnerScore: 3, loserScore: 1 } ]
         }
       }
     }
@@ -671,7 +671,7 @@ const GVOLLEYBALL_BRACKETS = {
             { winner: 'Hollis-Brookline', winnerSeed: 1, loser: 'Spaulding',    loserSeed: 5, winnerScore: 3, loserScore: 0 },
             { winner: 'Bedford',          winnerSeed: 6, loser: 'Nashua South', loserSeed: 2, winnerScore: 3, loserScore: 0 }
           ],
-          final: { winner: 'Hollis-Brookline', winnerSeed: 1, loser: 'Bedford', loserSeed: 6, winnerScore: 3, loserScore: 1 }
+          final: [ { winner: 'Hollis-Brookline', winnerSeed: 1, loser: 'Bedford', loserSeed: 6, winnerScore: 3, loserScore: 1 } ]
         }
       },
       'D-II': {
@@ -700,7 +700,7 @@ const GVOLLEYBALL_BRACKETS = {
             { winner: 'Gilford', winnerSeed: 1, loser: 'Laconia',      loserSeed: 5, winnerScore: 3, loserScore: 0 },
             { winner: 'Milford', winnerSeed: 3, loser: 'Oyster River', loserSeed: 2, winnerScore: 3, loserScore: 2 }
           ],
-          final: { winner: 'Gilford', winnerSeed: 1, loser: 'Milford', loserSeed: 3, winnerScore: 3, loserScore: 0 }
+          final: [ { winner: 'Gilford', winnerSeed: 1, loser: 'Milford', loserSeed: 3, winnerScore: 3, loserScore: 0 } ]
         }
       },
       'D-III': {
@@ -729,7 +729,7 @@ const GVOLLEYBALL_BRACKETS = {
             { winner: 'Winnisquam',  winnerSeed: 1, loser: 'Epping',     loserSeed: 4, winnerScore: 3, loserScore: 0 },
             { winner: 'Inter-Lakes', winnerSeed: 3, loser: 'Farmington', loserSeed: 2, winnerScore: 3, loserScore: 2 }
           ],
-          final: { winner: 'Winnisquam', winnerSeed: 1, loser: 'Inter-Lakes', loserSeed: 3, winnerScore: 3, loserScore: 0 }
+          final: [ { winner: 'Winnisquam', winnerSeed: 1, loser: 'Inter-Lakes', loserSeed: 3, winnerScore: 3, loserScore: 0 } ]
         }
       }
     }
@@ -766,7 +766,7 @@ const GVOLLEYBALL_BRACKETS = {
             { winner: 'Hollis-Brookline', winnerSeed: 1, loser: 'Dover',        loserSeed: 4, winnerScore: 3, loserScore: 1 },
             { winner: 'Bishop Guertin',   winnerSeed: 3, loser: 'Nashua South', loserSeed: 7, winnerScore: 3, loserScore: 0 }
           ],
-          final: { winner: 'Hollis-Brookline', winnerSeed: 1, loser: 'Bishop Guertin', loserSeed: 3, winnerScore: 3, loserScore: 1 }
+          final: [ { winner: 'Hollis-Brookline', winnerSeed: 1, loser: 'Bishop Guertin', loserSeed: 3, winnerScore: 3, loserScore: 1 } ]
         }
       },
       'D-II': {
@@ -795,7 +795,7 @@ const GVOLLEYBALL_BRACKETS = {
             { winner: 'Portsmouth', winnerSeed: 5, loser: 'Gilford', loserSeed: 1, winnerScore: 3, loserScore: 1 },
             { winner: 'Windham',    winnerSeed: 3, loser: 'Milford', loserSeed: 2, winnerScore: 3, loserScore: 0 }
           ],
-          final: { winner: 'Windham', winnerSeed: 3, loser: 'Portsmouth', loserSeed: 5, winnerScore: 3, loserScore: 1 }
+          final: [ { winner: 'Windham', winnerSeed: 3, loser: 'Portsmouth', loserSeed: 5, winnerScore: 3, loserScore: 1 } ]
         }
       },
       'D-III': {
@@ -824,7 +824,7 @@ const GVOLLEYBALL_BRACKETS = {
             { winner: 'Inter-Lakes', winnerSeed: 1, loser: 'Newfound', loserSeed: 5, winnerScore: 3, loserScore: 1 },
             { winner: 'Winnisquam',  winnerSeed: 2, loser: 'Campbell', loserSeed: 3, winnerScore: 3, loserScore: 0 }
           ],
-          final: { winner: 'Winnisquam', winnerSeed: 2, loser: 'Inter-Lakes', loserSeed: 1, winnerScore: 3, loserScore: 0 }
+          final: [ { winner: 'Winnisquam', winnerSeed: 2, loser: 'Inter-Lakes', loserSeed: 1, winnerScore: 3, loserScore: 0 } ]
         }
       }
     }
@@ -861,7 +861,7 @@ const GVOLLEYBALL_BRACKETS = {
             { winner: 'Hollis-Brookline', winnerSeed: 4, loser: 'Exeter', loserSeed: 8, winnerScore: 3, loserScore: 0 },
             { winner: 'Concord',          winnerSeed: 2, loser: 'Dover',  loserSeed: 3, winnerScore: 3, loserScore: 0 }
           ],
-          final: { winner: 'Hollis-Brookline', winnerSeed: 4, loser: 'Concord', loserSeed: 2, winnerScore: 3, loserScore: 1 }
+          final: [ { winner: 'Hollis-Brookline', winnerSeed: 4, loser: 'Concord', loserSeed: 2, winnerScore: 3, loserScore: 1 } ]
         }
       },
       'D-II': {
@@ -890,7 +890,7 @@ const GVOLLEYBALL_BRACKETS = {
             { winner: 'Windham',     winnerSeed: 1, loser: 'Saint Thomas Aquinas', loserSeed: 4, winnerScore: 3, loserScore: 0 },
             { winner: 'Somersworth', winnerSeed: 3, loser: 'Gilford',              loserSeed: 2, winnerScore: 3, loserScore: 0 }
           ],
-          final: { winner: 'Windham', winnerSeed: 1, loser: 'Somersworth', loserSeed: 3, winnerScore: 3, loserScore: 0 }
+          final: [ { winner: 'Windham', winnerSeed: 1, loser: 'Somersworth', loserSeed: 3, winnerScore: 3, loserScore: 0 } ]
         }
       },
       'D-III': {
@@ -919,7 +919,7 @@ const GVOLLEYBALL_BRACKETS = {
             { winner: 'Moultonborough', winnerSeed: 5, loser: 'Campbell',   loserSeed: 9, winnerScore: 3, loserScore: 0 },
             { winner: 'Farmington',     winnerSeed: 3, loser: 'Winnisquam', loserSeed: 2, winnerScore: 3, loserScore: 2 }
           ],
-          final: { winner: 'Moultonborough', winnerSeed: 5, loser: 'Farmington', loserSeed: 3, winnerScore: 3, loserScore: 2 }
+          final: [ { winner: 'Moultonborough', winnerSeed: 5, loser: 'Farmington', loserSeed: 3, winnerScore: 3, loserScore: 2 } ]
         }
       }
     }

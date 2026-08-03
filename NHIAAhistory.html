@@ -872,7 +872,9 @@
   
   <!-- Features Data (fallback + bracket data) -->
   <script src="/features-data.js"></script>
-  
+  <!-- Girls Volleyball tournament brackets (2016-2025) -->
+  <script src="/gvolleyball-brackets.js"></script>
+
   <!-- Page Script -->
   <script>
     // Supabase config
@@ -940,12 +942,13 @@
       document.getElementById('gvolleyballBtn').classList.toggle('active', currentSport === 'gvolleyball');
       
       await loadChampionships();
+      updateUIForSport();
       populateSchoolsList();
       renderDynastyLeaders();
       renderRecentDynasties();
       renderChampionships();
       setupBracketViewer();
-      
+
       setupEventListeners();
     });
     
@@ -966,39 +969,98 @@
       renderDynastyLeaders();
       renderRecentDynasties();
       renderChampionships();
+
+      // Re-render the bracket viewer for sports that have brackets
+      if (currentSport === 'basketball' || currentSport === 'gvolleyball') {
+        renderBracket();
+      }
     }
     
+    // Configure the bracket viewer controls (gender/division/year dropdowns, labels)
+    // for the active sport. Basketball = boys+girls, D-I..D-IV, 2026(live)-2017.
+    // Girls volleyball = girls only, D-I..D-III, 2025-2016 (no live 2026).
+    function configureBracketControls(sport) {
+      const isVball = sport === 'gvolleyball';
+      const secTitle = document.querySelector('#bracketsSection .section-title');
+      const secNote = document.querySelector('#bracketsSection .bracket-sport-note');
+      if (secTitle) secTitle.textContent = isVball ? '🏐 Tournament Brackets' : '🏀 Tournament Brackets';
+      if (secNote) secNote.textContent = isVball
+        ? 'Girls volleyball tournament brackets • 2016-2025'
+        : 'Basketball tournament brackets • 2017-2025';
+
+      // Gender filter inside the bracket viewer (volleyball is girls-only)
+      const bracketGender = document.getElementById('bracketGender');
+      const bracketGenderWrap = bracketGender ? bracketGender.closest('.bracket-filter') : null;
+      if (isVball) {
+        bracketGender.value = 'girls';
+        if (bracketGenderWrap) bracketGenderWrap.style.display = 'none';
+      } else if (bracketGenderWrap) {
+        bracketGenderWrap.style.display = '';
+      }
+
+      // Division dropdown: volleyball has no D-IV
+      const divSel = document.getElementById('bracketDivision');
+      const d4 = divSel ? divSel.querySelector('option[value="D-IV"]') : null;
+      if (isVball) {
+        if (d4) d4.style.display = 'none';
+        if (divSel && divSel.value === 'D-IV') divSel.value = 'D-I';
+      } else if (d4) {
+        d4.style.display = '';
+      }
+
+      // Year dropdown: rebuild the option list for the sport
+      const yearSel = document.getElementById('bracketYear');
+      if (yearSel) {
+        const years = isVball
+          ? [2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018, 2017, 2016]
+          : [2026, 2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018, 2017];
+        const defaultYear = isVball ? 2025 : 2026;
+        yearSel.innerHTML = years
+          .map(y => `<option value="${y}"${y === defaultYear ? ' selected' : ''}>${y}</option>`)
+          .join('');
+        selectedBracketYear = defaultYear;
+      }
+    }
+
     function updateUIForSport() {
       const genderFilter = document.getElementById('genderFilterGroup');
       const bracketsSection = document.getElementById('bracketsSection');
       const bracketsNavLink = document.getElementById('bracketsNavLink');
       const recentDynastiesSection = document.getElementById('recentDynastiesSection');
       const dynastySubtitle = document.getElementById('dynastySubtitle');
-      
-      if (currentSport === 'baseball' || currentSport === 'gvolleyball') {
-        // Single-gender sports (baseball=boys, gvolleyball=girls) - hide gender filter
-        const forcedGender = currentSport === 'gvolleyball' ? 'girls' : 'boys';
+
+      if (currentSport === 'gvolleyball') {
+        // Girls-only sport - hide championships gender filter
         genderFilter.style.display = 'none';
-        document.getElementById('filterGender').value = forcedGender;
-        
-        // Hide brackets section (no baseball/gvolleyball brackets yet)
+        document.getElementById('filterGender').value = 'girls';
+
+        // Show brackets section, configured for volleyball
+        bracketsSection.style.display = '';
+        bracketsNavLink.style.display = '';
+        configureBracketControls('gvolleyball');
+
+        dynastySubtitle.textContent = 'Schools with the most state girls volleyball championships';
+
+      } else if (currentSport === 'baseball') {
+        // Boys-only sport - hide gender filter; no baseball brackets yet
+        genderFilter.style.display = 'none';
+        document.getElementById('filterGender').value = 'boys';
+
         bracketsSection.style.display = 'none';
         bracketsNavLink.style.display = 'none';
-        
-        // Update dynasty subtitle
-        const sportName = currentSport === 'gvolleyball' ? 'girls volleyball' : 'baseball';
-        dynastySubtitle.textContent = `Schools with the most state ${sportName} championships`;
-        
+
+        dynastySubtitle.textContent = 'Schools with the most state baseball championships';
+
       } else {
         // Basketball has both genders
         genderFilter.style.display = '';
         document.getElementById('filterGender').value = '';
-        
-        // Show brackets section
+
+        // Show brackets section, configured for basketball
         bracketsSection.style.display = '';
         bracketsNavLink.style.display = '';
-        
-        // Update dynasty subtitle
+        configureBracketControls('basketball');
+
         dynastySubtitle.textContent = 'Schools with the most state championships (all-time, boys & girls combined)';
       }
     }
@@ -1622,13 +1684,17 @@
     }
     
     async function renderBracket() {
-      const gender = document.getElementById('bracketGender').value;
+      const isVolleyball = currentSport === 'gvolleyball';
+      // Volleyball is girls-only; basketball uses the gender selector
+      const gender = isVolleyball ? 'girls' : document.getElementById('bracketGender').value;
       const division = document.getElementById('bracketDivision').value;
       selectedBracketYear = parseInt(document.getElementById('bracketYear').value);
       const container = document.getElementById('bracketDisplay');
-      
-      // For current season (2026), fetch live from database
-      if (selectedBracketYear === 2026) {
+      // Pick the right dataset for the active sport
+      const BRACKET_DATA = isVolleyball ? GVOLLEYBALL_BRACKETS : TOURNAMENT_BRACKETS;
+
+      // For current season (2026), fetch live from database (basketball only)
+      if (selectedBracketYear === 2026 && !isVolleyball) {
         container.innerHTML = '<div class="standings-loading" style="padding: 40px; text-align: center; color: #888;">Loading bracket...</div>';
         
         const liveBracket = await fetchLiveBracket(gender, division);
@@ -1647,8 +1713,8 @@
         return;
       }
       
-      const yearData = TOURNAMENT_BRACKETS[selectedBracketYear];
-      
+      const yearData = BRACKET_DATA[selectedBracketYear];
+
       if (!yearData) {
         container.innerHTML = `
           <div class="bracket-note">
@@ -1836,7 +1902,7 @@
         final: 'Championship'
       };
       
-      return rounds.filter(r => games[r]).map(round => `
+      return rounds.filter(r => games[r] && games[r].length).map(round => `
         <div class="bracket-round">
           <h4 class="round-name">${roundNames[round]}</h4>
           <div class="round-games">
