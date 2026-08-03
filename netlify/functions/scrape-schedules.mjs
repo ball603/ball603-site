@@ -945,16 +945,21 @@ async function updateSupabase(games) {
     const lockScore = existing.lock_score;
     
     // Check if this game duplicates a LOCKED game in the DB
-    // (different game_id but same matchup/score — the deleted duplicate coming back)
+    // (different game_id but same matchup — the deleted duplicate coming back)
     if (!existing.game_id) {
       const dominated = lockedGames.find(locked => {
         if (locked.game_id === g.game_id) return false; // same game, not a dup
         if (locked.home_team !== g.home_team || locked.away_team !== g.away_team) return false;
         if (locked.gender !== g.gender) return false;
-        // Must have matching scores
-        if (locked.home_score === null || g.home_score === null) return false;
-        if (parseInt(locked.home_score) !== parseInt(g.home_score) || 
-            parseInt(locked.away_score) !== parseInt(g.away_score)) return false;
+        // For regular-season locked games, require score match to avoid false positives
+        // with doubleheaders (rare in basketball but possible). For playoff-locked games,
+        // teams+date is sufficient — playoffs never have doubleheaders and we want to catch
+        // duplicates BEFORE scores are entered.
+        if (!locked.is_playoff) {
+          if (locked.home_score === null || g.home_score === null) return false;
+          if (parseInt(locked.home_score) !== parseInt(g.home_score) || 
+              parseInt(locked.away_score) !== parseInt(g.away_score)) return false;
+        }
         // Within 28 days
         const d1 = new Date(locked.date + 'T12:00:00');
         const d2 = new Date(g.date + 'T12:00:00');

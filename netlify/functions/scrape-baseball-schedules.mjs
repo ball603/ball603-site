@@ -892,7 +892,7 @@ async function getLinkedGameIds(gameIds) {
 async function getExistingGames() {
   // Fetch all NHIAA games from Supabase for this sport/season
   const response = await fetch(
-    `${SUPABASE_URL}/rest/v1/games?level=eq.NHIAA&sport=eq.${SPORT}&season=eq.${SEASON}&select=game_id,date,time,home_team,away_team,gender,division,away_score,home_score,photog1,photog2,videog,writer,notes,original_date,schedule_changed,photos_url,recap_url,highlights_url,live_stream_url,game_description,special_event,original_time,manual_override`,
+    `${SUPABASE_URL}/rest/v1/games?level=eq.NHIAA&sport=eq.${SPORT}&season=eq.${SEASON}&select=game_id,date,time,home_team,away_team,gender,division,away_score,home_score,photog1,photog2,videog,writer,notes,original_date,schedule_changed,photos_url,recap_url,highlights_url,live_stream_url,game_description,special_event,original_time,manual_override,is_playoff`,
     {
       headers: {
         'apikey': SUPABASE_SERVICE_KEY,
@@ -938,15 +938,28 @@ async function updateSupabase(games) {
       return null;
     }
     
+    // Skip playoff games — they are managed via lockSeeds and the admin, not by the scraper.
+    // Even if the game_id doesn't match, the dominated check below will also catch them
+    // via team+date matching against locked playoff records.
+    if (existing.is_playoff) {
+      console.log(`  🏆 Skipping playoff game: ${g.home_team} vs ${g.away_team} on ${g.date}`);
+      return null;
+    }
+    
     // Check if this game duplicates a LOCKED game in the DB
     if (!existing.game_id) {
       const dominated = lockedGames.find(locked => {
         if (locked.game_id === g.game_id) return false;
         if (locked.home_team !== g.home_team || locked.away_team !== g.away_team) return false;
         if (locked.gender !== g.gender) return false;
-        if (locked.home_score === null || g.home_score === null) return false;
-        if (parseInt(locked.home_score) !== parseInt(g.home_score) || 
-            parseInt(locked.away_score) !== parseInt(g.away_score)) return false;
+        // For regular-season locked games, require score match to avoid false positives
+        // with doubleheaders (same teams, same day). For playoff-locked games, teams+date
+        // is sufficient — playoffs never have doubleheaders.
+        if (!locked.is_playoff) {
+          if (locked.home_score === null || g.home_score === null) return false;
+          if (parseInt(locked.home_score) !== parseInt(g.home_score) || 
+              parseInt(locked.away_score) !== parseInt(g.away_score)) return false;
+        }
         const d1 = new Date(locked.date + 'T12:00:00');
         const d2 = new Date(g.date + 'T12:00:00');
         const diffDays = Math.abs((d2 - d1) / (1000 * 60 * 60 * 24));
@@ -1101,7 +1114,7 @@ async function syncWithNHIAA(scrapedGames) {
     // Include ALL transferable content fields, not just coverage assignments.
     // Also include manual_override so we can skip locked orphans (mirrors basketball behavior).
     const dbResponse = await fetch(
-      `${SUPABASE_URL}/rest/v1/games?level=eq.NHIAA&sport=eq.${SPORT}&season=eq.${SEASON}&select=game_id,date,home_team,away_team,gender,photog1,photog2,videog,writer,notes,photos_url,recap_url,highlights_url,live_stream_url,game_description,special_event,manual_override`,
+      `${SUPABASE_URL}/rest/v1/games?level=eq.NHIAA&sport=eq.${SPORT}&season=eq.${SEASON}&or=(is_playoff.is.null,is_playoff.eq.false)&select=game_id,date,home_team,away_team,gender,photog1,photog2,videog,writer,notes,photos_url,recap_url,highlights_url,live_stream_url,game_description,special_event,manual_override`,
       {
         headers: {
           'apikey': SUPABASE_SERVICE_KEY,
