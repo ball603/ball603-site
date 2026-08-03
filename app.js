@@ -1207,7 +1207,7 @@ async function initApp() {
   // Check for sport in URL params (highest priority)
   const urlParams = new URLSearchParams(window.location.search);
   const urlSport = urlParams.get('sport');
-  if (urlSport && ['basketball', 'baseball', 'volleyball'].includes(urlSport)) {
+  if (urlSport && ['basketball', 'baseball', 'gvolleyball'].includes(urlSport)) {
     state.currentSport = urlSport;
   }
   // Otherwise check for stored sport preference (only if multi-sport is enabled)

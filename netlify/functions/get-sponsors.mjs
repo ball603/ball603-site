@@ -26,7 +26,7 @@ export default async (request) => {
     const url = new URL(request.url);
     const tier = url.searchParams.get('tier');
     const page = url.searchParams.get('page');   // schedule|standings|rpi|playoffs|rosters
-    const sport = url.searchParams.get('sport'); // basketball|baseball|volleyball
+    const sport = url.searchParams.get('sport'); // basketball, baseball, or gvolleyball
     const team = url.searchParams.get('team');
 
     // Build Supabase query — always filter active only

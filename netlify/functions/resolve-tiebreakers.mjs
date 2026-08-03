@@ -28,7 +28,7 @@ const PLAYOFF_TEAMS = {
   baseball: {
     Boys: { 'D-I': 16, 'D-II': 14, 'D-III': 14, 'D-IV': 14 }
   },
-  volleyball: {
+  gvolleyball: {
     Girls: { 'D-I': 16, 'D-II': 14, 'D-III': 14 }
   }
 };

@@ -586,7 +586,7 @@ class ContributorSchedule {
             <option value="">Sport (All)</option>
             <option value="basketball">&#127936; Basketball</option>
             <option value="baseball">&#9918; Baseball</option>
-            <option value="volleyball">&#127952; Volleyball</option>
+            <option value="gvolleyball">&#127952; Girls Volleyball</option>
           </select>
           <select class="cs-gender-filter">
             <option value="">Gender (All)</option>
@@ -825,8 +825,8 @@ class ContributorSchedule {
       } else {
         select.innerHTML += '<option value="Boys">Boys</option><option value="Men">Men</option>';
       }
-    } else if (sport === 'volleyball') {
-      // Volleyball is girls/women only
+    } else if (sport === 'gvolleyball') {
+      // Girls Volleyball is girls/women only
       if (this.currentTab === 'College') {
         select.innerHTML += '<option value="Women">Women</option>';
       } else if (this.currentTab === 'NHIAA') {
@@ -1328,7 +1328,7 @@ class ContributorSchedule {
   getSportEmoji(sport) {
     switch (sport) {
       case 'baseball': return '&#9918;';
-      case 'volleyball': return '&#127952;';
+      case 'gvolleyball': return '&#127952;';
       case 'basketball':
       default: return '&#127936;';
     }

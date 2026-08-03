@@ -10,7 +10,7 @@
 const BALL603_SEASONS_FALLBACK = {
   basketball: ['2025-26'],
   baseball:   ['2026'],
-  volleyball: []
+  gvolleyball: []
 };
 
 // Cached seasons loaded from the DB

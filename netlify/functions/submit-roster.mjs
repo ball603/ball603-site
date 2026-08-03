@@ -205,7 +205,7 @@ exports.handler = async function(event, context) {
     const CURRENT_SEASONS = {
       basketball: '2025-26',
       baseball: '2026',
-      volleyball: '2026'
+      gvolleyball: '2026'
     };
     const season = CURRENT_SEASONS[submissionSport] || '2025-26';
 

@@ -10,7 +10,7 @@ const PUBLIC_SETTINGS = [
   'multi_sport_enabled',
   'basketball_enabled',
   'baseball_enabled',
-  'volleyball_enabled',
+  'gvolleyball_enabled',
   'current_sport',
   'current_season'
 ];
@@ -65,7 +65,7 @@ export default async (request) => {
       multi_sport_enabled: false,
       basketball_enabled: true,
       baseball_enabled: false,
-      volleyball_enabled: false,
+      gvolleyball_enabled: false,
       current_sport: 'basketball',
       current_season: '2025-26'
     };
@@ -77,7 +77,7 @@ export default async (request) => {
     const enabledSports = [];
     if (finalSettings.basketball_enabled) enabledSports.push('basketball');
     if (finalSettings.baseball_enabled) enabledSports.push('baseball');
-    if (finalSettings.volleyball_enabled) enabledSports.push('volleyball');
+    if (finalSettings.gvolleyball_enabled) enabledSports.push('gvolleyball');
 
     // Fetch seasons from the seasons table for the frontend dropdown
     let seasonsList = [];
@@ -124,7 +124,7 @@ export default async (request) => {
         multi_sport_enabled: false,
         basketball_enabled: true,
         baseball_enabled: false,
-        volleyball_enabled: false,
+        gvolleyball_enabled: false,
         current_sport: 'basketball',
         current_season: '2025-26'
       },

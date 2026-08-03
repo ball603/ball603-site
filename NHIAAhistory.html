@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="NHIAA Championship History - Every state title game in basketball and baseball. Browse championships, dynasties, and tournament brackets.">
+  <meta name="description" content="NHIAA Championship History - Every state title game in basketball, baseball, and girls volleyball. Browse championships, dynasties, and tournament brackets.">
   <meta name="theme-color" content="#ffd700">
   <title>NHIAA History | Ball603</title>
   
@@ -711,7 +711,7 @@
       <div class="sport-filter">
         <button class="sport-btn" id="baseballBtn" onclick="selectSport('baseball')">&#9918; Baseball</button>
         <button class="sport-btn" id="basketballBtn" onclick="selectSport('basketball')">&#127936; Basketball</button>
-        <!-- <button class="sport-btn" id="volleyballBtn" onclick="selectSport('volleyball')">&#127952; Volleyball</button> -->
+        <button class="sport-btn" id="gvolleyballBtn" onclick="selectSport('gvolleyball')">&#127952; Girls Volleyball</button>
       </div>
     </div>
 
@@ -885,7 +885,7 @@
       const month = new Date().getMonth() + 1; // 1-12
       if (month >= 12 || month <= 3) return 'basketball';  // Dec-Mar
       if (month >= 4 && month <= 7) return 'baseball';     // Apr-Jul
-      if (month >= 8 && month <= 11) return 'volleyball';  // Aug-Nov
+      if (month >= 8 && month <= 11) return 'gvolleyball';  // Aug-Nov
       return 'basketball'; // Fallback
     }
     
@@ -937,7 +937,7 @@
       // Set initial active sport button
       document.getElementById('basketballBtn').classList.toggle('active', currentSport === 'basketball');
       document.getElementById('baseballBtn').classList.toggle('active', currentSport === 'baseball');
-      // document.getElementById('volleyballBtn').classList.toggle('active', currentSport === 'volleyball');
+      document.getElementById('gvolleyballBtn').classList.toggle('active', currentSport === 'gvolleyball');
       
       await loadChampionships();
       populateSchoolsList();
@@ -956,7 +956,7 @@
       // Update active state
       document.getElementById('basketballBtn').classList.toggle('active', sport === 'basketball');
       document.getElementById('baseballBtn').classList.toggle('active', sport === 'baseball');
-      // document.getElementById('volleyballBtn').classList.toggle('active', sport === 'volleyball');
+      document.getElementById('gvolleyballBtn').classList.toggle('active', sport === 'gvolleyball');
       
       // Update UI based on sport
       updateUIForSport();
@@ -975,17 +975,19 @@
       const recentDynastiesSection = document.getElementById('recentDynastiesSection');
       const dynastySubtitle = document.getElementById('dynastySubtitle');
       
-      if (currentSport === 'baseball') {
-        // Baseball is boys only - hide gender filter
+      if (currentSport === 'baseball' || currentSport === 'gvolleyball') {
+        // Single-gender sports (baseball=boys, gvolleyball=girls) - hide gender filter
+        const forcedGender = currentSport === 'gvolleyball' ? 'girls' : 'boys';
         genderFilter.style.display = 'none';
-        document.getElementById('filterGender').value = 'boys';
+        document.getElementById('filterGender').value = forcedGender;
         
-        // Hide brackets section (no baseball brackets yet)
+        // Hide brackets section (no baseball/gvolleyball brackets yet)
         bracketsSection.style.display = 'none';
         bracketsNavLink.style.display = 'none';
         
         // Update dynasty subtitle
-        dynastySubtitle.textContent = 'Schools with the most state baseball championships';
+        const sportName = currentSport === 'gvolleyball' ? 'girls volleyball' : 'baseball';
+        dynastySubtitle.textContent = `Schools with the most state ${sportName} championships`;
         
       } else {
         // Basketball has both genders
@@ -1244,7 +1246,7 @@
         if (mostRecent < currentYear - 10) return; // Only recent dynasties
         
         // Find the best consecutive/clustered run
-        const genderLabel = currentSport === 'baseball' ? '' : (s.gender === 'boys' ? 'Boys' : 'Girls');
+        const genderLabel = (currentSport === 'baseball' || currentSport === 'gvolleyball') ? '' : (s.gender === 'boys' ? 'Boys' : 'Girls');
         const name = genderLabel ? `${s.school} ${genderLabel}` : s.school;
         
         dynasties.push({
@@ -1317,7 +1319,7 @@
       if (filtered.length === 0) {
         container.innerHTML = `
           <div class="empty-state">
-            <div class="empty-icon">${currentSport === 'baseball' ? '⚾' : '🏆'}</div>
+            <div class="empty-icon">${currentSport === 'baseball' ? '⚾' : currentSport === 'gvolleyball' ? '🏐' : '🏆'}</div>
             <div class="empty-title">No championships found</div>
             <div class="empty-text">Try adjusting your filters</div>
           </div>
@@ -1377,8 +1379,8 @@
               const runnerScore = displayScore(c.runner_up_score);
               const showScores = champScore && runnerScore;
               
-              // For baseball (boys only), don't show gender prefix
-              const divisionLabel = currentSport === 'baseball' 
+              // For single-gender sports (baseball=boys, gvolleyball=girls), don't show gender prefix
+              const divisionLabel = (currentSport === 'baseball' || currentSport === 'gvolleyball')
                 ? c.division 
                 : `${c.gender === 'boys' ? 'Boys' : 'Girls'} ${c.division}`;
               
