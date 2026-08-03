@@ -981,12 +981,19 @@
     // Girls volleyball = girls only, D-I..D-III, 2025-2016 (no live 2026).
     function configureBracketControls(sport) {
       const isVball = sport === 'gvolleyball';
+      const icon = isVball ? '🏐' : '🏀';
       const secTitle = document.querySelector('#bracketsSection .section-title');
       const secNote = document.querySelector('#bracketsSection .bracket-sport-note');
-      if (secTitle) secTitle.textContent = isVball ? '🏐 Tournament Brackets' : '🏀 Tournament Brackets';
+      if (secTitle) secTitle.textContent = `${icon} Tournament Brackets`;
       if (secNote) secNote.textContent = isVball
         ? 'Girls volleyball tournament brackets • 2016-2025'
         : 'Basketball tournament brackets • 2017-2025';
+
+      // Top-of-page nav link icon (bracketsNavLink) should match the sport too
+      const navFull = document.querySelector('#bracketsNavLink .nav-full');
+      const navShort = document.querySelector('#bracketsNavLink .nav-short');
+      if (navFull) navFull.textContent = `${icon} Tournament Brackets`;
+      if (navShort) navShort.textContent = `${icon} Brackets`;
 
       // Gender filter inside the bracket viewer (volleyball is girls-only)
       const bracketGender = document.getElementById('bracketGender');
@@ -1449,7 +1456,8 @@
               const champSlug = c.champion.toLowerCase().replace(/[^a-z0-9]+/g, '');
               const runnerSlug = c.runner_up.toLowerCase().replace(/[^a-z0-9]+/g, '');
               const recapLink = c.recap_url ? `<a href="${c.recap_url}" class="championship-recap-link">📰 Recap</a>` : '';
-              const bracketLink = c.bracket_url ? `<a href="${c.bracket_url}" target="_blank" rel="noopener" class="championship-recap-link">🏆 View Bracket</a>` : '';
+              // Volleyball: never link out to NHIAA brackets
+              const bracketLink = (c.bracket_url && currentSport !== 'gvolleyball') ? `<a href="${c.bracket_url}" target="_blank" rel="noopener" class="championship-recap-link">🏆 View Bracket</a>` : '';
               
               return `
               <div class="championship-card ${c.notes ? 'has-notes' : ''}" data-gender="${c.gender}" data-div="${divNum}">
@@ -1924,12 +1932,12 @@
                   <div class="bracket-game-team winner">
                     <span class="seed">${g.winnerSeed || ''}</span>
                     <span class="name">${teamLink(g.winner)}</span>
-                    <span class="score">${g.winnerScore || ''}</span>
+                    <span class="score">${g.winnerScore ?? ''}</span>
                   </div>
                   <div class="bracket-game-team loser">
                     <span class="seed">${g.loserSeed || ''}</span>
                     <span class="name">${teamLink(g.loser)}</span>
-                    <span class="score">${g.loserScore || ''}</span>
+                    <span class="score">${g.loserScore ?? ''}</span>
                   </div>
                   ${articleLink}
                 </div>
