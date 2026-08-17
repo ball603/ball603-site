@@ -290,6 +290,7 @@
   <div class="sport-selector">
     <button class="sport-btn" id="basketballBtn" onclick="selectSport('basketball')">&#x1F3C0; Basketball</button>
     <button class="sport-btn" id="baseballBtn" onclick="selectSport('baseball')">&#x26BE; Baseball</button>
+    <button class="sport-btn" id="gvolleyballBtn" onclick="selectSport('gvolleyball')">&#x1F3D0; Girls Volleyball</button>
   </div>
   
   <!-- Boys -->
@@ -527,7 +528,7 @@
       }
       return `${year}-${String(year + 1).slice(-2)}`;
     }
-    // Baseball: single year (e.g. "2026")
+    // Baseball and gvolleyball: single year (e.g. "2026")
     return String(year);
   }
   
@@ -544,27 +545,41 @@
     applySportToUI();
     loadAllRPI();
   }
-  
   function applySportToUI() {
-    const isBaseball = currentSport === 'baseball';
-    const emoji = isBaseball ? '\u26BE' : '\uD83C\uDFC0';
-    
+    // Sport-specific configuration
+    const config = {
+      basketball:  { emoji: '\uD83C\uDFC0', title: 'Basketball',      showBoys: true,  showGirls: true,  hasDIV: true  },
+      baseball:    { emoji: '\u26BE',       title: 'Baseball',        showBoys: true,  showGirls: false, hasDIV: true  },
+      gvolleyball: { emoji: '\uD83C\uDFD0', title: 'Girls Volleyball', showBoys: false, showGirls: true,  hasDIV: false }
+    }[currentSport] || { emoji: '\uD83C\uDFC0', title: 'Basketball', showBoys: true, showGirls: true, hasDIV: true };
+
     // Toggle button active state
-    document.getElementById('basketballBtn').classList.toggle('active', !isBaseball);
-    document.getElementById('baseballBtn').classList.toggle('active', isBaseball);
-    
-    // Page title emoji
-    document.getElementById('pageTitle').textContent = `NHIAA ${isBaseball ? 'Baseball' : 'Basketball'} RPI Rankings`;
-    
-    // Update Boys section title
-    document.querySelector('#boysSection .gender-title').innerHTML = `${emoji} Boys`;
-    
-    // Hide girls section for baseball (boys-only sport)
-    document.getElementById('girlsSection').style.display = isBaseball ? 'none' : '';
-    if (!isBaseball) {
-      document.querySelector('#girlsSection .gender-title').innerHTML = `${emoji} Girls`;
+    document.getElementById('basketballBtn').classList.toggle('active', currentSport === 'basketball');
+    document.getElementById('baseballBtn').classList.toggle('active', currentSport === 'baseball');
+    const gvBtn = document.getElementById('gvolleyballBtn');
+    if (gvBtn) gvBtn.classList.toggle('active', currentSport === 'gvolleyball');
+
+    // Page title
+    document.getElementById('pageTitle').textContent = `NHIAA ${config.title} RPI Rankings`;
+
+    // Boys section
+    document.getElementById('boysSection').style.display = config.showBoys ? '' : 'none';
+    if (config.showBoys) {
+      document.querySelector('#boysSection .gender-title').innerHTML = `${config.emoji} Boys`;
     }
-    
+
+    // Girls section
+    document.getElementById('girlsSection').style.display = config.showGirls ? '' : 'none';
+    if (config.showGirls) {
+      document.querySelector('#girlsSection .gender-title').innerHTML = `${config.emoji} Girls`;
+    }
+
+    // D-IV cards: only show for sports that have Division IV
+    ['Boys-DIV', 'Girls-DIV'].forEach(key => {
+      const card = document.getElementById(`card-${key}`);
+      if (card) card.style.display = config.hasDIV ? '' : 'none';
+    });
+
     // Reset card content to loading state
     document.querySelectorAll('.division-card').forEach(card => {
       const header = card.querySelector('.division-header').textContent;
@@ -579,27 +594,30 @@
     try {
       const sport = currentSport;
       const season = getCurrentSeason(sport);
-      const isBaseball = sport === 'baseball';
+
+      // Sport-specific gender & division lists
+      const sportConfig = {
+        basketball:  { genders: ['Boys', 'Girls'], divisions: ['D-I', 'D-II', 'D-III', 'D-IV'] },
+        baseball:    { genders: ['Boys'],          divisions: ['D-I', 'D-II', 'D-III', 'D-IV'] },
+        gvolleyball: { genders: ['Girls'],         divisions: ['D-I', 'D-II', 'D-III']         }
+      }[sport] || { genders: ['Boys', 'Girls'], divisions: ['D-I', 'D-II', 'D-III', 'D-IV'] };
+
       const qs = `&sport=${encodeURIComponent(sport)}&season=${encodeURIComponent(season)}`;
-      
-      // Fetch boys (always); fetch girls only when not baseball (boys-only sport)
-      const boysRes = await fetch(`/.netlify/functions/get-rpi?gender=Boys${qs}`);
-      const girlsRes = isBaseball ? null : await fetch(`/.netlify/functions/get-rpi?gender=Girls${qs}`);
-      
-      if (!boysRes.ok || (girlsRes && !girlsRes.ok)) throw new Error('Failed to fetch RPI data');
-      
-      const boysData = await boysRes.json();
-      const girlsData = girlsRes ? await girlsRes.json() : { rankings: [], calculatedAt: null };
-      
-      const allRankings = [...(boysData.rankings || []), ...(girlsData.rankings || [])];
-      
+
+      // Fetch only the genders this sport uses
+      const results = await Promise.all(sportConfig.genders.map(g =>
+        fetch(`/.netlify/functions/get-rpi?gender=${g}${qs}`).then(r => r.ok ? r.json() : { rankings: [], calculatedAt: null })
+      ));
+
+      const allRankings = results.flatMap(r => r.rankings || []);
+
       if (allRankings.length === 0) {
         document.getElementById('updatedAt').textContent = `No ${sport} RPI data available for ${season}`;
         return;
       }
-      
-      // Update timestamp
-      const calcAt = boysData.calculatedAt || girlsData.calculatedAt;
+
+      // Update timestamp (use first non-null calculatedAt)
+      const calcAt = results.map(r => r.calculatedAt).find(Boolean);
       if (calcAt) {
         const d = new Date(calcAt);
         document.getElementById('updatedAt').textContent = 'Updated: ' + d.toLocaleDateString('en-US', {
@@ -607,17 +625,14 @@
           hour: 'numeric', minute: '2-digit'
         });
       }
-      
+
       // Render each division
-      const genders = isBaseball ? ['Boys'] : ['Boys', 'Girls'];
-      const divisions = ['D-I', 'D-II', 'D-III', 'D-IV'];
-      
-      for (const gender of genders) {
-        for (const div of divisions) {
+      for (const gender of sportConfig.genders) {
+        for (const div of sportConfig.divisions) {
           const rows = allRankings
             .filter(r => r.gender === gender && r.division === div)
             .sort((a, b) => a.rank - b.rank);
-          
+
           const cardId = 'card-' + gender + '-' + DIV_MAP[div];
           renderTable(cardId, rows);
         }
@@ -656,7 +671,7 @@
   (function init() {
     const params = new URLSearchParams(window.location.search);
     const urlSport = params.get('sport');
-    if (urlSport === 'baseball' || urlSport === 'basketball') {
+    if (urlSport === 'baseball' || urlSport === 'basketball' || urlSport === 'gvolleyball') {
       currentSport = urlSport;
     }
     applySportToUI();

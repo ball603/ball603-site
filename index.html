@@ -2056,7 +2056,7 @@
     <div class="sidebar-card">
       <div class="sidebar-header">
         <div class="standings-mode-toggle">
-          <span class="sport-icon">&#9918;</span>
+          <span class="sport-icon" id="standingsSportIconMobile">&#9918;</span>
           <button class="mode-btn active" data-mode="standings" onclick="setStandingsMode('standings')">&#128202; Standings</button>
           <span class="mode-separator">|</span>
           <button class="mode-btn" data-mode="rpi" onclick="setStandingsMode('rpi')">&#128200; RPI</button>
@@ -2119,7 +2119,7 @@
         <div class="sidebar-card">
           <div class="sidebar-header">
             <div class="standings-mode-toggle">
-              <span class="sport-icon">&#9918;</span>
+              <span class="sport-icon" id="standingsSportIcon">&#9918;</span>
               <button class="mode-btn active" data-mode="standings" onclick="setStandingsMode('standings')">&#128202; Standings</button>
               <span class="mode-separator">|</span>
               <button class="mode-btn" data-mode="rpi" onclick="setStandingsMode('rpi')">&#128200; RPI</button>
@@ -3105,7 +3105,29 @@
      * Standings state and functions
      */
     let standingsGender = 'Boys';
-    let standingsSport = 'baseball';
+    // Default the standings widget to the currently-in-season sport.
+    //   Dec-Mar → basketball, Apr-Jul → baseball, Aug-Nov → girls volleyball.
+    // Once basketball/baseball are off-season and volleyball has standings data,
+    // this shows the most relevant view without user interaction.
+    function _getInSeasonSport() {
+      const m = new Date().getMonth() + 1;
+      if (m >= 12 || m <= 3) return 'basketball';
+      if (m >= 4 && m <= 7) return 'baseball';
+      return 'gvolleyball';
+    }
+    function _getSeasonForSport(sport) {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = now.getMonth() + 1;
+      if (sport === 'basketball') {
+        if (month >= 4 && month <= 7) return `${year - 1}-${String(year).slice(-2)}`;
+        return `${year}-${String(year + 1).slice(-2)}`;
+      }
+      return String(year);
+    }
+    let standingsSport = _getInSeasonSport();
+    // Single-gender sports force gender on load: baseball→Boys, gvolleyball→Girls.
+    if (standingsSport === 'gvolleyball') standingsGender = 'Girls';
     let standingsDivision = 'D-I';
     let allStandings = [];
     let allRpiData = [];
@@ -3172,13 +3194,33 @@
       const container = document.getElementById('standingsMini');
       const mobileContainer = document.getElementById('standingsMiniMobile');
 
-      // Hide gender toggle for baseball (boys only)
-      document.querySelectorAll('.standings-gender-toggle').forEach(el => {
-        el.style.display = standingsSport === 'baseball' ? 'none' : '';
+      // Update the sport icon in the widget header to match the current sport.
+      const SPORT_ICON = { basketball: '\uD83C\uDFC0', baseball: '\u26BE', gvolleyball: '\uD83C\uDFD0' };
+      const iconChar = SPORT_ICON[standingsSport] || '\u26BE';
+      ['standingsSportIcon', 'standingsSportIconMobile'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = iconChar;
       });
-      
+
+      // Single-gender sports: baseball is boys-only, gvolleyball is girls-only.
+      const isSingleGender = standingsSport === 'baseball' || standingsSport === 'gvolleyball';
+      document.querySelectorAll('.standings-gender-toggle').forEach(el => {
+        el.style.display = isSingleGender ? 'none' : '';
+      });
+
+      // Volleyball has no D-IV — hide the tab and bounce off it if selected.
+      const noDIV = standingsSport === 'gvolleyball';
+      document.querySelectorAll('.standings-tab[data-div="D-IV"]').forEach(t => {
+        t.style.display = noDIV ? 'none' : '';
+      });
+      if (noDIV && standingsDivision === 'D-IV') {
+        setStandingsDivision('D-I');
+        return; // setStandingsDivision will re-render
+      }
+
+      const season = _getSeasonForSport(standingsSport);
       try {
-        const response = await fetch(`/.netlify/functions/get-standings?sport=${standingsSport}&season=2026`);
+        const response = await fetch(`/.netlify/functions/get-standings?sport=${standingsSport}&season=${season}`);
         const data = await response.json();
         
         if (data.standings && data.standings.length > 0) {
@@ -3204,9 +3246,11 @@
       const container = document.getElementById('standingsMini');
       const mobileContainer = document.getElementById('standingsMiniMobile');
       
-      // Filter standings by division (and gender for basketball)
+      // Filter standings by division. Single-gender sports (baseball, gvolleyball)
+      // don't gate by gender since their data only comes in one gender.
+      const isSingleGender = standingsSport === 'baseball' || standingsSport === 'gvolleyball';
       const filtered = allStandings.filter(s => 
-        (standingsSport === 'baseball' || s.gender === standingsGender) && 
+        (isSingleGender || s.gender === standingsGender) && 
         s.division === standingsDivision
       );
       
