@@ -306,6 +306,7 @@
         <button class="sport-btn" data-sport="all">All Sports</button>
         <button class="sport-btn" data-sport="basketball">&#127936; Basketball</button>
         <button class="sport-btn" data-sport="baseball">&#9918; Baseball</button>
+        <button class="sport-btn" data-sport="gvolleyball">&#127952; Girls Volleyball</button>
       </div>
       
       <div class="team-hero-tagline" id="teamTagline">LOADING...</div>
@@ -325,6 +326,7 @@
         <option value="all">All Sports</option>
         <option value="basketball">🏀 Basketball</option>
         <option value="baseball">⚾ Baseball</option>
+        <option value="gvolleyball">🏐 Girls Volleyball</option>
       </select>
       <a href="#news" class="team-menu-item" data-section="news">
         <span class="menu-icon">&#128240;</span>
@@ -972,11 +974,16 @@
       
       // --- Quick Stats & Gender Cards: Adjust for sport ---
       const girlsStatsGroup = document.querySelector('.girls-stats');
-      const girlsScheduleCard = document.querySelector('.schedules-grid .schedule-card:last-child');
-      const girlsRosterCard = document.getElementById('girlsRosterCard');
       const boysStatsGroup = document.querySelector('.boys-stats');
-      const boysScheduleCard = document.querySelector('.schedules-grid .schedule-card:first-child');
+      const girlsRosterCard = document.getElementById('girlsRosterCard');
       const boysRosterCard = document.getElementById('boysRosterCard');
+      // Query schedule cards positionally rather than by :first-child / :last-child,
+      // because a roster card may have been appended into the schedules grid (baseball
+      // moves boys roster in; gvolleyball moves girls roster in). Pseudo-class selectors
+      // like :last-child would then return null and silently break visibility fixes.
+      const scheduleCardsInGrid = document.querySelectorAll('.schedules-grid > .schedule-card');
+      const boysScheduleCard = scheduleCardsInGrid[0];   // boys is always first
+      const girlsScheduleCard = scheduleCardsInGrid[1];  // girls is always second
       
       if (sport === 'baseball') {
         // Baseball = boys only - hide girls
@@ -1034,15 +1041,23 @@
         if (girlsStatsGroup) girlsStatsGroup.style.display = '';
         if (girlsScheduleCard) girlsScheduleCard.style.display = '';
         if (girlsRosterCard) girlsRosterCard.style.display = '';
-        
-        // Restore boys roster card to rosters section if it was moved
+
+        // Restore boys roster card to rosters section if it was moved (from baseball)
         const rostersGrid = document.querySelector('.rosters-grid');
         if (rostersGrid && boysRosterCard && !rostersGrid.contains(boysRosterCard)) {
           rostersGrid.insertBefore(boysRosterCard, girlsRosterCard);
         }
-        
-        // Restore NCAA box to features-grid if it was moved
-        restoreCollegeBox();
+
+        // Move girls roster into schedules grid for side-by-side layout (mirrors baseball)
+        const schedulesGrid = document.querySelector('.schedules-grid');
+        if (schedulesGrid && girlsRosterCard && !schedulesGrid.contains(girlsRosterCard)) {
+          schedulesGrid.appendChild(girlsRosterCard);
+        }
+        // Hide rosters section (roster card moved to schedules grid)
+        if (rostersSection) rostersSection.style.display = 'none';
+        if (rostersMenuItem) rostersMenuItem.style.display = 'none';
+
+        // Note: NCAA box is moved to history section in renderChampionshipHistory()
       } else if (sport === 'all') {
         // All sports view - schedules hidden above, nothing else to adjust here
         // Restore boys roster card to rosters section if it was moved
@@ -1050,7 +1065,11 @@
         if (rostersGrid && boysRosterCard && !rostersGrid.contains(boysRosterCard)) {
           rostersGrid.insertBefore(boysRosterCard, girlsRosterCard);
         }
-        
+        // Restore girls roster card to rosters section if it was moved (from gvolleyball)
+        if (rostersGrid && girlsRosterCard && !rostersGrid.contains(girlsRosterCard)) {
+          rostersGrid.appendChild(girlsRosterCard);
+        }
+
         // Restore NCAA box to features-grid if it was moved
         restoreCollegeBox();
       } else {
@@ -1063,13 +1082,17 @@
         if (boysScheduleCard) boysScheduleCard.style.display = '';
         if (girlsRosterCard) girlsRosterCard.style.display = '';
         if (boysRosterCard) boysRosterCard.style.display = '';
-        
+
         // Restore boys roster card to rosters section if it was moved
         const rostersGrid = document.querySelector('.rosters-grid');
         if (rostersGrid && boysRosterCard && !rostersGrid.contains(boysRosterCard)) {
           rostersGrid.insertBefore(boysRosterCard, girlsRosterCard);
         }
-        
+        // Restore girls roster card to rosters section if it was moved (from gvolleyball)
+        if (rostersGrid && girlsRosterCard && !rostersGrid.contains(girlsRosterCard)) {
+          rostersGrid.appendChild(girlsRosterCard);
+        }
+
         // Restore NCAA box to features-grid if it was moved
         restoreCollegeBox();
       }
@@ -1102,20 +1125,19 @@
         // Hide separate college menu item (content is in history section now)
         if (collegeMenuItem) collegeMenuItem.style.display = 'none';
       } else if (sport === 'gvolleyball') {
-        // Girls Volleyball: singular labels for girls only
-        if (schedulesMenuText) schedulesMenuText.textContent = 'Schedules';
-        // Show section header
+        // Girls Volleyball: single-gender treatment (mirrors baseball)
+        if (schedulesMenuText) schedulesMenuText.textContent = 'Schedule';
+        // Hide the section header - each card will have its own title with emoji
         const schedulesSectionHeader = document.querySelector('#schedules .section-header');
-        if (schedulesSectionHeader) schedulesSectionHeader.style.display = '';
-        if (schedulesSectionTitle) schedulesSectionTitle.innerHTML = '&#128197; Schedules';
-        if (girlsScheduleLabel) girlsScheduleLabel.textContent = 'Girls Varsity Volleyball';
-        if (girlsRosterLabel) girlsRosterLabel.textContent = 'Girls Varsity Volleyball';
-        // Show history section header
+        if (schedulesSectionHeader) schedulesSectionHeader.style.display = 'none';
+        if (girlsScheduleLabel) girlsScheduleLabel.innerHTML = '&#128197; Schedule';
+        if (girlsRosterLabel) girlsRosterLabel.innerHTML = '&#128101; Roster';
+        // Hide history section header - each column has its own title
         const historySectionHeader = document.querySelector('#history .section-header');
-        if (historySectionHeader) historySectionHeader.style.display = '';
-        if (historySectionTitle) historySectionTitle.innerHTML = '&#127942; Championship History';
-        if (historyMenuText) historyMenuText.textContent = 'History';
-        if (collegeMenuItem) collegeMenuItem.style.display = '';
+        if (historySectionHeader) historySectionHeader.style.display = 'none';
+        if (historyMenuText) historyMenuText.textContent = 'History & NCAA';
+        // Hide separate college menu item (content is in history section now)
+        if (collegeMenuItem) collegeMenuItem.style.display = 'none';
       } else {
         // Basketball or default: standard labels
         if (schedulesMenuText) schedulesMenuText.textContent = 'Schedules';
@@ -2351,9 +2373,9 @@
       if (champGenderFilter === 'boys') allGames = allEntries.filter(g => (g.gender || '').toLowerCase() === 'boys');
       else if (champGenderFilter === 'girls') allGames = allEntries.filter(g => (g.gender || '').toLowerCase() === 'girls');
       
-      // Handle empty state - but for baseball, still need to show NCAA box
+      // Handle empty state - but for single-gender sports, still need to show NCAA box
       if (allGames.length === 0) {
-        if (currentSport === 'baseball') {
+        if (currentSport === 'baseball' || currentSport === 'gvolleyball') {
           const collegeBox = document.getElementById('college');
           const featuresRow = document.getElementById('features-row');
           container.innerHTML = `<div class="history-ncaa-grid"><div class="history-column"><div class="history-timeline"><h3>&#127942; Title Game Appearances</h3><div class="empty-state"><p>No championship game appearances on record.</p></div></div></div></div>`;
@@ -2373,8 +2395,9 @@
       const displayScore = (s) => (s === null || s === undefined || s === '' || s === 'null' || s === 'Null') ? '' : s;
       const formatScore = (s1, s2, ot) => {
         const score1 = displayScore(s1), score2 = displayScore(s2);
-        // For baseball, 0 is valid (shutouts). For basketball, 0 means unknown.
-        if (currentSport === 'baseball') {
+        // For baseball & volleyball, 0 is valid (baseball shutouts / volleyball sweeps).
+        // For basketball, 0 means unknown.
+        if (currentSport === 'baseball' || currentSport === 'gvolleyball') {
           if (score1 === '' || score2 === '') return '';  // Only hide if truly empty
         } else {
           if (!score1 || !score2) return '';  // Hide if falsy (including 0)
@@ -2385,8 +2408,8 @@
       // Single-gender sports don't need gender column
       const isSingleGender = currentSport === 'baseball' || currentSport === 'gvolleyball';
       
-      // For baseball, add emoji to timeline header since section header is hidden
-      const timelineTitle = currentSport === 'baseball' ? '&#127942; Title Game Appearances' : 'All Title Game Appearances';
+      // For single-gender sports, add emoji to timeline header since section header is hidden
+      const timelineTitle = isSingleGender ? '&#127942; Title Game Appearances' : 'All Title Game Appearances';
       
       // Gender filter buttons (only for multi-gender sports like basketball)
       const hasBoys = (champs.boys || []).length > 0;
@@ -2407,8 +2430,8 @@
           return `<div class="timeline-item ${isChamp ? 'champion' : 'runner-up'}${noGenderClass}"><span class="timeline-year">${g.year}</span>${genderHtml}<span class="timeline-result">${isChamp ? '&#127942; Champion' : '&#129352; Runner-Up'}</span><span class="timeline-score">${scoreText}</span><span class="timeline-opponent">vs ${opp}</span>${g.recap_url ? `<a href="${g.recap_url}" class="timeline-recap-link">📰 Recap</a>` : ''}</div>`;
         }).join('') : '<div class="empty-state"><p>No title game appearances for this filter.</p></div>'}</div></div>`;
       
-      // For baseball, create side-by-side layout with NCAA box
-      if (currentSport === 'baseball') {
+      // For single-gender sports (baseball & gvolleyball), create side-by-side layout with NCAA box
+      if (currentSport === 'baseball' || currentSport === 'gvolleyball') {
         const collegeBox = document.getElementById('college');
         const featuresRow = document.getElementById('features-row');
         
