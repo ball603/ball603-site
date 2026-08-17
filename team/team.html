@@ -730,7 +730,12 @@
       document.querySelectorAll('.sport-btn').forEach(btn => {
         btn.addEventListener('click', () => switchSport(btn.dataset.sport));
       });
-      
+
+      // Hide sport buttons for sports this team doesn't play.
+      // Must run AFTER buttons are wired (in case the safety fallback in
+      // applySportButtonVisibility triggers switchSport).
+      applySportButtonVisibility();
+
       // Set initial active button based on URL param
       updateSportButtonState();
       
@@ -828,14 +833,101 @@
           hasBoys: hasBoys,
           hasGirls: hasGirls,
           isCombinedTeam: isCombinedTeam,
-          combinedTeamInfo: combinedTeamInfo
+          combinedTeamInfo: combinedTeamInfo,
+          availableSports: new Set()  // filled in by detectAvailableSports below
         };
+
+        // Detect which sports this team actually plays (based on games in DB)
+        // so we can hide sport buttons for sports the team doesn't play.
+        TEAM_CONFIG.availableSports = await detectAvailableSports(nameVariations, combinedTeamInfo);
+        console.log('Detected available sports:', Array.from(TEAM_CONFIG.availableSports));
 
         console.log('Loaded TEAM_CONFIG:', TEAM_CONFIG);
         return true;
       } catch (err) {
         console.error('Error loading team config:', err);
         return false;
+      }
+    }
+
+    // ===== DETECT AVAILABLE SPORTS =====
+    // Query the games table to find which sports this team has records for.
+    // Returns a Set of sport strings (e.g. new Set(['basketball', 'baseball'])).
+    // On any failure, returns a permissive fallback (all known sports) so the
+    // page never breaks by hiding legitimate buttons.
+    async function detectAvailableSports(teamNames, combinedTeamInfo) {
+      const KNOWN_SPORTS = ['basketball', 'baseball', 'gvolleyball'];
+      try {
+        // Escape any embedded double-quotes in team names, then quote each name.
+        // Format required by PostgREST for .in() is: (val1,val2,...)
+        const quoted = teamNames
+          .filter(Boolean)
+          .map(n => `"${String(n).replace(/"/g, '\\"')}"`);
+        if (quoted.length === 0) return new Set(KNOWN_SPORTS);
+        const inList = quoted.join(',');
+        const orFilter = `home_team.in.(${inList}),away_team.in.(${inList})`;
+
+        const { data, error } = await db
+          .from('games')
+          .select('sport')
+          .or(orFilter)
+          .not('sport', 'is', null);
+
+        if (error) {
+          console.warn('detectAvailableSports: query error, defaulting to all sports:', error);
+          return new Set(KNOWN_SPORTS);
+        }
+
+        const sports = new Set((data || []).map(g => g.sport).filter(Boolean));
+
+        // If this team is a component of a combined team, add the combined team's sport too.
+        // Currently the only combined team is Central-West (Manchester Central + Manchester West)
+        // which combines for baseball. Games are stored under "Central-West" so the component
+        // teams wouldn't otherwise show baseball. If more combined teams are added in the
+        // future for different sports, this logic will need to grow accordingly.
+        if (combinedTeamInfo) {
+          sports.add('baseball');
+        }
+
+        return sports;
+      } catch (err) {
+        console.warn('detectAvailableSports: unexpected error, defaulting to all sports:', err);
+        return new Set(KNOWN_SPORTS);
+      }
+    }
+
+    // ===== APPLY SPORT BUTTON VISIBILITY =====
+    // Hide sport buttons (and mobile menu options) for sports the team doesn't play.
+    // "All Sports" is always visible. If the user landed on a URL for a sport the team
+    // doesn't play, switch them to 'all' so they don't stare at an empty page.
+    function applySportButtonVisibility() {
+      if (!TEAM_CONFIG || !TEAM_CONFIG.availableSports) return;
+      const sports = TEAM_CONFIG.availableSports;
+
+      // Desktop sport buttons
+      document.querySelectorAll('.sport-btn').forEach(btn => {
+        const s = btn.dataset.sport;
+        if (s === 'all') return;             // always show All Sports
+        btn.style.display = sports.has(s) ? '' : 'none';
+      });
+
+      // Mobile menu dropdown options
+      const menuSelect = document.getElementById('menuSportSelect');
+      if (menuSelect) {
+        Array.from(menuSelect.options).forEach(opt => {
+          const s = opt.value;
+          if (s === 'all') return;
+          opt.style.display = sports.has(s) ? '' : 'none';
+          opt.disabled = !sports.has(s) && s !== 'all';
+        });
+      }
+
+      // Safety: if the current sport isn't available on this team (e.g. someone
+      // shared a link to /nute/basketball but Nute doesn't play basketball),
+      // fall back to All Sports so the page shows something.
+      if (currentSport !== 'all' && !sports.has(currentSport)) {
+        console.log(`Current sport '${currentSport}' not available for this team; switching to 'all'`);
+        switchSport('all');
       }
     }
     
