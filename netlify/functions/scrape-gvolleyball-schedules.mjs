@@ -37,7 +37,7 @@ const CLASSIFICATION_TO_DIVISION = {
 const REGULAR_SEASON_GAME_TYPE_IDS = new Set([3]);
 
 // Team entityId → Ball603 canonical short name
-// Populated from Aug 17 2026 production API scrape (34 IDs) plus the initial sample.
+// Populated from Aug 17 2026 production API scrape (46 IDs mapped).
 // UNMAPPED teams fall back to normalizeTeamName(teamName) and log a warning
 // so you can add the missing entityId to this map.
 const TEAM_ID_MAP = {
@@ -46,46 +46,63 @@ const TEAM_ID_MAP = {
   1400:   'Bedford',              // API returns "Bedford High School -NH" (no space before -NH)
   1881:   'Bishop Guertin',
   4912:   'Concord',
+  6087:   'Dover',
   7200:   'Exeter',
   8651:   'Goffstown',
   10240:  'Hollis-Brookline',
   11610:  'Keene',
   13155:  'Londonderry',
+  13645:  'Manchester Central',   // API returns "Manchester High School Central" (weird word order)
   14397:  'Manchester Memorial',
+  14506:  'Merrimack',
   15604:  'Nashua North',
   15605:  'Nashua South',
   18140:  'Pinkerton',
   18455:  'Portsmouth',
   20196:  'Salem',                // API returns "Salem High School " with trailing space
   21696:  'Spaulding',
+  25245:  'Manchester West',      // API returns "Manchester High School West"
   26068:  'Winnacunnet',
   38740:  'Windham',
   // D-II
   1523:   'Belmont',              // Note: API returns "Belmont High School - NH"
   3101:   'Campbell',
+  4639:   'Coe-Brown',            // API returns "Coe-Brown Northwood Academy"
   4898:   'ConVal',               // API returns "Contoocook Valley Regional High School"
   7361:   'Fall Mountain',        // API returns "Fall Mountain Reg High School"
   7924:   'Franklin',
   8503:   'Gilford',
+  9426:   'Hanover',              // API returns "Hanover High School -NH"
+  10125:  'Hillsboro-Deering',
+  11603:  'Kearsarge',            // API returns "Kearsarge Regional High School"
   11864:  'Kingswood',            // API returns "Kingswood Regional HS/MS"
   12075:  'Laconia',
   14509:  'Merrimack Valley',
   14719:  'Milford',              // API returns "Milford High School " with trailing space
+  17366:  'Oyster River',
   17768:  'Pelham',
+  17781:  'Pembroke',             // API returns "Pembroke Academy"
+  18298:  'Plymouth',
   18906:  'Raymond',
   20156:  'St. Thomas Aquinas',
   21218:  'Somersworth',
+  21243:  'Souhegan',
   22757:  'Sunapee',              // API returns "Sunapee Middle High School"
+  23448:  'Timberlane',           // API returns "Timberlane Regional Middle/High School"
+  55775:  'Kennett',
   115607: 'Sanborn',
   120499: 'John Stark',
   // D-III
   4901:   'Conant',               // API returns "Conant  Middle High School" (double space)
   7031:   'Epping',               // API returns "Epping Middle and High Schools"
+  7405:   'Farmington',           // API returns "Farmington High School-NH"
   10899:  'Inter-Lakes',          // API returns "Inter-lakes Middle High School"
   14051:  'Mascenic',
   14052:  'Mascoma',              // API returns "Mascoma Valley Regional High School"
   15943:  'Newfound',
+  16748:  'Nute',                 // API returns "Nute Middle/High School"
   18453:  'Portsmouth Christian',
+  18639:  'Prospect Mountain',
   23714:  'Trinity',
   26080:  'Winnisquam',
   34734:  'Concord Christian',
@@ -137,7 +154,9 @@ function normalizeTeamName(name) {
     'Inter-Lakes Middle High School': 'Inter-Lakes',
     'Inter-lakes Middle High School': 'Inter-Lakes',     // API variant (lowercase 'l')
     'John Stark Regional High School': 'John Stark',
+    'Kearsarge Regional High School': 'Kearsarge',
     'Keene High School': 'Keene',
+    'Kennett High School': 'Kennett',
     'Kingswood Regional High School': 'Kingswood',
     'Kingswood Regional HS/MS': 'Kingswood',   // API variant
     'Laconia High School': 'Laconia',
