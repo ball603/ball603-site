@@ -27,12 +27,14 @@ const CLASSIFICATION_TO_DIVISION = {
 };
 
 // gameTypeId allowlist — ONLY regular-season game types are imported.
-// From Aug 2026 sample data:
-//   gameTypeId 3, 4 → observed on jamborees, alumni games, preseason (SKIP)
-//   gameTypeId 1, 2 → EXPECTED for regular season (allow)
+// From Aug 17, 2026 real API data (568-game production sample):
+//   gameTypeId 3 → 529 entries → REGULAR SEASON (allow)
+//   gameTypeId 4 → 10 entries  → jamborees, alumni, exhibitions (SKIP)
+// NOTE: These IDs may be sport-specific. Do not copy this allowlist to
+// other sports' scrapers without verifying the mapping from a real sample.
 // If real regular-season games start getting filtered out, check the logs
 // for "Skipped: N by gameTypeId" and expand this set as needed.
-const REGULAR_SEASON_GAME_TYPE_IDS = new Set([1, 2]);
+const REGULAR_SEASON_GAME_TYPE_IDS = new Set([3]);
 
 // Team entityId → Ball603 canonical short name
 // Populated from Aug 2026 API sample plus historical volleyball teams.
