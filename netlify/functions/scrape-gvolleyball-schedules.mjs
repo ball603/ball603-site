@@ -123,10 +123,14 @@ function normalizeTeamName(name) {
     'Fall Mountain Regional High School': 'Fall Mountain',
     'Fall Mountain Reg High School': 'Fall Mountain',  // API variant
     'Farmington High School': 'Farmington',
+    'Farmington High School-NH': 'Farmington',   // API variant (no space before -NH)
+    'Farmington High School -NH': 'Farmington',
     'Franklin High School': 'Franklin',
     'Gilford High School': 'Gilford',
     'Goffstown High School': 'Goffstown',
     'Hanover High School': 'Hanover',
+    'Hanover High School -NH': 'Hanover',        // API variant
+    'Hanover High School-NH': 'Hanover',
     'Hillsboro-Deering High School': 'Hillsboro-Deering',
     'Hollis-Brookline High School': 'Hollis-Brookline',
     'Hollis Brookline High School': 'Hollis-Brookline',  // API variant (no hyphen)
@@ -139,8 +143,11 @@ function normalizeTeamName(name) {
     'Laconia High School': 'Laconia',
     'Londonderry High School': 'Londonderry',
     'Manchester Central High School': 'Manchester Central',
+    'Manchester High School Central': 'Manchester Central',  // API variant (weird word order)
     'Manchester Memorial High School': 'Manchester Memorial',
+    'Manchester High School Memorial': 'Manchester Memorial', // defensive against same pattern
     'Manchester West High School': 'Manchester West',
+    'Manchester High School West': 'Manchester West',         // defensive against same pattern
     'Mascenic Regional High School': 'Mascenic',
     'Mascoma Valley': 'Mascoma',
     'Mascoma Valley Regional High School': 'Mascoma',
@@ -155,6 +162,7 @@ function normalizeTeamName(name) {
     'Nashua High School South': 'Nashua South',
     'Newfound Regional High School': 'Newfound',
     'Nute High School': 'Nute',
+    'Nute Middle/High School': 'Nute',           // API variant
     'Oyster River High School': 'Oyster River',
     'Pelham High School': 'Pelham',
     'Pembroke Academy': 'Pembroke',
@@ -176,6 +184,7 @@ function normalizeTeamName(name) {
     'Sunapee High School': 'Sunapee',
     'Sunapee Middle High School': 'Sunapee',   // API variant
     'Timberlane Regional High School': 'Timberlane',
+    'Timberlane Regional Middle/High School': 'Timberlane',   // API variant
     'Trinity High School': 'Trinity',
     'Windham High School': 'Windham',
     'Winnacunnet High School': 'Winnacunnet',
