@@ -36,6 +36,13 @@ const CLASSIFICATION_TO_DIVISION = {
 // for "Skipped: N by gameTypeId" and expand this set as needed.
 const REGULAR_SEASON_GAME_TYPE_IDS = new Set([3]);
 
+// Regular-season start date (inclusive). Games scheduled BEFORE this date
+// are filtered out as preseason, even if marked gameTypeId=3.
+// NHIAA sometimes tags preseason games (like Aug 22 tune-ups) as regular season
+// in Arbiter, so this date cutoff is the only reliable way to exclude them.
+// UPDATE THIS EACH SEASON. Format: 'YYYY-MM-DD'.
+const REGULAR_SEASON_START_DATE = '2026-09-02';
+
 // Team entityId → Ball603 canonical short name
 // Populated from Aug 17 2026 production API scrape (46 IDs mapped).
 // UNMAPPED teams fall back to normalizeTeamName(teamName) and log a warning
@@ -348,6 +355,7 @@ function parseGames(arbiterGames) {
   let skippedNoDivision = 0;
   let skippedFutureScores = 0;
   let skippedMiddleSchool = 0;
+  let skippedPreseasonDate = 0;
   // Track which gameTypeIds get filtered out — helps quickly diagnose if
   // legitimate regular-season games are being dropped by an incomplete allowlist.
   const skippedGameTypeCounts = new Map();
@@ -387,6 +395,14 @@ function parseGames(arbiterGames) {
     if (!REGULAR_SEASON_GAME_TYPE_IDS.has(g.gameTypeId)) {
       const key = g.gameTypeId ?? 'null';
       skippedGameTypeCounts.set(key, (skippedGameTypeCounts.get(key) || 0) + 1);
+      continue;
+    }
+
+    // Preseason date filter. Some Aug/early-Sept games are tagged gameTypeId=3
+    // (regular season) in Arbiter even though they're technically preseason.
+    // Skip anything before the official start of the regular season.
+    if (g.fromDate && g.fromDate.slice(0, 10) < REGULAR_SEASON_START_DATE) {
+      skippedPreseasonDate++;
       continue;
     }
 
@@ -498,7 +514,7 @@ function parseGames(arbiterGames) {
 
   // Log filtering stats
   console.log(`  Parse stats: ${dedupedGames.length} varsity regular-season games kept`);
-  console.log(`    Skipped: ${skippedMultiTeam} multi-team/incomplete, ${skippedByTitle} by title (jamboree/alumni/scrimmage), ${skippedSubVarsity} sub-varsity, ${skippedMiddleSchool} middle-school, ${skippedNoDivision} no division`);
+  console.log(`    Skipped: ${skippedMultiTeam} multi-team/incomplete, ${skippedByTitle} by title (jamboree/alumni/scrimmage), ${skippedSubVarsity} sub-varsity, ${skippedMiddleSchool} middle-school, ${skippedPreseasonDate} preseason-date (before ${REGULAR_SEASON_START_DATE}), ${skippedNoDivision} no division`);
   if (skippedGameTypeCounts.size > 0) {
     const breakdown = Array.from(skippedGameTypeCounts.entries())
       .sort((a, b) => b[1] - a[1])
