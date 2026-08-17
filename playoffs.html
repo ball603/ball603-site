@@ -892,6 +892,7 @@
       <div class="sport-filter">
         <button class="sport-btn active" id="baseballBtn" onclick="selectSport('baseball')">&#x26BE; Baseball</button>
         <button class="sport-btn" id="basketballBtn" onclick="selectSport('basketball')">&#x1F3C0; Basketball</button>
+        <button class="sport-btn" id="gvolleyballBtn" onclick="selectSport('gvolleyball')">&#x1F3D0; Girls Volleyball</button>
       </div>
     </div>
     <!-- Gender Toggle (hidden for baseball) -->
@@ -1079,6 +1080,29 @@
         }
       }
       }  // end basketball
+      ,
+      'gvolleyball': {
+        'Girls': {
+          'D-I': {
+            prelims:  { date: '2026-10-28', time: '6:00 PM', site: 'Higher Seed' },
+            quarters: { date: '2026-10-30', time: '6:00 PM', site: 'Higher Seed' },
+            semis:    { date: '2026-11-04', times: ['4:30 PM', '6:00 PM'], site: 'Pinkerton Academy' },
+            final:    { date: '2026-11-07', time: '2:00 PM', site: 'Pinkerton Academy' }
+          },
+          'D-II': {
+            prelims:  { date: '2026-10-27', time: '6:00 PM', site: 'Higher Seed' },
+            quarters: { date: '2026-10-29', time: '6:00 PM', site: 'Higher Seed' },
+            semis:    { date: '2026-11-03', times: ['4:30 PM', '6:00 PM'], site: 'TBD' },
+            final:    { date: '2026-11-07', time: '12:00 PM', site: 'Pinkerton Academy' }
+          },
+          'D-III': {
+            prelims:  { date: '2026-10-29', time: '6:00 PM', site: 'Higher Seed' },
+            quarters: { date: '2026-10-31', time: '6:00 PM', site: 'Higher Seed' },
+            semis:    { date: '2026-11-05', times: ['4:30 PM', '6:00 PM'], site: 'Pinkerton Academy' },
+            final:    { date: '2026-11-07', time: '10:00 AM', site: 'Pinkerton Academy' }
+          }
+        }
+      }
     };
     
     // NHIAA Playoff Teams by sport
@@ -1089,6 +1113,11 @@
       },
       baseball: {
         Boys: { 'D-I': 15, 'D-II': 13, 'D-III': 15, 'D-IV': 14 }
+      },
+      gvolleyball: {
+        // Defaults based on 2025 playoff field sizes; adjust when NHIAA
+        // publishes official 2026 qualifying counts.
+        Girls: { 'D-I': 14, 'D-II': 16, 'D-III': 12 }
       }
     };
     
@@ -1134,14 +1163,27 @@
     function selectSport(sport) {
       currentSport = sport;
       currentSeason = getLatestSeason(sport);
-      // Baseball is boys-only — hide gender toggle
-      document.getElementById('genderToggle').style.display = sport === 'baseball' ? 'none' : '';
+      // Baseball is boys-only, gvolleyball is girls-only — hide gender toggle for both
+      const singleGender = sport === 'baseball' || sport === 'gvolleyball';
+      document.getElementById('genderToggle').style.display = singleGender ? 'none' : '';
       if (sport === 'baseball') currentGender = 'Boys';
+      if (sport === 'gvolleyball') currentGender = 'Girls';
+      // Volleyball has only 3 divisions (no D-IV) — hide the D-IV tab and bounce off it if selected
+      const dIVBtn = document.querySelector('.division-tab[data-division="D-IV"]');
+      if (dIVBtn) dIVBtn.style.display = sport === 'gvolleyball' ? 'none' : '';
+      if (sport === 'gvolleyball' && currentDivision === 'D-IV') {
+        currentDivision = 'D-I';
+        updateDivisionUI();
+      }
       // Update sport buttons
       document.getElementById('baseballBtn').classList.toggle('active', sport === 'baseball');
       document.getElementById('basketballBtn').classList.toggle('active', sport === 'basketball');
+      document.getElementById('gvolleyballBtn').classList.toggle('active', sport === 'gvolleyball');
+      // Also refresh gender UI so the hidden girls/boys pills still show a consistent 'active' state
+      updateGenderUI();
       refreshSeasonSelect();
-      Ball603PageSponsor.load('page-sponsor-banner', 'playoffs', sport, sport === 'baseball' ? 'Baseball' : 'Basketball');
+      const sportLabels = { baseball: 'Baseball', basketball: 'Basketball', gvolleyball: 'Girls Volleyball' };
+      Ball603PageSponsor.load('page-sponsor-banner', 'playoffs', sport, sportLabels[sport] || '');
       loadPlayoffs();
     }
 
@@ -1182,7 +1224,7 @@
         const orRes = await fetch(`/.netlify/functions/tournament-schedule?sport=${currentSport}&season=${season}&gender=${currentGender}&division=${currentDivision}`);
         const orData = await orRes.json();
         if (Array.isArray(orData) && orData.length > 0) {
-          const sched = TOURNAMENT_SCHEDULE[currentGender]?.[currentDivision];
+          const sched = TOURNAMENT_SCHEDULE[currentSport]?.[currentGender]?.[currentDivision];
           if (sched) {
             const roundMap = { 'Prelims': 'prelims', 'Quarters': 'quarters', 'Semis': 'semis', 'Final': 'final' };
             orData.forEach(r => {
@@ -1253,7 +1295,7 @@
       const seedMap = new Map(seeds.map(s => [s.seed, s.team]));
       
       // Get schedule for current tournament
-      const schedule = TOURNAMENT_SCHEDULE[currentGender]?.[currentDivision];
+      const schedule = TOURNAMENT_SCHEDULE[currentSport]?.[currentGender]?.[currentDivision];
       
       // Format date for display
       const formatDate = (dateStr) => {
@@ -1574,7 +1616,7 @@
         } else {
           // Show date + time for upcoming games
           const roundKey = { 'Prelims': 'prelims', 'Quarters': 'quarters', 'Semis': 'semis', 'Final': 'final' }[game.round];
-          const sched = roundKey ? TOURNAMENT_SCHEDULE[currentGender]?.[currentDivision]?.[roundKey] : null;
+          const sched = roundKey ? TOURNAMENT_SCHEDULE[currentSport]?.[currentGender]?.[currentDivision]?.[roundKey] : null;
 
           // Date: use game.date from DB first, fall back to TOURNAMENT_SCHEDULE
           const dateIsCorrupt = !game.date;
