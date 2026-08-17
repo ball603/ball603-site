@@ -37,27 +37,59 @@ const CLASSIFICATION_TO_DIVISION = {
 const REGULAR_SEASON_GAME_TYPE_IDS = new Set([3]);
 
 // Team entityId → Ball603 canonical short name
-// Populated from Aug 2026 API sample plus historical volleyball teams.
+// Populated from Aug 17 2026 production API scrape (34 IDs) plus the initial sample.
 // UNMAPPED teams fall back to normalizeTeamName(teamName) and log a warning
 // so you can add the missing entityId to this map.
 const TEAM_ID_MAP = {
   // D-I
+  450:    'Alvirne',
+  1400:   'Bedford',              // API returns "Bedford High School -NH" (no space before -NH)
+  1881:   'Bishop Guertin',
   4912:   'Concord',
+  7200:   'Exeter',
   8651:   'Goffstown',
   10240:  'Hollis-Brookline',
   11610:  'Keene',
+  13155:  'Londonderry',
+  14397:  'Manchester Memorial',
+  15604:  'Nashua North',
+  15605:  'Nashua South',
   18140:  'Pinkerton',
+  18455:  'Portsmouth',
+  20196:  'Salem',                // API returns "Salem High School " with trailing space
+  21696:  'Spaulding',
+  26068:  'Winnacunnet',
+  38740:  'Windham',
   // D-II
-  1523:   'Belmont',            // Note: API returns "Belmont High School - NH"
+  1523:   'Belmont',              // Note: API returns "Belmont High School - NH"
   3101:   'Campbell',
+  4898:   'ConVal',               // API returns "Contoocook Valley Regional High School"
+  7361:   'Fall Mountain',        // API returns "Fall Mountain Reg High School"
+  7924:   'Franklin',
   8503:   'Gilford',
+  11864:  'Kingswood',            // API returns "Kingswood Regional HS/MS"
   12075:  'Laconia',
   14509:  'Merrimack Valley',
+  14719:  'Milford',              // API returns "Milford High School " with trailing space
+  17768:  'Pelham',
+  18906:  'Raymond',
+  20156:  'St. Thomas Aquinas',
+  21218:  'Somersworth',
+  22757:  'Sunapee',              // API returns "Sunapee Middle High School"
   115607: 'Sanborn',
+  120499: 'John Stark',
   // D-III
-  10899:  'Inter-Lakes',        // API returns "Inter-lakes Middle High School"
+  4901:   'Conant',               // API returns "Conant  Middle High School" (double space)
+  7031:   'Epping',               // API returns "Epping Middle and High Schools"
+  10899:  'Inter-Lakes',          // API returns "Inter-lakes Middle High School"
   14051:  'Mascenic',
-  14052:  'Mascoma'             // API returns "Mascoma Valley Regional High School"
+  14052:  'Mascoma',              // API returns "Mascoma Valley Regional High School"
+  15943:  'Newfound',
+  18453:  'Portsmouth Christian',
+  23714:  'Trinity',
+  26080:  'Winnisquam',
+  34734:  'Concord Christian',
+  115592: 'Moultonborough'        // API returns "MOULTONBOROUGH ACADEMY" (all caps)
 };
 
 // Normalize team names when entityId lookup misses.
@@ -68,6 +100,8 @@ function normalizeTeamName(name) {
   const normalizations = {
     'Alvirne High School': 'Alvirne',
     'Bedford High School': 'Bedford',
+    'Bedford High School -NH': 'Bedford',     // API variant (no space before -NH)
+    'Bedford High School - NH': 'Bedford',
     'Belmont High School': 'Belmont',
     'Belmont High School - NH': 'Belmont',
     'Bishop Brady High School': 'Bishop Brady',
@@ -76,14 +110,20 @@ function normalizeTeamName(name) {
     'Campbell High School': 'Campbell',
     'Coe-Brown Northwood': 'Coe-Brown',
     'Coe-Brown Northwood Academy': 'Coe-Brown',
+    'Conant Middle High School': 'Conant',
+    'Conant  Middle High School': 'Conant',    // API variant (double space)
     'ConVal Regional High School': 'ConVal',
+    'Contoocook Valley Regional High School': 'ConVal',  // API variant (full name)
     'Concord Christian Academy': 'Concord Christian',
     'Concord High School': 'Concord',
     'Dover High School': 'Dover',
     'Epping Middle High School': 'Epping',
+    'Epping Middle and High Schools': 'Epping',  // API variant
     'Exeter High School': 'Exeter',
     'Fall Mountain Regional High School': 'Fall Mountain',
+    'Fall Mountain Reg High School': 'Fall Mountain',  // API variant
     'Farmington High School': 'Farmington',
+    'Franklin High School': 'Franklin',
     'Gilford High School': 'Gilford',
     'Goffstown High School': 'Goffstown',
     'Hanover High School': 'Hanover',
@@ -95,6 +135,7 @@ function normalizeTeamName(name) {
     'John Stark Regional High School': 'John Stark',
     'Keene High School': 'Keene',
     'Kingswood Regional High School': 'Kingswood',
+    'Kingswood Regional HS/MS': 'Kingswood',   // API variant
     'Laconia High School': 'Laconia',
     'Londonderry High School': 'Londonderry',
     'Manchester Central High School': 'Manchester Central',
@@ -106,8 +147,10 @@ function normalizeTeamName(name) {
     'Merrimack High School': 'Merrimack',
     'Merrimack Valley High School': 'Merrimack Valley',
     'Milford High School': 'Milford',
+    'Milford High School ': 'Milford',         // API variant (trailing space)
     'Monadnock Regional High School': 'Monadnock',
     'Moultonborough Academy': 'Moultonborough',
+    'MOULTONBOROUGH ACADEMY': 'Moultonborough', // API variant (all caps)
     'Nashua High School North': 'Nashua North',
     'Nashua High School South': 'Nashua South',
     'Newfound Regional High School': 'Newfound',
@@ -122,13 +165,16 @@ function normalizeTeamName(name) {
     'Prospect Mountain High School': 'Prospect Mountain',
     'Raymond High School': 'Raymond',
     'Saint Thomas Aquinas High School': 'St. Thomas Aquinas',
+    'St. Thomas Aquinas High School': 'St. Thomas Aquinas',  // API variant
     'Salem High School': 'Salem',
+    'Salem High School ': 'Salem',             // API variant (trailing space)
     'Sanborn Regional High School': 'Sanborn',
     'Sanborn Regional High School ': 'Sanborn',  // API sometimes has trailing space
     'Somersworth High School': 'Somersworth',
     'Souhegan High School': 'Souhegan',
     'Spaulding High School': 'Spaulding',
     'Sunapee High School': 'Sunapee',
+    'Sunapee Middle High School': 'Sunapee',   // API variant
     'Timberlane Regional High School': 'Timberlane',
     'Trinity High School': 'Trinity',
     'Windham High School': 'Windham',
@@ -273,9 +319,15 @@ function parseGames(arbiterGames) {
   let skippedSubVarsity = 0;
   let skippedNoDivision = 0;
   let skippedFutureScores = 0;
+  let skippedMiddleSchool = 0;
   // Track which gameTypeIds get filtered out — helps quickly diagnose if
   // legitimate regular-season games are being dropped by an incomplete allowlist.
   const skippedGameTypeCounts = new Map();
+
+  // Regex for middle-school teams that slip past hslevelId=1 filter.
+  // Example: "Somersworth Middle School - MS Girls Varsity"
+  // Matches " - MS " or " - Middle School " suffixes distinctive to MS-varsity entries.
+  const MIDDLE_SCHOOL_REGEX = /\s-\s(MS|Middle School)\b/i;
 
   // Compute today in ET for future-date safeguard
   const now = new Date();
@@ -317,6 +369,14 @@ function parseGames(arbiterGames) {
       skippedMultiTeam++;
       continue;
     }
+
+    // Middle-school-varsity teams sometimes get hslevelId=1 in Arbiter even though
+    // they're not HS teams. Ball603 covers NHIAA high schools only, so skip.
+    if (MIDDLE_SCHOOL_REGEX.test(homeEntry.teamName || '') || MIDDLE_SCHOOL_REGEX.test(awayEntry.teamName || '')) {
+      skippedMiddleSchool++;
+      continue;
+    }
+
     const home = resolveTeam(homeEntry, unknownIds);
     const away = resolveTeam(awayEntry, unknownIds);
 
@@ -410,7 +470,7 @@ function parseGames(arbiterGames) {
 
   // Log filtering stats
   console.log(`  Parse stats: ${dedupedGames.length} varsity regular-season games kept`);
-  console.log(`    Skipped: ${skippedMultiTeam} multi-team/incomplete, ${skippedByTitle} by title (jamboree/alumni/scrimmage), ${skippedSubVarsity} sub-varsity, ${skippedNoDivision} no division`);
+  console.log(`    Skipped: ${skippedMultiTeam} multi-team/incomplete, ${skippedByTitle} by title (jamboree/alumni/scrimmage), ${skippedSubVarsity} sub-varsity, ${skippedMiddleSchool} middle-school, ${skippedNoDivision} no division`);
   if (skippedGameTypeCounts.size > 0) {
     const breakdown = Array.from(skippedGameTypeCounts.entries())
       .sort((a, b) => b[1] - a[1])
