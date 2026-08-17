@@ -450,6 +450,7 @@
       <div class="gender-buttons">
         <button class="gender-btn" onclick="selectSport('baseball')">&#9918; Baseball</button>
         <button class="gender-btn" onclick="selectSport('basketball')">&#127936; Basketball</button>
+        <button class="gender-btn" onclick="selectSport('gvolleyball')">&#127952; Girls Volleyball</button>
       </div>
     </div>
 
@@ -639,8 +640,15 @@
     // Select sport
     function selectSport(sport) {
       selectedSport = sport;
+      // Single-gender sports skip the gender page:
+      //   baseball → force Boys
+      //   gvolleyball → force Girls
       if (sport === 'baseball') {
         selectedGender = 'Boys';
+        renderGames();
+        showPage('gamesPage');
+      } else if (sport === 'gvolleyball') {
+        selectedGender = 'Girls';
         renderGames();
         showPage('gamesPage');
       } else {
@@ -677,16 +685,22 @@
       // Update header
       if (selectedSport === 'baseball') {
         document.getElementById('gamesHeader').textContent = `Baseball: ${formatDate(today)}`;
+      } else if (selectedSport === 'gvolleyball') {
+        document.getElementById('gamesHeader').textContent = `Girls Volleyball: ${formatDate(today)}`;
       } else {
         document.getElementById('gamesHeader').textContent = `${selectedGender} Basketball: ${formatDate(today)}`;
       }
 
-      // Show/hide sport-specific status controls on score page
+      // Show/hide sport-specific status controls on score page.
+      // Volleyball needs neither an OT selector nor an innings input — a match just ends "FINAL".
       const bbEl = document.getElementById('gameStatusBasketball');
       const bsEl = document.getElementById('gameStatusBaseball');
       if (selectedSport === 'baseball') {
         if (bbEl) bbEl.style.display = 'none';
         if (bsEl) bsEl.style.display = 'flex';
+      } else if (selectedSport === 'gvolleyball') {
+        if (bbEl) bbEl.style.display = 'none';
+        if (bsEl) bsEl.style.display = 'none';
       } else {
         if (bbEl) bbEl.style.display = '';
         if (bsEl) bsEl.style.display = 'none';
@@ -697,6 +711,7 @@
         if (g.date !== dateStr) return false;
         if (g.level === 'College') return false;
         if (selectedSport === 'baseball') return g.sport === 'baseball';
+        if (selectedSport === 'gvolleyball') return g.sport === 'gvolleyball';
         return g.sport === 'basketball' && g.gender === selectedGender;
       });
       
@@ -706,10 +721,16 @@
       const listEl = document.getElementById('gamesList');
       
       if (games.length === 0) {
+        const emptyEmoji = selectedSport === 'baseball' ? '&#9918;'
+                         : selectedSport === 'gvolleyball' ? '&#127952;'
+                         : '&#127936;';
+        const emptyLabel = selectedSport === 'baseball' ? 'baseball'
+                         : selectedSport === 'gvolleyball' ? 'girls volleyball'
+                         : selectedGender.toLowerCase() + ' basketball';
         listEl.innerHTML = `
           <div class="empty-state">
-            <div class="empty-state-icon">${selectedSport === 'baseball' ? '&#9918;' : '&#127936;'}</div>
-            <div>No ${selectedSport === 'baseball' ? 'baseball' : selectedGender.toLowerCase() + ' basketball'} games ${getDateString(currentDate) === getDateString(getESTDate()) ? 'today' : 'on this date'}</div>
+            <div class="empty-state-icon">${emptyEmoji}</div>
+            <div>No ${emptyLabel} games ${getDateString(currentDate) === getDateString(getESTDate()) ? 'today' : 'on this date'}</div>
             <button onclick="reloadGames()" style="margin-top:14px; background:#f57c00; color:white; border:none; border-radius:6px; padding:10px 20px; font-size:14px; font-weight:600; cursor:pointer;">&#8635; Reload Games</button>
           </div>
         `;
@@ -754,6 +775,8 @@
       document.getElementById('homeScore').value = '0';
       if (selectedSport === 'baseball') {
         document.getElementById('inningsInput').value = '7';
+      } else if (selectedSport === 'gvolleyball') {
+        // Volleyball has no per-game status field — always "FINAL"
       } else {
         document.getElementById('gameStatusBasketball').value = 'FINAL';
       }
@@ -777,6 +800,8 @@
         const stored = selectedGame.time || 'FINAL';
         const inningsMatch = stored.match(/\((\d+) inn\)/);
         document.getElementById('inningsInput').value = inningsMatch ? inningsMatch[1] : '9';
+      } else if (selectedSport === 'gvolleyball') {
+        // Volleyball has no per-game status field — always "FINAL"
       } else {
         document.getElementById('gameStatusBasketball').value = selectedGame.time || 'FINAL';
       }
@@ -789,6 +814,9 @@
       if (selectedSport === 'baseball') {
         const innings = parseInt(document.getElementById('inningsInput').value) || 9;
         return innings === 7 ? 'FINAL' : `FINAL (${innings} inn)`;
+      }
+      if (selectedSport === 'gvolleyball') {
+        return 'FINAL';
       }
       return document.getElementById('gameStatusBasketball').value;
     }
@@ -889,8 +917,9 @@
     }
 
     function goBack() {
-      // From games page: baseball goes to sport, basketball goes to gender
-      if (selectedSport === 'baseball') {
+      // From games page: single-gender sports go back to sport,
+      // multi-gender (basketball) goes back to gender picker.
+      if (selectedSport === 'baseball' || selectedSport === 'gvolleyball') {
         showPage('sportPage');
       } else {
         showPage('genderPage');
