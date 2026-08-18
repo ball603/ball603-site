@@ -14,12 +14,38 @@ const headers = {
   'Content-Type': 'application/json'
 };
 
+// Compute the graduation year for each high-school class based on the current
+// date. The US school year starts in August, so if we're Aug-Dec of year X,
+// the senior class graduates in spring of X+1. If Jan-Jul, seniors graduate
+// this year. This function auto-updates every August with no manual maintenance.
+function getGraduationYearsForClasses() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth() + 1;
+  const seniorGradYear = m >= 8 ? y + 1 : y;
+  return {
+    SR: seniorGradYear,
+    JR: seniorGradYear + 1,
+    SO: seniorGradYear + 2,
+    FR: seniorGradYear + 3
+  };
+}
+
 // Claude parsing prompt with all the rules
 function buildParsingPrompt(sport) {
-  const sportLabel = sport === 'baseball' ? 'baseball' : 'basketball';
-  const positionRules = sport === 'baseball'
-    ? 'Use standard baseball abbreviations: P, C, 1B, 2B, 3B, SS, OF, DH, UTIL. Multiple positions separated by slash (e.g. OF/2B/P, SS/P, 1B/C, IF/P). Preserve exactly as written on the roster.'
-    : 'Use abbreviations: G, F, C, G/F, F/C. Guard → G, Forward → F, Center → C';
+  const sportLabel =
+    sport === 'baseball'    ? 'baseball' :
+    sport === 'gvolleyball' ? 'girls volleyball' :
+                              'basketball';
+
+  const positionRules =
+    sport === 'baseball' ?
+      'Use standard baseball abbreviations: P, C, 1B, 2B, 3B, SS, OF, DH, UTIL. Multiple positions separated by slash (e.g. OF/2B/P, SS/P, 1B/C, IF/P). Preserve exactly as written on the roster.' :
+    sport === 'gvolleyball' ?
+      'Use standard volleyball position abbreviations: S (Setter), OH (Outside Hitter), M or MB (Middle Blocker), RS or OPP (Right Side / Opposite), L (Libero), DS (Defensive Specialist). Multiple positions separated by slash (e.g. OH/DS, RS/DS, DS/S). Preserve exactly as written on the roster.' :
+      'Use abbreviations: G, F, C, G/F, F/C. Guard → G, Forward → F, Center → C';
+
+  const g = getGraduationYearsForClasses();
 
   return `You are extracting ${sportLabel} roster data from an uploaded document/image.
 
@@ -29,11 +55,11 @@ EXTRACT THE FOLLOWING:
 3. Assistant Coach names (comma-separated)
 4. Manager names (comma-separated)
 
-CLASS CONVERSIONS:
-- Senior, 12, 2026 → SR
-- Junior, 11, 2027 → JR
-- Sophomore, 10, 2028 → SO
-- Freshman, 9, 2029 → FR
+CLASS CONVERSIONS (YOG = year of graduation):
+- Senior, 12, ${g.SR} → SR
+- Junior, 11, ${g.JR} → JR
+- Sophomore, 10, ${g.SO} → SO
+- Freshman, 9, ${g.FR} → FR
 - 8th grade → 8th
 - 7th grade → 7th
 
