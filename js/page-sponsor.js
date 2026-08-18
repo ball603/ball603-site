@@ -75,9 +75,20 @@ window.Ball603PageSponsor = (function() {
           color: #333;
         }
         @media (max-width: 480px) {
-          #${containerId} { padding: 8px 14px; }
-          #${containerId} img { height: 24px; max-width: 80px; }
-          #${containerId} .psb-sname { font-size: 12px; }
+          #${containerId} {
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            text-align: center;
+            padding: 12px 14px;
+          }
+          #${containerId} a {
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+          }
+          #${containerId} img { height: 32px; max-width: 140px; }
+          #${containerId} .psb-sname { font-size: 13px; }
         }
       </style>
       <span class="psb-label">${sportLabel ? sportLabel + ' ' : ''}Presented By</span>
