@@ -709,6 +709,52 @@
       color: #666;
     }
 
+    /* Custom teams-search dropdown (works on desktop + mobile; datalist is unreliable on iOS Safari) */
+    .teams-search-wrapper {
+      position: relative;
+    }
+    .teams-dropdown {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      right: 0;
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+      max-height: 320px;
+      overflow-y: auto;
+      z-index: 500;
+      display: none;
+      -webkit-overflow-scrolling: touch;
+    }
+    .teams-dropdown-item {
+      padding: 10px 14px;
+      font-size: 14px;
+      color: #222;
+      cursor: pointer;
+      border-bottom: 1px solid #eee;
+      user-select: none;
+      -webkit-tap-highlight-color: rgba(245,124,0,0.2);
+    }
+    .teams-dropdown-item:last-child { border-bottom: none; }
+    .teams-dropdown-item:hover { background: #f5f5f5; }
+    .teams-dropdown-item:active { background: #ffe6cc; }
+    .teams-dropdown-empty {
+      padding: 12px 14px;
+      font-size: 13px;
+      color: #999;
+      text-align: center;
+    }
+    /* On mobile-search-bar (dark theme container), dropdown still uses light background for readability */
+    .mobile-search-bar .teams-dropdown {
+      /* Slightly larger tap targets on mobile */
+    }
+    .mobile-search-bar .teams-dropdown-item {
+      padding: 14px 16px;
+      font-size: 15px;
+    }
+
     /* Team-focused view: Last Game / Next Game featured row */
     .team-featured-row {
       display: grid;
@@ -839,8 +885,10 @@
         <option value="D-IV">Division IV</option>
       </select>
       <button class="calendar-btn" onclick="openCalendar()" title="Pick a date">&#128197;</button>
-      <input type="text" class="search-box" id="teamSearchInput" placeholder="Search teams..." oninput="renderSchedule()" list="teamsDatalist" autocomplete="off">
-      <datalist id="teamsDatalist"></datalist>
+      <div class="teams-search-wrapper">
+        <input type="text" class="search-box" id="teamSearchInput" placeholder="Search teams..." oninput="onTeamSearchInput('teamSearchInput')" onfocus="updateTeamsDropdown('teamSearchInput')" autocomplete="off">
+        <div class="teams-dropdown" id="teamsDropdown" role="listbox"></div>
+      </div>
       <button class="today-btn" onclick="goToToday()">Today</button>
     </div>
     
@@ -888,7 +936,10 @@
     
     <!-- Mobile Search Bar -->
     <div class="mobile-search-bar">
-      <input type="text" class="search-box" id="teamSearchMobile" placeholder="Search teams..." oninput="syncSearch()">
+      <div class="teams-search-wrapper">
+        <input type="text" class="search-box" id="teamSearchMobile" placeholder="Search teams..." oninput="onTeamSearchInput('teamSearchMobile')" onfocus="updateTeamsDropdown('teamSearchMobile')" autocomplete="off">
+        <div class="teams-dropdown" id="teamsDropdownMobile" role="listbox"></div>
+      </div>
     </div>
     
     <div class="section-header">
@@ -1151,6 +1202,8 @@
     // Fill the search input's <datalist> with unique NH team names so the browser
     // can autocomplete as the user types. Restricted to NHIAA-level games so
     // college opponents and out-of-state teams don't crowd the suggestions.
+    // Stored in a module-level array; both custom dropdowns (desktop + mobile) read from it.
+    let allTeamNames = [];
     function populateTeamsDatalist() {
       const teams = new Set();
       for (const g of allGames) {
@@ -1158,11 +1211,92 @@
         if (g.home) teams.add(g.home);
         if (g.away) teams.add(g.away);
       }
-      const sorted = [...teams].sort((a, b) => a.localeCompare(b));
-      const dl = document.getElementById('teamsDatalist');
-      if (!dl) return;
-      dl.innerHTML = sorted.map(name => `<option value="${name.replace(/"/g, '&quot;')}"></option>`).join('');
+      allTeamNames = [...teams].sort((a, b) => a.localeCompare(b));
     }
+
+    // Custom autocomplete dropdown (used instead of native <datalist> because
+    // iOS Safari support for datalist is inconsistent, and the mobile input
+    // needs autocomplete too).
+    function updateTeamsDropdown(sourceInputId) {
+      const input = document.getElementById(sourceInputId);
+      const dropdownId = sourceInputId === 'teamSearchMobile' ? 'teamsDropdownMobile' : 'teamsDropdown';
+      const dropdown = document.getElementById(dropdownId);
+      if (!input || !dropdown) return;
+
+      const search = input.value.toLowerCase().trim();
+      let matches;
+      if (search) {
+        matches = allTeamNames.filter(n => n.toLowerCase().includes(search));
+      } else {
+        // Empty query on focus: show all teams so users can browse
+        matches = allTeamNames;
+      }
+
+      if (matches.length === 0) {
+        dropdown.innerHTML = `<div class="teams-dropdown-empty">No matching teams</div>`;
+        dropdown.style.display = 'block';
+        return;
+      }
+
+      // Cap at 25 items to keep the list scrollable but not overwhelming
+      dropdown.innerHTML = matches.slice(0, 25).map(name => {
+        const attr = name.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+        // Use onmousedown to fire BEFORE the input's blur; also touchstart for mobile
+        return `<div class="teams-dropdown-item" role="option" data-team="${attr}">${name}</div>`;
+      }).join('');
+      dropdown.style.display = 'block';
+    }
+
+    function selectTeamFromDropdown(teamName) {
+      const desk = document.getElementById('teamSearchInput');
+      const mob  = document.getElementById('teamSearchMobile');
+      if (desk) desk.value = teamName;
+      if (mob)  mob.value  = teamName;
+      hideAllTeamsDropdowns();
+      renderSchedule();
+    }
+
+    function hideAllTeamsDropdowns() {
+      const d = document.getElementById('teamsDropdown');
+      const m = document.getElementById('teamsDropdownMobile');
+      if (d) d.style.display = 'none';
+      if (m) m.style.display = 'none';
+    }
+
+    // Called from either input's oninput handler.
+    // Syncs mobile → desktop (renderSchedule reads only the desktop input),
+    // refreshes the dropdown, and triggers a schedule render.
+    function onTeamSearchInput(sourceInputId) {
+      if (sourceInputId === 'teamSearchMobile') {
+        const desk = document.getElementById('teamSearchInput');
+        const mob  = document.getElementById('teamSearchMobile');
+        if (desk && mob) desk.value = mob.value;
+      } else if (sourceInputId === 'teamSearchInput') {
+        // Keep mobile input in sync too so the state is consistent if user toggles orientation
+        const desk = document.getElementById('teamSearchInput');
+        const mob  = document.getElementById('teamSearchMobile');
+        if (desk && mob) mob.value = desk.value;
+      }
+      updateTeamsDropdown(sourceInputId);
+      renderSchedule();
+    }
+
+    // Delegated handler for both dropdowns:
+    //   - pointerdown on a .teams-dropdown-item fires BEFORE the input blurs,
+    //     so we get to set the value before the field loses focus
+    //   - click outside any teams-search-wrapper hides all dropdowns
+    document.addEventListener('pointerdown', (e) => {
+      const item = e.target.closest('.teams-dropdown-item');
+      if (item) {
+        e.preventDefault(); // don't blur the input
+        selectTeamFromDropdown(item.dataset.team);
+        return;
+      }
+      // Click outside any wrapper → close dropdowns
+      if (!e.target.closest('.teams-search-wrapper')) {
+        hideAllTeamsDropdowns();
+      }
+    });
 
     function renderSchedule() {
       const search = document.getElementById('teamSearchInput').value.toLowerCase().trim();
