@@ -839,7 +839,8 @@
         <option value="D-IV">Division IV</option>
       </select>
       <button class="calendar-btn" onclick="openCalendar()" title="Pick a date">&#128197;</button>
-      <input type="text" class="search-box" id="teamSearchInput" placeholder="Search teams..." oninput="renderSchedule()">
+      <input type="text" class="search-box" id="teamSearchInput" placeholder="Search teams..." oninput="renderSchedule()" list="teamsDatalist" autocomplete="off">
+      <datalist id="teamsDatalist"></datalist>
       <button class="today-btn" onclick="goToToday()">Today</button>
     </div>
     
@@ -1139,11 +1140,28 @@
         const response = await fetch('/.netlify/functions/get-games');
         const data = await response.json();
         allGames = (data.games || []).map(g => ({...g, home: normalizeTeamName(g.home), away: normalizeTeamName(g.away)}));
+        populateTeamsDatalist();
         renderSchedule();
       } catch (err) {
         console.error('Error:', err);
         document.getElementById('gamesContainer').innerHTML = '<div class="empty-state"><div class="empty-icon">&#9888;</div><div class="empty-title">Error loading games</div><div class="empty-text">Please refresh</div></div>';
       }
+    }
+
+    // Fill the search input's <datalist> with unique NH team names so the browser
+    // can autocomplete as the user types. Restricted to NHIAA-level games so
+    // college opponents and out-of-state teams don't crowd the suggestions.
+    function populateTeamsDatalist() {
+      const teams = new Set();
+      for (const g of allGames) {
+        if (g.level !== 'NHIAA') continue;
+        if (g.home) teams.add(g.home);
+        if (g.away) teams.add(g.away);
+      }
+      const sorted = [...teams].sort((a, b) => a.localeCompare(b));
+      const dl = document.getElementById('teamsDatalist');
+      if (!dl) return;
+      dl.innerHTML = sorted.map(name => `<option value="${name.replace(/"/g, '&quot;')}"></option>`).join('');
     }
 
     function renderSchedule() {
