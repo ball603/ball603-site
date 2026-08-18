@@ -708,6 +708,89 @@
     .empty-text {
       color: #666;
     }
+
+    /* Team-focused view: Last Game / Next Game featured row */
+    .team-featured-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .team-featured-card {
+      background: #fff;
+      border: 1px solid #eee;
+      border-radius: 10px;
+      padding: 14px 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .team-featured-card--empty {
+      color: #888;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 92px;
+    }
+    .team-featured-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: #999;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    .team-featured-empty {
+      color: #ccc;
+      font-size: 18px;
+    }
+    .team-featured-body {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .team-featured-logo {
+      width: 44px;
+      height: 44px;
+      object-fit: contain;
+      flex-shrink: 0;
+    }
+    .team-featured-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .team-featured-opp {
+      font-size: 15px;
+      font-weight: 600;
+      color: #222;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .team-featured-meta {
+      font-size: 12px;
+      color: #666;
+      margin-top: 2px;
+    }
+    .team-featured-result {
+      margin-top: 4px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .team-featured-result.won { color: #2e7d32; }
+    .team-featured-result.lost { color: #c62828; }
+    .team-featured-wl {
+      display: inline-block;
+      min-width: 14px;
+    }
+    @media (max-width: 640px) {
+      .team-featured-row {
+        grid-template-columns: 1fr;
+        gap: 8px;
+        margin-bottom: 14px;
+      }
+      .team-featured-card {
+        padding: 12px 14px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -1064,6 +1147,194 @@
     }
 
     function renderSchedule() {
+      const search = document.getElementById('teamSearchInput').value.toLowerCase().trim();
+
+      // If the search string uniquely resolves to a single team, switch to team-focused mode.
+      // Otherwise fall through to the normal date-focused rendering below.
+      if (search) {
+        const matchedTeam = resolveUniqueTeam(search);
+        if (matchedTeam) {
+          renderTeamView(matchedTeam);
+          return;
+        }
+      }
+
+      renderDateView();
+    }
+
+    // Return the exact team name if the search resolves to a unique team across allGames.
+    // Returns null if 0 matches or 2+ matches.
+    function resolveUniqueTeam(searchLower) {
+      const teamNames = new Set();
+      for (const g of allGames) {
+        if (g.home) teamNames.add(g.home);
+        if (g.away) teamNames.add(g.away);
+      }
+      // Prefer exact case-insensitive match if one exists (e.g. searching "Nashua North"
+      // shouldn't get ambiguous when both "Nashua North" and "Nashua North JV" exist).
+      const exact = [...teamNames].filter(n => n.toLowerCase() === searchLower);
+      if (exact.length === 1) return exact[0];
+      // Otherwise fuzzy: substring match
+      const matches = [...teamNames].filter(n => n.toLowerCase().includes(searchLower));
+      return matches.length === 1 ? matches[0] : null;
+    }
+
+    // Determine the currently in-season sport (matches other pages' pattern).
+    function getInSeasonSport() {
+      const m = new Date().getMonth() + 1;
+      if (m >= 12 || m <= 3) return 'basketball';   // winter
+      if (m >= 4 && m <= 7)  return 'baseball';     // spring
+      return 'gvolleyball';                          // fall
+    }
+
+    // Season string for a given sport (basketball spans two years, others don't).
+    function getSeasonForSport(sport) {
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = now.getMonth() + 1;
+      if (sport === 'basketball') {
+        if (m >= 4 && m <= 7) return `${y - 1}-${String(y).slice(-2)}`;
+        return `${y}-${String(y + 1).slice(-2)}`;
+      }
+      return String(y);
+    }
+
+    // Render team-focused view: featured Last/Next cards + full-season schedule.
+    function renderTeamView(teamName) {
+      const gender = document.getElementById('genderFilter').value;
+      const level = document.getElementById('levelFilter').value;
+      const sportFilter = document.getElementById('sportFilter').value;
+      const division = document.getElementById('divisionFilter').value;
+
+      // If sport filter is set, use that; otherwise default to the in-season sport.
+      const targetSport = sportFilter || getInSeasonSport();
+      const targetSeason = getSeasonForSport(targetSport);
+
+      const divisionMap = {
+        'D-I': ['D-I', 'D1'],
+        'D-II': ['D-II', 'D2'],
+        'D-III': ['D-III', 'D3'],
+        'D-IV': ['D-IV']
+      };
+
+      // Filter to this team's games in the target sport/season, respecting other filters.
+      let teamGames = allGames.filter(g => {
+        if (g.home !== teamName && g.away !== teamName) return false;
+        if (g.sport !== targetSport) return false;
+        if (g.season !== targetSeason) return false;
+        if (level && g.level !== level) return false;
+        if (gender && g.gender !== gender) return false;
+        if (division) {
+          const matching = divisionMap[division] || [division];
+          if (!matching.includes(g.division)) return false;
+        }
+        // Skip BYEs and TBD-both-teams playoff placeholders
+        if (g.is_playoff && g.round === 'Prelims' && (!g.away || !g.home)) return false;
+        if (g.is_playoff && !g.away && !g.home) return false;
+        return true;
+      });
+
+      // Chronological order (earliest first)
+      teamGames.sort((a, b) => a.date.localeCompare(b.date));
+
+      // Update section title & count
+      const sportLabel = getSportName(targetSport);
+      document.getElementById('sectionTitle').textContent = `${teamName} — ${sportLabel} ${targetSeason}`;
+      document.getElementById('gameCount').textContent = teamGames.length + ' game' + (teamGames.length !== 1 ? 's' : '');
+
+      // Empty state: no games for this team in this sport/season
+      if (teamGames.length === 0) {
+        document.getElementById('gamesContainer').innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">&#128197;</div>
+            <div class="empty-title">No ${sportLabel.toLowerCase()} games for ${teamName} this season</div>
+            <div class="empty-text">Try changing the sport filter, or clear the search to browse by date.</div>
+          </div>`;
+        return;
+      }
+
+      // Determine last game (most recent past game) and next game (earliest future game).
+      const todayStr = getDateString(currentDate);
+      const pastGames = teamGames.filter(g => g.date < todayStr);
+      const todayGames = teamGames.filter(g => g.date === todayStr);
+      const futureGames = teamGames.filter(g => g.date > todayStr);
+
+      // "Last game" = most recent past game (or today's game if it's a final).
+      // "Next game" = today's unplayed game if any, else the earliest future game.
+      const isFinal = g => {
+        const as = g.away_score, hs = g.home_score;
+        return (as !== null && as !== undefined && as !== '' && hs !== null && hs !== undefined && hs !== '')
+          || (g.time && String(g.time).toUpperCase().includes('FINAL'));
+      };
+      let lastGame = null, nextGame = null;
+      // Prefer today's final as "last", today's unplayed as "next"
+      const todayFinal = todayGames.find(isFinal);
+      const todayUnplayed = todayGames.find(g => !isFinal(g));
+      lastGame = todayFinal || (pastGames.length ? pastGames[pastGames.length - 1] : null);
+      nextGame = todayUnplayed || (futureGames.length ? futureGames[0] : null);
+
+      const featuredHtml = renderFeaturedGamesRow(lastGame, nextGame, teamName);
+
+      // Build the same table + cards used in date view, but with these games
+      const listHtml = buildGamesListHtml(teamGames, teamName);
+
+      document.getElementById('gamesContainer').innerHTML = featuredHtml + listHtml;
+    }
+
+    // Featured "Last Game / Next Game" row shown above the full schedule.
+    function renderFeaturedGamesRow(lastGame, nextGame, teamName) {
+      const cardFor = (label, game) => {
+        if (!game) {
+          return `<div class="team-featured-card team-featured-card--empty">
+                    <div class="team-featured-label">${label}</div>
+                    <div class="team-featured-empty">—</div>
+                  </div>`;
+        }
+        const isHome = game.home === teamName;
+        const opponent = isHome ? game.away : game.home;
+        const oppLogo = getLogoFilename(opponent);
+        const hs = (game.home_score !== null && game.home_score !== undefined) ? String(game.home_score).trim() : '';
+        const as = (game.away_score !== null && game.away_score !== undefined) ? String(game.away_score).trim() : '';
+        const hasScore = as !== '' && hs !== '';
+        // Result summary for finalized games
+        let resultLine = '';
+        if (hasScore) {
+          const teamScore = isHome ? hs : as;
+          const oppScore = isHome ? as : hs;
+          const won = Number(teamScore) > Number(oppScore);
+          const symbol = won ? 'W' : 'L';
+          resultLine = `<div class="team-featured-result ${won ? 'won' : 'lost'}"><span class="team-featured-wl">${symbol}</span> ${teamScore}-${oppScore}</div>`;
+        }
+        const dateObj = new Date(game.date + 'T12:00:00');
+        const dateStr = dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+        const homeAway = isHome ? 'vs' : '@';
+        const timeStr = hasScore ? 'Final' : (game.time || 'TBD');
+
+        return `<div class="team-featured-card">
+                  <div class="team-featured-label">${label}</div>
+                  <div class="team-featured-body">
+                    <img class="team-featured-logo" src="/logos/100px/${oppLogo}" onerror="this.src='/logos/100px/Ball603-white.png'">
+                    <div class="team-featured-info">
+                      <div class="team-featured-opp">${homeAway} ${opponent}</div>
+                      <div class="team-featured-meta">${dateStr} · ${timeStr}</div>
+                      ${resultLine}
+                    </div>
+                  </div>
+                </div>`;
+      };
+
+      return `<div class="team-featured-row">
+                ${cardFor('Last Game', lastGame)}
+                ${cardFor('Next Game', nextGame)}
+              </div>`;
+    }
+
+    // Date-focused view (the pre-existing behavior extracted into its own function).
+    function renderDateView() {
+      // Reset section title in case we were in team-view
+      const dateFmt = currentDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+      const isToday = getDateString(currentDate) === getDateString(getESTDate());
+      document.getElementById('sectionTitle').textContent = isToday ? "Today's Games" : dateFmt;
       const search = document.getElementById('teamSearchInput').value.toLowerCase();
       const gender = document.getElementById('genderFilter').value;
       const level = document.getElementById('levelFilter').value;
@@ -1110,7 +1381,13 @@
         document.getElementById('gamesContainer').innerHTML = `<div class="empty-state"><div class="empty-icon">&#128197;</div><div class="empty-title">${emptyTitle}</div><div class="empty-text">Try a different date</div></div>`; 
         return; 
       }
-      
+
+      document.getElementById('gamesContainer').innerHTML = buildGamesListHtml(games, null);
+    }
+
+    // Build the shared table + card list HTML for a given games array.
+    // Extracted so both renderDateView and renderTeamView can share the same rendering.
+    function buildGamesListHtml(games, teamNameForFocus) {
       // Desktop table
       let tableHtml = '<table class="games-table"><thead><tr><th class="col-sport">Sport</th><th class="col-level">Level</th><th class="col-gender">Gender</th><th class="col-away">Match-up</th><th class="col-home"></th><th class="col-status">Time/Status</th><th class="col-coverage">Coverage</th></tr></thead><tbody>';
       
@@ -1215,7 +1492,7 @@
       tableHtml += '</tbody></table>';
       cardsHtml += '</div>';
       
-      document.getElementById('gamesContainer').innerHTML = tableHtml + cardsHtml;
+      return tableHtml + cardsHtml;
     }
 
     function openCalendar() { calendarDate = new Date(currentDate); renderCalendar(); document.getElementById('calendarOverlay').classList.add('show'); }
