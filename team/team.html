@@ -163,8 +163,20 @@
     }
     @media (max-width: 900px) {
       .history-ncaa-grid {
-        grid-template-columns: 1fr;
+        /* minmax(0, 1fr) prevents grid tracks from expanding to fit intrinsic
+           min-content of children — needed because .timeline-item uses width:max-content
+           on mobile to trigger horizontal scroll. Without minmax(0,...), the whole card
+           would grow wider than the viewport. */
+        grid-template-columns: minmax(0, 1fr);
         gap: 20px !important;
+      }
+      /* Belt-and-suspenders: allow grid children to shrink below their intrinsic
+         min-content width. Together with minmax(0,1fr) above, this keeps the
+         Title Game / NCAA cards constrained to viewport width. */
+      .history-ncaa-grid > .history-column,
+      .history-ncaa-grid > #college,
+      .history-ncaa-grid .history-timeline {
+        min-width: 0;
       }
       /* Consistent spacing when schedule + roster stack on mobile */
       .schedules-grid {
