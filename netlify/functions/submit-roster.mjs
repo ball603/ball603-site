@@ -201,13 +201,15 @@ exports.handler = async function(event, context) {
       else if (['png', 'jpg', 'jpeg'].includes(ext)) submissionType = 'image';
     }
 
-    // Derive current season from sport
+    // Derive current season from sport.
+    // UPDATE ANNUALLY (August-ish) when the next season's rosters start being submitted.
+    // Keep in sync with ROSTER_INTRO_SEASONS in roster-submission-form.html.
     const CURRENT_SEASONS = {
-      basketball: '2025-26',
-      baseball: '2026',
+      basketball:  '2026-27',
+      baseball:    '2026',
       gvolleyball: '2026'
     };
-    const season = CURRENT_SEASONS[submissionSport] || '2025-26';
+    const season = CURRENT_SEASONS[submissionSport] || '2026-27';
 
     // Prepare the roster submission
     const submission = {

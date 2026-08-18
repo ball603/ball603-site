@@ -298,7 +298,7 @@
 
   
   <div class="container">
-    <p class="intro">Submit your team roster for the 2025-26 season. Enter details manually below <strong>or</strong> upload a file.</p>
+    <p class="intro" id="rosterIntro">Submit your team roster. Enter details manually below <strong>or</strong> upload a file.</p>
     
     <div class="message success" id="successMessage">
       <strong>✓ Roster submitted successfully!</strong><br>
@@ -427,7 +427,7 @@
           
           <div class="form-group">
             <label>Sport <span class="required">*</span></label>
-            <select name="sport" required>
+            <select name="sport" id="manualSport" required onchange="updateRosterIntro()">
               <option value="">Select...</option>
               <option value="basketball">Basketball</option>
               <option value="baseball">Baseball</option>
@@ -613,7 +613,7 @@
           
           <div class="form-group">
             <label>Sport <span class="required">*</span></label>
-            <select name="sport" id="uploadSport" required>
+            <select name="sport" id="uploadSport" required onchange="updateRosterIntro()">
               <option value="">Select...</option>
               <option value="basketball">Basketball</option>
               <option value="baseball">Baseball</option>
@@ -656,11 +656,39 @@
   </div>
   
   <script>
+    // Show the correct season in the intro based on the sport the coach selected.
+    // Kept in sync with the CURRENT_SEASONS map in netlify/functions/submit-roster.mjs.
+    // Update annually in August (or whenever the next season's rosters start being submitted).
+    const ROSTER_INTRO_SEASONS = {
+      basketball:  '2026-27',
+      baseball:    '2026',
+      gvolleyball: '2026'
+    };
+    const ROSTER_SPORT_LABELS = {
+      basketball:  'basketball',
+      baseball:    'baseball',
+      gvolleyball: 'girls volleyball'
+    };
+    function updateRosterIntro() {
+      const manual = document.getElementById('manualSport');
+      const upload = document.getElementById('uploadSport');
+      const sport = (manual && manual.value) || (upload && upload.value) || '';
+      const intro = document.getElementById('rosterIntro');
+      if (!intro) return;
+      if (sport && ROSTER_INTRO_SEASONS[sport]) {
+        const label = ROSTER_SPORT_LABELS[sport] || 'team';
+        intro.innerHTML = `Submit your ${label} roster for the ${ROSTER_INTRO_SEASONS[sport]} season. Enter details manually below <strong>or</strong> upload a file.`;
+      } else {
+        intro.innerHTML = 'Submit your team roster. Enter details manually below <strong>or</strong> upload a file.';
+      }
+    }
+
     // Initialize with 5 player rows
     document.addEventListener('DOMContentLoaded', () => {
       for (let i = 0; i < 5; i++) {
         addPlayer();
       }
+      updateRosterIntro();
       
       // Setup drag and drop
       const dropArea = document.getElementById('fileUploadArea');
