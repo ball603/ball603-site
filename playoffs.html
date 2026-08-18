@@ -890,7 +890,7 @@
     <!-- Sport Selector -->
     <div class="sport-filter-wrapper">
       <div class="sport-filter">
-        <button class="sport-btn active" id="baseballBtn" onclick="selectSport('baseball')">&#x26BE; Baseball</button>
+        <button class="sport-btn" id="baseballBtn" onclick="selectSport('baseball')">&#x26BE; Baseball</button>
         <button class="sport-btn" id="basketballBtn" onclick="selectSport('basketball')">&#x1F3C0; Basketball</button>
         <button class="sport-btn" id="gvolleyballBtn" onclick="selectSport('gvolleyball')">&#x1F3D0; Girls Volleyball</button>
       </div>
@@ -1124,8 +1124,20 @@
     // State
     let playoffSeeds = [];
     let playoffGames = [];
-    let currentSport = 'baseball';
-    let currentGender = 'Boys';
+
+    // Season-aware default sport: show the sport whose playoffs are next-up.
+    //   Dec-Mar → basketball (playoffs Feb-Mar)
+    //   Apr-Jul → baseball    (playoffs Jun)
+    //   Aug-Nov → gvolleyball  (playoffs Oct-Nov)
+    function getInSeasonSport() {
+      const m = new Date().getMonth() + 1;
+      if (m >= 12 || m <= 3) return 'basketball';
+      if (m >= 4 && m <= 7)  return 'baseball';
+      return 'gvolleyball';
+    }
+
+    let currentSport = getInSeasonSport();
+    let currentGender = currentSport === 'gvolleyball' ? 'Girls' : 'Boys';
     let currentDivision = 'D-I';
     let currentSeason = getLatestSeason(currentSport);
 
@@ -1139,7 +1151,8 @@
     
     // Initialize
     document.addEventListener('DOMContentLoaded', () => {
-      // Check URL params
+      // Check URL params for gender/division (for shareable deep links, mainly basketball).
+      // Single-gender sports (baseball, gvolleyball) will get gender overridden inside selectSport.
       const params = new URLSearchParams(window.location.search);
       if (params.get('gender')) {
         currentGender = params.get('gender').charAt(0).toUpperCase() + params.get('gender').slice(1).toLowerCase();
@@ -1148,16 +1161,14 @@
         currentDivision = params.get('division').toUpperCase().replace('D', 'D-');
         if (!currentDivision.includes('-')) currentDivision = 'D-' + currentDivision.replace('D-', '');
       }
-      
+
       // Update UI to match state
       updateGenderUI();
       updateDivisionUI();
 
-      // Default to baseball, hide gender toggle
-      document.getElementById('genderToggle').style.display = 'none';
-      refreshSeasonSelect();
-      Ball603PageSponsor.load('page-sponsor-banner', 'playoffs', currentSport, currentSport === 'baseball' ? 'Baseball' : 'Basketball');
-      loadPlayoffs();
+      // Apply the current (season-derived) sport's UI: button-active state, single-gender
+      // handling, D-IV hiding, sponsor banner, and initial data load. Single call handles it all.
+      selectSport(currentSport);
     });
     
     function selectSport(sport) {
