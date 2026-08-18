@@ -1345,8 +1345,14 @@
       const y = now.getFullYear();
       const m = now.getMonth() + 1;
       if (sport === 'basketball') {
-        if (m >= 4 && m <= 7) return `${y - 1}-${String(y).slice(-2)}`;
-        return `${y}-${String(y + 1).slice(-2)}`;
+        // Basketball season runs Nov-Mar (spans two calendar years, e.g. "2025-26").
+        // Show the most-populated season based on where we are in the calendar:
+        //   Nov-Dec: this year's brand-new season (games start being scheduled)
+        //   Jan-Oct: last year's season (which is either in progress in Jan-Mar, or was
+        //            the most recently completed one Apr-Oct — either way it has games)
+        // This auto-transitions on Nov 1 every year with no manual updates needed.
+        if (m >= 11) return `${y}-${String(y + 1).slice(-2)}`;
+        return `${y - 1}-${String(y).slice(-2)}`;
       }
       return String(y);
     }
