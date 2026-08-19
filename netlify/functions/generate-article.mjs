@@ -250,6 +250,8 @@ export const handler = async (event) => {
       return await handleBoxscore(body, headers);
     } else if (mode === 'baseball-boxscore') {
       return await handleBaseballBoxscore(body, headers);
+    } else if (mode === 'volleyball-write') {
+      return await handleVolleyballWrite(body, headers);
     } else if (mode === 'social') {
       return await handleSocial(body, headers);
     } else {
@@ -981,7 +983,12 @@ async function handleSocial(body, headers) {
   if (!article || !proofData) {
     return { statusCode: 400, headers, body: JSON.stringify({ error: 'Article and proof data required' }) };
   }
-  
+
+  // Volleyball has its own post shape (sets, not points)
+  if ((proofData.sport || '') === 'gvolleyball') {
+    return await handleVolleyballSocial(body, headers);
+  }
+
   const awayScore = parseInt(proofData.awayFinal) || 0;
   const homeScore = parseInt(proofData.homeFinal) || 0;
   const awayWon = awayScore > homeScore;
@@ -1232,6 +1239,282 @@ The headline should be 8-12 words, punchy, no quotes. The excerpt should be 1-2 
   try {
     parsed = JSON.parse(rawText.replace(/```json|```/g, '').trim());
   } catch(e) {
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to parse AI response', raw: rawText }) };
+  }
+
+  return {
+    statusCode: 200,
+    headers,
+    body: JSON.stringify({
+      success: true,
+      headline: parsed.headline || '',
+      article:  parsed.article || '',
+      excerpt:  parsed.excerpt || ''
+    })
+  };
+}
+
+// ── Volleyball social posts ──────────────────────────────────────────────────
+async function handleVolleyballSocial(body, headers) {
+  const { article, proofData, schoolData, photographerName } = body;
+
+  const awaySets = parseInt(proofData.awaySets ?? proofData.awayFinal) || 0;
+  const homeSets = parseInt(proofData.homeSets ?? proofData.homeFinal) || 0;
+  const awayWon = awaySets > homeSets;
+  const winner = awayWon ? proofData.awayTeam : proofData.homeTeam;
+  const loser  = awayWon ? proofData.homeTeam : proofData.awayTeam;
+  const winnerSets = Math.max(awaySets, homeSets);
+  const loserSets  = Math.min(awaySets, homeSets);
+
+  const winnerSchoolInfo = (awayWon ? schoolData?.away : schoolData?.home) || {};
+  const winnerMascot = winnerSchoolInfo.mascot || '';
+  const winnerEmoji = winnerSchoolInfo.emoji || MASCOT_EMOJIS[winnerMascot] || '🏐';
+
+  // Pull standout performers out of the EDITED article text — never invent them
+  const extractPrompt = `Read this high school volleyball match recap and extract the standout performers named in it.
+
+ARTICLE:
+${article}
+
+TEAMS:
+Winner: ${winner}
+Loser: ${loser}
+
+Return ONLY a JSON object in this exact format (no markdown, no explanation):
+{
+  "winnerLeaders": [{"name": "Last Name", "line": "14 kills"}],
+  "loserLeaders": [{"name": "Last Name", "line": "11 digs"}]
+}
+
+Rules:
+- Use LAST NAMES ONLY (e.g., "Smith" not "Jane Smith")
+- "line" is the player's stat line exactly as the article states it (e.g. "14 kills, 3 aces")
+- Include at most 3 players per team
+- Extract ONLY what is explicitly in the article — if the article names no players for a team, return an empty array for that team. Never invent a name or a stat.`;
+
+  let winnerLeaders = [];
+  let loserLeaders = [];
+
+  try {
+    const extractResponse = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 500, messages: [{ role: 'user', content: extractPrompt }] })
+    });
+    if (extractResponse.ok) {
+      const extractData = await extractResponse.json();
+      const jsonText = extractData.content?.[0]?.text || '{}';
+      const parsed = JSON.parse(jsonText.replace(/```json\n?|\n?```/g, '').trim());
+      winnerLeaders = parsed.winnerLeaders || [];
+      loserLeaders  = parsed.loserLeaders  || [];
+    }
+  } catch (e) {
+    console.error('Error extracting volleyball leaders from article:', e);
+  }
+
+  const formatLeaders = leaders => (!leaders || leaders.length === 0)
+    ? null
+    : leaders.slice(0, 3).map(l => `${l.name} (${l.line})`).join(', ');
+
+  const setsLine = (proofData.sets || []).length
+    ? (proofData.sets || []).map(s => `${s.away}-${s.home}`).join(', ')
+    : null;
+
+  const igHeader = `${winnerEmoji} 🏐 ${winner} ${winnerSets}, ${loser} ${loserSets} 🏐`;
+
+  const articleSentences = article
+    .replace(/^[A-Z]+,?\s*N\.?H\.?\s*[–-]\s*/i, '')
+    .replace(/\b(No|St|vs|Dr|Jr|Sr|Mr|Mrs|Ms|Gov|Rep|Sen|Prof)\.\s+/g, (m, abbr) => abbr + '\x00')
+    .split(/(?<=[.!?])\s+/)
+    .map(s => s.replace(/\x00/g, '. '));
+  const igLede = articleSentences.slice(0, 2).join(' ');
+
+  const photogDisplay = photographerName || 'PHOTOGNAME';
+
+  const facebookPost = article;
+
+  let instagramPost = `${igHeader}\n\n${igLede}\n\n`;
+  if (setsLine) instagramPost += `📋 Sets (${proofData.awayTeam} vs ${proofData.homeTeam}): ${setsLine}\n\n`;
+  const igWin = formatLeaders(winnerLeaders);
+  const igLose = formatLeaders(loserLeaders);
+  if (igWin || igLose) {
+    instagramPost += `📊 Standouts\n`;
+    if (igWin)  instagramPost += `${winner.toUpperCase()}: ${igWin}\n`;
+    if (igLose) instagramPost += `${loser.toUpperCase()}: ${igLose}\n`;
+    instagramPost += `\n`;
+  }
+  instagramPost += `READ MORE & check out the full photo gallery by ${photogDisplay} over at Ball603.com.`;
+
+  let twitterPost = `${igHeader}\n\n`;
+  if (setsLine) twitterPost += `Sets: ${setsLine}\n`;
+  if (igWin)  twitterPost += `${winner.toUpperCase()}: ${igWin}\n`;
+  if (igLose) twitterPost += `${loser.toUpperCase()}: ${igLose}\n`;
+  twitterPost += `\nREAD MORE & check out the full photo gallery by ${photogDisplay}...`;
+
+  return {
+    statusCode: 200,
+    headers,
+    body: JSON.stringify({ success: true, facebookPost, instagramPost, twitterPost, winnerEmoji })
+  };
+}
+
+// ── Volleyball story generator ───────────────────────────────────────────────
+async function handleVolleyballWrite(body, headers) {
+  const { proofData, schoolData, photographerName } = body;
+
+  if (!proofData) {
+    return { statusCode: 400, headers, body: JSON.stringify({ error: 'proofData required' }) };
+  }
+
+  const awaySets = parseInt(proofData.awaySets ?? proofData.awayFinal) || 0;
+  const homeSets = parseInt(proofData.homeSets ?? proofData.homeFinal) || 0;
+  const awayWon = awaySets > homeSets;
+  const winner = awayWon ? proofData.awayTeam : proofData.homeTeam;
+  const loser  = awayWon ? proofData.homeTeam : proofData.awayTeam;
+  const winnerSets = Math.max(awaySets, homeSets);
+  const loserSets  = Math.min(awaySets, homeSets);
+
+  const awaySchoolInfo = schoolData?.away || {};
+  const homeSchoolInfo = schoolData?.home || {};
+  const gameTown = homeSchoolInfo.town || proofData.homeTeam;
+  const awayMascot = awaySchoolInfo.mascot || '';
+  const homeMascot = homeSchoolInfo.mascot || '';
+  const winnerMascot = awayWon ? awayMascot : homeMascot;
+  const loserMascot  = awayWon ? homeMascot : awayMascot;
+
+  function formatGameDate(dateStr) {
+    if (!dateStr) return 'Tuesday';
+    try {
+      const d = new Date(dateStr + 'T12:00:00');
+      const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+      return days[d.getDay()];
+    } catch { return 'Tuesday'; }
+  }
+  const gameDay = formatGameDate(proofData.date);
+
+  // Set-by-set detail is optional
+  const sets = Array.isArray(proofData.sets) ? proofData.sets.filter(s =>
+    s && s.away !== null && s.away !== undefined && s.home !== null && s.home !== undefined) : [];
+  const hasSetScores = sets.length > 0;
+  const setLine = hasSetScores
+    ? sets.map((s, i) => `Set ${i + 1}: ${proofData.awayTeam} ${s.away}, ${proofData.homeTeam} ${s.home}`).join('\n')
+    : 'Not provided — the reporter only supplied the match score.';
+
+  // Records: only surface them to the writer once a team has played 10+ matches
+  const awayRecord = proofData.awayRecord;
+  const homeRecord = proofData.homeRecord;
+  const awayPlayed = Number.isFinite(parseInt(proofData.awayMatchesPlayed))
+    ? parseInt(proofData.awayMatchesPlayed)
+    : ((awayRecord?.wins || 0) + (awayRecord?.losses || 0));
+  const homePlayed = Number.isFinite(parseInt(proofData.homeMatchesPlayed))
+    ? parseInt(proofData.homeMatchesPlayed)
+    : ((homeRecord?.wins || 0) + (homeRecord?.losses || 0));
+
+  const MIN_MATCHES_FOR_STANDINGS = 10;
+  const awayRecordUsable = awayRecord && awayPlayed >= MIN_MATCHES_FOR_STANDINGS;
+  const homeRecordUsable = homeRecord && homePlayed >= MIN_MATCHES_FOR_STANDINGS;
+  const awayRecordStr = awayRecord ? `${awayRecord.wins}-${awayRecord.losses}` : null;
+  const homeRecordStr = homeRecord ? `${homeRecord.wins}-${homeRecord.losses}` : null;
+
+  let recordsBlock;
+  if (awayRecordUsable || homeRecordUsable) {
+    const parts = [];
+    if (awayRecordUsable) parts.push(`${proofData.awayTeam} is ${awayRecordStr} (${awayPlayed} matches played)`);
+    if (homeRecordUsable) parts.push(`${proofData.homeTeam} is ${homeRecordStr} (${homePlayed} matches played)`);
+    const withheld = [];
+    if (!awayRecordUsable) withheld.push(proofData.awayTeam);
+    if (!homeRecordUsable) withheld.push(proofData.homeTeam);
+    recordsBlock = `RECORDS AFTER THIS MATCH (usable — these teams have played ${MIN_MATCHES_FOR_STANDINGS}+ matches):
+${parts.join('\n')}${withheld.length ? `\nDO NOT state or imply a record or standing for: ${withheld.join(', ')} — too early in the season.` : ''}`;
+  } else {
+    recordsBlock = `RECORDS: Withheld. Neither team has played ${MIN_MATCHES_FOR_STANDINGS} matches yet, so it is too early in the season to characterize records or standings. Do NOT state, estimate, or imply either team's record, place in the standings, or season trajectory.`;
+  }
+
+  const openerNote = (proofData.awaySeasonOpener || proofData.homeSeasonOpener)
+    ? `SEASON OPENER: ${proofData.awaySeasonOpener ? proofData.awayTeam : proofData.homeTeam} is opening the season.`
+    : '';
+
+  const prompt = `You are a factual high school sports reporter for Ball603.com, covering New Hampshire girls volleyball. Write a straightforward match recap based ONLY on the facts provided below. Do not invent statistics, players, plays, or details that are not listed.
+
+MATCH RESULT: ${winner} def. ${loser}, ${winnerSets}-${loserSets}
+AWAY: ${proofData.awayTeam}${awayMascot ? ` (${awayMascot})` : ''} — ${awaySets} sets
+HOME: ${proofData.homeTeam}${homeMascot ? ` (${homeMascot})` : ''} — ${homeSets} sets
+LOCATION: ${gameTown}, N.H.
+DATE: ${gameDay}
+DIVISION: ${proofData.division || 'N/A'}${proofData.is_playoff ? ` | PLAYOFF ROUND: ${proofData.round || 'Playoff'}` : ''}
+
+SET SCORES:
+${setLine}
+
+${recordsBlock}
+${openerNote}
+
+${proofData.notes ? `REPORTER'S GAME NOTES (treat these as verified facts — use the player names and stat lines exactly as written):\n${proofData.notes}` : 'REPORTER\'S GAME NOTES: None provided.'}
+${photographerName ? `PHOTOGRAPHER: ${photographerName}` : ''}
+
+WRITING INSTRUCTIONS:
+- AP style, past tense, third person
+- Lead with what the provided facts actually support: the match score, a decisive set, a comeback from a set down, a player performance named in the notes
+- Use volleyball terminology correctly: sets (not "games"), kills, digs, assists, aces, blocks, service runs, match point
+- Report the match score as sets, e.g. "${winner} won 3-1" or "${winner} took the match in four sets"
+${hasSetScores
+  ? '- Walk through the sets that mattered using the exact set scores provided. Do not round, adjust, or invent set scores.'
+  : '- No set scores were provided. Do NOT invent them, and do not describe how individual sets played out beyond what the notes support. Write the recap around the match score and the reporter\'s notes.'}
+- Only name players and cite stat lines that appear in the reporter's game notes. If the notes are empty, write the recap without naming individual players.
+- Do NOT reference season totals, career milestones, or head-to-head history — you have no access to that data
+- NEVER reference RPI, RPI rankings, tournament seeding projections, or playoff positioning math. RPI must not appear in the article in any form.
+- Only reference records or standings if they are listed as usable above. If a team's record was withheld, say nothing about its record, standing, or how its season is going.
+
+TONE RULES (these are firm — this is high school sports coverage):
+- State records and results honestly and plainly. Do not soften a loss into something it wasn't, and do not pile on.
+- NEVER use these words or their variants: "crushed", "dominated", "blew out", "struggling", "struggled", "demolished", "destroyed", "routed", "thrashed", "hapless", "woeful"
+- Describe a lopsided result factually — "won in straight sets", "swept", "took all three sets" — not with piling-on language
+- Do not editorialize about a team's or player's shortcomings. Report what happened.
+- Give the losing side credit where the facts support it (a set they won, a run they made, a player who put up numbers)
+- No hype, no clichés about heart or destiny
+
+LENGTH: No hard word cap. Let the available material set the length — a match score with no notes should be short and clean; a match with detailed set scores and a full set of notes can run longer. Never pad to reach a length, and never drop supported material to stay short.
+
+FORMAT:
+- Open with a dateline: ${String(gameTown).toUpperCase()}, N.H. — followed by the first sentence
+- First paragraph: use school names only (e.g. "${proofData.awayTeam}", "${proofData.homeTeam}") — no mascot nicknames in the opening paragraph
+- Second paragraph and beyond: mascot nicknames are fine${winnerMascot || loserMascot ? ` (e.g. "the ${winnerMascot || loserMascot}")` : ''}
+- Separate paragraphs with a blank line
+- Do not include the headline in the article body
+- HEADLINE: sentence case only — capitalize the first word and proper nouns only. Example: "${winner} takes down ${loser} in four sets" not "${winner} Takes Down ${loser} In Four Sets"
+
+Respond with JSON only in this exact format:
+{"headline": "...", "article": "...", "excerpt": "..."}
+
+The headline should be 8-12 words, no quotes. The excerpt should be 1-2 sentences summarizing the match.`;
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 2048,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    console.error('Volleyball generation failed:', errText);
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'AI generation failed' }) };
+  }
+
+  const aiData = await response.json();
+  const rawText = aiData.content?.[0]?.text || '';
+
+  let parsed;
+  try {
+    parsed = JSON.parse(rawText.replace(/```json|```/g, '').trim());
+  } catch (e) {
     return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to parse AI response', raw: rawText }) };
   }
 

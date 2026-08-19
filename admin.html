@@ -68,10 +68,13 @@
     .panel { background: #fff; border-radius: 0 8px 8px 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); padding: 20px; }
     
     /* Article List */
-    .toolbar { display: flex; align-items: center; margin-bottom: 20px; gap: 10px; }
-    .btn-new { background: #e0e0e0; color: #333; border: none; padding: 10px 20px; border-radius: 5px; font-size: 14px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+    .toolbar { display: flex; flex-wrap: wrap; align-items: center; margin-bottom: 20px; gap: 8px; }
+    .btn-new { background: #e0e0e0; color: #333; border: none; padding: 8px 12px; border-radius: 5px; font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; line-height: 1.2; }
     .btn-new:hover { background: #d0d0d0; }
-    .search-box { padding: 10px 15px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; width: 250px; margin-left: auto; }
+    .search-box { padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px; width: 220px; max-width: 100%; margin-left: auto; }
+    @media (max-width: 900px) {
+      .search-box { margin-left: 0; width: 100%; }
+    }
     
     .article-list { border: 1px solid #eee; border-radius: 8px; overflow: hidden; }
     .article-row { display: grid; grid-template-columns: 1fr 80px 70px 90px 100px 100px 100px; padding: 12px 15px; border-bottom: 1px solid #eee; align-items: center; gap: 8px; }
@@ -1037,13 +1040,16 @@
     <div class="panel" id="articlesPanel">
       <div class="toolbar">
         <button class="btn-new" onclick="newGameStory()">
-          <span>+</span> Scorebook Story
+          <span>&#x1F3C0;</span> Scorebook Story
         </button>
         <button class="btn-new" onclick="newBoxscoreStory()">
-          <span>+</span> Boxscore Story
+          <span>&#x1F3C0;</span> Boxscore Story
         </button>
         <button class="btn-new" onclick="newBaseballBoxscoreStory()" style="background: #fff3e0; color: #e65100; border: 1px solid #f57c00;">
           <span>&#9918;</span> Baseball Boxscore
+        </button>
+        <button class="btn-new" onclick="newVolleyballStory()" style="background: #f3e5f5; color: #6a1b9a; border: 1px solid #8e24aa;">
+          <span>&#x1F3D0;</span> Volleyball Story
         </button>
         <button class="btn-new" onclick="newArticle()">
           <span>+</span> News Article
@@ -2392,6 +2398,122 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       </div>
     </div>
 
+    <!-- Volleyball Story Modal -->
+    <div id="vbsModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.7); z-index:1000; overflow-y:auto;">
+      <div style="max-width:700px; margin:30px auto; background:#f5f5f5; border-radius:10px; overflow:hidden; box-shadow:0 4px 20px rgba(0,0,0,0.3);">
+
+        <!-- Header -->
+        <div style="background:#6a1b9a; color:white; padding:12px 16px; display:flex; justify-content:space-between; align-items:center;">
+          <h2 style="margin:0; font-size:15px; font-weight:500;">&#x1F3D0; Volleyball Story</h2>
+          <button onclick="closeVbsModal()" style="background:none; border:none; color:#ddd; font-size:20px; cursor:pointer; line-height:1;">&times;</button>
+        </div>
+
+        <!-- Step 1: Select Match -->
+        <div id="vbsStep1" style="padding:16px;">
+          <div style="display:flex; align-items:center; gap:6px; margin-bottom:12px;">
+            <button onclick="vbsPrevDay()" style="background:#fff; border:1px solid #ccc; border-radius:4px; padding:6px 10px; cursor:pointer; font-size:14px;">&lt;</button>
+            <div id="vbsCurrentDate" style="font-size:12px; font-weight:600; min-width:90px; text-align:center;"></div>
+            <button onclick="vbsNextDay()" style="background:#fff; border:1px solid #ccc; border-radius:4px; padding:6px 10px; cursor:pointer; font-size:14px;">&gt;</button>
+            <input type="text" id="vbsGameSearch" placeholder="Search teams..." oninput="filterVbsGameList()" style="flex:1; padding:5px 8px; border:1px solid #ccc; border-radius:4px; font-size:12px;">
+          </div>
+          <div id="vbsGameList" class="gs-game-list">
+            <div style="padding:20px; text-align:center; color:#888;">Loading matches...</div>
+          </div>
+        </div>
+
+        <!-- Step 2: Enter Match Detail -->
+        <div id="vbsStep2" style="display:none; padding:16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <button onclick="vbsBackToStep1()" style="background:#f5f5f5; border:none; padding:8px 15px; border-radius:6px; cursor:pointer;">&larr; Back</button>
+            <h3 style="margin:0; font-size:15px; color:#333;" id="vbsMatchupTitle">Match</h3>
+            <div style="width:80px;"></div>
+          </div>
+
+          <!-- Match score (required) -->
+          <div style="background:#fff; border:1px solid #ddd; border-radius:8px; padding:14px; margin-bottom:14px;">
+            <div style="font-size:12px; font-weight:600; color:#555; margin-bottom:10px;">Match Score <span style="color:#c62828;">*</span> <span style="font-weight:400; color:#888;">— sets won (0&ndash;3)</span></div>
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+              <div id="vbsAwayLabel" style="flex:1; font-size:13px; font-weight:500; text-align:right; color:#333;">Away</div>
+              <input type="text" id="vbsAwaySets" inputmode="numeric" maxlength="1" oninput="vbsSetsChanged()" style="width:44px; padding:8px; border:2px solid #8e24aa; border-radius:6px; font-size:16px; font-weight:700; text-align:center; box-sizing:border-box;">
+              <span style="color:#999; font-size:14px;">&ndash;</span>
+              <input type="text" id="vbsHomeSets" inputmode="numeric" maxlength="1" oninput="vbsSetsChanged()" style="width:44px; padding:8px; border:2px solid #8e24aa; border-radius:6px; font-size:16px; font-weight:700; text-align:center; box-sizing:border-box;">
+              <div id="vbsHomeLabel" style="flex:1; font-size:13px; font-weight:500; color:#333;">Home</div>
+            </div>
+            <div id="vbsSetsWarning" style="display:none; font-size:11px; color:#c62828; text-align:center; margin-top:4px;"></div>
+          </div>
+
+          <!-- Set-by-set detail (optional) -->
+          <div style="background:#fff; border:1px solid #ddd; border-radius:8px; padding:14px; margin-bottom:14px;">
+            <div style="font-size:12px; font-weight:600; color:#555; margin-bottom:4px;">Set Scores <span style="font-weight:400; color:#888;">(optional)</span></div>
+            <div style="font-size:11px; color:#999; margin-bottom:10px;">Leave blank if you only have the match score.</div>
+            <table style="width:100%; font-size:12px; border-collapse:collapse;">
+              <thead>
+                <tr style="background:#fafafa;">
+                  <th style="padding:4px 6px; text-align:left; font-weight:600; color:#666;">Set</th>
+                  <th style="padding:4px 6px; text-align:center; font-weight:600; color:#666;" id="vbsSetHdrAway">Away</th>
+                  <th style="padding:4px 6px; text-align:center; font-weight:600; color:#666;" id="vbsSetHdrHome">Home</th>
+                </tr>
+              </thead>
+              <tbody id="vbsSetRows"></tbody>
+            </table>
+          </div>
+
+          <!-- Game Notes -->
+          <div style="margin-bottom:14px;">
+            <label style="font-size:12px; font-weight:600; color:#555; display:block; margin-bottom:5px;">Game Notes (optional)</label>
+            <textarea id="vbsNotes" style="width:100%; min-height:70px; padding:8px; border:1px solid #ddd; border-radius:6px; font-size:12px; box-sizing:border-box;" placeholder="Standout players and stat lines (kills, digs, assists, aces, blocks), momentum swings, milestones, quotes..."></textarea>
+          </div>
+
+          <!-- Photographer -->
+          <div id="vbsPhotographers" style="margin-bottom:14px; padding:10px 12px; background:#fff; border:1px solid #ddd; border-radius:6px; font-size:12px;">
+            <span style="color:#666; font-weight:500;">&#x1F4F7; Photo Credit:</span>
+            <div id="vbsPhotogCheckboxes" style="margin-top:8px;"></div>
+            <div style="margin-top:8px;">
+              <input type="text" id="vbsGuestPhotographer" placeholder="Guest photographer name..." style="width:100%; padding:6px 8px; border:1px solid #ddd; border-radius:4px; font-size:12px; box-sizing:border-box;">
+            </div>
+          </div>
+
+          <button onclick="generateVbsStory()" id="vbsGenerateBtn" style="width:100%; background:#6a1b9a; color:white; border:none; padding:15px; border-radius:6px; font-size:14px; font-weight:600; cursor:pointer;">
+            &#x2728; Generate Story
+          </button>
+        </div>
+
+        <!-- Step 3: Review & Edit -->
+        <div id="vbsStep3" style="display:none; padding:16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <button onclick="vbsBackToStep2()" style="background:#f5f5f5; border:none; padding:8px 15px; border-radius:6px; cursor:pointer;">&larr; Back</button>
+            <h3 style="margin:0; font-size:15px; color:#333;">Review &amp; Edit Story</h3>
+            <div style="width:80px;"></div>
+          </div>
+
+          <!-- Set score box -->
+          <div id="vbsScoreBox" style="background:#fff; border:1px solid #ddd; border-radius:8px; padding:14px; margin-bottom:14px; overflow-x:auto;"></div>
+
+          <!-- Headline -->
+          <div style="margin-bottom:12px;">
+            <label style="font-size:12px; font-weight:600; color:#333; display:block; margin-bottom:5px;">Headline</label>
+            <input type="text" id="vbsHeadline" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px; font-size:14px; font-weight:600; box-sizing:border-box;">
+          </div>
+
+          <!-- Article -->
+          <div style="margin-bottom:12px;">
+            <label style="font-size:12px; font-weight:600; color:#333; display:block; margin-bottom:5px;">Article</label>
+            <div id="vbsArticleDisplay" style="background:#fff; border:1px solid #ddd; border-radius:6px; padding:15px; font-size:14px; line-height:1.8; font-family:Georgia,serif; min-height:200px; max-height:400px; overflow-y:auto;"></div>
+            <textarea id="vbsArticle" style="display:none;"></textarea>
+            <div style="margin-top:8px; display:flex; gap:8px;">
+              <button onclick="toggleVbsEdit()" id="vbsEditBtn" style="background:#f0f0f0; border:1px solid #ccc; padding:6px 12px; border-radius:4px; cursor:pointer; font-size:12px;">&#9999; Edit Text</button>
+            </div>
+          </div>
+
+          <!-- Publish -->
+          <button onclick="saveVbsStory()" id="vbsSaveBtn" style="width:100%; background:#8e24aa; color:white; border:none; padding:15px; border-radius:6px; font-size:14px; font-weight:600; cursor:pointer;">
+            &#9998; Open in Article Editor
+          </button>
+        </div>
+
+      </div>
+    </div>
+
     <style>
       .quarter-input {
         width: 45px;
@@ -2768,6 +2890,47 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             </div>
             <button onclick="addLsExtraInning()" style="font-size:11px; background:#eee; border:1px solid #ccc; padding:3px 8px; border-radius:3px; cursor:pointer; margin-bottom:8px;">+ Extra Innings</button>
             <small style="color:#888; display:block;">R auto-totals from innings. Edit directly if needed.</small>
+          </div>
+
+          <!-- Volleyball Set Score Card -->
+          <div class="sidebar-card" id="volleyballScoreCard" style="display:none;">
+            <h4>&#x1F3D0; Set Scores</h4>
+            <div style="overflow-x:auto;">
+              <table style="width:100%; font-size:11px; border-collapse:collapse; margin-bottom:8px;">
+                <thead>
+                  <tr style="background:#f5f5f5;">
+                    <th style="padding:4px 6px; text-align:left; min-width:70px;">Team</th>
+                    <th style="padding:4px 3px; width:30px; text-align:center;">1</th>
+                    <th style="padding:4px 3px; width:30px; text-align:center;">2</th>
+                    <th style="padding:4px 3px; width:30px; text-align:center;">3</th>
+                    <th class="vb-col-4" style="padding:4px 3px; width:30px; text-align:center;">4</th>
+                    <th class="vb-col-5" style="padding:4px 3px; width:30px; text-align:center;">5</th>
+                    <th style="padding:4px 3px; width:30px; text-align:center; border-left:2px solid #ccc;">Sets</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><input type="text" id="vbAwayName" placeholder="Away" style="width:100%; padding:3px; border:1px solid #ddd; border-radius:3px; font-size:11px; box-sizing:border-box;"></td>
+                    <td><input type="text" id="vbAwayS1" inputmode="numeric" style="width:30px; padding:3px; border:1px solid #ddd; border-radius:3px; font-size:11px; text-align:center; box-sizing:border-box;" onchange="vbCardSetsChanged()"></td>
+                    <td><input type="text" id="vbAwayS2" inputmode="numeric" style="width:30px; padding:3px; border:1px solid #ddd; border-radius:3px; font-size:11px; text-align:center; box-sizing:border-box;" onchange="vbCardSetsChanged()"></td>
+                    <td><input type="text" id="vbAwayS3" inputmode="numeric" style="width:30px; padding:3px; border:1px solid #ddd; border-radius:3px; font-size:11px; text-align:center; box-sizing:border-box;" onchange="vbCardSetsChanged()"></td>
+                    <td class="vb-col-4"><input type="text" id="vbAwayS4" inputmode="numeric" style="width:30px; padding:3px; border:1px solid #ddd; border-radius:3px; font-size:11px; text-align:center; box-sizing:border-box;" onchange="vbCardSetsChanged()"></td>
+                    <td class="vb-col-5"><input type="text" id="vbAwayS5" inputmode="numeric" style="width:30px; padding:3px; border:1px solid #ddd; border-radius:3px; font-size:11px; text-align:center; box-sizing:border-box;" onchange="vbCardSetsChanged()"></td>
+                    <td style="border-left:2px solid #ccc;"><input type="text" id="vbAwaySetsWon" inputmode="numeric" maxlength="1" style="width:30px; padding:3px; border:1px solid #8e24aa; border-radius:3px; font-size:11px; text-align:center; font-weight:600; box-sizing:border-box;"></td>
+                  </tr>
+                  <tr>
+                    <td><input type="text" id="vbHomeName" placeholder="Home" style="width:100%; padding:3px; border:1px solid #ddd; border-radius:3px; font-size:11px; box-sizing:border-box;"></td>
+                    <td><input type="text" id="vbHomeS1" inputmode="numeric" style="width:30px; padding:3px; border:1px solid #ddd; border-radius:3px; font-size:11px; text-align:center; box-sizing:border-box;" onchange="vbCardSetsChanged()"></td>
+                    <td><input type="text" id="vbHomeS2" inputmode="numeric" style="width:30px; padding:3px; border:1px solid #ddd; border-radius:3px; font-size:11px; text-align:center; box-sizing:border-box;" onchange="vbCardSetsChanged()"></td>
+                    <td><input type="text" id="vbHomeS3" inputmode="numeric" style="width:30px; padding:3px; border:1px solid #ddd; border-radius:3px; font-size:11px; text-align:center; box-sizing:border-box;" onchange="vbCardSetsChanged()"></td>
+                    <td class="vb-col-4"><input type="text" id="vbHomeS4" inputmode="numeric" style="width:30px; padding:3px; border:1px solid #ddd; border-radius:3px; font-size:11px; text-align:center; box-sizing:border-box;" onchange="vbCardSetsChanged()"></td>
+                    <td class="vb-col-5"><input type="text" id="vbHomeS5" inputmode="numeric" style="width:30px; padding:3px; border:1px solid #ddd; border-radius:3px; font-size:11px; text-align:center; box-sizing:border-box;" onchange="vbCardSetsChanged()"></td>
+                    <td style="border-left:2px solid #ccc;"><input type="text" id="vbHomeSetsWon" inputmode="numeric" maxlength="1" style="width:30px; padding:3px; border:1px solid #8e24aa; border-radius:3px; font-size:11px; text-align:center; font-weight:600; box-sizing:border-box;"></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <small style="color:#888; display:block;">Sets won auto-totals from set scores. Edit directly if needed. Set scores are optional.</small>
           </div>
 
           <div class="sidebar-card">
@@ -7590,6 +7753,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const card = document.getElementById('baseballScoreCard');
       if (card) card.style.display = sport === 'baseball' ? 'block' : 'none';
       if (sport === 'baseball') autoPopulateLsTeams();
+      // Volleyball set-score card shares this toggle
+      const vbCard = document.getElementById('volleyballScoreCard');
+      if (vbCard) vbCard.style.display = sport === 'gvolleyball' ? 'block' : 'none';
+      if (sport === 'gvolleyball') { autoPopulateVbTeams(); vbUpdateColumnVisibility(); }
     }
 
     function calcLsR(team) {
@@ -7694,6 +7861,150 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           if (el) el.value = '';
         });
       }
+    }
+
+    // ── Volleyball Set Score Card (editor sidebar) ─────────────────────────
+    // How many set columns to show. Option A: reveal set 4 / set 5 only when the
+    // preceding set didn't clinch the match. Shared by the modal and this card.
+    function vbCountSetsToShow(awayMatch, homeMatch, setRows) {
+      let n = 3;
+      const total = (parseInt(awayMatch) || 0) + (parseInt(homeMatch) || 0);
+      if (total > 3) n = Math.min(5, total);
+      // Also expand as set scores are entered and no one has clinched yet
+      let aw = 0, hw = 0, played = 0;
+      for (let i = 0; i < 5; i++) {
+        const r = setRows[i];
+        if (!r || r.away === null || r.home === null) break;
+        played = i + 1;
+        if (r.away > r.home) aw++;
+        else if (r.home > r.away) hw++;
+      }
+      if (played >= 3 && aw < 3 && hw < 3) n = Math.max(n, Math.min(5, played + 1));
+      return n;
+    }
+
+    function vbReadCardSets() {
+      const rows = [];
+      for (let i = 1; i <= 5; i++) {
+        const a = document.getElementById('vbAwayS' + i);
+        const h = document.getElementById('vbHomeS' + i);
+        const av = a && a.value.trim() !== '' ? parseInt(a.value) : null;
+        const hv = h && h.value.trim() !== '' ? parseInt(h.value) : null;
+        rows.push({ away: Number.isFinite(av) ? av : null, home: Number.isFinite(hv) ? hv : null });
+      }
+      return rows;
+    }
+
+    function vbUpdateColumnVisibility() {
+      const show = vbCountSetsToShow(
+        document.getElementById('vbAwaySetsWon')?.value,
+        document.getElementById('vbHomeSetsWon')?.value,
+        vbReadCardSets()
+      );
+      document.querySelectorAll('#volleyballScoreCard .vb-col-4').forEach(el => {
+        el.style.display = show >= 4 ? '' : 'none';
+      });
+      document.querySelectorAll('#volleyballScoreCard .vb-col-5').forEach(el => {
+        el.style.display = show >= 5 ? '' : 'none';
+      });
+    }
+
+    function vbCardSetsChanged() {
+      // Auto-total sets won from the entered set scores (only when sets are present)
+      const rows = vbReadCardSets();
+      let aw = 0, hw = 0, played = 0;
+      for (const r of rows) {
+        if (r.away === null || r.home === null) break;
+        played++;
+        if (r.away > r.home) aw++;
+        else if (r.home > r.away) hw++;
+      }
+      if (played > 0) {
+        document.getElementById('vbAwaySetsWon').value = aw;
+        document.getElementById('vbHomeSetsWon').value = hw;
+      }
+      vbUpdateColumnVisibility();
+    }
+
+    function autoPopulateVbTeams() {
+      const card = document.getElementById('volleyballScoreCard');
+      if (!card || card.style.display === 'none') return;
+      const awayEl = document.getElementById('vbAwayName');
+      const homeEl = document.getElementById('vbHomeName');
+      if (!awayEl || !homeEl) return;
+      if (awayEl.value || homeEl.value) return; // don't overwrite existing values
+      if (selectedGame) {
+        awayEl.value = selectedGame.away || selectedGame.away_team || '';
+        homeEl.value = selectedGame.home || selectedGame.home_team || '';
+      }
+    }
+
+    function getVbGameData() {
+      const awayName = (document.getElementById('vbAwayName')?.value || '').trim();
+      const homeName = (document.getElementById('vbHomeName')?.value || '').trim();
+      const awaySetsRaw = (document.getElementById('vbAwaySetsWon')?.value || '').trim();
+      const homeSetsRaw = (document.getElementById('vbHomeSetsWon')?.value || '').trim();
+
+      // Only fully-filled sets, in order
+      const sets = [];
+      for (const r of vbReadCardSets()) {
+        if (r.away === null || r.home === null) break;
+        sets.push({ away: r.away, home: r.home });
+      }
+
+      if (!awayName && !homeName && awaySetsRaw === '' && homeSetsRaw === '' && sets.length === 0) return null;
+
+      return {
+        sport: 'gvolleyball',
+        awayTeam: awayName,
+        homeTeam: homeName,
+        awaySets: parseInt(awaySetsRaw) || 0,
+        homeSets: parseInt(homeSetsRaw) || 0,
+        sets,
+        date: selectedGame?.date || document.getElementById('articleDate').value || '',
+        is_playoff: selectedGame?.is_playoff || false,
+        round: selectedGame?.round || null,
+        division: selectedGame?.division || null,
+      };
+    }
+
+    function populateVbFromGameData(gd) {
+      if (!gd || gd.sport !== 'gvolleyball') return;
+      document.getElementById('vbAwayName').value = gd.awayTeam || '';
+      document.getElementById('vbHomeName').value = gd.homeTeam || '';
+      const sets = gd.sets || [];
+      for (let i = 1; i <= 5; i++) {
+        const s = sets[i - 1];
+        const a = document.getElementById('vbAwayS' + i);
+        const h = document.getElementById('vbHomeS' + i);
+        if (a) a.value = s && s.away !== null && s.away !== undefined ? s.away : '';
+        if (h) h.value = s && s.home !== null && s.home !== undefined ? s.home : '';
+      }
+      document.getElementById('vbAwaySetsWon').value = gd.awaySets ?? '';
+      document.getElementById('vbHomeSetsWon').value = gd.homeSets ?? '';
+      vbUpdateColumnVisibility();
+    }
+
+    // Returns the sport-specific game_data payload for the current article, or null
+    function getSportGameData() {
+      const sport = document.getElementById('articleSport')?.value;
+      if (sport === 'baseball') return getLsGameData();
+      if (sport === 'gvolleyball') return getVbGameData();
+      return null;
+    }
+
+    function clearVbCard() {
+      ['vbAwayName','vbHomeName','vbAwaySetsWon','vbHomeSetsWon'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+      });
+      for (let i = 1; i <= 5; i++) {
+        ['vbAwayS','vbHomeS'].forEach(prefix => {
+          const el = document.getElementById(prefix + i);
+          if (el) el.value = '';
+        });
+      }
+      vbUpdateColumnVisibility();
     }
 
     // Set delete games date default to yesterday when settings tab opens
@@ -9897,6 +10208,490 @@ Respond ONLY with valid JSON:
       btn.innerHTML = '&#9998; Open in Article Editor';
     }
 
+    // ══════════════════════════════════════════════════════════════
+    // VOLLEYBALL STORY
+    // ══════════════════════════════════════════════════════════════
+    let vbsSelectedGame = null;
+    let vbsSelectedDate = new Date();
+    let vbsGeneratedData = null;
+
+    function newVolleyballStory() {
+      vbsSelectedGame = null;
+      vbsGeneratedData = null;
+      document.getElementById('vbsModal').style.display = 'block';
+      document.getElementById('vbsStep1').style.display = 'block';
+      document.getElementById('vbsStep2').style.display = 'none';
+      document.getElementById('vbsStep3').style.display = 'none';
+      vbsSelectedDate = new Date();
+      renderVbsDate();
+      populateVbsGameList();
+    }
+
+    function closeVbsModal() {
+      document.getElementById('vbsModal').style.display = 'none';
+    }
+
+    function renderVbsDate() {
+      const opts = { weekday: 'short', month: 'short', day: 'numeric' };
+      document.getElementById('vbsCurrentDate').textContent =
+        vbsSelectedDate.toLocaleDateString('en-US', opts);
+    }
+
+    function vbsPrevDay() {
+      vbsSelectedDate.setDate(vbsSelectedDate.getDate() - 1);
+      renderVbsDate();
+      populateVbsGameList();
+    }
+
+    function vbsNextDay() {
+      vbsSelectedDate.setDate(vbsSelectedDate.getDate() + 1);
+      renderVbsDate();
+      populateVbsGameList();
+    }
+
+    function populateVbsGameList() {
+      const container = document.getElementById('vbsGameList');
+      const search = document.getElementById('vbsGameSearch').value.toLowerCase();
+      const dateStr = vbsSelectedDate.toLocaleDateString('en-CA');
+
+      if (!games || games.length === 0) {
+        container.innerHTML = '<div style="padding:20px; text-align:center; color:#888;">Loading matches...</div>';
+        return;
+      }
+
+      let filtered = games.filter(g => {
+        if ((g.sport || 'basketball') !== 'gvolleyball') return false;
+        if (g.date !== dateStr) return false;
+        if (search) {
+          const s = `${g.away} ${g.home}`.toLowerCase();
+          if (!s.includes(search)) return false;
+        }
+        return true;
+      });
+
+      filtered.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+
+      if (filtered.length === 0) {
+        container.innerHTML = '<div style="padding:30px; text-align:center; color:#888; font-size:13px;">No volleyball matches on this date</div>';
+        return;
+      }
+
+      const hasRecap = g => g.recap_link && g.recap_link.trim();
+      const hasScore = g => g.away_score !== null && g.home_score !== null;
+      container.innerHTML = filtered.map(g => {
+        const color = hasRecap(g) ? '#4caf50' : hasScore(g) ? '#ff9800' : '#ccc';
+        const label = hasRecap(g) ? 'Published' : hasScore(g) ? 'Has Score' : 'Pending';
+        return `<div onclick="vbsSelectGame('${g.game_id}')" style="padding:8px 12px; border-bottom:1px solid #eee; cursor:pointer; display:flex; justify-content:space-between; align-items:center;" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background=''">
+          <div>
+            <div style="font-size:13px; font-weight:500;">${g.away}</div>
+            <div style="font-size:12px; color:#666;">@ ${g.home}</div>
+          </div>
+          <span style="font-size:10px; padding:2px 8px; border-radius:10px; background:${color}; color:white;">${label}</span>
+        </div>`;
+      }).join('');
+    }
+
+    function filterVbsGameList() { populateVbsGameList(); }
+
+    function vbsSelectGame(gameId) {
+      vbsSelectedGame = games.find(g => g.game_id === gameId);
+      if (!vbsSelectedGame) return;
+
+      document.getElementById('vbsMatchupTitle').textContent =
+        `${vbsSelectedGame.away} @ ${vbsSelectedGame.home}`;
+      document.getElementById('vbsAwayLabel').textContent = vbsSelectedGame.away || 'Away';
+      document.getElementById('vbsHomeLabel').textContent = vbsSelectedGame.home || 'Home';
+      document.getElementById('vbsSetHdrAway').textContent = vbsSelectedGame.away || 'Away';
+      document.getElementById('vbsSetHdrHome').textContent = vbsSelectedGame.home || 'Home';
+      document.getElementById('vbsNotes').value = '';
+      document.getElementById('vbsGuestPhotographer').value = '';
+      document.getElementById('vbsSetsWarning').style.display = 'none';
+
+      // Pre-fill match score from the game record if it already has one
+      const gAway = vbsSelectedGame.away_score;
+      const gHome = vbsSelectedGame.home_score;
+      const validMatch = v => v !== null && v !== undefined && v !== '' && parseInt(v) >= 0 && parseInt(v) <= 3;
+      document.getElementById('vbsAwaySets').value = validMatch(gAway) ? String(parseInt(gAway)) : '';
+      document.getElementById('vbsHomeSets').value = validMatch(gHome) ? String(parseInt(gHome)) : '';
+
+      renderVbsSetRows();
+      vbsLoadPhotographers(vbsSelectedGame);
+
+      document.getElementById('vbsStep1').style.display = 'none';
+      document.getElementById('vbsStep2').style.display = 'block';
+    }
+
+    async function vbsLoadPhotographers(game) {
+      const box = document.getElementById('vbsPhotogCheckboxes');
+      const assigned = [game?.photog1, game?.photog2].filter(p => p && p.trim()).map(p => p.trim());
+      let roster = [];
+      try {
+        const { data, error } = await db
+          .from('contributors')
+          .select('name')
+          .eq('is_photographer', true)
+          .eq('active', true)
+          .order('name');
+        if (!error && data) roster = data.map(c => c.name).filter(Boolean);
+      } catch (err) {
+        console.error('Error loading photographers:', err);
+      }
+      // Assigned photographers first (checked), then the rest of the roster (unchecked)
+      const rest = roster.filter(n => !assigned.includes(n));
+      const rows = [
+        ...assigned.map(n => ({ name: n, checked: true })),
+        ...rest.map(n => ({ name: n, checked: false }))
+      ];
+      if (rows.length === 0) {
+        box.innerHTML = '<div style="color:#999; font-size:11px;">No photographers on file — use the guest field below.</div>';
+        return;
+      }
+      box.innerHTML = rows.map(r =>
+        `<label style="display:flex; align-items:center; gap:6px; margin-bottom:4px; cursor:pointer; font-size:12px;">
+          <input type="checkbox" name="vbsPhotog" value="${r.name.replace(/"/g, '&quot;')}"${r.checked ? ' checked' : ''}> ${r.name}
+        </label>`
+      ).join('');
+    }
+
+    // ── Set visibility (Option A: reveal set 4/5 only when the prior set doesn't clinch)
+    function vbsReadSetRows() {
+      const rows = [];
+      for (let i = 1; i <= 5; i++) {
+        const a = document.getElementById('vbsSet' + i + 'Away');
+        const h = document.getElementById('vbsSet' + i + 'Home');
+        const av = a && a.value.trim() !== '' ? parseInt(a.value) : null;
+        const hv = h && h.value.trim() !== '' ? parseInt(h.value) : null;
+        rows.push({ away: Number.isFinite(av) ? av : null, home: Number.isFinite(hv) ? hv : null });
+      }
+      return rows;
+    }
+
+    function renderVbsSetRows() {
+      const existing = vbsReadSetRows();
+      const awayMatch = document.getElementById('vbsAwaySets').value;
+      const homeMatch = document.getElementById('vbsHomeSets').value;
+      const show = vbCountSetsToShow(awayMatch, homeMatch, existing);
+      const tbody = document.getElementById('vbsSetRows');
+      let html = '';
+      for (let i = 1; i <= show; i++) {
+        const r = existing[i - 1] || { away: null, home: null };
+        const inputStyle = 'width:52px; padding:5px; border:1px solid #ddd; border-radius:4px; font-size:12px; text-align:center; box-sizing:border-box;';
+        html += `<tr>
+          <td style="padding:4px 6px; color:#666;">Set ${i}</td>
+          <td style="padding:4px 6px; text-align:center;"><input type="text" id="vbsSet${i}Away" inputmode="numeric" value="${r.away === null ? '' : r.away}" oninput="renderVbsSetRows()" style="${inputStyle}"></td>
+          <td style="padding:4px 6px; text-align:center;"><input type="text" id="vbsSet${i}Home" inputmode="numeric" value="${r.home === null ? '' : r.home}" oninput="renderVbsSetRows()" style="${inputStyle}"></td>
+        </tr>`;
+      }
+      // Only rebuild when the row count actually changed, so typing isn't interrupted
+      if (tbody.children.length !== show) {
+        const active = document.activeElement?.id;
+        tbody.innerHTML = html;
+        if (active) document.getElementById(active)?.focus();
+      }
+    }
+
+    function vbsSetsChanged() {
+      // Clamp match score inputs to 0-3
+      ['vbsAwaySets', 'vbsHomeSets'].forEach(id => {
+        const el = document.getElementById(id);
+        const clean = (el.value || '').replace(/[^0-3]/g, '').slice(0, 1);
+        if (el.value !== clean) el.value = clean;
+      });
+      const a = parseInt(document.getElementById('vbsAwaySets').value);
+      const h = parseInt(document.getElementById('vbsHomeSets').value);
+      const warn = document.getElementById('vbsSetsWarning');
+      // Loose validation — advisory only, never blocks
+      if (Number.isFinite(a) && Number.isFinite(h)) {
+        if (a === h) warn.textContent = 'Heads up: a volleyball match can’t end in a tie.';
+        else if (Math.max(a, h) !== 3) warn.textContent = 'Heads up: the winning side usually has 3 sets.';
+        else warn.textContent = '';
+        warn.style.display = warn.textContent ? 'block' : 'none';
+      } else {
+        warn.style.display = 'none';
+      }
+      renderVbsSetRows();
+    }
+
+    function vbsBackToStep1() {
+      document.getElementById('vbsStep2').style.display = 'none';
+      document.getElementById('vbsStep1').style.display = 'block';
+    }
+
+    function vbsBackToStep2() {
+      document.getElementById('vbsStep3').style.display = 'none';
+      document.getElementById('vbsStep2').style.display = 'block';
+    }
+
+    // Volleyball W-L record from the games table (used for the 10+ match standings gate)
+    function getVolleyballRecord(teamName, beforeDate) {
+      let wins = 0, losses = 0;
+      (games || []).forEach(g => {
+        if ((g.sport || 'basketball') !== 'gvolleyball') return;
+        if (beforeDate && g.date >= beforeDate) return;
+        if (g.away_score === null || g.away_score === undefined || g.away_score === '') return;
+        if (g.home_score === null || g.home_score === undefined || g.home_score === '') return;
+        const as = parseInt(g.away_score) || 0;
+        const hs = parseInt(g.home_score) || 0;
+        if (as === 0 && hs === 0) return;
+        if (g.away === teamName) { as > hs ? wins++ : losses++; }
+        else if (g.home === teamName) { hs > as ? wins++ : losses++; }
+      });
+      return { wins, losses };
+    }
+
+    function buildVbsScoreBoxHtml(awayTeam, homeTeam, awaySets, homeSets, sets) {
+      const awayWon = awaySets > homeSets;
+      const played = (sets || []).length;
+      const hdr = played
+        ? (sets || []).map((_, i) => `<th style="padding:6px 8px;text-align:center;color:#666;font-weight:500;">${i + 1}</th>`).join('')
+        : '';
+      const awayCells = played ? (sets || []).map(s => `<td style="padding:8px;">${s.away}</td>`).join('') : '';
+      const homeCells = played ? (sets || []).map(s => `<td style="padding:8px;">${s.home}</td>`).join('') : '';
+      return `<table style="width:100%;border-collapse:collapse;font-size:13px;text-align:center;">
+        <thead><tr style="border-bottom:2px solid #ddd;">
+          <th style="text-align:left;padding:8px 10px;font-weight:600;">Team</th>${hdr}
+          <th style="padding:6px 8px;font-weight:700;border-left:2px solid #ccc;">Sets</th>
+        </tr></thead>
+        <tbody>
+          <tr><td style="text-align:left;padding:10px;font-weight:600;">${awayTeam}</td>${awayCells}<td style="padding:8px;font-weight:700;font-size:15px;border-left:2px solid #ccc;color:${awayWon ? '#8e24aa' : '#333'}">${awaySets}</td></tr>
+          <tr style="border-top:1px solid #eee;"><td style="text-align:left;padding:10px;font-weight:600;">${homeTeam}</td>${homeCells}<td style="padding:8px;font-weight:700;font-size:15px;border-left:2px solid #ccc;color:${!awayWon ? '#8e24aa' : '#333'}">${homeSets}</td></tr>
+        </tbody></table>`;
+    }
+
+    async function generateVbsStory() {
+      if (!vbsSelectedGame) { showToast('Select a match first', 'error'); return; }
+
+      const awaySetsRaw = document.getElementById('vbsAwaySets').value.trim();
+      const homeSetsRaw = document.getElementById('vbsHomeSets').value.trim();
+      if (awaySetsRaw === '' || homeSetsRaw === '') {
+        showToast('Enter the match score (sets won) first', 'error');
+        return;
+      }
+      const awaySets = parseInt(awaySetsRaw) || 0;
+      const homeSets = parseInt(homeSetsRaw) || 0;
+      if (awaySets === homeSets) {
+        showToast('A volleyball match can’t end in a tie', 'error');
+        return;
+      }
+
+      // Optional set detail — keep only fully-filled sets, in order
+      const rawRows = vbsReadSetRows();
+      const sets = [];
+      for (const r of rawRows) {
+        if (r.away === null || r.home === null) break;
+        sets.push({ away: r.away, home: r.home });
+      }
+
+      const btn = document.getElementById('vbsGenerateBtn');
+      btn.disabled = true;
+      btn.textContent = '⏳ Writing story...';
+
+      try {
+        const photogs = [];
+        document.querySelectorAll('input[name="vbsPhotog"]:checked').forEach(cb => photogs.push(cb.value));
+        const guestPhotog = document.getElementById('vbsGuestPhotographer')?.value.trim();
+        if (guestPhotog) photogs.push(guestPhotog);
+
+        const awayWon = awaySets > homeSets;
+        const awayBefore = getVolleyballRecord(vbsSelectedGame.away, vbsSelectedGame.date);
+        const homeBefore = getVolleyballRecord(vbsSelectedGame.home, vbsSelectedGame.date);
+        const awayRecord = { wins: awayBefore.wins + (awayWon ? 1 : 0), losses: awayBefore.losses + (awayWon ? 0 : 1) };
+        const homeRecord = { wins: homeBefore.wins + (awayWon ? 0 : 1), losses: homeBefore.losses + (awayWon ? 1 : 0) };
+        const awayMatchesPlayed = awayRecord.wins + awayRecord.losses;
+        const homeMatchesPlayed = homeRecord.wins + homeRecord.losses;
+
+        const proofData = {
+          sport: 'gvolleyball',
+          gender: 'Girls',
+          awayTeam: vbsSelectedGame.away,
+          homeTeam: vbsSelectedGame.home,
+          awaySets,
+          homeSets,
+          awayFinal: awaySets,
+          homeFinal: homeSets,
+          sets,
+          date: vbsSelectedGame.date || '',
+          division: vbsSelectedGame.division || null,
+          is_playoff: vbsSelectedGame.is_playoff || false,
+          round: vbsSelectedGame.round || null,
+          awayRecord,
+          homeRecord,
+          awayMatchesPlayed,
+          homeMatchesPlayed,
+          awaySeasonOpener: awayBefore.wins === 0 && awayBefore.losses === 0,
+          homeSeasonOpener: homeBefore.wins === 0 && homeBefore.losses === 0,
+          notes: document.getElementById('vbsNotes').value.trim()
+        };
+
+        const res = await fetch('/.netlify/functions/generate-article', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mode: 'volleyball-write',
+            proofData,
+            schoolData: { away: getSchoolInfo(vbsSelectedGame.away), home: getSchoolInfo(vbsSelectedGame.home) },
+            photographerName: photogs.join(' & ') || null
+          })
+        });
+
+        const data = await res.json();
+        if (!data.success) {
+          console.error('Volleyball generation error:', data.error, data.raw || '');
+          showToast((data.error || 'Error generating story') + (data.raw ? ': ' + String(data.raw).substring(0, 80) : ''), 'error');
+          return;
+        }
+
+        vbsGeneratedData = {
+          headline: data.headline || '',
+          article: data.article || '',
+          excerpt: data.excerpt || '',
+          awaySets, homeSets, sets,
+          photographers: photogs
+        };
+
+        document.getElementById('vbsScoreBox').innerHTML =
+          buildVbsScoreBoxHtml(vbsSelectedGame.away, vbsSelectedGame.home, awaySets, homeSets, sets);
+        document.getElementById('vbsHeadline').value = vbsGeneratedData.headline;
+        document.getElementById('vbsArticle').value = vbsGeneratedData.article;
+        document.getElementById('vbsArticleDisplay').innerHTML =
+          vbsGeneratedData.article.split('\n\n').map(p => `<p style="margin:0 0 1em 0;">${p}</p>`).join('');
+        document.getElementById('vbsArticle').style.display = 'none';
+        document.getElementById('vbsArticleDisplay').style.display = 'block';
+        document.getElementById('vbsEditBtn').innerHTML = '&#9999; Edit Text';
+        document.getElementById('vbsStep2').style.display = 'none';
+        document.getElementById('vbsStep3').style.display = 'block';
+      } catch (err) {
+        console.error('VBS error:', err);
+        showToast('Error generating story', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '&#x2728; Generate Story';
+      }
+    }
+
+    function toggleVbsEdit() {
+      const display = document.getElementById('vbsArticleDisplay');
+      const textarea = document.getElementById('vbsArticle');
+      const btn = document.getElementById('vbsEditBtn');
+      if (textarea.style.display === 'none') {
+        textarea.style.display = 'block';
+        textarea.style.width = '100%';
+        textarea.style.minHeight = '300px';
+        textarea.style.padding = '10px';
+        textarea.style.fontSize = '13px';
+        textarea.style.border = '1px solid #ddd';
+        textarea.style.borderRadius = '6px';
+        textarea.style.boxSizing = 'border-box';
+        display.style.display = 'none';
+        btn.textContent = '✓ Done Editing';
+      } else {
+        const html = (textarea.value || '').split('\n\n').map(p =>
+          `<p style="margin:0 0 1em 0;">${p}</p>`).join('');
+        display.innerHTML = html;
+        display.style.display = 'block';
+        textarea.style.display = 'none';
+        btn.innerHTML = '&#9999; Edit Text';
+      }
+    }
+
+    async function saveVbsStory() {
+      const headline = document.getElementById('vbsHeadline').value.trim();
+      const articleEl = document.getElementById('vbsArticle');
+      const article = articleEl.style.display !== 'none'
+        ? articleEl.value.trim()
+        : (document.getElementById('vbsArticleDisplay').innerText || '').trim();
+
+      if (!headline) { showToast('Please enter a headline', 'error'); return; }
+      if (!article)  { showToast('Article is empty', 'error'); return; }
+
+      const btn = document.getElementById('vbsSaveBtn');
+      btn.disabled = true;
+      btn.textContent = '⏳ Generating social posts...';
+
+      try {
+        const socialResponse = await fetch('/.netlify/functions/generate-article', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mode: 'social',
+            article,
+            headline,
+            proofData: {
+              sport: 'gvolleyball',
+              gender: 'Girls',
+              awayTeam: vbsSelectedGame.away,
+              homeTeam: vbsSelectedGame.home,
+              awayFinal: vbsGeneratedData?.awaySets ?? 0,
+              homeFinal: vbsGeneratedData?.homeSets ?? 0,
+              sets: vbsGeneratedData?.sets || []
+            },
+            schoolData: { away: getSchoolInfo(vbsSelectedGame.away), home: getSchoolInfo(vbsSelectedGame.home) },
+            photographerName: (vbsGeneratedData?.photographers || []).join(' & ') || null,
+            galleryUrl: null
+          })
+        });
+        const socialData = await socialResponse.json();
+        generatedSocialPosts = socialData.success ? {
+          facebookPost: socialData.facebookPost || null,
+          instagramPost: socialData.instagramPost || null,
+          twitterPost: socialData.twitterPost || null
+        } : { facebookPost: null, instagramPost: null, twitterPost: null };
+      } catch (e) {
+        console.warn('Social post generation failed:', e);
+        generatedSocialPosts = { facebookPost: null, instagramPost: null, twitterPost: null };
+      }
+
+      closeVbsModal();
+
+      currentArticle = null;
+      document.getElementById('editorTitle').textContent = 'New Article';
+      document.getElementById('articleTitle').value = headline;
+
+      const articleHtml = article.split('\n\n').map(p => `<p>${p.trim()}</p>`).join('');
+      setEditorContent(articleHtml);
+
+      document.getElementById('articleExcerpt').value = vbsGeneratedData?.excerpt || '';
+      document.getElementById('selectedGameId').value = vbsSelectedGame.game_id || '';
+      selectedGame = vbsSelectedGame;
+      document.getElementById('articleSport').value = 'gvolleyball';
+      toggleBaseballScoreCard();
+      clearVbCard();
+      populateVbFromGameData({
+        sport: 'gvolleyball',
+        awayTeam: vbsSelectedGame.away,
+        homeTeam: vbsSelectedGame.home,
+        awaySets: vbsGeneratedData?.awaySets ?? 0,
+        homeSets: vbsGeneratedData?.homeSets ?? 0,
+        sets: vbsGeneratedData?.sets || []
+      });
+
+      document.getElementById('smugmugUrl').value = '';
+      document.getElementById('smugmugThumbUrl').value = '';
+      document.getElementById('youtubeUrl').value = '';
+      setAuthorValue('Ball603 Staff');
+      const vbsPhotog = (vbsGeneratedData?.photographers || [])[0];
+      if (vbsPhotog) setPhotographerValue(vbsPhotog);
+      document.getElementById('articleDate').value = getTodayEST();
+      isScheduled = false;
+      scheduledTime = null;
+      document.getElementById('scheduledDateTime').value = '';
+      updateScheduleButton();
+      document.getElementById('socialPostsCard').style.display = 'block';
+
+      currentTags = ['volleyball'];
+      if (vbsSelectedGame.away) currentTags.push(vbsSelectedGame.away.toLowerCase().replace(/\s+/g, '-'));
+      if (vbsSelectedGame.home) currentTags.push(vbsSelectedGame.home.toLowerCase().replace(/\s+/g, '-'));
+      renderTags();
+
+      document.getElementById('articlesPanel').style.display = 'none';
+      document.getElementById('editorPanel').style.display = 'block';
+      renderGameSelector();
+      showToast('Social posts generated! Add images and publish when ready.', 'success');
+
+      btn.disabled = false;
+      btn.innerHTML = '&#9998; Open in Article Editor';
+    }
+
     async function generateGameStory() {
       const gameSport = (gsSelectedGame?.sport || 'basketball').toLowerCase();
       const isBaseball = gameSport === 'baseball';
@@ -10720,6 +11515,7 @@ Respond ONLY with valid JSON:
       currentArticle = null;
       currentGameData = null;
       clearLsCard();
+      clearVbCard();
       toggleBaseballScoreCard();
       pendingMarqueeContent = null; // Clear any pending marquee content
       pendingMarqueeData = null; // Clear any pending marquee data
@@ -10995,6 +11791,17 @@ Respond ONLY with valid JSON:
         if (!article.game_data?.awayTeam && selectedGame) {
           document.getElementById('lsAwayName').value = selectedGame.away || selectedGame.away_team || '';
           document.getElementById('lsHomeName').value = selectedGame.home || selectedGame.home_team || '';
+        }
+      }
+      // Populate volleyball set score card if applicable
+      clearVbCard();
+      if (article.sport === 'gvolleyball') {
+        if (article.game_data) {
+          populateVbFromGameData(article.game_data);
+        }
+        if (!article.game_data?.awayTeam && selectedGame) {
+          document.getElementById('vbAwayName').value = selectedGame.away || selectedGame.away_team || '';
+          document.getElementById('vbHomeName').value = selectedGame.home || selectedGame.home_team || '';
         }
       }
       toggleBaseballScoreCard();
@@ -11891,7 +12698,7 @@ Respond ONLY with valid JSON:
         sport: document.getElementById('articleSport').value || null,
         scheduled_at: scheduledAt,
         social_posts: socialPosts,
-        game_data: (document.getElementById('articleSport')?.value === 'baseball' ? getLsGameData() : null) || currentGameData || null,
+        game_data: getSportGameData() || currentGameData || null,
         matchup_data: pendingMarqueeData || pendingPlayoffData || currentArticle?.matchup_data || null,
         audio_url: document.getElementById('audioUrlField').value || null,
         status: 'draft',
@@ -12116,7 +12923,7 @@ Respond ONLY with valid JSON:
         article_date: document.getElementById('articleDate').value || null,
         sport: document.getElementById('articleSport').value || null,
         social_posts: socialPosts,
-        game_data: (document.getElementById('articleSport')?.value === 'baseball' ? getLsGameData() : null) || currentGameData || currentArticle?.game_data || null,
+        game_data: getSportGameData() || currentGameData || currentArticle?.game_data || null,
         matchup_data: pendingMarqueeData || pendingPlayoffData || currentArticle?.matchup_data || null,
         scheduled_at: scheduledAt,
         status: isScheduled ? 'scheduled' : 'published',

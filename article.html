@@ -452,6 +452,15 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
+    /* Volleyball set score — compact on mobile */
+    .volleyball-ls-table td:first-child,
+    .volleyball-ls-table th:first-child {
+      max-width: 120px;
+      min-width: 80px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
 
     /* Team name cell with logo */
     .qs-team-cell {
@@ -2132,6 +2141,76 @@
         }
       }
 
+      // Helper: build volleyball set score HTML from game_data
+      function buildVolleyballScoreBox(gd, sportParam, inSection) {
+        if (!gd || gd.sport !== 'gvolleyball') return '';
+        const awaySets = parseInt(gd.awaySets) || 0;
+        const homeSets = parseInt(gd.homeSets) || 0;
+        const sets = Array.isArray(gd.sets)
+          ? gd.sets.filter(s => s && s.away !== null && s.away !== undefined && s.home !== null && s.home !== undefined)
+          : [];
+        // Nothing worth rendering
+        if (awaySets === 0 && homeSets === 0 && sets.length === 0) return '';
+
+        const awayWins = awaySets > homeSets;
+        const homeWins = homeSets > awaySets;
+        const hasSets = sets.length > 0;
+        const awayLogoUrl = Ball603.getLogoUrl ? Ball603.getLogoUrl(gd.awayTeam) : '/logos/100px/Ball603-white.png';
+        const homeLogoUrl = Ball603.getLogoUrl ? Ball603.getLogoUrl(gd.homeTeam) : '/logos/100px/Ball603-white.png';
+        const awayLink = `<div class="qs-team-cell"><img class="qs-team-logo" src="${awayLogoUrl}" alt="" onerror="this.src='/logos/100px/Ball603-white.png'"><a href="/${getTeamSlug(gd.awayTeam)}${sportParam}" class="team-name-link">${gd.awayTeam}</a></div>`;
+        const homeLink = `<div class="qs-team-cell"><img class="qs-team-logo" src="${homeLogoUrl}" alt="" onerror="this.src='/logos/100px/Ball603-white.png'"><a href="/${getTeamSlug(gd.homeTeam)}${sportParam}" class="team-name-link">${gd.homeTeam}</a></div>`;
+
+        let headerCells = '<th style="text-align:left;">Team</th>';
+        let awayCells   = `<td style="text-align:left;">${awayLink}</td>`;
+        let homeCells   = `<td style="text-align:left;">${homeLink}</td>`;
+
+        if (hasSets) {
+          sets.forEach((s, i) => {
+            headerCells += `<th>${i + 1}</th>`;
+            awayCells   += `<td>${s.away}</td>`;
+            homeCells   += `<td>${s.home}</td>`;
+          });
+        }
+
+        headerCells += `<th class="rhe-divider">Sets</th>`;
+        awayCells   += `<td class="rhe-divider ${awayWins ? 'winner-final' : ''}">${awaySets}</td>`;
+        homeCells   += `<td class="rhe-divider ${homeWins ? 'winner-final' : ''}">${homeSets}</td>`;
+
+        // Header line: date + FINAL + playoff round
+        const dateStr = gd.date || linkedGame?.date || article?.article_date || article?.published_at?.slice(0, 10) || '';
+        let headerParts = [];
+        if (dateStr) {
+          try {
+            const d = new Date(dateStr + 'T12:00:00');
+            const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+            const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            headerParts.push(`${days[d.getDay()]}, ${months[d.getMonth()]} ${d.getDate()}`);
+          } catch (e) {}
+        }
+        headerParts.push('FINAL');
+        if (gd.is_playoff && gd.round && gd.division) {
+          const roundNames = { 'Prelims': '1st Round', 'Quarters': 'Quarterfinal', 'Semis': 'Semifinal', 'Final': 'Championship' };
+          const roundLabel = roundNames[gd.round] || gd.round;
+          headerParts.push(`${gd.division} ${roundLabel}`);
+        }
+        const headerHtml = `<div style="text-align:center; font-size:var(--font-size-xs,11px); font-weight:600; color:var(--text-muted); letter-spacing:0.5px; text-transform:uppercase; margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid var(--border-color);">${headerParts.join(' · ')}</div>`;
+
+        const table = `
+          <table class="quarter-scores-table volleyball-ls-table" style="min-width:${hasSets ? '320px' : '200px'};">
+            <thead><tr>${headerCells}</tr></thead>
+            <tbody>
+              <tr>${awayCells}</tr>
+              <tr>${homeCells}</tr>
+            </tbody>
+          </table>`;
+
+        if (inSection) {
+          return `<div class="quarter-scores-section">${headerHtml}<div style="overflow-x:auto;">${table}</div></div>`;
+        } else {
+          return `<div class="quarter-scores-box">${headerHtml}<div style="overflow-x:auto;">${table}</div></div>`;
+        }
+      }
+
       // Build game box HTML if linked game exists
       let gameBoxHtml = '';
       if (linkedGame) {
@@ -2147,6 +2226,8 @@
         let quarterScoresSection = '';
         if (article.sport === 'baseball' && article.game_data && article.game_data.sport === 'baseball') {
           quarterScoresSection = buildBaseballLineScore(article.game_data, sportParam, true);
+        } else if (article.sport === 'gvolleyball' && article.game_data && article.game_data.sport === 'gvolleyball') {
+          quarterScoresSection = buildVolleyballScoreBox(article.game_data, sportParam, true);
         } else if (article.game_data && article.game_data.awayQuarters && article.game_data.homeQuarters) {
           const gd = article.game_data;
           const gdAwayWins = gd.awayFinal > gd.homeFinal;
@@ -2220,6 +2301,8 @@
       let quarterScoresHtml = '';
       if (!linkedGame && article.sport === 'baseball' && article.game_data?.sport === 'baseball') {
         quarterScoresHtml = buildBaseballLineScore(article.game_data, sportParam, false);
+      } else if (!linkedGame && article.sport === 'gvolleyball' && article.game_data?.sport === 'gvolleyball') {
+        quarterScoresHtml = buildVolleyballScoreBox(article.game_data, sportParam, false);
       } else if (!linkedGame && article.game_data && article.game_data.awayQuarters && article.game_data.homeQuarters) {
         const gd = article.game_data;
         const awayWins = gd.awayFinal > gd.homeFinal;
