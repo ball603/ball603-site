@@ -527,10 +527,12 @@ async function handleWrite(body, headers) {
   const winnerOpener = awayWon ? proofData.awaySeasonOpener : proofData.homeSeasonOpener;
   const loserOpener = awayWon ? proofData.homeSeasonOpener : proofData.awaySeasonOpener;
   
-  if (winnerOpener) {
-    seasonOpenerNote = `SEASON OPENER: This is ${winner}'s first game of the season - mention "season opener" or "opened their season" somewhere in the article (not necessarily the lede).`;
+  if (winnerOpener && loserOpener) {
+    seasonOpenerNote = `SEASON OPENER: This was the first game of the season for BOTH teams - ${winner} and ${loser}. Mention that it was the season opener for both of them in the same sentence (not necessarily the lede). Do not mention only one team.`;
+  } else if (winnerOpener) {
+    seasonOpenerNote = `SEASON OPENER: This is ${winner}'s first game of the season - mention "season opener" or "opened their season" somewhere in the article (not necessarily the lede). ${loser} had already played, so do not call it their opener.`;
   } else if (loserOpener) {
-    seasonOpenerNote = `SEASON OPENER: This is ${loser}'s first game of the season - mention it somewhere in the article.`;
+    seasonOpenerNote = `SEASON OPENER: This is ${loser}'s first game of the season - mention it somewhere in the article. ${winner} had already played, so do not call it their opener.`;
   }
   
   // LEDE PRIORITY:
@@ -1173,8 +1175,10 @@ GAME RESULT: ${winner} ${winnerScore}, ${loser} ${loserScore}
 LOCATION: ${gameTown}, N.H.
 DATE: ${gameDay}
 DIVISION: ${proofData.division || 'N/A'}${proofData.is_playoff ? ` | PLAYOFF ROUND: ${proofData.round || 'Playoff'}` : ''}
-RECORDS AFTER THIS GAME: ${winner} is ${winnerRecordStr || 'unknown'}, ${loser} is ${loserRecordStr || 'unknown'}${proofData.awaySeasonOpener || proofData.homeSeasonOpener ? `
-SEASON OPENER: ${proofData.awaySeasonOpener ? proofData.awayTeam : proofData.homeTeam} is opening their season` : ''}
+RECORDS AFTER THIS GAME: ${winner} is ${winnerRecordStr || 'unknown'}, ${loser} is ${loserRecordStr || 'unknown'}${proofData.awaySeasonOpener && proofData.homeSeasonOpener ? `
+SEASON OPENER: This game was the season opener for BOTH teams — ${proofData.awayTeam} and ${proofData.homeTeam}. Say so for both; do not mention only one of them.` : proofData.awaySeasonOpener ? `
+SEASON OPENER: ${proofData.awayTeam} is opening their season (${proofData.homeTeam} had already played)` : proofData.homeSeasonOpener ? `
+SEASON OPENER: ${proofData.homeTeam} is opening their season (${proofData.awayTeam} had already played)` : ''}
 
 INNING-BY-INNING (R/H/E):
 ${formatInningLine(proofData.awayTeam, awayInnings, awayScore)}${proofData.awayHits ? ' H:'+proofData.awayHits : ''}${proofData.awayErrors ? ' E:'+proofData.awayErrors : ''}
@@ -1430,9 +1434,15 @@ ${parts.join('\n')}${withheld.length ? `\nDO NOT state or imply a record or stan
     recordsBlock = `RECORDS: Withheld. Neither team has played ${MIN_MATCHES_FOR_STANDINGS} matches yet, so it is too early in the season to characterize records or standings. Do NOT state, estimate, or imply either team's record, place in the standings, or season trajectory.`;
   }
 
-  const openerNote = (proofData.awaySeasonOpener || proofData.homeSeasonOpener)
-    ? `SEASON OPENER: ${proofData.awaySeasonOpener ? proofData.awayTeam : proofData.homeTeam} is opening the season.`
-    : '';
+  // Both teams can be opening their season in the same match — name every one that is.
+  const seasonOpeners = [];
+  if (proofData.awaySeasonOpener) seasonOpeners.push(proofData.awayTeam);
+  if (proofData.homeSeasonOpener) seasonOpeners.push(proofData.homeTeam);
+  const openerNote = seasonOpeners.length === 2
+    ? `SEASON OPENER: This match was the season opener for BOTH teams — ${seasonOpeners[0]} and ${seasonOpeners[1]}. Say so for both; do not mention only one of them.`
+    : seasonOpeners.length === 1
+      ? `SEASON OPENER: This match was ${seasonOpeners[0]}'s season opener. ${seasonOpeners[0] === proofData.awayTeam ? proofData.homeTeam : proofData.awayTeam} had already played, so do NOT call it their opener.`
+      : '';
 
   // ── Look-ahead paragraph: only when BOTH teams have a next game on the schedule
   function formatUpcoming(dateStr, fromDateStr) {
@@ -1505,6 +1515,7 @@ ${hasSetScores
 - Do NOT reference season totals, career milestones, or head-to-head history — you have no access to that data
 - NEVER reference RPI, RPI rankings, tournament seeding projections, or playoff positioning math. RPI must not appear in the article in any form.
 - Only reference records or standings if they are listed as usable above. If a team's record was withheld, say nothing about its record, standing, or how its season is going.
+- EXCEPTION: if a SEASON OPENER line appears above, you may and should note it even when records are withheld — it is a scheduling fact, not a record. If it says both teams were opening, credit both in the same sentence (e.g. "the season opener for both teams"). Never note it for only one team when it applies to both.
 
 TONE RULES (these are firm — this is high school sports coverage):
 - State records and results honestly and plainly. Do not soften a loss into something it wasn't, and do not pile on.
