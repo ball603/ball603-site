@@ -1434,11 +1434,49 @@ ${parts.join('\n')}${withheld.length ? `\nDO NOT state or imply a record or stan
     ? `SEASON OPENER: ${proofData.awaySeasonOpener ? proofData.awayTeam : proofData.homeTeam} is opening the season.`
     : '';
 
+  // ── Look-ahead paragraph: only when BOTH teams have a next game on the schedule
+  function formatUpcoming(dateStr, fromDateStr) {
+    if (!dateStr) return null;
+    try {
+      const d = new Date(dateStr + 'T12:00:00');
+      const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+      // AP style: abbreviate all months except March through July
+      const apMonths = ['Jan.','Feb.','March','April','May','June','July','Aug.','Sept.','Oct.','Nov.','Dec.'];
+      if (fromDateStr) {
+        const from = new Date(fromDateStr + 'T12:00:00');
+        const diff = Math.round((d - from) / 86400000);
+        if (diff > 0 && diff <= 7) return days[d.getDay()];
+      }
+      return `${apMonths[d.getMonth()]} ${d.getDate()}`;
+    } catch { return null; }
+  }
+
+  function describeNext(team, next) {
+    if (!next || !next.opponent) return null;
+    const when = formatUpcoming(next.date, proofData.date);
+    if (!when) return null;
+    return `${team} ${next.isHome ? 'hosts' : 'travels to'} ${next.opponent} on ${when}`;
+  }
+
+  const awayNextLine = describeNext(proofData.awayTeam, proofData.awayNextGame);
+  const homeNextLine = describeNext(proofData.homeTeam, proofData.homeNextGame);
+  const hasLookAhead = Boolean(awayNextLine && homeNextLine);
+
+  const lookAheadBlock = hasLookAhead
+    ? `NEXT GAMES (use these for the final paragraph — these are the only scheduling facts you have):
+- ${awayNextLine}
+- ${homeNextLine}`
+    : `NEXT GAMES: Not available for both teams. Do NOT write a look-ahead paragraph and do NOT speculate about either team's next opponent or schedule.`;
+
+  const closingInstruction = hasLookAhead
+    ? `- FINAL PARAGRAPH: a short, factual look-ahead built from the NEXT GAMES facts above, and nothing else. One sentence covering both teams, e.g. "${proofData.awayTeam} travels to Opponent on Tuesday, while ${proofData.homeTeam} hosts Other Opponent on Thursday." Use mascot nicknames here if you like. No commentary about momentum, confidence, what a team "needs", or how its season is shaping up.`
+    : `- Do NOT write a look-ahead or closing-thought paragraph. End on the last factual recap point. Never close with editorial filler about what a team showed, proved, needs, or how the season is going.`;
+
   const prompt = `You are a factual high school sports reporter for Ball603.com, covering New Hampshire girls volleyball. Write a straightforward match recap based ONLY on the facts provided below. Do not invent statistics, players, plays, or details that are not listed.
 
 MATCH RESULT: ${winner} def. ${loser}, ${winnerSets}-${loserSets}
-AWAY: ${proofData.awayTeam}${awayMascot ? ` (${awayMascot})` : ''} — ${awaySets} sets
-HOME: ${proofData.homeTeam}${homeMascot ? ` (${homeMascot})` : ''} — ${homeSets} sets
+AWAY: ${proofData.awayTeam}${awayMascot ? ` (${awayMascot})` : ''} — ${awaySets} ${awaySets === 1 ? 'set' : 'sets'}
+HOME: ${proofData.homeTeam}${homeMascot ? ` (${homeMascot})` : ''} — ${homeSets} ${homeSets === 1 ? 'set' : 'sets'}
 LOCATION: ${gameTown}, N.H.
 DATE: ${gameDay}
 DIVISION: ${proofData.division || 'N/A'}${proofData.is_playoff ? ` | PLAYOFF ROUND: ${proofData.round || 'Playoff'}` : ''}
@@ -1449,14 +1487,17 @@ ${setLine}
 ${recordsBlock}
 ${openerNote}
 
+${lookAheadBlock}
+
 ${proofData.notes ? `REPORTER'S GAME NOTES (treat these as verified facts — use the player names and stat lines exactly as written):\n${proofData.notes}` : 'REPORTER\'S GAME NOTES: None provided.'}
-${photographerName ? `PHOTOGRAPHER: ${photographerName}` : ''}
 
 WRITING INSTRUCTIONS:
 - AP style, past tense, third person
 - Lead with what the provided facts actually support: the match score, a decisive set, a comeback from a set down, a player performance named in the notes
-- Use volleyball terminology correctly: sets (not "games"), kills, digs, assists, aces, blocks, service runs, match point
-- Report the match score as sets, e.g. "${winner} won 3-1" or "${winner} took the match in four sets"
+- Use volleyball terminology correctly: kills, digs, assists, aces, blocks, service runs, match point. "Sets" and "games" are both acceptable words for the individual games within the match — use either.
+- MATCH SCORE IN NUMERALS: always write it as digits — "${winner} won 3-1", "a 3-0 win", "${winner} took the match 3-2". NEVER spell it out as words ("three sets to one", "two sets to none").
+- State the match score ONCE and do not restate it a second way in the same sentence. "won three sets to one in four sets" is exactly the kind of redundancy to avoid — "won 3-1" is complete on its own.
+- Individual set scores stay in numerals too ("25-14", "25-11")
 ${hasSetScores
   ? '- Walk through the sets that mattered using the exact set scores provided. Do not round, adjust, or invent set scores.'
   : '- No set scores were provided. Do NOT invent them, and do not describe how individual sets played out beyond what the notes support. Write the recap around the match score and the reporter\'s notes.'}
@@ -1467,10 +1508,10 @@ ${hasSetScores
 
 TONE RULES (these are firm — this is high school sports coverage):
 - State records and results honestly and plainly. Do not soften a loss into something it wasn't, and do not pile on.
-- NEVER use these words or their variants: "crushed", "dominated", "blew out", "struggling", "struggled", "demolished", "destroyed", "routed", "thrashed", "hapless", "woeful"
-- Describe a lopsided result factually — "won in straight sets", "swept", "took all three sets" — not with piling-on language
+- NEVER use these words or any variant of them: "crushed", "dominated", "dominant", "dominance", "dominate", "blew out", "struggling", "struggled", "demolished", "destroyed", "routed", "thrashed", "overwhelmed", "hapless", "woeful"
+- Describe a lopsided result factually — "won in straight sets", "swept", "took all three sets", "won the third 25-5" — and let the score speak. Do not add an adjective characterizing one team's play as overwhelming.
 - Do not editorialize about a team's or player's shortcomings. Report what happened.
-- Give the losing side credit where the facts support it (a set they won, a run they made, a player who put up numbers)
+- Give the losing side credit where the facts support it (a set they won, a run they made, a player who put up numbers) — but state it factually, without narrating what it "showed" or "proved"
 - No hype, no clichés about heart or destiny
 
 LENGTH: No hard word cap. Let the available material set the length — a match score with no notes should be short and clean; a match with detailed set scores and a full set of notes can run longer. Never pad to reach a length, and never drop supported material to stay short.
@@ -1481,6 +1522,8 @@ FORMAT:
 - Second paragraph and beyond: mascot nicknames are fine${winnerMascot || loserMascot ? ` (e.g. "the ${winnerMascot || loserMascot}")` : ''}
 - Separate paragraphs with a blank line
 - Do not include the headline in the article body
+${closingInstruction}
+- Do NOT write a photo credit, photographer mention, or photo gallery line anywhere in the article. One is appended automatically after you finish.
 - HEADLINE: sentence case only — capitalize the first word and proper nouns only. Example: "${winner} takes down ${loser} in four sets" not "${winner} Takes Down ${loser} In Four Sets"
 
 Respond with JSON only in this exact format:
@@ -1518,13 +1561,27 @@ The headline should be 8-12 words, no quotes. The excerpt should be 1-2 sentence
     return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to parse AI response', raw: rawText }) };
   }
 
+  // Close with the photo gallery credit. Appended here rather than left to the model
+  // so the wording and the photographer's name are always exact.
+  let articleText = String(parsed.article || '').trim();
+  if (photographerName && String(photographerName).trim()) {
+    const photog = String(photographerName).trim();
+    // Drop any gallery/credit line the model wrote anyway, so we never double up
+    articleText = articleText
+      .split(/\n{2,}/)
+      .filter(p => !/photo gallery|photos? by |photo credit/i.test(p))
+      .join('\n\n')
+      .trim();
+    articleText += `\n\nCheck out the full photo gallery by ${photog}...`;
+  }
+
   return {
     statusCode: 200,
     headers,
     body: JSON.stringify({
       success: true,
       headline: parsed.headline || '',
-      article:  parsed.article || '',
+      article:  articleText,
       excerpt:  parsed.excerpt || ''
     })
   };

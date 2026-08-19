@@ -10476,6 +10476,23 @@ Respond ONLY with valid JSON:
       return { wins, losses };
     }
 
+    // Next scheduled volleyball game for a team after the given date (for the look-ahead graf)
+    function getNextVolleyballGame(teamName, afterDate) {
+      if (!teamName || !afterDate) return null;
+      const upcoming = (games || [])
+        .filter(g => (g.sport || 'basketball') === 'gvolleyball')
+        .filter(g => g.date && g.date > afterDate)
+        .filter(g => g.away === teamName || g.home === teamName)
+        .sort((a, b) => (a.date || '').localeCompare(b.date || '') ||
+                        (a.time || '').localeCompare(b.time || ''));
+      const g = upcoming[0];
+      if (!g) return null;
+      const isHome = g.home === teamName;
+      const opponent = isHome ? g.away : g.home;
+      if (!opponent) return null;
+      return { opponent, isHome, date: g.date };
+    }
+
     function buildVbsScoreBoxHtml(awayTeam, homeTeam, awaySets, homeSets, sets) {
       const awayWon = awaySets > homeSets;
       const played = (sets || []).length;
@@ -10554,6 +10571,8 @@ Respond ONLY with valid JSON:
           homeMatchesPlayed,
           awaySeasonOpener: awayBefore.wins === 0 && awayBefore.losses === 0,
           homeSeasonOpener: homeBefore.wins === 0 && homeBefore.losses === 0,
+          awayNextGame: getNextVolleyballGame(vbsSelectedGame.away, vbsSelectedGame.date),
+          homeNextGame: getNextVolleyballGame(vbsSelectedGame.home, vbsSelectedGame.date),
           notes: document.getElementById('vbsNotes').value.trim()
         };
 
