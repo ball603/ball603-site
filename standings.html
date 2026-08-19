@@ -1235,6 +1235,27 @@
       if (teams <= 16) return 16 - teams;
       return 32 - teams;
     }
+
+    // Which divisions actually exist for the selected sport/gender.
+    // Girls Volleyball has no D-IV, so that tab must not be offered.
+    function divisionsForCurrentSport() {
+      const cfg = PLAYOFF_TEAMS[currentSport] && PLAYOFF_TEAMS[currentSport][currentGender];
+      const divisions = cfg ? Object.keys(cfg) : [];
+      return divisions.length ? divisions : ['D-I', 'D-II', 'D-III', 'D-IV'];
+    }
+
+    // Show only the valid division tabs, and pull the selection back to a valid one
+    // (switching from basketball D-IV to volleyball would otherwise strand you on an
+    // empty D-IV tab).
+    function syncDivisionTabs() {
+      const valid = divisionsForCurrentSport();
+      if (!valid.includes(currentDivision)) currentDivision = valid[0] || 'D-I';
+      document.querySelectorAll('.division-tab').forEach(tab => {
+        const division = tab.dataset.division;
+        tab.style.display = valid.includes(division) ? '' : 'none';
+        tab.classList.toggle('active', division === currentDivision);
+      });
+    }
     
     // ===== TEAM NAME NORMALIZATION =====
     function normalizeTeamName(name) {
@@ -1768,6 +1789,9 @@
         document.getElementById('boysBtn').classList.remove('active');
       }
       
+      // Show only the divisions this sport actually has
+      syncDivisionTabs();
+
       // Update page title and header
       updatePageTitle();
 
@@ -2093,6 +2117,9 @@
       genderToggle.style.display = 'none';
     }
     
+    // Show only the divisions this sport actually has
+    syncDivisionTabs();
+
     // Update page title
     updatePageTitle();
 
