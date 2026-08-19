@@ -2349,11 +2349,15 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           </div>
 
           <!-- Photographer -->
-          <div id="bbsPhotographers" style="margin-bottom:14px; padding:10px 12px; background:#fff; border:1px solid #ddd; border-radius:6px; font-size:12px; display:none;">
+          <div id="bbsPhotographers" style="margin-bottom:14px; padding:10px 12px; background:#fff; border:1px solid #ddd; border-radius:6px; font-size:12px;">
             <span style="color:#666; font-weight:500;">&#x1F4F7; Photo Credit:</span>
-            <div id="bbsPhotogCheckboxes" style="margin-top:8px;"></div>
             <div style="margin-top:8px;">
-              <input type="text" id="bbsGuestPhotographer" placeholder="Guest photographer name..." style="width:100%; padding:6px 8px; border:1px solid #ddd; border-radius:4px; font-size:12px; box-sizing:border-box;">
+              <select id="bbsPhotog1Select" onchange="storyPhotogChanged('bbs',1)" style="width:100%; padding:6px 8px; border:1px solid #ddd; border-radius:4px; font-size:12px; box-sizing:border-box; background:#fff;"></select>
+              <input type="text" id="bbsPhotog1Other" placeholder="Photographer name..." style="display:none; width:100%; margin-top:6px; padding:6px 8px; border:1px solid #ddd; border-radius:4px; font-size:12px; box-sizing:border-box;">
+            </div>
+            <div style="margin-top:6px;">
+              <select id="bbsPhotog2Select" onchange="storyPhotogChanged('bbs',2)" style="width:100%; padding:6px 8px; border:1px solid #ddd; border-radius:4px; font-size:12px; box-sizing:border-box; background:#fff;"></select>
+              <input type="text" id="bbsPhotog2Other" placeholder="Second photographer name..." style="display:none; width:100%; margin-top:6px; padding:6px 8px; border:1px solid #ddd; border-radius:4px; font-size:12px; box-sizing:border-box;">
             </div>
           </div>
 
@@ -2467,9 +2471,13 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           <!-- Photographer -->
           <div id="vbsPhotographers" style="margin-bottom:14px; padding:10px 12px; background:#fff; border:1px solid #ddd; border-radius:6px; font-size:12px;">
             <span style="color:#666; font-weight:500;">&#x1F4F7; Photo Credit:</span>
-            <div id="vbsPhotogCheckboxes" style="margin-top:8px;"></div>
             <div style="margin-top:8px;">
-              <input type="text" id="vbsGuestPhotographer" placeholder="Guest photographer name..." style="width:100%; padding:6px 8px; border:1px solid #ddd; border-radius:4px; font-size:12px; box-sizing:border-box;">
+              <select id="vbsPhotog1Select" onchange="storyPhotogChanged('vbs',1)" style="width:100%; padding:6px 8px; border:1px solid #ddd; border-radius:4px; font-size:12px; box-sizing:border-box; background:#fff;"></select>
+              <input type="text" id="vbsPhotog1Other" placeholder="Photographer name..." style="display:none; width:100%; margin-top:6px; padding:6px 8px; border:1px solid #ddd; border-radius:4px; font-size:12px; box-sizing:border-box;">
+            </div>
+            <div style="margin-top:6px;">
+              <select id="vbsPhotog2Select" onchange="storyPhotogChanged('vbs',2)" style="width:100%; padding:6px 8px; border:1px solid #ddd; border-radius:4px; font-size:12px; box-sizing:border-box; background:#fff;"></select>
+              <input type="text" id="vbsPhotog2Other" placeholder="Second photographer name..." style="display:none; width:100%; margin-top:6px; padding:6px 8px; border:1px solid #ddd; border-radius:4px; font-size:12px; box-sizing:border-box;">
             </div>
           </div>
 
@@ -9726,6 +9734,79 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     }
 
     // ══════════════════════════════════════════════════════════════
+    // STORY PHOTO CREDIT PICKERS (shared by the baseball + volleyball modals)
+    // ══════════════════════════════════════════════════════════════
+    // Two dropdowns per modal, populated from contributors with is_photographer=true.
+    // Whoever is assigned to the game (photog1/photog2) is preselected.
+    let storyPhotogRoster = null; // cached for the session
+
+    async function loadStoryPhotogRoster() {
+      if (storyPhotogRoster) return storyPhotogRoster;
+      try {
+        const { data, error } = await db
+          .from('contributors')
+          .select('name')
+          .eq('is_photographer', true)
+          .eq('active', true)
+          .order('name');
+        storyPhotogRoster = (!error && data) ? data.map(c => c.name).filter(Boolean) : [];
+      } catch (err) {
+        console.error('Error loading photographers:', err);
+        storyPhotogRoster = [];
+      }
+      return storyPhotogRoster;
+    }
+
+    function storyPhotogChanged(prefix, slot) {
+      const sel = document.getElementById(`${prefix}Photog${slot}Select`);
+      const other = document.getElementById(`${prefix}Photog${slot}Other`);
+      if (!sel || !other) return;
+      if (sel.value === 'other') {
+        other.style.display = 'block';
+        other.focus();
+      } else {
+        other.style.display = 'none';
+        other.value = '';
+      }
+    }
+
+    async function initStoryPhotogPickers(prefix, game) {
+      const roster = await loadStoryPhotogRoster();
+      const assigned = [game?.photog1, game?.photog2]
+        .filter(p => p && p.trim()).map(p => p.trim());
+
+      // An assigned photographer who isn't on the contributors list still needs an entry
+      const names = [...roster];
+      assigned.forEach(a => { if (!names.includes(a)) names.push(a); });
+
+      [1, 2].forEach(slot => {
+        const sel = document.getElementById(`${prefix}Photog${slot}Select`);
+        const other = document.getElementById(`${prefix}Photog${slot}Other`);
+        if (!sel) return;
+        sel.innerHTML = '';
+        // Build options via the DOM so names with quotes/ampersands can't break markup
+        sel.appendChild(new Option(slot === 1 ? 'None' : 'None (second photographer)', ''));
+        names.forEach(n => sel.appendChild(new Option(n, n)));
+        sel.appendChild(new Option('Other...', 'other'));
+        sel.value = assigned[slot - 1] || '';
+        if (other) { other.style.display = 'none'; other.value = ''; }
+      });
+    }
+
+    // Selected photographers, in slot order, de-duplicated
+    function getStoryPhotographers(prefix) {
+      const out = [];
+      [1, 2].forEach(slot => {
+        const sel = document.getElementById(`${prefix}Photog${slot}Select`);
+        const other = document.getElementById(`${prefix}Photog${slot}Other`);
+        if (!sel) return;
+        const name = (sel.value === 'other' ? (other?.value || '') : sel.value).trim();
+        if (name && !out.includes(name)) out.push(name);
+      });
+      return out;
+    }
+
+    // ══════════════════════════════════════════════════════════════
     // BASEBALL BOXSCORE STORY
     // ══════════════════════════════════════════════════════════════
     let bbsSelectedGame = null;
@@ -9823,19 +9904,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('bbsGcStory').value = '';
       bbsSelectedFile = null;
 
-      // Show photographers
-      const photogs = [bbsSelectedGame.photog1, bbsSelectedGame.photog2].filter(p => p && p.trim());
-      const photogDiv = document.getElementById('bbsPhotographers');
-      if (photogs.length > 0) {
-        document.getElementById('bbsPhotogCheckboxes').innerHTML = photogs.map(p =>
-          `<label style="display:flex; align-items:center; gap:6px; margin-bottom:4px; cursor:pointer; font-size:12px;">
-            <input type="checkbox" name="bbsPhotog" value="${p}" checked> ${p}
-          </label>`
-        ).join('');
-        photogDiv.style.display = 'block';
-      } else {
-        photogDiv.style.display = 'none';
-      }
+      // Photo credit — full photographer roster, with this game's assignees preselected
+      initStoryPhotogPickers('bbs', bbsSelectedGame);
 
       document.getElementById('bbsStep1').style.display = 'none';
       document.getElementById('bbsStep2').style.display = 'block';
@@ -9886,10 +9956,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         const homeSchoolInfo = getSchoolInfo(bbsSelectedGame.home);
 
         // Collect photographers
-        const photogs = [];
-        document.querySelectorAll('input[name="bbsPhotog"]:checked').forEach(cb => photogs.push(cb.value));
-        const guestPhotog = document.getElementById('bbsGuestPhotographer')?.value.trim();
-        if (guestPhotog) photogs.push(guestPhotog);
+        const photogs = getStoryPhotographers('bbs');
 
         // Compress image client-side before sending (max 1200px, 75% quality)
         // This keeps the payload small enough for Netlify's timeout
@@ -10060,7 +10127,7 @@ Respond ONLY with valid JSON:
         const inningHeaders = awayInnings.map((_,i) => `<th style="padding:6px 8px;text-align:center;color:#666;font-weight:500;">${i+1}</th>`).join('');
         const scoreBoxHtml = `<table style="width:100%;border-collapse:collapse;font-size:13px;text-align:center;"><thead><tr style="border-bottom:2px solid #ddd;"><th style="text-align:left;padding:8px 10px;font-weight:600;">Team</th>${inningHeaders}<th style="padding:6px 8px;font-weight:700;border-left:2px solid #ccc;">R</th><th style="padding:6px 8px;font-weight:500;color:#666;">H</th><th style="padding:6px 8px;font-weight:500;color:#666;">E</th></tr></thead><tbody><tr><td style="text-align:left;padding:10px;font-weight:600;">${bbsSelectedGame.away}</td>${awayInnings.map(v=>`<td style="padding:8px;">${v}</td>`).join('')}<td style="padding:8px;font-weight:700;font-size:15px;border-left:2px solid #ccc;color:${awayWon?'#f57c00':'#333'}">${stats.awayR}</td><td style="padding:8px;">${stats.awayH}</td><td style="padding:8px;">${stats.awayE}</td></tr><tr style="border-top:1px solid #eee;"><td style="text-align:left;padding:10px;font-weight:600;">${bbsSelectedGame.home}</td>${homeInnings.map(v=>`<td style="padding:8px;">${v}</td>`).join('')}<td style="padding:8px;font-weight:700;font-size:15px;border-left:2px solid #ccc;color:${!awayWon?'#f57c00':'#333'}">${stats.homeR}</td><td style="padding:8px;">${stats.homeH}</td><td style="padding:8px;">${stats.homeE}</td></tr></tbody></table>`;
 
-        const data = { success: true, headline: stats.headline||'', article: stats.article||'', excerpt: stats.excerpt||'', scoreBoxHtml, stats };
+        const data = { success: true, headline: stats.headline||'', article: stats.article||'', excerpt: stats.excerpt||'', scoreBoxHtml, stats, photographers: photogs };
 
         if (data.success) {
           bbsGeneratedData = data;
@@ -10137,7 +10204,7 @@ Respond ONLY with valid JSON:
             headline,
             proofData: { sport: 'baseball', awayTeam: bbsSelectedGame.away, homeTeam: bbsSelectedGame.home, gender: 'Boys' },
             schoolData: { away: getSchoolInfo(bbsSelectedGame.away), home: getSchoolInfo(bbsSelectedGame.home) },
-            photographerName: null,
+            photographerName: (bbsGeneratedData?.photographers || []).join(' & ') || null,
             galleryUrl: null
           })
         });
@@ -10187,6 +10254,8 @@ Respond ONLY with valid JSON:
       document.getElementById('smugmugThumbUrl').value = '';
       document.getElementById('youtubeUrl').value = '';
       setAuthorValue('Ball603 Staff');
+      const bbsPhotog = (bbsGeneratedData?.photographers || [])[0];
+      if (bbsPhotog) setPhotographerValue(bbsPhotog);
       document.getElementById('articleDate').value = getTodayEST();
       isScheduled = false;
       scheduledTime = null;
@@ -10304,7 +10373,6 @@ Respond ONLY with valid JSON:
       document.getElementById('vbsSetHdrAway').textContent = vbsSelectedGame.away || 'Away';
       document.getElementById('vbsSetHdrHome').textContent = vbsSelectedGame.home || 'Home';
       document.getElementById('vbsNotes').value = '';
-      document.getElementById('vbsGuestPhotographer').value = '';
       document.getElementById('vbsSetsWarning').style.display = 'none';
 
       // Pre-fill match score from the game record if it already has one
@@ -10315,42 +10383,11 @@ Respond ONLY with valid JSON:
       document.getElementById('vbsHomeSets').value = validMatch(gHome) ? String(parseInt(gHome)) : '';
 
       renderVbsSetRows();
-      vbsLoadPhotographers(vbsSelectedGame);
+      // Photo credit — full photographer roster, with this game's assignees preselected
+      initStoryPhotogPickers('vbs', vbsSelectedGame);
 
       document.getElementById('vbsStep1').style.display = 'none';
       document.getElementById('vbsStep2').style.display = 'block';
-    }
-
-    async function vbsLoadPhotographers(game) {
-      const box = document.getElementById('vbsPhotogCheckboxes');
-      const assigned = [game?.photog1, game?.photog2].filter(p => p && p.trim()).map(p => p.trim());
-      let roster = [];
-      try {
-        const { data, error } = await db
-          .from('contributors')
-          .select('name')
-          .eq('is_photographer', true)
-          .eq('active', true)
-          .order('name');
-        if (!error && data) roster = data.map(c => c.name).filter(Boolean);
-      } catch (err) {
-        console.error('Error loading photographers:', err);
-      }
-      // Assigned photographers first (checked), then the rest of the roster (unchecked)
-      const rest = roster.filter(n => !assigned.includes(n));
-      const rows = [
-        ...assigned.map(n => ({ name: n, checked: true })),
-        ...rest.map(n => ({ name: n, checked: false }))
-      ];
-      if (rows.length === 0) {
-        box.innerHTML = '<div style="color:#999; font-size:11px;">No photographers on file — use the guest field below.</div>';
-        return;
-      }
-      box.innerHTML = rows.map(r =>
-        `<label style="display:flex; align-items:center; gap:6px; margin-bottom:4px; cursor:pointer; font-size:12px;">
-          <input type="checkbox" name="vbsPhotog" value="${r.name.replace(/"/g, '&quot;')}"${r.checked ? ' checked' : ''}> ${r.name}
-        </label>`
-      ).join('');
     }
 
     // ── Set visibility (Option A: reveal set 4/5 only when the prior set doesn't clinch)
@@ -10487,10 +10524,7 @@ Respond ONLY with valid JSON:
       btn.textContent = '⏳ Writing story...';
 
       try {
-        const photogs = [];
-        document.querySelectorAll('input[name="vbsPhotog"]:checked').forEach(cb => photogs.push(cb.value));
-        const guestPhotog = document.getElementById('vbsGuestPhotographer')?.value.trim();
-        if (guestPhotog) photogs.push(guestPhotog);
+        const photogs = getStoryPhotographers('vbs');
 
         const awayWon = awaySets > homeSets;
         const awayBefore = getVolleyballRecord(vbsSelectedGame.away, vbsSelectedGame.date);
