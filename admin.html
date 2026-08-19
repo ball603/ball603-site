@@ -2458,7 +2458,33 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
                   <th style="padding:4px 6px; text-align:center; font-weight:600; color:#666;" id="vbsSetHdrHome">Home</th>
                 </tr>
               </thead>
-              <tbody id="vbsSetRows"></tbody>
+              <tbody id="vbsSetRows">
+                <tr id="vbsSetRow1">
+                  <td style="padding:4px 6px; color:#666;">Set 1</td>
+                  <td style="padding:4px 6px; text-align:center;"><input type="text" id="vbsSet1Away" inputmode="numeric" oninput="renderVbsSetRows()" onblur="vbsSettleSetRows()" style="width:52px; padding:5px; border:1px solid #ddd; border-radius:4px; font-size:12px; text-align:center; box-sizing:border-box;"></td>
+                  <td style="padding:4px 6px; text-align:center;"><input type="text" id="vbsSet1Home" inputmode="numeric" oninput="renderVbsSetRows()" onblur="vbsSettleSetRows()" style="width:52px; padding:5px; border:1px solid #ddd; border-radius:4px; font-size:12px; text-align:center; box-sizing:border-box;"></td>
+                </tr>
+                <tr id="vbsSetRow2">
+                  <td style="padding:4px 6px; color:#666;">Set 2</td>
+                  <td style="padding:4px 6px; text-align:center;"><input type="text" id="vbsSet2Away" inputmode="numeric" oninput="renderVbsSetRows()" onblur="vbsSettleSetRows()" style="width:52px; padding:5px; border:1px solid #ddd; border-radius:4px; font-size:12px; text-align:center; box-sizing:border-box;"></td>
+                  <td style="padding:4px 6px; text-align:center;"><input type="text" id="vbsSet2Home" inputmode="numeric" oninput="renderVbsSetRows()" onblur="vbsSettleSetRows()" style="width:52px; padding:5px; border:1px solid #ddd; border-radius:4px; font-size:12px; text-align:center; box-sizing:border-box;"></td>
+                </tr>
+                <tr id="vbsSetRow3">
+                  <td style="padding:4px 6px; color:#666;">Set 3</td>
+                  <td style="padding:4px 6px; text-align:center;"><input type="text" id="vbsSet3Away" inputmode="numeric" oninput="renderVbsSetRows()" onblur="vbsSettleSetRows()" style="width:52px; padding:5px; border:1px solid #ddd; border-radius:4px; font-size:12px; text-align:center; box-sizing:border-box;"></td>
+                  <td style="padding:4px 6px; text-align:center;"><input type="text" id="vbsSet3Home" inputmode="numeric" oninput="renderVbsSetRows()" onblur="vbsSettleSetRows()" style="width:52px; padding:5px; border:1px solid #ddd; border-radius:4px; font-size:12px; text-align:center; box-sizing:border-box;"></td>
+                </tr>
+                <tr id="vbsSetRow4">
+                  <td style="padding:4px 6px; color:#666;">Set 4</td>
+                  <td style="padding:4px 6px; text-align:center;"><input type="text" id="vbsSet4Away" inputmode="numeric" oninput="renderVbsSetRows()" onblur="vbsSettleSetRows()" style="width:52px; padding:5px; border:1px solid #ddd; border-radius:4px; font-size:12px; text-align:center; box-sizing:border-box;"></td>
+                  <td style="padding:4px 6px; text-align:center;"><input type="text" id="vbsSet4Home" inputmode="numeric" oninput="renderVbsSetRows()" onblur="vbsSettleSetRows()" style="width:52px; padding:5px; border:1px solid #ddd; border-radius:4px; font-size:12px; text-align:center; box-sizing:border-box;"></td>
+                </tr>
+                <tr id="vbsSetRow5">
+                  <td style="padding:4px 6px; color:#666;">Set 5</td>
+                  <td style="padding:4px 6px; text-align:center;"><input type="text" id="vbsSet5Away" inputmode="numeric" oninput="renderVbsSetRows()" onblur="vbsSettleSetRows()" style="width:52px; padding:5px; border:1px solid #ddd; border-radius:4px; font-size:12px; text-align:center; box-sizing:border-box;"></td>
+                  <td style="padding:4px 6px; text-align:center;"><input type="text" id="vbsSet5Home" inputmode="numeric" oninput="renderVbsSetRows()" onblur="vbsSettleSetRows()" style="width:52px; padding:5px; border:1px solid #ddd; border-radius:4px; font-size:12px; text-align:center; box-sizing:border-box;"></td>
+                </tr>
+              </tbody>
             </table>
           </div>
 
@@ -10229,7 +10255,7 @@ Respond ONLY with valid JSON:
       const articleHtml = article.split('\n\n').map(p => `<p>${p.trim()}</p>`).join('');
       setEditorContent(articleHtml);
 
-      document.getElementById('articleExcerpt').value = bbsGeneratedData?.excerpt || '';
+      document.getElementById('articleExcerpt').value = ''; // Leave blank
       document.getElementById('selectedGameId').value = bbsSelectedGame.game_id || '';
       selectedGame = bbsSelectedGame;
       document.getElementById('articleSport').value = 'baseball';
@@ -10382,7 +10408,8 @@ Respond ONLY with valid JSON:
       document.getElementById('vbsAwaySets').value = validMatch(gAway) ? String(parseInt(gAway)) : '';
       document.getElementById('vbsHomeSets').value = validMatch(gHome) ? String(parseInt(gHome)) : '';
 
-      renderVbsSetRows();
+      vbsClearSetInputs();
+      vbsResetSetRows();
       // Photo credit — full photographer roster, with this game's assignees preselected
       initStoryPhotogPickers('vbs', vbsSelectedGame);
 
@@ -10403,28 +10430,74 @@ Respond ONLY with valid JSON:
       return rows;
     }
 
+    // Set rows are static in the markup and are NEVER rebuilt. Rebuilding them
+    // mid-entry destroyed the focused field and reset the caret to position 0, so the
+    // next digit landed in front of the previous one (typing "25" produced "52").
+    //
+    // Visibility only ever GROWS while set scores are being typed. A half-typed score
+    // can briefly look like a clinch (19-2 before the 5 lands), and shrinking on that
+    // would yank a row away and take its neighbour's value with it.
+    let vbsVisibleSetRows = 3;
+
+    function vbsWantedSetRows() {
+      return vbCountSetsToShow(
+        document.getElementById('vbsAwaySets').value,
+        document.getElementById('vbsHomeSets').value,
+        vbsReadSetRows()
+      );
+    }
+
+    function vbsApplySetRowVisibility() {
+      for (let i = 1; i <= 5; i++) {
+        const row = document.getElementById('vbsSetRow' + i);
+        if (row) row.style.display = i <= vbsVisibleSetRows ? '' : 'none';
+      }
+    }
+
+    // Fired on every keystroke in a set field — grow only, never shrink.
     function renderVbsSetRows() {
-      const existing = vbsReadSetRows();
-      const awayMatch = document.getElementById('vbsAwaySets').value;
-      const homeMatch = document.getElementById('vbsHomeSets').value;
-      const show = vbCountSetsToShow(awayMatch, homeMatch, existing);
-      const tbody = document.getElementById('vbsSetRows');
-      let html = '';
-      for (let i = 1; i <= show; i++) {
-        const r = existing[i - 1] || { away: null, home: null };
-        const inputStyle = 'width:52px; padding:5px; border:1px solid #ddd; border-radius:4px; font-size:12px; text-align:center; box-sizing:border-box;';
-        html += `<tr>
-          <td style="padding:4px 6px; color:#666;">Set ${i}</td>
-          <td style="padding:4px 6px; text-align:center;"><input type="text" id="vbsSet${i}Away" inputmode="numeric" value="${r.away === null ? '' : r.away}" oninput="renderVbsSetRows()" style="${inputStyle}"></td>
-          <td style="padding:4px 6px; text-align:center;"><input type="text" id="vbsSet${i}Home" inputmode="numeric" value="${r.home === null ? '' : r.home}" oninput="renderVbsSetRows()" style="${inputStyle}"></td>
-        </tr>`;
+      const want = vbsWantedSetRows();
+      if (want > vbsVisibleSetRows) {
+        vbsVisibleSetRows = want;
+        vbsApplySetRowVisibility();
       }
-      // Only rebuild when the row count actually changed, so typing isn't interrupted
-      if (tbody.children.length !== show) {
-        const active = document.activeElement?.id;
-        tbody.innerHTML = html;
-        if (active) document.getElementById(active)?.focus();
+    }
+
+    // Fired when the match score changes — an explicit decision by the reporter, so
+    // rows may shrink here. Anything beyond the new count is cleared so a stale set
+    // can never reach game_data.
+    function vbsResetSetRows() {
+      vbsVisibleSetRows = vbsWantedSetRows();
+      for (let i = vbsVisibleSetRows + 1; i <= 5; i++) {
+        ['vbsSet' + i + 'Away', 'vbsSet' + i + 'Home'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.value = '';
+        });
       }
+      vbsApplySetRowVisibility();
+    }
+
+    // Once the reporter leaves the set-score block entirely, tidy up: recompute the
+    // row count for real (this may shrink it) and clear anything no longer in play.
+    // Deferred so we can see where focus actually landed — tabbing between set fields
+    // must not retract a row out from under the cursor.
+    function vbsSettleSetRows() {
+      setTimeout(() => {
+        const active = document.activeElement ? document.activeElement.id : '';
+        if (/^vbsSet[1-5](Away|Home)$/.test(active)) return;
+        vbsResetSetRows();
+      }, 0);
+    }
+
+    function vbsClearSetInputs() {
+      for (let i = 1; i <= 5; i++) {
+        ['vbsSet' + i + 'Away', 'vbsSet' + i + 'Home'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.value = '';
+        });
+      }
+      vbsVisibleSetRows = 3;
+      vbsApplySetRowVisibility();
     }
 
     function vbsSetsChanged() {
@@ -10446,7 +10519,7 @@ Respond ONLY with valid JSON:
       } else {
         warn.style.display = 'none';
       }
-      renderVbsSetRows();
+      vbsResetSetRows();
     }
 
     function vbsBackToStep1() {
@@ -10529,7 +10602,7 @@ Respond ONLY with valid JSON:
       }
 
       // Optional set detail — keep only fully-filled sets, in order
-      const rawRows = vbsReadSetRows();
+      const rawRows = vbsReadSetRows().slice(0, vbsVisibleSetRows);
       const sets = [];
       for (const r of rawRows) {
         if (r.away === null || r.home === null) break;
@@ -10703,20 +10776,27 @@ Respond ONLY with valid JSON:
       const articleHtml = article.split('\n\n').map(p => `<p>${p.trim()}</p>`).join('');
       setEditorContent(articleHtml);
 
-      document.getElementById('articleExcerpt').value = vbsGeneratedData?.excerpt || '';
+      document.getElementById('articleExcerpt').value = ''; // Leave blank
       document.getElementById('selectedGameId').value = vbsSelectedGame.game_id || '';
       selectedGame = vbsSelectedGame;
       document.getElementById('articleSport').value = 'gvolleyball';
       toggleBaseballScoreCard();
       clearVbCard();
-      populateVbFromGameData({
+      const vbGameData = {
         sport: 'gvolleyball',
         awayTeam: vbsSelectedGame.away,
         homeTeam: vbsSelectedGame.home,
         awaySets: vbsGeneratedData?.awaySets ?? 0,
         homeSets: vbsGeneratedData?.homeSets ?? 0,
-        sets: vbsGeneratedData?.sets || []
-      });
+        sets: vbsGeneratedData?.sets || [],
+        date: vbsSelectedGame.date || '',
+        is_playoff: vbsSelectedGame.is_playoff || false,
+        round: vbsSelectedGame.round || null,
+        division: vbsSelectedGame.division || null
+      };
+      populateVbFromGameData(vbGameData);
+      // Fallback so the score box survives even if the sidebar card is empty at save time
+      currentGameData = vbGameData;
 
       document.getElementById('smugmugUrl').value = '';
       document.getElementById('smugmugThumbUrl').value = '';

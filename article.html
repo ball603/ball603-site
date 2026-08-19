@@ -2051,9 +2051,18 @@
     function renderArticle(article) {
       const container = document.getElementById('articleContent');
       const loading = document.getElementById('articleLoading');
-      
+
+      // game_data normally arrives as a JSONB object, but tolerate a JSON string
+      if (typeof article.game_data === 'string') {
+        try { article.game_data = JSON.parse(article.game_data); }
+        catch (e) { console.warn('game_data was an unparseable string', e); }
+      }
+      // The score box keys off game_data.sport, not the article's sport column, so a
+      // missing or mismatched sport column can't suppress it.
+      const gameDataSport = article.game_data?.sport || '';
+
       // Sport parameter for team links
-      const articleSport = article.sport || 'basketball';
+      const articleSport = article.sport || gameDataSport || 'basketball';
       const sportParam = `?sport=${articleSport}`;
       
       // Helper: build baseball line score HTML from game_data
@@ -2224,9 +2233,9 @@
         
         // Build score section — baseball line score OR basketball quarters
         let quarterScoresSection = '';
-        if (article.sport === 'baseball' && article.game_data && article.game_data.sport === 'baseball') {
+        if (gameDataSport === 'baseball') {
           quarterScoresSection = buildBaseballLineScore(article.game_data, sportParam, true);
-        } else if (article.sport === 'gvolleyball' && article.game_data && article.game_data.sport === 'gvolleyball') {
+        } else if (gameDataSport === 'gvolleyball') {
           quarterScoresSection = buildVolleyballScoreBox(article.game_data, sportParam, true);
         } else if (article.game_data && article.game_data.awayQuarters && article.game_data.homeQuarters) {
           const gd = article.game_data;
@@ -2299,9 +2308,9 @@
       
       // Build standalone score box — baseball line score OR basketball quarters
       let quarterScoresHtml = '';
-      if (!linkedGame && article.sport === 'baseball' && article.game_data?.sport === 'baseball') {
+      if (!linkedGame && gameDataSport === 'baseball') {
         quarterScoresHtml = buildBaseballLineScore(article.game_data, sportParam, false);
-      } else if (!linkedGame && article.sport === 'gvolleyball' && article.game_data?.sport === 'gvolleyball') {
+      } else if (!linkedGame && gameDataSport === 'gvolleyball') {
         quarterScoresHtml = buildVolleyballScoreBox(article.game_data, sportParam, false);
       } else if (!linkedGame && article.game_data && article.game_data.awayQuarters && article.game_data.homeQuarters) {
         const gd = article.game_data;
