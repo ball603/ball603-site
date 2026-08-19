@@ -29,7 +29,9 @@ const PLAYOFF_TEAMS = {
     Boys: { 'D-I': 16, 'D-II': 14, 'D-III': 14, 'D-IV': 14 }
   },
   gvolleyball: {
-    Girls: { 'D-I': 16, 'D-II': 14, 'D-III': 14 }
+    // Field size = smallest number that is at least 70% of the division.
+    // 2026: D-I 20 teams -> 14 (70.0%), D-II 22 -> 16 (72.7%), D-III 21 -> 15 (71.4%).
+    Girls: { 'D-I': 14, 'D-II': 16, 'D-III': 15 }
   }
 };
 
