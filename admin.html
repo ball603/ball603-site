@@ -11678,7 +11678,10 @@ Respond ONLY with valid JSON:
       document.getElementById('articleDate').value = getTodayEST();
       // Default to current in-season sport
       const _month = new Date().getMonth() + 1;
-      const _defaultSport = (_month >= 4 && _month <= 7) ? 'baseball' : (_month >= 9 && _month <= 11) ? 'gvolleyball' : 'basketball';
+      // Aug-Nov is volleyball season. August was previously omitted here, so a news
+      // article written in August silently defaulted to basketball and never reached
+      // the volleyball team pages. Window matches standings/rpi/rosters/schedule.
+      const _defaultSport = (_month >= 4 && _month <= 7) ? 'baseball' : (_month >= 8 && _month <= 11) ? 'gvolleyball' : 'basketball';
       document.getElementById('articleSport').value = _defaultSport;
       isScheduled = false;
       scheduledTime = null;
@@ -15004,7 +15007,9 @@ Respond ONLY with valid JSON:
       
       const updateData = {
         name: document.getElementById('contribName').value.trim(),
-        email: document.getElementById('contribEmail').value.trim(),
+        // Lowercase to match Supabase Auth (which stores emails lowercased) — a
+        // mixed-case row here will not match at contributor-portal login.
+        email: document.getElementById('contribEmail').value.trim().toLowerCase(),
         primary_area: document.getElementById('contribPrimaryArea').value.trim() || null,
         cell: document.getElementById('contribCell').value.trim() || null,
         mailing_address: document.getElementById('contribAddress').value.trim() || null,
