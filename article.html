@@ -1878,6 +1878,31 @@
           if (article.game_data.awayTeam) teams.push(article.game_data.awayTeam);
           if (article.game_data.homeTeam) teams.push(article.game_data.homeTeam);
         }
+
+        // From tags. A plain news story has no linked game and no game_data, so
+        // its team tag is the only signal there is — without this, tagged news
+        // stories never picked up their team's sponsor.
+        // Tag classification mirrors the team pages (team/team.html).
+        const SPONSOR_SPORT_TAGS = ['basketball', 'baseball', 'gvolleyball', 'volleyball'];
+        const SPONSOR_CATEGORY_TAGS = ['news', 'featured', 'recap', 'preview', 'highlights', 'feature',
+          'marqueematchups', 'playoffpreview', 'bashrecap', 'thebash', 'editorial', 'opinion',
+          'photos', 'video', 'interview', 'rankings', 'poll', 'announcement', 'offseason',
+          'allnhiaa', 'boysdi', 'boysdii', 'boysdiii', 'boysdiv', 'girlsdi', 'girlsdii', 'girlsdiii', 'girlsdiv',
+          'prelims', 'quarters', 'semis', 'final'];
+        try {
+          const rawTags = Array.isArray(article.tags)
+            ? article.tags
+            : JSON.parse(article.tags || '[]');
+          rawTags.forEach(t => {
+            const norm = String(t || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (!norm) return;
+            if (SPONSOR_SPORT_TAGS.includes(norm)) return;
+            if (SPONSOR_CATEGORY_TAGS.includes(norm)) return;
+            teams.push(String(t));
+          });
+        } catch (e) {
+          console.warn('Could not parse article tags for sponsor matching', e);
+        }
         
         if (teams.length === 0) {
           return [];
@@ -1899,10 +1924,14 @@
           return [];
         }
 
-        // Filter to sponsors whose teams list includes at least one article team
-        const teamSet = new Set(teams.map(t => t.toLowerCase().trim()));
+        // Filter to sponsors whose teams list includes at least one article team.
+        // Normalize away punctuation/spacing on both sides so the slug form of a tag
+        // ("manchester-memorial") matches the display name on the sponsor
+        // ("Manchester Memorial"), and "Coe-Brown" matches "coe-brown".
+        const normTeam = t => String(t || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const teamSet = new Set(teams.map(normTeam).filter(Boolean));
         const matchingSponsors = (sponsors || []).filter(s => {
-          const sponsorTeams = (s.teams || s.team_shortname || '').split(',').map(t => t.toLowerCase().trim());
+          const sponsorTeams = (s.teams || s.team_shortname || '').split(',').map(normTeam).filter(Boolean);
           const hasTeam = sponsorTeams.some(t => teamSet.has(t));
           if (!hasTeam) return false;
           if (s.tier === 'town') return true; // town shows for all article types
