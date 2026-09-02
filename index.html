@@ -2186,7 +2186,7 @@
         </div>
         
         <!-- Photo Playbook -->
-        <a href="/photoplaybook" class="sidebar-card playbook-card">
+        <a href="/photoplaybook" class="sidebar-card playbook-card" id="homePlaybookCard">
           <img src="/photo-playbook-cover.jpg"
                alt="The Ball603 Photo Playbook - a quick guide to sharing, downloading and using Ball603 photos"
                class="playbook-cover" width="700" height="875" loading="lazy">
@@ -2291,6 +2291,7 @@
     
     // Initialize ticker label on page load
     document.addEventListener('DOMContentLoaded', updateTickerLabel);
+    document.addEventListener('DOMContentLoaded', setupMobilePlaybook);
     
     // Wait for Ball603 to be ready
     document.addEventListener('ball603:ready', async (e) => {
@@ -3086,6 +3087,30 @@
       }
     }
     
+    // On mobile the sidebar stacks BELOW the stories feed, and that feed grows via
+    // infinite scroll — so a sidebar card is effectively unreachable on a phone.
+    // Clone the playbook card up into the mobile slot, the same way the contributor
+    // spotlight is handled. Runs independently of the spotlight so it still appears
+    // when there is no spotlight to show.
+    function setupMobilePlaybook() {
+      if (window.innerWidth > 768) return;
+      const slot = document.getElementById('mobileSpotlightSlot');
+      const card = document.getElementById('homePlaybookCard');
+      if (!slot || !card) return;
+      if (document.getElementById('mobilePlaybookCard')) return; // already placed
+
+      const clone = card.cloneNode(true);
+      clone.id = 'mobilePlaybookCard';
+      clone.style.display = 'block';
+      clone.style.marginBottom = '20px';
+
+      slot.appendChild(clone);
+      slot.style.display = 'block';
+
+      // Hide the sidebar copy on mobile so it isn't duplicated
+      card.classList.add('hide-mobile-spotlight');
+    }
+
     function setupScrollObserver() {
       const loadingEl = document.getElementById('storiesLoading');
       loadingEl.style.display = 'block';
