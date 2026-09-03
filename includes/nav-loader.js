@@ -887,9 +887,23 @@
    * Initialize sport switcher
    * Only shown when multi_sport_enabled is true in site settings
    */
+  // The global sport switcher has no styles in styles.css — it renders as bare
+  // stacked text ("Basketball / Baseball / Girls Volleyball") above the ticker.
+  // It stayed invisible for years because multi_sport_enabled was false; turning
+  // that on for volleyball season exposed it. Every section that needs sport
+  // switching (Standings, Schedule, RPI, Rosters, Playoffs, team pages) already
+  // has its own control, so this one is redundant.
+  // Flip to true to bring it back — it needs .sport-switcher CSS first.
+  const SHOW_GLOBAL_SPORT_SWITCHER = false;
+
   function initSportSwitcher() {
     const switcher = document.getElementById('sportSwitcher');
     if (!switcher) return;
+
+    if (!SHOW_GLOBAL_SPORT_SWITCHER) {
+      switcher.style.display = 'none';
+      return;
+    }
 
     // Listen for ball603:ready event to check if multi-sport is enabled
     document.addEventListener('ball603:ready', function(e) {
