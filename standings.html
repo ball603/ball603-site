@@ -1424,7 +1424,16 @@
         // Calculate team stats from games
         calculateTeamStats();
         
-        // Calculate playoff records (basketball only)
+        // Calculate playoff records (basketball only).
+        //
+        // playoffStats is keyed "School-Gender" with no sport component, and it
+        // lives at module scope. calculatePlayoffStats() clears it on entry, but
+        // it only runs for basketball — so switching Basketball → Girls
+        // Volleyball left basketball's girls playoff records in place, and the
+        // volleyball rows subtracted them: regWins = 2 - 1 = 1, regLosses =
+        // 0 - 1 = -1, rendering "1--1". Clear it on every load, not just the
+        // loads that repopulate it.
+        playoffStats = {};
         if (currentSport === 'basketball') {
           calculatePlayoffStats();
         }
