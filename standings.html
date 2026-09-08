@@ -2002,6 +2002,13 @@
         document.getElementById('playoffText').textContent = `🏆 Final ${currentSeason} Standings`;
       }
       
+      // NHIAA publishes no power rating for volleyball — only points (4 per win),
+      // which is what the volleyball scraper stores in `rating`. Label and format
+      // the column to match the source instead of showing "8.000" under "Rating".
+      const usesPoints = currentSport === 'gvolleyball';
+      const ratingLabel = usesPoints ? 'Points' : 'Rating';
+      const formatRating = (v) => usesPoints ? String(Math.round(v || 0)) : (v || 0).toFixed(3);
+
       // Build table with grouped column headers
       let html = `
         <table class="standings-table">
@@ -2015,7 +2022,7 @@
             </tr>
             <tr class="sub-row">
               <th class="center sub-reg">Record</th>
-              <th class="center">Rating</th>
+              <th class="center">${ratingLabel}</th>
               <th class="center sub-post">Record</th>
               <th class="center sub-overall-first">Record</th>
               <th class="center hide-mobile">Home</th>
@@ -2084,7 +2091,7 @@
               </div>
             </td>
             <td class="record-cell center sec-reg">${regRecord}</td>
-            <td class="rating-cell center">${team.rating.toFixed(3)}</td>
+            <td class="rating-cell center">${formatRating(team.rating)}</td>
             <td class="record-cell center sec-post">${playoffRecord}</td>
             <td class="record-cell center sec-overall">${overallRecord}</td>
             <td class="record-cell home-away center hide-mobile">${homeRecord}</td>

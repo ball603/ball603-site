@@ -1020,17 +1020,51 @@
       
       try {
         console.log('Querying contributors table for:', currentUser.email);
-        const { data: contributor, error } = await db
+        const authEmail = (currentUser.email || '').trim();
+        const authEmailLc = authEmail.toLowerCase();
+
+        // Supabase Auth stores emails lowercased, but contributor rows edited in the
+        // CMS keep whatever casing was typed. .eq() is case-sensitive, so an exact
+        // match alone can miss a legitimate account. Try exact first (indexed), then
+        // fall back to a case-insensitive match verified client-side.
+        let { data: contributor, error } = await db
           .from('contributors')
           .select('*')
-          .eq('email', currentUser.email)
-          .single();
-        
+          .eq('email', authEmail)
+          .maybeSingle();
+
+        if (!contributor && !error) {
+          const pattern = authEmailLc.replace(/([\\%_])/g, '\\$1'); // escape ILIKE wildcards
+          const { data: rows, error: ciError } = await db
+            .from('contributors')
+            .select('*')
+            .ilike('email', pattern);
+          if (ciError) {
+            error = ciError;
+          } else {
+            contributor = (rows || []).find(r => (r.email || '').trim().toLowerCase() === authEmailLc) || null;
+            if (contributor) console.log('Matched contributor by case-insensitive email');
+          }
+        }
+
         console.log('Query result:', { contributor: contributor?.name, error: error?.message });
-        
-        if (error || !contributor) {
-          console.log('No contributor found or error');
-          document.getElementById('loginError').textContent = 'No contributor account found for this email.';
+
+        if (error) {
+          // A permission/RLS failure is NOT the same as "no such account" — say so,
+          // otherwise a policy problem looks like a bad login to the contributor.
+          console.error('Contributor lookup failed:', error);
+          document.getElementById('loginError').textContent =
+            'Signed in, but your profile could not be loaded (database permissions). Please contact an admin.';
+          resetLoginButton();
+          await db.auth.signOut();
+          isLoadingProfile = false;
+          return;
+        }
+
+        if (!contributor) {
+          console.log('No contributor row for', authEmailLc);
+          document.getElementById('loginError').textContent =
+            'No contributor account found for ' + authEmailLc + '. Contact an admin.';
           resetLoginButton();
           await db.auth.signOut();
           isLoadingProfile = false;

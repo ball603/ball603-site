@@ -119,7 +119,7 @@ const TEAM_ID_MAP = {
 // Normalize team names when entityId lookup misses.
 // Reuses conventions from baseball scraper, with volleyball-specific additions
 // for team-name variants seen in the Arbiter API (e.g. "Hollis Brookline" no hyphen).
-function normalizeTeamName(name) {
+export function normalizeTeamName(name) {
   if (!name) return name;
   const normalizations = {
     'Alvirne High School': 'Alvirne',
