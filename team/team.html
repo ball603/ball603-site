@@ -1006,37 +1006,38 @@
     // ===== APPLY GENDER VISIBILITY =====
     function applyGenderVisibility() {
       if (!TEAM_CONFIG) return;
-      
+
       const { hasBoys, hasGirls } = TEAM_CONFIG;
-      
-      // If team has both genders, nothing to hide
-      if (hasBoys && hasGirls) return;
-      
-      // Single-gender team - hide the missing gender's elements
-      if (!hasBoys) {
-        // Hide boys elements
-        document.querySelector('.boys-stats')?.classList.add('hidden');
-        document.querySelector('.schedules-grid .schedule-card:first-child')?.classList.add('hidden');
-        document.getElementById('boysRosterCard')?.classList.add('hidden');
-      }
-      
-      if (!hasGirls) {
-        // Hide girls elements
-        document.querySelector('.girls-stats')?.classList.add('hidden');
-        document.querySelector('.schedules-grid .schedule-card:last-child')?.classList.add('hidden');
-        document.getElementById('girlsRosterCard')?.classList.add('hidden');
-      }
-      
-      // Adjust grids for single-gender display
-      if (!hasBoys || !hasGirls) {
-        // Center the quick stats
-        const quickStats = document.getElementById('quickStats');
-        if (quickStats) quickStats.classList.add('single-gender');
-        
-        // Make schedule and roster grids single column
-        document.querySelector('.schedules-grid')?.classList.add('single-gender');
-        document.querySelector('.rosters-grid')?.classList.add('single-gender');
-      }
+
+      // Query schedule cards positionally, the same way applySportVisibility does.
+      // A roster card may have been appended into the schedules grid, which makes
+      // :first-child / :last-child pick the wrong card or nothing at all.
+      const scheduleCards = document.querySelectorAll('.schedules-grid > .schedule-card');
+      const boysEls  = [document.querySelector('.boys-stats'),  scheduleCards[0], document.getElementById('boysRosterCard')];
+      const girlsEls = [document.querySelector('.girls-stats'), scheduleCards[1], document.getElementById('girlsRosterCard')];
+
+      // Clear previous hiding so switching sports can't leave a card stuck hidden.
+      [...boysEls, ...girlsEls].forEach(el => el && el.classList.remove('hidden'));
+
+      // hasBoys / hasGirls come from the teams table, which carries one Boys row
+      // and one Girls row per school — basketball-era data. Single-gender sports
+      // must NOT be gated by it: a school can field girls volleyball without
+      // having a Girls row. This mattered because .hidden is
+      // `display: none !important`, so it silently overrode the inline style
+      // applySportVisibility() sets to reveal the volleyball schedule card.
+      const sportIsGirlsOnly = currentSport === 'gvolleyball';
+      const sportIsBoysOnly  = currentSport === 'baseball';
+
+      if (!hasBoys  && !sportIsBoysOnly)  boysEls.forEach(el => el && el.classList.add('hidden'));
+      if (!hasGirls && !sportIsGirlsOnly) girlsEls.forEach(el => el && el.classList.add('hidden'));
+
+      // Grid layout is unchanged: collapse to one column only when the school
+      // genuinely has a single gender. Baseball and volleyball keep two columns
+      // so the schedule and roster sit side by side.
+      const singleGender = !hasBoys || !hasGirls;
+      document.getElementById('quickStats')?.classList.toggle('single-gender', singleGender);
+      document.querySelector('.schedules-grid')?.classList.toggle('single-gender', singleGender);
+      document.querySelector('.rosters-grid')?.classList.toggle('single-gender', singleGender);
     }
 
     // Helper function to restore NCAA box to features-grid
