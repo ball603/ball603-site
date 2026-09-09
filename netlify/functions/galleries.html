@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Ball603 Photo Galleries - New Hampshire High School Basketball Photography">
+  <meta name="theme-color" content="#f57c00">
+  <title>Galleries | Ball603</title>
+  
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="apple-touch-icon" href="/logo.png">
+  
+  <!-- Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-S4BN80729K"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-S4BN80729K');
+  </script>
+  
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0"></script>
+  
+  <!-- Shared Styles -->
+  <link rel="stylesheet" href="/styles.css">
+  
+  <!-- Open Graph -->
+  <meta property="og:title" content="Galleries | Ball603">
+  <meta property="og:description" content="New Hampshire High School Basketball Photo Galleries">
+  <meta property="og:image" content="https://ball603.com/logo.png">
+  <meta property="og:url" content="https://ball603.com/galleries">
+  
+  <style>
+    /* Page Header */
+    .page-header {
+      text-align: center;
+      padding: 30px 20px 20px;
+      background: var(--bg-primary);
+    }
+    
+    .page-title {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin: 0 0 8px;
+    }
+    
+    .page-subtitle {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin: 0;
+    }
+
+    /* Photo Playbook banner — sits above the sticky filter bar so it greets
+       people once and then scrolls away instead of competing with the filters. */
+    .playbook-banner-wrap {
+      padding: 0 20px;
+    }
+
+    .playbook-banner {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      max-width: 900px;
+      margin: 0 auto 22px;
+      padding: 14px 18px;
+      background: #fff8f0;
+      border: 1px solid #ffd9b0;
+      border-left: 4px solid #f57c00;
+      border-radius: 10px;
+      text-decoration: none;
+      color: inherit;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+
+    .playbook-banner:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 18px rgba(245, 124, 0, 0.16);
+      border-color: #f57c00;
+    }
+
+    .pb-banner-icon {
+      font-size: 26px;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+
+    .pb-banner-text {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .pb-banner-title {
+      display: block;
+      font-size: 15px;
+      font-weight: 700;
+      color: #333;
+      margin-bottom: 2px;
+    }
+
+    .pb-banner-desc {
+      display: block;
+      font-size: 13px;
+      line-height: 1.45;
+      color: #666;
+    }
+
+    .pb-banner-cta {
+      flex-shrink: 0;
+      background: #f57c00;
+      color: #fff;
+      padding: 9px 16px;
+      border-radius: 25px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .playbook-banner:hover .pb-banner-cta {
+      background: #e65100;
+    }
+
+    /* Filter Bar */
+      display: block;
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: #f57c00;
+    }
+    
+    .hero-stat-label {
+      display: block;
+      font-size: 0.85rem;
+      color: rgba(255,255,255,0.6);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    /* Filter Bar */
+    .galleries-filter-bar {
+      background: #f5f5f5;
+      border-bottom: 1px solid #e0e0e0;
+      padding: 15px 20px;
+      position: sticky;
+      top: 0;
+      z-index: 500;
+    }
+    
+    .filter-inner {
+      display: flex;
+      align-items: flex-end;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .filter-label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .filter-buttons {
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+    }
+    
+    .filter-btn {
+      padding: 8px 16px;
+      border: 1px solid #ddd;
+      background: #fff;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: #333;
+    }
+    
+    .filter-btn:hover {
+      border-color: #f57c00;
+      color: #f57c00;
+    }
+    
+    .filter-btn.active {
+      background: #f57c00;
+      border-color: #f57c00;
+      color: white;
+    }
+    
+    .search-box {
+      flex: 1;
+      min-width: 200px;
+      position: relative;
+    }
+    
+    .search-box input {
+      width: 100%;
+      padding: 10px 15px 10px 40px;
+      border: 1px solid #ddd;
+      border-radius: 25px;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s;
+      background: #fff;
+    }
+    
+    .search-box input:focus {
+      border-color: #f57c00;
+    }
+    
+    .search-box::before {
+      content: '🔍';
+      position: absolute;
+      left: 15px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 0.9rem;
+      opacity: 0.5;
+      pointer-events: none;
+    }
+    
+    .smugmug-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #f57c00;
+      color: white;
+      padding: 10px 18px;
+      border-radius: 25px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      text-decoration: none;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    
+    .smugmug-btn:hover {
+      background: #e65100;
+      transform: scale(1.02);
+    }
+    
+    /* Main Content */
+    .galleries-main {
+      padding: 30px 20px 60px;
+    }
+    
+    /* Pinned Section */
+    .pinned-section {
+      margin-bottom: 40px;
+    }
+    
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #f0f0f0;
+    }
+    
+    .section-header h2 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin: 0;
+    }
+    
+    .section-header .pin-icon {
+      color: #f57c00;
+    }
+    
+    /* Gallery Grid */
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 25px;
+    }
+    
+    .gallery-card {
+      background: #fff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      transition: all 0.3s ease;
+      cursor: pointer;
+      text-decoration: none;
+      color: inherit;
+      display: block;
+    }
+    
+    .gallery-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+    
+    .gallery-card.pinned {
+      border: 2px solid #f57c00;
+    }
+    
+    .gallery-thumbnail {
+      position: relative;
+      width: 100%;
+      padding-top: 66.67%; /* 3:2 aspect ratio */
+      background: #1a1a1a;
+      overflow: hidden;
+    }
+    
+    .gallery-thumbnail img {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.3s;
+    }
+    
+    .gallery-card:hover .gallery-thumbnail img {
+      transform: scale(1.05);
+    }
+    
+    .gallery-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 50%);
+      opacity: 0;
+      transition: opacity 0.3s;
+      display: flex;
+      align-items: flex-end;
+      padding: 15px;
+    }
+    
+    .gallery-card:hover .gallery-overlay {
+      opacity: 1;
+    }
+    
+    .gallery-overlay-text {
+      color: white;
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+    
+    .gallery-photo-count {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: rgba(0,0,0,0.7);
+      color: white;
+      font-size: 0.8rem;
+      padding: 5px 10px;
+      border-radius: 15px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    
+    .gallery-info {
+      padding: 15px;
+    }
+    
+    .gallery-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #1a1a1a;
+      margin: 0 0 8px;
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    
+    .gallery-meta {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      font-size: 0.85rem;
+      color: #666;
+    }
+    
+    .gallery-date {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    
+    .gallery-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 10px;
+    }
+    
+    .gallery-tag {
+      font-size: 0.7rem;
+      padding: 3px 8px;
+      border-radius: 10px;
+      background: #fff3e0;
+      color: #e65100;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    /* Subscribe/External Button */
+    .subscribe-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #f57c00;
+      color: white;
+      padding: 10px 18px;
+      border-radius: 25px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      text-decoration: none;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    
+    .subscribe-btn:hover {
+      background: #e65100;
+      transform: scale(1.02);
+    }
+    
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 80px 20px;
+      color: #666;
+    }
+    
+    .empty-state-icon {
+      font-size: 4rem;
+      margin-bottom: 20px;
+      opacity: 0.5;
+    }
+    
+    .empty-state p {
+      font-size: 1.1rem;
+      margin: 0;
+    }
+    
+    /* Loading State */
+    .loading-state {
+      text-align: center;
+      padding: 80px 20px;
+    }
+    
+    .loading-spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid #f0f0f0;
+      border-top-color: #f57c00;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 20px;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    /* Mobile Sticky Search - hidden on desktop */
+    .mobile-sticky-search {
+      display: none;
+    }
+    
+    /* Mobile Responsive */
+    @media (max-width: 768px) {
+      /* Dark Theme */
+      body {
+        background: #1a1a1a;
+      }
+      
+      .galleries-hero {
+        background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+      }
+      
+      .page-title {
+        font-size: 24px;
+        color: #fff;
+      }
+
+      /* Photo Playbook banner — this page turns dark below 768px, so the
+         banner needs the card palette (#2d2d2d) rather than its light cream.
+         The CTA wraps to its own full-width row so it stays tappable. */
+      .playbook-banner-wrap {
+        padding: 0 15px;
+      }
+
+      .playbook-banner {
+        flex-wrap: wrap;
+        gap: 10px 12px;
+        padding: 14px;
+        background: #2d2d2d;
+        border-color: #444;
+        border-left-color: #f57c00;
+      }
+
+      .playbook-banner:hover {
+        box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+      }
+
+      .pb-banner-title {
+        color: #fff;
+      }
+
+      .pb-banner-desc {
+        color: #aaa;
+      }
+
+      .pb-banner-cta {
+        width: 100%;
+        text-align: center;
+      }
+
+      /* Filter bar sticky on mobile */
+      .galleries-filter-bar {
+        background: #1a1a1a;
+        border-bottom-color: #333;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+      }
+      
+      /* Keep search and button on same line */
+      .filter-inner {
+        flex-direction: row;
+        align-items: center;
+        gap: 10px;
+      }
+      
+      .search-box {
+        flex: 1;
+      }
+      
+      .search-box input {
+        background: #2d2d2d;
+        border-color: #444;
+        color: #fff;
+        padding: 10px 15px;
+        font-size: 16px;
+      }
+      
+      .search-box input::placeholder {
+        color: #888;
+      }
+      
+      .search-box::before {
+        display: none;
+      }
+      
+      .smugmug-btn {
+        flex-shrink: 0;
+        padding: 10px 14px;
+        font-size: 0.85rem;
+      }
+      
+      .galleries-main {
+        background: #1a1a1a;
+      }
+      
+      .gallery-card {
+        background: #2d2d2d;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      }
+      
+      .gallery-title {
+        color: #fff;
+      }
+      
+      .gallery-meta {
+        color: #888;
+      }
+      
+      .empty-state {
+        color: #888;
+      }
+      
+      .site-footer {
+        background: #111;
+        border-top-color: #333;
+      }
+      
+      .gallery-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  
+  <!-- Navigation (loaded dynamically) -->
+  <div id="site-header"></div>
+  <div id="mobile-menu"></div>
+  <script src="/includes/nav-loader.js"></script>
+
+  <!-- Page Header -->
+  <div class="page-header">
+    <h1 class="page-title">Photo Galleries</h1>
+    <p class="page-subtitle">See the action</p>
+  </div>
+
+  <!-- Photo Playbook -->
+  <div class="playbook-banner-wrap">
+  <a href="/photoplaybook" class="playbook-banner">
+    <span class="pb-banner-icon" aria-hidden="true">&#128248;</span>
+    <span class="pb-banner-text">
+      <span class="pb-banner-title">Using our photos?</span>
+      <span class="pb-banner-desc">What you can share, how to credit our photographers, and when you need a download.</span>
+    </span>
+    <span class="pb-banner-cta">Photo Playbook &#8594;</span>
+  </a>
+  </div>
+
+  <!-- Filter Bar -->
+  <div class="galleries-filter-bar">
+    <div class="filter-inner">
+      <div class="search-box">
+        <input type="text" id="gallerySearch" placeholder="Search galleries...">
+      </div>
+      <a href="https://ball603.smugmug.com/" target="_blank" class="smugmug-btn">
+        &#128248; SmugMug
+      </a>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <main class="galleries-main">
+    
+    <!-- Pinned Galleries Section -->
+    <div class="pinned-section" id="pinnedSection" style="display: none;">
+      <div class="section-header">
+        <span class="pin-icon">📌</span>
+        <h2>Featured Galleries</h2>
+      </div>
+      <div class="gallery-grid" id="pinnedGalleries"></div>
+    </div>
+    
+    <!-- All Galleries -->
+    <div id="galleriesContainer">
+      <div class="loading-state">
+        <div class="loading-spinner"></div>
+        <p>Loading galleries...</p>
+      </div>
+    </div>
+    
+  </main>
+
+  <!-- Site Footer -->
+  <footer class="site-footer">
+    <div class="footer-logo"><img src="/logo.png" alt="Ball603"></div>
+    <div class="footer-links">
+      <a href="/about">About Us</a>
+      <a href="/contact">Contact</a>
+    </div>
+    <div class="footer-social">
+      <a href="https://facebook.com/ball603" target="_blank" title="Facebook"><svg viewBox="0 0 24 24"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg></a>
+      <a href="https://www.instagram.com/ball603nh/" target="_blank" title="Instagram"><svg viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg></a>
+      <a href="https://x.com/Ball603NH" target="_blank" title="X (Twitter)"><svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></a>
+    </div>
+    <p class="footer-copyright">© 2025 Ball603. All rights reserved.</p>
+  </footer>
+
+  <script>
+    // ===== SUPABASE CLIENT =====
+    const SUPABASE_URL = 'https://suncdkxfqkwwnmhosxcf.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN1bmNka3hmcWt3d25taG9zeGNmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwNTk4MzIsImV4cCI6MjA4MDYzNTgzMn0.aT6V8Zx_YozqOh1ZnC6x-czI9vo-QhHKmP69PgY-8xw';
+    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // ===== STATE =====
+    let allGalleries = [];
+    let galleryTeamTags = {};
+    let allTeams = [];
+    let currentFilter = 'all';
+    let searchTerm = '';
+
+    // ===== UTILITIES =====
+    function formatDate(dateStr) {
+      if (!dateStr) return '';
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function formatNumber(num) {
+      if (!num) return '0';
+      if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+      return num.toLocaleString();
+    }
+
+    // Upgrade SmugMug thumbnail to higher quality
+    function getHighQualityThumb(url) {
+      if (!url) return '';
+      // SmugMug URLs have size codes like Th, S, M, L, XL, X2, X3
+      // Replace smaller sizes with L (Large) or XL for better quality
+      return url
+        .replace(/\/Th\//g, '/L/')
+        .replace(/-Th\./g, '-L.')
+        .replace(/\/S\//g, '/L/')
+        .replace(/-S\./g, '-L.')
+        .replace(/\/M\//g, '/L/')
+        .replace(/-M\./g, '-L.');
+    }
+
+    // ===== LOAD GALLERIES =====
+    async function loadGalleries() {
+      try {
+        // Fetch albums directly from SmugMug API
+        const response = await fetch('/.netlify/functions/smugmug?action=albums');
+        const data = await response.json();
+        
+        if (!data.success) throw new Error('Failed to load albums');
+        
+        // Map API response to expected format
+        allGalleries = (data.albums || []).map(album => ({
+          album_key: album.key,
+          name: album.name,
+          album_url: album.url,
+          image_count: album.imageCount,
+          album_date: album.date,
+          thumbnail_url: null, // Will be loaded separately
+          pinned: false,
+          hidden: false
+        }));
+        
+        renderGalleries();
+        
+        // Setup lazy loading for thumbnails
+        setupThumbnailObserver();
+        
+      } catch (err) {
+        console.error('Error loading galleries:', err);
+        document.getElementById('galleriesContainer').innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">📷</div>
+            <p>Unable to load galleries. Please try again later.</p>
+          </div>
+        `;
+      }
+    }
+    
+    // ===== LAZY LOAD THUMBNAILS =====
+    let thumbnailObserver = null;
+    const loadedThumbnails = new Set();
+    
+    function setupThumbnailObserver() {
+      // Create intersection observer to load thumbnails as cards scroll into view
+      thumbnailObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            const card = entry.target;
+            const albumKey = card.dataset.albumKey;
+            
+            if (albumKey && !loadedThumbnails.has(albumKey)) {
+              loadedThumbnails.add(albumKey);
+              loadThumbnail(albumKey, card);
+            }
+          }
+        });
+      }, {
+        rootMargin: '200px', // Start loading 200px before coming into view
+        threshold: 0
+      });
+      
+      // Observe all gallery cards
+      document.querySelectorAll('.gallery-card[data-album-key]').forEach(card => {
+        thumbnailObserver.observe(card);
+      });
+    }
+    
+    async function loadThumbnail(albumKey, card) {
+      try {
+        const response = await fetch(`/.netlify/functions/smugmug?action=albumThumb&albumKey=${albumKey}`);
+        const data = await response.json();
+        
+        if (data.success && data.thumbnailUrl) {
+          // Update gallery data
+          const gallery = allGalleries.find(g => g.album_key === albumKey);
+          if (gallery) {
+            gallery.thumbnail_url = data.thumbnailUrl;
+          }
+          
+          // Update the image in the DOM
+          const img = card.querySelector('img');
+          if (img) {
+            img.src = data.thumbnailUrl;
+          }
+        }
+      } catch (err) {
+        console.error('Error loading thumbnail for', albumKey, err);
+      }
+    }
+
+    // ===== LOAD TEAM TAGS =====
+    async function loadTeamTags() {
+      try {
+        const { data: tags, error } = await supabase
+          .from('team_galleries')
+          .select('*');
+        
+        if (error) throw error;
+        
+        galleryTeamTags = {};
+        for (const tag of (tags || [])) {
+          if (!galleryTeamTags[tag.album_key]) {
+            galleryTeamTags[tag.album_key] = [];
+          }
+          galleryTeamTags[tag.album_key].push(tag.team_slug);
+        }
+      } catch (err) {
+        console.error('Error loading team tags:', err);
+      }
+    }
+
+    // ===== RENDER GALLERIES =====
+    function renderGalleries() {
+      let filtered = [...allGalleries];
+
+      // Apply filters
+      if (currentFilter === 'pinned') {
+        filtered = filtered.filter(g => g.pinned);
+      }
+
+      if (searchTerm) {
+        const term = searchTerm.toLowerCase();
+        filtered = filtered.filter(g =>
+          g.name?.toLowerCase().includes(term)
+        );
+      }
+
+      // Separate pinned
+      const pinned = filtered.filter(g => g.pinned);
+      const regular = filtered.filter(g => !g.pinned);
+
+      // Render pinned section
+      const pinnedSection = document.getElementById('pinnedSection');
+      const pinnedContainer = document.getElementById('pinnedGalleries');
+      if (pinned.length > 0 && currentFilter !== 'pinned') {
+        pinnedSection.style.display = 'block';
+        pinnedContainer.innerHTML = pinned.map(g => renderGalleryCard(g, true)).join('');
+      } else {
+        pinnedSection.style.display = 'none';
+      }
+
+      // Render main grid
+      const container = document.getElementById('galleriesContainer');
+      const galleriesToShow = currentFilter === 'pinned' ? pinned : regular;
+
+      if (galleriesToShow.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">📷</div>
+            <p>${allGalleries.length === 0 ? 'No galleries yet. Check back soon!' : 'No galleries match your filters.'}</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = `<div class="gallery-grid">${galleriesToShow.map(g => renderGalleryCard(g)).join('')}</div>`;
+      
+      // Re-setup observer for new cards
+      if (thumbnailObserver) {
+        document.querySelectorAll('.gallery-card[data-album-key]').forEach(card => {
+          if (!loadedThumbnails.has(card.dataset.albumKey)) {
+            thumbnailObserver.observe(card);
+          }
+        });
+      }
+    }
+
+    function renderGalleryCard(gallery, isPinned = false) {
+      const thumbnail = gallery.thumbnail_url || '/logo.png';
+      const tags = galleryTeamTags[gallery.album_key] || [];
+      const albumUrl = gallery.album_url || `https://ball603.smugmug.com/`;
+
+      return `
+        <a href="${albumUrl}" target="_blank" class="gallery-card ${isPinned ? 'pinned' : ''}" data-album-key="${gallery.album_key}">
+          <div class="gallery-thumbnail">
+            <img src="${thumbnail}" alt="${escapeHtml(gallery.name)}" onerror="this.src='/logo.png';this.style.objectFit='contain';this.style.padding='20px';">
+            <div class="gallery-overlay">
+              <span class="gallery-overlay-text">View Gallery →</span>
+            </div>
+            ${gallery.image_count ? `<span class="gallery-photo-count">📷 ${gallery.image_count}</span>` : ''}
+          </div>
+          <div class="gallery-info">
+            <h3 class="gallery-title">${escapeHtml(gallery.name)}</h3>
+            <div class="gallery-meta">
+              ${gallery.album_date ? `<span class="gallery-date">📅 ${formatDate(gallery.album_date)}</span>` : ''}
+            </div>
+            ${tags.length > 0 ? `
+              <div class="gallery-tags">
+                ${tags.slice(0, 3).map(tag => `<span class="gallery-tag">${tag}</span>`).join('')}
+                ${tags.length > 3 ? `<span class="gallery-tag">+${tags.length - 3}</span>` : ''}
+              </div>
+            ` : ''}
+          </div>
+        </a>
+      `;
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // ===== FILTERS =====
+    function initFilters() {
+      // Search
+      document.getElementById('gallerySearch').addEventListener('input', (e) => {
+        searchTerm = e.target.value;
+        renderGalleries();
+      });
+    }
+
+    // ===== INIT =====
+    document.addEventListener('DOMContentLoaded', () => {
+      initFilters();
+      loadGalleries();
+    });
+  </script>
+</body>
+</html>
