@@ -937,6 +937,40 @@
       text-align: center;
       letter-spacing: 0.3px;
     }
+
+    /* Summit Six Pics of the Week card.
+       The logo is a transparent PNG drawn for dark backgrounds, so the card
+       supplies its own dark panel rather than sitting on the page white. */
+    .summitsix-card {
+      display: block;
+      text-decoration: none;
+      margin-bottom: 20px;
+      overflow: hidden;
+      border-radius: 10px;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .summitsix-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+    }
+    .summitsix-logo {
+      display: block;
+      width: 100%;
+      height: auto;
+      padding: 18px;
+      background: linear-gradient(135deg, #0f1b26 0%, #1c3247 50%, #0f1b26 100%);
+      box-sizing: border-box;
+    }
+    .summitsix-cta {
+      display: block;
+      padding: 12px 14px;
+      background: var(--accent, #f57c00);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 700;
+      text-align: center;
+      letter-spacing: 0.3px;
+    }
     
     .sponsor-card:hover {
       border-color: var(--accent);
@@ -2193,6 +2227,14 @@
           <span class="playbook-cta">Read the Photo Playbook &#8594;</span>
         </a>
 
+        <!-- Summit Six Pics of the Week -->
+        <a href="/summitsix" class="sidebar-card summitsix-card" id="homeSummitSixCard">
+          <img src="/summit-six-logo.png"
+               alt="Summit Six Volleyball Club - Pics of the Week"
+               class="summitsix-logo" width="560" height="560" loading="lazy">
+          <span class="summitsix-cta">See the Pics of the Week &#8594;</span>
+        </a>
+
         <!-- Sponsor CTA -->
         <a href="mailto:kj@ball603.com" class="sidebar-card sponsor-card">
           <img src="https://ball603.com/logos/400px/Ball603-new-BLACK%20copy-400px.png" alt="Ball603" class="sponsor-logo">
@@ -3089,26 +3131,42 @@
     
     // On mobile the sidebar stacks BELOW the stories feed, and that feed grows via
     // infinite scroll — so a sidebar card is effectively unreachable on a phone.
-    // Clone the playbook card up into the mobile slot, the same way the contributor
-    // spotlight is handled. Runs independently of the spotlight so it still appears
+    // Clone these promo cards up into the mobile slot, the same way the contributor
+    // spotlight is handled. Runs independently of the spotlight so they still appear
     // when there is no spotlight to show.
+    //
+    // Order here is the order they appear on mobile, and it mirrors the sidebar:
+    // Photo Playbook first, then Summit Six.
+    const MOBILE_PROMO_CARDS = [
+      { sidebarId: 'homePlaybookCard',   mobileId: 'mobilePlaybookCard' },
+      { sidebarId: 'homeSummitSixCard',  mobileId: 'mobileSummitSixCard' }
+    ];
+
     function setupMobilePlaybook() {
       if (window.innerWidth > 768) return;
       const slot = document.getElementById('mobileSpotlightSlot');
-      const card = document.getElementById('homePlaybookCard');
-      if (!slot || !card) return;
-      if (document.getElementById('mobilePlaybookCard')) return; // already placed
+      if (!slot) return;
 
-      const clone = card.cloneNode(true);
-      clone.id = 'mobilePlaybookCard';
-      clone.style.display = 'block';
-      clone.style.marginBottom = '20px';
+      let placedAny = false;
 
-      slot.appendChild(clone);
-      slot.style.display = 'block';
+      for (const { sidebarId, mobileId } of MOBILE_PROMO_CARDS) {
+        const card = document.getElementById(sidebarId);
+        if (!card) continue;                                 // card not on the page
+        if (document.getElementById(mobileId)) { placedAny = true; continue; } // already placed
 
-      // Hide the sidebar copy on mobile so it isn't duplicated
-      card.classList.add('hide-mobile-spotlight');
+        const clone = card.cloneNode(true);
+        clone.id = mobileId;
+        clone.style.display = 'block';
+        clone.style.marginBottom = '20px';
+
+        slot.appendChild(clone);
+        placedAny = true;
+
+        // Hide the sidebar copy on mobile so it isn't duplicated
+        card.classList.add('hide-mobile-spotlight');
+      }
+
+      if (placedAny) slot.style.display = 'block';
     }
 
     function setupScrollObserver() {
