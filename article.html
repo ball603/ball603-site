@@ -1951,16 +1951,25 @@
      */
     function renderSponsors(sponsors) {
       if (!sponsors || sponsors.length === 0) return;
-      
-      const logosHtml = sponsors.map(s => `
+
+      // A sponsor row with no logo_url used to render as an empty but still
+      // CLICKABLE box: the markup below emits <img src="null"> or <img src="">,
+      // and neither reliably fires an error event, so the onerror handler that
+      // hides the link never ran. Readers saw a blank white card that silently
+      // linked to whichever sponsor it was. Drop logo-less rows up front, and
+      // if that leaves nothing, don't show the box at all.
+      const renderable = sponsors.filter(s => s && s.logo_url && String(s.logo_url).trim());
+      if (renderable.length === 0) return;
+
+      const logosHtml = renderable.map(s => `
         <a href="${s.url || '#'}" target="_blank" rel="noopener" class="sponsor-logo-link" title="${s.name}">
           <img src="${s.logo_url}" alt="${s.name}" onerror="this.parentElement.style.display='none'">
         </a>
       `).join('');
-      
+
       // Singular vs plural
-      const titleText = sponsors.length === 1 
-        ? 'Thanks to our coverage sponsor' 
+      const titleText = renderable.length === 1
+        ? 'Thanks to our coverage sponsor'
         : 'Thanks to our coverage sponsors';
       
       // Desktop sidebar
