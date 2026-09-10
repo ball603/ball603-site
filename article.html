@@ -2263,9 +2263,16 @@
       if (linkedGame) {
         // Get scores - prefer linkedGame, fall back to game_data finals
         const gd = article.game_data || {};
-        const awayScore = linkedGame.awayScore || linkedGame.away_score || gd.awayFinal;
-        const homeScore = linkedGame.homeScore || linkedGame.home_score || gd.homeFinal;
-        const hasScore = awayScore !== null && awayScore !== '' && homeScore !== null && homeScore !== '';
+        // Pick the first score that is actually PRESENT, not the first truthy one.
+        // `||` treats a real 0 as absent, which is how a 3-0 volleyball sweep
+        // rendered as "3 - -": home_score was 0, so the chain fell through to
+        // gd.homeFinal — a baseball/basketball field that is undefined for a
+        // volleyball match — and the zero was lost. Same trap for a shutout in
+        // any sport.
+        const firstScore = (...vals) => vals.find(v => v !== null && v !== undefined && v !== '');
+        const awayScore = firstScore(linkedGame.awayScore, linkedGame.away_score, gd.awayFinal);
+        const homeScore = firstScore(linkedGame.homeScore, linkedGame.home_score, gd.homeFinal);
+        const hasScore = awayScore !== undefined && homeScore !== undefined;
         const awayWins = hasScore && parseInt(awayScore) > parseInt(homeScore);
         const homeWins = hasScore && parseInt(homeScore) > parseInt(awayScore);
         
@@ -2282,16 +2289,16 @@
           
           // Build header row with quarters
           let headerCells = '<th>Team</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th>';
-          let awayCells = `<td><a href="/${getTeamSlug(gd.awayTeam)}${sportParam}" class="team-name-link">${gd.awayTeam}</a></td><td>${gd.awayQuarters[0] || '-'}</td><td>${gd.awayQuarters[1] || '-'}</td><td>${gd.awayQuarters[2] || '-'}</td><td>${gd.awayQuarters[3] || '-'}</td>`;
-          let homeCells = `<td><a href="/${getTeamSlug(gd.homeTeam)}${sportParam}" class="team-name-link">${gd.homeTeam}</a></td><td>${gd.homeQuarters[0] || '-'}</td><td>${gd.homeQuarters[1] || '-'}</td><td>${gd.homeQuarters[2] || '-'}</td><td>${gd.homeQuarters[3] || '-'}</td>`;
+          let awayCells = `<td><a href="/${getTeamSlug(gd.awayTeam)}${sportParam}" class="team-name-link">${gd.awayTeam}</a></td><td>${gd.awayQuarters[0] ?? '-'}</td><td>${gd.awayQuarters[1] ?? '-'}</td><td>${gd.awayQuarters[2] ?? '-'}</td><td>${gd.awayQuarters[3] ?? '-'}</td>`;
+          let homeCells = `<td><a href="/${getTeamSlug(gd.homeTeam)}${sportParam}" class="team-name-link">${gd.homeTeam}</a></td><td>${gd.homeQuarters[0] ?? '-'}</td><td>${gd.homeQuarters[1] ?? '-'}</td><td>${gd.homeQuarters[2] ?? '-'}</td><td>${gd.homeQuarters[3] ?? '-'}</td>`;
           
           // Add OT columns if present
           for (let i = 4; i < gd.awayQuarters.length; i++) {
             const otNum = i - 3;
             const otLabel = gd.awayQuarters.length === 5 ? 'OT' : `OT${otNum}`;
             headerCells += `<th>${otLabel}</th>`;
-            awayCells += `<td>${gd.awayQuarters[i] || '-'}</td>`;
-            homeCells += `<td>${gd.homeQuarters[i] || '-'}</td>`;
+            awayCells += `<td>${gd.awayQuarters[i] ?? '-'}</td>`;
+            homeCells += `<td>${gd.homeQuarters[i] ?? '-'}</td>`;
           }
           
           // Add final column
@@ -2324,9 +2331,9 @@
               </a>
               <div class="game-score-center">
                 <div class="game-scores">
-                  <span class="game-score ${awayWins ? 'winner' : ''}">${awayScore || '-'}</span>
+                  <span class="game-score ${awayWins ? 'winner' : ''}">${awayScore ?? '-'}</span>
                   <span class="game-score-dash">-</span>
-                  <span class="game-score ${homeWins ? 'winner' : ''}">${homeScore || '-'}</span>
+                  <span class="game-score ${homeWins ? 'winner' : ''}">${homeScore ?? '-'}</span>
                 </div>
                 ${hasScore ? '<div class="game-status">Final</div>' : ''}
               </div>
@@ -2357,16 +2364,16 @@
         
         // Build header row with quarters
         let headerCells = '<th>Team</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th>';
-        let awayCells = `<td><a href="/${getTeamSlug(gd.awayTeam)}${sportParam}" class="team-name-link">${gd.awayTeam}</a></td><td>${gd.awayQuarters[0] || '-'}</td><td>${gd.awayQuarters[1] || '-'}</td><td>${gd.awayQuarters[2] || '-'}</td><td>${gd.awayQuarters[3] || '-'}</td>`;
-        let homeCells = `<td><a href="/${getTeamSlug(gd.homeTeam)}${sportParam}" class="team-name-link">${gd.homeTeam}</a></td><td>${gd.homeQuarters[0] || '-'}</td><td>${gd.homeQuarters[1] || '-'}</td><td>${gd.homeQuarters[2] || '-'}</td><td>${gd.homeQuarters[3] || '-'}</td>`;
+        let awayCells = `<td><a href="/${getTeamSlug(gd.awayTeam)}${sportParam}" class="team-name-link">${gd.awayTeam}</a></td><td>${gd.awayQuarters[0] ?? '-'}</td><td>${gd.awayQuarters[1] ?? '-'}</td><td>${gd.awayQuarters[2] ?? '-'}</td><td>${gd.awayQuarters[3] ?? '-'}</td>`;
+        let homeCells = `<td><a href="/${getTeamSlug(gd.homeTeam)}${sportParam}" class="team-name-link">${gd.homeTeam}</a></td><td>${gd.homeQuarters[0] ?? '-'}</td><td>${gd.homeQuarters[1] ?? '-'}</td><td>${gd.homeQuarters[2] ?? '-'}</td><td>${gd.homeQuarters[3] ?? '-'}</td>`;
         
         // Add OT columns if present
         for (let i = 4; i < gd.awayQuarters.length; i++) {
           const otNum = i - 3;
           const otLabel = gd.awayQuarters.length === 5 ? 'OT' : `OT${otNum}`;
           headerCells += `<th>${otLabel}</th>`;
-          awayCells += `<td>${gd.awayQuarters[i] || '-'}</td>`;
-          homeCells += `<td>${gd.homeQuarters[i] || '-'}</td>`;
+          awayCells += `<td>${gd.awayQuarters[i] ?? '-'}</td>`;
+          homeCells += `<td>${gd.homeQuarters[i] ?? '-'}</td>`;
         }
         
         // Add final column

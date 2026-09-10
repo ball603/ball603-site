@@ -971,6 +971,52 @@
       text-align: center;
       letter-spacing: 0.3px;
     }
+
+    /* Mobile promo row — the Photo Playbook and Summit Six cards sit side by side
+       above the story feed so they cost half the vertical space. Only ever built
+       on mobile (see setupMobilePlaybook), so no media query is needed here. */
+    .mobile-promo-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .mobile-promo-row .sidebar-card {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 0;
+      overflow: hidden;
+      border-radius: 10px;
+    }
+
+    /* Equal image heights so the two orange CTA bars line up. `contain` rather
+       than `cover` because both images are designed graphics with text in them —
+       cropping would cut the wordmarks. */
+    .mobile-promo-row .playbook-cover,
+    .mobile-promo-row .summitsix-logo {
+      height: 148px;
+      width: 100%;
+      object-fit: contain;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+
+    /* The cover art is itself a dark graphic, so let the card colour show through
+       rather than framing it in white against the dark mobile page. */
+    .mobile-promo-row .playbook-cover {
+      background: var(--bg-card, #fff);
+    }
+
+    /* Push the CTA to the bottom of whichever card is shorter */
+    .mobile-promo-row .playbook-cta,
+    .mobile-promo-row .summitsix-cta {
+      margin-top: auto;
+      font-size: 12px;
+      padding: 10px 6px;
+      letter-spacing: 0;
+      line-height: 1.3;
+    }
     
     .sponsor-card:hover {
       border-color: var(--accent);
@@ -3138,35 +3184,47 @@
     // Order here is the order they appear on mobile, and it mirrors the sidebar:
     // Photo Playbook first, then Summit Six.
     const MOBILE_PROMO_CARDS = [
-      { sidebarId: 'homePlaybookCard',   mobileId: 'mobilePlaybookCard' },
-      { sidebarId: 'homeSummitSixCard',  mobileId: 'mobileSummitSixCard' }
+      { sidebarId: 'homePlaybookCard',  mobileId: 'mobilePlaybookCard',  shortLabel: 'Photo Playbook →' },
+      { sidebarId: 'homeSummitSixCard', mobileId: 'mobileSummitSixCard', shortLabel: 'Pics of the Week →' }
     ];
 
     function setupMobilePlaybook() {
       if (window.innerWidth > 768) return;
       const slot = document.getElementById('mobileSpotlightSlot');
       if (!slot) return;
+      if (document.getElementById('mobilePromoRow')) return; // already placed
 
-      let placedAny = false;
+      // Side by side rather than stacked. Two full-width promo cards pushed the
+      // story feed most of a screen further down; halved, they read as a single
+      // band and the articles stay near the top.
+      const row = document.createElement('div');
+      row.id = 'mobilePromoRow';
+      row.className = 'mobile-promo-row';
 
-      for (const { sidebarId, mobileId } of MOBILE_PROMO_CARDS) {
+      for (const { sidebarId, mobileId, shortLabel } of MOBILE_PROMO_CARDS) {
         const card = document.getElementById(sidebarId);
-        if (!card) continue;                                 // card not on the page
-        if (document.getElementById(mobileId)) { placedAny = true; continue; } // already placed
+        if (!card) continue; // card not on the page
 
         const clone = card.cloneNode(true);
         clone.id = mobileId;
-        clone.style.display = 'block';
-        clone.style.marginBottom = '20px';
+        clone.style.display = 'flex';
+        clone.style.marginBottom = '0';
 
-        slot.appendChild(clone);
-        placedAny = true;
+        // At half width the sidebar labels wrap to three lines, so the clones get
+        // a shorter one. The sidebar copies keep their full wording.
+        const cta = clone.querySelector('.playbook-cta, .summitsix-cta');
+        if (cta && shortLabel) cta.textContent = shortLabel;
+
+        row.appendChild(clone);
 
         // Hide the sidebar copy on mobile so it isn't duplicated
         card.classList.add('hide-mobile-spotlight');
       }
 
-      if (placedAny) slot.style.display = 'block';
+      if (!row.children.length) return;
+
+      slot.appendChild(row);
+      slot.style.display = 'block';
     }
 
     function setupScrollObserver() {
