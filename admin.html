@@ -7834,7 +7834,20 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       }
       const awayName = document.getElementById('lsAwayName').value.trim();
       const homeName = document.getElementById('lsHomeName').value.trim();
-      if (!awayName && !homeName && awayInnings.every(v => v === 0) && homeInnings.every(v => v === 0)) return null;
+
+      // Same rule as volleyball: auto-filled team names are not a line score.
+      // autoPopulateLsTeams() fills them from the linked game, so gating on names
+      // let a plain news story pick up two teams it had nothing to do with.
+      // Require a run, hit, error, or a typed inning cell (a "-" counts — it is a
+      // deliberate keystroke meaning "did not bat").
+      const lsTouched = ['lsAwayR','lsAwayH','lsAwayE','lsHomeR','lsHomeH','lsHomeE']
+        .some(id => (parseInt(document.getElementById(id)?.value) || 0) > 0);
+      let anyInningCell = false;
+      for (let i = 1; i <= 7 + lsExtraInnings; i++) {
+        if ((document.getElementById('lsAwayI' + i)?.value || '').trim() !== '') anyInningCell = true;
+        if ((document.getElementById('lsHomeI' + i)?.value || '').trim() !== '') anyInningCell = true;
+      }
+      if (!lsTouched && !anyInningCell) return null;
       return {
         sport: 'baseball',
         awayTeam: awayName,
@@ -7986,7 +7999,19 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         sets.push({ away: r.away, home: r.home });
       }
 
-      if (!awayName && !homeName && awaySetsRaw === '' && homeSetsRaw === '' && sets.length === 0) return null;
+      // Team names alone do NOT make a boxscore. autoPopulateVbTeams() fills them
+      // from the linked game the moment the card becomes visible, and the sets-won
+      // fields auto-total to "0" — so a news story written with the sport set to
+      // volleyball would otherwise be saved with game_data naming two teams and a
+      // 0-0 "result". Require an actual score: a set won by somebody, or at least
+      // one set score typed in. No volleyball match ever ends 0-0.
+      let anySetDigit = false;
+      for (let i = 1; i <= 5; i++) {
+        if ((document.getElementById('vbAwayS' + i)?.value || '').trim() !== '') anySetDigit = true;
+        if ((document.getElementById('vbHomeS' + i)?.value || '').trim() !== '') anySetDigit = true;
+      }
+      const hasVbScore = (parseInt(awaySetsRaw) || 0) > 0 || (parseInt(homeSetsRaw) || 0) > 0 || anySetDigit;
+      if (!hasVbScore) return null;
 
       return {
         sport: 'gvolleyball',
@@ -11647,9 +11672,6 @@ Respond ONLY with valid JSON:
     function newArticle() {
       currentArticle = null;
       currentGameData = null;
-      clearLsCard();
-      clearVbCard();
-      toggleBaseballScoreCard();
       pendingMarqueeContent = null; // Clear any pending marquee content
       pendingMarqueeData = null; // Clear any pending marquee data
       pendingPlayoffContent = null;
@@ -11683,6 +11705,23 @@ Respond ONLY with valid JSON:
       // the volleyball team pages. Window matches standings/rpi/rosters/schedule.
       const _defaultSport = (_month >= 4 && _month <= 7) ? 'baseball' : (_month >= 8 && _month <= 11) ? 'gvolleyball' : 'basketball';
       document.getElementById('articleSport').value = _defaultSport;
+
+      // Clear the score cards HERE, not at the top of this function.
+      //
+      // These three calls used to run before `selectedGame = null` and before the
+      // sport default above. toggleBaseballScoreCard() shows the card for the
+      // CURRENT sport and then calls autoPopulate{Ls,Vb}Teams(), which fills the
+      // team names from `selectedGame` whenever the name fields are blank — and
+      // the clear had just blanked them. So starting a new article right after a
+      // volleyball story re-filled that story's two teams, and saving wrote them
+      // into game_data. article.html then matched those teams to a sponsor and
+      // showed a sponsor box on an unrelated news post. Running after the reset
+      // means selectedGame is null and the sport is the new default, so there is
+      // nothing stale to copy back in.
+      clearLsCard();
+      clearVbCard();
+      toggleBaseballScoreCard();
+
       isScheduled = false;
       scheduledTime = null;
       document.getElementById('scheduledDateTime').value = '';
