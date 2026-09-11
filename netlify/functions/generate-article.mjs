@@ -1274,86 +1274,57 @@ async function handleVolleyballSocial(body, headers) {
   const winnerMascot = winnerSchoolInfo.mascot || '';
   const winnerEmoji = winnerSchoolInfo.emoji || MASCOT_EMOJIS[winnerMascot] || '🏐';
 
-  // Pull standout performers out of the EDITED article text — never invent them
-  const extractPrompt = `Read this high school volleyball match recap and extract the standout performers named in it.
-
-ARTICLE:
-${article}
-
-TEAMS:
-Winner: ${winner}
-Loser: ${loser}
-
-Return ONLY a JSON object in this exact format (no markdown, no explanation):
-{
-  "winnerLeaders": [{"name": "Last Name", "line": "14 kills"}],
-  "loserLeaders": [{"name": "Last Name", "line": "11 digs"}]
-}
-
-Rules:
-- Use LAST NAMES ONLY (e.g., "Smith" not "Jane Smith")
-- "line" is the player's stat line exactly as the article states it (e.g. "14 kills, 3 aces")
-- Include at most 3 players per team
-- Extract ONLY what is explicitly in the article — if the article names no players for a team, return an empty array for that team. Never invent a name or a stat.`;
-
-  let winnerLeaders = [];
-  let loserLeaders = [];
-
-  try {
-    const extractResponse = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 500, messages: [{ role: 'user', content: extractPrompt }] })
-    });
-    if (extractResponse.ok) {
-      const extractData = await extractResponse.json();
-      const jsonText = extractData.content?.[0]?.text || '{}';
-      const parsed = JSON.parse(jsonText.replace(/```json\n?|\n?```/g, '').trim());
-      winnerLeaders = parsed.winnerLeaders || [];
-      loserLeaders  = parsed.loserLeaders  || [];
-    }
-  } catch (e) {
-    console.error('Error extracting volleyball leaders from article:', e);
-  }
-
-  const formatLeaders = leaders => (!leaders || leaders.length === 0)
-    ? null
-    : leaders.slice(0, 3).map(l => `${l.name} (${l.line})`).join(', ');
-
-  const setsLine = (proofData.sets || []).length
-    ? (proofData.sets || []).map(s => `${s.away}-${s.home}`).join(', ')
-    : null;
-
-  const igHeader = `${winnerEmoji} 🏐 ${winner} ${winnerSets}, ${loser} ${loserSets} 🏐`;
-
-  const articleSentences = article
-    .replace(/^[A-Z]+,?\s*N\.?H\.?\s*[–-]\s*/i, '')
-    .replace(/\b(No|St|vs|Dr|Jr|Sr|Mr|Mrs|Ms|Gov|Rep|Sen|Prof)\.\s+/g, (m, abbr) => abbr + '\x00')
-    .split(/(?<=[.!?])\s+/)
-    .map(s => s.replace(/\x00/g, '. '));
-  const igLede = articleSentences.slice(0, 2).join(' ');
+  // NOTE: this used to make a second Anthropic call here to extract standout
+  // performers, feeding "Sets" and "Standouts" blocks on the Instagram and
+  // Twitter posts. Instagram now carries the full story and Twitter just the
+  // opening paragraph, so nothing consumed those blocks any more — the call was
+  // pure cost and latency on every volleyball story. Removed. The article text
+  // already names the standouts in prose.
 
   const photogDisplay = photographerName || 'PHOTOGNAME';
 
   const facebookPost = article;
 
-  let instagramPost = `${igHeader}\n\n${igLede}\n\n`;
-  if (setsLine) instagramPost += `📋 Sets (${proofData.awayTeam} vs ${proofData.homeTeam}): ${setsLine}\n\n`;
-  const igWin = formatLeaders(winnerLeaders);
-  const igLose = formatLeaders(loserLeaders);
-  if (igWin || igLose) {
-    instagramPost += `📊 Standouts\n`;
-    if (igWin)  instagramPost += `${winner.toUpperCase()}: ${igWin}\n`;
-    if (igLose) instagramPost += `${loser.toUpperCase()}: ${igLose}\n`;
-    instagramPost += `\n`;
-  }
-  instagramPost += `READ MORE & check out the full photo gallery by ${photogDisplay} over at Ball603.com.`;
+  // ── Instagram: the full story ─────────────────────────────────────────────
+  // Links aren't clickable on Instagram, so the CMS never appends a URL to this
+  // one. The story's own closer ends in an ellipsis that points at a link which
+  // isn't there, so swap it for wording that tells people where to go instead.
+  const IG_CLOSER = `Check out the full photo gallery by ${photogDisplay} over at Ball603.com.`;
+  const GALLERY_CLOSER_RE = /\n*Check out the full photo gallery by [^\n]*$/;
+  let instagramPost = GALLERY_CLOSER_RE.test(article)
+    ? article.replace(GALLERY_CLOSER_RE, `\n\n${IG_CLOSER}`)
+    : `${article}\n\n${IG_CLOSER}`;
 
-  let twitterPost = `${igHeader}\n\n`;
-  if (setsLine) twitterPost += `Sets: ${setsLine}\n`;
-  if (igWin)  twitterPost += `${winner.toUpperCase()}: ${igWin}\n`;
-  if (igLose) twitterPost += `${loser.toUpperCase()}: ${igLose}\n`;
-  twitterPost += `\nREAD MORE & check out the full photo gallery by ${photogDisplay}...`;
+  // ── Twitter: first paragraph, then the read-more line ─────────────────────
+  // The CMS appends "\n\n🔗 <article url>" after this, so reserve room for it
+  // here: X rewrites every URL to a fixed 23 characters no matter how long the
+  // real one is, and counts the link emoji as 2, so the tail is always exactly
+  // 2 (blank line) + 2 (🔗) + 1 (space) + 23 (url) = 28.
+  const TWEET_LIMIT = 280;
+  const RESERVED_FOR_LINK = 28;
+
+  // X counts by code point, with emoji (and anything else outside the BMP)
+  // weighing 2. Raw String.length would over-count those and under-count nothing.
+  const xLen = str => [...String(str)].reduce((n, ch) => n + (ch.codePointAt(0) > 0xFFFF ? 2 : 1), 0);
+
+  const firstParagraph = String(article).split(/\n{2,}/)[0].trim();
+  const twCloser = `READ MORE & check out the full photo gallery by ${photogDisplay}...`;
+
+  // Keep the "GOFFSTOWN, N.H. — " dateline when there's room for it, drop it when
+  // there isn't. Only the dateline gives way; the sentence itself is never cut.
+  const DATELINE_RE = /^[A-Z][A-Za-z.\s]*,\s*N\.?H\.?\s*[—–-]\s*/;
+  const withDateline = `${firstParagraph}\n\n${twCloser}`;
+  const strippedParagraph = firstParagraph.replace(DATELINE_RE, '');
+  const withoutDateline = `${strippedParagraph}\n\n${twCloser}`;
+
+  // Drop the dateline only when doing so actually gets the post under the limit.
+  // If the paragraph is long enough to blow 280 on its own, losing the dateline
+  // saves ~18 characters and still leaves an over-length tweet — so keep the
+  // house style and let the CMS counter flag it for a manual trim.
+  const fits = text => xLen(text) + RESERVED_FOR_LINK <= TWEET_LIMIT;
+  const twitterPost = (fits(withDateline) || !fits(withoutDateline))
+    ? withDateline
+    : withoutDateline;
 
   return {
     statusCode: 200,

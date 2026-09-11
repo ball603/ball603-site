@@ -12105,6 +12105,18 @@ Respond ONLY with valid JSON:
       showToast('Social posts saved!', 'success');
     }
     
+    // X doesn't count a post the way String.length does: every URL is rewritten
+    // to t.co and counts as exactly 23 characters however long the real link is,
+    // and emoji count as 2. Our article URLs run near 100 characters, so a raw
+    // count read ~70 high and turned the counter red on posts X accepts fine.
+    function twitterCharCount(text) {
+      const URL_WEIGHT = 23;
+      const withoutUrls = String(text).replace(/https?:\/\/\S+/g, '');
+      const urlCount = (String(text).match(/https?:\/\/\S+/g) || []).length;
+      const bodyLen = [...withoutUrls].reduce((n, ch) => n + (ch.codePointAt(0) > 0xFFFF ? 2 : 1), 0);
+      return bodyLen + (urlCount * URL_WEIGHT);
+    }
+
     function updateCharCount(platform) {
       const textareaId = `social${platform.charAt(0).toUpperCase() + platform.slice(1)}Post`;
       const text = document.getElementById(textareaId).value;
@@ -12116,8 +12128,9 @@ Respond ONLY with valid JSON:
         document.getElementById('igCharCount').textContent = count;
         document.getElementById('igCharCount').style.color = count > 2200 ? '#c00' : '#888';
       } else if (platform === 'twitter') {
-        document.getElementById('twCharCount').textContent = count;
-        document.getElementById('twCharCount').style.color = count > 280 ? '#c00' : '#888';
+        const xCount = twitterCharCount(text);
+        document.getElementById('twCharCount').textContent = xCount;
+        document.getElementById('twCharCount').style.color = xCount > 280 ? '#c00' : '#888';
       }
     }
     
