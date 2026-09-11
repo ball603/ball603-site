@@ -118,10 +118,6 @@
       display: none;
     }
     
-    .mobile-search-bar {
-      display: none;
-    }
-    
     .mobile-filters {
       display: none;
     }
@@ -424,26 +420,43 @@
         font-weight: 600;
       }
       
-      /* Mobile search bar */
-      .mobile-search-bar {
-        display: block;
-        padding: 0 15px 12px;
-        background: #1a1a1a;
+      /* Row 2: search sits left of Today and the calendar. Wider than a third so
+         the full "Search teams..." placeholder fits and there's room to type —
+         Today and the calendar keep the fixed widths they had. */
+      .mobile-filters-search {
+        grid-template-columns: 1fr 92px 56px;
       }
-      
-      .mobile-search-bar .search-box {
+
+      .mobile-filters .teams-search-wrapper {
+        min-width: 0;
+      }
+
+      .mobile-filters .search-box {
         width: 100%;
-        padding: 12px 15px;
+        height: 44px;
+        box-sizing: border-box;
+        padding: 0 14px;
         background: #2d2d2d;
         border: 1px solid #444;
         color: #fff;
         border-radius: 8px;
         font-size: 15px;
-        text-align: center;
+        text-align: left;
+        -webkit-appearance: none;
+        appearance: none;
       }
-      
-      .mobile-search-bar .search-box::placeholder {
+
+      .mobile-filters .search-box::placeholder {
         color: #888;
+      }
+
+      /* The autocomplete panel is positioned against the search wrapper, which is
+         now only part of a row — let it span the full width of the page instead of
+         squeezing team names into that column. */
+      .mobile-filters .teams-dropdown {
+        right: auto;
+        width: calc(100vw - 30px);
+        max-width: calc(100vw - 30px);
       }
       
       /* Section header mobile */
@@ -779,11 +792,8 @@
       color: #999;
       text-align: center;
     }
-    /* On mobile-search-bar (dark theme container), dropdown still uses light background for readability */
-    .mobile-search-bar .teams-dropdown {
-      /* Slightly larger tap targets on mobile */
-    }
-    .mobile-search-bar .teams-dropdown-item {
+    /* Larger tap targets for the mobile autocomplete list */
+    .mobile-filters .teams-dropdown-item {
       padding: 14px 16px;
       font-size: 15px;
     }
@@ -925,7 +935,7 @@
       <button class="date-btn" onclick="nextDay()">&#9654;</button>
     </div>
     
-    <!-- Mobile Filters Row 1: Sport, Gender -->
+    <!-- Mobile Filters Row 1: Sport, Gender, Division -->
     <div class="mobile-filters">
       <select class="filter-select" id="sportFilterMobile" onchange="syncFilter('sport')">
         <option value="">Sport (All)</option>
@@ -938,10 +948,6 @@
         <option value="Boys">Boys</option>
         <option value="Girls">Girls</option>
       </select>
-    </div>
-    
-    <!-- Mobile Filters Row 2: Division, Today, Calendar -->
-    <div class="mobile-filters">
       <select class="filter-select" id="divisionFilterMobile" onchange="syncFilter('division')">
         <option value="">Division (All)</option>
         <option value="D-I">Division I</option>
@@ -949,16 +955,16 @@
         <option value="D-III">Division III</option>
         <option value="D-IV">Division IV</option>
       </select>
-      <button class="today-btn active" id="todayBtnMobile" onclick="goToToday()">Today</button>
-      <button class="calendar-btn" onclick="openCalendar()">&#128197;</button>
     </div>
     
-    <!-- Mobile Search Bar -->
-    <div class="mobile-search-bar">
+    <!-- Mobile Filters Row 2: Search, Today, Calendar -->
+    <div class="mobile-filters mobile-filters-search">
       <div class="teams-search-wrapper">
         <input type="text" class="search-box" id="teamSearchMobile" placeholder="Search teams..." oninput="onTeamSearchInput('teamSearchMobile')" onfocus="updateTeamsDropdown('teamSearchMobile')" autocomplete="off">
         <div class="teams-dropdown" id="teamsDropdownMobile" role="listbox"></div>
       </div>
+      <button class="today-btn active" id="todayBtnMobile" onclick="goToToday()">Today</button>
+      <button class="calendar-btn" onclick="openCalendar()">&#128197;</button>
     </div>
     
     <div class="section-header">
