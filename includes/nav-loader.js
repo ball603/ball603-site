@@ -380,6 +380,20 @@
   let mobileMenuLoaded = false;
   let favoritesModalLoaded = false;
   let sportSwitcherLoaded = false;
+  // Markup for the global sport switcher, held here until the header exists to
+  // anchor it. The two fetches race, and when the switcher won the element was
+  // never inserted at all.
+  let sportSwitcherHtml = null;
+  let sportSwitcherInserted = false;
+
+  // Insert the global sport switcher once BOTH it and the header are ready.
+  function insertSportSwitcher() {
+    if (sportSwitcherInserted || !sportSwitcherHtml) return;
+    const header = document.querySelector('.site-header');
+    if (!header) return;
+    header.insertAdjacentHTML('afterend', sportSwitcherHtml);
+    sportSwitcherInserted = true;
+  }
 
   // Check if all components are loaded, then initialize
   function checkAndInit() {
@@ -390,6 +404,7 @@
       initFavoritesModal();
     }
     if (headerLoaded && sportSwitcherLoaded) {
+      insertSportSwitcher();
       initSportSwitcher();
     }
   }
@@ -431,11 +446,8 @@
   fetch('/includes/sport-switcher.html')
     .then(response => response.text())
     .then(html => {
-      // Insert after header loads
-      const header = document.querySelector('.site-header');
-      if (header) {
-        header.insertAdjacentHTML('afterend', html);
-      }
+      // Hold the markup; checkAndInit() inserts it once the header exists.
+      sportSwitcherHtml = html;
       sportSwitcherLoaded = true;
       checkAndInit();
     })
@@ -885,7 +897,9 @@
   const SHOW_GLOBAL_SPORT_SWITCHER = false;
 
   function initSportSwitcher() {
-    const switcher = document.getElementById('sportSwitcher');
+    // Must be the GLOBAL switcher only. Team pages have their own switcher in
+    // the hero box; grabbing that one by a shared id hid it on team pages.
+    const switcher = document.getElementById('globalSportSwitcher');
     if (!switcher) return;
 
     if (!SHOW_GLOBAL_SPORT_SWITCHER) {

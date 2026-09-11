@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Ball603 Team Page v308 - Fix sport button active state on page load -->
+<!-- Ball603 Team Page v309 - Schedule/roster stay side by side for single-gender schools -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -1031,13 +1031,25 @@
       if (!hasBoys  && !sportIsBoysOnly)  boysEls.forEach(el => el && el.classList.add('hidden'));
       if (!hasGirls && !sportIsGirlsOnly) girlsEls.forEach(el => el && el.classList.add('hidden'));
 
-      // Grid layout is unchanged: collapse to one column only when the school
-      // genuinely has a single gender. Baseball and volleyball keep two columns
-      // so the schedule and roster sit side by side.
+      // Quick stats still collapse on gender: that bar really is one group per
+      // gender.
       const singleGender = !hasBoys || !hasGirls;
       document.getElementById('quickStats')?.classList.toggle('single-gender', singleGender);
-      document.querySelector('.schedules-grid')?.classList.toggle('single-gender', singleGender);
-      document.querySelector('.rosters-grid')?.classList.toggle('single-gender', singleGender);
+
+      // The schedules/rosters grids collapse to ONE column only when they hold a
+      // single visible card — count the cards, don't infer it from gender.
+      // Baseball and volleyball move the roster card into the schedules grid so
+      // schedule + roster sit side by side; a school with only one gender row in
+      // the teams table (Manchester Central, Manchester West) was still being
+      // forced to one column there, stacking the two cards.
+      const visibleCards = grid => grid
+        ? Array.from(grid.children).filter(el =>
+            !el.classList.contains('hidden') && getComputedStyle(el).display !== 'none').length
+        : 0;
+      const schedulesGridEl = document.querySelector('.schedules-grid');
+      const rostersGridEl = document.querySelector('.rosters-grid');
+      schedulesGridEl?.classList.toggle('single-gender', visibleCards(schedulesGridEl) <= 1);
+      rostersGridEl?.classList.toggle('single-gender', visibleCards(rostersGridEl) <= 1);
     }
 
     // Helper function to restore NCAA box to features-grid
