@@ -474,33 +474,35 @@ function loadFavorites() {
 }
 
 /**
+ * Canonical key for comparing team names: lowercase, letters and digits only.
+ * Used for favorite matching so punctuation/spacing differences don't matter
+ * while genuinely different teams never collide.
+ */
+function normalizeTeamKey(name) {
+  return String(name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+/**
  * Check if a game involves a favorite team or division
  * Returns priority: 0 = favorite team, 2 = not a favorite
  */
 function getGamePriority(game) {
   const favorites = loadFavorites();
   
-  // Check if either team is a favorite
+  // Check if either team is a favorite.
+  //
+  // Exact match on a normalized name, NOT a substring test. The old two-way
+  // `includes()` meant any team whose name sat inside a favorite's counted as a
+  // favorite — "Central" matched a saved "Manchester Central", and a one-word
+  // name could match almost anything. Favorites store the same canonical
+  // shortname the games table uses, so equality is all that's needed; stripping
+  // case, spaces and punctuation still forgives "Coe-Brown" vs "Coe Brown".
   if (favorites.teams?.length > 0) {
-    const homeLower = (game.home || '').toLowerCase();
-    const awayLower = (game.away || '').toLowerCase();
-    
-    const homeMatch = favorites.teams.some(t => {
-      const favLower = t.toLowerCase();
-      // Check exact match, or if one contains the other
-      return homeLower === favLower || 
-             homeLower.includes(favLower) || 
-             favLower.includes(homeLower);
-    });
-    
-    const awayMatch = favorites.teams.some(t => {
-      const favLower = t.toLowerCase();
-      return awayLower === favLower || 
-             awayLower.includes(favLower) || 
-             favLower.includes(awayLower);
-    });
-    
-    if (homeMatch || awayMatch) return 0;
+    const home = normalizeTeamKey(game.home);
+    const away = normalizeTeamKey(game.away);
+    const favKeys = favorites.teams.map(normalizeTeamKey).filter(Boolean);
+
+    if ((home && favKeys.includes(home)) || (away && favKeys.includes(away))) return 0;
   }
   
   // Following a whole division was removed from My Teams — the divisions don't

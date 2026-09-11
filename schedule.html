@@ -898,17 +898,10 @@
         <option value="baseball">&#9918; Baseball</option>
         <option value="gvolleyball">&#127952; Girls Volleyball</option>
       </select>
-      <select class="filter-select" id="levelFilter" onchange="renderSchedule()">
-        <option value="">Level (All)</option>
-        <option value="NHIAA">NHIAA</option>
-        <option value="College">College</option>
-      </select>
       <select class="filter-select" id="genderFilter" onchange="renderSchedule()">
         <option value="">Gender (All)</option>
         <option value="Boys">Boys</option>
         <option value="Girls">Girls</option>
-        <option value="Men">Men</option>
-        <option value="Women">Women</option>
       </select>
       <select class="filter-select" id="divisionFilter" onchange="renderSchedule()">
         <option value="">Division (All)</option>
@@ -932,7 +925,7 @@
       <button class="date-btn" onclick="nextDay()">&#9654;</button>
     </div>
     
-    <!-- Mobile Filters Row 1: Sport, Level, Gender -->
+    <!-- Mobile Filters Row 1: Sport, Gender -->
     <div class="mobile-filters">
       <select class="filter-select" id="sportFilterMobile" onchange="syncFilter('sport')">
         <option value="">Sport (All)</option>
@@ -940,17 +933,10 @@
         <option value="baseball">⚾ Baseball</option>
         <option value="gvolleyball">🏐 Girls Volleyball</option>
       </select>
-      <select class="filter-select" id="levelFilterMobile" onchange="syncFilter('level')">
-        <option value="">Level (All)</option>
-        <option value="NHIAA">NHIAA</option>
-        <option value="College">College</option>
-      </select>
       <select class="filter-select" id="genderFilterMobile" onchange="syncFilter('gender')">
         <option value="">Gender (All)</option>
         <option value="Boys">Boys</option>
         <option value="Girls">Girls</option>
-        <option value="Men">Men</option>
-        <option value="Women">Women</option>
       </select>
     </div>
     
@@ -1026,9 +1012,7 @@
   <script>
     // Sync mobile/desktop filters
     function syncFilter(type) {
-      if (type === 'level') {
-        document.getElementById('levelFilter').value = document.getElementById('levelFilterMobile').value;
-      } else if (type === 'gender') {
+      if (type === 'gender') {
         document.getElementById('genderFilter').value = document.getElementById('genderFilterMobile').value;
       } else if (type === 'sport') {
         document.getElementById('sportFilter').value = document.getElementById('sportFilterMobile').value;
@@ -1137,20 +1121,23 @@
       } catch { return { teams: [], divisions: [] }; }
     }
 
+    // Canonical key for comparing team names: lowercase, letters and digits only.
+    // Mirrors normalizeTeamKey() in app.js — keep the two in step.
+    function favTeamKey(name) {
+      return String(name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    }
+
     function getGamePriority(game) {
       const favorites = loadFavorites();
+      // Exact match on a normalized name, NOT a substring test. The old two-way
+      // includes() meant "Central" counted as a favorite for anyone following
+      // "Manchester Central". Favorites store the same canonical shortname the
+      // games table uses, so equality is enough.
       if (favorites.teams?.length > 0) {
-        const homeLower = (game.home || '').toLowerCase();
-        const awayLower = (game.away || '').toLowerCase();
-        const homeMatch = favorites.teams.some(t => {
-          const favLower = t.toLowerCase();
-          return homeLower === favLower || homeLower.includes(favLower) || favLower.includes(homeLower);
-        });
-        const awayMatch = favorites.teams.some(t => {
-          const favLower = t.toLowerCase();
-          return awayLower === favLower || awayLower.includes(favLower) || favLower.includes(awayLower);
-        });
-        if (homeMatch || awayMatch) return 0;
+        const home = favTeamKey(game.home);
+        const away = favTeamKey(game.away);
+        const favKeys = favorites.teams.map(favTeamKey).filter(Boolean);
+        if ((home && favKeys.includes(home)) || (away && favKeys.includes(away))) return 0;
       }
       // Following a whole division was removed from My Teams — the divisions don't
       // line up across sports, so it was confusing. Any divisions still sitting in
@@ -1390,7 +1377,6 @@
     // Render team-focused view: featured Last/Next cards + full-season schedule.
     function renderTeamView(teamName) {
       const gender = document.getElementById('genderFilter').value;
-      const level = document.getElementById('levelFilter').value;
       const sportFilter = document.getElementById('sportFilter').value;
       const division = document.getElementById('divisionFilter').value;
 
@@ -1410,7 +1396,6 @@
         if (g.home !== teamName && g.away !== teamName) return false;
         if (g.sport !== targetSport) return false;
         if (g.season !== targetSeason) return false;
-        if (level && g.level !== level) return false;
         if (gender && g.gender !== gender) return false;
         if (division) {
           const matching = divisionMap[division] || [division];
@@ -1525,7 +1510,6 @@
       document.getElementById('sectionTitle').textContent = isToday ? "Today's Games" : dateFmt;
       const search = document.getElementById('teamSearchInput').value.toLowerCase();
       const gender = document.getElementById('genderFilter').value;
-      const level = document.getElementById('levelFilter').value;
       const sport = document.getElementById('sportFilter').value;
       const division = document.getElementById('divisionFilter').value;
       const dateStr = getDateString(currentDate);
@@ -1540,7 +1524,6 @@
       
       let games = allGames.filter(g => {
         if (g.date !== dateStr) return false;
-        if (level && g.level !== level) return false;
         if (gender && g.gender !== gender) return false;
         if (sport && g.sport !== sport) return false;
         if (division) {
