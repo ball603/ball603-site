@@ -1217,13 +1217,52 @@
     // Stored in a module-level array; both custom dropdowns (desktop + mobile) read from it.
     let allTeamNames = [];
     function populateTeamsDatalist() {
-      const teams = new Set();
+      // Names that appear in NHIAA-level games. This alone is NOT enough: an
+      // NHIAA school's schedule includes out-of-state and non-member opponents
+      // (Archbishop Williams, Barrington, ...), and those are participants in an
+      // NHIAA-level game, so they used to land in the suggestions.
+      const fromGames = new Set();
       for (const g of allGames) {
         if (g.level !== 'NHIAA') continue;
-        if (g.home) teams.add(g.home);
-        if (g.away) teams.add(g.away);
+        if (g.home) fromGames.add(g.home);
+        if (g.away) fromGames.add(g.away);
       }
-      allTeamNames = [...teams].sort((a, b) => a.localeCompare(b));
+
+      // The teams table is the authority on who is actually one of our schools,
+      // so keep only names that resolve to a row in it.
+      //
+      // NOTE: team-utils.js declares `const TeamUtils = ...` at top level, which
+      // creates a global BINDING but not a window property — `window.TeamUtils`
+      // is undefined here and must not be used as the guard.
+      let rosterReady = false;
+      try {
+        rosterReady = typeof TeamUtils !== 'undefined'
+          && typeof TeamUtils.getTeam === 'function'
+          && (TeamUtils.getAllTeams() || []).length > 0;
+      } catch (err) {
+        console.warn('[schedule] Could not read the teams roster:', err);
+      }
+
+      let names;
+      if (rosterReady) {
+        // getTeam() resolves through TeamUtils' own lookup table, which is built
+        // from shortname AND full_name, so a school whose games are recorded
+        // under a longer or alternate name still matches. A plain shortname
+        // comparison would silently drop those.
+        names = [...fromGames].filter(n => {
+          try { return !!TeamUtils.getTeam(n); } catch (e) { return true; }
+        });
+      } else {
+        // Roster unavailable (teams fetch failed): fall back to the old behaviour
+        // rather than leaving the search with nothing in it.
+        names = [...fromGames];
+      }
+
+      const dropped = fromGames.size - names.length;
+      console.log(`[schedule] Team search: ${names.length} of ${fromGames.size} names kept`
+        + (rosterReady ? ` (${dropped} not in the teams table)` : ' — TEAMS ROSTER UNAVAILABLE, no filtering applied'));
+
+      allTeamNames = names.sort((a, b) => a.localeCompare(b));
     }
 
     // Custom autocomplete dropdown (used instead of native <datalist> because
