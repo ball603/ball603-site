@@ -805,19 +805,19 @@
       gap: 12px;
       margin-bottom: 20px;
     }
+    /* Text-only cards, everything centred. The opponent logo was removed — it
+       duplicated the crest already shown on the schedule card for the same game
+       and forced the text off-centre. */
     .team-featured-card {
       background: #fff;
       border: 1px solid #eee;
       border-radius: 10px;
-      padding: 14px 16px;
+      padding: 12px 14px;
       box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      text-align: center;
     }
     .team-featured-card--empty {
       color: #888;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      min-height: 92px;
     }
     .team-featured-label {
       font-size: 11px;
@@ -825,34 +825,19 @@
       color: #999;
       letter-spacing: 1.2px;
       text-transform: uppercase;
-      margin-bottom: 10px;
+      margin-bottom: 6px;
     }
     .team-featured-empty {
       color: #ccc;
       font-size: 18px;
     }
-    .team-featured-body {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    .team-featured-logo {
-      width: 44px;
-      height: 44px;
-      object-fit: contain;
-      flex-shrink: 0;
-    }
-    .team-featured-info {
-      flex: 1;
-      min-width: 0;
-    }
     .team-featured-opp {
       font-size: 15px;
       font-weight: 600;
       color: #222;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      /* Long opponent names wrap instead of being clipped now that there is a
+         full card width to use. */
+      line-height: 1.25;
     }
     .team-featured-meta {
       font-size: 12px;
@@ -860,7 +845,7 @@
       margin-top: 2px;
     }
     .team-featured-result {
-      margin-top: 4px;
+      margin-top: 3px;
       font-size: 13px;
       font-weight: 600;
     }
@@ -875,9 +860,13 @@
         grid-template-columns: 1fr;
         gap: 8px;
         margin-bottom: 14px;
+        /* Line the cards up with .games-grid below, which is inset 15px. Without
+           this the featured cards ran edge to edge and looked wider than the
+           schedule cards under them. */
+        padding: 0 15px;
       }
       .team-featured-card {
-        padding: 12px 14px;
+        padding: 11px 14px;
       }
     }
   </style>
@@ -1471,7 +1460,6 @@
         }
         const isHome = game.home === teamName;
         const opponent = isHome ? game.away : game.home;
-        const oppLogo = getLogoFilename(opponent);
         const hs = (game.home_score !== null && game.home_score !== undefined) ? String(game.home_score).trim() : '';
         const as = (game.away_score !== null && game.away_score !== undefined) ? String(game.away_score).trim() : '';
         const hasScore = as !== '' && hs !== '';
@@ -1491,14 +1479,9 @@
 
         return `<div class="team-featured-card">
                   <div class="team-featured-label">${label}</div>
-                  <div class="team-featured-body">
-                    <img class="team-featured-logo" src="/logos/100px/${oppLogo}" onerror="this.src='/logos/100px/Ball603-white.png'">
-                    <div class="team-featured-info">
-                      <div class="team-featured-opp">${homeAway} ${opponent}</div>
-                      <div class="team-featured-meta">${dateStr} · ${timeStr}</div>
-                      ${resultLine}
-                    </div>
-                  </div>
+                  <div class="team-featured-opp">${homeAway} ${opponent}</div>
+                  <div class="team-featured-meta">${dateStr} · ${timeStr}</div>
+                  ${resultLine}
                 </div>`;
       };
 
