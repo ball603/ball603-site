@@ -951,17 +951,24 @@ img {
   display: none;
   position: fixed;
   top: 0;
-  right: -100%;
+  right: 0;
+  /* Parked off-screen with a transform rather than right: -100%. The old value
+     put the element's box up to a full viewport width past the right edge, which
+     can extend the scrollable area (and did show up in overflow audits). A
+     transform never contributes to layout overflow, and animates on the
+     compositor instead of triggering layout on every frame. */
+  transform: translateX(100%);
   width: 300px;
+  max-width: 85vw;
   height: 100vh;
   background: var(--dark);
   z-index: 1001;
-  transition: right 0.3s ease;
+  transition: transform 0.3s ease;
   overflow-y: auto;
 }
 
 .mobile-drawer.active {
-  right: 0;
+  transform: translateX(0);
 }
 
 .mobile-drawer-overlay {
@@ -1137,6 +1144,45 @@ img {
   
   .mobile-drawer {
     display: block;
+  }
+
+  /* Keep the header row inside the viewport on narrow phones.
+     The logo was flex-shrink: 0 at up to 160px wide with a 32px right margin,
+     and the search pill + hamburger are a fixed ~170px, so below about 375px the
+     row simply could not fit and pushed the whole page sideways — every page on
+     the site scrolled horizontally. Making the logo the one compressible element
+     means the row always fits: it renders full size on normal phones and only
+     gives up width on genuinely tiny screens. */
+  .header-inner {
+    padding: 0 12px;
+  }
+
+  .header-logo {
+    flex-shrink: 1;
+    min-width: 0;
+    margin-right: 12px;
+  }
+
+  /* Keep the explicit height (the logo is an SVG; height:auto risks it collapsing
+     if it has no intrinsic size) but let max-width shrink the box, with
+     object-fit:contain so the artwork scales instead of squashing. */
+  .header-logo img {
+    height: 32px;
+    width: auto;
+    /* min() keeps the original 160px cap on roomier phones — so the logo looks
+       exactly as it does today — while still letting it shrink when the row runs
+       out of space on small ones. */
+    max-width: min(160px, 100%);
+    object-fit: contain;
+  }
+
+  .header-right {
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .mobile-menu-toggle {
+    flex-shrink: 0;
   }
 }
 
@@ -1675,10 +1721,29 @@ img {
 
 /* Mobile dark theme for sport filter */
 @media (max-width: 768px) {
+  /* Three sport buttons ("Girls Volleyball" alone is ~130px) are wider than a
+     small phone, and the wrapper had no overflow handling — so the control
+     pushed the whole page sideways on News and Standings. Let it scroll inside
+     itself instead. `margin: 0 auto` on the child keeps it centred when it does
+     fit, unlike justify-content: center, which makes the left end unreachable
+     once it overflows. */
+  .sport-filter-wrapper {
+    justify-content: flex-start;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .sport-filter-wrapper::-webkit-scrollbar {
+    display: none;
+  }
+
   .sport-filter {
     background: #2d2d2d;
     gap: 2px;
     padding: 3px;
+    margin: 0 auto;
+    flex-shrink: 0;
   }
   
   .sport-btn {
