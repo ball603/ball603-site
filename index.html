@@ -82,11 +82,17 @@
     .ticker-label:hover {
       background: #e56b00;
     }
-    
-    .ticker-label svg {
-      opacity: 0.8;
+
+    /* The chip is a plain label now, not a filter button — no pointer cursor and
+       no hover colour, so it doesn't advertise a click that does nothing. */
+    .ticker-label-static {
+      cursor: default;
     }
-    
+
+    .ticker-label-static:hover {
+      background: var(--accent);
+    }
+
     /* Ticker Filter Modal */
     .ticker-filter-overlay {
       display: none;
@@ -2079,12 +2085,7 @@
   <!-- ===== SCORES TICKER ===== -->
   <div class="scores-ticker">
     <div class="ticker-container">
-      <button class="ticker-label" id="tickerFilterBtn" onclick="openTickerFilter()">
-        <span id="tickerFilterLabel">NHIAA</span>
-        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
-          <polyline points="6 9 12 15 18 9"/>
-        </svg>
-      </button>
+      <span class="ticker-label ticker-label-static">SCORES</span>
       <button class="ticker-arrow ticker-arrow-left" onclick="scrollTickerPage(-1)">&#8249;</button>
       <div class="ticker-scroll" id="tickerScroll">
         <!-- Populated by JS -->
@@ -2101,35 +2102,10 @@
       <button class="ticker-arrow ticker-arrow-right" onclick="scrollTickerPage(1)">&#8250;</button>
     </div>
     
-    <!-- Ticker Filter Modal -->
-    <div class="ticker-filter-overlay" id="tickerFilterOverlay" onclick="closeTickerFilter()"></div>
-    <div class="ticker-filter-modal" id="tickerFilterModal" onclick="event.stopPropagation()">
-      <div class="ticker-filter-header">
-        <span>Show Scores</span>
-        <button onclick="closeTickerFilter()" class="ticker-filter-close">&times;</button>
-      </div>
-      <div class="ticker-filter-options">
-        <label class="ticker-filter-option">
-          <input type="checkbox" id="filterNHIAA" checked onchange="updateTickerFilter()">
-          <span class="ticker-filter-check"></span>
-          <span>NHIAA (High School)</span>
-        </label>
-        <label class="ticker-filter-option">
-          <input type="checkbox" id="filterNCAA" onchange="updateTickerFilter()">
-          <span class="ticker-filter-check"></span>
-          <span>NCAA (College)</span>
-        </label>
-      </div>
-      <div class="ticker-filter-note">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-        </svg>
-        My Teams always appear regardless of filters
-      </div>
-      <a href="/schedule" class="ticker-filter-schedule">View Full Schedule &rarr;</a>
-    </div>
+    <!-- The NHIAA/NCAA filter dropdown was removed: the ticker now always shows
+         high school scores, so there was nothing left to choose between. -->
   </div>
-  
+
   <!-- ===== NEWS HERO ===== -->
   <section class="news-hero" id="newsHero">
     <article class="hero-featured" id="heroFeatured">
@@ -2328,57 +2304,15 @@
       ticker.scrollBy({ left: direction * visibleWidth, behavior: 'smooth' });
     }
     
-    // Ticker filter functions
-    function loadTickerFilter() {
-      try {
-        const saved = localStorage.getItem('ball603TickerFilter');
-        return saved ? JSON.parse(saved) : { nhiaa: true, ncaa: false };
-      } catch { return { nhiaa: true, ncaa: false }; }
-    }
-    
-    function saveTickerFilter(filter) {
-      localStorage.setItem('ball603TickerFilter', JSON.stringify(filter));
-    }
-    
-    function openTickerFilter() {
-      const filter = loadTickerFilter();
-      document.getElementById('filterNHIAA').checked = filter.nhiaa;
-      document.getElementById('filterNCAA').checked = filter.ncaa;
-      document.getElementById('tickerFilterOverlay').classList.add('show');
-      document.getElementById('tickerFilterModal').classList.add('show');
-    }
-    
-    function closeTickerFilter() {
-      document.getElementById('tickerFilterOverlay').classList.remove('show');
-      document.getElementById('tickerFilterModal').classList.remove('show');
-    }
-    
-    function updateTickerFilter() {
-      const filter = {
-        nhiaa: document.getElementById('filterNHIAA').checked,
-        ncaa: document.getElementById('filterNCAA').checked
-      };
-      saveTickerFilter(filter);
-      updateTickerLabel();
-      renderTicker();
-    }
-    
-    function updateTickerLabel() {
-      const filter = loadTickerFilter();
-      const label = document.getElementById('tickerFilterLabel');
-      if (filter.nhiaa && filter.ncaa) {
-        label.textContent = 'ALL';
-      } else if (filter.nhiaa) {
-        label.textContent = 'NHIAA';
-      } else if (filter.ncaa) {
-        label.textContent = 'NCAA';
-      } else {
-        label.textContent = 'MY TEAMS';
-      }
-    }
-    
-    // Initialize ticker label on page load
-    document.addEventListener('DOMContentLoaded', updateTickerLabel);
+    // The ticker's NHIAA/NCAA filter is gone — it now always shows high school
+    // scores and the chip is a plain "SCORES" label.
+    //
+    // One-time cleanup: anyone who previously unchecked NHIAA has
+    // ball603TickerFilter saved with nhiaa:false. With no dropdown left to fix it,
+    // that would leave them staring at a permanently empty ticker. Drop the stored
+    // preference so everyone starts fresh.
+    try { localStorage.removeItem('ball603TickerFilter'); } catch (e) {}
+
     document.addEventListener('DOMContentLoaded', setupMobilePlaybook);
     
     // Wait for Ball603 to be ready
@@ -2513,8 +2447,7 @@
     function renderTicker() {
       const container = document.getElementById('tickerScroll');
       const games = tickerAllGames.length > 0 ? tickerAllGames : (Ball603.state?.games || []);
-      const filter = loadTickerFilter();
-      
+
       // Get date strings in EST
       const now = new Date();
       const todayStr = now.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
@@ -2554,20 +2487,12 @@
         return true;
       });
       
-      // Apply NHIAA/NCAA filter (but always keep favorites)
+      // High school only. The NHIAA/NCAA toggle was removed, so college games no
+      // longer reach the ticker — but a favorite team still always shows.
       tickerGames = tickerGames.filter(game => {
         const priority = Ball603.getGamePriority ? Ball603.getGamePriority(game) : 2;
-        // Always show favorite teams (priority 0) or favorite divisions (priority 1)
-        if (priority < 2) return true;
-        
-        // Check level filter
-        const isNHIAA = game.level === 'NHIAA' || game.level === 'High School';
-        const isNCAA = game.level === 'College' || game.level === 'NCAA';
-        
-        if (filter.nhiaa && isNHIAA) return true;
-        if (filter.ncaa && isNCAA) return true;
-        
-        return false;
+        if (priority < 2) return true; // favorite team
+        return game.level === 'NHIAA' || game.level === 'High School';
       });
       
       // Sort: My Teams first, then finals (most recent first), then upcoming by time

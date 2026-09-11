@@ -608,8 +608,6 @@
     // Clear all
     if (clearBtn) {
       clearBtn.addEventListener('click', () => {
-        // Uncheck all divisions
-        document.querySelectorAll('.favorites-divisions input').forEach(cb => cb.checked = false);
         // Clear all team selections
         window._tempSelectedTeams = [];
         renderSelectedTags();
@@ -656,12 +654,6 @@
     // Load current favorites
     const favorites = loadFavorites();
     window._tempSelectedTeams = [...(favorites.teams || [])];
-    
-    // Set division checkboxes
-    document.getElementById('favDiv1').checked = favorites.divisions?.includes('D1') || false;
-    document.getElementById('favDiv2').checked = favorites.divisions?.includes('D2') || false;
-    document.getElementById('favDiv3').checked = favorites.divisions?.includes('D3') || false;
-    document.getElementById('favDiv4').checked = favorites.divisions?.includes('D4') || false;
     
     // Load teams list
     loadTeamsForModal();
@@ -826,15 +818,12 @@
   }
 
   function saveFavoritesFromModal() {
-    const divisions = [];
-    if (document.getElementById('favDiv1').checked) divisions.push('D1');
-    if (document.getElementById('favDiv2').checked) divisions.push('D2');
-    if (document.getElementById('favDiv3').checked) divisions.push('D3');
-    if (document.getElementById('favDiv4').checked) divisions.push('D4');
-    
     const teams = window._tempSelectedTeams || [];
-    
-    const favorites = { teams, divisions };
+
+    // Following a whole division is gone — the divisions don't line up across
+    // sports, so it was more confusing than useful. Saving an empty list also
+    // clears it for anyone who had one stored from before.
+    const favorites = { teams, divisions: [] };
     localStorage.setItem('ball603Favorites', JSON.stringify(favorites));
     
     // Update button state
@@ -842,9 +831,8 @@
     
     // Show toast if Ball603 is available
     if (window.Ball603?.showToast) {
-      const count = teams.length + divisions.length;
       window.Ball603.showToast(
-        count > 0 ? `Saved ${teams.length} team${teams.length !== 1 ? 's' : ''} and ${divisions.length} division${divisions.length !== 1 ? 's' : ''}` : 'Favorites cleared',
+        teams.length > 0 ? `Saved ${teams.length} team${teams.length !== 1 ? 's' : ''}` : 'Favorites cleared',
         'success'
       );
     }
@@ -861,7 +849,7 @@
 
   function updateFavoritesButtonState() {
     const favorites = loadFavorites();
-    const hasAny = (favorites.teams?.length > 0) || (favorites.divisions?.length > 0);
+    const hasAny = (favorites.teams?.length > 0);
     
     const headerToggle = document.getElementById('favoritesToggle');
     const mobileCount = document.getElementById('favoritesCount');
@@ -871,7 +859,7 @@
     }
     
     if (mobileCount) {
-      const count = (favorites.teams?.length || 0) + (favorites.divisions?.length || 0);
+      const count = (favorites.teams?.length || 0);
       mobileCount.textContent = count;
       mobileCount.style.display = count > 0 ? 'inline' : 'none';
     }

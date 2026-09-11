@@ -85,19 +85,6 @@
     .empty-state { text-align: center; padding: 30px; color: #888; }
     .empty-state .empty-icon { font-size: 40px; margin-bottom: 10px; opacity: 0.5; }
     
-    /* Recent Coverage Grid */
-    .recent-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px; }
-    .recent-card { background: #f9f9f9; border-radius: 8px; overflow: hidden; transition: transform 0.2s, box-shadow 0.2s; cursor: pointer; text-decoration: none; color: inherit; }
-    .recent-card:hover { transform: translateY(-3px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-    .recent-thumb { width: 100%; aspect-ratio: 16/9; background: #e0e0e0; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-    .recent-thumb img { width: 100%; height: 100%; object-fit: cover; }
-    .recent-thumb .thumb-placeholder { font-size: 30px; opacity: 0.3; }
-    .recent-info { padding: 12px; }
-    .recent-teams { font-weight: 600; font-size: 13px; color: #333; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .recent-date { font-size: 11px; color: #888; }
-    .recent-badges { display: flex; gap: 6px; margin-top: 8px; }
-    .recent-badge { font-size: 14px; }
-    
     /* Profile Section Styles */
     .section { background: #fff; border-radius: 10px; padding: 25px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
     .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #f57c00; }
@@ -279,13 +266,6 @@
           </div>
         </div>
         
-        <!-- Recent Coverage -->
-        <div class="section-card">
-          <h2><span class="section-icon">📸</span> Your Recent Coverage</h2>
-          <div class="recent-grid" id="recentGrid">
-            <div class="loading"><span class="loading-spinner"></span> Loading...</div>
-          </div>
-        </div>
       </div>
     </div>
     
@@ -1129,7 +1109,6 @@
       // Use local date (not UTC) to avoid timezone issues in evening hours
       const today = new Date().toLocaleDateString('en-CA'); // Returns YYYY-MM-DD in local timezone
       loadUpcomingCoverage(contributorName, today);
-      loadRecentCoverage(contributorName, today);
     }
     
     async function loadUpcomingCoverage(contributorName, today) {
@@ -1187,64 +1166,6 @@
       }
     }
     
-    async function loadRecentCoverage(contributorName, today) {
-      const container = document.getElementById('recentGrid');
-      container.innerHTML = '<div class="loading"><span class="loading-spinner"></span> Loading...</div>';
-      
-      try {
-        const response = await fetch(`/.netlify/functions/games?end_date=${today}&limit=500`);
-        const games = await response.json();
-        
-        const myGames = games.filter(g => 
-          ((g.photog1 || '').trim() === contributorName || 
-           (g.photog2 || '').trim() === contributorName || 
-           (g.videog || '').trim() === contributorName || 
-           (g.writer || '').trim() === contributorName) &&
-          (g.photos_url || g.recap_url)
-        ).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8);
-        
-        if (myGames.length === 0) {
-          container.innerHTML = `
-            <div class="empty-state" style="grid-column: 1/-1;">
-              <div class="empty-icon">📸</div>
-              <p>No recent coverage yet</p>
-            </div>
-          `;
-          return;
-        }
-        
-        container.innerHTML = myGames.map(game => {
-          const [year, month, day] = game.date.split('-');
-          const monthName = MONTH_NAMES_SHORT[parseInt(month, 10) - 1];
-          const link = game.photos_url || game.recap_url || '#';
-          const hasPhotos = !!game.photos_url;
-          const hasRecap = !!game.recap_url;
-          const thumbUrl = game.photos_thumb_url;
-          
-          return `
-            <a class="recent-card" href="${link}" target="_blank">
-              <div class="recent-thumb">
-                ${thumbUrl 
-                  ? `<img src="${thumbUrl}" alt="${game.away} @ ${game.home}" onerror="this.parentElement.innerHTML='<span class=\\'thumb-placeholder\\'>📷</span>'">` 
-                  : '<span class="thumb-placeholder">📷</span>'}
-              </div>
-              <div class="recent-info">
-                <div class="recent-teams">${game.away} @ ${game.home}</div>
-                <div class="recent-date">${monthName} ${parseInt(day)}, ${year}</div>
-                <div class="recent-badges">
-                  ${hasPhotos ? '<span class="recent-badge">📸</span>' : ''}
-                  ${hasRecap ? '<span class="recent-badge">📝</span>' : ''}
-                </div>
-              </div>
-            </a>
-          `;
-        }).join('');
-        
-      } catch (err) {
-        console.error('Error loading recent:', err);
-        container.innerHTML = '<div class="empty-state" style="grid-column: 1/-1;">Error loading coverage</div>';
-      }
-    }
     
     // Profile functions
     function populateForm(c) {

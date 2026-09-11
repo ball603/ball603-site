@@ -475,7 +475,7 @@ function loadFavorites() {
 
 /**
  * Check if a game involves a favorite team or division
- * Returns priority: 0 = favorite team, 1 = favorite division, 2 = neither
+ * Returns priority: 0 = favorite team, 2 = not a favorite
  */
 function getGamePriority(game) {
   const favorites = loadFavorites();
@@ -503,22 +503,10 @@ function getGamePriority(game) {
     if (homeMatch || awayMatch) return 0;
   }
   
-  // Check if game is in a favorite division
-  // Handle both formats: D1/D2/D3/D4 (teams) and D-I/D-II/D-III/D-IV (games)
-  if (favorites.divisions?.length > 0 && game.division) {
-    const divisionMap = {
-      'D1': ['D1', 'D-I'],
-      'D2': ['D2', 'D-II'],
-      'D3': ['D3', 'D-III'],
-      'D4': ['D4', 'D-IV']
-    };
-    
-    for (const favDiv of favorites.divisions) {
-      const matches = divisionMap[favDiv] || [favDiv];
-      if (matches.includes(game.division)) return 1;
-    }
-  }
-  
+  // Following a whole division was removed from My Teams — the divisions don't
+  // line up across sports, so it was confusing. Any divisions still sitting in a
+  // reader's saved favorites from before are deliberately ignored here, so nobody
+  // is left with games pinned to the top and no UI to unpin them.
   return 2;
 }
 
