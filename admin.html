@@ -5558,6 +5558,37 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     </div>
   </div>
 
+  <!-- Scheduled Link Modal -->
+  <!-- Shown after a scheduled publish so the article's URL can be copied straight
+       into Hootsuite (or anywhere else) without waiting for the story to go live. -->
+  <div class="modal-overlay" id="scheduledLinkModal">
+    <div class="modal" style="max-width: 520px;">
+      <div class="modal-header">
+        <h3>&#x1F5D3;&#xFE0F; Article Scheduled</h3>
+        <button class="modal-close" onclick="closeScheduledLinkModal()">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 20px;">
+        <p style="margin: 0 0 18px; font-size: 14px; color: #333;">
+          Goes live <strong id="scheduledLinkWhen"></strong>.
+        </p>
+        <label style="font-weight: 600; margin-bottom: 8px; display: block; font-size: 13px;">Article link</label>
+        <div style="display: flex; gap: 8px;">
+          <input type="text" id="scheduledLinkUrl" readonly onclick="this.select()"
+                 style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; background: #fafafa;">
+          <button class="btn-modal btn-modal-select" onclick="copyScheduledLink()" style="white-space: nowrap;">Copy</button>
+        </div>
+        <p style="font-size: 12px; color: #666; margin-top: 14px; line-height: 1.5;">
+          This URL is final and won't change, so it's safe to schedule social posts against it now &mdash;
+          the headline and preview image already resolve for link previews.
+          Note that anyone who opens the link can read the story before it goes live, so don't post it early.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-modal btn-modal-cancel" onclick="closeScheduledLinkModal()">Done</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Preview Modal -->
   <div class="modal-overlay" id="previewModal">
     <div class="modal" style="max-width: 1000px; max-height: 90vh;">
@@ -8291,7 +8322,17 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       list.innerHTML = headerHtml +
         filtered.map(article => {
           const isPublished = article.status === 'published';
-          const articleUrl = isPublished ? `https://ball603.com/article/${article.slug}` : '';
+          // A scheduled article already has its final slug, so its link is valid
+          // and copyable here too — that's how you get it back after closing the
+          // editor.
+          const isScheduledArticle = article.status === 'scheduled';
+          const articleUrl = (isPublished || isScheduledArticle) ? `https://ball603.com/article/${article.slug}` : '';
+          const scheduledButtons = isScheduledArticle ? `
+            <div style="display: flex; gap: 4px; margin-top: 4px;">
+              <button onclick="event.stopPropagation(); copyArticleUrl('${articleUrl}')" style="padding: 3px 6px; font-size: 10px; background: #666; color: white; border: none; border-radius: 3px; cursor: pointer;" title="Copy Link">&#x1F517;</button>
+              ${article.social_posts ? `<button onclick="event.stopPropagation(); viewStoredSocialPosts('${article.id}')" style="padding: 3px 6px; font-size: 10px; background: #9c27b0; color: white; border: none; border-radius: 3px; cursor: pointer;" title="View Social Posts">&#x1F4F1;</button>` : ''}
+            </div>
+          ` : '';
           const shareButtons = isPublished ? `
             <div style="display: flex; gap: 4px; margin-top: 4px;">
               <button onclick="event.stopPropagation(); shareArticle('facebook', '${articleUrl}')" style="padding: 3px 6px; font-size: 10px; background: #1877f2; color: white; border: none; border-radius: 3px; cursor: pointer;" title="Share to Facebook">FB</button>
@@ -8317,7 +8358,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
               <div>
                 <div class="article-title" onclick="editArticle('${article.id}')">${article.title || 'Untitled'}</div>
                 ${isPinned ? '<span style="font-size: 10px; color: #f57c00;">&#x1F4CC; Pinned</span>' : ''}
-                ${shareButtons}
+                ${shareButtons}${scheduledButtons}
               </div>
             </div>
             <div class="article-level">${level}</div>
@@ -8573,6 +8614,52 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     function closeScheduleModal() {
       document.getElementById('scheduleModal').classList.remove('open');
       document.body.style.overflow = 'auto';
+    }
+
+    // ===== SCHEDULED ARTICLE LINK =====
+    // A scheduled story has a real, final slug the moment it's saved, so the URL
+    // can be handed to Hootsuite straight away instead of waiting for it to publish.
+    function articleUrlFor(slug) {
+      return `https://ball603.com/article/${slug}`;
+    }
+
+    function showScheduledLink(slug, scheduledAtIso) {
+      document.getElementById('scheduledLinkUrl').value = articleUrlFor(slug);
+      document.getElementById('scheduledLinkWhen').textContent = formatDateTime(scheduledAtIso);
+      document.getElementById('scheduledLinkModal').classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeScheduledLinkModal() {
+      document.getElementById('scheduledLinkModal').classList.remove('open');
+      document.body.style.overflow = 'auto';
+      closeEditor();
+      loadArticles();
+    }
+
+    function copyScheduledLink() {
+      const input = document.getElementById('scheduledLinkUrl');
+      // navigator.clipboard needs a secure context and can still be blocked, so
+      // always keep the execCommand path as a fallback.
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(input.value)
+          .then(() => showToast('Link copied!', 'success'))
+          .catch(() => fallbackCopyInput(input));
+      } else {
+        fallbackCopyInput(input);
+      }
+    }
+
+    function fallbackCopyInput(input) {
+      input.focus();
+      input.select();
+      input.setSelectionRange(0, 99999);
+      try {
+        document.execCommand('copy');
+        showToast('Link copied!', 'success');
+      } catch (e) {
+        showToast('Select the link and press Cmd/Ctrl+C', 'warning');
+      }
     }
     
     function setSchedule() {
@@ -13190,7 +13277,9 @@ Respond ONLY with valid JSON:
       
       if (isScheduled) {
         showToast(`Article scheduled for ${formatDateTime(scheduledAt)}!`, 'success');
-        closeEditor();
+        // Hand over the article's URL rather than just closing — it's needed for
+        // scheduling the matching social posts.
+        showScheduledLink(slug, scheduledAt);
       } else {
         showToast('Article published!', 'success');
         pendingMarqueeContent = null; // Clear marquee content after publishing
