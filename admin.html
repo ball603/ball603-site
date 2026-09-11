@@ -8541,7 +8541,19 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     // Schedule modal functions
     let isScheduled = false;
     let scheduledTime = null;
-    
+
+    // A datetime-local input speaks LOCAL time and carries no timezone, so a UTC
+    // timestamp can never be dropped into it as-is. Doing that showed the UTC
+    // hour as if it were local, and since publishArticle() converts the field
+    // back local -> UTC on save, every reopen-and-republish pushed the scheduled
+    // time another offset later: 4:30 PM was stored, reopened as 8:30 PM, and
+    // saved as 12:30 AM. Always run a stored timestamp through here first.
+    function toLocalInputValue(date) {
+      const pad = n => String(n).padStart(2, '0');
+      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +
+             `T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    }
+
     function openScheduleModal() {
       const modal = document.getElementById('scheduleModal');
       modal.classList.add('open');
@@ -8554,7 +8566,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
         tomorrow.setHours(9, 0, 0, 0);
-        document.getElementById('scheduledDateTime').value = tomorrow.toISOString().slice(0, 16);
+        document.getElementById('scheduledDateTime').value = toLocalInputValue(tomorrow);
       }
     }
     
@@ -11913,7 +11925,10 @@ Respond ONLY with valid JSON:
       // Handle scheduling
       if (article.scheduled_at) {
         isScheduled = true;
-        scheduledTime = article.scheduled_at.slice(0, 16);
+        // scheduled_at is stored in UTC. Convert to local before it reaches the
+        // datetime-local field — slicing the raw ISO string shifted the time by
+        // the timezone offset on every reopen.
+        scheduledTime = toLocalInputValue(new Date(article.scheduled_at));
         document.getElementById('scheduledDateTime').value = scheduledTime;
       } else {
         isScheduled = false;
