@@ -506,7 +506,40 @@
         color: #f57c00;
         font-weight: 600;
       }
-      
+
+      /* Date + time group on the right of the card header. Only carries a date
+         in team-search view, where the list spans multiple days. */
+      .game-card-meta {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-shrink: 0;
+      }
+
+      .game-card-date {
+        font-size: 12px;
+        font-weight: 600;
+        color: #aaa;
+        white-space: nowrap;
+      }
+
+      /* Separator only when a date is actually present */
+      .game-card-date + .game-time::before {
+        content: '·';
+        margin-right: 6px;
+        color: #666;
+        font-weight: 400;
+      }
+
+      /* The level label can be long ("GIRLS NHIAA" plus a playoff badge); let it
+         shrink rather than pushing the date off the card. */
+      .game-card-header .game-level {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
       .game-card-body {
         padding: 12px 15px;
         background: #2d2d2d;
@@ -1546,6 +1579,20 @@
     // Build the shared table + card list HTML for a given games array.
     // Extracted so both renderDateView and renderTeamView can share the same rendering.
     function buildGamesListHtml(games, teamNameForFocus) {
+      // In team-search view the list spans a whole season, so each mobile card
+      // carries its own date. In date-browse view the sticky header above the
+      // list already names the day, so repeating it on every card is noise.
+      const showCardDate = !!teamNameForFocus;
+
+      // Noon, not midnight: `new Date('2026-09-11')` parses as UTC and renders as
+      // Sep 10 for anyone behind UTC, which is every reader of this site.
+      const formatCardDate = (dateStr) => {
+        if (!dateStr) return '';
+        const d = new Date(dateStr + 'T12:00:00');
+        if (isNaN(d)) return '';
+        return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+      };
+
       // Desktop table
       let tableHtml = '<table class="games-table"><thead><tr><th class="col-sport">Sport</th><th class="col-level">Level</th><th class="col-gender">Gender</th><th class="col-away">Match-up</th><th class="col-home"></th><th class="col-status">Time/Status</th><th class="col-coverage">Coverage</th></tr></thead><tbody>';
       
@@ -1637,7 +1684,9 @@
         const playoffHeader = isPlayoff && g.round ? '<span class="playoff-badge">'+(roundNames[g.round]||g.round)+'</span> ' : '';
         cardsHtml += '<div class="game-card'+(isPlayoff?' playoff':'')+'">';
         if (g.gamedescription) cardsHtml += '<div class="game-description">'+g.gamedescription+'</div>';
-        cardsHtml += '<div class="game-card-header"><span class="game-level"><span class="game-sport-emoji">'+getSportEmoji(g.sport || 'basketball')+'</span>'+playoffHeader+(g.gender||'')+' '+(g.level||'')+'</span><span class="game-time">'+td+'</span></div>';
+        const cardDate = showCardDate ? formatCardDate(g.date) : '';
+        const cardDateHtml = cardDate ? '<span class="game-card-date">'+cardDate+'</span>' : '';
+        cardsHtml += '<div class="game-card-header"><span class="game-level"><span class="game-sport-emoji">'+getSportEmoji(g.sport || 'basketball')+'</span>'+playoffHeader+(g.gender||'')+' '+(g.level||'')+'</span><span class="game-card-meta">'+cardDateHtml+'<span class="game-time">'+td+'</span></span></div>';
         cardsHtml += '<div class="game-card-body">';
         cardsHtml += '<div class="game-team">'+getMobileTeamLink(dAway, getLogoFilename(dAway), isPlayoff ? null : dAwayRecord, g.level, sportValue, isPlayoff && dAwaySeed ? '#'+dAwaySeed : null)+(hasScore?'<div class="team-score'+(aw?' winner':'')+'">'+dAwayScore+'</div>':'')+'</div>';
         if (isNeutralSite) cardsHtml += '<div class="neutral-site-label">vs.</div>';
