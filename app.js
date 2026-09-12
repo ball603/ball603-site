@@ -1187,6 +1187,45 @@ function showToast(message, type = 'default', duration = 3000) {
 /**
  * Initialize the application
  */
+/**
+ * Safety net for scheduled articles.
+ *
+ * The Netlify cron (publish-scheduled-articles) is the primary trigger, but on
+ * Sept 12 2026 a story sat 18 minutes past its slot without the cron firing, so
+ * the site no longer depends on it alone. Cost per page load is one tiny indexed
+ * query; the publish function is only called when a story is genuinely overdue.
+ *
+ * Publishing itself still happens server-side with the service key — this only
+ * asks for it. Failures are swallowed: a visitor must never see anything from it.
+ */
+async function publishDueScheduledArticles() {
+  try {
+    const client = initSupabase();
+    if (!client) return;
+
+    // At most one ping per browser every two minutes.
+    const PING_KEY = 'ball603PublishPing';
+    let lastPing = 0;
+    try { lastPing = parseInt(localStorage.getItem(PING_KEY) || '0', 10) || 0; } catch (e) {}
+    if (Date.now() - lastPing < 120000) return;
+
+    const { data, error } = await client
+      .from('articles')
+      .select('id')
+      .eq('status', 'scheduled')
+      .lte('scheduled_at', new Date().toISOString())
+      .limit(1);
+
+    if (error || !data || data.length === 0) return;
+
+    try { localStorage.setItem(PING_KEY, String(Date.now())); } catch (e) {}
+    // Fire and forget. The function is idempotent, so overlapping pings are safe.
+    fetch('/.netlify/functions/run-publish-scheduled', { cache: 'no-store' }).catch(() => {});
+  } catch (e) {
+    /* never let this surface to the page */
+  }
+}
+
 async function initApp() {
   // Initialize Supabase (wait for library to load)
   await waitForSupabase();
@@ -1232,7 +1271,11 @@ async function initApp() {
   document.addEventListener('favorites:updated', () => {
     renderTicker(getCompletedGames());
   });
-  
+
+  // Safety net for scheduled articles. Deliberately not awaited — it must never
+  // delay or break the page.
+  publishDueScheduledArticles();
+
   // Dispatch event for page-specific initialization
   document.dispatchEvent(new CustomEvent('ball603:ready', { 
     detail: { 
