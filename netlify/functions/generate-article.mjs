@@ -1375,36 +1375,6 @@ async function handleVolleyballWrite(body, headers) {
     ? sets.map((s, i) => `Set ${i + 1}: ${proofData.awayTeam} ${s.away}, ${proofData.homeTeam} ${s.home}`).join('\n')
     : 'Not provided — the reporter only supplied the match score.';
 
-  // Records: only surface them to the writer once a team has played 10+ matches
-  const awayRecord = proofData.awayRecord;
-  const homeRecord = proofData.homeRecord;
-  const awayPlayed = Number.isFinite(parseInt(proofData.awayMatchesPlayed))
-    ? parseInt(proofData.awayMatchesPlayed)
-    : ((awayRecord?.wins || 0) + (awayRecord?.losses || 0));
-  const homePlayed = Number.isFinite(parseInt(proofData.homeMatchesPlayed))
-    ? parseInt(proofData.homeMatchesPlayed)
-    : ((homeRecord?.wins || 0) + (homeRecord?.losses || 0));
-
-  const MIN_MATCHES_FOR_STANDINGS = 10;
-  const awayRecordUsable = awayRecord && awayPlayed >= MIN_MATCHES_FOR_STANDINGS;
-  const homeRecordUsable = homeRecord && homePlayed >= MIN_MATCHES_FOR_STANDINGS;
-  const awayRecordStr = awayRecord ? `${awayRecord.wins}-${awayRecord.losses}` : null;
-  const homeRecordStr = homeRecord ? `${homeRecord.wins}-${homeRecord.losses}` : null;
-
-  let recordsBlock;
-  if (awayRecordUsable || homeRecordUsable) {
-    const parts = [];
-    if (awayRecordUsable) parts.push(`${proofData.awayTeam} is ${awayRecordStr} (${awayPlayed} matches played)`);
-    if (homeRecordUsable) parts.push(`${proofData.homeTeam} is ${homeRecordStr} (${homePlayed} matches played)`);
-    const withheld = [];
-    if (!awayRecordUsable) withheld.push(proofData.awayTeam);
-    if (!homeRecordUsable) withheld.push(proofData.homeTeam);
-    recordsBlock = `RECORDS AFTER THIS MATCH (usable — these teams have played ${MIN_MATCHES_FOR_STANDINGS}+ matches):
-${parts.join('\n')}${withheld.length ? `\nDO NOT state or imply a record or standing for: ${withheld.join(', ')} — too early in the season.` : ''}`;
-  } else {
-    recordsBlock = `RECORDS: Withheld. Neither team has played ${MIN_MATCHES_FOR_STANDINGS} matches yet, so it is too early in the season to characterize records or standings. Do NOT state, estimate, or imply either team's record, place in the standings, or season trajectory.`;
-  }
-
   // Both teams can be opening their season in the same match — name every one that is.
   const seasonOpeners = [];
   if (proofData.awaySeasonOpener) seasonOpeners.push(proofData.awayTeam);
@@ -1449,8 +1419,47 @@ ${parts.join('\n')}${withheld.length ? `\nDO NOT state or imply a record or stan
 - ${homeNextLine}`
     : `NEXT GAMES: Not available for both teams. Do NOT write a look-ahead paragraph and do NOT speculate about either team's next opponent or schedule.`;
 
+  // ── Records: "With the win, Farmington improves to 4-1 on the season, while
+  // Nute falls to 1-3." The CMS has already done the arithmetic — it counts every
+  // scored match before this one from the games table and adds tonight's result —
+  // so the finished sentence is handed to the model rather than the raw numbers.
+  // Writing it here also keeps the phrasing identical from story to story.
+  const awayRecord = proofData.awayRecord;
+  const homeRecord = proofData.homeRecord;
+  const recordStr = r => (r && Number.isFinite(+r.wins) && Number.isFinite(+r.losses))
+    ? `${r.wins}-${r.losses}` : null;
+
+  // A team playing its season opener has nothing to "improve to" — 1-0 reads
+  // oddly, and the SEASON OPENER note already covers that team.
+  const awayRecordUsable = Boolean(recordStr(awayRecord) && !proofData.awaySeasonOpener);
+  const homeRecordUsable = Boolean(recordStr(homeRecord) && !proofData.homeSeasonOpener);
+
+  const winnerRecordStr  = awayWon ? recordStr(awayRecord) : recordStr(homeRecord);
+  const loserRecordStr   = awayWon ? recordStr(homeRecord) : recordStr(awayRecord);
+  const winnerRecordOk   = awayWon ? awayRecordUsable : homeRecordUsable;
+  const loserRecordOk    = awayWon ? homeRecordUsable : awayRecordUsable;
+
+  const winNoun = (winnerSets === 3 && loserSets === 0) ? 'sweep' : 'win';
+
+  let recordSentence = null;
+  if (winnerRecordOk && loserRecordOk) {
+    recordSentence = `With the ${winNoun}, ${winner} improves to ${winnerRecordStr} on the season, while ${loser} falls to ${loserRecordStr}.`;
+  } else if (winnerRecordOk) {
+    recordSentence = `With the ${winNoun}, ${winner} improves to ${winnerRecordStr} on the season.`;
+  } else if (loserRecordOk) {
+    recordSentence = `With the loss, ${loser} falls to ${loserRecordStr} on the season.`;
+  }
+
+  const recordsBlock = recordSentence
+    ? `RECORDS: Do NOT write either team's record, and do not work one out. This exact sentence is added automatically after you finish, as its own paragraph ${hasLookAhead
+        ? 'directly before your closing look-ahead paragraph'
+        : 'at the end of the article'}:
+"${recordSentence}"
+It is shown to you only so your text doesn't clash with it. Write around it: no records, no "now 4-1", no standings, no characterization of where either team sits in the division or how its season is going.`
+    : `RECORDS: Withheld — this was a season opener, so there is no record to report. Do NOT state, estimate, or imply either team's record, place in the standings, or season trajectory.`;
+
   const closingInstruction = hasLookAhead
-    ? `- FINAL PARAGRAPH: a short, factual look-ahead built from the NEXT GAMES facts above, and nothing else. One sentence covering both teams, e.g. "${proofData.awayTeam} travels to Opponent on Tuesday, while ${proofData.homeTeam} hosts Other Opponent on Thursday." Use mascot nicknames here if you like. No commentary about momentum, confidence, what a team "needs", or how its season is shaping up.`
+    ? `- FINAL PARAGRAPH: a short, factual look-ahead built from the NEXT GAMES facts above, and nothing else. A records sentence is inserted automatically in the paragraph directly before it — don't write one yourself. One sentence covering both teams, e.g. "${proofData.awayTeam} travels to Opponent on Tuesday, while ${proofData.homeTeam} hosts Other Opponent on Thursday." Use mascot nicknames here if you like. No commentary about momentum, confidence, what a team "needs", or how its season is shaping up.`
     : `- Do NOT write a look-ahead or closing-thought paragraph. End on the last factual recap point. Never close with editorial filler about what a team showed, proved, needs, or how the season is going.`;
 
   const prompt = `You are a factual high school sports reporter for Ball603.com, covering New Hampshire girls volleyball. Write a straightforward match recap based ONLY on the facts provided below. Do not invent statistics, players, plays, or details that are not listed.
@@ -1485,7 +1494,7 @@ ${hasSetScores
 - Only name players and cite stat lines that appear in the reporter's game notes. If the notes are empty, write the recap without naming individual players.
 - Do NOT reference season totals, career milestones, or head-to-head history — you have no access to that data
 - NEVER reference RPI, RPI rankings, tournament seeding projections, or playoff positioning math. RPI must not appear in the article in any form.
-- Only reference records or standings if they are listed as usable above. If a team's record was withheld, say nothing about its record, standing, or how its season is going.
+- RECORDS: never write a won-lost record yourself. One is added automatically after you finish, exactly as shown in the RECORDS block. Say nothing about either team's record, standing, or how its season is going.
 - EXCEPTION: if a SEASON OPENER line appears above, you may and should note it even when records are withheld — it is a scheduling fact, not a record. If it says both teams were opening, credit both in the same sentence (e.g. "the season opener for both teams"). Never note it for only one team when it applies to both.
 
 TONE RULES (these are firm — this is high school sports coverage):
@@ -1543,9 +1552,43 @@ The headline should be 8-12 words, no quotes. The excerpt should be 1-2 sentence
     return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to parse AI response', raw: rawText }) };
   }
 
+  let articleText = String(parsed.article || '').trim();
+
+  // Records paragraph — inserted here rather than left to the model so the numbers
+  // are always exactly what the CMS computed and the phrasing never drifts. This
+  // mirrors how the basketball recaps close. It sits immediately before the
+  // look-ahead paragraph, which is the last one the model was told to write.
+  if (recordSentence) {
+    // The model is told not to write records, but strip any it wrote anyway so a
+    // story can never carry two versions of the same record.
+    // "to" is mandatory in the first branch on purpose: without it this would also
+    // match set scores ("Nute fell 25-13 in the third") and delete real recap copy.
+    const RECORD_RE = new RegExp([
+      /\b(?:improves?|improved|falls?|fell|drops?|dropped|moves?|moved|climbs?|climbed)\s+to\s+\d{1,2}-\d{1,2}\b/.source,
+      /\b(?:is|are|sits?|stands?)\s+now\s+\d{1,2}-\d{1,2}\b/.source,
+      /\bnow\s+\d{1,2}-\d{1,2}\s+(?:on|for)\s+the\s+season\b/.source
+    ].join('|'), 'i');
+    const stripRecords = para => para
+      .split(/(?<=[.!?])\s+/)
+      .filter(sentence => !RECORD_RE.test(sentence))
+      .join(' ')
+      .trim();
+
+    const paragraphs = articleText
+      .split(/\n{2,}/)
+      .map(stripRecords)
+      .filter(Boolean);
+
+    if (hasLookAhead && paragraphs.length > 1) {
+      paragraphs.splice(paragraphs.length - 1, 0, recordSentence);
+    } else {
+      paragraphs.push(recordSentence);
+    }
+    articleText = paragraphs.join('\n\n');
+  }
+
   // Close with the photo gallery credit. Appended here rather than left to the model
   // so the wording and the photographer's name are always exact.
-  let articleText = String(parsed.article || '').trim();
   if (photographerName && String(photographerName).trim()) {
     const photog = String(photographerName).trim();
     // Drop any gallery/credit line the model wrote anyway, so we never double up
