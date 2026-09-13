@@ -2881,9 +2881,39 @@
       window.open(`https://twitter.com/intent/tweet?url=${url}&text=${text}`, '_blank', 'width=550,height=420');
     }
     
+    /**
+     * Share to Facebook.
+     *
+     * On a phone, facebook.com/sharer/sharer.php gets intercepted by the Facebook
+     * app, which opens to the feed and drops the link — Facebook opens, nothing
+     * else happens. The OS share sheet hands Facebook the URL properly, so use it
+     * on touch devices and keep the sharer dialog for desktop.
+     */
     function shareFacebook() {
-      const url = encodeURIComponent(window.location.href);
-      window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}`, '_blank', 'width=550,height=420');
+      const url = window.location.href;
+      const title = currentArticle?.title || 'Ball603';
+      const isTouch = window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
+
+      if (isTouch && navigator.share) {
+        navigator.share({ title, url }).catch(err => {
+          // The user closing the sheet is not a failure — don't then pop a window.
+          if (err && (err.name === 'AbortError' || err.name === 'NotAllowedError')) return;
+          openFacebookSharer(url);
+        });
+        return;
+      }
+      openFacebookSharer(url);
+    }
+
+    function openFacebookSharer(url) {
+      const shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`;
+      const win = window.open(shareUrl, '_blank', 'width=600,height=500');
+      if (win) {
+        win.opener = null;
+      } else {
+        // Popup blocked — don't navigate the reader away from the story.
+        copyLink();
+      }
     }
     
     function copyLink() {
@@ -2954,7 +2984,7 @@
   <!-- Footer -->
   <footer class="site-footer">
     <div class="footer-logo">
-      <img src="/logo.png" alt="Ball603">
+      <a href="/" aria-label="Ball603 home"><img src="/logo.png" alt="Ball603"></a>
     </div>
     <div class="footer-links">
       <a href="/about">About Us</a>

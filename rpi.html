@@ -598,7 +598,7 @@
       <div class="sport-filter">
         <button class="sport-btn" id="baseballBtn" onclick="selectSport('baseball')">&#9918; Baseball</button>
         <button class="sport-btn" id="basketballBtn" onclick="selectSport('basketball')">&#127936; Basketball</button>
-        <button class="sport-btn" id="gvolleyballBtn" onclick="selectSport('gvolleyball')">&#127952; Girls Volleyball</button>
+        <button class="sport-btn" id="gvolleyballBtn" onclick="selectSport('gvolleyball')">&#127952; <span class="sport-btn-long">Girls </span>Volleyball</button>
       </div>
     </div>
     
@@ -611,10 +611,10 @@
     <!-- Division Tabs -->
     <div class="division-tabs-wrapper">
       <div class="division-tabs">
-        <button class="division-tab active" onclick="setDivision('D-I')" id="tabDI">Division I</button>
-        <button class="division-tab" onclick="setDivision('D-II')" id="tabDII">Division II</button>
-        <button class="division-tab" onclick="setDivision('D-III')" id="tabDIII">Division III</button>
-        <button class="division-tab" onclick="setDivision('D-IV')" id="tabDIV">Division IV</button>
+        <button class="division-tab active" onclick="setDivision('D-I')" id="tabDI" data-division="D-I">Division I</button>
+        <button class="division-tab" onclick="setDivision('D-II')" id="tabDII" data-division="D-II">Division II</button>
+        <button class="division-tab" onclick="setDivision('D-III')" id="tabDIII" data-division="D-III">Division III</button>
+        <button class="division-tab" onclick="setDivision('D-IV')" id="tabDIV" data-division="D-IV">Division IV</button>
       </div>
     </div>
     
@@ -678,7 +678,7 @@
   <!-- Footer -->
   <footer class="site-footer">
     <div class="footer-logo">
-      <img src="/logo.png" alt="Ball603">
+      <a href="/" aria-label="Ball603 home"><img src="/logo.png" alt="Ball603"></a>
     </div>
     <div class="footer-links">
       <a href="/about">About Us</a>
@@ -737,6 +737,27 @@
       'D-III': 'Division III',
       'D-IV': 'Division IV'
     };
+
+    // NHIAA girls volleyball is a three-division sport; basketball and baseball
+    // have four. The Division IV tab used to show for every sport, offering an
+    // empty table on volleyball.
+    const SPORT_DIVISIONS = {
+      basketball:  ['D-I', 'D-II', 'D-III', 'D-IV'],
+      baseball:    ['D-I', 'D-II', 'D-III', 'D-IV'],
+      gvolleyball: ['D-I', 'D-II', 'D-III']
+    };
+
+    // Show only the divisions this sport actually has, and move off a division
+    // that has just disappeared (e.g. sitting on D-IV, then switching to volleyball).
+    function applyDivisionTabs() {
+      const allowed = SPORT_DIVISIONS[currentSport] || ['D-I', 'D-II', 'D-III', 'D-IV'];
+      if (!allowed.includes(currentDivision)) currentDivision = allowed[0];
+      document.querySelectorAll('.division-tab').forEach(tab => {
+        const division = tab.dataset.division;
+        tab.style.display = allowed.includes(division) ? '' : 'none';
+        tab.classList.toggle('active', division === currentDivision);
+      });
+    }
     
     const SPORT_NAMES = {
       basketball: 'Basketball',
@@ -819,6 +840,7 @@
         formulaNote.innerHTML = FORMULA_NOTES[sport];
       }
       
+      applyDivisionTabs();
       updatePageTitle();
       refreshSeasonSelect();
       Ball603PageSponsor.load('page-sponsor-banner', 'rpi', sport, { basketball:'Basketball', baseball:'Baseball', gvolleyball:'Girls Volleyball' }[sport] || '');
@@ -1129,6 +1151,7 @@
       genderToggle.style.display = 'none';
     }
     
+    applyDivisionTabs();
     updatePageTitle();
     refreshSeasonSelect();
     Ball603PageSponsor.load('page-sponsor-banner', 'rpi', currentSport, { basketball:'Basketball', baseball:'Baseball', gvolleyball:'Girls Volleyball' }[currentSport] || '');

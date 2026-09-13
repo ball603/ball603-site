@@ -380,6 +380,69 @@
   let mobileMenuLoaded = false;
   let favoritesModalLoaded = false;
   let sportSwitcherLoaded = false;
+  let pageShareReady = false;
+
+  // ===== SHARE THIS PAGE (phones) =====
+  // Hands the reader the URL of the page they're on. Uses the OS share sheet
+  // where it exists and falls back to copying the link.
+  function initPageShare() {
+    if (pageShareReady) return;
+    const btn = document.getElementById('pageShareToggle');
+    if (!btn) return;
+    pageShareReady = true;
+
+    // Nothing page-specific to share from the home page.
+    const path = window.location.pathname.replace(/\/index\.html$/, '/');
+    if (path === '/' || path === '') {
+      btn.remove();
+      return;
+    }
+
+    btn.addEventListener('click', sharePage);
+  }
+
+  function pageShareTitle() {
+    // "Goffstown sweeps Portsmouth | Ball603" -> "Goffstown sweeps Portsmouth"
+    const title = (document.title || 'Ball603').replace(/\s*[|–-]\s*Ball603\s*$/i, '').trim();
+    return title || 'Ball603';
+  }
+
+  async function sharePage() {
+    const url = window.location.href;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: pageShareTitle(), url });
+        return;
+      } catch (err) {
+        // Dismissing the sheet is not a failure — don't fall through to a copy.
+        if (err && (err.name === 'AbortError' || err.name === 'NotAllowedError')) return;
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      pageShareToast('Link copied!');
+    } catch (err) {
+      pageShareToast('Copy the link from the address bar');
+    }
+  }
+
+  // Self-contained: not every page that loads this header also loads app.js,
+  // so don't depend on Ball603.showToast being there.
+  function pageShareToast(message) {
+    if (window.Ball603 && typeof window.Ball603.showToast === 'function') {
+      window.Ball603.showToast(message, 'success');
+      return;
+    }
+    const el = document.createElement('div');
+    el.textContent = message;
+    el.setAttribute('role', 'status');
+    el.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);' +
+      'background:#333;color:#fff;padding:10px 18px;border-radius:20px;font-size:14px;' +
+      'z-index:100000;box-shadow:0 4px 16px rgba(0,0,0,0.3);max-width:90vw;text-align:center;';
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 2200);
+  }
+
   // Markup for the global sport switcher, held here until the header exists to
   // anchor it. The two fetches race, and when the switcher won the element was
   // never inserted at all.
@@ -397,6 +460,9 @@
 
   // Check if all components are loaded, then initialize
   function checkAndInit() {
+    if (headerLoaded) {
+      initPageShare();
+    }
     if (headerLoaded && mobileMenuLoaded) {
       initMobileMenu();
     }
