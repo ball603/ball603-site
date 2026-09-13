@@ -46,9 +46,11 @@ export default async (request) => {
       const body = await request.json();
       const { name, email, team_featured, player_featured, video_credit } = body;
 
-      // Validate required fields
-      if (!name || !email || !team_featured || !player_featured || !video_credit) {
-        return new Response(JSON.stringify({ error: 'All fields are required' }), {
+      // Validate required fields. team_featured and player_featured are NOT among
+      // them any more — a fan sending in a clip may not know the player's name,
+      // and the form no longer asks for either. They're still stored when given.
+      if (!name || !email || !video_credit) {
+        return new Response(JSON.stringify({ error: 'Name, email and video credit are required' }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
@@ -75,8 +77,11 @@ export default async (request) => {
           body: JSON.stringify({
             name: name.trim(),
             email: email.trim().toLowerCase(),
-            team_featured: team_featured.trim(),
-            player_featured: player_featured.trim(),
+            // Empty string rather than null: the column may be NOT NULL, and the
+            // CMS renders these straight into a cell where null would print as
+            // the word "null". `.trim()` on an absent field would also throw.
+            team_featured: (team_featured || '').trim(),
+            player_featured: (player_featured || '').trim(),
             video_credit: video_credit.trim()
           })
         }
