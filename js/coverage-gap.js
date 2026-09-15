@@ -76,12 +76,16 @@
       season = season || current.season;
     }
 
-    // Roster for the sport/season. If the season we were handed has no rows
-    // (mid-changeover, say), fall back to the newest season that does.
+    // Roster for the sport/season. If the season we were handed has no rows —
+    // the week the site flips to basketball but the new standings aren't seeded
+    // yet, say — fall back to the newest season that does, and flag it so the
+    // caller can label the result instead of passing last year off as this year.
+    let seasonFellBack = false;
     let standings = await fetchStandings(client, sport, season);
     if (!standings.length) {
       const newest = await newestSeason(client, sport);
       if (newest && newest !== season) {
+        seasonFellBack = !!season;
         season = newest;
         standings = await fetchStandings(client, sport, season);
       }
@@ -89,7 +93,7 @@
 
     const { data: games } = await client
       .from('games')
-      .select('game_id,away_team,home_team,date')
+      .select('game_id,away_team,home_team,date,gender')
       .eq('sport', sport)
       .eq('season', season);
 
@@ -110,43 +114,73 @@
     if (seasonStart) articleQuery = articleQuery.gte('article_date', seasonStart);
     const { data: articles } = await articleQuery;
 
-    const storiesBySchool = new Map();
+    // Basketball fields a boys team AND a girls team at every school, and those
+    // are two different assignments — covering the Bedford girls says nothing
+    // about the Bedford boys. So coverage is tracked per school AND gender.
+    // Single-gender sports (volleyball, baseball) collapse back to one entry per
+    // school on their own, because the roster only holds one gender.
+    const genders = [...new Set(standings.map(r => clean(r.gender)).filter(Boolean))];
+    const splitByGender = genders.length > 1;
+
+    const key = (school, gender) => splitByGender ? `${school}|${gender}` : school;
+
+    const storiesByKey = new Map();
+    const storiesBySchoolAnyGender = new Set();
     for (const a of (articles || [])) {
       if (!clean(a.smugmug_gallery_url)) continue;
       const g = a.game_id != null ? gameById.get(String(a.game_id)) : null;
       const gd = a.game_data || {};
       const away = clean((g && g.away_team) || gd.awayTeam || gd.away);
       const home = clean((g && g.home_team) || gd.homeTeam || gd.home);
+      const gender = clean((g && g.gender) || gd.gender);
       for (const school of [away, home]) {
         if (!school) continue;
-        storiesBySchool.set(school, (storiesBySchool.get(school) || 0) + 1);
+        storiesBySchoolAnyGender.add(school);
+        if (gender) storiesByKey.set(key(school, gender), (storiesByKey.get(key(school, gender)) || 0) + 1);
       }
     }
 
-    const isCovered = (school) => {
-      if (markCovered.includes(school)) return true;      // hand-marked as done
-      if (alsoUncovered.includes(school)) return false;    // hand-forced back on
-      return storiesBySchool.has(school);
+    const isCovered = (school, gender) => {
+      // Overrides are typed as plain school names and apply to every team at
+      // that school — simpler to use than making someone write "Bedford (Boys)".
+      if (markCovered.includes(school)) return true;
+      if (alsoUncovered.includes(school)) return false;
+      if (storiesByKey.has(key(school, gender))) return true;
+      // A story we can't pin to a gender (no linked game, nothing in game_data)
+      // counts for the school as a whole. Better to leave a covered school off
+      // the list than to keep sending people somewhere we've already been.
+      if (!splitByGender) return storiesBySchoolAnyGender.has(school);
+      const anyGenderedStory = genders.some(gn => storiesByKey.has(key(school, gn)));
+      return storiesBySchoolAnyGender.has(school) && !anyGenderedStory;
     };
 
-    const byDivision = [];
-    const divisions = new Map();
+    // Group by division, and by gender too when the sport has both.
+    const label = (school, gender) => splitByGender ? `${school} (${gender})` : school;
+    const groups = new Map();
     for (const row of standings) {
-      const division = clean(row.division) || 'Other';
-      if (!divisions.has(division)) divisions.set(division, []);
-      divisions.get(division).push(clean(row.school));
+      const school = clean(row.school);
+      const gender = clean(row.gender);
+      if (!school) continue;
+      const groupName = splitByGender
+        ? `${clean(row.division) || 'Other'} ${gender}`.trim()
+        : (clean(row.division) || 'Other');
+      if (!groups.has(groupName)) groups.set(groupName, []);
+      groups.get(groupName).push({ school, gender });
     }
 
+    const byDivision = [];
     const missing = [];
-    for (const division of [...divisions.keys()].sort()) {
-      const schools = divisions.get(division).filter(Boolean).sort((a, b) => a.localeCompare(b));
-      const gone = schools.filter(s => !isCovered(s));
-      missing.push(...gone);
+    let rosterCount = 0;
+    for (const groupName of [...groups.keys()].sort()) {
+      const teams = groups.get(groupName).sort((a, b) => a.school.localeCompare(b.school));
+      const gone = teams.filter(t => !isCovered(t.school, t.gender));
+      rosterCount += teams.length;
+      missing.push(...gone.map(t => label(t.school, t.gender)));
       byDivision.push({
-        division,
-        total: schools.length,
-        covered: schools.length - gone.length,
-        missing: gone
+        division: groupName,
+        total: teams.length,
+        covered: teams.length - gone.length,
+        missing: gone.map(t => label(t.school, t.gender))
       });
     }
 
@@ -159,16 +193,23 @@
       byDivision.push({ division: 'Added manually', total: extras.length, covered: 0, missing: extras.slice().sort() });
     }
 
-    const total = roster.size + extras.length;
+    const total = rosterCount + extras.length;
     return {
       sport,
       season,
       sportLabel: SPORT_LABELS[sport] || sport,
+      // "teams" when a school fields two (basketball), "schools" otherwise.
+      unit: splitByGender ? 'teams' : 'schools',
+      splitByGender,
+      // True when the configured season had no standings rows and we fell back
+      // to the newest season that did — the caller can say so rather than
+      // quietly showing last year's roster as if it were this year's.
+      seasonFellBack,
       total,
       covered: total - missing.length,
       missing: missing.slice().sort((a, b) => a.localeCompare(b)),
       byDivision,
-      storiesBySchool
+      storiesByKey
     };
   }
 
@@ -176,7 +217,7 @@
     if (!season) return [];
     const { data } = await client
       .from('standings')
-      .select('school,division')
+      .select('school,division,gender')
       .eq('sport', sport)
       .eq('season', season);
     return data || [];
