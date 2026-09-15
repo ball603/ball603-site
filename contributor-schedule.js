@@ -266,9 +266,12 @@ class ContributorSchedule {
     // Gender only matters where a school fields two teams (basketball).
     setValue('.cs-gender-filter', opts.gender || '');
     // A division or coverage filter left over from earlier could hide the very
-    // games we just navigated to.
+    // games we just navigated to. A date range does the same thing and is worse:
+    // arriving from the coverage board at an empty table reads as the team link
+    // being broken, not as a filter still being on.
     setValue('.cs-division-filter', '');
     setValue('.cs-assignment-filter', '');
+    this.clearDateRange(false);
     this.currentTab = 'all';
     this.container.querySelectorAll('.cs-tab').forEach(t =>
       t.classList.toggle('active', t.dataset.tab === 'all'));
@@ -640,6 +643,12 @@ class ContributorSchedule {
         </div>
         <div class="cs-filters">
           <button class="cs-today-btn" title="Jump to Today">&#128197; Today</button>
+          <div class="cs-daterange">
+            <input type="date" class="cs-date-from" aria-label="Show games from this date">
+            <span class="cs-daterange-sep">to</span>
+            <input type="date" class="cs-date-to" aria-label="Show games up to this date">
+            <button class="cs-date-clear" type="button" title="Clear the date range" aria-label="Clear the date range" style="display: none;">&times;</button>
+          </div>
           <select class="cs-sport-filter">
             <option value="">Sport (All)</option>
             <option value="basketball">&#127936; Basketball</option>
@@ -711,6 +720,24 @@ class ContributorSchedule {
     });
     this.container.querySelector('.cs-division-filter').addEventListener('change', () => this.renderGames());
     this.container.querySelector('.cs-assignment-filter').addEventListener('change', () => this.renderGames());
+
+    // Date range. Both ends are optional: a From on its own means "this date
+    // onward", a To on its own means "up to this date".
+    const dateFrom = this.container.querySelector('.cs-date-from');
+    const dateTo = this.container.querySelector('.cs-date-to');
+    const onDateChange = () => {
+      // A backwards range would silently show nothing, which reads as a bug
+      // rather than as a typo. Nudge the other end instead.
+      if (dateFrom.value && dateTo.value && dateFrom.value > dateTo.value) {
+        if (document.activeElement === dateFrom) dateTo.value = dateFrom.value;
+        else dateFrom.value = dateTo.value;
+      }
+      this.updateDateClearButton();
+      this.renderGames();
+    };
+    dateFrom.addEventListener('change', onDateChange);
+    dateTo.addEventListener('change', onDateChange);
+    this.container.querySelector('.cs-date-clear').addEventListener('click', () => this.clearDateRange());
     
     // Today button click
     this.container.querySelector('.cs-today-btn').addEventListener('click', () => this.scrollToToday());
@@ -1147,6 +1174,48 @@ class ContributorSchedule {
     }
   }
   
+  // ── Date range ──────────────────────────────────────────────────────────
+  // Nothing is applied until someone picks a date, so the default view is the
+  // whole season exactly as it was before this existed.
+  getDateRange() {
+    const from = this.container.querySelector('.cs-date-from');
+    const to = this.container.querySelector('.cs-date-to');
+    return { from: from?.value || '', to: to?.value || '' };
+  }
+
+  updateDateClearButton() {
+    const { from, to } = this.getDateRange();
+    const btn = this.container.querySelector('.cs-date-clear');
+    if (btn) btn.style.display = (from || to) ? '' : 'none';
+    const wrap = this.container.querySelector('.cs-daterange');
+    if (wrap) wrap.classList.toggle('cs-daterange-active', Boolean(from || to));
+  }
+
+  clearDateRange(rerender = true) {
+    const from = this.container.querySelector('.cs-date-from');
+    const to = this.container.querySelector('.cs-date-to');
+    if (from) from.value = '';
+    if (to) to.value = '';
+    this.updateDateClearButton();
+    if (rerender) this.renderGames();
+  }
+
+  // "Sep 15" / "Sep 15 – Sep 22" / "on or after Sep 15", for the empty state.
+  describeDateRange() {
+    const { from, to } = this.getDateRange();
+    const label = (d) => {
+      try {
+        const dt = new Date(d + 'T12:00:00');
+        const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        return `${months[dt.getMonth()]} ${dt.getDate()}`;
+      } catch (e) { return d; }
+    };
+    if (from && to) return from === to ? `on ${label(from)}` : `between ${label(from)} and ${label(to)}`;
+    if (from) return `on or after ${label(from)}`;
+    if (to) return `on or before ${label(to)}`;
+    return '';
+  }
+
   // Scroll to today's date in the table
   scrollToToday() {
     const tableContainer = this.container.querySelector('.cs-table-container');
@@ -1178,6 +1247,7 @@ class ContributorSchedule {
     const assignment = this.container.querySelector('.cs-assignment-filter').value;
     const me = this.getContributor();
     const today = new Date().toISOString().split('T')[0];
+    const { from: dateFrom, to: dateTo } = this.getDateRange();
     
     // A pinned team (set by clicking one on the coverage card) matches exactly;
     // anything typed into the box matches as a substring, as it always has.
@@ -1210,6 +1280,11 @@ class ContributorSchedule {
       }
       
       if (this.config.hidePastGames && g.date < today) return false;
+
+      // Date range. game.date is an ISO yyyy-mm-dd string and so are the input
+      // values, so a string compare is a date compare — no parsing, no timezone.
+      if (dateFrom && g.date < dateFrom) return false;
+      if (dateTo && g.date > dateTo) return false;
       
       const hasClaim = g.photog1 || g.photog2 || g.videog || g.writer;
       const isMine = g.photog1 === me || g.photog2 === me || g.videog === me || g.writer === me;
@@ -1244,7 +1319,16 @@ class ContributorSchedule {
     const tableContainer = this.container.querySelector('.cs-table-container');
     
     if (games.length === 0) {
-      tableContainer.innerHTML = '<div class="cs-loading">No games found</div>';
+      // Say which dates came up empty, and offer the way out — "No games found"
+      // on its own reads like the schedule failed to load.
+      const rangeText = this.describeDateRange();
+      tableContainer.innerHTML = rangeText
+        ? `<div class="cs-loading">No games ${rangeText} match these filters.
+             <button type="button" class="cs-empty-clear-dates">Clear the date range</button>
+           </div>`
+        : '<div class="cs-loading">No games found</div>';
+      const clearBtn = tableContainer.querySelector('.cs-empty-clear-dates');
+      if (clearBtn) clearBtn.addEventListener('click', () => this.clearDateRange());
       return;
     }
     

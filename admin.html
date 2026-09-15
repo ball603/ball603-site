@@ -5966,39 +5966,42 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
   <!-- Settings Panel -->
   <!-- Fan Videos Panel -->
   <div class="panel" id="fanvideosPanel" style="display: none;">
-    <div style="max-width: 900px; margin: 0 auto;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-        <h2 style="margin: 0; color: #333;">&#x1F3AC; Fan Video Submissions</h2>
-        <button onclick="loadFanSubmissions()" style="background: #f0f0f0; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-size: 13px;">
-          &#x1F504; Refresh
-        </button>
+    <div style="max-width: 1100px; margin: 0 auto;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 15px; flex-wrap: wrap;">
+        <h2 style="margin: 0; color: #333;">&#x1F3AC; Fan Video Submissions <span id="fanSubmissionsCount" style="font-size: 14px; font-weight: 400; color: #888;"></span></h2>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <input type="text" id="fanSubmissionsSearch" oninput="renderFanSubmissions()" placeholder="Search name, email, team, player, credit&hellip;" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px; width: 300px; max-width: 45vw; box-sizing: border-box;">
+          <button onclick="loadFanSubmissions()" style="background: #f0f0f0; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-size: 13px; white-space: nowrap;">
+            &#x1F504; Refresh
+          </button>
+        </div>
       </div>
-      
+
       <div style="background: #e3f2fd; border-radius: 8px; padding: 15px; margin-bottom: 20px; display: flex; align-items: center; gap: 15px;">
         <span style="font-size: 24px;">&#x1F4CB;</span>
         <div>
-          <strong style="color: #1565c0;">Submission Page:</strong>
-          <a href="/fansubmissions.html" target="_blank" style="color: #1565c0; margin-left: 10px;">/fansubmissions.html</a>
-          <p style="margin: 5px 0 0; font-size: 13px; color: #666;">Share this link with fans to collect video submissions. You'll receive an email from Dropbox when videos are uploaded.</p>
+          <strong style="color: #1565c0;">Submission pages:</strong>
+          <a href="/fansubmissions.html" target="_blank" style="color: #1565c0; margin-left: 10px;">/fansubmissions</a>
+          <a href="/celly" target="_blank" style="color: #1565c0; margin-left: 10px;">/celly</a>
+          <p style="margin: 5px 0 0; font-size: 13px; color: #666;">Both pages feed this list. You'll receive an email from Dropbox when the videos themselves are uploaded.</p>
         </div>
       </div>
-      
+
       <div id="fanSubmissionsList" style="border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
-        <div style="background: #f5f5f5; padding: 12px 15px; font-weight: 600; font-size: 12px; text-transform: uppercase; color: #666; display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 140px 80px; gap: 10px;">
+        <div class="fan-sub-head" style="background: #f5f5f5; padding: 12px 15px; font-weight: 600; font-size: 12px; text-transform: uppercase; color: #666;">
+          <div></div>
           <div>Submitter</div>
-          <div>Team</div>
-          <div>Player</div>
-          <div>Credit</div>
-          <div>Date</div>
+          <div>Email</div>
+          <div>Received</div>
           <div></div>
         </div>
         <div id="fanSubmissionsBody">
           <div style="padding: 40px; text-align: center; color: #888;">
-            Loading submissions...
+            Loading submissions&hellip;
           </div>
         </div>
       </div>
-      
+
       <div id="fanSubmissionsEmpty" style="display: none; text-align: center; padding: 60px 20px; background: #f9f9f9; border-radius: 8px; margin-top: 20px;">
         <div style="font-size: 48px; margin-bottom: 15px;">&#x1F4ED;</div>
         <h3 style="color: #666; margin-bottom: 10px;">No submissions yet</h3>
@@ -7360,6 +7363,141 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     }
     .sched-edit-field:hover {
       background: rgba(255,255,255,0.12) !important;
+    }
+
+    /* Fan video submissions — compact rows that expand.
+       The collapsed row is deliberately only four columns wide: the email needs
+       the space more than team/player/credit do, and those three are one click
+       away in the detail panel. */
+    .fan-sub-head,
+    .fan-sub-row {
+      display: grid;
+      grid-template-columns: 24px minmax(0, 1fr) minmax(0, 1.6fr) 130px 84px;
+      gap: 12px;
+      align-items: center;
+    }
+    .fan-sub-item {
+      border-bottom: 1px solid #eee;
+    }
+    .fan-sub-item:last-child {
+      border-bottom: none;
+    }
+    .fan-sub-row {
+      padding: 12px 15px;
+      cursor: pointer;
+    }
+    .fan-sub-row:hover {
+      background: #fafafa;
+    }
+    .fan-sub-item.open .fan-sub-row {
+      background: #fff8f0;
+    }
+    .fan-sub-caret {
+      color: #bbb;
+      font-size: 12px;
+      transition: transform 0.15s;
+    }
+    .fan-sub-item.open .fan-sub-caret {
+      transform: rotate(90deg);
+      color: #f57c00;
+    }
+    .fan-sub-name {
+      font-weight: 500;
+      color: #333;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .fan-sub-email {
+      color: #666;
+      font-size: 13px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .fan-sub-date {
+      color: #888;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .fan-sub-detail {
+      padding: 4px 15px 16px 51px;
+      background: #fff8f0;
+      cursor: default;
+    }
+    .fan-sub-field {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      padding: 5px 0;
+      flex-wrap: wrap;
+    }
+    .fan-sub-label {
+      flex: 0 0 124px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      color: #999;
+      font-weight: 600;
+    }
+    /* The whole point of the detail panel: values wrap, they never clip.
+       flex-grow stays 0 so Copy/Email sit next to the value they act on rather
+       than drifting to the far right of the panel. */
+    .fan-sub-value {
+      flex: 0 1 auto;
+      min-width: 0;
+      color: #333;
+      font-size: 14px;
+      word-break: break-word;
+      user-select: text;
+    }
+    .fan-sub-blank {
+      color: #bbb;
+      font-style: italic;
+    }
+    .fan-sub-action {
+      flex: 0 0 auto;
+      border: 1px solid #ddd;
+      background: #fff;
+      color: #555;
+      border-radius: 4px;
+      padding: 3px 10px;
+      font-size: 11px;
+      cursor: pointer;
+      text-decoration: none;
+      font-family: inherit;
+      line-height: 1.6;
+    }
+    .fan-sub-action:hover {
+      background: #f5f5f5;
+      border-color: #bbb;
+    }
+
+    @media (max-width: 760px) {
+      .fan-sub-head {
+        display: none;
+      }
+      /* Name, email and date stack instead of fighting for a phone's width;
+         Delete keeps its own column down the right. */
+      .fan-sub-row {
+        grid-template-columns: 20px minmax(0, 1fr) 74px;
+        row-gap: 2px;
+        align-items: start;
+      }
+      .fan-sub-caret { grid-area: 1 / 1 / 2 / 2; }
+      .fan-sub-name  { grid-area: 1 / 2 / 2 / 3; }
+      .fan-sub-email { grid-area: 2 / 2 / 3 / 3; }
+      .fan-sub-date  { grid-area: 3 / 2 / 4 / 3; }
+      .fan-sub-row > div:last-child {
+        grid-area: 1 / 3 / 4 / 4;
+        align-self: center;
+      }
+      .fan-sub-detail {
+        padding-left: 20px;
+      }
+      .fan-sub-label {
+        flex-basis: 100%;
+      }
     }
   </style>
 
@@ -26598,82 +26736,218 @@ Respond ONLY with valid JSON:
     // ===== FAN VIDEO SUBMISSIONS =====
     let fanSubmissions = [];
     
+    // ── Fan video submissions ───────────────────────────────────────────────
+    // One compact line per submission, click to open the rest. The collapsed
+    // line carries only submitter, email and date, which is what gives the email
+    // room to be read in full — the old four-equal-column grid inside a 900px
+    // panel left every value about 150 characters' worth of 150 pixels, so
+    // anything longer than a short gmail address was clipped with no way to see
+    // the rest.
+    let fanSubmissionsExpanded = new Set();
+
     async function loadFanSubmissions() {
       const body = document.getElementById('fanSubmissionsBody');
       const emptyState = document.getElementById('fanSubmissionsEmpty');
       const listContainer = document.getElementById('fanSubmissionsList');
-      
-      body.innerHTML = '<div style="padding: 40px; text-align: center; color: #888;">Loading submissions...</div>';
+
+      body.innerHTML = '<div style="padding: 40px; text-align: center; color: #888;">Loading submissions…</div>';
       emptyState.style.display = 'none';
       listContainer.style.display = 'block';
-      
+
       try {
         const response = await fetch('/.netlify/functions/fan-submissions');
         if (!response.ok) throw new Error('Failed to load submissions');
-        
+
         fanSubmissions = await response.json();
-        
+
         if (fanSubmissions.length === 0) {
           listContainer.style.display = 'none';
           emptyState.style.display = 'block';
+          document.getElementById('fanSubmissionsCount').textContent = '';
           return;
         }
-        
-        body.innerHTML = fanSubmissions.map(sub => `
-          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 140px 80px; gap: 10px; padding: 12px 15px; border-bottom: 1px solid #eee; align-items: center;" data-id="${sub.id}">
-            <div style="overflow: hidden;">
-              <div style="font-weight: 500; color: #333; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(sub.name)}</div>
-              <div style="font-size: 12px; color: #888; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(sub.email)}</div>
-            </div>
-            <!-- Team and player are optional on the fan form, so these can be
-                 blank. escapeHtml(null) would print the word "null". -->
-            <div style="color: #555; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(sub.team_featured || '—')}</div>
-            <div style="color: #555; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(sub.player_featured || '—')}</div>
-            <div style="color: #555; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(sub.video_credit)}</div>
-            <div style="color: #888; font-size: 12px; white-space: nowrap;">${formatSubmissionDate(sub.created_at)}</div>
-            <div style="min-width: 70px;">
-              <button onclick="deleteFanSubmission(${sub.id})" style="background: #ffebee; color: #c62828; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">
-                Delete
-              </button>
-            </div>
-          </div>
-        `).join('');
-        
+
+        renderFanSubmissions();
       } catch (err) {
         console.error('Error loading fan submissions:', err);
         body.innerHTML = '<div style="padding: 40px; text-align: center; color: #c62828;">Error loading submissions</div>';
       }
     }
-    
+
+    function renderFanSubmissions() {
+      const body = document.getElementById('fanSubmissionsBody');
+      const countEl = document.getElementById('fanSubmissionsCount');
+      if (!body || !Array.isArray(fanSubmissions)) return;
+
+      const term = (document.getElementById('fanSubmissionsSearch')?.value || '').trim().toLowerCase();
+      const matches = term
+        ? fanSubmissions.filter(sub => [sub.name, sub.email, sub.team_featured, sub.player_featured, sub.video_credit]
+            .some(v => String(v || '').toLowerCase().includes(term)))
+        : fanSubmissions;
+
+      countEl.textContent = term
+        ? `${matches.length} of ${fanSubmissions.length}`
+        : `${fanSubmissions.length} total`;
+
+      if (matches.length === 0) {
+        body.innerHTML = `<div style="padding: 40px; text-align: center; color: #888;">
+          Nothing matches &ldquo;${escapeHtml(term)}&rdquo;.
+        </div>`;
+        return;
+      }
+
+      body.innerHTML = matches.map(sub => {
+        const open = fanSubmissionsExpanded.has(sub.id);
+        const email = sub.email || '';
+        return `
+        <div class="fan-sub-item${open ? ' open' : ''}" data-id="${sub.id}">
+          <div class="fan-sub-row" onclick="toggleFanSubmission(${sub.id}, event)">
+            <div class="fan-sub-caret" aria-hidden="true">&#9656;</div>
+            <div class="fan-sub-name">${escapeHtml(sub.name || '—')}</div>
+            <div class="fan-sub-email" title="${escapeAttr(email)}">${escapeHtml(email)}</div>
+            <div class="fan-sub-date">${formatSubmissionDate(sub.created_at)}</div>
+            <div>
+              <button onclick="deleteFanSubmission(${sub.id}); event.stopPropagation();" style="background: #ffebee; color: #c62828; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                Delete
+              </button>
+            </div>
+          </div>
+          <div class="fan-sub-detail"${open ? '' : ' style="display: none;"'}>
+            ${fanDetailField('Email', email, { copy: true, mailto: true })}
+            ${fanDetailField('Team featured', sub.team_featured)}
+            ${fanDetailField('Player featured', sub.player_featured)}
+            ${fanDetailField('Video credit', sub.video_credit, { copy: true })}
+            ${fanDetailField('Received', formatSubmissionDateLong(sub.created_at))}
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    // escapeHtml() leaves quotes alone — it round-trips through textContent, which
+    // only has to escape &, < and >. That is fine between tags and wrong inside an
+    // attribute, and video_credit is free text a stranger typed. Anything going
+    // into an attribute goes through here instead.
+    function escapeAttr(value) {
+      return escapeHtml(String(value ?? ''))
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    // Team and player are optional on both forms, so these can be blank or null.
+    // escapeHtml(null) prints the word "null" — div.textContent = null clears the
+    // node, but String(null) does not.
+    function fanDetailField(label, value, opts = {}) {
+      const text = String(value ?? '').trim();
+      if (!text) {
+        return `<div class="fan-sub-field"><span class="fan-sub-label">${label}</span><span class="fan-sub-value fan-sub-blank">Not given</span></div>`;
+      }
+      const actions = [];
+      if (opts.copy) {
+        // The value rides in a data attribute rather than inside the onclick, so
+        // an apostrophe in somebody's name can't break the handler.
+        actions.push(`<button class="fan-sub-action" data-copy="${escapeAttr(text)}" onclick="copyFanValue(this)">Copy</button>`);
+      }
+      if (opts.mailto) {
+        actions.push(`<a class="fan-sub-action" href="mailto:${encodeURIComponent(text)}">Email</a>`);
+      }
+      return `<div class="fan-sub-field">
+        <span class="fan-sub-label">${label}</span>
+        <span class="fan-sub-value">${escapeHtml(text)}</span>
+        ${actions.join('')}
+      </div>`;
+    }
+
+    function toggleFanSubmission(id, evt) {
+      // The Delete button lives inside the row and stops its own propagation,
+      // but a stray click on a link inside the detail shouldn't collapse it.
+      if (evt && evt.target.closest('.fan-sub-detail')) return;
+      const item = document.querySelector(`.fan-sub-item[data-id="${id}"]`);
+      if (!item) return;
+      const detail = item.querySelector('.fan-sub-detail');
+      const open = fanSubmissionsExpanded.has(id);
+      if (open) {
+        fanSubmissionsExpanded.delete(id);
+        detail.style.display = 'none';
+        item.classList.remove('open');
+      } else {
+        fanSubmissionsExpanded.add(id);
+        detail.style.display = '';
+        item.classList.add('open');
+      }
+    }
+
+    function copyFanValue(btn) {
+      const text = btn.dataset.copy || '';
+      const done = () => {
+        const original = btn.textContent;
+        btn.textContent = 'Copied';
+        setTimeout(() => { btn.textContent = original; }, 1400);
+      };
+      // navigator.clipboard needs a secure context and can still be blocked, so
+      // keep a textarea fallback the same way the scheduled-link copy does.
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopyText(text, done));
+      } else {
+        fallbackCopyText(text, done);
+      }
+    }
+
+    function fallbackCopyText(text, onDone) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.cssText = 'position:fixed; top:-1000px; left:-1000px;';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      try {
+        document.execCommand('copy');
+        if (onDone) onDone();
+      } catch (e) {
+        showToast('Select the text and press Cmd/Ctrl+C', 'warning');
+      }
+      ta.remove();
+    }
+
     function formatSubmissionDate(dateStr) {
       const date = new Date(dateStr);
-      return date.toLocaleDateString('en-US', { 
-        month: 'short', 
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
         day: 'numeric',
         hour: 'numeric',
         minute: '2-digit'
       });
     }
-    
+
+    function formatSubmissionDateLong(dateStr) {
+      if (!dateStr) return '';
+      const date = new Date(dateStr);
+      if (isNaN(date)) return '';
+      return date.toLocaleString('en-US', {
+        weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
+        hour: 'numeric', minute: '2-digit'
+      });
+    }
+
     async function deleteFanSubmission(id) {
       if (!confirm('Delete this submission? This cannot be undone.')) return;
-      
+
       try {
         const response = await fetch(`/.netlify/functions/fan-submissions?id=${id}`, {
           method: 'DELETE'
         });
-        
+
         if (!response.ok) throw new Error('Failed to delete submission');
-        
+
         showToast('Submission deleted', 'success');
+        fanSubmissionsExpanded.delete(id);
         loadFanSubmissions();
-        
+
       } catch (err) {
         console.error('Error deleting submission:', err);
         showToast('Error deleting submission', 'error');
       }
     }
-    
+
     // =====================================================
     // MARQUEE MATCHUPS FUNCTIONS
     // =====================================================
