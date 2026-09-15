@@ -14,6 +14,7 @@
     gtag('config', 'G-S4BN80729K');
   </script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0"></script>
+  <script src="/js/coverage-gap.js"></script>
   <!-- Fabric.js for Graphic Creator -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
   <!-- Google Fonts for Graphic Creator -->
@@ -1016,6 +1017,7 @@
       <button class="tab" onclick="showTab('schedule', event)">Schedule</button>
       <button class="tab" onclick="showTab('teams', event)">Teams</button>
       <button class="tab" onclick="showTab('contributors', event)">Contributors</button>
+      <button class="tab" onclick="showTab('board', event)">&#128227; Board</button>
       <button class="tab" onclick="showTab('sponsors', event)">Sponsors</button>
       <button class="tab" onclick="showTab('rosters', event)">Rosters</button>
       <button class="tab" onclick="showTab('bash', event)">The Bash</button>
@@ -5818,6 +5820,85 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
   </div>
   </div>
   
+  <!-- ===== CONTRIBUTOR BOARD =====
+       Messages and the coverage-gap overrides that contributors see when they
+       log into the portal. Everything here lives in one site_settings row
+       (key: contributor_board), so there is no table to migrate. -->
+  <div class="panel" id="boardPanel" style="display: none;">
+    <div style="max-width: 900px; margin: 0 auto; padding: 20px;">
+      <h2 style="margin-bottom: 6px; color: #333;">&#128227; Contributor Board</h2>
+      <p style="color: #666; font-size: 14px; margin-bottom: 26px;">
+        What contributors see at the top of the portal when they log in.
+      </p>
+
+      <!-- Messages -->
+      <div style="background: #fff; border-radius: 10px; padding: 25px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.08);">
+        <h3 style="margin: 0 0 6px; font-size: 18px; color: #333; border-bottom: 2px solid #f57c00; padding-bottom: 10px;">
+          Messages
+        </h3>
+        <p style="color: #777; font-size: 13px; margin: 12px 0 18px;">
+          Upcoming games worth covering, a player closing in on a milestone, a sponsor game that has to be shot.
+          Urgent notes show first, in orange. A note switched off stays saved but is hidden.
+        </p>
+
+        <div id="boardMessagesList"></div>
+
+        <button onclick="addBoardMessage()" style="background: #f57c00; color: #fff; border: none; padding: 10px 18px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;">
+          + Add message
+        </button>
+      </div>
+
+      <!-- Coverage gap -->
+      <div style="background: #fff; border-radius: 10px; padding: 25px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.08);">
+        <h3 style="margin: 0 0 6px; font-size: 18px; color: #333; border-bottom: 2px solid #f57c00; padding-bottom: 10px;">
+          Schools still needing coverage
+        </h3>
+        <p style="color: #777; font-size: 13px; margin: 12px 0 18px;">
+          Worked out automatically: every school in the standings minus every school that appears in a published
+          story with a SmugMug gallery. It updates itself as stories publish &mdash; the boxes below are only
+          for correcting it by hand.
+        </p>
+
+        <div id="boardCoveragePreview" style="background: #fafafa; border: 1px solid #eee; border-radius: 8px; padding: 16px; margin-bottom: 20px; font-size: 13px; color: #444;">
+          <span style="color:#888;">Loading current coverage&hellip;</span>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 18px;">
+          <div>
+            <label style="font-weight: 600; color: #555; display: block; margin-bottom: 6px; font-size: 14px;">Also show as uncovered</label>
+            <textarea id="boardAlsoUncovered" rows="4" placeholder="One school per line"
+              style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; font-family: inherit;"></textarea>
+            <div style="font-size: 12px; color: #888; margin-top: 5px;">Adds a school back to the list even if a story says otherwise.</div>
+          </div>
+          <div>
+            <label style="font-weight: 600; color: #555; display: block; margin-bottom: 6px; font-size: 14px;">Treat as covered</label>
+            <textarea id="boardMarkCovered" rows="4" placeholder="One school per line"
+              style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; font-family: inherit;"></textarea>
+            <div style="font-size: 12px; color: #888; margin-top: 5px;">Removes a school from the list &mdash; shot but not published yet, say.</div>
+          </div>
+        </div>
+
+        <div style="margin-top: 18px;">
+          <label style="font-weight: 600; color: #555; display: block; margin-bottom: 6px; font-size: 14px;">Note under the list (optional)</label>
+          <input type="text" id="boardCoverageNote" placeholder="e.g. Priority is D-III &mdash; we're thinnest there"
+            style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;">
+        </div>
+
+        <label style="display: flex; align-items: center; gap: 8px; margin-top: 18px; cursor: pointer; font-size: 14px; color: #333;">
+          <input type="checkbox" id="boardCoverageShow" checked style="width: 18px; height: 18px; accent-color: #f57c00;">
+          <span>Show this list on the contributor portal</span>
+        </label>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 16px;">
+        <button onclick="saveBoard()" id="boardSaveBtn" style="background: #2e7d32; color: #fff; border: none; padding: 12px 26px; border-radius: 6px; font-size: 15px; font-weight: 600; cursor: pointer;">
+          Save board
+        </button>
+        <span id="boardSaveStatus" style="font-size: 14px; color: #2e7d32;"></span>
+      </div>
+    </div>
+  </div>
+
   <div class="panel" id="settingsPanel" style="display: none;">
     <div style="max-width: 800px; margin: 0 auto; padding: 20px;">
       <h2 style="margin-bottom: 30px; color: #333;">Site Settings</h2>
@@ -8124,6 +8205,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('videoPanel').style.display = tab === 'video' ? 'block' : 'none';
       document.getElementById('settingsPanel').style.display = tab === 'settings' ? 'block' : 'none';
       if (tab === 'settings') initDeleteGamesDate();
+      document.getElementById('boardPanel').style.display = tab === 'board' ? 'block' : 'none';
+      if (tab === 'board') loadBoard();
       document.getElementById('fanvideosPanel').style.display = tab === 'fanvideos' ? 'block' : 'none';
       document.getElementById('championshipsPanel').style.display = tab === 'championships' ? 'block' : 'none';
       document.getElementById('playoffsPanel').style.display = tab === 'playoffs' ? 'block' : 'none';
@@ -25222,6 +25305,191 @@ Respond ONLY with valid JSON:
       }
     }
     
+    // ===== CONTRIBUTOR BOARD =====
+    // One site_settings row (key: contributor_board) holds both the messages and
+    // the coverage-gap overrides, so adding this needed no schema change.
+    const BOARD_KEY = 'contributor_board';
+    let boardMessages = [];
+
+    function emptyBoard() {
+      return {
+        messages: [],
+        coverage: { show: true, alsoUncovered: [], markCovered: [], note: '' }
+      };
+    }
+
+    async function loadBoard() {
+      try {
+        const { data } = await db
+          .from('site_settings')
+          .select('value')
+          .eq('key', BOARD_KEY)
+          .single();
+
+        const board = (data && data.value) || emptyBoard();
+        boardMessages = Array.isArray(board.messages) ? board.messages : [];
+        const cov = board.coverage || {};
+        document.getElementById('boardAlsoUncovered').value = (cov.alsoUncovered || []).join('\n');
+        document.getElementById('boardMarkCovered').value = (cov.markCovered || []).join('\n');
+        document.getElementById('boardCoverageNote').value = cov.note || '';
+        document.getElementById('boardCoverageShow').checked = cov.show !== false;
+      } catch (err) {
+        // No row yet — first visit. Start empty rather than erroring.
+        boardMessages = [];
+      }
+      renderBoardMessages();
+      refreshBoardCoveragePreview();
+    }
+
+    function renderBoardMessages() {
+      const list = document.getElementById('boardMessagesList');
+      if (!boardMessages.length) {
+        list.innerHTML = '<p style="color:#888; font-size:13px; margin:0 0 18px;">No messages yet. Contributors will just see their coverage list.</p>';
+        return;
+      }
+
+      list.innerHTML = boardMessages.map((m, i) => `
+        <div style="border:1px solid ${m.urgent ? '#ffcc80' : '#e8e8e8'}; background:${m.urgent ? '#fff8e1' : '#fafafa'}; border-radius:8px; padding:16px; margin-bottom:14px;">
+          <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px;">
+            <input type="text" value="${escapeHtml(m.title || '')}" placeholder="Title"
+              oninput="updateBoardMessage(${i}, 'title', this.value)"
+              style="flex:1; padding:9px 12px; border:1px solid #ddd; border-radius:6px; font-size:14px; font-weight:600;">
+            <button onclick="removeBoardMessage(${i})" title="Delete"
+              style="background:#fff; color:#c62828; border:1px solid #ef9a9a; border-radius:6px; padding:8px 12px; font-size:13px; cursor:pointer;">Delete</button>
+          </div>
+          <textarea rows="3" placeholder="Message" oninput="updateBoardMessage(${i}, 'body', this.value)"
+            style="width:100%; padding:10px 12px; border:1px solid #ddd; border-radius:6px; font-size:13px; font-family:inherit; margin-bottom:10px;">${escapeHtml(m.body || '')}</textarea>
+          <div style="display:flex; gap:18px; align-items:center; flex-wrap:wrap; font-size:13px; color:#555;">
+            <label style="display:flex; align-items:center; gap:7px; cursor:pointer;">
+              <input type="checkbox" ${m.urgent ? 'checked' : ''} onchange="updateBoardMessage(${i}, 'urgent', this.checked)" style="width:17px; height:17px; accent-color:#f57c00;">
+              <span>Urgent</span>
+            </label>
+            <label style="display:flex; align-items:center; gap:7px; cursor:pointer;">
+              <input type="checkbox" ${m.active !== false ? 'checked' : ''} onchange="updateBoardMessage(${i}, 'active', this.checked)" style="width:17px; height:17px; accent-color:#f57c00;">
+              <span>Show on portal</span>
+            </label>
+            <label style="display:flex; align-items:center; gap:7px;">
+              <span>Hide after</span>
+              <input type="date" value="${escapeHtml(m.expires_at || '')}" onchange="updateBoardMessage(${i}, 'expires_at', this.value)"
+                style="padding:7px 9px; border:1px solid #ddd; border-radius:6px; font-size:13px;">
+            </label>
+            ${boardMessageExpired(m) ? '<span style="color:#c62828;">Expired &mdash; hidden from the portal</span>' : ''}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function boardMessageExpired(m) {
+      if (!m || !m.expires_at) return false;
+      // Compare date strings (YYYY-MM-DD) so this doesn't drift with timezones.
+      return m.expires_at < new Date().toISOString().slice(0, 10);
+    }
+
+    function updateBoardMessage(index, field, value) {
+      if (!boardMessages[index]) return;
+      boardMessages[index][field] = value;
+      // Re-render only for the toggles that change how the card looks; retyping
+      // in a text field must not steal focus.
+      if (field === 'urgent' || field === 'expires_at') renderBoardMessages();
+    }
+
+    function addBoardMessage() {
+      boardMessages.push({
+        id: 'msg_' + Date.now(),
+        title: '',
+        body: '',
+        urgent: false,
+        active: true,
+        expires_at: '',
+        created_at: new Date().toISOString()
+      });
+      renderBoardMessages();
+    }
+
+    function removeBoardMessage(index) {
+      if (!confirm('Delete this message?')) return;
+      boardMessages.splice(index, 1);
+      renderBoardMessages();
+    }
+
+    const boardLines = (id) => document.getElementById(id).value
+      .split('\n').map(s => s.trim()).filter(Boolean);
+
+    async function refreshBoardCoveragePreview() {
+      const el = document.getElementById('boardCoveragePreview');
+      try {
+        const gap = await Ball603Coverage.compute({
+          client: db,
+          overrides: {
+            alsoUncovered: boardLines('boardAlsoUncovered'),
+            markCovered: boardLines('boardMarkCovered')
+          }
+        });
+        const divisions = gap.byDivision.map(d =>
+          `<div style="margin-top:8px;"><strong>${escapeHtml(d.division)}</strong> &mdash; ${d.covered} of ${d.total} covered` +
+          (d.missing.length ? `<div style="color:#666; margin-top:2px;">${d.missing.map(escapeHtml).join(', ')}</div>` : '') +
+          `</div>`).join('');
+        el.innerHTML =
+          `<div><strong>${gap.covered} of ${gap.total}</strong> ${escapeHtml(gap.sportLabel)} schools covered this season ` +
+          `<span style="color:#888;">(${gap.missing.length} still to go)</span></div>${divisions}`;
+      } catch (err) {
+        console.error('Coverage preview failed:', err);
+        el.innerHTML = '<span style="color:#c62828;">Could not work out coverage right now.</span>';
+      }
+    }
+
+    async function saveBoard() {
+      const btn = document.getElementById('boardSaveBtn');
+      const status = document.getElementById('boardSaveStatus');
+      btn.disabled = true;
+      status.style.color = '#2e7d32';
+      status.textContent = 'Saving...';
+
+      // Drop blank messages rather than pushing empty cards to contributors.
+      const messages = boardMessages
+        .filter(m => (m.title || '').trim() || (m.body || '').trim())
+        .map(m => ({
+          id: m.id || ('msg_' + Date.now()),
+          title: (m.title || '').trim(),
+          body: (m.body || '').trim(),
+          urgent: !!m.urgent,
+          active: m.active !== false,
+          expires_at: (m.expires_at || '') || null,
+          created_at: m.created_at || new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }));
+
+      const board = {
+        messages,
+        coverage: {
+          show: document.getElementById('boardCoverageShow').checked,
+          alsoUncovered: boardLines('boardAlsoUncovered'),
+          markCovered: boardLines('boardMarkCovered'),
+          note: document.getElementById('boardCoverageNote').value.trim()
+        }
+      };
+
+      try {
+        const { error } = await db
+          .from('site_settings')
+          .upsert({ key: BOARD_KEY, value: board, updated_at: new Date().toISOString() },
+                  { onConflict: 'key' });
+        if (error) throw error;
+
+        boardMessages = messages;
+        renderBoardMessages();
+        refreshBoardCoveragePreview();
+        status.textContent = 'Saved. Contributors will see this next time they load the portal.';
+        setTimeout(() => { status.textContent = ''; }, 5000);
+      } catch (err) {
+        console.error('Board save error:', err);
+        status.style.color = '#c62828';
+        status.textContent = 'Could not save: ' + (err.message || 'unknown error');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
     // ===== SITE SETTINGS =====
     let siteSettingsLoaded = false;
     

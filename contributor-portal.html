@@ -13,6 +13,7 @@
     gtag('config', 'G-S4BN80729K');
   </script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0"></script>
+  <script src="/js/coverage-gap.js"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
   <link href="contributor-schedule.css" rel="stylesheet">
@@ -70,6 +71,23 @@
     .section-card h2 { font-size: 16px; color: #333; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
     .section-card h2 .section-icon { font-size: 20px; }
     
+    /* Board — messages from the CMS and the live coverage list */
+    .board-card { margin-bottom: 25px; }
+    .board-message { border-left: 4px solid #ddd; background: #fafafa; border-radius: 0 8px 8px 0; padding: 12px 16px; margin-bottom: 10px; }
+    .board-message:last-child { margin-bottom: 0; }
+    .board-message.urgent { border-left-color: #f57c00; background: #fff8e1; }
+    .board-message-title { font-weight: 700; color: #333; font-size: 15px; margin-bottom: 4px; }
+    .board-message.urgent .board-message-title { color: #e65100; }
+    .board-message-body { color: #555; font-size: 14px; line-height: 1.55; }
+
+    .coverage-summary { font-size: 14px; color: #333; margin-bottom: 14px; }
+    .coverage-division { margin-bottom: 12px; }
+    .coverage-division:last-of-type { margin-bottom: 0; }
+    .coverage-division-name { font-size: 13px; font-weight: 700; color: #333; margin-bottom: 3px; }
+    .coverage-division-name span { font-weight: 500; color: #999; }
+    .coverage-schools { font-size: 13.5px; color: #555; line-height: 1.6; }
+    .coverage-note { margin-top: 14px; padding-top: 12px; border-top: 1px solid #eee; font-size: 13px; color: #666; font-style: italic; }
+
     /* Calendar Cards for Upcoming */
     .upcoming-cards { display: flex; gap: 15px; overflow-x: auto; padding: 5px 0; }
     .calendar-card { flex: 0 0 170px; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; display: flex; flex-direction: column; }
@@ -268,6 +286,18 @@
         <p>Here's your coverage overview</p>
       </div>
       
+      <!-- Messages posted from the CMS. Hidden entirely when there are none. -->
+      <div class="section-card board-card" id="boardMessagesCard" style="display: none;">
+        <h2><span class="section-icon">📣</span> From Ball603</h2>
+        <div id="boardMessages"></div>
+      </div>
+
+      <!-- Coverage gap, worked out live rather than typed in. -->
+      <div class="section-card board-card" id="coverageGapCard" style="display: none;">
+        <h2><span class="section-icon">🎯</span> <span id="coverageGapTitle">Schools we still need</span></h2>
+        <div id="coverageGapBody"></div>
+      </div>
+
       <div class="dashboard-grid">
         <!-- Upcoming Coverage -->
         <div class="section-card">
@@ -1120,7 +1150,97 @@
       // Use local date (not UTC) to avoid timezone issues in evening hours
       const today = new Date().toLocaleDateString('en-CA'); // Returns YYYY-MM-DD in local timezone
       loadUpcomingCoverage(contributorName, today);
+      loadBoard(today);
     }
+
+    // ===== BOARD =====
+    // Messages KJ posts in the CMS, plus the live coverage-gap list. Both live or
+    // die on their own: a failure in either one must not take the dashboard with
+    // it, so everything here is wrapped and the cards simply stay hidden.
+    async function loadBoard(today) {
+      let board = null;
+      try {
+        const { data } = await db
+          .from('site_settings')
+          .select('value')
+          .eq('key', 'contributor_board')
+          .single();
+        board = (data && data.value) || null;
+      } catch (err) {
+        board = null;   // nothing posted yet
+      }
+
+      renderBoardMessages(board, today);
+      renderCoverageGap(board);
+    }
+
+    function renderBoardMessages(board, today) {
+      const card = document.getElementById('boardMessagesCard');
+      const list = document.getElementById('boardMessages');
+      const messages = (board && Array.isArray(board.messages) ? board.messages : [])
+        .filter(m => m && m.active !== false)
+        .filter(m => !m.expires_at || m.expires_at >= today)
+        .filter(m => (m.title || '').trim() || (m.body || '').trim())
+        // Urgent first, then newest.
+        .sort((a, b) => (b.urgent === true) - (a.urgent === true) ||
+                        String(b.created_at || '').localeCompare(String(a.created_at || '')));
+
+      if (!messages.length) {
+        card.style.display = 'none';
+        return;
+      }
+
+      list.innerHTML = messages.map(m => `
+        <div class="board-message${m.urgent ? ' urgent' : ''}">
+          ${m.title ? `<div class="board-message-title">${escapeHtml(m.title)}</div>` : ''}
+          ${m.body ? `<div class="board-message-body">${escapeHtml(m.body).replace(/\n/g, '<br>')}</div>` : ''}
+        </div>
+      `).join('');
+      card.style.display = 'block';
+    }
+
+    async function renderCoverageGap(board) {
+      const card = document.getElementById('coverageGapCard');
+      const body = document.getElementById('coverageGapBody');
+      const cov = (board && board.coverage) || {};
+      if (cov.show === false) { card.style.display = 'none'; return; }
+
+      try {
+        const gap = await Ball603Coverage.compute({
+          client: db,
+          overrides: { alsoUncovered: cov.alsoUncovered || [], markCovered: cov.markCovered || [] }
+        });
+
+        if (!gap.total) { card.style.display = 'none'; return; }
+
+        document.getElementById('coverageGapTitle').textContent =
+          gap.missing.length ? 'Schools we still need' : 'Coverage complete';
+
+        const summary = `<div class="coverage-summary">
+            <strong>${gap.covered} of ${gap.total}</strong> ${escapeHtml(gap.sportLabel)} schools covered this season
+            ${gap.missing.length ? `&mdash; <strong>${gap.missing.length}</strong> to go` : '&mdash; every school has a story with photos'}
+          </div>`;
+
+        const groups = gap.byDivision
+          .filter(d => d.missing.length)
+          .map(d => `
+            <div class="coverage-division">
+              <div class="coverage-division-name">${escapeHtml(d.division)} <span>${d.covered}/${d.total}</span></div>
+              <div class="coverage-schools">${d.missing.map(escapeHtml).join(' &middot; ')}</div>
+            </div>`).join('');
+
+        const note = cov.note
+          ? `<div class="coverage-note">${escapeHtml(cov.note)}</div>` : '';
+
+        body.innerHTML = summary + groups + note;
+        card.style.display = 'block';
+      } catch (err) {
+        console.error('Coverage gap failed:', err);
+        card.style.display = 'none';
+      }
+    }
+
+    // (escapeHtml already exists further down this file — reused here.)
     
     async function loadUpcomingCoverage(contributorName, today) {
       const container = document.getElementById('upcomingCards');
