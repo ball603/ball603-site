@@ -642,28 +642,28 @@ class ContributorSchedule {
           <button class="cs-tab" data-tab="College">College</button>
         </div>
         <div class="cs-filters">
-          <button class="cs-today-btn" title="Jump to Today">&#128197; Today</button>
+          <button class="cs-today-btn" title="Jump to today">Today</button>
           <div class="cs-daterange">
             <input type="date" class="cs-date-from" aria-label="Show games from this date">
-            <span class="cs-daterange-sep">to</span>
+            <span class="cs-daterange-sep">&ndash;</span>
             <input type="date" class="cs-date-to" aria-label="Show games up to this date">
             <button class="cs-date-clear" type="button" title="Clear the date range" aria-label="Clear the date range" style="display: none;">&times;</button>
           </div>
           <select class="cs-sport-filter">
-            <option value="">Sport (All)</option>
-            <option value="basketball">&#127936; Basketball</option>
-            <option value="baseball">&#9918; Baseball</option>
-            <option value="gvolleyball">&#127952; Girls Volleyball</option>
+            <option value="">Sport</option>
+            <option value="basketball">Basketball</option>
+            <option value="baseball">Baseball</option>
+            <option value="gvolleyball">Volleyball</option>
           </select>
           <select class="cs-gender-filter">
-            <option value="">Gender (All)</option>
+            <option value="">Gender</option>
             <option value="Boys">Boys</option>
             <option value="Girls">Girls</option>
             <option value="Men">Men</option>
             <option value="Women">Women</option>
           </select>
           <select class="cs-division-filter">
-            <option value="">Division (All)</option>
+            <option value="">Division</option>
           </select>
           <select class="cs-assignment-filter">
             <option value="">Coverage</option>
@@ -672,7 +672,7 @@ class ContributorSchedule {
             <option value="claimed">Claimed</option>
           </select>
           <div class="cs-search-wrapper">
-            <input type="text" class="cs-search-input" placeholder="Search teams...">
+            <input type="text" class="cs-search-input" placeholder="Team">
             <div class="cs-autocomplete-list"></div>
           </div>
         </div>
@@ -907,7 +907,7 @@ class ContributorSchedule {
     const currentValue = select.value;
     const sport = this.container.querySelector('.cs-sport-filter').value;
     
-    select.innerHTML = '<option value="">Gender (All)</option>';
+    select.innerHTML = '<option value="">Gender</option>';
     
     // Sport-specific gender restrictions
     if (sport === 'baseball') {
@@ -954,7 +954,7 @@ class ContributorSchedule {
     const gender = this.container.querySelector('.cs-gender-filter').value;
     const currentValue = select.value;
     
-    select.innerHTML = '<option value="">Division (All)</option>';
+    select.innerHTML = '<option value="">Division</option>';
     
     if (this.currentTab === 'NHIAA') {
       const nhiaaGroup = document.createElement('optgroup');
