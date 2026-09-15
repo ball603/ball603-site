@@ -39,6 +39,10 @@ class ContributorSchedule {
     this.allGames = [];
     this.allTeams = [];
     this.currentTab = 'all';
+    // Set when a team is clicked on the coverage card: an exact-name filter, and
+    // a holding slot for a click that lands before the games have loaded.
+    this.exactTeamFilter = null;
+    this.pendingTeamFilter = null;
     this.openDropdown = null;
     this.scorebookModal = null;
     this.currentScorebookGameId = null;
@@ -219,6 +223,60 @@ class ContributorSchedule {
     }
   }
   
+  /**
+   * Show one team's games. Called when a contributor clicks a school on the
+   * "still need coverage" card — they should land here already filtered.
+   *
+   * The visible search box is a substring match, which is right when you are
+   * typing ("nash" finding both Nashuas) and wrong when you have clicked a
+   * specific team ("Concord" dragging in Concord Christian). So a click pins an
+   * EXACT name; editing the box by hand clears the pin and restores the normal
+   * substring behaviour.
+   *
+   * Safe to call before the games have loaded — the request is held and applied
+   * once they arrive, otherwise a first click would filter an empty list.
+   */
+  filterByTeam(teamName, options) {
+    const opts = options || {};
+    const name = (teamName || '').trim();
+    if (!name) return;
+
+    if (!this.allGames || !this.allGames.length) {
+      this.pendingTeamFilter = { teamName: name, options: opts };
+      return;
+    }
+    this.pendingTeamFilter = null;
+
+    // Fall back to a substring match when the exact name matches no games, so a
+    // spelling difference between the standings table and the schedule can never
+    // leave somebody staring at an empty table.
+    const exactHit = this.allGames.some(g => g.home === name || g.away === name);
+    this.exactTeamFilter = exactHit ? name : null;
+    if (!exactHit) {
+      console.log(`[schedule] No exact match for "${name}" — using a text search instead.`);
+    }
+
+    const setValue = (selector, value) => {
+      const el = this.container.querySelector(selector);
+      if (el && value != null) el.value = value;
+    };
+
+    setValue('.cs-search-input', name);
+    if (opts.sport) setValue('.cs-sport-filter', opts.sport);
+    // Gender only matters where a school fields two teams (basketball).
+    setValue('.cs-gender-filter', opts.gender || '');
+    // A division or coverage filter left over from earlier could hide the very
+    // games we just navigated to.
+    setValue('.cs-division-filter', '');
+    setValue('.cs-assignment-filter', '');
+    this.currentTab = 'all';
+    this.container.querySelectorAll('.cs-tab').forEach(t =>
+      t.classList.toggle('active', t.dataset.tab === 'all'));
+
+    this.populateDivisionFilter();
+    this.renderGames();
+  }
+
   // Set contributor name programmatically
   setContributor(name) {
     this.config.contributorName = name;
@@ -660,6 +718,8 @@ class ContributorSchedule {
     // Search input
     const searchInput = this.container.querySelector('.cs-search-input');
     searchInput.addEventListener('input', () => {
+      // Typing releases a team pinned by a click — from here it's a plain search.
+      this.exactTeamFilter = null;
       this.renderGames();
       this.updateAutocomplete();
     });
@@ -746,7 +806,14 @@ class ContributorSchedule {
       this.populateDivisionFilter();
       this.renderAlerts();
       this.renderGames();
-      
+
+      // A team click that arrived before the games did — apply it now.
+      if (this.pendingTeamFilter) {
+        const { teamName, options } = this.pendingTeamFilter;
+        this.filterByTeam(teamName, options);
+        return;   // don't yank the view to today; they asked for a team
+      }
+
       // Auto-scroll to today after initial load
       setTimeout(() => this.scrollToToday(), 100);
     } catch (err) {
@@ -1112,9 +1179,17 @@ class ContributorSchedule {
     const me = this.getContributor();
     const today = new Date().toISOString().split('T')[0];
     
+    // A pinned team (set by clicking one on the coverage card) matches exactly;
+    // anything typed into the box matches as a substring, as it always has.
+    const pinned = this.exactTeamFilter;
+
     let games = this.allGames.filter(g => {
       if (this.currentTab !== 'all' && g.level !== this.currentTab) return false;
-      if (search && !g.home?.toLowerCase().includes(search) && !g.away?.toLowerCase().includes(search)) return false;
+      if (pinned) {
+        if (g.home !== pinned && g.away !== pinned) return false;
+      } else if (search && !g.home?.toLowerCase().includes(search) && !g.away?.toLowerCase().includes(search)) {
+        return false;
+      }
       if (gender && g.gender !== gender) return false;
       
       // Sport filter - basketball includes null for legacy data

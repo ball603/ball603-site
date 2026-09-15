@@ -85,7 +85,11 @@
     .coverage-division:last-of-type { margin-bottom: 0; }
     .coverage-division-name { font-size: 13px; font-weight: 700; color: #333; margin-bottom: 3px; }
     .coverage-division-name span { font-weight: 500; color: #999; }
-    .coverage-schools { font-size: 13.5px; color: #555; line-height: 1.6; }
+    .coverage-schools { font-size: 13.5px; color: #555; line-height: 1.6; display: flex; flex-wrap: wrap; gap: 6px 8px; }
+    /* Each uncovered team is a button through to its games. Styled as text with
+       a hint of a chip so it reads as a list, not a wall of buttons. */
+    .coverage-team { font: inherit; color: #1565c0; background: none; border: none; border-radius: 4px; padding: 2px 4px; margin: 0; cursor: pointer; text-decoration: underline; text-decoration-color: rgba(21,101,192,0.35); text-underline-offset: 2px; }
+    .coverage-team:hover, .coverage-team:focus-visible { background: #e3f2fd; color: #0d47a1; text-decoration-color: currentColor; outline: none; }
     .coverage-note { margin-top: 14px; padding-top: 12px; border-top: 1px solid #eee; font-size: 13px; color: #666; font-style: italic; }
 
     /* Calendar Cards for Upcoming */
@@ -1223,12 +1227,24 @@
             ${gap.missing.length ? `&mdash; <strong>${gap.missing.length}</strong> to go` : `&mdash; every one has a story with photos`}
           </div>`;
 
+        // Each name is a button through to that team's games on the schedule.
+        // The gender comes off the label ("Bedford (Boys)") so basketball lands
+        // on the right one of the school's two teams.
+        const teamButton = (label) => {
+          const m = /^(.*?)\s*\((Boys|Girls|Men|Women)\)\s*$/.exec(label);
+          const school = m ? m[1] : label;
+          const gender = m ? m[2] : '';
+          return `<button type="button" class="coverage-team"
+            onclick="showTeamSchedule(${JSON.stringify(school).replace(/"/g, '&quot;')}, ${JSON.stringify(gender).replace(/"/g, '&quot;')}, ${JSON.stringify(gap.sport).replace(/"/g, '&quot;')})"
+            title="See ${escapeHtml(label)}'s schedule">${escapeHtml(label)}</button>`;
+        };
+
         const groups = gap.byDivision
           .filter(d => d.missing.length)
           .map(d => `
             <div class="coverage-division">
               <div class="coverage-division-name">${escapeHtml(d.division)} <span>${d.covered}/${d.total}</span></div>
-              <div class="coverage-schools">${d.missing.map(escapeHtml).join(' &middot; ')}</div>
+              <div class="coverage-schools">${d.missing.map(teamButton).join('')}</div>
             </div>`).join('');
 
         const note = cov.note
@@ -1240,6 +1256,21 @@
         console.error('Coverage gap failed:', err);
         card.style.display = 'none';
       }
+    }
+
+    // Clicking a team on the coverage card: open the schedule already filtered
+    // to that team, so a contributor goes straight from "who needs shooting" to
+    // "when do they play".
+    function showTeamSchedule(school, gender, sport) {
+      showView('schedule');
+      const apply = () => {
+        if (!scheduleInstance) return;
+        scheduleInstance.filterByTeam(school, { gender: gender || '', sport: sport || '' });
+        document.getElementById('scheduleView').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      };
+      // showView() builds the schedule on first use; give it a tick to exist.
+      // filterByTeam itself holds the request if the games are still loading.
+      scheduleInstance ? apply() : setTimeout(apply, 50);
     }
 
     // (escapeHtml already exists further down this file — reused here.)
