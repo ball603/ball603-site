@@ -252,6 +252,8 @@ export const handler = async (event) => {
       return await handleBaseballBoxscore(body, headers);
     } else if (mode === 'volleyball-write') {
       return await handleVolleyballWrite(body, headers);
+    } else if (mode === 'manual-write') {
+      return await handleManualWrite(body, headers);
     } else if (mode === 'social') {
       return await handleSocial(body, headers);
     } else {
@@ -1608,6 +1610,191 @@ The headline should be 8-12 words, no quotes. The excerpt should be 1-2 sentence
       headline: parsed.headline || '',
       article:  articleText,
       excerpt:  parsed.excerpt || ''
+    })
+  };
+}
+
+
+// ── Manual Game Story Handler ────────────────────────────────────────────────
+// Powers the "Write it for me" button in the CMS's Manual Game Story tab. Unlike
+// the other write modes this one has no boxscore, no rosters and no schedule
+// behind it: the whole game is whatever the reporter typed in, and the sport can
+// even be one the site doesn't otherwise cover. So the prompt is built from the
+// scoreboard alone and the model is told, firmly, not to fill the gaps itself.
+async function handleManualWrite(body, headers) {
+  const { gameData, notes, schoolData } = body;
+
+  if (!gameData || !gameData.awayTeam || !gameData.homeTeam) {
+    return { statusCode: 400, headers, body: JSON.stringify({ error: 'gameData with both team names is required' }) };
+  }
+
+  const awayTeam = String(gameData.awayTeam);
+  const homeTeam = String(gameData.homeTeam);
+  const sport = String(gameData.sport || 'other');
+
+  const awayInfo = schoolData?.away || {};
+  const homeInfo = schoolData?.home || {};
+  const awayMascot = awayInfo.mascot || '';
+  const homeMascot = homeInfo.mascot || '';
+  const gameTown = gameData.location || homeInfo.town || homeTeam;
+
+  function dayName(dateStr) {
+    if (!dateStr) return '';
+    try {
+      const d = new Date(dateStr + 'T12:00:00');
+      return ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][d.getDay()];
+    } catch { return ''; }
+  }
+  const gameDay = dayName(gameData.date);
+
+  const awayFinal = Number(gameData.awayFinal ?? 0);
+  const homeFinal = Number(gameData.homeFinal ?? 0);
+  const tied = awayFinal === homeFinal;
+  const awayWon = awayFinal > homeFinal;
+  const winner = tied ? null : (awayWon ? awayTeam : homeTeam);
+  const loser  = tied ? null : (awayWon ? homeTeam : awayTeam);
+  const winnerMascot = tied ? '' : (awayWon ? awayMascot : homeMascot);
+
+  // ── Describe the scoreboard in words the model can't misread ──
+  let scoreBlock = '';
+  let sportLabel = 'game';
+  let terminology = '';
+
+  if (sport === 'basketball') {
+    sportLabel = 'basketball game';
+    const aq = gameData.awayQuarters || [];
+    const hq = gameData.homeQuarters || [];
+    const periods = aq.map((_, i) => {
+      const label = i < 4 ? `Q${i + 1}` : (aq.length === 5 ? 'OT' : `OT${i - 3}`);
+      return `${label}: ${awayTeam} ${aq[i] ?? 0}, ${homeTeam} ${hq[i] ?? 0}`;
+    });
+    scoreBlock = `FINAL: ${awayTeam} ${awayFinal}, ${homeTeam} ${homeFinal}
+${periods.length ? 'BY PERIOD:\n' + periods.join('\n') : 'BY PERIOD: Not provided.'}${aq.length > 4 ? '\nThis game went to overtime.' : ''}`;
+    terminology = 'Use basketball terms correctly: points, rebounds, assists, steals, free throws, a run, a lead change.';
+  } else if (sport === 'baseball') {
+    sportLabel = 'baseball game';
+    const ai = gameData.awayInnings || [];
+    const hi = gameData.homeInnings || [];
+    const lineScore = ai.length
+      ? `${awayTeam}: ${ai.join(' ')}\n${homeTeam}: ${hi.join(' ')}   (a dash means that team did not bat in that inning)`
+      : 'Not provided.';
+    const extra = ai.length > 7 ? `\nThis game went ${ai.length} innings — it was decided in extra innings.` : '';
+    scoreBlock = `FINAL: ${awayTeam} ${awayFinal}, ${homeTeam} ${homeFinal}
+LINE SCORE BY INNING:
+${lineScore}${extra}
+R/H/E: ${awayTeam} ${gameData.awayR ?? awayFinal} runs, ${gameData.awayH ?? 0} hits, ${gameData.awayE ?? 0} errors | ${homeTeam} ${gameData.homeR ?? homeFinal} runs, ${gameData.homeH ?? 0} hits, ${gameData.homeE ?? 0} errors`;
+    terminology = 'Use baseball terms correctly: runs, hits, errors, innings, a big inning, a complete game, strikeouts. Never call a run a "point".';
+  } else if (sport === 'gvolleyball') {
+    sportLabel = 'volleyball match';
+    const sets = Array.isArray(gameData.sets) ? gameData.sets : [];
+    const setLine = sets.length
+      ? sets.map((s, i) => `Set ${i + 1}: ${awayTeam} ${s.away}, ${homeTeam} ${s.home}`).join('\n')
+      : 'Not provided — only the match score is known.';
+    scoreBlock = `MATCH SCORE: ${awayTeam} ${gameData.awaySets ?? awayFinal}, ${homeTeam} ${gameData.homeSets ?? homeFinal}
+SET SCORES:
+${setLine}`;
+    terminology = 'Use volleyball terms correctly: kills, digs, assists, aces, blocks, a service run, match point. Write the match score in numerals ("won 3-1"), never spelled out, and state it once.';
+  } else {
+    sportLabel = 'game';
+    const unit = gameData.scoreLabel ? String(gameData.scoreLabel).toLowerCase() : 'points';
+    scoreBlock = `FINAL: ${awayTeam} ${awayFinal}, ${homeTeam} ${homeFinal}
+The numbers above are ${unit}. No period-by-period breakdown was provided.`;
+    terminology = `The reporter called the scoring unit "${unit}". Use that word. Do not assume which sport this is or use terminology from a sport you were not told about.`;
+  }
+
+  const resultLine = tied
+    ? `The game ended level at ${awayFinal}-${homeFinal}. Do not name a winner.`
+    : `${winner} won. Report the result as ${winner} beating ${loser}.`;
+
+  const prompt = `You are a New Hampshire high school sports reporter writing a short recap for Ball603.
+
+This recap was entered by hand. Everything you know about the game is below. There is no boxscore, no roster and no season record available to you.
+
+${sportLabel.toUpperCase()}
+AWAY: ${awayTeam}${awayMascot ? ' (' + awayMascot + ')' : ''}
+HOME: ${homeTeam}${homeMascot ? ' (' + homeMascot + ')' : ''}
+LOCATION: ${gameTown}, N.H.
+${gameDay ? 'DAY: ' + gameDay : ''}
+${gameData.gender ? 'GENDER: ' + gameData.gender : ''}
+${gameData.division ? 'DIVISION: ' + gameData.division : ''}
+
+${scoreBlock}
+
+${resultLine}
+
+${notes && String(notes).trim()
+  ? `REPORTER'S NOTES (treat these as verified facts — use the names and numbers exactly as written):\n${String(notes).trim()}`
+  : "REPORTER'S NOTES: None provided."}
+
+HARD LIMITS — the material above is everything you have:
+- Do NOT name a player, a coach, a stat line or a moment in the game that is not in the reporter's notes or the scoreboard.
+- Do NOT reference either team's won-lost record, their standing, their season so far, their next game, head-to-head history, RPI, rankings or playoff positioning. You have none of that data.
+- Do NOT invent period or set scores that were not provided. If a breakdown says "not provided", write around it.
+- If the notes are empty, write a short, clean recap built only on the score. Short is correct — do not pad.
+
+WRITING RULES:
+- AP style, past tense, third person.
+- ${terminology}
+- Scores in numerals.
+- Open with a dateline: ${String(gameTown).toUpperCase()}, N.H. — followed by the first sentence.
+- First paragraph uses school names only. Mascot nicknames are fine from the second paragraph on${winnerMascot ? ` (e.g. "the ${winnerMascot}")` : ''} — and only the mascots given above. Never invent one.
+- Separate paragraphs with a blank line. Do not repeat the headline in the body.
+- Do not write a photo credit or gallery line.
+
+TONE (these are firm — this is high school sports):
+- State the result honestly and plainly. Do not soften a loss, and do not pile on.
+- NEVER use these words or any variant: "crushed", "dominated", "dominant", "dominance", "blew out", "struggling", "struggled", "demolished", "destroyed", "routed", "thrashed", "overwhelmed", "hapless", "woeful".
+- Describe a lopsided result factually and let the score speak.
+- Give the losing side credit where the facts support it, stated plainly.
+- No hype, no clichés about heart or destiny.
+
+LENGTH: let the material decide. A bare score is three or four sentences. Detailed notes can run longer. Never pad, never drop supported material to stay short.
+
+HEADLINE: 8-12 words, sentence case only — capitalize the first word and proper nouns only. No quotation marks.
+
+Respond with JSON only, in exactly this format:
+{"headline": "...", "article": "...", "excerpt": "..."}
+
+The excerpt is one or two sentences summarizing the result.`;
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 2048,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    console.error('Manual story generation failed:', errText);
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'AI generation failed' }) };
+  }
+
+  const aiData = await response.json();
+  const rawText = aiData.content?.[0]?.text || '';
+
+  let parsed;
+  try {
+    parsed = JSON.parse(rawText.replace(/```json|```/g, '').trim());
+  } catch (e) {
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to parse AI response', raw: rawText }) };
+  }
+
+  return {
+    statusCode: 200,
+    headers,
+    body: JSON.stringify({
+      success: true,
+      headline: parsed.headline || '',
+      article: String(parsed.article || '').trim(),
+      excerpt: parsed.excerpt || ''
     })
   };
 }

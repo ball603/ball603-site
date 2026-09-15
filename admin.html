@@ -1014,6 +1014,7 @@
   <div class="main-container" id="mainContainer">
     <div class="tabs">
       <button class="tab active" onclick="showTab('articles', event)">Articles</button>
+      <button class="tab" onclick="showTab('manualstory', event)">&#x270D;&#xFE0F; Manual Game Story</button>
       <button class="tab" onclick="showTab('schedule', event)">Schedule</button>
       <button class="tab" onclick="showTab('teams', event)">Teams</button>
       <button class="tab" onclick="showTab('contributors', event)">Contributors</button>
@@ -1081,6 +1082,329 @@
         <div class="loading">Loading articles...</div>
       </div>
     </div>
+
+    <!-- ===== MANUAL GAME STORY =====
+         A fallback creator for when a sport-specific story tool can't be used:
+         pick a sport, pick (or type) the two teams, fill in the scoreboard that
+         belongs to that sport, write or AI-draft the story, then hand off to the
+         normal article editor for publishing. Self-contained — nothing here
+         depends on a game existing in the schedule. -->
+    <div class="panel" id="manualStoryPanel" style="display: none;">
+      <div style="max-width: 900px; margin: 0 auto; padding: 20px;">
+        <h2 style="margin-bottom: 6px; color: #333;">&#x270D;&#xFE0F; Manual Game Story</h2>
+        <p style="color: #666; font-size: 14px; margin-bottom: 22px;">
+          Build a game story from scratch. Pick the sport and the right scoreboard appears.
+          Teams can come from the NHIAA list or be typed in by hand with their own logo.
+          When you're done it opens in the normal article editor, so publishing, scheduling
+          and images all work the way they always do.
+        </p>
+
+        <!-- ── 1. Game ─────────────────────────────────────────────── -->
+        <div style="background: #fff; border-radius: 10px; padding: 22px; margin-bottom: 18px; box-shadow: 0 2px 10px rgba(0,0,0,0.08);">
+          <h3 style="margin: 0 0 16px; font-size: 15px; color: #333;">1. Game</h3>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px;">
+            <div>
+              <label style="font-size: 12px; font-weight: 600; color: #555; display: block; margin-bottom: 5px;">Sport</label>
+              <select id="mgsSport" onchange="mgsSportChanged()" style="width: 100%; padding: 9px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px;">
+                <option value="basketball">&#x1F3C0; Basketball</option>
+                <option value="baseball">&#x26BE; Baseball</option>
+                <option value="gvolleyball">&#x1F3D0; Girls Volleyball</option>
+                <option value="other">&#x1F3C5; Other (final score only)</option>
+              </select>
+            </div>
+            <div id="mgsGenderWrap">
+              <label style="font-size: 12px; font-weight: 600; color: #555; display: block; margin-bottom: 5px;">Gender</label>
+              <select id="mgsGender" style="width: 100%; padding: 9px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px;">
+                <option value="Boys">Boys</option>
+                <option value="Girls">Girls</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size: 12px; font-weight: 600; color: #555; display: block; margin-bottom: 5px;">Date</label>
+              <input type="date" id="mgsDate" style="width: 100%; padding: 9px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px; box-sizing: border-box;">
+            </div>
+            <div>
+              <label style="font-size: 12px; font-weight: 600; color: #555; display: block; margin-bottom: 5px;">Division <span style="font-weight: 400; color: #999;">(optional)</span></label>
+              <input type="text" id="mgsDivision" placeholder="D-II" style="width: 100%; padding: 9px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px; box-sizing: border-box;">
+            </div>
+            <div>
+              <label style="font-size: 12px; font-weight: 600; color: #555; display: block; margin-bottom: 5px;">Location <span style="font-weight: 400; color: #999;">(optional)</span></label>
+              <input type="text" id="mgsLocation" placeholder="Nute High School" style="width: 100%; padding: 9px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px; box-sizing: border-box;">
+            </div>
+          </div>
+        </div>
+
+        <!-- ── 2. Teams ────────────────────────────────────────────── -->
+        <div style="background: #fff; border-radius: 10px; padding: 22px; margin-bottom: 18px; box-shadow: 0 2px 10px rgba(0,0,0,0.08);">
+          <h3 style="margin: 0 0 16px; font-size: 15px; color: #333;">2. Teams</h3>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;" id="mgsTeamsGrid">
+
+            <div>
+              <label style="font-size: 12px; font-weight: 700; color: #f57c00; display: block; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Away</label>
+              <select id="mgsAwaySelect" onchange="mgsTeamSelectChanged('away')" style="width: 100%; padding: 9px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px;">
+                <option value="">Loading teams&hellip;</option>
+              </select>
+              <input type="text" id="mgsAwayCustom" oninput="mgsRefreshBoardLabels()" placeholder="Type the team name&hellip;" style="display: none; width: 100%; padding: 9px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px; margin-top: 8px; box-sizing: border-box;">
+              <div id="mgsAwayLogoRow" style="display: none; margin-top: 10px;">
+                <label style="font-size: 11px; color: #777; display: block; margin-bottom: 5px;">Logo <span style="color: #999;">(optional &mdash; square PNG works best)</span></label>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <img id="mgsAwayLogoPreview" src="" alt="" style="display: none; width: 44px; height: 44px; object-fit: contain; background: #f5f5f5; border-radius: 6px; border: 1px solid #eee;">
+                  <input type="file" id="mgsAwayLogoFile" accept="image/*" onchange="mgsUploadLogo('away')" style="font-size: 12px; flex: 1;">
+                </div>
+                <div id="mgsAwayLogoStatus" style="font-size: 11px; color: #888; margin-top: 5px;"></div>
+              </div>
+            </div>
+
+            <div>
+              <label style="font-size: 12px; font-weight: 700; color: #1565c0; display: block; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Home</label>
+              <select id="mgsHomeSelect" onchange="mgsTeamSelectChanged('home')" style="width: 100%; padding: 9px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px;">
+                <option value="">Loading teams&hellip;</option>
+              </select>
+              <input type="text" id="mgsHomeCustom" oninput="mgsRefreshBoardLabels()" placeholder="Type the team name&hellip;" style="display: none; width: 100%; padding: 9px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px; margin-top: 8px; box-sizing: border-box;">
+              <div id="mgsHomeLogoRow" style="display: none; margin-top: 10px;">
+                <label style="font-size: 11px; color: #777; display: block; margin-bottom: 5px;">Logo <span style="color: #999;">(optional &mdash; square PNG works best)</span></label>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <img id="mgsHomeLogoPreview" src="" alt="" style="display: none; width: 44px; height: 44px; object-fit: contain; background: #f5f5f5; border-radius: 6px; border: 1px solid #eee;">
+                  <input type="file" id="mgsHomeLogoFile" accept="image/*" onchange="mgsUploadLogo('home')" style="font-size: 12px; flex: 1;">
+                </div>
+                <div id="mgsHomeLogoStatus" style="font-size: 11px; color: #888; margin-top: 5px;"></div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ── 3. Scoreboard ───────────────────────────────────────── -->
+        <div style="background: #fff; border-radius: 10px; padding: 22px; margin-bottom: 18px; box-shadow: 0 2px 10px rgba(0,0,0,0.08);">
+          <h3 style="margin: 0 0 6px; font-size: 15px; color: #333;">3. Scoreboard</h3>
+          <p style="color: #888; font-size: 12px; margin: 0 0 16px;">
+            The final column adds itself up as you type. Type over it if the running total isn't right.
+          </p>
+
+          <!-- Basketball -->
+          <div id="mgsBoardBasketball" class="mgs-board">
+            <div style="overflow-x: auto;">
+              <table class="mgs-table" style="width: 100%; font-size: 13px; border-collapse: collapse; background: #fafafa; border-radius: 6px; min-width: 440px;">
+                <thead>
+                  <tr style="background: #eee;" id="mgsBbHeaders">
+                    <th style="padding: 9px; text-align: left; width: 150px;">Team</th>
+                    <th style="padding: 9px; width: 48px;">Q1</th>
+                    <th style="padding: 9px; width: 48px;">Q2</th>
+                    <th style="padding: 9px; width: 48px;">Q3</th>
+                    <th style="padding: 9px; width: 48px;">Q4</th>
+                    <th id="mgsBbOtHeaders" style="padding: 0;"></th>
+                    <th style="padding: 9px; width: 56px; border-left: 2px solid #ccc;">Final</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td id="mgsBbAwayName" style="padding: 9px; font-weight: 600;">Away</td>
+                    <td><input type="number" id="mgsBbAwayQ1" class="quarter-input" oninput="mgsCalcBasketball('away')"></td>
+                    <td><input type="number" id="mgsBbAwayQ2" class="quarter-input" oninput="mgsCalcBasketball('away')"></td>
+                    <td><input type="number" id="mgsBbAwayQ3" class="quarter-input" oninput="mgsCalcBasketball('away')"></td>
+                    <td><input type="number" id="mgsBbAwayQ4" class="quarter-input" oninput="mgsCalcBasketball('away')"></td>
+                    <td id="mgsBbAwayOT"></td>
+                    <td style="border-left: 2px solid #ccc;"><input type="number" id="mgsBbAwayFinal" class="quarter-input" style="background: #e8f5e9; font-weight: 700;" oninput="mgsMarkTouched(this)"></td>
+                  </tr>
+                  <tr>
+                    <td id="mgsBbHomeName" style="padding: 9px; font-weight: 600;">Home</td>
+                    <td><input type="number" id="mgsBbHomeQ1" class="quarter-input" oninput="mgsCalcBasketball('home')"></td>
+                    <td><input type="number" id="mgsBbHomeQ2" class="quarter-input" oninput="mgsCalcBasketball('home')"></td>
+                    <td><input type="number" id="mgsBbHomeQ3" class="quarter-input" oninput="mgsCalcBasketball('home')"></td>
+                    <td><input type="number" id="mgsBbHomeQ4" class="quarter-input" oninput="mgsCalcBasketball('home')"></td>
+                    <td id="mgsBbHomeOT"></td>
+                    <td style="border-left: 2px solid #ccc;"><input type="number" id="mgsBbHomeFinal" class="quarter-input" style="background: #e8f5e9; font-weight: 700;" oninput="mgsMarkTouched(this)"></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <button onclick="mgsAddOT()" style="margin-top: 10px; background: #eee; border: 1px solid #ccc; padding: 5px 12px; border-radius: 4px; font-size: 12px; cursor: pointer;">+ Add OT</button>
+          </div>
+
+          <!-- Baseball -->
+          <div id="mgsBoardBaseball" class="mgs-board" style="display: none;">
+            <div style="overflow-x: auto;">
+              <table class="mgs-table" style="width: 100%; font-size: 13px; border-collapse: collapse; background: #fafafa; border-radius: 6px; min-width: 560px;">
+                <thead>
+                  <tr style="background: #eee;" id="mgsBsbHeaders">
+                    <th style="padding: 9px; text-align: left; width: 140px;">Team</th>
+                    <th style="padding: 9px; width: 38px;">1</th>
+                    <th style="padding: 9px; width: 38px;">2</th>
+                    <th style="padding: 9px; width: 38px;">3</th>
+                    <th style="padding: 9px; width: 38px;">4</th>
+                    <th style="padding: 9px; width: 38px;">5</th>
+                    <th style="padding: 9px; width: 38px;">6</th>
+                    <th style="padding: 9px; width: 38px;">7</th>
+                    <th id="mgsBsbExtraHeaders" style="padding: 0;"></th>
+                    <th class="mgs-rhe-head" style="padding: 9px; width: 46px; border-left: 2px solid #ccc;">R</th>
+                    <th class="mgs-rhe-head" style="padding: 9px; width: 42px;">H</th>
+                    <th class="mgs-rhe-head" style="padding: 9px; width: 42px;">E</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td id="mgsBsbAwayName" style="padding: 9px; font-weight: 600;">Away</td>
+                    <td><input type="text" inputmode="numeric" id="mgsBsbAwayI1" class="quarter-input" oninput="mgsCalcBaseball('away')"></td>
+                    <td><input type="text" inputmode="numeric" id="mgsBsbAwayI2" class="quarter-input" oninput="mgsCalcBaseball('away')"></td>
+                    <td><input type="text" inputmode="numeric" id="mgsBsbAwayI3" class="quarter-input" oninput="mgsCalcBaseball('away')"></td>
+                    <td><input type="text" inputmode="numeric" id="mgsBsbAwayI4" class="quarter-input" oninput="mgsCalcBaseball('away')"></td>
+                    <td><input type="text" inputmode="numeric" id="mgsBsbAwayI5" class="quarter-input" oninput="mgsCalcBaseball('away')"></td>
+                    <td><input type="text" inputmode="numeric" id="mgsBsbAwayI6" class="quarter-input" oninput="mgsCalcBaseball('away')"></td>
+                    <td><input type="text" inputmode="numeric" id="mgsBsbAwayI7" class="quarter-input" oninput="mgsCalcBaseball('away')"></td>
+                    <td id="mgsBsbAwayExtra" class="mgs-extra-anchor"></td>
+                    <td style="border-left: 2px solid #ccc;"><input type="number" id="mgsBsbAwayR" class="quarter-input" style="background: #e8f5e9; font-weight: 700;" oninput="mgsMarkTouched(this)"></td>
+                    <td><input type="number" id="mgsBsbAwayH" class="quarter-input"></td>
+                    <td><input type="number" id="mgsBsbAwayE" class="quarter-input"></td>
+                  </tr>
+                  <tr>
+                    <td id="mgsBsbHomeName" style="padding: 9px; font-weight: 600;">Home</td>
+                    <td><input type="text" inputmode="numeric" id="mgsBsbHomeI1" class="quarter-input" oninput="mgsCalcBaseball('home')"></td>
+                    <td><input type="text" inputmode="numeric" id="mgsBsbHomeI2" class="quarter-input" oninput="mgsCalcBaseball('home')"></td>
+                    <td><input type="text" inputmode="numeric" id="mgsBsbHomeI3" class="quarter-input" oninput="mgsCalcBaseball('home')"></td>
+                    <td><input type="text" inputmode="numeric" id="mgsBsbHomeI4" class="quarter-input" oninput="mgsCalcBaseball('home')"></td>
+                    <td><input type="text" inputmode="numeric" id="mgsBsbHomeI5" class="quarter-input" oninput="mgsCalcBaseball('home')"></td>
+                    <td><input type="text" inputmode="numeric" id="mgsBsbHomeI6" class="quarter-input" oninput="mgsCalcBaseball('home')"></td>
+                    <td><input type="text" inputmode="numeric" id="mgsBsbHomeI7" class="quarter-input" oninput="mgsCalcBaseball('home')"></td>
+                    <td id="mgsBsbHomeExtra" class="mgs-extra-anchor"></td>
+                    <td style="border-left: 2px solid #ccc;"><input type="number" id="mgsBsbHomeR" class="quarter-input" style="background: #e8f5e9; font-weight: 700;" oninput="mgsMarkTouched(this)"></td>
+                    <td><input type="number" id="mgsBsbHomeH" class="quarter-input"></td>
+                    <td><input type="number" id="mgsBsbHomeE" class="quarter-input"></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div style="margin-top: 10px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+              <button onclick="mgsAddInning()" style="background: #eee; border: 1px solid #ccc; padding: 5px 12px; border-radius: 4px; font-size: 12px; cursor: pointer;">+ Extra inning</button>
+              <button onclick="mgsRemoveInning()" id="mgsRemoveInningBtn" style="display: none; background: #fff; border: 1px solid #ddd; color: #c62828; padding: 5px 12px; border-radius: 4px; font-size: 12px; cursor: pointer;">&minus; Remove last inning</button>
+              <span style="font-size: 11px; color: #999;">Leave an inning blank for a team that didn't bat, or type &ldquo;&ndash;&rdquo;.</span>
+            </div>
+          </div>
+
+          <!-- Volleyball -->
+          <div id="mgsBoardVolleyball" class="mgs-board" style="display: none;">
+            <div style="overflow-x: auto;">
+              <table class="mgs-table" style="width: 100%; font-size: 13px; border-collapse: collapse; background: #fafafa; border-radius: 6px; min-width: 460px;">
+                <thead>
+                  <tr style="background: #eee;">
+                    <th style="padding: 9px; text-align: left; width: 150px;">Team</th>
+                    <th style="padding: 9px; width: 48px;">S1</th>
+                    <th style="padding: 9px; width: 48px;">S2</th>
+                    <th style="padding: 9px; width: 48px;">S3</th>
+                    <th style="padding: 9px; width: 48px;" class="mgs-vb-col4">S4</th>
+                    <th style="padding: 9px; width: 48px;" class="mgs-vb-col5">S5</th>
+                    <th style="padding: 9px; width: 56px; border-left: 2px solid #ccc;">Sets</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td id="mgsVbAwayName" style="padding: 9px; font-weight: 600;">Away</td>
+                    <td><input type="number" id="mgsVbAwayS1" class="quarter-input" oninput="mgsCalcVolleyball()"></td>
+                    <td><input type="number" id="mgsVbAwayS2" class="quarter-input" oninput="mgsCalcVolleyball()"></td>
+                    <td><input type="number" id="mgsVbAwayS3" class="quarter-input" oninput="mgsCalcVolleyball()"></td>
+                    <td class="mgs-vb-col4"><input type="number" id="mgsVbAwayS4" class="quarter-input" oninput="mgsCalcVolleyball()"></td>
+                    <td class="mgs-vb-col5"><input type="number" id="mgsVbAwayS5" class="quarter-input" oninput="mgsCalcVolleyball()"></td>
+                    <td style="border-left: 2px solid #ccc;"><input type="number" id="mgsVbAwaySets" class="quarter-input" style="background: #e8f5e9; font-weight: 700;" oninput="mgsMarkTouched(this)"></td>
+                  </tr>
+                  <tr>
+                    <td id="mgsVbHomeName" style="padding: 9px; font-weight: 600;">Home</td>
+                    <td><input type="number" id="mgsVbHomeS1" class="quarter-input" oninput="mgsCalcVolleyball()"></td>
+                    <td><input type="number" id="mgsVbHomeS2" class="quarter-input" oninput="mgsCalcVolleyball()"></td>
+                    <td><input type="number" id="mgsVbHomeS3" class="quarter-input" oninput="mgsCalcVolleyball()"></td>
+                    <td class="mgs-vb-col4"><input type="number" id="mgsVbHomeS4" class="quarter-input" oninput="mgsCalcVolleyball()"></td>
+                    <td class="mgs-vb-col5"><input type="number" id="mgsVbHomeS5" class="quarter-input" oninput="mgsCalcVolleyball()"></td>
+                    <td style="border-left: 2px solid #ccc;"><input type="number" id="mgsVbHomeSets" class="quarter-input" style="background: #e8f5e9; font-weight: 700;" oninput="mgsMarkTouched(this)"></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Other / final score only -->
+          <div id="mgsBoardOther" class="mgs-board" style="display: none;">
+            <div style="overflow-x: auto;">
+              <table class="mgs-table" style="width: 100%; font-size: 13px; border-collapse: collapse; background: #fafafa; border-radius: 6px; min-width: 320px;">
+                <thead>
+                  <tr style="background: #eee;">
+                    <th style="padding: 9px; text-align: left; width: 180px;">Team</th>
+                    <th style="padding: 9px; width: 80px;" id="mgsOtherScoreHead">Final</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td id="mgsOtherAwayName" style="padding: 9px; font-weight: 600;">Away</td>
+                    <td><input type="number" id="mgsOtherAwayFinal" class="quarter-input" style="background: #e8f5e9; font-weight: 700;"></td>
+                  </tr>
+                  <tr>
+                    <td id="mgsOtherHomeName" style="padding: 9px; font-weight: 600;">Home</td>
+                    <td><input type="number" id="mgsOtherHomeFinal" class="quarter-input" style="background: #e8f5e9; font-weight: 700;"></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div style="margin-top: 12px; max-width: 280px;">
+              <label style="font-size: 12px; font-weight: 600; color: #555; display: block; margin-bottom: 5px;">What the number is <span style="font-weight: 400; color: #999;">(optional)</span></label>
+              <input type="text" id="mgsOtherLabel" placeholder="Goals, Points, Strokes&hellip;" oninput="mgsOtherLabelChanged()" style="width: 100%; padding: 9px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px; box-sizing: border-box;">
+            </div>
+          </div>
+        </div>
+
+        <!-- ── 4. Story ────────────────────────────────────────────── -->
+        <div style="background: #fff; border-radius: 10px; padding: 22px; margin-bottom: 18px; box-shadow: 0 2px 10px rgba(0,0,0,0.08);">
+          <h3 style="margin: 0 0 16px; font-size: 15px; color: #333;">4. Story</h3>
+
+          <div style="margin-bottom: 14px;">
+            <label style="font-size: 12px; font-weight: 600; color: #555; display: block; margin-bottom: 5px;">Headline</label>
+            <input type="text" id="mgsHeadline" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; font-weight: 600; box-sizing: border-box;">
+          </div>
+
+          <div style="margin-bottom: 14px;">
+            <label style="font-size: 12px; font-weight: 600; color: #555; display: block; margin-bottom: 5px;">
+              Notes <span style="font-weight: 400; color: #999;">(who scored, key plays, milestones &mdash; also what the AI draft is built from)</span>
+            </label>
+            <textarea id="mgsNotes" style="width: 100%; min-height: 80px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px; box-sizing: border-box;" placeholder="Sam Rivard had 18 kills and 4 aces. Nute led 2-1 before dropping the last two sets."></textarea>
+          </div>
+
+          <div style="margin-bottom: 10px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <button onclick="mgsWriteForMe()" id="mgsAiBtn" style="background: #1a73e8; color: #fff; border: none; padding: 9px 16px; border-radius: 5px; font-size: 13px; font-weight: 600; cursor: pointer;">
+              &#x2728; Write it for me
+            </button>
+            <span style="font-size: 11px; color: #999;">Optional. Fills in the headline and story below &mdash; you can edit both afterwards.</span>
+          </div>
+
+          <div>
+            <label style="font-size: 12px; font-weight: 600; color: #555; display: block; margin-bottom: 5px;">Story</label>
+            <textarea id="mgsBody" style="width: 100%; min-height: 240px; padding: 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; line-height: 1.7; box-sizing: border-box; font-family: Georgia, serif;" placeholder="Write the story here, or use the button above to get a draft."></textarea>
+          </div>
+        </div>
+
+        <!-- ── 5. Finish ───────────────────────────────────────────── -->
+        <div style="background: #fff; border-radius: 10px; padding: 22px; margin-bottom: 40px; box-shadow: 0 2px 10px rgba(0,0,0,0.08);">
+          <h3 style="margin: 0 0 14px; font-size: 15px; color: #333;">5. Finish</h3>
+
+          <label style="display: flex; align-items: flex-start; gap: 9px; cursor: pointer; margin-bottom: 18px;">
+            <input type="checkbox" id="mgsSaveGame" style="margin-top: 3px;">
+            <span style="font-size: 13px; color: #444;">
+              <strong>Also save this game to the schedule.</strong><br>
+              <span style="font-size: 12px; color: #888;">
+                Off by default. If a game between these two teams already exists on this date, its score is updated; otherwise a new game is added.
+                Only applies when both teams come from the NHIAA list.
+              </span>
+            </span>
+          </label>
+
+          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button onclick="mgsOpenInEditor()" id="mgsContinueBtn" style="background: #2e7d32; color: #fff; border: none; padding: 13px 26px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;">
+              Continue to article editor &rarr;
+            </button>
+            <button onclick="mgsReset(true)" style="background: #f0f0f0; border: 1px solid #ddd; color: #555; padding: 13px 22px; border-radius: 6px; font-size: 14px; cursor: pointer;">
+              Clear and enter another game
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
     
     <!-- Schedule Panel -->
     <div class="panel" id="schedulePanel" style="display: none;">
@@ -8156,11 +8480,28 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       vbUpdateColumnVisibility();
     }
 
+    // The editor's score cards only know about the scoreboard itself. A story
+    // built in the Manual Game Story tab also carries a typed-in team's logo and
+    // the flag that stops article.html linking it to a team page that doesn't
+    // exist — fields no card has an input for. Re-attach them on the way out so
+    // saving the story doesn't quietly strip them. The team names still have to
+    // match, so changing a team by hand drops the old logo rather than pinning
+    // it to the wrong school.
+    function carryManualFields(gd) {
+      const prev = currentGameData;
+      if (!gd || !prev || !prev.manual) return gd;
+      if (prev.awayTeam !== gd.awayTeam || prev.homeTeam !== gd.homeTeam) return gd;
+      gd.manual = true;
+      ['awayLogo', 'homeLogo', 'awayCustom', 'homeCustom', 'gender', 'location', 'scoreLabel']
+        .forEach(k => { if (prev[k] !== undefined && gd[k] === undefined) gd[k] = prev[k]; });
+      return gd;
+    }
+
     // Returns the sport-specific game_data payload for the current article, or null
     function getSportGameData() {
       const sport = document.getElementById('articleSport')?.value;
-      if (sport === 'baseball') return getLsGameData();
-      if (sport === 'gvolleyball') return getVbGameData();
+      if (sport === 'baseball') return carryManualFields(getLsGameData());
+      if (sport === 'gvolleyball') return carryManualFields(getVbGameData());
       return null;
     }
 
@@ -8188,12 +8529,687 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       }
     }
 
+    // ==================== MANUAL GAME STORY ====================
+    // A fallback path for building a game story when a sport-specific creator
+    // can't be used. Nothing here reads from the schedule: the sport, the two
+    // teams and the whole scoreboard are typed in by hand. When it's done it
+    // hands off to the normal article editor, so publishing, scheduling, images
+    // and SEO all behave exactly as they do for any other story.
+    //
+    // The scoreboard the user sees is chosen by the sport picker:
+    //   basketball  - Q1-Q4 plus as many OT columns as needed
+    //   baseball    - innings 1-7 plus extra innings, then R/H/E
+    //   gvolleyball - sets 1-5 (4 and 5 reveal themselves), then sets won
+    //   other       - a single final-score column, with an optional label
+    let mgsTeamNames = [];
+    let mgsLogos = { away: null, home: null };
+    let mgsOtCount = 0;
+    let mgsExtraInnings = 0;
+
+    function initManualStory() {
+      const dateEl = document.getElementById('mgsDate');
+      if (dateEl && !dateEl.value) dateEl.value = getTodayEST();
+      mgsSportChanged();
+      if (mgsTeamNames.length === 0) mgsLoadTeamOptions();
+    }
+
+    // ── Teams ───────────────────────────────────────────────────────────────
+    // School names are the same whatever the gender, so this list is loaded
+    // once and reused. A failed load is not fatal — the "type a team name"
+    // option still works, which is the point of a manual fallback.
+    async function mgsLoadTeamOptions() {
+      const awaySel = document.getElementById('mgsAwaySelect');
+      const homeSel = document.getElementById('mgsHomeSelect');
+      if (!awaySel || !homeSel) return;
+
+      if (mgsTeamNames.length === 0) {
+        try {
+          if (!Array.isArray(allTeams) || allTeams.length === 0) {
+            const res = await fetch('/.netlify/functions/teams');
+            const data = await res.json();
+            if (data && data.success) allTeams = data.teams || [];
+          }
+          mgsTeamNames = [...new Set((allTeams || [])
+            .map(t => String(t.shortname || t.full_name || '').trim())
+            .filter(Boolean))].sort((a, b) => a.localeCompare(b));
+        } catch (err) {
+          console.error('Manual Game Story: could not load the team list', err);
+          mgsTeamNames = [];
+        }
+      }
+
+      const opts = mgsTeamNames.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+      const tail = '<option value="__custom__">&#x270E; Type a team name&hellip;</option>';
+      [['away', awaySel], ['home', homeSel]].forEach(([side, sel]) => {
+        const prev = sel.value;
+        sel.innerHTML = `<option value="">-- Select team --</option>${opts}${tail}`;
+        sel.value = prev;
+        if (sel.value !== prev) sel.value = '';
+      });
+      mgsRefreshBoardLabels();
+    }
+
+    function mgsTeamName(side) {
+      const sel = document.getElementById(side === 'away' ? 'mgsAwaySelect' : 'mgsHomeSelect');
+      const custom = document.getElementById(side === 'away' ? 'mgsAwayCustom' : 'mgsHomeCustom');
+      if (!sel) return '';
+      return sel.value === '__custom__' ? (custom?.value || '').trim() : sel.value;
+    }
+
+    function mgsIsCustom(side) {
+      const sel = document.getElementById(side === 'away' ? 'mgsAwaySelect' : 'mgsHomeSelect');
+      return !!sel && sel.value === '__custom__';
+    }
+
+    function mgsTeamSelectChanged(side) {
+      const cap = side === 'away' ? 'Away' : 'Home';
+      const isCustom = mgsIsCustom(side);
+      const customInput = document.getElementById('mgs' + cap + 'Custom');
+      document.getElementById('mgs' + cap + 'LogoRow').style.display = isCustom ? 'block' : 'none';
+      customInput.style.display = isCustom ? 'block' : 'none';
+      if (isCustom) {
+        customInput.focus();
+      } else {
+        customInput.value = '';
+        mgsClearLogo(side);
+      }
+      mgsRefreshBoardLabels();
+    }
+
+    async function mgsUploadLogo(side) {
+      const cap = side === 'away' ? 'Away' : 'Home';
+      const input = document.getElementById('mgs' + cap + 'LogoFile');
+      const status = document.getElementById('mgs' + cap + 'LogoStatus');
+      const preview = document.getElementById('mgs' + cap + 'LogoPreview');
+      const file = input.files && input.files[0];
+      if (!file) return;
+      if (!String(file.type || '').startsWith('image/')) {
+        status.textContent = 'That file is not an image.';
+        input.value = '';
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        status.textContent = 'Logo must be under 5 MB.';
+        input.value = '';
+        return;
+      }
+      status.textContent = 'Uploading…';
+      try {
+        const url = await uploadImageToSupabase(file, 'team-logos');
+        mgsLogos[side] = url;
+        preview.src = url;
+        preview.style.display = 'block';
+        status.textContent = 'Logo uploaded.';
+      } catch (err) {
+        console.error('Manual Game Story: logo upload failed', err);
+        mgsLogos[side] = null;
+        preview.style.display = 'none';
+        input.value = '';
+        status.textContent = 'Upload failed — the story will fall back to the Ball603 logo.';
+      }
+    }
+
+    function mgsClearLogo(side) {
+      const cap = side === 'away' ? 'Away' : 'Home';
+      mgsLogos[side] = null;
+      const file = document.getElementById('mgs' + cap + 'LogoFile');
+      const preview = document.getElementById('mgs' + cap + 'LogoPreview');
+      const status = document.getElementById('mgs' + cap + 'LogoStatus');
+      if (file) file.value = '';
+      if (preview) { preview.removeAttribute('src'); preview.style.display = 'none'; }
+      if (status) status.textContent = '';
+    }
+
+    // ── Sport / scoreboard switching ────────────────────────────────────────
+    function mgsSportChanged() {
+      const sport = document.getElementById('mgsSport').value;
+      document.getElementById('mgsBoardBasketball').style.display = sport === 'basketball' ? '' : 'none';
+      document.getElementById('mgsBoardBaseball').style.display   = sport === 'baseball' ? '' : 'none';
+      document.getElementById('mgsBoardVolleyball').style.display = sport === 'gvolleyball' ? '' : 'none';
+      document.getElementById('mgsBoardOther').style.display      = sport === 'other' ? '' : 'none';
+
+      // NHIAA baseball is boys, the volleyball we cover is girls. Fixing the
+      // gender here keeps it out of the way and off the list of things to get
+      // wrong; basketball and "other" still ask.
+      const genderEl = document.getElementById('mgsGender');
+      if (sport === 'baseball') genderEl.value = 'Boys';
+      if (sport === 'gvolleyball') genderEl.value = 'Girls';
+      document.getElementById('mgsGenderWrap').style.display =
+        (sport === 'baseball' || sport === 'gvolleyball') ? 'none' : '';
+
+      if (sport === 'gvolleyball') mgsVbColumnVisibility();
+      mgsRefreshBoardLabels();
+    }
+
+    function mgsRefreshBoardLabels() {
+      const away = mgsTeamName('away') || 'Away';
+      const home = mgsTeamName('home') || 'Home';
+      const pairs = [
+        ['mgsBbAwayName', away], ['mgsBbHomeName', home],
+        ['mgsBsbAwayName', away], ['mgsBsbHomeName', home],
+        ['mgsVbAwayName', away], ['mgsVbHomeName', home],
+        ['mgsOtherAwayName', away], ['mgsOtherHomeName', home]
+      ];
+      pairs.forEach(([id, val]) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = val;
+      });
+    }
+
+    function mgsOtherLabelChanged() {
+      const label = (document.getElementById('mgsOtherLabel').value || '').trim();
+      document.getElementById('mgsOtherScoreHead').textContent = label || 'Final';
+    }
+
+    // The final/R/sets column fills itself in as periods are typed, but the
+    // moment it's typed over by hand it stops being overwritten — a forfeit, a
+    // game called early or a score the periods don't add up to all need the
+    // typed number to win.
+    function mgsMarkTouched(el) { if (el) el.dataset.touched = '1'; }
+
+    function mgsSetAuto(id, value) {
+      const el = document.getElementById(id);
+      if (!el || el.dataset.touched === '1') return;
+      el.value = value;
+    }
+
+    function mgsVal(id) {
+      const el = document.getElementById(id);
+      return el ? String(el.value || '').trim() : '';
+    }
+
+    function mgsNum(id) {
+      const raw = mgsVal(id);
+      return raw === '' ? null : (parseInt(raw, 10) || 0);
+    }
+
+    // "-", an en dash or an x all mean "did not bat" in a line score.
+    function mgsIsDash(raw) {
+      return raw === '-' || raw === '–' || raw === '—' || raw.toLowerCase() === 'x';
+    }
+
+    // ── Basketball ──────────────────────────────────────────────────────────
+    function mgsCalcBasketball(side) {
+      const cap = side === 'away' ? 'Away' : 'Home';
+      let total = 0, any = false;
+      for (let q = 1; q <= 4 + mgsOtCount; q++) {
+        const raw = mgsVal(`mgsBb${cap}Q${q}`);
+        if (raw === '') continue;
+        any = true;
+        total += parseInt(raw, 10) || 0;
+      }
+      mgsSetAuto(`mgsBb${cap}Final`, any ? total : '');
+    }
+
+    function mgsAddOT() {
+      if (mgsOtCount >= 6) return;
+      mgsOtCount++;
+      const n = 4 + mgsOtCount;
+      const label = mgsOtCount === 1 ? 'OT' : 'OT' + mgsOtCount;
+
+      const anchorTh = document.getElementById('mgsBbOtHeaders');
+      const th = document.createElement('th');
+      th.className = 'mgs-ot-header';
+      th.style.cssText = 'padding: 9px; width: 48px;';
+      th.textContent = label;
+      anchorTh.parentNode.insertBefore(th, anchorTh);
+
+      ['away', 'home'].forEach(side => {
+        const cap = side === 'away' ? 'Away' : 'Home';
+        const anchor = document.getElementById(`mgsBb${cap}OT`);
+        const td = document.createElement('td');
+        td.className = 'mgs-ot-cell';
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.className = 'quarter-input';
+        input.id = `mgsBb${cap}Q${n}`;
+        input.addEventListener('input', () => mgsCalcBasketball(side));
+        td.appendChild(input);
+        anchor.parentNode.insertBefore(td, anchor);
+      });
+    }
+
+    // ── Baseball ────────────────────────────────────────────────────────────
+    function mgsCalcBaseball(side) {
+      const cap = side === 'away' ? 'Away' : 'Home';
+      let total = 0, any = false;
+      for (let i = 1; i <= 7 + mgsExtraInnings; i++) {
+        const raw = mgsVal(`mgsBsb${cap}I${i}`);
+        if (raw === '') continue;
+        any = true;
+        if (mgsIsDash(raw)) continue;
+        total += parseInt(raw, 10) || 0;
+      }
+      mgsSetAuto(`mgsBsb${cap}R`, any ? total : '');
+    }
+
+    // Extra innings: a column is appended for the 8th, 9th, 10th... and R/H/E
+    // stay where they are, on the far right, behind the divider.
+    function mgsAddInning() {
+      if (7 + mgsExtraInnings >= 25) return;
+      mgsExtraInnings++;
+      const n = 7 + mgsExtraInnings;
+
+      const anchorTh = document.getElementById('mgsBsbExtraHeaders');
+      const th = document.createElement('th');
+      th.className = 'mgs-extra-inning-header';
+      th.style.cssText = 'padding: 9px; width: 38px;';
+      th.textContent = String(n);
+      anchorTh.parentNode.insertBefore(th, anchorTh);
+
+      ['away', 'home'].forEach(side => {
+        const cap = side === 'away' ? 'Away' : 'Home';
+        const anchor = document.getElementById(`mgsBsb${cap}Extra`);
+        const td = document.createElement('td');
+        td.className = 'mgs-extra-inning-cell';
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.inputMode = 'numeric';
+        input.className = 'quarter-input';
+        input.id = `mgsBsb${cap}I${n}`;
+        input.addEventListener('input', () => mgsCalcBaseball(side));
+        td.appendChild(input);
+        anchor.parentNode.insertBefore(td, anchor);
+      });
+
+      document.getElementById('mgsRemoveInningBtn').style.display = '';
+    }
+
+    function mgsRemoveInning() {
+      if (mgsExtraInnings <= 0) return;
+      const n = 7 + mgsExtraInnings;
+      document.querySelectorAll('.mgs-extra-inning-header').forEach(th => {
+        if (th.textContent === String(n)) th.remove();
+      });
+      ['Away', 'Home'].forEach(cap => {
+        const input = document.getElementById(`mgsBsb${cap}I${n}`);
+        const cell = input && input.closest('td');
+        if (cell) cell.remove();
+      });
+      mgsExtraInnings--;
+      if (mgsExtraInnings === 0) document.getElementById('mgsRemoveInningBtn').style.display = 'none';
+      mgsCalcBaseball('away');
+      mgsCalcBaseball('home');
+    }
+
+    // ── Volleyball ──────────────────────────────────────────────────────────
+    function mgsReadVbSets() {
+      const rows = [];
+      for (let i = 1; i <= 5; i++) {
+        const a = mgsVal(`mgsVbAwayS${i}`);
+        const h = mgsVal(`mgsVbHomeS${i}`);
+        rows.push({
+          away: a === '' ? null : (parseInt(a, 10) || 0),
+          home: h === '' ? null : (parseInt(h, 10) || 0)
+        });
+      }
+      return rows;
+    }
+
+    function mgsCalcVolleyball() {
+      const rows = mgsReadVbSets();
+      let aw = 0, hw = 0, played = 0;
+      for (const r of rows) {
+        if (r.away === null || r.home === null) break;
+        played++;
+        if (r.away > r.home) aw++;
+        else if (r.home > r.away) hw++;
+      }
+      if (played > 0) {
+        mgsSetAuto('mgsVbAwaySets', aw);
+        mgsSetAuto('mgsVbHomeSets', hw);
+      }
+      mgsVbColumnVisibility();
+    }
+
+    function mgsVbColumnVisibility() {
+      // Same rule the volleyball editor card uses: sets 4 and 5 only appear
+      // once the match has actually gone that far.
+      const show = vbCountSetsToShow(
+        mgsVal('mgsVbAwaySets'),
+        mgsVal('mgsVbHomeSets'),
+        mgsReadVbSets()
+      );
+      document.querySelectorAll('#mgsBoardVolleyball .mgs-vb-col4').forEach(el => {
+        el.style.display = show >= 4 ? '' : 'none';
+      });
+      document.querySelectorAll('#mgsBoardVolleyball .mgs-vb-col5').forEach(el => {
+        el.style.display = show >= 5 ? '' : 'none';
+      });
+    }
+
+    // ── Assembling the payload ──────────────────────────────────────────────
+    function mgsBuildGameData() {
+      const sport = document.getElementById('mgsSport').value;
+      const gd = {
+        sport,
+        manual: true,
+        awayTeam: mgsTeamName('away'),
+        homeTeam: mgsTeamName('home'),
+        gender: document.getElementById('mgsGender').value,
+        date: mgsVal('mgsDate') || getTodayEST(),
+        division: mgsVal('mgsDivision') || null,
+        location: mgsVal('mgsLocation') || null,
+        is_playoff: false,
+        round: null
+      };
+      // A typed-in team has no team page and no logo file on disk, so the
+      // article has to be told not to link it and where its logo lives.
+      if (mgsIsCustom('away')) gd.awayCustom = true;
+      if (mgsIsCustom('home')) gd.homeCustom = true;
+      if (mgsLogos.away) gd.awayLogo = mgsLogos.away;
+      if (mgsLogos.home) gd.homeLogo = mgsLogos.home;
+
+      if (sport === 'basketball') {
+        gd.awayQuarters = [];
+        gd.homeQuarters = [];
+        for (let q = 1; q <= 4 + mgsOtCount; q++) {
+          gd.awayQuarters.push(mgsNum(`mgsBbAwayQ${q}`) ?? 0);
+          gd.homeQuarters.push(mgsNum(`mgsBbHomeQ${q}`) ?? 0);
+        }
+        gd.awayFinal = mgsNum('mgsBbAwayFinal') ?? 0;
+        gd.homeFinal = mgsNum('mgsBbHomeFinal') ?? 0;
+      } else if (sport === 'baseball') {
+        gd.awayInnings = [];
+        gd.homeInnings = [];
+        for (let i = 1; i <= 7 + mgsExtraInnings; i++) {
+          const a = mgsVal(`mgsBsbAwayI${i}`);
+          const h = mgsVal(`mgsBsbHomeI${i}`);
+          gd.awayInnings.push(a === '' ? 0 : (mgsIsDash(a) ? '-' : (parseInt(a, 10) || 0)));
+          gd.homeInnings.push(h === '' ? 0 : (mgsIsDash(h) ? '-' : (parseInt(h, 10) || 0)));
+        }
+        gd.awayR = mgsNum('mgsBsbAwayR') ?? 0;
+        gd.homeR = mgsNum('mgsBsbHomeR') ?? 0;
+        gd.awayH = mgsNum('mgsBsbAwayH') ?? 0;
+        gd.homeH = mgsNum('mgsBsbHomeH') ?? 0;
+        gd.awayE = mgsNum('mgsBsbAwayE') ?? 0;
+        gd.homeE = mgsNum('mgsBsbHomeE') ?? 0;
+        gd.awayFinal = gd.awayR;
+        gd.homeFinal = gd.homeR;
+      } else if (sport === 'gvolleyball') {
+        gd.sets = [];
+        for (const r of mgsReadVbSets()) {
+          if (r.away === null || r.home === null) break;
+          gd.sets.push({ away: r.away, home: r.home });
+        }
+        gd.awaySets = mgsNum('mgsVbAwaySets') ?? 0;
+        gd.homeSets = mgsNum('mgsVbHomeSets') ?? 0;
+        gd.awayFinal = gd.awaySets;
+        gd.homeFinal = gd.homeSets;
+      } else {
+        gd.awayFinal = mgsNum('mgsOtherAwayFinal') ?? 0;
+        gd.homeFinal = mgsNum('mgsOtherHomeFinal') ?? 0;
+        const label = mgsVal('mgsOtherLabel');
+        if (label) gd.scoreLabel = label;
+      }
+      return gd;
+    }
+
+    function mgsHasScore() {
+      const sport = document.getElementById('mgsSport').value;
+      const ids = [];
+      if (sport === 'basketball') {
+        ids.push('mgsBbAwayFinal', 'mgsBbHomeFinal');
+        for (let q = 1; q <= 4 + mgsOtCount; q++) ids.push(`mgsBbAwayQ${q}`, `mgsBbHomeQ${q}`);
+      } else if (sport === 'baseball') {
+        ids.push('mgsBsbAwayR', 'mgsBsbHomeR');
+        for (let i = 1; i <= 7 + mgsExtraInnings; i++) ids.push(`mgsBsbAwayI${i}`, `mgsBsbHomeI${i}`);
+      } else if (sport === 'gvolleyball') {
+        ids.push('mgsVbAwaySets', 'mgsVbHomeSets');
+        for (let i = 1; i <= 5; i++) ids.push(`mgsVbAwayS${i}`, `mgsVbHomeS${i}`);
+      } else {
+        ids.push('mgsOtherAwayFinal', 'mgsOtherHomeFinal');
+      }
+      return ids.some(id => mgsVal(id) !== '');
+    }
+
+    function mgsValidate() {
+      const away = mgsTeamName('away');
+      const home = mgsTeamName('home');
+      if (!away || !home) return 'Pick or type both teams first.';
+      if (away.toLowerCase() === home.toLowerCase()) return 'The away and home teams are the same.';
+      if (!mgsVal('mgsDate')) return 'Add the game date.';
+      if (!mgsHasScore()) return 'Fill in the scoreboard before continuing.';
+      return null;
+    }
+
+    // ── AI draft (optional) ─────────────────────────────────────────────────
+    async function mgsWriteForMe() {
+      const err = mgsValidate();
+      if (err) { showToast(err, 'error'); return; }
+
+      const body = mgsVal('mgsBody');
+      if (body && !confirm('Replace what you have written so far with an AI draft?')) return;
+
+      const gd = mgsBuildGameData();
+      const btn = document.getElementById('mgsAiBtn');
+      const originalLabel = btn.innerHTML;
+      btn.disabled = true;
+      btn.textContent = '⏳ Writing…';
+
+      try {
+        const res = await fetch('/.netlify/functions/generate-article', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mode: 'manual-write',
+            gameData: gd,
+            notes: mgsVal('mgsNotes'),
+            schoolData: {
+              away: gd.awayCustom ? null : getSchoolInfo(gd.awayTeam),
+              home: gd.homeCustom ? null : getSchoolInfo(gd.homeTeam)
+            }
+          })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          console.error('Manual Game Story: AI draft failed', data);
+          showToast(data.error || 'Could not write a draft — type the story instead.', 'error');
+          return;
+        }
+        if (data.headline) document.getElementById('mgsHeadline').value = data.headline;
+        document.getElementById('mgsBody').value = data.article || '';
+        showToast('Draft written — read it over before you publish.', 'success');
+      } catch (e) {
+        console.error('Manual Game Story: AI draft failed', e);
+        showToast('Could not reach the story writer — type the story instead.', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalLabel;
+      }
+    }
+
+    // ── Handoff ─────────────────────────────────────────────────────────────
+    function mgsBodyHtml() {
+      const raw = mgsVal('mgsBody');
+      if (!raw) return '';
+      return raw
+        .split(/\n\s*\n/)
+        .map(p => p.trim())
+        .filter(Boolean)
+        .map(p => `<p>${escapeHtml(p).replace(/\n/g, '<br>')}</p>`)
+        .join('\n');
+    }
+
+    async function mgsOpenInEditor() {
+      const err = mgsValidate();
+      if (err) { showToast(err, 'error'); return; }
+
+      const gd = mgsBuildGameData();
+      const btn = document.getElementById('mgsContinueBtn');
+      btn.disabled = true;
+      try {
+        if (document.getElementById('mgsSaveGame').checked) {
+          await mgsSaveGameToSchedule(gd);
+        }
+
+        // newArticle() does the full editor reset and opens the editor panel.
+        // Everything below overwrites only what this tool actually knows.
+        //
+        // The reset touches a lot of unrelated editor state, and any one of
+        // those pieces throwing used to take the whole handoff down with it —
+        // the editor opened, but the headline, the story and the scoreboard
+        // were all silently dropped and the typing was gone. Losing part of the
+        // reset is survivable; losing the story is not.
+        try {
+          newArticle();
+        } catch (resetErr) {
+          console.error('Manual Game Story: the editor reset did not finish cleanly', resetErr);
+        }
+        document.getElementById('articlesPanel').style.display = 'none';
+        document.getElementById('editorPanel').style.display = 'block';
+        document.getElementById('manualStoryPanel').style.display = 'none';
+        document.getElementById('editorTitle').textContent = 'Manual Game Story';
+        document.getElementById('articleTitle').value = mgsVal('mgsHeadline');
+        setEditorContent(mgsBodyHtml());
+        document.getElementById('articleDate').value = gd.date;
+        // "other" has no team pages to feed, so it saves as a general article.
+        document.getElementById('articleSport').value = gd.sport === 'other' ? '' : gd.sport;
+
+        currentGameData = gd;
+        toggleBaseballScoreCard();
+        if (gd.sport === 'baseball') populateLsFromGameData(gd);
+        if (gd.sport === 'gvolleyball') populateVbFromGameData(gd);
+
+        window.scrollTo(0, 0);
+        showToast('Loaded into the editor — add a photo, then publish or schedule.', 'success');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    // Optional: write the result onto the schedule. Only for two real NHIAA
+    // teams — a typed-in name has nothing to match against and would create a
+    // junk row. An existing game on the same date between the same two teams
+    // is updated in place, keeping whichever side the schedule calls home.
+    async function mgsSaveGameToSchedule(gd) {
+      if (gd.awayCustom || gd.homeCustom) {
+        showToast('Game not added to the schedule — one of the teams was typed in by hand.', 'error');
+        return;
+      }
+      if (gd.sport === 'other') {
+        showToast('Game not added to the schedule — the schedule only tracks basketball, baseball and volleyball.', 'error');
+        return;
+      }
+      try {
+        const res = await fetch('/.netlify/functions/games?limit=5000');
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : (data.games || []);
+        const match = list.find(g =>
+          g.date === gd.date &&
+          String(g.sport || '').toLowerCase() === gd.sport &&
+          ((g.away_team === gd.awayTeam && g.home_team === gd.homeTeam) ||
+           (g.away_team === gd.homeTeam && g.home_team === gd.awayTeam))
+        );
+
+        if (match) {
+          const flipped = match.away_team === gd.homeTeam;
+          const payload = Object.assign({}, match, {
+            away_score: flipped ? gd.homeFinal : gd.awayFinal,
+            home_score: flipped ? gd.awayFinal : gd.homeFinal,
+            status: 'final'
+          });
+          delete payload.id;
+          const r = await fetch(`/.netlify/functions/games?id=${match.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          showToast(r.ok ? 'Score written to the game already on the schedule.'
+                         : 'Could not update the game on the schedule.', r.ok ? 'success' : 'error');
+          return;
+        }
+
+        const homeSlug = gd.homeTeam.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const awaySlug = gd.awayTeam.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const genderCode = gd.gender === 'Girls' ? 'g' : 'b';
+        const dateStr = gd.date.replace(/-/g, '');
+        let gameId = `nhiaa_${homeSlug}_${genderCode}_${dateStr}_${awaySlug}`;
+        const taken = list.map(g => g.game_id);
+        if (taken.includes(gameId)) {
+          let n = 2;
+          while (taken.includes(`${gameId}_g${n}`)) n++;
+          gameId = `${gameId}_g${n}`;
+        }
+
+        const r = await fetch('/.netlify/functions/games', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            game_id: gameId,
+            date: gd.date,
+            time: null,
+            status: 'final',
+            level: 'NHIAA',
+            sport: gd.sport,
+            gender: gd.gender,
+            away_team: gd.awayTeam,
+            home_team: gd.homeTeam,
+            away_score: gd.awayFinal,
+            home_score: gd.homeFinal,
+            division: gd.division || null,
+            location: gd.location || null
+          })
+        });
+        showToast(r.ok ? 'Game added to the schedule.' : 'Could not add the game to the schedule.',
+                  r.ok ? 'success' : 'error');
+      } catch (e) {
+        console.error('Manual Game Story: saving the game failed', e);
+        showToast('Could not save the game to the schedule — the story is unaffected.', 'error');
+      }
+    }
+
+    // Clears the game, not the session. The sport picker survives on purpose:
+    // a night of manual stories is usually a night of one sport, and re-picking
+    // it every time is friction for no benefit.
+    function mgsReset(confirmFirst) {
+      if (confirmFirst && !confirm('Clear the teams, scoreboard and story on this page?')) return;
+
+      ['mgsAwaySelect', 'mgsHomeSelect'].forEach(id => { document.getElementById(id).value = ''; });
+      ['mgsAwayCustom', 'mgsHomeCustom'].forEach(id => {
+        const el = document.getElementById(id);
+        el.value = '';
+        el.style.display = 'none';
+      });
+      ['mgsAwayLogoRow', 'mgsHomeLogoRow'].forEach(id => { document.getElementById(id).style.display = 'none'; });
+      mgsClearLogo('away');
+      mgsClearLogo('home');
+
+      // Drop the OT and extra-inning columns that were added to the DOM
+      while (mgsOtCount > 0) {
+        const n = 4 + mgsOtCount;
+        document.querySelectorAll('.mgs-ot-header').forEach(th => th.remove());
+        ['Away', 'Home'].forEach(cap => {
+          const input = document.getElementById(`mgsBb${cap}Q${n}`);
+          const cell = input && input.closest('td');
+          if (cell) cell.remove();
+        });
+        mgsOtCount--;
+      }
+      while (mgsExtraInnings > 0) mgsRemoveInning();
+
+      document.querySelectorAll('#manualStoryPanel input[type="number"], #manualStoryPanel input[type="text"]').forEach(el => {
+        if (el.type === 'file') return;
+        el.value = '';
+        delete el.dataset.touched;
+      });
+      document.getElementById('mgsNotes').value = '';
+      document.getElementById('mgsBody').value = '';
+      document.getElementById('mgsHeadline').value = '';
+      document.getElementById('mgsSaveGame').checked = false;
+      document.getElementById('mgsDate').value = getTodayEST();
+      document.getElementById('mgsOtherScoreHead').textContent = 'Final';
+      mgsSportChanged();
+    }
+
     function showTab(tab, evt) {
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
       const evtTarget = evt?.target || (typeof event !== 'undefined' ? event?.target : null);
       if (evtTarget) evtTarget.classList.add('active');
       
       document.getElementById('articlesPanel').style.display = tab === 'articles' ? 'block' : 'none';
+      document.getElementById('manualStoryPanel').style.display = tab === 'manualstory' ? 'block' : 'none';
+      if (tab === 'manualstory') initManualStory();
       document.getElementById('schedulePanel').style.display = tab === 'schedule' ? 'block' : 'none';
       document.getElementById('teamsPanel').style.display = tab === 'teams' ? 'block' : 'none';
       document.getElementById('contributorsPanel').style.display = tab === 'contributors' ? 'block' : 'none';

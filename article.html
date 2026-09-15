@@ -2103,6 +2103,129 @@
       const articleSport = article.sport || gameDataSport || 'basketball';
       const sportParam = `?sport=${articleSport}`;
       
+      // A team typed in by hand (Manual Game Story) has no logo file on disk and
+      // no team page to link to. Both of these fall straight through to the
+      // normal lookups when game_data doesn't override them, so a story built
+      // from a scheduled game renders exactly as it always did.
+      function gdLogo(gd, side) {
+        const override = side === 'away' ? gd?.awayLogo : gd?.homeLogo;
+        if (override) return override;
+        const name = side === 'away' ? gd?.awayTeam : gd?.homeTeam;
+        return Ball603.getLogoUrl ? Ball603.getLogoUrl(name) : '/logos/100px/Ball603-white.png';
+      }
+
+      function gdTeamLabel(gd, side, sportParam, cls) {
+        const name = (side === 'away' ? gd?.awayTeam : gd?.homeTeam) || '';
+        const custom = side === 'away' ? gd?.awayCustom : gd?.homeCustom;
+        if (custom) return `<span class="${cls}">${name}</span>`;
+        return `<a href="/${getTeamSlug(name)}${sportParam}" class="${cls}">${name}</a>`;
+      }
+
+      function gdTeamCell(gd, side, sportParam) {
+        return `<div class="qs-team-cell"><img class="qs-team-logo" src="${gdLogo(gd, side)}" alt="" onerror="this.src='/logos/100px/Ball603-white.png'">${gdTeamLabel(gd, side, sportParam, 'team-name-link')}</div>`;
+      }
+
+      // The big logo-and-name tile in the headline score box. A typed-in team
+      // gets the same tile without the link, since it has no team page.
+      function gdMatchupTile(gd, side, sportParam) {
+        const name = (side === 'away' ? gd?.awayTeam : gd?.homeTeam) || '';
+        const custom = side === 'away' ? gd?.awayCustom : gd?.homeCustom;
+        const inner = `<img class="game-team-logo" src="${gdLogo(gd, side)}" alt="${name}" onerror="this.src='/logos/100px/Ball603-white.png'"><div class="game-team-name">${name}</div>`;
+        return custom
+          ? `<div class="team-link">${inner}</div>`
+          : `<a href="/${getTeamSlug(name)}${sportParam}" class="team-link">${inner}</a>`;
+      }
+
+      // "Sat, Sep 13 · FINAL · D-II Quarterfinal"
+      function gdScoreHeader(gd) {
+        const dateStr = gd?.date || linkedGame?.date || article?.article_date || article?.published_at?.slice(0, 10) || '';
+        const parts = [];
+        if (dateStr) {
+          try {
+            const d = new Date(dateStr + 'T12:00:00');
+            const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+            const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            parts.push(`${days[d.getDay()]}, ${months[d.getMonth()]} ${d.getDate()}`);
+          } catch (e) {}
+        }
+        parts.push('FINAL');
+        if (gd?.is_playoff && gd?.round && gd?.division) {
+          const roundNames = { 'Prelims': '1st Round', 'Quarters': 'Quarterfinal', 'Semis': 'Semifinal', 'Final': 'Championship' };
+          parts.push(`${gd.division} ${roundNames[gd.round] || gd.round}`);
+        }
+        return `<div style="text-align:center; font-size:var(--font-size-xs,11px); font-weight:600; color:var(--text-muted); letter-spacing:0.5px; text-transform:uppercase; margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid var(--border-color);">${parts.join(' · ')}</div>`;
+      }
+
+      // Basketball quarter table. This used to be written out twice, inline —
+      // once inside the linked-game box and once standalone — which is why only
+      // one of the two ever learned about custom team names.
+      function buildQuarterScoreTable(gd, sportParam, inSection) {
+        if (!gd || !gd.awayQuarters || !gd.homeQuarters) return '';
+        const awayWins = gd.awayFinal > gd.homeFinal;
+        const homeWins = gd.homeFinal > gd.awayFinal;
+
+        let headerCells = '<th>Team</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th>';
+        let awayCells = `<td>${gdTeamLabel(gd, 'away', sportParam, 'team-name-link')}</td><td>${gd.awayQuarters[0] ?? '-'}</td><td>${gd.awayQuarters[1] ?? '-'}</td><td>${gd.awayQuarters[2] ?? '-'}</td><td>${gd.awayQuarters[3] ?? '-'}</td>`;
+        let homeCells = `<td>${gdTeamLabel(gd, 'home', sportParam, 'team-name-link')}</td><td>${gd.homeQuarters[0] ?? '-'}</td><td>${gd.homeQuarters[1] ?? '-'}</td><td>${gd.homeQuarters[2] ?? '-'}</td><td>${gd.homeQuarters[3] ?? '-'}</td>`;
+
+        // OT columns
+        for (let i = 4; i < gd.awayQuarters.length; i++) {
+          const otNum = i - 3;
+          const otLabel = gd.awayQuarters.length === 5 ? 'OT' : `OT${otNum}`;
+          headerCells += `<th>${otLabel}</th>`;
+          awayCells += `<td>${gd.awayQuarters[i] ?? '-'}</td>`;
+          homeCells += `<td>${gd.homeQuarters[i] ?? '-'}</td>`;
+        }
+
+        headerCells += '<th>Final</th>';
+        awayCells += `<td class="${awayWins ? 'winner-final' : ''}">${gd.awayFinal}</td>`;
+        homeCells += `<td class="${homeWins ? 'winner-final' : ''}">${gd.homeFinal}</td>`;
+
+        const table = `
+          <table class="quarter-scores-table">
+            <thead>
+              <tr>${headerCells}</tr>
+            </thead>
+            <tbody>
+              <tr>${awayCells}</tr>
+              <tr>${homeCells}</tr>
+            </tbody>
+          </table>`;
+
+        return inSection
+          ? `<div class="quarter-scores-section">${table}</div>`
+          : `<div class="quarter-scores-box">${table}</div>`;
+      }
+
+      // Final score only — for a Manual Game Story filed under a sport the site
+      // doesn't otherwise cover, where there are no periods to show.
+      function buildGenericScoreBox(gd, sportParam, inSection) {
+        if (!gd) return '';
+        const a = gd.awayFinal, h = gd.homeFinal;
+        if (a === undefined || a === null || a === '' || h === undefined || h === null || h === '') return '';
+        const awayWins = Number(a) > Number(h);
+        const homeWins = Number(h) > Number(a);
+        const unit = gd.scoreLabel || 'Final';
+        const table = `
+          <table class="quarter-scores-table" style="min-width:220px;">
+            <thead><tr><th style="text-align:left;">Team</th><th class="rhe-divider">${unit}</th></tr></thead>
+            <tbody>
+              <tr>
+                <td style="text-align:left;">${gdTeamCell(gd, 'away', sportParam)}</td>
+                <td class="rhe-divider ${awayWins ? 'winner-final' : ''}">${a}</td>
+              </tr>
+              <tr>
+                <td style="text-align:left;">${gdTeamCell(gd, 'home', sportParam)}</td>
+                <td class="rhe-divider ${homeWins ? 'winner-final' : ''}">${h}</td>
+              </tr>
+            </tbody>
+          </table>`;
+        const headerHtml = gdScoreHeader(gd);
+        return inSection
+          ? `<div class="quarter-scores-section">${headerHtml}<div style="overflow-x:auto;">${table}</div></div>`
+          : `<div class="quarter-scores-box">${headerHtml}<div style="overflow-x:auto;">${table}</div></div>`;
+      }
+
       // Helper: build baseball line score HTML from game_data
       function buildBaseballLineScore(gd, sportParam, inSection) {
         if (!gd || gd.sport !== 'baseball') return '';
@@ -2117,10 +2240,8 @@
         const innings = gd.awayInnings || [];
         const homeInnings = gd.homeInnings || innings.map(() => 0);
         const hasInnings = innings.length > 0;
-        const awayLogoUrl = Ball603.getLogoUrl ? Ball603.getLogoUrl(gd.awayTeam) : '/logos/100px/Ball603-white.png';
-        const homeLogoUrl = Ball603.getLogoUrl ? Ball603.getLogoUrl(gd.homeTeam) : '/logos/100px/Ball603-white.png';
-        const awayLink = `<div class="qs-team-cell"><img class="qs-team-logo" src="${awayLogoUrl}" alt="" onerror="this.src='/logos/100px/Ball603-white.png'"><a href="/${getTeamSlug(gd.awayTeam)}${sportParam}" class="team-name-link">${gd.awayTeam}</a></div>`;
-        const homeLink = `<div class="qs-team-cell"><img class="qs-team-logo" src="${homeLogoUrl}" alt="" onerror="this.src='/logos/100px/Ball603-white.png'"><a href="/${getTeamSlug(gd.homeTeam)}${sportParam}" class="team-name-link">${gd.homeTeam}</a></div>`;
+        const awayLink = gdTeamCell(gd, 'away', sportParam);
+        const homeLink = gdTeamCell(gd, 'home', sportParam);
 
         let headerCells = '<th style="text-align:left;">Team</th>';
         let awayCells  = `<td style="text-align:left;">${awayLink}</td>`;
@@ -2202,10 +2323,8 @@
         const awayWins = awaySets > homeSets;
         const homeWins = homeSets > awaySets;
         const hasSets = sets.length > 0;
-        const awayLogoUrl = Ball603.getLogoUrl ? Ball603.getLogoUrl(gd.awayTeam) : '/logos/100px/Ball603-white.png';
-        const homeLogoUrl = Ball603.getLogoUrl ? Ball603.getLogoUrl(gd.homeTeam) : '/logos/100px/Ball603-white.png';
-        const awayLink = `<div class="qs-team-cell"><img class="qs-team-logo" src="${awayLogoUrl}" alt="" onerror="this.src='/logos/100px/Ball603-white.png'"><a href="/${getTeamSlug(gd.awayTeam)}${sportParam}" class="team-name-link">${gd.awayTeam}</a></div>`;
-        const homeLink = `<div class="qs-team-cell"><img class="qs-team-logo" src="${homeLogoUrl}" alt="" onerror="this.src='/logos/100px/Ball603-white.png'"><a href="/${getTeamSlug(gd.homeTeam)}${sportParam}" class="team-name-link">${gd.homeTeam}</a></div>`;
+        const awayLink = gdTeamCell(gd, 'away', sportParam);
+        const homeLink = gdTeamCell(gd, 'home', sportParam);
 
         let headerCells = '<th style="text-align:left;">Team</th>';
         let awayCells   = `<td style="text-align:left;">${awayLink}</td>`;
@@ -2282,43 +2401,8 @@
           quarterScoresSection = buildBaseballLineScore(article.game_data, sportParam, true);
         } else if (gameDataSport === 'gvolleyball') {
           quarterScoresSection = buildVolleyballScoreBox(article.game_data, sportParam, true);
-        } else if (article.game_data && article.game_data.awayQuarters && article.game_data.homeQuarters) {
-          const gd = article.game_data;
-          const gdAwayWins = gd.awayFinal > gd.homeFinal;
-          const gdHomeWins = gd.homeFinal > gd.awayFinal;
-          
-          // Build header row with quarters
-          let headerCells = '<th>Team</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th>';
-          let awayCells = `<td><a href="/${getTeamSlug(gd.awayTeam)}${sportParam}" class="team-name-link">${gd.awayTeam}</a></td><td>${gd.awayQuarters[0] ?? '-'}</td><td>${gd.awayQuarters[1] ?? '-'}</td><td>${gd.awayQuarters[2] ?? '-'}</td><td>${gd.awayQuarters[3] ?? '-'}</td>`;
-          let homeCells = `<td><a href="/${getTeamSlug(gd.homeTeam)}${sportParam}" class="team-name-link">${gd.homeTeam}</a></td><td>${gd.homeQuarters[0] ?? '-'}</td><td>${gd.homeQuarters[1] ?? '-'}</td><td>${gd.homeQuarters[2] ?? '-'}</td><td>${gd.homeQuarters[3] ?? '-'}</td>`;
-          
-          // Add OT columns if present
-          for (let i = 4; i < gd.awayQuarters.length; i++) {
-            const otNum = i - 3;
-            const otLabel = gd.awayQuarters.length === 5 ? 'OT' : `OT${otNum}`;
-            headerCells += `<th>${otLabel}</th>`;
-            awayCells += `<td>${gd.awayQuarters[i] ?? '-'}</td>`;
-            homeCells += `<td>${gd.homeQuarters[i] ?? '-'}</td>`;
-          }
-          
-          // Add final column
-          headerCells += '<th>Final</th>';
-          awayCells += `<td class="${gdAwayWins ? 'winner-final' : ''}">${gd.awayFinal}</td>`;
-          homeCells += `<td class="${gdHomeWins ? 'winner-final' : ''}">${gd.homeFinal}</td>`;
-          
-          quarterScoresSection = `
-            <div class="quarter-scores-section">
-              <table class="quarter-scores-table">
-                <thead>
-                  <tr>${headerCells}</tr>
-                </thead>
-                <tbody>
-                  <tr>${awayCells}</tr>
-                  <tr>${homeCells}</tr>
-                </tbody>
-              </table>
-            </div>
-          `;
+        } else {
+          quarterScoresSection = buildQuarterScoreTable(article.game_data, sportParam, true);
         }
         
         gameBoxHtml = `
@@ -2350,50 +2434,77 @@
           </div>
         `;
       }
-      
-      // Build standalone score box — baseball line score OR basketball quarters
-      let quarterScoresHtml = '';
-      if (!linkedGame && gameDataSport === 'baseball') {
-        quarterScoresHtml = buildBaseballLineScore(article.game_data, sportParam, false);
-      } else if (!linkedGame && gameDataSport === 'gvolleyball') {
-        quarterScoresHtml = buildVolleyballScoreBox(article.game_data, sportParam, false);
-      } else if (!linkedGame && article.game_data && article.game_data.awayQuarters && article.game_data.homeQuarters) {
-        const gd = article.game_data;
-        const awayWins = gd.awayFinal > gd.homeFinal;
-        const homeWins = gd.homeFinal > gd.awayFinal;
-        
-        // Build header row with quarters
-        let headerCells = '<th>Team</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th>';
-        let awayCells = `<td><a href="/${getTeamSlug(gd.awayTeam)}${sportParam}" class="team-name-link">${gd.awayTeam}</a></td><td>${gd.awayQuarters[0] ?? '-'}</td><td>${gd.awayQuarters[1] ?? '-'}</td><td>${gd.awayQuarters[2] ?? '-'}</td><td>${gd.awayQuarters[3] ?? '-'}</td>`;
-        let homeCells = `<td><a href="/${getTeamSlug(gd.homeTeam)}${sportParam}" class="team-name-link">${gd.homeTeam}</a></td><td>${gd.homeQuarters[0] ?? '-'}</td><td>${gd.homeQuarters[1] ?? '-'}</td><td>${gd.homeQuarters[2] ?? '-'}</td><td>${gd.homeQuarters[3] ?? '-'}</td>`;
-        
-        // Add OT columns if present
-        for (let i = 4; i < gd.awayQuarters.length; i++) {
-          const otNum = i - 3;
-          const otLabel = gd.awayQuarters.length === 5 ? 'OT' : `OT${otNum}`;
-          headerCells += `<th>${otLabel}</th>`;
-          awayCells += `<td>${gd.awayQuarters[i] ?? '-'}</td>`;
-          homeCells += `<td>${gd.homeQuarters[i] ?? '-'}</td>`;
+
+      // No schedule row, but the story carries its own boxscore — a Manual Game
+      // Story, or any recap whose game never made it onto the schedule. The
+      // headline score box used to be gated on `linkedGame`, so these stories
+      // published with a scoreboard table and no score header above it at all.
+      const gdBox = article.game_data || {};
+      const gdPresent = v => v !== undefined && v !== null && v !== '';
+      const manualBox = !linkedGame && Boolean(gdBox.awayTeam && gdBox.homeTeam)
+        && gdPresent(gdBox.awayFinal) && gdPresent(gdBox.homeFinal);
+
+      if (manualBox) {
+        const awayScore = gdBox.awayFinal;
+        const homeScore = gdBox.homeFinal;
+        const awayWins = parseInt(awayScore) > parseInt(homeScore);
+        const homeWins = parseInt(homeScore) > parseInt(awayScore);
+
+        let manualSection = '';
+        if (gameDataSport === 'baseball') {
+          manualSection = buildBaseballLineScore(gdBox, sportParam, true);
+        } else if (gameDataSport === 'gvolleyball') {
+          manualSection = buildVolleyballScoreBox(gdBox, sportParam, true);
+        } else if (gdBox.awayQuarters && gdBox.homeQuarters) {
+          manualSection = buildQuarterScoreTable(gdBox, sportParam, true);
+        } else {
+          // Final score only — the sport has no periods to show, so the table
+          // exists to label what the number is ("Goals", "Points").
+          manualSection = buildGenericScoreBox(gdBox, sportParam, true);
         }
-        
-        // Add final column
-        headerCells += '<th>Final</th>';
-        awayCells += `<td class="${awayWins ? 'winner-final' : ''}">${gd.awayFinal}</td>`;
-        homeCells += `<td class="${homeWins ? 'winner-final' : ''}">${gd.homeFinal}</td>`;
-        
-        quarterScoresHtml = `
-          <div class="quarter-scores-box">
-            <table class="quarter-scores-table">
-              <thead>
-                <tr>${headerCells}</tr>
-              </thead>
-              <tbody>
-                <tr>${awayCells}</tr>
-                <tr>${homeCells}</tr>
-              </tbody>
-            </table>
+
+        // Ball603.formatDivision() reads a schedule row, and there isn't one.
+        const sportNames = { basketball: 'Basketball', baseball: 'Baseball', gvolleyball: 'Volleyball' };
+        const boxHeader = [gdBox.gender, gdBox.division, sportNames[gameDataSport]]
+          .filter(Boolean).join(' ') || 'Final Score';
+        const dateLabel = gdBox.date ? Ball603.formatDate(gdBox.date, 'medium') : '';
+
+        gameBoxHtml = `
+          <div class="game-box">
+            <div class="game-box-header">${boxHeader}</div>
+            <div class="game-matchup">
+              ${gdMatchupTile(gdBox, 'away', sportParam)}
+              <div class="game-score-center">
+                <div class="game-scores">
+                  <span class="game-score ${awayWins ? 'winner' : ''}">${awayScore}</span>
+                  <span class="game-score-dash">-</span>
+                  <span class="game-score ${homeWins ? 'winner' : ''}">${homeScore}</span>
+                </div>
+                <div class="game-status">Final</div>
+              </div>
+              ${gdMatchupTile(gdBox, 'home', sportParam)}
+            </div>
+            ${manualSection}
+            ${dateLabel || gdBox.location ? `
+            <div class="game-details">
+              ${dateLabel ? `<div class="game-detail">&#128197; ${dateLabel}</div>` : ''}
+              ${gdBox.location ? `<div class="game-detail">&#128205; ${gdBox.location}</div>` : ''}
+            </div>` : ''}
           </div>
         `;
+      }
+
+      // Build standalone score box — baseball line score OR basketball quarters.
+      // Skipped when the box above already rendered the scoreboard inside it.
+      let quarterScoresHtml = '';
+      if (linkedGame || manualBox) {
+        quarterScoresHtml = '';
+      } else if (gameDataSport === 'baseball') {
+        quarterScoresHtml = buildBaseballLineScore(article.game_data, sportParam, false);
+      } else if (gameDataSport === 'gvolleyball') {
+        quarterScoresHtml = buildVolleyballScoreBox(article.game_data, sportParam, false);
+      } else {
+        quarterScoresHtml = buildQuarterScoreTable(article.game_data, sportParam, false);
       }
       
       // Build tags HTML
