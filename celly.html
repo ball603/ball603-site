@@ -145,6 +145,66 @@
       to { transform: rotate(360deg); }
     }
     
+    /* Rights notice + agreement box. The notice sits at the top of the form so
+       nobody can say they didn't see it; the required tick box above the submit
+       button turns it into an explicit act of agreement rather than a passive
+       notice. */
+    .rights-note {
+      background: #f5f5f5;
+      border: 1px solid #e0e0e0;
+      border-left: 4px solid #f57c00;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 20px;
+      font-size: 13.5px;
+      line-height: 1.55;
+      color: #444;
+    }
+    
+    .rights-note strong {
+      display: block;
+      margin-bottom: 6px;
+      color: #1a1a1a;
+      font-size: 14px;
+    }
+    
+    .rights-note p {
+      margin: 0 0 8px;
+    }
+    
+    .rights-note p:last-child {
+      margin-bottom: 0;
+    }
+    
+    .rights-agree {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 20px;
+      font-size: 14px;
+      line-height: 1.45;
+      color: #333;
+      cursor: pointer;
+    }
+    
+    .rights-agree input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      margin: 0;
+      flex-shrink: 0;
+      accent-color: #f57c00;
+      cursor: pointer;
+    }
+    
+    .rights-agree.error {
+      color: #c62828;
+    }
+    
+    .rights-agree.error input[type="checkbox"] {
+      outline: 2px solid #e53935;
+      outline-offset: 2px;
+    }
+    
     .form-note {
       background: #fff8e1;
       border: 1px solid #ffcc80;
@@ -269,6 +329,25 @@
         color: #aaa;
       }
       
+      .rights-note {
+        background: rgba(255,255,255,0.05);
+        border-color: rgba(255,255,255,0.12);
+        border-left-color: #f57c00;
+        color: #c9c9d4;
+      }
+      
+      .rights-note strong {
+        color: #fff;
+      }
+      
+      .rights-agree {
+        color: #e0e0e0;
+      }
+      
+      .rights-agree.error {
+        color: #ff8a80;
+      }
+      
       .form-note {
         background: rgba(255, 248, 225, 0.1);
         border-color: rgba(255, 204, 128, 0.3);
@@ -305,6 +384,12 @@
       </div>
       
       <div class="submit-form" id="formSection">
+        <div class="rights-note">
+          <strong>By submitting, you're giving Ball603 the right to use your video.</strong>
+          <p>You confirm the video is yours to share, and you grant Ball603 permission to post, edit, and use it as we see fit &mdash; on Ball603.com, our social channels, and in promotional material &mdash; with no payment owed. You keep the right to use your own video however you'd like, and we'll credit you whenever we can.</p>
+          <p>Under 18? Please get a parent or guardian's OK before you send it in.</p>
+        </div>
+        
         <div class="form-note">
           <strong>📋 How it works:</strong>
           Fill out this form, then you'll be redirected to upload your video via Dropbox.
@@ -340,6 +425,11 @@
             <div class="helper-text">Name/handle to display when we share your video</div>
           </div>
           
+          <label class="rights-agree" for="rightsAgree" id="rightsAgreeRow">
+            <input type="checkbox" id="rightsAgree" name="rightsAgree" required>
+            <span>I own this video and give Ball603 the right to post, edit and use it.</span>
+          </label>
+          
           <button type="submit" class="submit-btn" id="submitBtn">
             Continue to Upload →
           </button>
@@ -372,6 +462,7 @@
       // Clear previous errors
       errorMessage.style.display = 'none';
       document.querySelectorAll('input.error').forEach(i => i.classList.remove('error'));
+      document.getElementById('rightsAgreeRow').classList.remove('error');
       
       // Validate all fields
       const name = document.getElementById('name').value.trim();
@@ -390,6 +481,16 @@
         if (!name) document.getElementById('name').classList.add('error');
         if (!email) document.getElementById('email').classList.add('error');
         if (!credit) document.getElementById('credit').classList.add('error');
+        return;
+      }
+      
+      // Rights agreement. The browser blocks a required checkbox by itself, but
+      // check here too so nothing can post a submission without it.
+      const agreed = document.getElementById('rightsAgree').checked;
+      document.getElementById('rightsAgreeRow').classList.toggle('error', !agreed);
+      if (!agreed) {
+        errorMessage.textContent = 'Please tick the box to confirm Ball603 can use your video.';
+        errorMessage.style.display = 'block';
         return;
       }
       
