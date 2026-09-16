@@ -281,6 +281,7 @@ class ContributorSchedule {
       t.classList.toggle('active', t.dataset.tab === 'all'));
 
     this.populateDivisionFilter();
+    this.updateSearchState();
     this.renderGames();
   }
 
@@ -677,6 +678,7 @@ class ContributorSchedule {
           </select>
           <div class="cs-search-wrapper">
             <input type="text" class="cs-search-input" placeholder="Team">
+            <button type="button" class="cs-search-clear" title="Clear the team filter" aria-label="Clear the team filter" style="display: none;">&times;</button>
             <div class="cs-autocomplete-list"></div>
           </div>
         </div>
@@ -744,6 +746,8 @@ class ContributorSchedule {
     dateFrom.addEventListener('change', onDateChange);
     dateTo.addEventListener('change', onDateChange);
     this.container.querySelector('.cs-date-clear').addEventListener('click', () => this.clearDateRange());
+
+    this.updateSearchState();
     
     // Today button click
     this.container.querySelector('.cs-today-btn').addEventListener('click', () => this.scrollToToday());
@@ -753,11 +757,15 @@ class ContributorSchedule {
     searchInput.addEventListener('input', () => {
       // Typing releases a team pinned by a click — from here it's a plain search.
       this.exactTeamFilter = null;
+      this.updateSearchState();
       this.renderGames();
       this.updateAutocomplete();
     });
     searchInput.addEventListener('focus', () => this.showAutocomplete());
     searchInput.addEventListener('blur', () => setTimeout(() => this.hideAutocomplete(), 200));
+
+    this.container.querySelector('.cs-search-clear')
+      .addEventListener('click', () => this.clearTeamSearch());
     
     // Contributor dropdown
     if (this.config.showContributorDropdown) {
@@ -1180,6 +1188,33 @@ class ContributorSchedule {
     }
   }
   
+  // ── Team search ─────────────────────────────────────────────────────────
+  // A team name can land in this box two ways: typed, or put there by clicking
+  // an uncovered team on the dashboard. The second way is easy to forget about
+  // — you go off to the dashboard, come back, and wonder why the schedule only
+  // has four games in it. Rather than wiping the filter out from under someone,
+  // the box says plainly that it is doing something, the same way the date range
+  // does, and offers one click to undo it.
+  updateSearchState() {
+    const input = this.container.querySelector('.cs-search-input');
+    const wrapper = this.container.querySelector('.cs-search-wrapper');
+    const clearBtn = this.container.querySelector('.cs-search-clear');
+    if (!input || !wrapper) return;
+    const active = input.value.trim() !== '';
+    wrapper.classList.toggle('cs-search-active', active);
+    if (clearBtn) clearBtn.style.display = active ? '' : 'none';
+  }
+
+  clearTeamSearch(rerender = true) {
+    const input = this.container.querySelector('.cs-search-input');
+    if (input) input.value = '';
+    this.exactTeamFilter = null;
+    this.pendingTeamFilter = null;
+    this.hideAutocomplete();
+    this.updateSearchState();
+    if (rerender) this.renderGames();
+  }
+
   // ── Not-yet-covered teams ───────────────────────────────────────────────
   // The portal works this out once for its coverage card and passes the result
   // through, rather than the schedule recomputing it: that keeps the two in
