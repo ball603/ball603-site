@@ -43,6 +43,10 @@ class ContributorSchedule {
     // a holding slot for a click that lands before the games have loaded.
     this.exactTeamFilter = null;
     this.pendingTeamFilter = null;
+    // Teams with no story-plus-gallery yet this season, handed in by the portal
+    // so the schedule and the "Teams we still need" card can never disagree.
+    // { sport, splitByGender, keys: Set }
+    this.uncovered = null;
     this.openDropdown = null;
     this.scorebookModal = null;
     this.currentScorebookGameId = null;
@@ -678,6 +682,8 @@ class ContributorSchedule {
         </div>
       </div>
       
+      <div class="cs-legend" style="display: none;">Bold = Not yet covered</div>
+
       <div class="cs-table-container">
         <div class="cs-loading">Loading games...</div>
       </div>
@@ -1174,6 +1180,69 @@ class ContributorSchedule {
     }
   }
   
+  // ── Not-yet-covered teams ───────────────────────────────────────────────
+  // The portal works this out once for its coverage card and passes the result
+  // through, rather than the schedule recomputing it: that keeps the two in
+  // step, including the manual overrides set in the CMS, and costs no extra
+  // queries. Nothing is bold until this arrives, and the public contributors
+  // page never calls it, so that page is unchanged.
+  setUncoveredTeams(info) {
+    if (!info || !Array.isArray(info.missing)) { this.uncovered = null; }
+    else {
+      const keys = new Set();
+      info.missing.forEach(labelText => {
+        const m = /^(.*?)\s*\((Boys|Girls|Men|Women)\)\s*$/.exec(String(labelText || ''));
+        const school = m ? m[1] : String(labelText || '');
+        const gender = m ? m[2] : '';
+        const k = this.coverageKey(school, gender, info.splitByGender);
+        if (k) keys.add(k);
+      });
+      this.uncovered = { sport: info.sport || null, splitByGender: Boolean(info.splitByGender), keys };
+    }
+    // The schedule may not have rendered yet when this lands.
+    if (this.container && this.container.querySelector('.cs-table-container')) this.renderGames();
+  }
+
+  // Punctuation and spacing differ between the standings table and the
+  // schedule ("Coe-Brown" vs "coe brown", "St. Thomas Aquinas"), so compare on
+  // letters and digits only — the same normalisation the sponsor matcher uses.
+  coverageKey(school, gender, splitByGender) {
+    const norm = v => String(v == null ? '' : v).toLowerCase().replace(/[^a-z0-9]/g, '');
+    const s = norm(school);
+    if (!s) return '';
+    return splitByGender ? `${s}|${norm(gender)}` : s;
+  }
+
+  // Coverage is counted per sport and season and only for NHIAA schools, so a
+  // basketball row in December must not inherit the volleyball gap, and college
+  // games — which aren't in the standings at all — are never bold.
+  isUncovered(game, teamName) {
+    const u = this.uncovered;
+    if (!u || !u.keys.size || !teamName) return false;
+    if (game.level !== 'NHIAA') return false;
+    if (u.sport) {
+      // Legacy basketball rows carry a null sport, the same allowance the sport
+      // filter makes above.
+      if (u.sport === 'basketball') { if (game.sport && game.sport !== 'basketball') return false; }
+      else if (game.sport !== u.sport) return false;
+    }
+    return u.keys.has(this.coverageKey(teamName, game.gender, u.splitByGender));
+  }
+
+  teamCell(game, teamName) {
+    const name = this.escapeHtml(teamName || '');
+    if (!name) return '';
+    return this.isUncovered(game, teamName)
+      ? `<strong class="cs-uncovered" title="Not yet covered \u2014 no story with photos this season">${name}</strong>`
+      : name;
+  }
+
+  escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text == null ? '' : text;
+    return div.innerHTML;
+  }
+
   // ── Date range ──────────────────────────────────────────────────────────
   // Nothing is applied until someone picks a date, so the default view is the
   // whole season exactly as it was before this existed.
@@ -1365,8 +1434,8 @@ class ContributorSchedule {
           <td class="cs-sport-cell">${this.getSportEmoji(game.sport)}</td>
           <td>${this.renderDateCell(game, isToday)}</td>
           <td>${this.formatTime(game.time)}</td>
-          <td>${game.away || ''}</td>
-          <td>${game.home || ''}</td>
+          <td>${this.teamCell(game, game.away)}</td>
+          <td>${this.teamCell(game, game.home)}</td>
           <td>${game.gender || ''}</td>
           <td>${game.level || ''}</td>
           <td class="cs-no-fade">${this.renderClaimCell(game)}</td>
@@ -1380,6 +1449,12 @@ class ContributorSchedule {
     
     html += '</tbody></table>';
     tableContainer.innerHTML = html;
+
+    const legend = this.container.querySelector('.cs-legend');
+    if (legend) {
+      const anyBold = games.some(g => this.isUncovered(g, g.away) || this.isUncovered(g, g.home));
+      legend.style.display = anyBold ? '' : 'none';
+    }
     
     // Bind notes blur events
     tableContainer.querySelectorAll('.cs-notes-input').forEach(input => {

@@ -846,6 +846,7 @@
           showAlerts: false,
           supabaseClient: db
         });
+        applyCoverageToSchedule();
       } else if (scheduleInstance && currentContributor) {
         // Update contributor name if it changed
         scheduleInstance.setContributor(currentContributor.name);
@@ -1203,6 +1204,16 @@
       card.style.display = 'block';
     }
 
+    // The last coverage result, so the schedule can be marked up whichever order
+    // it and the dashboard card happen to load in.
+    let lastCoverageGap = null;
+
+    function applyCoverageToSchedule() {
+      if (scheduleInstance && lastCoverageGap && typeof scheduleInstance.setUncoveredTeams === 'function') {
+        scheduleInstance.setUncoveredTeams(lastCoverageGap);
+      }
+    }
+
     async function renderCoverageGap(board) {
       const card = document.getElementById('coverageGapCard');
       const body = document.getElementById('coverageGapBody');
@@ -1214,6 +1225,9 @@
           client: db,
           overrides: { alsoUncovered: cov.alsoUncovered || [], markCovered: cov.markCovered || [] }
         });
+
+        lastCoverageGap = gap;
+        applyCoverageToSchedule();
 
         if (!gap.total) { card.style.display = 'none'; return; }
 
