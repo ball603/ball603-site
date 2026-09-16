@@ -13332,7 +13332,76 @@ Respond ONLY with valid JSON:
       currentArticle = null;
     }
     
-    async function showSocialPublishing(article) {
+    // ── Social posts for a hand-written article ──────────────────────────────
+    // The Social button only ever opened the social panel when the AI story
+    // generators had already filled generatedSocialPosts. A News Article written
+    // by hand never goes near them, so the button fell through to openPreview()
+    // and showed the article preview instead — the same thing the Preview button
+    // next to it does. These build the posts from the article itself.
+
+    // Prose blocks, in order, with the furniture removed.
+    function articleProseBlocks() {
+      const div = document.createElement('div');
+      div.innerHTML = getEditorContent() || '';
+      div.querySelectorAll('table, figure, iframe, script, style').forEach(el => el.remove());
+      const blocks = [...div.querySelectorAll('p, h1, h2, h3, h4, li, blockquote')]
+        .map(el => el.textContent.replace(/\s+/g, ' ').trim())
+        .filter(Boolean);
+      if (blocks.length) return blocks;
+      // HTML source mode, or a body with no block tags at all.
+      const plain = (div.textContent || '').trim();
+      return plain ? plain.split(/\n\s*\n/).map(t => t.trim()).filter(Boolean) : [];
+    }
+
+    // The lead. A <p> specifically, so a subhead or a pull quote can't stand in
+    // for the opening paragraph.
+    function articleLeadParagraph() {
+      const div = document.createElement('div');
+      div.innerHTML = getEditorContent() || '';
+      div.querySelectorAll('table, figure, iframe, script, style').forEach(el => el.remove());
+      const lead = [...div.querySelectorAll('p')]
+        .map(el => el.textContent.replace(/\s+/g, ' ').trim())
+        .find(Boolean);
+      return lead || articleProseBlocks()[0] || '';
+    }
+
+    // Trim the lead on a word boundary so the tweet plus its link lands inside
+    // 280. Uses twitterCharCount, so this agrees with the counter under the box
+    // (URLs weigh 23 whatever their length, emoji weigh 2).
+    function fitTweet(body, tail) {
+      if (twitterCharCount(body + tail) <= 280) return body + tail;
+      let text = body;
+      while (text.length > 1 && twitterCharCount(text + '\u2026' + tail) > 280) {
+        const cut = text.lastIndexOf(' ');
+        text = cut > 0 ? text.slice(0, cut) : text.slice(0, -1);
+      }
+      return text.replace(/[\s,;:.\u2013\u2014-]+$/, '') + '\u2026' + tail;
+    }
+
+    function buildSocialPostsFromArticle() {
+      const headline = document.getElementById('articleTitle').value.trim();
+      const excerpt = (document.getElementById('articleExcerpt').value || '').trim();
+      const body = articleProseBlocks().join('\n\n');
+      const slug = currentArticle?.slug;
+      const url = slug ? `https://ball603.com/article/${slug}` : '';
+
+      // Facebook and Instagram take the whole story. Facebook gets its link
+      // appended downstream by showSocialPublishing(); Instagram deliberately
+      // doesn't, because links aren't clickable there.
+      const longForm = [headline, body].filter(Boolean).join('\n\n') || excerpt;
+
+      // X gets the lead and a link — 280 characters is not a news article.
+      const lead = articleLeadParagraph() || excerpt || headline;
+      const tail = url ? `\n\n\u{1F517} READ MORE... ${url}` : '';
+
+      return {
+        facebookPost: longForm || null,
+        instagramPost: longForm || null,
+        twitterPost: lead ? fitTweet(lead, tail) : null
+      };
+    }
+
+    async function showSocialPublishing(article, draftPosts) {
       // Hide editor, show social publishing panel
       document.getElementById('editorPanel').style.display = 'none';
       document.getElementById('socialPublishingPanel').style.display = 'block';
@@ -13351,10 +13420,14 @@ Respond ONLY with valid JSON:
         return text;
       };
       
-      // Populate the textareas
-      let fbPost = generatedSocialPosts.facebookPost || '';
-      let igPost = generatedSocialPosts.instagramPost || '';
-      let twPost = generatedSocialPosts.twitterPost || '';
+      // Populate the textareas. draftPosts is what an article with no stored
+      // posts is drafted from; it is deliberately not written back to
+      // generatedSocialPosts, so every visit re-drafts from the current text
+      // rather than showing a draft made before the last round of edits.
+      const source = draftPosts || generatedSocialPosts;
+      let fbPost = source.facebookPost || '';
+      let igPost = source.instagramPost || '';
+      let twPost = source.twitterPost || '';
       
       // Fix duplicate basketball emojis in all posts
       fbPost = fixDuplicateBasketball(fbPost);
@@ -14340,14 +14413,15 @@ Respond ONLY with valid JSON:
       currentArticle = result.data[0];
       loadArticles();
       
-      // Check if we have social posts to preview
+      // Social opens the social panel, always. Where there is nothing stored —
+      // any article written by hand — the posts are drafted from the article.
       if (generatedSocialPosts.facebookPost || generatedSocialPosts.instagramPost || generatedSocialPosts.twitterPost) {
-        showToast('Draft saved! Opening social preview...', 'success');
+        showToast('Draft saved \u2014 opening social posts.', 'success');
         showSocialPublishing(currentArticle);
       } else {
-        // Show preview modal instead (which shows social posts placeholder)
-        showToast('Draft saved! Note: Use Scorebook or Boxscore Story to generate social posts.', 'success');
-        openPreview();
+        const drafted = buildSocialPostsFromArticle();
+        showToast('Draft saved \u2014 social posts drafted from the article.', 'success');
+        showSocialPublishing(currentArticle, drafted);
       }
     }
     
