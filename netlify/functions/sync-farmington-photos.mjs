@@ -352,13 +352,44 @@ export function albumKeyOf(a) {
   return web ? 'web:' + web.replace(/^https?:\/\//, '') : null;
 }
 
+/* When a gallery happened.
+
+   KJ ends every album name with the date of the game — "FHS Golf at
+   Androscoggin Valley CC Sept 8 2026" — and that is the date a reader means by
+   "most recent". SmugMug's own timestamps are about the file, not the fixture:
+   re-processing a 2025 gallery today would jump it to the top of a page whose
+   entire premise is newest-first.
+
+   So the name is read first, and SmugMug's timestamps are the fallback. Note
+   which fields those are: a fetched album carries LastUpdated and
+   ImagesLastUpdated and no Date at all, which is why all 127 of KJ's galleries
+   came back dateless the first time this ran. */
+const MONTHS = { jan:0, feb:1, mar:2, apr:3, may:4, jun:5, jul:6, aug:7, sep:8,
+                 sept:8, oct:9, nov:10, dec:11 };
+
+export function dateFromName(name) {
+  if (!name) return null;
+  // "Sept 8 2026", "Sept-8-2026", "Feb 24, 2026" — month, day, four-digit year.
+  const m = String(name).match(
+    /\b(jan|feb|mar|apr|may|jun|jul|aug|sept|sep|oct|nov|dec)[a-z]*[\s.\-]+(\d{1,2})(?:st|nd|rd|th)?[\s,\-]+(\d{4})\b/i);
+  if (!m) return null;
+  const month = MONTHS[m[1].toLowerCase()];
+  const day = Number(m[2]);
+  const year = Number(m[3]);
+  if (month == null || !(day >= 1 && day <= 31) || !(year >= 2000 && year <= 2100)) return null;
+  // Midday UTC, so the calendar date survives any timezone the page renders in.
+  return new Date(Date.UTC(year, month, day, 12)).toISOString();
+}
+
 const toRow = (a, source, sport) => ({
   album_key: albumKeyOf(a),
   source,
   name: a.Name || a.Title || null,
   url: a.WebUri || null,
   image_count: a.ImageCount || 0,
-  album_date: a.Date || a.DateAdded || a.DateModified || null,
+  album_date: dateFromName(a.Name) ||
+              a.Date || a.DateAdded || a.DateModified ||
+              a.ImagesLastUpdated || a.LastUpdated || null,
   sport,
   thumbnail_url: a._thumb || null,
   synced_at: new Date().toISOString()
@@ -465,7 +496,8 @@ export async function runPhotoSync({ dryRun = false, budgetMs = 14000 } = {}) {
       withLink: mine.filter(r => r.url).length,
       withDate: mine.filter(r => r.album_date).length,
       withCover: mine.filter(r => r.thumbnail_url).length,
-      withSport: mine.filter(r => r.sport).length
+      withSport: mine.filter(r => r.sport).length,
+      datedFromName: mine.filter(r => r.name && dateFromName(r.name)).length
     };
   }
 
