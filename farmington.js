@@ -152,6 +152,23 @@ function opponentLabel(g) {
 const versus = (g) => g.is_meet ? opponentLabel(g)
                                 : `${g.is_home ? 'vs' : 'at'} ${opponentLabel(g)}`;
 
+/* NHIAA writes a division differently depending on the sport: volleyball and
+   soccer publish "Division III", football publishes "DIV" and "D1 - Central".
+   The site says "Division IV" throughout rather than echoing whichever
+   shorthand the feed happened to use. */
+const ROMAN = { '1': 'I', 'I': 'I', 'II': 'II', 'III': 'III', 'IV': 'IV' };
+function divisionLabel(name) {
+  if (!name) return '';
+  const raw = String(name).trim();
+  if (/^division\b/i.test(raw)) return raw;               // already spelled out
+  // IV before I, or "DIV" would match as Division I with a stray V.
+  const m = raw.match(/^D\s*(IV|III|II|I|1)\b\s*(?:[-\u2013]\s*(.+))?$/i);
+  if (!m) return raw;
+  const roman = ROMAN[m[1].toUpperCase()];
+  if (!roman) return raw;
+  return `Division ${roman}${m[2] ? ' ' + m[2].trim() : ''}`;
+}
+
 /* ── Ball603 links ──────────────────────────────────────────────────────── */
 
 const ball603Covers = (sportId) => !!(SPORTS[sportId] && SPORTS[sportId].ball603);
@@ -430,7 +447,7 @@ function venuePin(game) {
 window.FT = {
   SPORTS, GENDERS, genderLabel,
   esc, parseLocal, dateKey, todayKey, dayLabel, shortDate, timeLabel, weekWindow,
-  scoreOf, resultOf, recordOf, opponentLabel, versus,
+  scoreOf, resultOf, recordOf, opponentLabel, versus, divisionLabel,
   ball603Covers, ball603Slug, ball603Logo, teamLink,
   load, sb, renderHeader, renderFooter, venuePin, closeVenue, pills, streakBadge
 };
