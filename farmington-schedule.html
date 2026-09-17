@@ -85,13 +85,18 @@ function cardBar(team, games) {
   // Bullets rather than bare spacing: four numbers in a row need something
   // between them or they read as one long figure.
   const dot = '<i class="ft-bardot">&bull;</i>';
-  const right = rec.played ? `
+  // The season sits at the end of the right-hand group, the same place the
+  // rosters page puts it, so the three pages read alike.
+  const season = `<span><em>Season</em> ${FT.esc(FT.seasonOfGames(games))}</span>`;
+  const right = `
     <span class="ft-barstats">
-      <b>${rec.text}</b>${dot}
-      <span>${rec.home} <em>Home</em></span>${dot}
-      <span>${rec.away} <em>Away</em></span>${dot}
-      ${FT.streakBadge(rec.streak)}
-    </span>` : '';
+      ${rec.played ? `
+        <b>${rec.text}</b>${dot}
+        <span>${rec.home} <em>Home</em></span>${dot}
+        <span>${rec.away} <em>Away</em></span>${dot}
+        ${FT.streakBadge(rec.streak)}${dot}` : ''}
+      ${season}
+    </span>`;
   return `<div class="ft-cardbar"><h2>${FT.esc(title)}</h2>${right}</div>`;
 }
 
@@ -104,8 +109,11 @@ function renderSchedule() {
   const body = document.getElementById('scheduleBody');
 
   // A record blending varsity, JV and Jr. High is a number nobody means, so the
-  // bar carries no stats in All Sports.
-  const bar = all ? '<div class="ft-cardbar"><h2>Every Team</h2></div>' : cardBar(team, games);
+  // bar carries no stats in All Sports — only the season.
+  const bar = all
+    ? `<div class="ft-cardbar"><h2>Every Team</h2>
+         <span class="ft-barstats"><span><em>Season</em> ${FT.esc(FT.seasonOfGames(games))}</span></span></div>`
+    : cardBar(team, games);
 
   if (!games.length) {
     body.innerHTML = `<div class="ft-card">${bar}<div class="ft-empty">No games on the schedule for this team yet.</div></div>`;
@@ -118,20 +126,29 @@ function renderSchedule() {
   // already has a score, and it is still part of today's schedule.
   const anchor = games.find(g => g.game_date >= today);
 
+  /* On a phone the sport-specific view already says what it is: the black bar
+     overhead reads "Girls Varsity Volleyball", so the sport emoji and the level
+     beside every single row repeat it eleven times. Both stay on the desktop
+     table, and both stay on All Sports even on a phone, where a mixed list of
+     every team genuinely needs them. The location pin comes off narrow screens
+     outright — it is the least-wanted column and the one that costs the most
+     width. */
+  const perSport = all ? '' : ' ft-hide-sm';
+
   body.innerHTML = `
     <div class="ft-card">${bar}
     <div class="ft-tablescroll">
     <table class="ft-table">
       <thead><tr>
         <th>Date</th>
-        <th class="ctr" aria-label="Sport"></th>
-        <th>Level</th>
+        <th class="ctr${perSport}" aria-label="Sport"></th>
+        <th class="${perSport.trim()}">Level</th>
         <th class="ft-hide-sm">Gender</th>
         <th class="grow">Match-up</th>
         <th>Time/Result</th>
-        <th class="ctr">Location</th>
+        <th class="ctr ft-hide-sm">Location</th>
       </tr></thead>
-      <tbody>${games.map(g => row(g, g === next, g === anchor)).join('')}</tbody>
+      <tbody>${games.map(g => row(g, g === next, g === anchor, perSport)).join('')}</tbody>
     </table></div></div>`;
 
   sizeScroller();
@@ -180,7 +197,7 @@ function scrollToToday(smooth) {
 // at the top.
 window.addEventListener('resize', () => { sizeScroller(); scrollToToday(false); });
 
-function row(g, isNext, isAnchor) {
+function row(g, isNext, isAnchor, perSport) {
   const sc = FT.scoreOf(g);
   const res = FT.resultOf(sc);
 
@@ -195,12 +212,12 @@ function row(g, isNext, isAnchor) {
   return `
     <tr class="${isNext ? 'ft-next' : ''}"${isAnchor ? ' id="ft-today-anchor"' : ''}>
       <td class="ft-datecell"><span class="ft-dow">${FT.esc(weekday(g.game_date))},</span> <b>${FT.esc(FT.shortDate(g.game_date))}</b></td>
-      <td class="ctr"><span class="ft-sport-emoji" title="${FT.esc(g.sport.name)}">${g.sport.emoji}</span></td>
-      <td><span class="ft-level">${FT.esc(g.team.level || '')}</span></td>
+      <td class="ctr${perSport}"><span class="ft-sport-emoji" title="${FT.esc(g.sport.name)}">${g.sport.emoji}</span></td>
+      <td class="${(perSport || '').trim()}"><span class="ft-level">${FT.esc(g.team.level || '')}</span></td>
       <td class="ft-hide-sm"><span class="ft-level">${FT.esc(FT.genderLabel(g.gender_id, g.sport_id))}</span></td>
       <td class="grow"><div class="ft-matchup">${matchup(g)}</div></td>
       <td>${timeOrResult}${status}</td>
-      <td class="ctr"><div class="ft-venue-cell">${FT.venuePin(g)}</div></td>
+      <td class="ctr ft-hide-sm"><div class="ft-venue-cell">${FT.venuePin(g)}</div></td>
     </tr>`;
 }
 

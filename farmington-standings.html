@@ -13,6 +13,8 @@
 <div id="ft-header"></div>
 
 <main class="ft-wrap">
+  <div class="ft-pagehead"><h1>Standings</h1></div>
+
   <div class="ft-pillrow ft-center" id="sportPills"></div>
   <div class="ft-pillrow ft-center" id="divisionPills"></div>
   <div id="standBody"><div class="ft-loading">Loading standings&hellip;</div></div>
@@ -313,12 +315,26 @@ async function renderTable() {
     <div class="ft-card">
       <div class="ft-cardbar">
         <h2>${FT.esc(title)} &ndash; ${FT.esc(FT.divisionLabel(division.name))}</h2>
-        ${playoff.html}
+        <span class="ft-barright">
+          ${playoff.html}
+          <span class="ft-barstats"><span><em>Season</em> ${FT.esc(seasonOf(division))}</span></span>
+        </span>
       </div>
       <div class="ft-tablewrap">
         <table class="ft-table"><thead>${head}</thead><tbody>${rows}</tbody></table>
       </div>
     </div>`;
+}
+
+/* Arbiter files a season as a bare year — "2026" for everything played in the
+   2026-27 school year, autumn and the following spring alike. The schedule bar
+   and the roster bar both say "2026-27", and two bars on the same site giving
+   different answers for the same season is worse than either. So a feed value
+   is used only when it already reads as a school year, and otherwise the label
+   is worked out from the calendar the way the schedule does it. */
+function seasonOf(division) {
+  const raw = String(division.season || '').trim();
+  return /\d{4}\s*[-–]\s*\d{2,4}/.test(raw) ? raw : FT.seasonLabel();
 }
 
 function teamCell(row) {

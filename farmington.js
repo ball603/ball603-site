@@ -91,6 +91,23 @@ const shortDate = (key) => {
   return d ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
 };
 
+/* "2025-26", the way the submitted rosters already write it. A school year runs
+   August to June, so a date in the autumn belongs to the year that is starting
+   and one in the spring to the year that is ending; July is the gap between
+   them and counts as the year ahead. Derived rather than stored because the
+   games and standings feeds carry no season of their own, and a schedule bar
+   that disagreed with the roster bar would be worse than no season at all. */
+function seasonLabel(key) {
+  const d = (key && parseLocal(key)) || new Date();
+  const start = d.getMonth() >= 6 ? d.getFullYear() : d.getFullYear() - 1;
+  return `${start}-${String((start + 1) % 100).padStart(2, '0')}`;
+}
+
+// The season a list of games belongs to. The first game is the one to ask: a
+// team viewed in June is still in the season that began the previous autumn.
+const seasonOfGames = (games) =>
+  seasonLabel(games && games.length ? games[0].game_date : null);
+
 function timeLabel(s) {
   const d = parseLocal(s);
   // Midnight means the AD never set a time, not a game at midnight.
@@ -167,9 +184,63 @@ function recordOf(games) {
    school has one, so the summary strip and This Week read the same as the table
    rather than "Epping Middle and High Schools" in one place and "Epping" in the
    next. Meets have no opponent and are named by the meet instead. */
+/* "Somersworth Middle School" is Somersworth to everyone who reads this site,
+   and the extra words cost a column's worth of width on a phone. Only the
+   school-type tail comes off, and only when the name actually ends in one:
+   "Chichester Central School" keeps its Central, "Paul Elementary School" keeps
+   its Elementary, because neither is what was asked for. */
+const SCHOOL_TAIL = /\s+(?:middle|high|senior|junior|jr\.?|sr\.?|and|&|\/|-|\s)+\s*schools?\s*$/i;
+
+function shortenSchool(name) {
+  const out = String(name || '').replace(SCHOOL_TAIL, '').trim();
+  return out || String(name || '');
+}
+
 function opponentLabel(g) {
   if (g.is_meet) return g.game_title || g.tournament_name || `${g.team_count}-school meet`;
-  return g.opponent_ball603 || g.opponent_name || 'Opponent TBA';
+  return g.opponent_ball603 || shortenSchool(g.opponent_name) || 'Opponent TBA';
+}
+
+/* ── Favourite teams ────────────────────────────────────────────────────── */
+/* Whose games come first in the ticker. Kept in localStorage, so it is this
+   browser's list and nobody's account — there are no accounts, and a family
+   that follows the JV volleyball side should not have to make one. */
+
+const FAV_KEY = 'ft_favourite_teams';
+
+function favourites() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(FAV_KEY) || '[]');
+    return Array.isArray(raw) ? raw.map(Number).filter(Number.isFinite) : [];
+  } catch { return []; }          // private browsing, or someone edited it by hand
+}
+
+const isFavourite = (uteam) => favourites().includes(Number(uteam));
+
+function toggleFavourite(uteam) {
+  const id = Number(uteam);
+  const now = favourites();
+  const next = now.includes(id) ? now.filter(x => x !== id) : now.concat(id);
+  try { localStorage.setItem(FAV_KEY, JSON.stringify(next)); } catch { /* nothing to do */ }
+  // Every mounted list and the ticker redraw themselves off this.
+  document.dispatchEvent(new CustomEvent('ft:favourites'));
+  return next;
+}
+
+/* One list, mounted wherever it is wanted: in a card on the home page and in
+   the panel the star opens. Two copies of this would drift apart. */
+function favouritesList(mount, teams) {
+  if (!mount) return;
+  const favs = favourites();
+  mount.innerHTML = `
+    <div class="ft-favlist">
+      ${teams.map(t => `
+        <button class="ft-fav${favs.includes(t.uteam) ? ' on' : ''}" type="button"
+                data-fav="${t.uteam}" aria-pressed="${favs.includes(t.uteam) ? 'true' : 'false'}">
+          <span class="ft-fav-star" aria-hidden="true">${favs.includes(t.uteam) ? '★' : '☆'}</span>
+          <span class="ft-fav-name">${esc(t.name)}</span>
+        </button>`).join('')}
+    </div>`;
 }
 const versus = (g) => g.is_meet ? opponentLabel(g)
                                 : `${g.is_home ? 'vs' : 'at'} ${opponentLabel(g)}`;
@@ -378,45 +449,124 @@ function renderHeader(active) {
                title="${s.title}" aria-label="${s.title}">
               <svg viewBox="0 0 24 24"><path d="${s.path}"/></svg>
             </a>`).join('')}
+          <button class="ft-iconbtn" id="ft-share" type="button" title="Share this page" aria-label="Share this page">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+              <path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/>
+            </svg>
+          </button>
+          <button class="ft-iconbtn" id="ft-star" type="button" title="My teams" aria-label="My teams">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"/>
+            </svg>
+          </button>
           <button class="ft-burger" id="ft-burger" type="button"
                   aria-label="Menu" aria-expanded="false" aria-controls="ft-drawer">
             <span></span><span></span><span></span>
           </button>
         </div>
       </div>
-      <!-- The same five links again, stacked. Only one of the two is ever on
-           screen: the row disappears under 760px and this replaces it. -->
-      <nav class="ft-drawer" id="ft-drawer" aria-label="Menu">
-        ${NAV.map(n => `<a class="ft-drawerlink${n.key === active ? ' on' : ''}" href="${n.href}">${n.label}</a>`).join('')}
-      </nav>
     </header>
-    <div id="ft-ticker"></div>`;
 
-  const burger = document.getElementById('ft-burger');
-  const drawer = document.getElementById('ft-drawer');
-  burger.addEventListener('click', () => {
-    const open = drawer.classList.toggle('on');
-    burger.classList.toggle('on', open);
-    burger.setAttribute('aria-expanded', open ? 'true' : 'false');
-  });
-  // Anywhere else, or Escape, closes it. A menu that can only be closed by the
-  // button that opened it is a menu people get stuck in.
-  document.addEventListener('click', (e) => {
-    if (!drawer.classList.contains('on')) return;
-    if (e.target.closest('#ft-drawer') || e.target.closest('#ft-burger')) return;
-    drawer.classList.remove('on');
-    burger.classList.remove('on');
-    burger.setAttribute('aria-expanded', 'false');
-  });
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      drawer.classList.remove('on');
-      burger.classList.remove('on');
-      burger.setAttribute('aria-expanded', 'false');
+    <!-- The same links again, stacked, sliding in from the right the way
+         Ball603's does. Only one of the two is ever on screen: the row
+         disappears under 760px and this replaces it. -->
+    <div class="ft-veil-nav" id="ft-drawer-veil"></div>
+    <nav class="ft-drawer" id="ft-drawer" aria-label="Menu">
+      <div class="ft-drawer-head">
+        <span>Menu</span>
+        <button class="ft-drawer-close" id="ft-drawer-close" type="button" aria-label="Close">&times;</button>
+      </div>
+      ${NAV.map(n => `<a class="ft-drawerlink${n.key === active ? ' on' : ''}" href="${n.href}">${n.label}</a>`).join('')}
+    </nav>
+
+    <div id="ft-ticker"></div>
+
+    <!-- My teams, opened by the star. The same list the home page carries. -->
+    <div class="ft-veil-nav" id="ft-fav-veil"></div>
+    <aside class="ft-favpanel" id="ft-favpanel" aria-label="My teams">
+      <div class="ft-drawer-head">
+        <span>My teams</span>
+        <button class="ft-drawer-close" id="ft-fav-close" type="button" aria-label="Close">&times;</button>
+      </div>
+      <p class="ft-favnote">Starred teams come first in the scores ticker.</p>
+      <div id="ft-favpanel-list"><div class="ft-loading">Loading teams&hellip;</div></div>
+    </aside>`;
+
+  /* Two panels that slide in from the right, opened and closed the same way.
+     Escape and the backdrop close either — a panel you can only shut with the
+     button that opened it is one people get stuck in. */
+  const panels = [
+    { el: 'ft-drawer', veil: 'ft-drawer-veil', open: 'ft-burger', close: 'ft-drawer-close' },
+    { el: 'ft-favpanel', veil: 'ft-fav-veil', open: 'ft-star', close: 'ft-fav-close' }
+  ].map(p => ({
+    el: document.getElementById(p.el), veil: document.getElementById(p.veil),
+    opener: document.getElementById(p.open), closer: document.getElementById(p.close)
+  }));
+
+  const shut = (p) => {
+    p.el.classList.remove('on');
+    p.veil.classList.remove('on');
+    if (p.opener) {
+      p.opener.classList.remove('on');
+      p.opener.setAttribute('aria-expanded', 'false');
     }
+    if (!panels.some(q => q.el.classList.contains('on'))) document.body.classList.remove('ft-locked');
+  };
+  const shutAll = () => panels.forEach(shut);
+
+  for (const p of panels) {
+    p.opener.addEventListener('click', () => {
+      const wasOpen = p.el.classList.contains('on');
+      shutAll();
+      if (wasOpen) return;
+      p.el.classList.add('on');
+      p.veil.classList.add('on');
+      p.opener.classList.add('on');
+      p.opener.setAttribute('aria-expanded', 'true');
+      document.body.classList.add('ft-locked');
+    });
+    p.closer.addEventListener('click', () => shut(p));
+    p.veil.addEventListener('click', () => shut(p));
+  }
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') shutAll(); });
+
+  // The star's list, filled once the teams are known.
+  load().then(data => {
+    const mount = document.getElementById('ft-favpanel-list');
+    const draw = () => favouritesList(mount, data.teams);
+    draw();
+    document.addEventListener('ft:favourites', draw);
+    mount.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-fav]');
+      if (btn) toggleFavourite(btn.dataset.fav);
+    });
+  }).catch(() => {
+    const mount = document.getElementById('ft-favpanel-list');
+    if (mount) mount.innerHTML = '<div class="ft-empty">Teams could not be loaded.</div>';
+  });
+
+  // Share, the way Ball603 does it: the OS sheet where there is one, the
+  // clipboard where there is not.
+  document.getElementById('ft-share').addEventListener('click', async () => {
+    const url = location.href;
+    const title = (document.title || 'Farmington Tigers').replace(/\s*\|\s*.*$/, '').trim();
+    if (navigator.share) {
+      try { await navigator.share({ title, url }); return; }
+      catch (err) { if (err && (err.name === 'AbortError' || err.name === 'NotAllowedError')) return; }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      const btn = document.getElementById('ft-share');
+      btn.classList.add('ft-copied');
+      setTimeout(() => btn.classList.remove('ft-copied'), 1400);
+    } catch { /* nothing useful to offer if even the clipboard is refused */ }
   });
 
   renderTicker();
+  document.addEventListener('ft:favourites', renderTicker);
 }
 
 /* ── Ticker ─────────────────────────────────────────────────────────────── */
@@ -457,16 +607,24 @@ async function renderTicker() {
   try { data = await load(); } catch { return; }
 
   const win = tickerWindow();
+  const favs = favourites();
   const games = (data.games || [])
     .filter(g => g.game_date >= win.from && g.game_date <= win.to)
-    .sort((a, b) => String(a.starts_at).localeCompare(String(b.starts_at)));
+    // Starred teams first, and inside each half still in time order. Somebody
+    // who has told us they follow the JV side should not have to scroll past
+    // four varsity games to find them.
+    .sort((a, b) => {
+      const fa = favs.includes(a.team.uteam) ? 0 : 1;
+      const fb = favs.includes(b.team.uteam) ? 0 : 1;
+      return fa - fb || String(a.starts_at).localeCompare(String(b.starts_at));
+    });
 
   if (!games.length) return;            // nothing on, so nothing shown
 
   mount.innerHTML = `
     <div class="ft-ticker">
       <div class="ft-ticker-inner">
-        <span class="ft-ticker-label">Scores</span>
+        <span class="ft-ticker-label"><span>Scores</span></span>
         <button class="ft-ticker-arrow" data-dir="-1" type="button" aria-label="Earlier games">&#8249;</button>
         <div class="ft-ticker-scroll">${games.map(tickerCard).join('')}</div>
         <button class="ft-ticker-arrow" data-dir="1" type="button" aria-label="Later games">&#8250;</button>
@@ -515,10 +673,14 @@ function tickerCard(g) {
       <span class="ft-tcard-status">${esc(status)}</span>
     </span>`;
 
+  // Which team the card belongs to, so that the starred ones can be told apart
+  // from the rest without reading the label and guessing.
+  const owner = `data-uteam="${esc(g.team.uteam)}"${isFavourite(g.team.uteam) ? ' data-starred="1"' : ''}`;
+
   // A meet has no opponent and no score, so it gets one line instead of two.
   if (g.is_meet) {
     return `
-      <a class="ft-tcard" href="${href}">
+      <a class="ft-tcard" href="${href}" ${owner}>
         <span class="ft-tcard-teams"><span class="ft-tcard-meet">${esc(opp)}</span></span>
         ${meta}
       </a>`;
@@ -532,7 +694,7 @@ function tickerCard(g) {
     </span>`;
 
   return `
-    <a class="ft-tcard" href="${href}">
+    <a class="ft-tcard" href="${href}" ${owner}>
       <span class="ft-tcard-teams">
         ${row('Farmington', ball603Logo('Farmington'), sc ? sc.us : '', res === 'W')}
         ${row(opp, logo, sc ? sc.them : '', res === 'L')}
@@ -641,8 +803,10 @@ function venuePin(game) {
 /* ── Exported ───────────────────────────────────────────────────────────── */
 
 window.FT = {
-  SPORTS, GENDERS, genderLabel, genderPrefix,
+  SPORTS, GENDERS, genderLabel, genderPrefix, shortenSchool,
+  favourites, isFavourite, toggleFavourite, favouritesList,
   esc, parseLocal, dateKey, todayKey, dayLabel, shortDate, timeLabel, weekWindow,
+  seasonLabel, seasonOfGames,
   scoreOf, resultOf, recordOf, opponentLabel, versus, divisionLabel,
   ball603Covers, ball603Slug, ball603Logo, schoolLogo, teamLink,
   load, sb, renderHeader, renderFooter, venuePin, closeVenue, pills, streakBadge
