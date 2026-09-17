@@ -228,6 +228,12 @@ function shape(rawTeams, rawGames, standings, rosters) {
     },
     teamsInSport(sportId) {
       return visible.filter(t => t.games.some(g => g.sport_id === sportId));
+    },
+    // Distinct from varsityOf, which falls back to any team so that clicking a
+    // Jr-High-only sport still selects something. This one answers the actual
+    // question "does Farmington field a varsity side in this sport".
+    hasVarsity(sportId) {
+      return visible.some(t => t.level_rank === 1 && t.games.some(g => g.sport_id === sportId));
     }
   };
 }

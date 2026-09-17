@@ -227,9 +227,13 @@ function openingState() {
   if (DATA.sports.includes(wantSport)) {
     state.sport = wantSport;
   } else {
-    // Whatever plays next, so the page is useful the moment it opens.
+    // Whatever plays next, so the page is useful the moment it opens — but
+    // preferring a sport that has a varsity side. Landing on Jr. High cross
+    // country because its meet happens to be the very next event is a worse
+    // front door than the varsity soccer game later the same day.
     const today = FT.todayKey();
-    const next = DATA.games.find(g => g.game_date >= today);
+    const upcoming = DATA.games.filter(g => g.game_date >= today);
+    const next = upcoming.find(g => DATA.hasVarsity(g.sport_id)) || upcoming[0];
     state.sport = next ? next.sport_id : (DATA.sports[0] ?? null);
   }
 
