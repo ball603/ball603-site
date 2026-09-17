@@ -4,27 +4,23 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Standings | Farmington Tigers</title>
-<meta name="description" content="NHIAA varsity standings for every sport the Farmington Tigers play.">
+<meta name="description" content="Varsity standings for every sport the Farmington Tigers play.">
 <link rel="icon" href="/logos/100px/Farmington.png">
-<link rel="stylesheet" href="/farmington.css?v=3">
+<link rel="stylesheet" href="/farmington.css?v=4">
 </head>
 <body>
 
 <div id="ft-header"></div>
 
 <main class="ft-wrap">
-  <div class="ft-pagehead">
-    <h1>Standings</h1>
-    <span class="ft-sub">Varsity only</span>
-  </div>
-
-  <div class="ft-pillrow" id="groupChips"></div>
-  <div class="ft-card"><div id="standBody"><div class="ft-loading">Loading standings&hellip;</div></div></div>
+  <div class="ft-pillrow ft-center" id="sportPills"></div>
+  <div class="ft-pillrow ft-center" id="divisionPills"></div>
+  <div id="standBody"><div class="ft-loading">Loading standings&hellip;</div></div>
 </main>
 
 <div id="ft-footer"></div>
 
-<script src="/farmington.js?v=3"></script>
+<script src="/farmington.js?v=4"></script>
 <script>
 'use strict';
 
@@ -32,62 +28,100 @@ FT.renderHeader('standings');
 FT.renderFooter();
 
 let DATA = null;
-let groups = [];
-let active = null;
+let sports = [];
+const state = { sport: null, division: null };
 
-// Ball603 game records, keyed by the Ball603 sport, filled in only when a
-// division needs them. Fetching every sport up front would slow the page down
-// for columns most sports cannot show anyway.
-const b6cache = new Map();
+/* Playoff field sizes, carried across from Ball603's standings page. These are
+   NHIAA's published figures, not anything derivable from the standings feed —
+   so a sport that isn't in this table simply shows no qualifying line rather
+   than a guess. Telling a parent their team is in the field when we don't
+   actually know would be worse than saying nothing. */
+const PLAYOFF_TEAMS = {
+  basketball:  { Boys: { 'D-I': 15, 'D-II': 14, 'D-III': 15, 'D-IV': 16 },
+                 Girls:{ 'D-I': 16, 'D-II': 14, 'D-III': 14, 'D-IV': 16 } },
+  baseball:    { Boys: { 'D-I': 15, 'D-II': 13, 'D-III': 15, 'D-IV': 15 } },
+  gvolleyball: { Girls:{ 'D-I': 14, 'D-II': 16, 'D-III': 15 } }
+};
+const DIVISION_CODE = {
+  'Division I': 'D-I', 'Division II': 'D-II', 'Division III': 'D-III', 'Division IV': 'D-IV'
+};
+const calculateByes = (teams) => (teams <= 16 ? 16 - teams : 32 - teams);
 
-/* ── Grouping ──────────────────────────────────────────────────────────── */
+function playoffLine(group, division) {
+  const key = FT.SPORTS[group.sportId] && FT.SPORTS[group.sportId].ball603;
+  const table = key && PLAYOFF_TEAMS[key] && PLAYOFF_TEAMS[key][FT.genderLabel(group.genderId, group.sportId)];
+  const spots = table && table[DIVISION_CODE[division.name]];
+  if (!spots) return { html: '', spots: 0, byes: 0 };
 
-function buildGroups() {
-  const map = new Map();
+  const byes = calculateByes(spots);
+  let text = `Top ${spots} make playoffs`;
+  if (byes === 1) text += ' • Top seed gets a bye';
+  else if (byes > 1) text += ` • Top ${byes} get byes`;
+  return { html: `<span class="ft-playoffline">${FT.esc(text)}</span>`, spots, byes };
+}
+
+/* ── Grouping: sport, then the divisions inside it ─────────────────────── */
+
+function buildSports() {
+  const byGroup = new Map();
   for (const row of DATA.standings) {
-    if (!map.has(row.rankings_group_id)) {
-      const sport = FT.SPORTS[row.sport_id];
-      map.set(row.rankings_group_id, {
-        id: row.rankings_group_id,
-        sportId: row.sport_id,
-        genderId: row.gender_id,
-        season: row.season,
-        emoji: sport ? sport.emoji : '\u{1F3C6}',
-        order: sport ? sport.order : 99,
-        groupName: row.group_name,
-        division: row.division_name,
-        rows: []
+    if (!byGroup.has(row.rankings_group_id)) {
+      byGroup.set(row.rankings_group_id, {
+        id: row.rankings_group_id, sportId: row.sport_id, genderId: row.gender_id,
+        name: row.division_name || row.group_name || '', season: row.season, rows: []
       });
     }
-    map.get(row.rankings_group_id).rows.push(row);
+    byGroup.get(row.rankings_group_id).rows.push(row);
   }
-  for (const g of map.values()) g.rows.sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99));
+  for (const d of byGroup.values()) d.rows.sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99));
 
-  const out = [...map.values()].sort((a, b) => a.order - b.order);
+  const bySport = new Map();
+  for (const d of [...byGroup.values()].sort((a, b) => a.id - b.id)) {
+    const key = `${d.sportId}|${d.genderId}`;
+    if (!bySport.has(key)) {
+      const sport = FT.SPORTS[d.sportId];
+      bySport.set(key, {
+        key, sportId: d.sportId, genderId: d.genderId,
+        emoji: sport ? sport.emoji : '\u{1F3C6}',
+        order: sport ? sport.order : 99,
+        name: sport ? sport.name : d.name,
+        divisions: []
+      });
+    }
+    bySport.get(key).divisions.push(d);
+  }
+
+  const out = [...bySport.values()].sort((a, b) => a.order - b.order);
 
   // "Girls Volleyball" is noise while girls volleyball is the only volleyball
-  // there is. The prefix comes back on its own the moment a sport has two.
+  // there is. The prefix returns on its own the moment a sport has two.
   const perSport = new Map();
-  for (const g of out) perSport.set(g.sportId, (perSport.get(g.sportId) || 0) + 1);
-  for (const g of out) {
-    const sport = FT.SPORTS[g.sportId];
-    const name = sport ? sport.name : g.groupName;
-    g.label = perSport.get(g.sportId) > 1
-      ? `${FT.genderLabel(g.genderId, g.sportId)} ${name}`.trim()
-      : name;
+  for (const s of out) perSport.set(s.sportId, (perSport.get(s.sportId) || 0) + 1);
+  for (const s of out) {
+    s.label = perSport.get(s.sportId) > 1
+      ? `${FT.genderLabel(s.genderId, s.sportId)} ${s.name}`.trim()
+      : s.name;
   }
   return out;
 }
 
-/* ── Ball603 extras ────────────────────────────────────────────────────── */
-/* Rank, record and rating come from NHIAA for every sport. Overall, home, away,
-   streak and the postseason record are computed from Ball603's own games, so
-   they only exist for the three sports Ball603 covers. Every one of these
-   columns is optional: if the fetch fails, the table simply renders without
-   them rather than the page breaking. */
+const currentSport = () => sports.find(s => s.key === state.sport);
+const currentDivision = () => {
+  const s = currentSport();
+  return s && (s.divisions.find(d => d.id === state.division) || s.divisions[0]);
+};
 
-async function ball603Extras(group) {
-  const key = FT.SPORTS[group.sportId] && FT.SPORTS[group.sportId].ball603;
+/* ── Ball603 extras ────────────────────────────────────────────────────── */
+/* Rank, record and points come from the varsity standings feed for every sport.
+   Overall, home, away, streak and the postseason record are computed from
+   Ball603's own games, so they exist only for the sports Ball603 covers. All of
+   them are optional: if the fetch fails the table renders without them rather
+   than the page breaking. */
+
+const b6cache = new Map();
+
+async function ball603Extras(sport) {
+  const key = FT.SPORTS[sport.sportId] && FT.SPORTS[sport.sportId].ball603;
   if (!key) return null;
   if (b6cache.has(key)) return b6cache.get(key);
 
@@ -104,9 +138,7 @@ async function ball603Extras(group) {
     const stats = new Map();
     const get = (team, gender) => {
       const k = `${team}|${gender}`;
-      if (!stats.has(k)) stats.set(k, {
-        w: 0, l: 0, hw: 0, hl: 0, aw: 0, al: 0, pw: 0, pl: 0, results: []
-      });
+      if (!stats.has(k)) stats.set(k, { w:0, l:0, hw:0, hl:0, aw:0, al:0, pw:0, pl:0, results: [] });
       return stats.get(k);
     };
 
@@ -137,6 +169,26 @@ async function ball603Extras(group) {
   return promise;
 }
 
+// Ball603's own standings carry NHIAA points, which the rankings feed only
+// reports for some sports. Used for the Points column where it exists.
+const b6points = new Map();
+async function ball603Points(sport) {
+  const key = FT.SPORTS[sport.sportId] && FT.SPORTS[sport.sportId].ball603;
+  if (!key) return null;
+  if (b6points.has(key)) return b6points.get(key);
+  const promise = FT.sb(`standings?sport=eq.${encodeURIComponent(key)}&select=school,gender,points,season`)
+    .then(rows => {
+      const seasons = [...new Set(rows.map(r => r.season).filter(Boolean))].sort();
+      const season = seasons[seasons.length - 1];
+      const m = new Map();
+      for (const r of rows) if (r.season === season) m.set(`${r.school}|${r.gender}`, r.points);
+      return m;
+    })
+    .catch(() => null);
+  b6points.set(key, promise);
+  return promise;
+}
+
 function streakOf(s) {
   if (!s || !s.results.length) return '—';
   const last = s.results[s.results.length - 1];
@@ -147,75 +199,94 @@ function streakOf(s) {
 
 /* ── Rendering ─────────────────────────────────────────────────────────── */
 
-function renderChips() {
-  document.getElementById('groupChips').innerHTML = FT.pills(
-    groups.map(g => ({ value: g.id, label: g.label, emoji: g.emoji })), active, 'data-group');
+function renderPills() {
+  document.getElementById('sportPills').innerHTML = FT.pills(
+    sports.map(s => ({ value: s.key, label: s.label, emoji: s.emoji })), state.sport, 'data-sport');
+
+  const sport = currentSport();
+  const el = document.getElementById('divisionPills');
+  // One division is not a choice, so no row of pills for it.
+  el.innerHTML = (sport && sport.divisions.length > 1)
+    ? FT.pills(sport.divisions.map(d => ({ value: d.id, label: d.name })), currentDivision().id, 'data-division')
+    : '';
 }
 
 async function renderTable() {
-  const group = groups.find(g => g.id === active);
+  const sport = currentSport();
+  const division = currentDivision();
   const body = document.getElementById('standBody');
-  if (!group) { body.innerHTML = '<div class="ft-empty">No standings posted.</div>'; return; }
+  if (!sport || !division) {
+    body.innerHTML = '<div class="ft-card"><div class="ft-empty">No standings posted.</div></div>';
+    return;
+  }
 
-  const stats = await ball603Extras(group);
-  const gender = FT.genderLabel(group.genderId, group.sportId);
+  const [stats, points] = await Promise.all([ball603Extras(sport), ball603Points(sport)]);
+  const gender = FT.genderLabel(sport.genderId, sport.sportId);
   const full = !!stats;
+  const playoff = playoffLine(sport, division);
+
+  const anyPoints = division.rows.some(r => r.points != null) || !!points;
+  const rateLabel = anyPoints ? 'Points' : 'Rating';
+  const rateOf = (r) => {
+    if (points && points.has(`${r.ball603_shortname}|${gender}`)) return points.get(`${r.ball603_shortname}|${gender}`);
+    if (r.points != null) return r.points;
+    return r.rating == null ? '—' : (Math.round(Number(r.rating) * 1000) / 1000);
+  };
+
+  const showTies = division.rows.some(r => r.ties != null);
 
   const head = full ? `
     <tr class="ft-group">
       <th class="num" rowspan="2">#</th>
-      <th class="grow" rowspan="2">${FT.esc(group.division || 'Team')}</th>
+      <th class="grow" rowspan="2">Team</th>
       <th class="reg sep" colspan="2">Regular Season</th>
       <th class="post sep" colspan="1">Postseason</th>
       <th class="ovr sep" colspan="4">Overall</th>
     </tr>
     <tr class="ft-sub">
-      <th class="ctr reg sep">Record</th><th class="ctr reg">Rating</th>
-      <th class="ctr post sep">Record</th>
+      <th class="ctr sep">Record</th><th class="ctr">${rateLabel}</th>
+      <th class="ctr sep">Record</th>
       <th class="ctr sep">Record</th>
       <th class="ctr ft-hide-sm">Home</th><th class="ctr ft-hide-sm">Away</th><th class="ctr">Streak</th>
     </tr>` : `
     <tr>
-      <th class="num">#</th>
-      <th class="grow">${FT.esc(group.division || 'Team')}</th>
-      <th class="ctr">GP</th><th class="ctr">W</th><th class="ctr">L</th>
-      ${group.rows.some(r => r.ties != null) ? '<th class="ctr">T</th>' : ''}
-      ${group.rows.some(r => r.points != null) ? '<th class="ctr">Pts</th>' : ''}
-      <th class="ctr">Rating</th>
+      <th class="num">#</th><th class="grow">Team</th>
+      <th class="ctr sep">GP</th><th class="ctr">Record</th>
+      <th class="ctr">${rateLabel}</th>
     </tr>`;
 
-  const showTies = group.rows.some(r => r.ties != null);
-  const showPts = group.rows.some(r => r.points != null);
-
-  const body_ = group.rows.map(r => {
+  const rows = division.rows.map((r, i) => {
     const s = stats ? stats.get(`${r.ball603_shortname}|${gender}`) : null;
+    const record = `${r.wins ?? 0}–${r.losses ?? 0}${(showTies && r.ties) ? '–' + r.ties : ''}`;
     const cells = full ? `
-      <td class="ctr sep">${r.wins ?? 0}–${r.losses ?? 0}${r.ties ? '–' + r.ties : ''}</td>
-      <td class="ctr">${fmtRating(r.rating)}</td>
+      <td class="ctr sep">${record}</td>
+      <td class="ctr">${FT.esc(rateOf(r))}</td>
       <td class="ctr sep">${s ? `${s.pw}–${s.pl}` : '0–0'}</td>
       <td class="ctr sep">${s ? `${s.w}–${s.l}` : '—'}</td>
       <td class="ctr ft-hide-sm">${s ? `${s.hw}–${s.hl}` : '—'}</td>
       <td class="ctr ft-hide-sm">${s ? `${s.aw}–${s.al}` : '—'}</td>
       <td class="ctr">${FT.streakBadge(streakOf(s))}</td>` : `
-      <td class="ctr">${r.games_played ?? '—'}</td>
-      <td class="ctr">${r.wins ?? 0}</td>
-      <td class="ctr">${r.losses ?? 0}</td>
-      ${showTies ? `<td class="ctr">${r.ties ?? 0}</td>` : ''}
-      ${showPts ? `<td class="ctr">${r.points ?? 0}</td>` : ''}
-      <td class="ctr">${fmtRating(r.rating)}</td>`;
+      <td class="ctr sep">${r.games_played ?? '—'}</td>
+      <td class="ctr">${record}</td>
+      <td class="ctr">${FT.esc(rateOf(r))}</td>`;
 
-    return `<tr class="${r.is_farmington ? 'ft-us' : ''}">
-      <td class="num">${r.rank ?? ''}</td>
+    const cut = playoff.spots && (i + 1) === playoff.spots ? ' ft-cut' : '';
+    return `<tr class="${r.is_farmington ? 'ft-us' : ''}${cut}">
+      <td class="num"><span class="ft-rank">${r.rank ?? i + 1}</span></td>
       <td class="grow">${teamCell(r)}</td>
       ${cells}
     </tr>`;
   }).join('');
 
-  body.innerHTML = `<table class="ft-table"><thead>${head}</thead><tbody>${body_}</tbody></table>`;
-
+  body.innerHTML = `
+    <div class="ft-card">
+      <div class="ft-cardbar">
+        <h2>${FT.esc(division.name)} &mdash; ${FT.esc(gender)} ${FT.esc(sport.name)}</h2>
+        ${playoff.html}
+      </div>
+      <table class="ft-table"><thead>${head}</thead><tbody>${rows}</tbody></table>
+    </div>`;
 }
-
-const fmtRating = (v) => (v == null ? '—' : (Math.round(Number(v) * 1000) / 1000).toString());
 
 function teamCell(row) {
   const label = row.ball603_shortname || row.team_name;
@@ -226,32 +297,54 @@ function teamCell(row) {
 
 /* ── Wiring ────────────────────────────────────────────────────────────── */
 
-document.getElementById('groupChips').addEventListener('click', (e) => {
+function syncUrl() {
+  history.replaceState(null, '', location.pathname + '?' +
+    new URLSearchParams({ sport: state.sport, division: state.division }));
+}
+
+document.getElementById('sportPills').addEventListener('click', (e) => {
   const btn = e.target.closest('.ft-pill');
   if (!btn) return;
-  active = Number(btn.dataset.group);
-  history.replaceState(null, '', location.pathname + '?group=' + active);
-  renderChips();
-  renderTable();
+  state.sport = btn.dataset.sport;
+  // Farmington's own division where they have one, so switching sport lands on
+  // the table somebody actually came to see.
+  const sport = currentSport();
+  const mine = sport.divisions.find(d => d.rows.some(r => r.is_farmington));
+  state.division = (mine || sport.divisions[0]).id;
+  syncUrl(); renderPills(); renderTable();
+});
+
+document.getElementById('divisionPills').addEventListener('click', (e) => {
+  const btn = e.target.closest('.ft-pill');
+  if (!btn) return;
+  state.division = Number(btn.dataset.division);
+  syncUrl(); renderPills(); renderTable();
 });
 
 FT.load().then(data => {
   DATA = data;
-  groups = buildGroups();
-  if (!groups.length) {
+  sports = buildSports();
+  if (!sports.length) {
     document.getElementById('standBody').innerHTML =
-      '<div class="ft-empty">No varsity standings are posted right now. ' +
-      'NHIAA publishes standings only while a sport is in season.</div>';
+      '<div class="ft-card"><div class="ft-empty">No varsity standings are posted right now. ' +
+      'Standings appear only while a sport is in season.</div></div>';
     return;
   }
-  const want = Number(new URLSearchParams(location.search).get('group'));
-  active = groups.some(g => g.id === want) ? want : groups[0].id;
-  renderChips();
+
+  const q = new URLSearchParams(location.search);
+  state.sport = sports.some(s => s.key === q.get('sport')) ? q.get('sport') : sports[0].key;
+  const sport = currentSport();
+  const wanted = sport.divisions.find(d => d.id === Number(q.get('division')));
+  const mine = sport.divisions.find(d => d.rows.some(r => r.is_farmington));
+  state.division = (wanted || mine || sport.divisions[0]).id;
+
+  renderPills();
   renderTable();
 }).catch(err => {
   console.error('Tigers standings failed to load:', err);
   document.getElementById('standBody').innerHTML =
-    '<div class="ft-empty">Standings could not be loaded just now. Please refresh in a moment.</div>';
+    '<div class="ft-card"><div class="ft-empty">Standings could not be loaded just now. ' +
+    'Please refresh in a moment.</div></div>';
 });
 </script>
 </body>

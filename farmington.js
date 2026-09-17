@@ -385,7 +385,7 @@ window.FT = {
   esc, parseLocal, dateKey, todayKey, dayLabel, shortDate, timeLabel, weekWindow,
   scoreOf, resultOf, recordOf, opponentLabel, versus,
   ball603Covers, ball603Slug, ball603Logo, teamLink,
-  load, renderHeader, renderFooter, venuePin, closeVenue, pills, streakBadge
+  load, sb, renderHeader, renderFooter, venuePin, closeVenue, pills, streakBadge
 };
 
 })();

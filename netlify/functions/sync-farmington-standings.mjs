@@ -117,24 +117,35 @@ export async function runStandingsSync({ dryRun = false } = {}) {
         continue;
       }
 
+      // Every division of a sport Farmington plays, not just Farmington's own.
+      // The standings page lets you switch divisions the way Ball603's does, and
+      // one division on its own would leave that row of pills with nothing to
+      // do. Sports Farmington does not play are still skipped, so this stays a
+      // few hundred rows rather than all of NHIAA.
+      const sportIsOurs = (data.divisions || []).some(div =>
+        (div.teams || div.rows || []).some(t => {
+          const mine = ourTeams.get(t.uniqueTeamId);
+          return mine && !mine.hidden;
+        }));
+      if (!sportIsOurs) continue;
+
       for (const div of (data.divisions || [])) {
         const divName = div.divisionName || div.name || data.groupName || '';
         const teamRows = div.teams || div.rows || [];
+        if (!teamRows.length) continue;
 
-        // Only divisions a Farmington team is actually in. Storing all of NHIAA
-        // would be thousands of rows nobody on this site will ever look at.
         const ours = teamRows.filter(t => {
           const mine = ourTeams.get(t.uniqueTeamId);
           return mine && !mine.hidden;
         });
-        if (!ours.length) continue;
 
         const key = divisionKey(g, divName);
         if (seenDivisions.has(key)) continue;
         seenDivisions.add(key);
 
-        found.push(`${g.sportName} ${g.genderName} ${divName} — ${ours.map(t =>
-          (ourTeams.get(t.uniqueTeamId).display_name) || t.teamName).join(', ')} (${teamRows.length} schools)`);
+        found.push(`${g.sportName} ${g.genderName} ${divName} (${teamRows.length} schools)` +
+          (ours.length ? ' — ' + ours.map(t =>
+            (ourTeams.get(t.uniqueTeamId).display_name) || t.teamName).join(', ') : ''));
 
         for (const t of teamRows) {
           const v = t.values || {};
@@ -188,7 +199,7 @@ export async function runStandingsSync({ dryRun = false } = {}) {
     if (!rows.length) {
       // Between seasons the widget legitimately has nothing for us. That is not
       // a failure, and it must not wipe the standings we already hold.
-      report.note = 'No division contained a Farmington team — nothing written';
+      report.note = 'No sport Farmington plays is currently ranked — nothing written';
       report.elapsedMs = Date.now() - started;
       console.log('Farmington standings:', JSON.stringify(report));
       return { statusCode: 200, body: report };

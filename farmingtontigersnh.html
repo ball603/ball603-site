@@ -10,7 +10,7 @@
 <meta property="og:image" content="https://ball603.com/logos/400px/Farmington.png">
 <link rel="icon" href="/logos/100px/Farmington.png">
 <link rel="apple-touch-icon" href="/logos/200px/Farmington.png">
-<link rel="stylesheet" href="/farmington.css?v=3">
+<link rel="stylesheet" href="/farmington.css?v=4">
 </head>
 <body>
 
@@ -61,7 +61,7 @@
 
 <div id="ft-footer"></div>
 
-<script src="/farmington.js?v=3"></script>
+<script src="/farmington.js?v=4"></script>
 <script>
 'use strict';
 
@@ -134,7 +134,9 @@ function standingsGroups() {
       const sport = FT.SPORTS[row.sport_id];
       groups.set(row.rankings_group_id, {
         id: row.rankings_group_id,
-        label: `${FT.genderLabel(row.gender_id, row.sport_id)} ${sport ? sport.name : row.group_name}`.trim(),
+        sportId: row.sport_id,
+        genderId: row.gender_id,
+        name: sport ? sport.name : row.group_name,
         emoji: sport ? sport.emoji : '\u{1F3C6}',
         division: row.division_name,
         order: sport ? sport.order : 99,
@@ -144,7 +146,22 @@ function standingsGroups() {
     groups.get(row.rankings_group_id).rows.push(row);
   }
   for (const g of groups.values()) g.rows.sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99));
-  return [...groups.values()].sort((a, b) => a.order - b.order);
+
+  // The standings table holds every division of every sport Farmington plays,
+  // so the full page can offer division pills. This box is a glance at where
+  // the Tigers stand, so it keeps only the divisions they are actually in.
+  const out = [...groups.values()]
+    .filter(g => g.rows.some(r => r.is_farmington))
+    .sort((a, b) => a.order - b.order);
+
+  const perSport = new Map();
+  for (const g of out) perSport.set(g.sportId, (perSport.get(g.sportId) || 0) + 1);
+  for (const g of out) {
+    g.label = perSport.get(g.sportId) > 1
+      ? `${FT.genderLabel(g.genderId, g.sportId)} ${g.name}`.trim()
+      : g.name;
+  }
+  return out;
 }
 
 function renderStandings() {
