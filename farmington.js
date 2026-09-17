@@ -16,15 +16,20 @@ const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZi
 // Arbiter's numeric sport ids, with the emoji the schedule uses to flag each
 // one and the Ball603 sport key where Ball603 covers it. A sport with no
 // ball603 key gets no team links — Ball603 has no page to send anyone to.
+// `roster` is how roster_submissions spells the sport, which is NOT the same
+// question as `ball603`. A roster can be filed for a sport Ball603 does not
+// cover — the Tigers' soccer squad is exactly that — and the two were the same
+// field until one arrived, at which point the page called it "soccer" with a
+// trophy beside it because nothing matched.
 const SPORTS = {
-  63: { name: 'Volleyball',    emoji: '\u{1F3D0}', order: 1, ball603: 'gvolleyball' },
-  50: { name: 'Soccer',        emoji: '⚽',     order: 2 },
-  25: { name: 'Football',      emoji: '\u{1F3C8}', order: 3 },
-  29: { name: 'Golf',          emoji: '⛳',     order: 4 },
-  11: { name: 'Cross Country', emoji: '\u{1F3C3}', order: 5 },
-   4: { name: 'Basketball',    emoji: '\u{1F3C0}', order: 6, ball603: 'basketball' },
-   3: { name: 'Baseball',      emoji: '⚾',     order: 7, ball603: 'baseball' },
-  51: { name: 'Softball',      emoji: '\u{1F94E}', order: 8 }
+  63: { name: 'Volleyball',    emoji: '\u{1F3D0}', order: 1, ball603: 'gvolleyball', roster: 'gvolleyball' },
+  50: { name: 'Soccer',        emoji: '⚽',     order: 2, roster: 'soccer' },
+  25: { name: 'Football',      emoji: '\u{1F3C8}', order: 3, roster: 'football' },
+  29: { name: 'Golf',          emoji: '⛳',     order: 4, roster: 'golf' },
+  11: { name: 'Cross Country', emoji: '\u{1F3C3}', order: 5, roster: 'crosscountry' },
+   4: { name: 'Basketball',    emoji: '\u{1F3C0}', order: 6, ball603: 'basketball', roster: 'basketball' },
+   3: { name: 'Baseball',      emoji: '⚾',     order: 7, ball603: 'baseball',   roster: 'baseball' },
+  51: { name: 'Softball',      emoji: '\u{1F94E}', order: 8, roster: 'softball' }
 };
 
 // Farmington fields no girls soccer, and Arbiter files the same squad under

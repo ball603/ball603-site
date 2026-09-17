@@ -37,7 +37,7 @@ const state = { sport: null, gender: null, id: null };
 /* Rosters are filed under Ball603's sport keys, so they have to be matched back
    to the vocabulary the rest of the site uses for emoji, name and ordering. */
 function sportMeta(key) {
-  const hit = Object.entries(FT.SPORTS).find(([, s]) => s.ball603 === key);
+  const hit = Object.entries(FT.SPORTS).find(([, s]) => (s.roster || s.ball603) === key);
   // The numeric id comes back too, because the heading needs it to decide
   // whether naming the gender says anything.
   return hit ? { ...hit[1], id: Number(hit[0]) } : { name: key, emoji: '\u{1F3C6}', order: 99, id: null };
@@ -120,6 +120,9 @@ function renderRoster() {
     { h: 'Player', fields: ['name', 'player', 'full_name'], cls: 'grow' },
     { h: 'Pos',    fields: ['position', 'pos'], cls: 'ctr' },
     { h: 'Class',  fields: ['class', 'grade', 'year'], cls: 'ctr' },
+    // Co-op squads are drawn from two schools and it matters to the families
+    // which one a player is at. Only appears on a roster that says.
+    { h: 'School', fields: ['school', 'from'], cls: 'ctr' },
     { h: 'Ht',     fields: ['height', 'ht'], cls: 'ctr' }
   ].filter(c => c.h === 'Player' || roster.some(p => val(p, c.fields) !== ''));
 
