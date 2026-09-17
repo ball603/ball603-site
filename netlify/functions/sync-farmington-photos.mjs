@@ -265,7 +265,15 @@ async function kjAlbums(report) {
     try {
       const albums = await run();
       tried.push({ route: label, albums: albums.length });
-      if (albums.length) { report.route = label; report.tried = tried; return albums; }
+      if (albums.length) {
+        report.route = label;
+        report.tried = tried;
+        // What the first album actually looks like. Endpoints differ in which
+        // fields they bother to send, and guessing at that is what cost a run.
+        report.sampleFields = Object.keys(albums[0]).sort();
+        report.sampleKey = albums[0].AlbumKey || albums[0].Uri || null;
+        return albums;
+      }
     } catch (err) {
       tried.push({ route: label, error: String(err.message).slice(0, 160) });
     }
@@ -295,8 +303,25 @@ async function fillThumbnails(rows, limit) {
   return filled;
 }
 
+/* !albums hands back an AlbumKey on every album. !albumlist — which is the
+   endpoint that actually reaches KJ's folder — does not, and an album with no
+   key took every other keyless album's place in the map below: 127 galleries
+   arrived and 1 row came out. The key is recoverable from the Uri either way,
+   and a gallery with no usable key at all is skipped rather than merged. */
+export function albumKeyOf(a) {
+  if (a.AlbumKey) return a.AlbumKey;
+  const uri = a.Uri || a.Uris?.Album?.Uri || a.Uris?.Album || '';
+  const m = String(uri).match(/\/api\/v2\/album\/([A-Za-z0-9-]+)/);
+  if (m) return m[1];
+  // The gallery's own address is unique too. Not ideal — renaming a gallery
+  // changes it, so the old row is pruned and a new one written — but it keeps
+  // a gallery on the page rather than dropping it.
+  const web = String(a.WebUri || '').trim();
+  return web ? 'web:' + web.replace(/^https?:\/\//, '') : null;
+}
+
 const toRow = (a, source, sport) => ({
-  album_key: a.AlbumKey,
+  album_key: albumKeyOf(a),
   source,
   name: a.Name || a.Title || null,
   url: a.WebUri || null,
@@ -357,16 +382,37 @@ export async function runPhotoSync({ dryRun = false } = {}) {
     return { statusCode: 200, body: report };
   }
 
+  // A gallery we cannot key is dropped, not merged. Silently collapsing them
+  // is exactly the bug this guards against.
+  const keyless = rows.filter(r => !r.album_key);
+  if (keyless.length) {
+    report.skippedNoKey = keyless.length;
+    report.skippedSample = keyless.slice(0, 3).map(r => r.name || r.url);
+  }
+
   // The same album can only be in the table once, and KJ's copy wins: it is his
   // gallery of his school, and Ball603's is the syndicated one.
   const byKey = new Map();
   for (const r of rows) {
+    if (!r.album_key) continue;
     const had = byKey.get(r.album_key);
     if (!had || (had.source === 'ball603' && r.source === 'kjcardinal')) byKey.set(r.album_key, r);
   }
   const unique = [...byKey.values()];
   report.rows = unique.length;
   report.withoutSport = unique.filter(r => !r.sport).length;
+
+  // Per source, so a route that returns albums but no covers — or no keys — is
+  // visible rather than averaged away against the other account's 116 good ones.
+  report.bySource = {};
+  for (const src of ['kjcardinal', 'ball603']) {
+    const mine = unique.filter(r => r.source === src);
+    report.bySource[src] = {
+      rows: mine.length,
+      withCover: mine.filter(r => r.thumbnail_url).length,
+      withSport: mine.filter(r => r.sport).length
+    };
+  }
 
   report.thumbnails = await fillThumbnails(unique, dryRun ? 3 : 60);
   report.stillNoThumbnail = unique.filter(r => !r.thumbnail_url).length;
