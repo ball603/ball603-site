@@ -15,7 +15,9 @@
 <main class="ft-wrap">
   <div class="ft-pagehead"><h1>Schedule</h1></div>
 
-  <div class="ft-pillrow ft-center" id="sportChips"></div>
+  <!-- Sticky, so the sport row and the Today button stay reachable once the
+       page has scrolled itself down to today's games. -->
+  <div class="ft-pillrow ft-center ft-sticky-row" id="sportChips"></div>
   <div class="ft-pillrow ft-center" id="genderPills"></div>
   <div class="ft-pillrow ft-center" id="teamPicker"></div>
 
@@ -39,7 +41,12 @@ const state = { sport: null, gender: null, uteam: null };
 function renderSportChips() {
   const items = [{ value: 'all', label: 'All Sports', emoji: '\u{1F405}' }].concat(
     DATA.sports.map(id => ({ value: id, label: FT.SPORTS[id].name, emoji: FT.SPORTS[id].emoji })));
-  document.getElementById('sportChips').innerHTML = FT.pills(items, state.sport, 'data-sport');
+  // Today sits beside the sports but outside the pill track on purpose: it does
+  // not filter anything, it moves you, and a button that does something else
+  // should not look like the ones next to it.
+  document.getElementById('sportChips').innerHTML =
+    FT.pills(items, state.sport, 'data-sport') +
+    `<button class="ft-today-btn" type="button" title="Jump back to today's games">Today</button>`;
 }
 
 /* Basketball runs Boys and Girls at both varsity and JV, so a single row of
@@ -114,6 +121,9 @@ function renderSchedule() {
 
   const today = FT.todayKey();
   const next = games.find(g => !FT.scoreOf(g) && g.game_date >= today);
+  // Where "today" starts. Not the same as `next`: a game played earlier today
+  // already has a score, and it is still part of today's schedule.
+  const anchor = games.find(g => g.game_date >= today);
 
   body.innerHTML = `
     <div class="ft-card">${bar}
@@ -127,11 +137,38 @@ function renderSchedule() {
         <th>Time/Result</th>
         <th class="ctr">Location</th>
       </tr></thead>
-      <tbody>${games.map(g => row(g, g === next)).join('')}</tbody>
+      <tbody>${games.map(g => row(g, g === next, g === anchor)).join('')}</tbody>
     </table></div>`;
 }
 
-function row(g, isNext) {
+/* ── Today ─────────────────────────────────────────────────────────────── */
+/* The schedule runs the whole season, and a season that is half over opens on
+   a wall of finished games. So the page puts today near the top and leaves the
+   past above it, where a reader can scroll back for it — rather than hiding it,
+   which would make the record on the black bar impossible to check. */
+
+const TODAY_GAP = 150;   // room left above, so it is clear there is more up there
+
+function scrollToToday(smooth) {
+  const el = document.getElementById('ft-today-anchor');
+  if (!el) {
+    // Nothing left to play: the end of the list IS where today belongs.
+    const card = document.querySelector('#scheduleBody .ft-card');
+    if (card) window.scrollTo({ top: card.getBoundingClientRect().bottom + window.scrollY -
+      window.innerHeight, behavior: smooth ? 'smooth' : 'auto' });
+    return;
+  }
+  // Nothing played yet, so there is no history above today to scroll past and
+  // moving the page would only push the heading off for no reason.
+  if (el === el.closest('tbody')?.firstElementChild) {
+    window.scrollTo({ top: 0, behavior: smooth ? 'smooth' : 'auto' });
+    return;
+  }
+  const top = el.getBoundingClientRect().top + window.scrollY - TODAY_GAP;
+  window.scrollTo({ top: Math.max(0, top), behavior: smooth ? 'smooth' : 'auto' });
+}
+
+function row(g, isNext, isAnchor) {
   const sc = FT.scoreOf(g);
   const res = FT.resultOf(sc);
 
@@ -144,7 +181,7 @@ function row(g, isNext) {
     ? `<div class="ft-status">${FT.esc(g.game_status)}</div>` : '';
 
   return `
-    <tr class="${isNext ? 'ft-next' : ''}">
+    <tr class="${isNext ? 'ft-next' : ''}"${isAnchor ? ' id="ft-today-anchor"' : ''}>
       <td class="ft-datecell"><span class="ft-dow">${FT.esc(weekday(g.game_date))},</span> <b>${FT.esc(FT.shortDate(g.game_date))}</b></td>
       <td class="ctr"><span class="ft-sport-emoji" title="${FT.esc(g.sport.name)}">${g.sport.emoji}</span></td>
       <td><span class="ft-level">${FT.esc(g.team.level || '')}</span></td>
@@ -179,6 +216,7 @@ function matchup(g) {
 /* ── Wiring ────────────────────────────────────────────────────────────── */
 
 document.getElementById('sportChips').addEventListener('click', (e) => {
+  if (e.target.closest('.ft-today-btn')) { FT.closeVenue(); scrollToToday(true); return; }
   const btn = e.target.closest('.ft-pill');
   if (!btn) return;
   FT.closeVenue();
@@ -186,6 +224,9 @@ document.getElementById('sportChips').addEventListener('click', (e) => {
   pickDefaults();
   syncUrl();
   renderSportChips(); renderGenderPills(); renderTeamPicker(); renderSchedule();
+  // A new sport lands on its today too, or switching sport would drop you into
+  // last month's games at whatever scroll position you happened to be at.
+  scrollToToday(false);
 });
 
 document.getElementById('genderPills').addEventListener('click', (e) => {
@@ -198,6 +239,7 @@ document.getElementById('genderPills').addEventListener('click', (e) => {
   state.uteam = varsity ? varsity.uteam : null;
   syncUrl();
   renderGenderPills(); renderTeamPicker(); renderSchedule();
+  scrollToToday(false);
 });
 
 /* Picking a sport lands on its varsity side, and on the first gender it is
@@ -223,6 +265,7 @@ document.getElementById('teamPicker').addEventListener('click', (e) => {
   renderGenderPills();
   renderTeamPicker();
   renderSchedule();
+  scrollToToday(false);
 });
 
 // A sport and team in the address bar, so a link to "the volleyball schedule"
@@ -269,6 +312,9 @@ FT.load().then(data => {
   }
   openingState();
   renderSportChips(); renderGenderPills(); renderTeamPicker(); renderSchedule();
+  // Instant rather than smooth on the way in: a page that animates itself
+  // downwards as you arrive reads as a glitch.
+  scrollToToday(false);
 }).catch(err => {
   console.error('Tigers schedule failed to load:', err);
   document.getElementById('scheduleBody').innerHTML =
