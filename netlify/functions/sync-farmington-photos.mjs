@@ -240,23 +240,67 @@ async function childAlbums(nodeId, depth = 0) {
   return out;
 }
 
-/* Three ways into the same folder, tried in turn. The first live run failed
-   because !urlpathlookup returned a 200 with no node in it — not an auth
-   problem, just a route that does not work the way the docs read. Rather than
-   guess again, each route is tried and what it did is reported, so one run
-   settles it. An empty result counts as a failure on purpose: a route that
-   answers with nothing is indistinguishable from one that does not work, and
-   trying the next one costs a request. */
+// Is this album inside the FHS folder? Albums carry their own path, so the
+// folder is a filter rather than somewhere we have to navigate to.
+const FOLDER_RE = /\/Sports\/FHS(\/|$)/i;
+const underFolder = (a) => FOLDER_RE.test(a.UrlPath || '') || FOLDER_RE.test(a.WebUri || '');
+
+// Turn lean !albumlist entries into real albums, one request each. Only needed
+// if the account-wide listing cannot be used, and capped so a fallback cannot
+// run the function out of time.
+async function hydrate(lean, limit = 80) {
+  const out = [];
+  for (const item of lean.slice(0, limit)) {
+    try {
+      const r = await smugmug(`${item.Uri}?_expand=HighlightImage`);
+      const album = r?.Response?.Album;
+      if (!album) continue;
+      const hiUri = album.Uris?.HighlightImage?.Uri || album.Uris?.HighlightImage;
+      const hi = hiUri && r?.Expansions?.[hiUri];
+      album._thumb = hi?.HighlightImage?.ThumbnailUrl || hi?.Image?.ThumbnailUrl || item._thumb || null;
+      out.push(album);
+    } catch (err) {
+      console.warn(`Hydrating ${item.Uri} failed:`, err.message);
+    }
+    await new Promise(r => setTimeout(r, 40));
+  }
+  return out;
+}
+
+/* Several ways into the same folder, tried in turn, with what each one did
+   reported — because guessing at this has now cost two runs.
+
+   The account's own !albums listing leads, and the folder is applied as a path
+   filter on top. It is the same call the Ball603 side makes, which returned all
+   116 albums complete with dates and covers, so it is the shape the rest of this
+   file is written against.
+
+   !albumlist is kept below it but no longer trusted on its own: it does reach
+   the folder, and it returned all 127 galleries, but as a nav tree — Name, Uri
+   and UrlPath, with no date to sort on, no address to link to, no image count
+   and no cover. Useful as a list of what exists, which is why the fallback
+   hydrates each entry into a real album rather than writing what it was handed.
+
+   An empty result counts as a failure on purpose: a route that answers with
+   nothing is indistinguishable from one that does not work. */
 async function kjAlbums(report) {
   const routes = [
-    ['node!albumlist', () => pagedAlbums(`/api/v2/node/${KJ_NODE}!albumlist`)],
-    ['folder!albumlist', () => pagedAlbums(`/api/v2/folder/user/${KJ_NICK}${KJ_FOLDER}!albumlist`)],
+    [`user!albums under ${KJ_FOLDER}`, async () => {
+      const all = await pagedAlbums(`/api/v2/user/${KJ_NICK}!albums`);
+      report.scanned = all.length;
+      return all.filter(underFolder);
+    }],
+    ['folder!albumlist then hydrate', async () => {
+      const lean = await pagedAlbums(`/api/v2/folder/user/${KJ_NICK}${KJ_FOLDER}!albumlist`);
+      report.listed = lean.length;
+      return hydrate(lean);
+    }],
     ['node!children walk', () => childAlbums(KJ_NODE)],
     ['urlpathlookup then !albumlist', async () => {
       const look = await smugmug(`/api/v2/user/${KJ_NICK}!urlpathlookup?urlpath=${KJ_FOLDER}`);
       const id = look?.Response?.Node?.NodeID;
       if (!id) throw new Error('lookup returned no node');
-      return pagedAlbums(`/api/v2/node/${id}!albumlist`);
+      return hydrate(await pagedAlbums(`/api/v2/node/${id}!albumlist`));
     }]
   ];
 
@@ -264,8 +308,14 @@ async function kjAlbums(report) {
   for (const [label, run] of routes) {
     try {
       const albums = await run();
-      tried.push({ route: label, albums: albums.length });
-      if (albums.length) {
+      // Not "did it return albums" but "did it return albums worth showing".
+      // The nav-tree route passed the first question and failed the second in
+      // silence: 127 galleries with no date and no address is 127 cards that
+      // cannot be sorted or clicked.
+      const good = albums.filter(a => a.WebUri && (a.Date || a.DateAdded || a.DateModified)).length;
+      tried.push({ route: label, albums: albums.length, usable: good });
+
+      if (albums.length && good >= albums.length / 2) {
         report.route = label;
         report.tried = tried;
         // What the first album actually looks like. Endpoints differ in which
@@ -279,7 +329,7 @@ async function kjAlbums(report) {
     }
   }
   report.tried = tried;
-  throw new Error('No route to ' + KJ_FOLDER + ' returned any albums');
+  throw new Error('No route to ' + KJ_FOLDER + ' returned usable albums');
 }
 
 // Where HighlightImage came back empty. One call each, so it is capped: the
@@ -409,6 +459,8 @@ export async function runPhotoSync({ dryRun = false } = {}) {
     const mine = unique.filter(r => r.source === src);
     report.bySource[src] = {
       rows: mine.length,
+      withLink: mine.filter(r => r.url).length,
+      withDate: mine.filter(r => r.album_date).length,
       withCover: mine.filter(r => r.thumbnail_url).length,
       withSport: mine.filter(r => r.sport).length
     };
