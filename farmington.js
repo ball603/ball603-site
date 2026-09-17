@@ -378,9 +378,126 @@ function renderHeader(active) {
                title="${s.title}" aria-label="${s.title}">
               <svg viewBox="0 0 24 24"><path d="${s.path}"/></svg>
             </a>`).join('')}
+          <button class="ft-burger" id="ft-burger" type="button"
+                  aria-label="Menu" aria-expanded="false" aria-controls="ft-drawer">
+            <span></span><span></span><span></span>
+          </button>
         </div>
       </div>
-    </header>`;
+      <!-- The same five links again, stacked. Only one of the two is ever on
+           screen: the row disappears under 760px and this replaces it. -->
+      <nav class="ft-drawer" id="ft-drawer" aria-label="Menu">
+        ${NAV.map(n => `<a class="ft-drawerlink${n.key === active ? ' on' : ''}" href="${n.href}">${n.label}</a>`).join('')}
+      </nav>
+    </header>
+    <div id="ft-ticker"></div>`;
+
+  const burger = document.getElementById('ft-burger');
+  const drawer = document.getElementById('ft-drawer');
+  burger.addEventListener('click', () => {
+    const open = drawer.classList.toggle('on');
+    burger.classList.toggle('on', open);
+    burger.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  // Anywhere else, or Escape, closes it. A menu that can only be closed by the
+  // button that opened it is a menu people get stuck in.
+  document.addEventListener('click', (e) => {
+    if (!drawer.classList.contains('on')) return;
+    if (e.target.closest('#ft-drawer') || e.target.closest('#ft-burger')) return;
+    drawer.classList.remove('on');
+    burger.classList.remove('on');
+    burger.setAttribute('aria-expanded', 'false');
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      drawer.classList.remove('on');
+      burger.classList.remove('on');
+      burger.setAttribute('aria-expanded', 'false');
+    }
+  });
+
+  renderTicker();
+}
+
+/* ── Ticker ─────────────────────────────────────────────────────────────── */
+/* Yesterday, today and tomorrow, and nothing at all outside that. A strip that
+   is permanently there saying "no recent scores" is a strip that stops being
+   looked at; one that only appears on the days either side of a game is worth
+   a glance every time.
+
+   Fed by FT.load() rather than its own query, so it inherits every rule the
+   rest of the site already follows — hidden teams, merged squads, scrimmages
+   and hand-entered scores — instead of quietly disagreeing with the schedule
+   page about what a game is. */
+
+function tickerWindow(now) {
+  const base = now || new Date();
+  const day = (offset) => dateKey(new Date(base.getFullYear(), base.getMonth(), base.getDate() + offset));
+  return { from: day(-1), to: day(1), today: day(0) };
+}
+
+function tickerLabel(g, win) {
+  const sc = scoreOf(g);
+  if (sc) return { text: 'Final', cls: 'final' };
+  if (g.game_date === win.today) return { text: timeLabel(g.starts_at), cls: 'soon' };
+  if (g.game_date > win.today) return { text: 'Tomorrow ' + timeLabel(g.starts_at), cls: '' };
+  return { text: 'Yesterday', cls: '' };
+}
+
+async function renderTicker() {
+  const mount = document.getElementById('ft-ticker');
+  if (!mount) return;
+  let data;
+  try { data = await load(); } catch { return; }
+
+  const win = tickerWindow();
+  const games = (data.games || [])
+    .filter(g => g.game_date >= win.from && g.game_date <= win.to)
+    .sort((a, b) => String(a.starts_at).localeCompare(String(b.starts_at)));
+
+  if (!games.length) return;            // nothing on, so nothing shown
+
+  mount.innerHTML = `
+    <div class="ft-ticker">
+      <div class="ft-ticker-inner">
+        <span class="ft-ticker-label">Tigers</span>
+        <div class="ft-ticker-scroll">${games.map(tickerCard).join('')}</div>
+      </div>
+    </div>`;
+}
+
+function tickerCard(g) {
+  const win = tickerWindow();
+  const sc = scoreOf(g);
+  const status = tickerLabel(g, win);
+  const res = resultOf(sc);
+  const opp = opponentLabel(g);
+  const logo = g.opponent_ball603 ? ball603Logo(g.opponent_ball603) : null;
+
+  // A meet has no opponent and no score worth two rows, so it gets one line.
+  if (g.is_meet) {
+    return `
+      <a class="ft-tcard" href="/farmingtontigersnh/schedule?sport=${esc(g.sport_id)}">
+        <span class="ft-tcard-status">${esc(status.text)}</span>
+        <span class="ft-tcard-meet">${g.sport.emoji} ${esc(opp)}</span>
+        <span class="ft-tcard-team-sub">${esc(g.team.name)}</span>
+      </a>`;
+  }
+
+  const row = (name, src, score, won) => `
+    <span class="ft-tcard-row${won ? ' win' : ''}">
+      ${src ? `<img src="${esc(src)}" alt="" onerror="this.remove()">` : '<i class="ft-tcard-nologo"></i>'}
+      <span class="ft-tcard-name">${esc(name)}</span>
+      <span class="ft-tcard-score">${score}</span>
+    </span>`;
+
+  return `
+    <a class="ft-tcard" href="/farmingtontigersnh/schedule?sport=${esc(g.sport_id)}">
+      <span class="ft-tcard-status${status.cls ? ' ' + status.cls : ''}">${esc(status.text)}</span>
+      ${row('Farmington', ball603Logo('Farmington'), sc ? sc.us : '', res === 'W')}
+      ${row(opp, logo, sc ? sc.them : '', res === 'L')}
+      <span class="ft-tcard-team-sub">${g.sport.emoji} ${esc(g.team.level || g.team.name)}</span>
+    </a>`;
 }
 
 function renderFooter() {

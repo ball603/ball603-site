@@ -1,11 +1,11 @@
 /* Farmington Tigers — one stylesheet for every Tigers page.
  *
- * Every page links this and farmington.js with a ?v= number. That is not
- * decoration: _headers caches /*.css and /*.js for an hour while HTML is
- * no-cache, so a deploy otherwise serves NEW HTML against the OLD script, and
- * the page breaks for anyone who loaded the old one in the past hour. The query
- * string is a separate cache key, so the three files always move together.
- * BUMP IT whenever this file or farmington.js changes.
+ * This file and farmington.js are served no-cache. That is not fussiness:
+ * _headers caches /*.css and /*.js for an hour while HTML is no-cache, so a
+ * deploy would otherwise serve NEW HTML against an OLD script and the site
+ * would break for anyone who had loaded it in the past hour. The two override
+ * blocks at the BOTTOM of _headers are what prevent that — Netlify serves the
+ * last matching rule, so they have to stay below the wildcards.
  *
  * The orange is sampled from the Tigers logo itself (#F68220), not the lighter
  * #FFA500 the teams table carries. It clears 8:1 against black and only 2.6:1
@@ -37,6 +37,10 @@
 
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html{-webkit-text-size-adjust:100%}
+/* The page itself never scrolls sideways. Anything too wide for a phone — and
+   on this site that means tables — gets its own horizontal scroll rather than
+   dragging the whole layout with it. */
+html,body{overflow-x:hidden;max-width:100%}
 body{
   margin:0;background:var(--ft-bg);color:var(--ft-ink);
   font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
@@ -79,6 +83,63 @@ h1,h2,h3,h4{letter-spacing:-.3px}
 }
 .ft-social:hover{background:var(--ft-orange)}
 .ft-social svg{width:16px;height:16px;fill:#fff}
+
+/* The hamburger, to the right of the socials. Hidden on a screen wide enough
+   for the nav row; it and .ft-nav are never both on show. */
+.ft-burger{
+  display:none;appearance:none;border:0;background:#1d1d1d;width:34px;height:34px;
+  border-radius:8px;cursor:pointer;padding:0;margin-left:2px;
+  flex-direction:column;align-items:center;justify-content:center;gap:4px;
+}
+.ft-burger span{display:block;width:17px;height:2px;background:#fff;border-radius:2px;transition:transform .2s,opacity .15s}
+.ft-burger.on span:nth-child(1){transform:translateY(6px) rotate(45deg)}
+.ft-burger.on span:nth-child(2){opacity:0}
+.ft-burger.on span:nth-child(3){transform:translateY(-6px) rotate(-45deg)}
+.ft-burger:hover{background:var(--ft-orange)}
+
+.ft-drawer{display:none;background:#0b0b0b;border-top:1px solid #262626}
+.ft-drawer.on{display:block}
+.ft-drawerlink{
+  display:block;color:rgba(255,255,255,.8);text-decoration:none;
+  font-size:15px;font-weight:600;padding:14px 20px;border-bottom:1px solid #1c1c1c;
+}
+.ft-drawerlink:last-child{border-bottom:0}
+.ft-drawerlink.on{color:var(--ft-orange);box-shadow:inset 3px 0 0 var(--ft-orange)}
+
+/* ── Ticker ───────────────────────────────────────────────────────────────
+   Under the header, the way Ball603 carries one. Only rendered at all when
+   there is a game either side of today, so it is never a strip saying nothing
+   is happening. */
+
+.ft-ticker{background:#111;border-bottom:1px solid #262626}
+.ft-ticker-inner{display:flex;align-items:stretch;max-width:1400px;margin:0 auto;min-width:0}
+.ft-ticker-label{
+  flex:none;display:flex;align-items:center;padding:0 12px;background:var(--ft-orange);color:#111;
+  font:800 10.5px/1 inherit;letter-spacing:1.1px;text-transform:uppercase;
+}
+.ft-ticker-scroll{
+  display:flex;gap:1px;overflow-x:auto;scrollbar-width:none;
+  -webkit-overflow-scrolling:touch;scroll-snap-type:x proximity;min-width:0;
+}
+.ft-ticker-scroll::-webkit-scrollbar{display:none}
+
+.ft-tcard{
+  flex:none;scroll-snap-align:start;display:flex;flex-direction:column;gap:2px;
+  padding:8px 14px;min-width:170px;text-decoration:none;color:#fff;
+  border-right:1px solid #232323;transition:background .15s;
+}
+.ft-tcard:hover{background:#1b1b1b}
+.ft-tcard-status{font:700 9.5px/1 inherit;letter-spacing:.9px;text-transform:uppercase;color:#8d8d8d}
+.ft-tcard-status.final{color:#bdbdbd}
+.ft-tcard-status.soon{color:var(--ft-orange)}
+.ft-tcard-row{display:flex;align-items:center;gap:6px;font-size:12.5px;color:#cfcfcf;min-width:0}
+.ft-tcard-row.win{color:#fff;font-weight:700}
+.ft-tcard-row img{width:15px;height:15px;object-fit:contain;flex:none}
+.ft-tcard-nologo{width:15px;height:15px;flex:none}
+.ft-tcard-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ft-tcard-score{font-variant-numeric:tabular-nums;flex:none}
+.ft-tcard-meet{font-size:12.5px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ft-tcard-team-sub{font-size:10.5px;color:#7e7e7e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* ── Shell ────────────────────────────────────────────────────────────── */
 
@@ -129,12 +190,13 @@ h1,h2,h3,h4{letter-spacing:-.3px}
 .ft-select:focus{outline:2px solid var(--ft-orange);outline-offset:1px}
 
 /* Segmented pill box, matching the division tabs on the Ball603 standings page:
-   one recessed tray, the active pill lifted out of it in white. */
+   one recessed tray, the active pill lifted out of it in white.
+   It WRAPS rather than scrolls: a sport hidden off the end of a scrolling strip
+   is a sport most people never find, so a row that will not fit becomes two. */
 .ft-pills{
-  display:inline-flex;gap:4px;padding:4px;background:#ececec;border-radius:10px;
-  max-width:100%;overflow-x:auto;scrollbar-width:none;
+  display:inline-flex;flex-wrap:wrap;justify-content:center;gap:4px;padding:4px;
+  background:#ececec;border-radius:10px;max-width:100%;
 }
-.ft-pills::-webkit-scrollbar{display:none}
 .ft-pill{
   appearance:none;border:0;background:transparent;color:var(--ft-ink-2);
   font:600 13.5px/1 inherit;padding:9px 16px;border-radius:6px;cursor:pointer;
@@ -145,33 +207,25 @@ h1,h2,h3,h4{letter-spacing:-.3px}
 .ft-pillrow{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px}
 .ft-pillrow.ft-center{justify-content:center}
 
-/* Beside the sports but not one of them: it moves you rather than filtering. */
-.ft-today-btn{
-  appearance:none;border:1px solid var(--ft-orange);background:var(--ft-card);
-  color:var(--ft-orange-dk);font:700 12px/1 inherit;letter-spacing:.7px;text-transform:uppercase;
-  padding:12px 16px;border-radius:8px;cursor:pointer;white-space:nowrap;flex:none;
-  transition:background .15s,color .15s;
-}
-.ft-today-btn:hover{background:var(--ft-orange);color:#111}
-.ft-today-btn:focus-visible{outline:2px solid var(--ft-orange);outline-offset:2px}
-
 /* The schedule's own scrolling area. The page stays put — heading, pills and
    the black bar all where they were — and the list of games underneath them is
    what moves, opening at today with the season above it. The height is set in
    JS from whatever room is left below the pills; this is the floor and the
    before-JS fallback. */
 /* max-height only, never a min: a five-game schedule should be five rows tall,
-   not a tall box with white space under it. */
+   not a tall box with white space under it. Sideways too, so a table wider than
+   a phone scrolls inside the card instead of stretching the page. */
 .ft-tablescroll{
-  overflow-y:auto;overflow-x:hidden;max-height:60vh;
+  overflow:auto;max-height:60vh;
   -webkit-overflow-scrolling:touch;overscroll-behavior:contain;
 }
 /* Pinned, so you always know which column is which however far down you are. */
 .ft-tablescroll thead th{position:sticky;top:0;z-index:3}
 
-/* Where today starts. A quiet line rather than a highlight — the orange row is
-   already spoken for by the next game to be played. */
-#ft-today-anchor td{border-top:2px solid var(--ft-orange)}
+/* The same sideways scroll for tables that do not need the vertical one — the
+   standings and rosters, which are read in full rather than scrolled through. */
+.ft-tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}
+
 
 /* ── Record / last / next strip ───────────────────────────────────────── */
 
@@ -196,7 +250,15 @@ h1,h2,h3,h4{letter-spacing:-.3px}
   color:var(--ft-ink-3);padding:10px 12px;border-bottom:1px solid var(--ft-line);
   white-space:nowrap;background:#ececec;
 }
-.ft-table td{padding:10px 12px;border-bottom:1px solid var(--ft-line-2);vertical-align:middle}
+/* One line per row, everywhere. A cell that wraps makes neighbouring rows
+   different heights and the whole table starts to look like a form. Anything
+   too long is cut with an ellipsis, and the table scrolls sideways in its own
+   box rather than making the page do it. */
+.ft-table td{
+  padding:10px 12px;border-bottom:1px solid var(--ft-line-2);vertical-align:middle;
+  white-space:nowrap;
+}
+.ft-table td.grow{max-width:0;overflow:hidden;text-overflow:ellipsis}
 .ft-table tbody tr:last-child td{border-bottom:0}
 .ft-table tbody tr:hover td{background:#fcfcfc}
 .ft-table .num{text-align:right;font-variant-numeric:tabular-nums;width:1%;white-space:nowrap}
@@ -264,7 +326,10 @@ h1,h2,h3,h4{letter-spacing:-.3px}
 
 .ft-sport-emoji{font-size:16px;line-height:1}
 .ft-level{font-size:12.5px;color:var(--ft-ink-2);white-space:nowrap}
-.ft-matchup{font-weight:600;display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap}
+/* nowrap, so a long school name ellipses inside its cell rather than pushing
+   the row onto a second line and leaving the table uneven. */
+.ft-matchup{font-weight:600;display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:nowrap}
+.ft-matchup .ft-teamlink,.ft-matchup > span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .ft-ha{color:var(--ft-ink-3);font-weight:600;font-size:12.5px;text-transform:uppercase}
 .ft-ha.home{color:var(--ft-orange-dk)}
 .ft-oppimg{width:20px;height:20px;object-fit:contain;flex:none}
@@ -273,7 +338,9 @@ h1,h2,h3,h4{letter-spacing:-.3px}
 .ft-result .L{color:var(--ft-loss)}
 .ft-result .T{color:var(--ft-ink-3)}
 .ft-manual{color:var(--ft-orange-dk);font-size:11px;margin-left:3px}
-.ft-status{color:var(--ft-loss);font-weight:700;font-size:12.5px}
+/* Inline beside the time rather than under it: "4:00PM Postponed" on one line
+   keeps every row the same height. */
+.ft-status{color:var(--ft-loss);font-weight:700;font-size:12px;display:inline;margin-left:6px}
 /* The venue used to be spelled out in the schedule's last column, which ate
    the width the date needed and pushed it onto two lines. The pin alone does
    the job — the popover it opens already carries the site, the sub-site and a
@@ -286,7 +353,6 @@ h1,h2,h3,h4{letter-spacing:-.3px}
 }
 .ft-pin:hover{background:var(--ft-orange-soft)}
 .ft-pin:focus-visible{outline:2px solid var(--ft-orange)}
-tr.ft-next td{background:var(--ft-orange-soft)}
 /* One line: "Sat, Sep 17". The weekday is muted so the date still leads. */
 .ft-datecell{font-size:13.5px;color:var(--ft-ink);white-space:nowrap}
 .ft-datecell b{color:var(--ft-ink)}
@@ -362,17 +428,58 @@ tr.ft-next td{background:var(--ft-orange-soft)}
   .ft-home{grid-template-columns:1fr}
 }
 @media (max-width:760px){
-  .ft-header-inner{padding:0 12px;gap:4px}
-  .ft-logo{margin-right:12px}
-  .ft-logo img{height:30px;max-width:150px}
-  .ft-navlink{padding:0 10px;font-size:13px}
+  /* The nav row goes; the hamburger takes its place, to the right of the
+     socials. Never both. */
+  .ft-nav{display:none}
+  .ft-burger{display:flex}
+
+  .ft-header-inner{padding:0 10px;gap:4px}
+  .ft-logo{margin-right:0;flex:1;min-width:0}
+  .ft-logo img{height:28px;max-width:140px}
   .ft-social{width:28px;height:28px}
-  .ft-social svg{width:14px;height:14px}
-  .ft-wrap{padding:14px 12px 40px}
+  .ft-social svg{width:13px;height:13px}
+  .ft-header-right{gap:4px}
+
+  .ft-wrap{padding:12px 12px 40px}
+  .ft-pagehead{margin-bottom:12px}
+  .ft-pagehead h1{font-size:20px}
+
+  /* Tighter pills, so a full row of sports fits in one or two lines rather than
+     running off the side. */
+  .ft-pills{gap:3px;padding:3px;border-radius:9px}
+  .ft-pill{padding:8px 10px;font-size:12.5px;gap:4px}
+  .ft-pill .ft-sport-emoji{font-size:13px}
+  .ft-pillrow{gap:7px;margin-bottom:10px}
+
   .ft-summary{grid-template-columns:1fr}
   .ft-table{font-size:13px}
   .ft-table th,.ft-table td{padding:8px 9px}
   .ft-hide-sm{display:none}
+
+  .ft-card{margin-bottom:14px}
+  .ft-card-head{padding:11px 13px}
+  .ft-card-head h2{font-size:13.5px;letter-spacing:.5px}
+  .ft-card-body{padding:13px}
+  .ft-cardbar{padding:11px 13px}
+
+  /* A table this narrow has nowhere to put an ellipsis, so the match-up column
+     is allowed its natural width and the table scrolls instead. */
+  .ft-table td.grow{max-width:none}
+  .ft-tablescroll .ft-table,.ft-tablewrap .ft-table{min-width:520px}
+
+  .ft-ticker-label{padding:0 9px;font-size:9.5px;letter-spacing:.8px}
+  .ft-tcard{min-width:152px;padding:7px 11px}
+}
+
+/* A phone held upright. The pills get one more squeeze so every sport is on
+   screen without a sideways drag. */
+@media (max-width:420px){
+  .ft-pills{gap:3px;padding:3px}
+  .ft-pill{padding:7px 7px;font-size:11.5px;gap:3px}
+  .ft-pill .ft-sport-emoji{font-size:12px}
+  .ft-logo img{height:25px;max-width:118px}
+  .ft-social{width:26px;height:26px}
+  .ft-tcard{min-width:142px}
 }
 
 /* ── Score entry ──────────────────────────────────────────────────────────
