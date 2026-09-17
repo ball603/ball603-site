@@ -65,17 +65,32 @@ function playoffLine(group, division) {
 /* ── Grouping: sport, then the divisions inside it ─────────────────────── */
 
 function buildSports() {
+  // Keyed on the division itself, not on Arbiter's group id. One group can
+  // publish several divisions — volleyball's combined "Volleyball Standings"
+  // group carries all three — so treating a group as a division would put two
+  // divisions of schools into one table.
   const byGroup = new Map();
   for (const row of DATA.standings) {
-    if (!byGroup.has(row.rankings_group_id)) {
-      byGroup.set(row.rankings_group_id, {
-        id: row.rankings_group_id, sportId: row.sport_id, genderId: row.gender_id,
+    const id = `${row.sport_id}|${row.gender_id}|${row.division_name || row.group_name || ''}`;
+    if (!byGroup.has(id)) {
+      byGroup.set(id, {
+        id, sportId: row.sport_id, genderId: row.gender_id,
         name: row.division_name || row.group_name || '', season: row.season, rows: []
       });
     }
-    byGroup.get(row.rankings_group_id).rows.push(row);
+    byGroup.get(id).rows.push(row);
   }
-  for (const d of byGroup.values()) d.rows.sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99));
+  for (const d of byGroup.values()) {
+    // Two Arbiter groups can publish the same bracket — football currently has
+    // "Football Standings" and a "Division IV" group over the same eight teams.
+    // The sync keeps one, but rows from the other can still be in the table
+    // between runs, so a school is shown once here regardless.
+    const seen = new Set();
+    d.rows = d.rows
+      .sort((a, b) => a.rankings_group_id - b.rankings_group_id)
+      .filter(r => !seen.has(r.unique_team_id) && seen.add(r.unique_team_id))
+      .sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99));
+  }
 
   // Only the division Farmington is actually in. The table holds every division
   // of every sport they play — that is what lets the home page and any future
@@ -84,7 +99,7 @@ function buildSports() {
   // brackets, is a choice nobody visiting this site wants to make.
   const bySport = new Map();
   const ours = [...byGroup.values()].filter(d => d.rows.some(r => r.is_farmington));
-  for (const d of ours.sort((a, b) => a.id - b.id)) {
+  for (const d of ours.sort((a, b) => String(a.id).localeCompare(String(b.id)))) {
     const key = `${d.sportId}|${d.genderId}`;
     if (!bySport.has(key)) {
       const sport = FT.SPORTS[d.sportId];
@@ -325,7 +340,7 @@ document.getElementById('sportPills').addEventListener('click', (e) => {
 document.getElementById('divisionPills').addEventListener('click', (e) => {
   const btn = e.target.closest('.ft-pill');
   if (!btn) return;
-  state.division = Number(btn.dataset.division);
+  state.division = btn.dataset.division;
   syncUrl(); renderPills(); renderTable();
 });
 
@@ -342,7 +357,7 @@ FT.load().then(data => {
   const q = new URLSearchParams(location.search);
   state.sport = sports.some(s => s.key === q.get('sport')) ? q.get('sport') : sports[0].key;
   const sport = currentSport();
-  const wanted = sport.divisions.find(d => d.id === Number(q.get('division')));
+  const wanted = sport.divisions.find(d => d.id === q.get('division'));
   const mine = sport.divisions.find(d => d.rows.some(r => r.is_farmington));
   state.division = (wanted || mine || sport.divisions[0]).id;
 

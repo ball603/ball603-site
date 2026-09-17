@@ -128,12 +128,15 @@ function weekRow(g) {
    whatever landed in farmington_standings is by definition in season. */
 
 function standingsGroups() {
+  // Keyed on the division, not Arbiter's group id: one group can publish
+  // several divisions, and two groups can publish the same one.
   const groups = new Map();
   for (const row of DATA.standings) {
-    if (!groups.has(row.rankings_group_id)) {
+    const id = `${row.sport_id}|${row.gender_id}|${row.division_name || row.group_name || ''}`;
+    if (!groups.has(id)) {
       const sport = FT.SPORTS[row.sport_id];
-      groups.set(row.rankings_group_id, {
-        id: row.rankings_group_id,
+      groups.set(id, {
+        id,
         sportId: row.sport_id,
         genderId: row.gender_id,
         name: sport ? sport.name : row.group_name,
@@ -143,9 +146,17 @@ function standingsGroups() {
         rows: []
       });
     }
-    groups.get(row.rankings_group_id).rows.push(row);
+    groups.get(id).rows.push(row);
   }
-  for (const g of groups.values()) g.rows.sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99));
+  for (const g of groups.values()) {
+    // Same de-duplication as the standings page: two Arbiter groups can carry
+    // the same bracket, so a school is listed once whatever the table holds.
+    const seen = new Set();
+    g.rows = g.rows
+      .sort((a, b) => a.rankings_group_id - b.rankings_group_id)
+      .filter(r => !seen.has(r.unique_team_id) && seen.add(r.unique_team_id))
+      .sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99));
+  }
 
   // The standings table holds every division of every sport Farmington plays,
   // so the full page can offer division pills. This box is a glance at where
@@ -212,7 +223,7 @@ function teamCell(row, group) {
 document.getElementById('standChips').addEventListener('click', (e) => {
   const btn = e.target.closest('.ft-chip');
   if (!btn) return;
-  standKey = Number(btn.dataset.group);
+  standKey = btn.dataset.group;
   renderStandings();
 });
 

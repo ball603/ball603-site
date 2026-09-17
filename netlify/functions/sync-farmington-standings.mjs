@@ -78,9 +78,12 @@ function toBall603(raw, names) {
   return ALIASES[nameKey(core)] || names.find(n => nameKey(n) === nameKey(core)) || null;
 }
 
-// Volleyball turns up twice — once as "Division III" and once inside a combined
-// "Volleyball Standings" group. Same rows either way, so keep whichever is seen
-// first and skip the duplicate rather than storing the division twice.
+// A division can be published by more than one group: volleyball has both a
+// combined "Volleyball Standings" group and a group per division, and football
+// now has "Football Standings" and a "Division IV" group over the same eight
+// teams. Same rows either way, so only one is stored — and the groups are
+// walked in id order so the winner is the same on every run rather than
+// depending on the order Arbiter happens to list them in.
 const divisionKey = (g, divName) => `${g.sportId}|${g.genderId}|${divName}`;
 
 export async function runStandingsSync({ dryRun = false } = {}) {
@@ -115,7 +118,7 @@ export async function runStandingsSync({ dryRun = false } = {}) {
     // single group. Judging group by group is what left soccer with only the one
     // division Farmington is in and nothing for the division pills to switch to.
     const fetched = [];
-    for (const g of varsity) {
+    for (const g of [...varsity].sort((a, b) => a.rankingsGroupId - b.rankingsGroupId)) {
       try {
         fetched.push({ g, data: await arbiter('/' + g.rankingsGroupId) });
       } catch (err) {
@@ -221,15 +224,33 @@ export async function runStandingsSync({ dryRun = false } = {}) {
         });
       }
 
+      const writtenGroups = [...new Set(rows.map(r => r.rankings_group_id))];
+
       // A school that drops out of a division would otherwise sit in the table
       // forever. Prune per group, and only groups we just refreshed.
-      for (const groupId of [...new Set(rows.map(r => r.rankings_group_id))]) {
+      for (const groupId of writtenGroups) {
         const keep = rows.filter(r => r.rankings_group_id === groupId).map(r => r.unique_team_id).join(',');
         const gone = await supabase(
           `farmington_standings?rankings_group_id=eq.${groupId}&unique_team_id=not.in.(${keep})`,
           { method: 'DELETE', headers: { Prefer: 'return=representation' } });
         report.removed += (gone || []).length;
       }
+
+      // And a whole group that stops being written has to go too. NHIAA
+      // reorganises these mid-season: football gained a "Division IV" group
+      // alongside the "Football Standings" one covering the same eight teams,
+      // and volleyball has both a combined group and a group per division. The
+      // de-duplication above keeps one of each pair, but the loser's rows were
+      // already in the table from an earlier run and nothing removed them — so
+      // the site showed the same bracket twice.
+      //
+      // Guarded by having written something: an Arbiter outage produces no rows
+      // and must not empty the table.
+      const stale = await supabase(
+        `farmington_standings?rankings_group_id=not.in.(${writtenGroups.join(',')})`,
+        { method: 'DELETE', headers: { Prefer: 'return=representation' } });
+      report.removedGroups = (stale || []).length;
+      report.removed += report.removedGroups;
     }
 
     report.elapsedMs = Date.now() - started;
