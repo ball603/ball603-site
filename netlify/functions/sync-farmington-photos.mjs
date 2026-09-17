@@ -381,7 +381,47 @@ export function dateFromName(name) {
   return new Date(Date.UTC(year, month, day, 12)).toISOString();
 }
 
-const toRow = (a, source, sport) => ({
+/* SmugMug's HighlightImage gives back the "Th" size: 150px square. The cards
+   are 300px wide and 3:2, so Th is both too small and the wrong shape — M is
+   600px on the long edge and keeps the photo's proportions. The size appears
+   twice in a SmugMug URL, once as a path segment and once as the filename
+   suffix, and both have to change:
+
+     .../i-mbm3BtL/0/<hash>/Th/DSC02247-Th.jpg
+     .../i-mbm3BtL/0/<hash>/M/DSC02247-M.jpg   */
+const THUMB_SIZE = 'M';
+export function upgradeThumb(url) {
+  if (!url) return null;
+  return String(url)
+    .replace(/\/Th\//, `/${THUMB_SIZE}/`)
+    .replace(/-Th\.(jpg|jpeg|png)(\?.*)?$/i, `-${THUMB_SIZE}.$1$2`);
+}
+
+/* Every object in one bulk insert must carry exactly the same keys, or
+   PostgREST refuses the lot with PGRST102 and does not say which one is the odd
+   one out. Galleries we already hold come back from Supabase with `hidden` and
+   `sort_order` on them; freshly fetched ones do not — so the first run wrote
+   fine and the second failed. Both paths go through here now.
+
+   `hidden` and `sort_order` are deliberately absent: they are curation, and an
+   upsert only touches the columns it is given, so leaving them out is what
+   keeps them safe. */
+function shape(o) {
+  return {
+    album_key: o.album_key ?? null,
+    source: o.source ?? null,
+    name: o.name ?? null,
+    url: o.url ?? null,
+    image_count: o.image_count ?? 0,
+    album_date: o.album_date ?? null,
+    sport: o.sport ?? null,
+    thumbnail_url: upgradeThumb(o.thumbnail_url),
+    synced_at: new Date().toISOString()
+  };
+}
+export const reuse = (row) => shape(row);
+
+const toRow = (a, source, sport) => shape({
   album_key: albumKeyOf(a),
   source,
   name: a.Name || a.Title || null,
@@ -434,7 +474,7 @@ export async function runPhotoSync({ dryRun = false, budgetMs = 14000 } = {}) {
     // Two thirds of the budget to KJ's side, because it is the one that fetches
     // per gallery. Ball603's is a flat scan whose cost we do not control.
     const { known, fetched } = await kjAlbums(kjReport, have, started + budgetMs * 0.66);
-    for (const r of known) rows.push({ ...r, synced_at: new Date().toISOString() });
+    for (const r of known) rows.push(reuse(r));
     for (const a of fetched) {
       rows.push(toRow(a, 'kjcardinal', sportFromName(a.Name) || sportFromName(a.WebUri)));
     }
