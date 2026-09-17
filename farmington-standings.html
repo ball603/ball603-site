@@ -77,8 +77,14 @@ function buildSports() {
   }
   for (const d of byGroup.values()) d.rows.sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99));
 
+  // Only the division Farmington is actually in. The table holds every division
+  // of every sport they play — that is what lets the home page and any future
+  // view reach them — but this page is about where the Tigers stand, and a row
+  // of pills offering Division I and II under volleyball, or all seven football
+  // brackets, is a choice nobody visiting this site wants to make.
   const bySport = new Map();
-  for (const d of [...byGroup.values()].sort((a, b) => a.id - b.id)) {
+  const ours = [...byGroup.values()].filter(d => d.rows.some(r => r.is_farmington));
+  for (const d of ours.sort((a, b) => a.id - b.id)) {
     const key = `${d.sportId}|${d.genderId}`;
     if (!bySport.has(key)) {
       const sport = FT.SPORTS[d.sportId];
