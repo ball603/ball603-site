@@ -436,12 +436,18 @@ function tickerWindow(now) {
   return { from: day(-1), to: day(1), today: day(0) };
 }
 
+/* The small orange line on the right of a card. Short on purpose — it sits at
+   9px and anything longer than a couple of words stops being readable. Today's
+   games are just a time; another day gets the weekday in front of it so nobody
+   turns up on the wrong evening. */
 function tickerLabel(g, win) {
   const sc = scoreOf(g);
-  if (sc) return { text: 'Final', cls: 'final' };
-  if (g.game_date === win.today) return { text: timeLabel(g.starts_at), cls: 'soon' };
-  if (g.game_date > win.today) return { text: 'Tomorrow ' + timeLabel(g.starts_at), cls: '' };
-  return { text: 'Yesterday', cls: '' };
+  if (sc) return 'Final';
+  const time = timeLabel(g.starts_at);
+  if (g.game_date === win.today) return time;
+  const d = parseLocal(g.game_date);
+  const day = d ? d.toLocaleDateString('en-US', { weekday: 'short' }) : '';
+  return `${day} ${time}`.trim();
 }
 
 async function renderTicker() {
@@ -460,12 +466,40 @@ async function renderTicker() {
   mount.innerHTML = `
     <div class="ft-ticker">
       <div class="ft-ticker-inner">
-        <span class="ft-ticker-label">Tigers</span>
+        <span class="ft-ticker-label">Scores</span>
+        <button class="ft-ticker-arrow" data-dir="-1" type="button" aria-label="Earlier games">&#8249;</button>
         <div class="ft-ticker-scroll">${games.map(tickerCard).join('')}</div>
+        <button class="ft-ticker-arrow" data-dir="1" type="button" aria-label="Later games">&#8250;</button>
       </div>
     </div>`;
+
+  const strip = mount.querySelector('.ft-ticker-scroll');
+  const arrows = [...mount.querySelectorAll('.ft-ticker-arrow')];
+
+  // Most of a screenful per press rather than a fixed number of pixels, so it
+  // moves the same amount whatever the card width happens to be.
+  for (const a of arrows) {
+    a.addEventListener('click', () => {
+      strip.scrollBy({ left: Number(a.dataset.dir) * strip.clientWidth * 0.8, behavior: 'smooth' });
+    });
+  }
+
+  // An arrow that cannot do anything says so, and the pair disappear entirely
+  // when everything already fits.
+  const updateArrows = () => {
+    const room = strip.scrollWidth - strip.clientWidth;
+    mount.querySelector('.ft-ticker').classList.toggle('ft-ticker-fits', room < 4);
+    arrows[0].disabled = strip.scrollLeft <= 1;
+    arrows[1].disabled = strip.scrollLeft >= room - 1;
+  };
+  strip.addEventListener('scroll', updateArrows, { passive: true });
+  window.addEventListener('resize', updateArrows);
+  updateArrows();
 }
 
+/* The teams on the left, and on the right a small column with what this is and
+   when — the same shape Ball603's ticker uses, where the sport sits above an
+   orange FINAL. */
 function tickerCard(g) {
   const win = tickerWindow();
   const sc = scoreOf(g);
@@ -473,14 +507,20 @@ function tickerCard(g) {
   const res = resultOf(sc);
   const opp = opponentLabel(g);
   const logo = g.opponent_ball603 ? ball603Logo(g.opponent_ball603) : null;
+  const href = `/farmingtontigersnh/schedule?sport=${esc(g.sport_id)}`;
 
-  // A meet has no opponent and no score worth two rows, so it gets one line.
+  const meta = `
+    <span class="ft-tcard-meta">
+      <span class="ft-tcard-sub">${g.sport.emoji} ${esc(g.team.level || g.team.name)}</span>
+      <span class="ft-tcard-status">${esc(status)}</span>
+    </span>`;
+
+  // A meet has no opponent and no score, so it gets one line instead of two.
   if (g.is_meet) {
     return `
-      <a class="ft-tcard" href="/farmingtontigersnh/schedule?sport=${esc(g.sport_id)}">
-        <span class="ft-tcard-status">${esc(status.text)}</span>
-        <span class="ft-tcard-meet">${g.sport.emoji} ${esc(opp)}</span>
-        <span class="ft-tcard-team-sub">${esc(g.team.name)}</span>
+      <a class="ft-tcard" href="${href}">
+        <span class="ft-tcard-teams"><span class="ft-tcard-meet">${esc(opp)}</span></span>
+        ${meta}
       </a>`;
   }
 
@@ -492,11 +532,12 @@ function tickerCard(g) {
     </span>`;
 
   return `
-    <a class="ft-tcard" href="/farmingtontigersnh/schedule?sport=${esc(g.sport_id)}">
-      <span class="ft-tcard-status${status.cls ? ' ' + status.cls : ''}">${esc(status.text)}</span>
-      ${row('Farmington', ball603Logo('Farmington'), sc ? sc.us : '', res === 'W')}
-      ${row(opp, logo, sc ? sc.them : '', res === 'L')}
-      <span class="ft-tcard-team-sub">${g.sport.emoji} ${esc(g.team.level || g.team.name)}</span>
+    <a class="ft-tcard" href="${href}">
+      <span class="ft-tcard-teams">
+        ${row('Farmington', ball603Logo('Farmington'), sc ? sc.us : '', res === 'W')}
+        ${row(opp, logo, sc ? sc.them : '', res === 'L')}
+      </span>
+      ${meta}
     </a>`;
 }
 
