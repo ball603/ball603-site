@@ -6,7 +6,7 @@
 <title>Standings | Farmington Tigers</title>
 <meta name="description" content="NHIAA varsity standings for every sport the Farmington Tigers play.">
 <link rel="icon" href="/logos/100px/Farmington.png">
-<link rel="stylesheet" href="/farmington.css?v=2">
+<link rel="stylesheet" href="/farmington.css?v=3">
 </head>
 <body>
 
@@ -18,14 +18,13 @@
     <span class="ft-sub">Varsity only</span>
   </div>
 
-  <div class="ft-controls" id="groupChips"></div>
+  <div class="ft-pillrow" id="groupChips"></div>
   <div class="ft-card"><div id="standBody"><div class="ft-loading">Loading standings&hellip;</div></div></div>
-  <p class="ft-note" id="standNote"></p>
 </main>
 
 <div id="ft-footer"></div>
 
-<script src="/farmington.js?v=2"></script>
+<script src="/farmington.js?v=3"></script>
 <script>
 'use strict';
 
@@ -55,7 +54,7 @@ function buildGroups() {
         season: row.season,
         emoji: sport ? sport.emoji : '\u{1F3C6}',
         order: sport ? sport.order : 99,
-        label: `${FT.genderLabel(row.gender_id, row.sport_id)} ${sport ? sport.name : row.group_name}`.trim(),
+        groupName: row.group_name,
         division: row.division_name,
         rows: []
       });
@@ -63,7 +62,21 @@ function buildGroups() {
     map.get(row.rankings_group_id).rows.push(row);
   }
   for (const g of map.values()) g.rows.sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99));
-  return [...map.values()].sort((a, b) => a.order - b.order);
+
+  const out = [...map.values()].sort((a, b) => a.order - b.order);
+
+  // "Girls Volleyball" is noise while girls volleyball is the only volleyball
+  // there is. The prefix comes back on its own the moment a sport has two.
+  const perSport = new Map();
+  for (const g of out) perSport.set(g.sportId, (perSport.get(g.sportId) || 0) + 1);
+  for (const g of out) {
+    const sport = FT.SPORTS[g.sportId];
+    const name = sport ? sport.name : g.groupName;
+    g.label = perSport.get(g.sportId) > 1
+      ? `${FT.genderLabel(g.genderId, g.sportId)} ${name}`.trim()
+      : name;
+  }
+  return out;
 }
 
 /* ── Ball603 extras ────────────────────────────────────────────────────── */
@@ -135,15 +148,13 @@ function streakOf(s) {
 /* ── Rendering ─────────────────────────────────────────────────────────── */
 
 function renderChips() {
-  document.getElementById('groupChips').innerHTML = groups.map(g =>
-    `<button class="ft-chip${g.id === active ? ' on' : ''}" data-group="${g.id}">
-       <span class="ft-sport-emoji">${g.emoji}</span>${FT.esc(g.label)}</button>`).join('');
+  document.getElementById('groupChips').innerHTML = FT.pills(
+    groups.map(g => ({ value: g.id, label: g.label, emoji: g.emoji })), active, 'data-group');
 }
 
 async function renderTable() {
   const group = groups.find(g => g.id === active);
   const body = document.getElementById('standBody');
-  const note = document.getElementById('standNote');
   if (!group) { body.innerHTML = '<div class="ft-empty">No standings posted.</div>'; return; }
 
   const stats = await ball603Extras(group);
@@ -154,14 +165,14 @@ async function renderTable() {
     <tr class="ft-group">
       <th class="num" rowspan="2">#</th>
       <th class="grow" rowspan="2">${FT.esc(group.division || 'Team')}</th>
-      <th class="reg" colspan="2">Regular Season</th>
-      <th class="post" colspan="1">Postseason</th>
-      <th class="ovr" colspan="4">Overall</th>
+      <th class="reg sep" colspan="2">Regular Season</th>
+      <th class="post sep" colspan="1">Postseason</th>
+      <th class="ovr sep" colspan="4">Overall</th>
     </tr>
     <tr class="ft-sub">
-      <th class="ctr reg">Record</th><th class="ctr reg">Rating</th>
-      <th class="ctr post">Record</th>
-      <th class="ctr">Record</th>
+      <th class="ctr reg sep">Record</th><th class="ctr reg">Rating</th>
+      <th class="ctr post sep">Record</th>
+      <th class="ctr sep">Record</th>
       <th class="ctr ft-hide-sm">Home</th><th class="ctr ft-hide-sm">Away</th><th class="ctr">Streak</th>
     </tr>` : `
     <tr>
@@ -179,13 +190,13 @@ async function renderTable() {
   const body_ = group.rows.map(r => {
     const s = stats ? stats.get(`${r.ball603_shortname}|${gender}`) : null;
     const cells = full ? `
-      <td class="ctr">${r.wins ?? 0}–${r.losses ?? 0}${r.ties ? '–' + r.ties : ''}</td>
+      <td class="ctr sep">${r.wins ?? 0}–${r.losses ?? 0}${r.ties ? '–' + r.ties : ''}</td>
       <td class="ctr">${fmtRating(r.rating)}</td>
-      <td class="ctr">${s ? `${s.pw}–${s.pl}` : '0–0'}</td>
-      <td class="ctr">${s ? `${s.w}–${s.l}` : '—'}</td>
+      <td class="ctr sep">${s ? `${s.pw}–${s.pl}` : '0–0'}</td>
+      <td class="ctr sep">${s ? `${s.w}–${s.l}` : '—'}</td>
       <td class="ctr ft-hide-sm">${s ? `${s.hw}–${s.hl}` : '—'}</td>
       <td class="ctr ft-hide-sm">${s ? `${s.aw}–${s.al}` : '—'}</td>
-      <td class="ctr">${streakOf(s)}</td>` : `
+      <td class="ctr">${FT.streakBadge(streakOf(s))}</td>` : `
       <td class="ctr">${r.games_played ?? '—'}</td>
       <td class="ctr">${r.wins ?? 0}</td>
       <td class="ctr">${r.losses ?? 0}</td>
@@ -202,11 +213,6 @@ async function renderTable() {
 
   body.innerHTML = `<table class="ft-table"><thead>${head}</thead><tbody>${body_}</tbody></table>`;
 
-  note.innerHTML = full
-    ? 'Rank, regular-season record and rating from NHIAA. Postseason, overall, home, away and streak from Ball603 coverage.'
-    : `Rank, record and rating from NHIAA. Ball603 does not cover
-       ${FT.esc((FT.SPORTS[group.sportId] || {}).name || 'this sport')},
-       so postseason and overall splits are not available for it.`;
 }
 
 const fmtRating = (v) => (v == null ? '—' : (Math.round(Number(v) * 1000) / 1000).toString());
@@ -221,7 +227,7 @@ function teamCell(row) {
 /* ── Wiring ────────────────────────────────────────────────────────────── */
 
 document.getElementById('groupChips').addEventListener('click', (e) => {
-  const btn = e.target.closest('.ft-chip');
+  const btn = e.target.closest('.ft-pill');
   if (!btn) return;
   active = Number(btn.dataset.group);
   history.replaceState(null, '', location.pathname + '?group=' + active);

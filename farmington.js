@@ -288,12 +288,28 @@ function renderFooter() {
   if (!mount) return;
   mount.innerHTML = `
     <footer class="ft-footer">
-      <a href="/farmingtonscore.html">Enter a score</a>
-      <span class="ft-dot">&middot;</span>
-      <a href="https://ball603.com" target="_blank" rel="noopener">Ball603</a>
-      <p>Schedules and standings from ArbiterSports, refreshed through the day.
-         Rosters via Ball603.</p>
+      <a class="ft-powered" href="https://ball603.com" target="_blank" rel="noopener">
+        <span>Powered by</span>
+        <img src="/logos/400px/Ball603-new-BLACK%20copy-400px.png" alt="Ball603">
+      </a>
     </footer>`;
+}
+
+/* A row of pills, the segmented control the Ball603 standings page uses for
+   divisions. Pages hand over {value, label, emoji} and get the markup back, so
+   the sport row and the level row cannot drift apart. */
+function pills(items, activeValue, attr) {
+  return `<div class="ft-pills">` + items.map(i =>
+    `<button class="ft-pill${String(i.value) === String(activeValue) ? ' on' : ''}" ${attr}="${esc(i.value)}">` +
+    (i.emoji ? `<span class="ft-sport-emoji">${i.emoji}</span>` : '') +
+    esc(i.label) + `</button>`).join('') + `</div>`;
+}
+
+/* A streak as a badge rather than two bare characters. */
+function streakBadge(text) {
+  if (!text || text === '\u2014') return '<span class="ft-streak">\u2014</span>';
+  const cls = text[0] === 'W' ? ' win' : text[0] === 'L' ? ' loss' : '';
+  return `<span class="ft-streak${cls}">${esc(text)}</span>`;
 }
 
 /* ── Venue popover ──────────────────────────────────────────────────────── */
@@ -369,7 +385,7 @@ window.FT = {
   esc, parseLocal, dateKey, todayKey, dayLabel, shortDate, timeLabel, weekWindow,
   scoreOf, resultOf, recordOf, opponentLabel, versus,
   ball603Covers, ball603Slug, ball603Logo, teamLink,
-  load, renderHeader, renderFooter, venuePin, closeVenue
+  load, renderHeader, renderFooter, venuePin, closeVenue, pills, streakBadge
 };
 
 })();

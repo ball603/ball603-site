@@ -6,7 +6,7 @@
 <title>Schedule | Farmington Tigers</title>
 <meta name="description" content="Full schedule and results for every Farmington Tigers team.">
 <link rel="icon" href="/logos/100px/Farmington.png">
-<link rel="stylesheet" href="/farmington.css?v=2">
+<link rel="stylesheet" href="/farmington.css?v=3">
 </head>
 <body>
 
@@ -18,8 +18,8 @@
     <span class="ft-sub" id="pageSub"></span>
   </div>
 
-  <div class="ft-controls" id="sportChips"></div>
-  <div class="ft-controls"><select class="ft-select" id="teamPicker"></select></div>
+  <div class="ft-pillrow" id="sportChips"></div>
+  <div class="ft-pillrow" id="teamPicker"></div>
 
   <div id="summary"></div>
   <div class="ft-card"><div id="scheduleBody"><div class="ft-loading">Loading the Tigers schedule&hellip;</div></div></div>
@@ -27,7 +27,7 @@
 
 <div id="ft-footer"></div>
 
-<script src="/farmington.js?v=2"></script>
+<script src="/farmington.js?v=3"></script>
 <script>
 'use strict';
 
@@ -40,22 +40,22 @@ const state = { sport: null, uteam: null };
 /* ── Controls ──────────────────────────────────────────────────────────── */
 
 function renderSportChips() {
-  document.getElementById('sportChips').innerHTML = DATA.sports.map(id => {
-    const s = FT.SPORTS[id];
-    return `<button class="ft-chip${id === state.sport ? ' on' : ''}" data-sport="${id}">
-              <span class="ft-sport-emoji">${s.emoji}</span>${FT.esc(s.name)}</button>`;
-  }).join('');
+  document.getElementById('sportChips').innerHTML = FT.pills(
+    DATA.sports.map(id => ({ value: id, label: FT.SPORTS[id].name, emoji: FT.SPORTS[id].emoji })),
+    state.sport, 'data-sport');
 }
 
 /* Varsity first, then JV, then Jr. High — the order farmington_teams carries,
-   so the dropdown reads the way the athletic department lists its teams. */
+   so the levels read the way the athletic department lists its teams. The pill
+   shows the level rather than the whole team name: inside Volleyball, "Varsity
+   / JV / Jr. High / Jr. High - JV" says more than four rows each beginning with
+   the word Volleyball. */
 function renderTeamPicker() {
-  const sel = document.getElementById('teamPicker');
+  const el = document.getElementById('teamPicker');
   const teams = DATA.teamsInSport(state.sport);
-  sel.innerHTML = teams.map(t =>
-    `<option value="${t.uteam}"${t.uteam === state.uteam ? ' selected' : ''}>${FT.esc(t.name)}</option>`
-  ).join('');
-  sel.style.display = teams.length > 1 ? '' : 'none';
+  if (teams.length < 2) { el.innerHTML = ''; return; }
+  el.innerHTML = FT.pills(
+    teams.map(t => ({ value: t.uteam, label: t.level || t.name })), state.uteam, 'data-team');
 }
 
 /* ── Record, last game, next game ──────────────────────────────────────── */
@@ -195,7 +195,7 @@ function matchup(g) {
 /* ── Wiring ────────────────────────────────────────────────────────────── */
 
 document.getElementById('sportChips').addEventListener('click', (e) => {
-  const btn = e.target.closest('.ft-chip');
+  const btn = e.target.closest('.ft-pill');
   if (!btn) return;
   FT.closeVenue();
   state.sport = Number(btn.dataset.sport);
@@ -205,10 +205,13 @@ document.getElementById('sportChips').addEventListener('click', (e) => {
   renderSportChips(); renderTeamPicker(); renderSchedule();
 });
 
-document.getElementById('teamPicker').addEventListener('change', (e) => {
+document.getElementById('teamPicker').addEventListener('click', (e) => {
+  const btn = e.target.closest('.ft-pill');
+  if (!btn) return;
   FT.closeVenue();
-  state.uteam = Number(e.target.value);
+  state.uteam = Number(btn.dataset.team);
   syncUrl();
+  renderTeamPicker();
   renderSchedule();
 });
 
