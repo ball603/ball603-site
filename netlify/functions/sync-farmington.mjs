@@ -45,12 +45,14 @@ const ALIASES = {
   newportmtnroyal:    'Newport',
   farmingtonnute:     'Farmington',
   henrywilsonmemorial:'Farmington',
-  hwms:               'Farmington'
+  hwms:               'Farmington',
+  contoocookvalley:   'ConVal',
+  coebrownnorthwood:  'Coe-Brown'
 };
 
 const TAIL_WORDS = new Set(['school', 'schools', 'high', 'middle', 'middle/high',
   'middle-high', 'hs/ms', 'hs', 'ms', 'regional', 'reg', 'coop', 'co-op',
-  'academy', 'and', 'the']);
+  'academy', 'and', 'the', 'senior']);
 
 function normalizeOpponent(raw, ball603Names) {
   if (!raw) return { display: null, ball603: null };
@@ -76,6 +78,12 @@ function normalizeOpponent(raw, ball603Names) {
   if (/middle school|elementary|junior high|central school/i.test(work)) {
     return { display, ball603: null };
   }
+
+  // "Manchester High School Central" and "Nashua High School North" put the
+  // school-type words in the middle, so stripping only the tail leaves them
+  // unmatched. The lookahead is what keeps "Epping Middle and High Schools"
+  // intact — the infix is only removed when a name follows it.
+  work = work.replace(/\s+High School\s+(?=\S)/i, ' ');
 
   let parts = work.split(' ');
   while (parts.length > 1 && TAIL_WORDS.has(parts[parts.length - 1].toLowerCase().replace(/[.,]$/, ''))) parts.pop();

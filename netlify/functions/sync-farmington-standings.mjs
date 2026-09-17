@@ -59,10 +59,11 @@ const toNum = (v) => { const n = parseFloat(String(v ?? '').trim()); return Numb
 const nameKey = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 const ALIASES = {
   mascomavalley: 'Mascoma', newportmtnroyal: 'Newport',
-  farmingtonnute: 'Farmington', henrywilsonmemorial: 'Farmington', hwms: 'Farmington'
+  farmingtonnute: 'Farmington', henrywilsonmemorial: 'Farmington', hwms: 'Farmington',
+  contoocookvalley: 'ConVal', coebrownnorthwood: 'Coe-Brown'
 };
 const TAIL_WORDS = new Set(['school', 'schools', 'high', 'middle', 'middle/high', 'middle-high',
-  'hs/ms', 'hs', 'ms', 'regional', 'reg', 'coop', 'co-op', 'academy', 'and', 'the']);
+  'hs/ms', 'hs', 'ms', 'regional', 'reg', 'coop', 'co-op', 'academy', 'and', 'the', 'senior']);
 
 function toBall603(raw, names) {
   if (!raw) return null;
@@ -71,6 +72,11 @@ function toBall603(raw, names) {
     work = work.toLowerCase().replace(/\b[a-z]/g, c => c.toUpperCase());
   }
   if (/middle school|elementary|junior high|central school/i.test(work)) return null;
+  // "Manchester High School Central" and "Nashua High School North" put the
+  // school-type words in the middle, so stripping only the tail leaves them
+  // unmatched. The lookahead is what keeps "Epping Middle and High Schools"
+  // intact — the infix is only removed when a name follows it.
+  work = work.replace(/\s+High School\s+(?=\S)/i, ' ');
   let parts = work.split(' ');
   while (parts.length > 1 && TAIL_WORDS.has(parts[parts.length - 1].toLowerCase().replace(/[.,]$/, ''))) parts.pop();
   while (parts.length > 1 && TAIL_WORDS.has(parts[0].toLowerCase())) parts.shift();
