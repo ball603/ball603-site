@@ -90,16 +90,24 @@ function render() {
   body.innerHTML = `<div class="ft-videogrid">${list.map(card).join('')}</div>`;
 }
 
+/* A Short is 9:16 in a grid built for 16:9. Rather than let it letterbox
+   against black bars, or make one card a different size and leave the grid
+   ragged, the card stays put and a blurred copy of the thumbnail fills the
+   space either side of it — the same thing YouTube does in a mixed feed. */
 function card(v) {
   const thumb = v.thumbnail_url || `https://img.youtube.com/vi/${encodeURIComponent(v.youtube_id)}/hqdefault.jpg`;
   const meta = [when(v.published_at), views(v.view_count)].filter(Boolean);
   const dur = duration(v.duration);
+  const short = !!v.is_short;
   return `
-    <article class="ft-video" data-id="${FT.esc(v.youtube_id)}" data-title="${FT.esc(v.title)}">
-      <div class="ft-video-thumb">
-        <img src="${FT.esc(thumb)}" alt="" loading="lazy"
+    <article class="ft-video" data-id="${FT.esc(v.youtube_id)}" data-title="${FT.esc(v.title)}"
+             data-short="${short ? '1' : ''}">
+      <div class="ft-video-thumb${short ? ' short' : ''}">
+        ${short ? `<img class="ft-video-blur" src="${FT.esc(thumb)}" alt="" aria-hidden="true" loading="lazy">` : ''}
+        <img class="ft-video-main" src="${FT.esc(thumb)}" alt="" loading="lazy"
              onerror="this.src='https://img.youtube.com/vi/${FT.esc(v.youtube_id)}/hqdefault.jpg'">
         <div class="ft-video-play"><span>&#9654;</span></div>
+        ${short ? '<span class="ft-video-badge">SHORT</span>' : ''}
         ${dur ? `<span class="ft-video-dur">${FT.esc(dur)}</span>` : ''}
       </div>
       <div class="ft-video-body">
@@ -114,9 +122,12 @@ function card(v) {
 const lightbox = document.getElementById('lightbox');
 const frame = document.getElementById('lightboxFrame');
 
-function openVideo(id, title) {
+function openVideo(id, title, short) {
   frame.src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}?autoplay=1&rel=0`;
   document.getElementById('lightboxTitle').textContent = title || '';
+  // The player turns on its side for a Short, or a 9:16 video plays as a
+  // sliver in the middle of a 16:9 frame.
+  lightbox.classList.toggle('short', !!short);
   lightbox.classList.add('on');
   document.body.style.overflow = 'hidden';
 }
@@ -130,7 +141,7 @@ function closeVideo() {
 
 document.getElementById('videoBody').addEventListener('click', (e) => {
   const c = e.target.closest('.ft-video');
-  if (c) openVideo(c.dataset.id, c.dataset.title);
+  if (c) openVideo(c.dataset.id, c.dataset.title, c.dataset.short === '1');
 });
 document.getElementById('lightboxClose').addEventListener('click', closeVideo);
 lightbox.addEventListener('click', (e) => { if (e.target === lightbox) closeVideo(); });

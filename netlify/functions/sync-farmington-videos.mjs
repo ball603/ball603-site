@@ -55,6 +55,39 @@ function bestThumbnail(thumbs) {
   return null;
 }
 
+/* ── Is this a Short ─────────────────────────────────────────────────────── */
+/* The API has no flag for it, and duration alone is not one either: this
+   channel has thirty-nine uploads under three minutes and none of them are
+   Shorts. What is reliable is the URL. youtube.com/shorts/<id> serves a real
+   Short at 200 and bounces anything else to /watch, so one request answers it.
+
+   Duration is still used, but only to avoid asking: nothing over three minutes
+   can be a Short, which is most of the channel. */
+
+const SHORT_MAX_SECONDS = 180;
+
+function durationSeconds(iso) {
+  const m = String(iso || '').match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!m) return null;
+  return (+(m[1] || 0)) * 3600 + (+(m[2] || 0)) * 60 + (+(m[3] || 0));
+}
+
+export async function isShort(youtubeId, duration) {
+  const secs = durationSeconds(duration);
+  // A live stream reports P0D and a feature-length upload reports an hour.
+  // Neither is a Short, and neither is worth a request.
+  if (secs == null || secs === 0 || secs > SHORT_MAX_SECONDS) return false;
+  try {
+    const res = await fetch(`https://www.youtube.com/shorts/${encodeURIComponent(youtubeId)}`, {
+      method: 'HEAD', redirect: 'manual'
+    });
+    return res.status === 200;
+  } catch (err) {
+    console.warn(`Short check failed for ${youtubeId}:`, err.message);
+    return null;          // unknown, so it is asked again next run
+  }
+}
+
 export async function runVideoSync({ dryRun = false } = {}) {
   if (!YOUTUBE_API_KEY) {
     return { statusCode: 200, body: { success: false, skipped: true, error: 'YOUTUBE_API_KEY not configured' } };
@@ -83,14 +116,34 @@ export async function runVideoSync({ dryRun = false } = {}) {
       if (!pageToken) break;
     }
 
-    const existing = new Set(((await supabase('farmington_videos?select=youtube_id')) || [])
-      .map(v => v.youtube_id));
+    const held = (await supabase('farmington_videos?select=youtube_id,duration,is_short')) || [];
+    const existing = new Set(held.map(v => v.youtube_id));
     const fresh = ids.filter(id => !existing.has(id));
 
     const report = {
       success: true, dryRun, channel: item.snippet.title,
       onChannel: ids.length, alreadyHave: existing.size, new: fresh.length, elapsedMs: 0
     };
+
+    // Videos already held that nobody has established either way — the whole
+    // channel, the first time this runs after the column is added. Bounded, so
+    // the backlog is worked through over a few runs rather than all at once.
+    const unknown = held.filter(v => v.is_short == null).slice(0, 25);
+    if (unknown.length && !dryRun) {
+      let settled = 0;
+      for (const v of unknown) {
+        const short = await isShort(v.youtube_id, v.duration);
+        if (short == null) continue;
+        await supabase(`farmington_videos?youtube_id=eq.${encodeURIComponent(v.youtube_id)}`, {
+          method: 'PATCH',
+          headers: { Prefer: 'return=minimal' },
+          body: JSON.stringify({ is_short: short })
+        });
+        settled++;
+      }
+      report.shortsChecked = settled;
+      report.shortsPending = held.filter(v => v.is_short == null).length - settled;
+    }
 
     if (!fresh.length) {
       report.elapsedMs = Date.now() - started;
@@ -113,6 +166,9 @@ export async function runVideoSync({ dryRun = false } = {}) {
           view_count: parseInt(v.statistics.viewCount || '0', 10),
           like_count: parseInt(v.statistics.likeCount || '0', 10),
           tags: v.snippet.tags || [],
+          // Settled on the way in, so a Short is drawn correctly the first time
+          // it appears rather than on the run after.
+          is_short: await isShort(v.id, v.contentDetails.duration),
           synced_at: new Date().toISOString()
           // pinned / hidden / sort_order are left to their defaults on insert
           // and never touched again — they belong to whoever curates the page.
