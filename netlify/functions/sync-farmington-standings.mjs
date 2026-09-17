@@ -108,26 +108,33 @@ export async function runStandingsSync({ dryRun = false } = {}) {
     const found = [];
     const season = String(new Date().getFullYear());
 
+    // Fetch every varsity group once, then decide what to keep. Two passes are
+    // needed because a sport can be split across groups: volleyball and golf put
+    // all their divisions in one group, but soccer has a separate group per
+    // division, so "does Farmington play this sport" cannot be answered from a
+    // single group. Judging group by group is what left soccer with only the one
+    // division Farmington is in and nothing for the division pills to switch to.
+    const fetched = [];
     for (const g of varsity) {
-      let data;
       try {
-        data = await arbiter('/' + g.rankingsGroupId);
+        fetched.push({ g, data: await arbiter('/' + g.rankingsGroupId) });
       } catch (err) {
         console.error(`Group ${g.rankingsGroupId} (${g.sportName}) failed:`, err.message);
-        continue;
       }
+    }
 
-      // Every division of a sport Farmington plays, not just Farmington's own.
-      // The standings page lets you switch divisions the way Ball603's does, and
-      // one division on its own would leave that row of pills with nothing to
-      // do. Sports Farmington does not play are still skipped, so this stays a
-      // few hundred rows rather than all of NHIAA.
-      const sportIsOurs = (data.divisions || []).some(div =>
+    const ourSports = new Set();
+    for (const { g, data } of fetched) {
+      const has = (data.divisions || []).some(div =>
         (div.teams || div.rows || []).some(t => {
           const mine = ourTeams.get(t.uniqueTeamId);
           return mine && !mine.hidden;
         }));
-      if (!sportIsOurs) continue;
+      if (has) ourSports.add(`${g.sportId}|${g.genderId}`);
+    }
+
+    for (const { g, data } of fetched) {
+      if (!ourSports.has(`${g.sportId}|${g.genderId}`)) continue;
 
       for (const div of (data.divisions || [])) {
         const divName = div.divisionName || div.name || data.groupName || '';

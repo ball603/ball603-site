@@ -102,14 +102,43 @@ function scoreOf(g) {
 }
 const resultOf = (sc) => sc ? (sc.us > sc.them ? 'W' : sc.us < sc.them ? 'L' : 'T') : null;
 
+/* Everything derivable from one team's own games: the record, the home and away
+   splits, and the current streak. This works for every sport and every level,
+   because it only ever looks at Farmington's results. It is also exactly why the
+   division standings table cannot show the same splits for the other schools in
+   it — we hold Farmington's schedule, not theirs. */
 function recordOf(games) {
-  let w = 0, l = 0, t = 0;
-  for (const g of games) {
-    if (g.is_meet) continue;
+  let w = 0, l = 0, t = 0, hw = 0, hl = 0, aw = 0, al = 0;
+  const results = [];
+
+  // Oldest first, so the streak reads off the end.
+  const played = games
+    .filter(g => !g.is_meet && scoreOf(g))
+    .sort((a, b) => String(a.starts_at).localeCompare(String(b.starts_at)));
+
+  for (const g of played) {
     const r = resultOf(scoreOf(g));
-    if (r === 'W') w++; else if (r === 'L') l++; else if (r === 'T') t++;
+    if (r === 'W') w++; else if (r === 'L') l++; else t++;
+    results.push(r);
+    // A tie belongs in the record but not in a home or away win-loss split.
+    if (r === 'T') continue;
+    if (g.is_home) { if (r === 'W') hw++; else hl++; }
+    else           { if (r === 'W') aw++; else al++; }
   }
-  return { w, l, t, played: w + l + t, text: `${w}–${l}${t ? '–' + t : ''}` };
+
+  let streak = '—';
+  if (results.length) {
+    const last = results[results.length - 1];
+    let n = 0;
+    for (let i = results.length - 1; i >= 0 && results[i] === last; i--) n++;
+    streak = last + n;
+  }
+
+  return {
+    w, l, t, played: w + l + t,
+    text: `${w}–${l}${t ? '–' + t : ''}`,
+    home: `${hw}–${hl}`, away: `${aw}–${al}`, streak
+  };
 }
 
 /* How an opponent is named anywhere on the site: the Ball603 shortname when the
