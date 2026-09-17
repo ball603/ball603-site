@@ -242,11 +242,13 @@ function shape(rawTeams, rawGames, standings, rosters) {
 /* Rendered from here rather than copied into five files, the same way Ball603
    injects its own header through nav-loader.js. */
 
+// News is deliberately absent: with no way to pull Facebook posts into the
+// page, a News tab was a link to an apology. The page still exists, unlinked.
 const NAV = [
-  { href: '/farmingtontigersnh/news',      label: 'News',      key: 'news' },
   { href: '/farmingtontigersnh/schedule',  label: 'Schedule',  key: 'schedule' },
   { href: '/farmingtontigersnh/standings', label: 'Standings', key: 'standings' },
-  { href: '/farmingtontigersnh/rosters',   label: 'Rosters',   key: 'rosters' }
+  { href: '/farmingtontigersnh/rosters',   label: 'Rosters',   key: 'rosters' },
+  { href: '/farmingtontigersnh/videos',    label: 'Videos',    key: 'videos' }
 ];
 
 const SOCIAL = [

@@ -6,7 +6,7 @@
 <title>Schedule | Farmington Tigers</title>
 <meta name="description" content="Full schedule and results for every Farmington Tigers team.">
 <link rel="icon" href="/logos/100px/Farmington.png">
-<link rel="stylesheet" href="/farmington.css?v=4">
+<link rel="stylesheet" href="/farmington.css?v=5">
 </head>
 <body>
 
@@ -18,8 +18,8 @@
     <span class="ft-sub" id="pageSub"></span>
   </div>
 
-  <div class="ft-pillrow" id="sportChips"></div>
-  <div class="ft-pillrow" id="teamPicker"></div>
+  <div class="ft-pillrow ft-center" id="sportChips"></div>
+  <div class="ft-pillrow ft-center" id="teamPicker"></div>
 
   <div id="summary"></div>
   <div class="ft-card"><div id="scheduleBody"><div class="ft-loading">Loading the Tigers schedule&hellip;</div></div></div>
@@ -27,7 +27,7 @@
 
 <div id="ft-footer"></div>
 
-<script src="/farmington.js?v=4"></script>
+<script src="/farmington.js?v=5"></script>
 <script>
 'use strict';
 
@@ -40,9 +40,9 @@ const state = { sport: null, uteam: null };
 /* ── Controls ──────────────────────────────────────────────────────────── */
 
 function renderSportChips() {
-  document.getElementById('sportChips').innerHTML = FT.pills(
-    DATA.sports.map(id => ({ value: id, label: FT.SPORTS[id].name, emoji: FT.SPORTS[id].emoji })),
-    state.sport, 'data-sport');
+  const items = [{ value: 'all', label: 'All Sports', emoji: '\u{1F405}' }].concat(
+    DATA.sports.map(id => ({ value: id, label: FT.SPORTS[id].name, emoji: FT.SPORTS[id].emoji })));
+  document.getElementById('sportChips').innerHTML = FT.pills(items, state.sport, 'data-sport');
 }
 
 /* Varsity first, then JV, then Jr. High — the order farmington_teams carries,
@@ -52,6 +52,8 @@ function renderSportChips() {
    the word Volleyball. */
 function renderTeamPicker() {
   const el = document.getElementById('teamPicker');
+  // All Sports is every team at once, so there is no level to pick.
+  if (state.sport === 'all') { el.innerHTML = ''; return; }
   const teams = DATA.teamsInSport(state.sport);
   if (teams.length < 2) { el.innerHTML = ''; return; }
   el.innerHTML = FT.pills(
@@ -111,12 +113,16 @@ function upcomingLine(g) {
 /* ── The schedule table ────────────────────────────────────────────────── */
 
 function renderSchedule() {
-  const team = DATA.teamsById.get(state.uteam);
-  const games = team ? team.games.filter(g => g.sport_id === state.sport) : [];
+  const all = state.sport === 'all';
+  const team = all ? null : DATA.teamsById.get(state.uteam);
+  const games = all ? DATA.games : (team ? team.games.filter(g => g.sport_id === state.sport) : []);
   const body = document.getElementById('scheduleBody');
 
-  document.getElementById('pageSub').textContent = team ? team.name : '';
-  renderSummary(team, games);
+  document.getElementById('pageSub').textContent = all ? 'Every team' : (team ? team.name : '');
+  // A record across varsity, JV and Jr. High at once is a number nobody means,
+  // so the summary strip belongs to a single team.
+  if (all) document.getElementById('summary').innerHTML = '';
+  else renderSummary(team, games);
 
   if (!games.length) {
     body.innerHTML = '<div class="ft-empty">No games on the schedule for this team yet.</div>';
@@ -198,8 +204,9 @@ document.getElementById('sportChips').addEventListener('click', (e) => {
   const btn = e.target.closest('.ft-pill');
   if (!btn) return;
   FT.closeVenue();
-  state.sport = Number(btn.dataset.sport);
-  const varsity = DATA.varsityOf(state.sport);
+  state.sport = btn.dataset.sport === 'all' ? 'all' : Number(btn.dataset.sport);
+  // Picking a sport lands on its varsity side.
+  const varsity = state.sport === 'all' ? null : DATA.varsityOf(state.sport);
   state.uteam = varsity ? varsity.uteam : null;
   syncUrl();
   renderSportChips(); renderTeamPicker(); renderSchedule();
@@ -227,6 +234,11 @@ function openingState() {
   const wantSport = Number(q.get('sport'));
   const wantTeam = Number(q.get('team'));
 
+  if (new URLSearchParams(location.search).get('sport') === 'all') {
+    state.sport = 'all';
+    state.uteam = null;
+    return;
+  }
   if (DATA.sports.includes(wantSport)) {
     state.sport = wantSport;
   } else {

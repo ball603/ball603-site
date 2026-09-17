@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Videos | Farmington Tigers</title>
+<meta name="description" content="Game video and highlights from the Farmington Tigers.">
+<link rel="icon" href="/logos/100px/Farmington.png">
+<link rel="stylesheet" href="/farmington.css?v=5">
+</head>
+<body>
+
+<div id="ft-header"></div>
+
+<main class="ft-wrap">
+  <div class="ft-searchbar">
+    <input class="ft-search" id="videoSearch" type="search" autocomplete="off"
+           placeholder="Search videos" aria-label="Search videos">
+  </div>
+  <p class="ft-note" id="videoCount" style="text-align:center"></p>
+  <div id="videoBody"><div class="ft-loading">Loading videos&hellip;</div></div>
+</main>
+
+<div class="ft-lightbox" id="lightbox" role="dialog" aria-label="Video player" aria-modal="true">
+  <button class="ft-lightbox-close" id="lightboxClose" aria-label="Close">&times;</button>
+  <div class="ft-lightbox-inner">
+    <iframe id="lightboxFrame" allow="accelerometer; autoplay; clipboard-write; encrypted-media; picture-in-picture"
+            allowfullscreen title="Farmington Tigers video"></iframe>
+    <h3 id="lightboxTitle"></h3>
+  </div>
+</div>
+
+<div id="ft-footer"></div>
+
+<script src="/farmington.js?v=5"></script>
+<script>
+'use strict';
+
+FT.renderHeader('videos');
+FT.renderFooter();
+
+let ALL = [];
+let query = '';
+
+/* YouTube reports length as ISO 8601 ("PT1H5M30S"). */
+function duration(iso) {
+  if (!iso) return '';
+  const m = String(iso).match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!m) return '';
+  const h = +(m[1] || 0), min = +(m[2] || 0), sec = +(m[3] || 0);
+  const two = (n) => String(n).padStart(2, '0');
+  return h ? `${h}:${two(min)}:${two(sec)}` : `${min}:${two(sec)}`;
+}
+
+const views = (n) => {
+  if (!n) return '';
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M views';
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K views';
+  return n.toLocaleString() + (n === 1 ? ' view' : ' views');
+};
+
+function when(iso) {
+  const d = iso ? new Date(iso) : null;
+  return d && !isNaN(d) ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+}
+
+/* Search covers the title, the description and the channel's own tags, so
+   "volleyball" finds a clip whose title only says "vs Nute". */
+function matches(v, q) {
+  if (!q) return true;
+  const hay = [v.title, v.description, ...(v.tags || [])].join(' ').toLowerCase();
+  return q.toLowerCase().split(/\s+/).filter(Boolean).every(word => hay.includes(word));
+}
+
+function render() {
+  const list = ALL.filter(v => matches(v, query));
+  const body = document.getElementById('videoBody');
+  const count = document.getElementById('videoCount');
+
+  count.textContent = query
+    ? `${list.length} of ${ALL.length} video${ALL.length === 1 ? '' : 's'}`
+    : `${ALL.length} video${ALL.length === 1 ? '' : 's'}`;
+
+  if (!list.length) {
+    body.innerHTML = `<div class="ft-card"><div class="ft-empty">${
+      query ? 'No videos match &ldquo;' + FT.esc(query) + '&rdquo;.' : 'No videos yet.'}</div></div>`;
+    return;
+  }
+
+  body.innerHTML = `<div class="ft-videogrid">${list.map(card).join('')}</div>`;
+}
+
+function card(v) {
+  const thumb = v.thumbnail_url || `https://img.youtube.com/vi/${encodeURIComponent(v.youtube_id)}/hqdefault.jpg`;
+  const meta = [when(v.published_at), views(v.view_count)].filter(Boolean);
+  const dur = duration(v.duration);
+  return `
+    <article class="ft-video" data-id="${FT.esc(v.youtube_id)}" data-title="${FT.esc(v.title)}">
+      <div class="ft-video-thumb">
+        <img src="${FT.esc(thumb)}" alt="" loading="lazy"
+             onerror="this.src='https://img.youtube.com/vi/${FT.esc(v.youtube_id)}/hqdefault.jpg'">
+        <div class="ft-video-play"><span>&#9654;</span></div>
+        ${dur ? `<span class="ft-video-dur">${FT.esc(dur)}</span>` : ''}
+      </div>
+      <div class="ft-video-body">
+        <h3>${FT.esc(v.title)}</h3>
+        <div class="ft-video-meta">${meta.map(m => `<span>${FT.esc(m)}</span>`).join('')}</div>
+      </div>
+    </article>`;
+}
+
+/* ── Player ────────────────────────────────────────────────────────────── */
+
+const lightbox = document.getElementById('lightbox');
+const frame = document.getElementById('lightboxFrame');
+
+function openVideo(id, title) {
+  frame.src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}?autoplay=1&rel=0`;
+  document.getElementById('lightboxTitle').textContent = title || '';
+  lightbox.classList.add('on');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeVideo() {
+  lightbox.classList.remove('on');
+  // Clearing the src is what actually stops the audio.
+  frame.src = '';
+  document.body.style.overflow = '';
+}
+
+document.getElementById('videoBody').addEventListener('click', (e) => {
+  const c = e.target.closest('.ft-video');
+  if (c) openVideo(c.dataset.id, c.dataset.title);
+});
+document.getElementById('lightboxClose').addEventListener('click', closeVideo);
+lightbox.addEventListener('click', (e) => { if (e.target === lightbox) closeVideo(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && lightbox.classList.contains('on')) closeVideo(); });
+
+/* ── Search ────────────────────────────────────────────────────────────── */
+
+const search = document.getElementById('videoSearch');
+search.addEventListener('input', () => {
+  query = search.value.trim();
+  const q = new URLSearchParams(location.search);
+  if (query) q.set('q', query); else q.delete('q');
+  history.replaceState(null, '', location.pathname + (q.toString() ? '?' + q : ''));
+  render();
+});
+
+/* ── Boot ──────────────────────────────────────────────────────────────── */
+
+FT.sb('farmington_videos?hidden=eq.false&select=*&order=pinned.desc,published_at.desc')
+  .then(rows => {
+    ALL = rows || [];
+    query = new URLSearchParams(location.search).get('q') || '';
+    search.value = query;
+    render();
+  })
+  .catch(err => {
+    console.error('Tigers videos failed to load:', err);
+    document.getElementById('videoBody').innerHTML =
+      '<div class="ft-card"><div class="ft-empty">Videos could not be loaded just now. ' +
+      'Please refresh in a moment.</div></div>';
+  });
+</script>
+</body>
+</html>

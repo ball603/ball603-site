@@ -8,6 +8,7 @@
 // returns zero events — so this is also what makes past seasons persist.
 
 import { runStandingsSync } from './sync-farmington-standings.mjs';
+import { runVideoSync } from './sync-farmington-videos.mjs';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://suncdkxfqkwwnmhosxcf.supabase.co';
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
@@ -324,14 +325,23 @@ export async function runFarmingtonSync({ dryRun = false } = {}) {
       }
     }
 
-    // Standings ride along on the same schedule. A failure there must not cost
-    // us the games we just wrote, so it is reported rather than thrown.
+    // Standings and videos ride along on the same schedule. A failure in either
+    // must not cost us the games we just wrote, so each is reported rather than
+    // thrown.
     try {
       const st = await runStandingsSync({ dryRun });
       report.standings = st.body;
     } catch (err) {
       console.error('Standings sync failed inside the games sync:', err);
       report.standings = { success: false, error: err.message };
+    }
+
+    try {
+      const vid = await runVideoSync({ dryRun });
+      report.videos = vid.body;
+    } catch (err) {
+      console.error('Video sync failed inside the games sync:', err);
+      report.videos = { success: false, error: err.message };
     }
 
     report.elapsedMs = Date.now() - started;
