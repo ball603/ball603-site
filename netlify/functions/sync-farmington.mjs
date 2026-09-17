@@ -203,6 +203,11 @@ function buildGameRow(event, team, ball603Names) {
     game_status: event.gameStatus || null,
     game_title: event.gameTitle || null,
     tournament_name: event.tournamentName || null,
+    // Arbiter titles a pre-season friendly "Scrimmage" and leaves the title
+    // empty on everything that counts. Recorded rather than thrown away: the
+    // fixture is real, it just does not belong on a public schedule or in a
+    // record, and the site filters it out in one place.
+    is_scrimmage: /scrimmage/i.test(`${event.gameTitle || ''} ${event.tournamentName || ''}`),
 
     site_name: event.siteName || null,
     sub_site_name: event.subSiteName || null,

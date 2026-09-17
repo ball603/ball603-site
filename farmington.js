@@ -273,6 +273,11 @@ function shape(rawTeams, rawGames, standings, rosters) {
   // without this check would show those matchups twice.
   const seen = new Set();
   for (const g of rawGames) {
+    // Pre-season friendlies are kept in the table but never shown: they are not
+    // part of a record and nobody browsing a schedule means them. One test
+    // here rather than one on each page, so the schedule, the home page boxes
+    // and every record agree about what a season is.
+    if (g.is_scrimmage) continue;
     const target = resolve(g.uteam);
     const team = visibleById.get(target);
     if (!team) continue;
