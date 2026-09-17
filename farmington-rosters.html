@@ -13,8 +13,12 @@
 <div id="ft-header"></div>
 
 <main class="ft-wrap">
-  <div class="ft-pagehead"><h1>Rosters</h1><span class="ft-sub" id="pageSub"></span></div>
-  <div class="ft-controls" id="rosterChips"></div>
+  <div class="ft-pagehead"><h1>Rosters</h1></div>
+
+  <div class="ft-pillrow ft-center" id="sportPills"></div>
+  <div class="ft-pillrow ft-center" id="genderPills"></div>
+  <div class="ft-pillrow ft-center" id="seasonPills"></div>
+
   <div id="rosterBody"><div class="ft-loading">Loading rosters&hellip;</div></div>
 </main>
 
@@ -28,15 +32,41 @@ FT.renderHeader('rosters');
 FT.renderFooter();
 
 let LIST = [];
-let active = null;
+const state = { sport: null, gender: null, id: null };
 
-const sportOf = (r) => Object.entries(FT.SPORTS).find(([, s]) => s.ball603 === r.sport);
-
-function label(r) {
-  const entry = sportOf(r);
-  const name = entry ? entry[1].name : r.sport;
-  return `${r.gender || ''} ${name}`.trim();
+/* Rosters are filed under Ball603's sport keys, so they have to be matched back
+   to the vocabulary the rest of the site uses for emoji, name and ordering. */
+function sportMeta(key) {
+  const hit = Object.entries(FT.SPORTS).find(([, s]) => s.ball603 === key);
+  return hit ? hit[1] : { name: key, emoji: '\u{1F3C6}', order: 99 };
 }
+
+const sportsWithRosters = () => {
+  const seen = [];
+  for (const r of LIST) if (!seen.includes(r.sport)) seen.push(r.sport);
+  return seen.sort((a, b) => sportMeta(a).order - sportMeta(b).order);
+};
+
+// Basketball files a Boys and a Girls roster, so the gender row earns its place
+// there and is skipped everywhere else.
+const gendersIn = (sport) => {
+  const seen = [];
+  for (const r of LIST) {
+    if (r.sport === sport && r.gender && !seen.includes(r.gender)) seen.push(r.gender);
+  }
+  return seen.sort((a, b) => ['Boys', 'Girls', 'Coed'].indexOf(a) - ['Boys', 'Girls', 'Coed'].indexOf(b));
+};
+
+// Newest first. A team that submits a roster every year builds a history, and
+// the season row is how somebody reaches last year's.
+const seasonsIn = (sport, gender) => LIST
+  .filter(r => r.sport === sport && (gendersIn(sport).length < 2 || r.gender === gender))
+  .sort((a, b) => String(b.season).localeCompare(String(a.season)));
+
+const current = () => {
+  const rows = seasonsIn(state.sport, state.gender);
+  return rows.find(r => String(r.id) === String(state.id)) || rows[0] || null;
+};
 
 /* Submitted rosters carry name / number / position / class. Older ones have
    used grade and height, so each column takes the first field it finds and a
@@ -56,20 +86,31 @@ function players(r) {
   }
 }
 
-function renderChips() {
-  document.getElementById('rosterChips').innerHTML = LIST.map(r => {
-    const entry = sportOf(r);
-    return `<button class="ft-chip${String(r.id) === String(active) ? ' on' : ''}" data-id="${r.id}">
-              <span class="ft-sport-emoji">${entry ? entry[1].emoji : '\u{1F3C6}'}</span>${FT.esc(label(r))}
-            </button>`;
-  }).join('');
+/* ── Controls ──────────────────────────────────────────────────────────── */
+
+function renderPills() {
+  document.getElementById('sportPills').innerHTML = FT.pills(
+    sportsWithRosters().map(k => ({ value: k, label: sportMeta(k).name, emoji: sportMeta(k).emoji })),
+    state.sport, 'data-sport');
+
+  const genders = gendersIn(state.sport);
+  document.getElementById('genderPills').innerHTML = genders.length > 1
+    ? FT.pills(genders.map(g => ({ value: g, label: g })), state.gender, 'data-gender')
+    : '';
+
+  const seasons = seasonsIn(state.sport, state.gender);
+  const r = current();
+  document.getElementById('seasonPills').innerHTML = seasons.length > 1
+    ? FT.pills(seasons.map(x => ({ value: x.id, label: x.season })), r && r.id, 'data-season')
+    : '';
 }
 
+/* ── The roster ────────────────────────────────────────────────────────── */
+
 function renderRoster() {
-  const r = LIST.find(x => String(x.id) === String(active));
   const body = document.getElementById('rosterBody');
-  document.getElementById('pageSub').textContent = r ? `${label(r)} · ${r.season}` : '';
-  if (!r) { body.innerHTML = '<div class="ft-empty">Nothing to show.</div>'; return; }
+  const r = current();
+  if (!r) { body.innerHTML = '<div class="ft-card"><div class="ft-empty">Nothing to show.</div></div>'; return; }
 
   const roster = players(r);
   const cols = [
@@ -80,6 +121,14 @@ function renderRoster() {
     { h: 'Ht',     fields: ['height', 'ht'], cls: 'ctr' }
   ].filter(c => c.h === 'Player' || roster.some(p => val(p, c.fields) !== ''));
 
+  const title = `${r.gender || ''} ${sportMeta(r.sport).name}`.trim();
+  const dot = '<i class="ft-bardot">&bull;</i>';
+  const facts = [
+    roster.length ? `${roster.length} <em>Players</em>` : '',
+    r.division ? `<em>Div</em> ${FT.esc(r.division)}` : '',
+    r.season ? `<em>Season</em> ${FT.esc(r.season)}` : ''
+  ].filter(Boolean);
+
   const coaches = [
     r.head_coach ? `Head coach: <b>${FT.esc(r.head_coach)}</b>` : '',
     r.assistant_coaches ? `Assistants: ${FT.esc(r.assistant_coaches)}` : ''
@@ -87,6 +136,10 @@ function renderRoster() {
 
   body.innerHTML = `
     <div class="ft-card">
+      <div class="ft-cardbar">
+        <h2>${FT.esc(title)}</h2>
+        ${facts.length ? `<span class="ft-barstats">${facts.join(dot)}</span>` : ''}
+      </div>
       ${roster.length ? `
         <table class="ft-table">
           <thead><tr>${cols.map(c => `<th class="${c.cls}">${c.h}</th>`).join('')}</tr></thead>
@@ -96,35 +149,57 @@ function renderRoster() {
       : '<div class="ft-empty">Roster on file, player list not available.</div>'}
       ${coaches ? `<div class="ft-coaches">${coaches}</div>` : ''}
     </div>
-    ${r.pdf_url ? `<p class="ft-note"><a href="${FT.esc(r.pdf_url)}" target="_blank" rel="noopener"
-        style="color:var(--ft-orange-dk);font-weight:600">Roster PDF &rarr;</a></p>` : ''}`;
+    ${r.pdf_url ? `<p class="ft-note" style="text-align:center">
+        <a href="${FT.esc(r.pdf_url)}" target="_blank" rel="noopener"
+           style="color:var(--ft-orange-dk);font-weight:600">Roster PDF &rarr;</a></p>` : ''}`;
 }
 
-document.getElementById('rosterChips').addEventListener('click', (e) => {
-  const btn = e.target.closest('.ft-chip');
+/* ── Wiring ────────────────────────────────────────────────────────────── */
+
+// Choosing a sport resets the gender, for the same reason the schedule does:
+// carrying "Girls" over from volleyball would open the girls basketball roster
+// without anybody having asked for it.
+function pickDefaults(keepGender) {
+  const genders = gendersIn(state.sport);
+  if (!keepGender || !genders.includes(state.gender)) state.gender = genders[0] || null;
+  const rows = seasonsIn(state.sport, state.gender);
+  state.id = rows.length ? rows[0].id : null;
+}
+
+document.getElementById('sportPills').addEventListener('click', (e) => {
+  const btn = e.target.closest('.ft-pill');
   if (!btn) return;
-  active = btn.dataset.id;
-  renderChips();
-  renderRoster();
+  state.sport = btn.dataset.sport;
+  pickDefaults(false);
+  renderPills(); renderRoster();
+});
+
+document.getElementById('genderPills').addEventListener('click', (e) => {
+  const btn = e.target.closest('.ft-pill');
+  if (!btn) return;
+  state.gender = btn.dataset.gender;
+  const rows = seasonsIn(state.sport, state.gender);
+  state.id = rows.length ? rows[0].id : null;
+  renderPills(); renderRoster();
+});
+
+document.getElementById('seasonPills').addEventListener('click', (e) => {
+  const btn = e.target.closest('.ft-pill');
+  if (!btn) return;
+  state.id = btn.dataset.season;
+  renderPills(); renderRoster();
 });
 
 FT.load().then(data => {
-  // Newest season first, then in the order the sports are played.
-  LIST = (data.rosters || []).slice().sort((a, b) => {
-    const sa = String(b.season).localeCompare(String(a.season));
-    if (sa) return sa;
-    const oa = (sportOf(a) || [0, { order: 99 }])[1].order;
-    const ob = (sportOf(b) || [0, { order: 99 }])[1].order;
-    return oa - ob;
-  });
-
+  LIST = data.rosters || [];
   if (!LIST.length) {
     document.getElementById('rosterBody').innerHTML =
       '<div class="ft-card"><div class="ft-empty">No Tigers rosters have been submitted yet.</div></div>';
     return;
   }
-  active = String(LIST[0].id);
-  renderChips();
+  state.sport = sportsWithRosters()[0];
+  pickDefaults(false);
+  renderPills();
   renderRoster();
 }).catch(err => {
   console.error('Tigers rosters failed to load:', err);
