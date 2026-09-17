@@ -34,7 +34,16 @@ const ACCESS_TOKEN = process.env.SMUGMUG_ACCESS_TOKEN;
 const ACCESS_SECRET = process.env.SMUGMUG_ACCESS_SECRET;
 
 const BASE = 'https://api.smugmug.com';
+const KJ_NICK = 'kjcardinal';
 const KJ_FOLDER = '/Sports/FHS';
+
+// The FHS folder's node id, read off the page's own markup — SmugMug stamps it
+// into the body class ("sm-page-node-T8JSWF"). Pinned for the same reason the
+// video sync pins its channel id: resolving it by path is the fragile step, and
+// !urlpathlookup came back empty on the first live run. If KJ ever rebuilds the
+// folder the id changes, so the path lookup is kept as one of the fallbacks
+// rather than thrown away.
+const KJ_NODE = 'T8JSWF';
 
 /* ── OAuth 1.0a ──────────────────────────────────────────────────────────── */
 /* Same signing sync-smugmug.mjs uses. Copied rather than shared because those
@@ -171,20 +180,16 @@ async function albumsForUser(nickname) {
   return out;
 }
 
-// The albums under one folder. urlpathlookup resolves "/Sports/FHS" to its
-// node without us having to know the node id, and !albumlist walks everything
-// beneath it, so a sub-folder KJ adds later is picked up on its own.
-async function albumsUnderFolder(nickname, urlPath) {
-  const node = await smugmug(
-    `/api/v2/user/${encodeURIComponent(nickname)}!urlpathlookup?urlpath=${encodeURIComponent(urlPath)}`);
-  const nodeId = node?.Response?.Node?.NodeID;
-  if (!nodeId) throw new Error(`No node at ${urlPath} for ${nickname}`);
-
+// One page of whatever an endpoint calls its albums. SmugMug returns them
+// under AlbumList for !albumlist and Album for !albums, and the caller does not
+// care which.
+async function pagedAlbums(endpoint) {
   const out = [];
   let start = 1;
   for (;;) {
+    const sep = endpoint.includes('?') ? '&' : '?';
     const page = await smugmug(
-      `/api/v2/node/${encodeURIComponent(nodeId)}!albumlist?count=100&start=${start}&_expand=HighlightImage`);
+      `${endpoint}${sep}count=100&start=${start}&_expand=HighlightImage`);
     const albums = page?.Response?.AlbumList || page?.Response?.Album || [];
     const expansions = page?.Expansions || {};
     for (const a of albums) {
@@ -195,10 +200,78 @@ async function albumsUnderFolder(nickname, urlPath) {
     }
     if (albums.length < 100) break;
     start += albums.length;
+    if (start > 3000) break;              // a runaway guard, not a real limit
+    await new Promise(r => setTimeout(r, 80));
+  }
+  return out;
+}
+
+// The long way round: walk the folder's children, descend into sub-folders and
+// collect the albums. Only used if none of the album endpoints answer.
+async function childAlbums(nodeId, depth = 0) {
+  if (depth > 3) return [];
+  const out = [];
+  let start = 1;
+  for (;;) {
+    const page = await smugmug(
+      `/api/v2/node/${encodeURIComponent(nodeId)}!children` +
+      `?count=100&start=${start}&_expand=Album,HighlightImage`);
+    const nodes = page?.Response?.Node || [];
+    const expansions = page?.Expansions || {};
+    for (const n of nodes) {
+      if (n.Type === 'Folder') {
+        out.push(...await childAlbums(n.NodeID, depth + 1));
+        continue;
+      }
+      if (n.Type !== 'Album') continue;
+      const albumUri = n.Uris?.Album?.Uri || n.Uris?.Album;
+      const album = (albumUri && expansions[albumUri]?.Album) || null;
+      if (!album) continue;
+      const hiUri = album.Uris?.HighlightImage?.Uri || album.Uris?.HighlightImage;
+      const hi = hiUri && expansions[hiUri];
+      album._thumb = hi?.HighlightImage?.ThumbnailUrl || hi?.Image?.ThumbnailUrl || null;
+      out.push(album);
+    }
+    if (nodes.length < 100) break;
+    start += nodes.length;
     if (start > 3000) break;
     await new Promise(r => setTimeout(r, 80));
   }
   return out;
+}
+
+/* Three ways into the same folder, tried in turn. The first live run failed
+   because !urlpathlookup returned a 200 with no node in it — not an auth
+   problem, just a route that does not work the way the docs read. Rather than
+   guess again, each route is tried and what it did is reported, so one run
+   settles it. An empty result counts as a failure on purpose: a route that
+   answers with nothing is indistinguishable from one that does not work, and
+   trying the next one costs a request. */
+async function kjAlbums(report) {
+  const routes = [
+    ['node!albumlist', () => pagedAlbums(`/api/v2/node/${KJ_NODE}!albumlist`)],
+    ['folder!albumlist', () => pagedAlbums(`/api/v2/folder/user/${KJ_NICK}${KJ_FOLDER}!albumlist`)],
+    ['node!children walk', () => childAlbums(KJ_NODE)],
+    ['urlpathlookup then !albumlist', async () => {
+      const look = await smugmug(`/api/v2/user/${KJ_NICK}!urlpathlookup?urlpath=${KJ_FOLDER}`);
+      const id = look?.Response?.Node?.NodeID;
+      if (!id) throw new Error('lookup returned no node');
+      return pagedAlbums(`/api/v2/node/${id}!albumlist`);
+    }]
+  ];
+
+  const tried = [];
+  for (const [label, run] of routes) {
+    try {
+      const albums = await run();
+      tried.push({ route: label, albums: albums.length });
+      if (albums.length) { report.route = label; report.tried = tried; return albums; }
+    } catch (err) {
+      tried.push({ route: label, error: String(err.message).slice(0, 160) });
+    }
+  }
+  report.tried = tried;
+  throw new Error('No route to ' + KJ_FOLDER + ' returned any albums');
 }
 
 // Where HighlightImage came back empty. One call each, so it is capped: the
@@ -251,13 +324,15 @@ export async function runPhotoSync({ dryRun = false } = {}) {
 
   // Each source is tried on its own. A failure on one is reported and the other
   // still writes — losing KJ's galleries should not also lose Ball603's.
+  const kjReport = {};
+  report.sources.kjcardinal = kjReport;
   try {
-    const kj = await albumsUnderFolder('kjcardinal', KJ_FOLDER);
+    const kj = await kjAlbums(kjReport);
     for (const a of kj) rows.push(toRow(a, 'kjcardinal', sportFromName(a.Name) || sportFromName(a.WebUri)));
-    report.sources.kjcardinal = { albums: kj.length };
+    kjReport.albums = kj.length;
   } catch (err) {
     console.error('kjcardinal galleries failed:', err.message);
-    report.sources.kjcardinal = { error: err.message };
+    kjReport.error = err.message;
   }
 
   try {
