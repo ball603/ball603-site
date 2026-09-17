@@ -42,8 +42,12 @@ const genderLabel = (g, sportId) => (sportId === 50 ? 'Boys' : (GENDERS[g] || ''
    Distinct from genderLabel, which still answers "which gender is this row" for
    the Ball603 lookups that key on it. This one is only ever for display. */
 const ONE_GENDER = new Set([50, 25, 29, 3, 51]);  // soccer, football, golf, baseball, softball
-const genderPrefix = (g, sportId) =>
-  (ONE_GENDER.has(Number(sportId)) ? '' : genderLabel(g, sportId));
+// Takes Arbiter's numeric gender id, or a label already in hand — rosters come
+// from Ball603's submissions table, which stores "Girls" rather than a 2.
+const genderPrefix = (g, sportId) => {
+  if (ONE_GENDER.has(Number(sportId))) return '';
+  return typeof g === 'string' ? g : genderLabel(g, sportId);
+};
 
 /* ── Escaping ───────────────────────────────────────────────────────────── */
 

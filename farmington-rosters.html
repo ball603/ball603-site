@@ -38,7 +38,9 @@ const state = { sport: null, gender: null, id: null };
    to the vocabulary the rest of the site uses for emoji, name and ordering. */
 function sportMeta(key) {
   const hit = Object.entries(FT.SPORTS).find(([, s]) => s.ball603 === key);
-  return hit ? hit[1] : { name: key, emoji: '\u{1F3C6}', order: 99 };
+  // The numeric id comes back too, because the heading needs it to decide
+  // whether naming the gender says anything.
+  return hit ? { ...hit[1], id: Number(hit[0]) } : { name: key, emoji: '\u{1F3C6}', order: 99, id: null };
 }
 
 const sportsWithRosters = () => {
@@ -121,7 +123,15 @@ function renderRoster() {
     { h: 'Ht',     fields: ['height', 'ht'], cls: 'ctr' }
   ].filter(c => c.h === 'Player' || roster.some(p => val(p, c.fields) !== ''));
 
-  const title = `${r.gender || ''} ${sportMeta(r.sport).name}`.trim();
+  /* "Girls Varsity Volleyball" rather than "Girls Volleyball". Ball603 only
+     collects varsity rosters — its submission form has no level field at all —
+     so Varsity is a constant here rather than something read off the row. If
+     JV rosters ever start arriving, this heading is the first thing to fix.
+     Gender is dropped where it distinguishes nothing, the same as everywhere
+     else: "Varsity Baseball", not "Boys Varsity Baseball". */
+  const meta = sportMeta(r.sport);
+  const shown = FT.genderPrefix(r.gender, meta.id);
+  const title = `${shown ? shown + ' ' : ''}Varsity ${meta.name}`;
   const dot = '<i class="ft-bardot">&bull;</i>';
   const facts = [
     roster.length ? `${roster.length} <em>Players</em>` : '',
