@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Standings | Farmington Tigers</title>
+<meta name="description" content="NHIAA varsity standings for every sport the Farmington Tigers play.">
+<link rel="icon" href="/logos/100px/Farmington.png">
+<link rel="stylesheet" href="/farmington.css">
+</head>
+<body>
+
+<div id="ft-header"></div>
+
+<main class="ft-wrap">
+  <div class="ft-pagehead">
+    <h1>Standings</h1>
+    <span class="ft-sub">Varsity only</span>
+  </div>
+
+  <div class="ft-controls" id="groupChips"></div>
+  <div class="ft-card"><div id="standBody"><div class="ft-loading">Loading standings&hellip;</div></div></div>
+  <p class="ft-note" id="standNote"></p>
+</main>
+
+<div id="ft-footer"></div>
+
+<script src="/farmington.js"></script>
+<script>
+'use strict';
+
+FT.renderHeader('standings');
+FT.renderFooter();
+
+let DATA = null;
+let groups = [];
+let active = null;
+
+// Ball603 game records, keyed by the Ball603 sport, filled in only when a
+// division needs them. Fetching every sport up front would slow the page down
+// for columns most sports cannot show anyway.
+const b6cache = new Map();
+
+/* ── Grouping ──────────────────────────────────────────────────────────── */
+
+function buildGroups() {
+  const map = new Map();
+  for (const row of DATA.standings) {
+    if (!map.has(row.rankings_group_id)) {
+      const sport = FT.SPORTS[row.sport_id];
+      map.set(row.rankings_group_id, {
+        id: row.rankings_group_id,
+        sportId: row.sport_id,
+        genderId: row.gender_id,
+        season: row.season,
+        emoji: sport ? sport.emoji : '\u{1F3C6}',
+        order: sport ? sport.order : 99,
+        label: `${FT.genderLabel(row.gender_id, row.sport_id)} ${sport ? sport.name : row.group_name}`.trim(),
+        division: row.division_name,
+        rows: []
+      });
+    }
+    map.get(row.rankings_group_id).rows.push(row);
+  }
+  for (const g of map.values()) g.rows.sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99));
+  return [...map.values()].sort((a, b) => a.order - b.order);
+}
+
+/* ── Ball603 extras ────────────────────────────────────────────────────── */
+/* Rank, record and rating come from NHIAA for every sport. Overall, home, away,
+   streak and the postseason record are computed from Ball603's own games, so
+   they only exist for the three sports Ball603 covers. Every one of these
+   columns is optional: if the fetch fails, the table simply renders without
+   them rather than the page breaking. */
+
+async function ball603Extras(group) {
+  const key = FT.SPORTS[group.sportId] && FT.SPORTS[group.sportId].ball603;
+  if (!key) return null;
+  if (b6cache.has(key)) return b6cache.get(key);
+
+  const promise = (async () => {
+    const res = await fetch(`/.netlify/functions/get-games?sport=${encodeURIComponent(key)}`);
+    if (!res.ok) throw new Error('get-games ' + res.status);
+    const games = (await res.json()).games || [];
+
+    // Ball603 seasons read "2026" for volleyball and baseball but "2025-26" for
+    // basketball, so take the latest season present rather than guessing.
+    const seasons = [...new Set(games.map(g => g.season).filter(Boolean))].sort();
+    const season = seasons[seasons.length - 1];
+
+    const stats = new Map();
+    const get = (team, gender) => {
+      const k = `${team}|${gender}`;
+      if (!stats.has(k)) stats.set(k, {
+        w: 0, l: 0, hw: 0, hl: 0, aw: 0, al: 0, pw: 0, pl: 0, results: []
+      });
+      return stats.get(k);
+    };
+
+    for (const g of games) {
+      if (g.season !== season) continue;
+      const hs = parseInt(g.home_score, 10), as = parseInt(g.away_score, 10);
+      if (!Number.isFinite(hs) || !Number.isFinite(as) || hs === as) continue;
+
+      const home = get(g.home, g.gender), away = get(g.away, g.gender);
+      const homeWon = hs > as;
+
+      if (g.is_playoff) {
+        if (homeWon) { home.pw++; away.pl++; } else { home.pl++; away.pw++; }
+      } else {
+        if (homeWon) { home.hw++; away.al++; } else { home.hl++; away.aw++; }
+      }
+      // Streak and overall span both halves of the season.
+      if (homeWon) { home.w++; away.l++; home.results.push('W'); away.results.push('L'); }
+      else         { home.l++; away.w++; home.results.push('L'); away.results.push('W'); }
+    }
+    return stats;
+  })().catch(err => {
+    console.warn('Ball603 extras unavailable for ' + key + ':', err.message);
+    return null;
+  });
+
+  b6cache.set(key, promise);
+  return promise;
+}
+
+function streakOf(s) {
+  if (!s || !s.results.length) return '—';
+  const last = s.results[s.results.length - 1];
+  let n = 0;
+  for (let i = s.results.length - 1; i >= 0 && s.results[i] === last; i--) n++;
+  return last + n;
+}
+
+/* ── Rendering ─────────────────────────────────────────────────────────── */
+
+function renderChips() {
+  document.getElementById('groupChips').innerHTML = groups.map(g =>
+    `<button class="ft-chip${g.id === active ? ' on' : ''}" data-group="${g.id}">
+       <span class="ft-sport-emoji">${g.emoji}</span>${FT.esc(g.label)}</button>`).join('');
+}
+
+async function renderTable() {
+  const group = groups.find(g => g.id === active);
+  const body = document.getElementById('standBody');
+  const note = document.getElementById('standNote');
+  if (!group) { body.innerHTML = '<div class="ft-empty">No standings posted.</div>'; return; }
+
+  const stats = await ball603Extras(group);
+  const gender = FT.genderLabel(group.genderId, group.sportId);
+  const full = !!stats;
+
+  const head = full ? `
+    <tr class="ft-group">
+      <th class="num" rowspan="2">#</th>
+      <th class="grow" rowspan="2">${FT.esc(group.division || 'Team')}</th>
+      <th class="reg" colspan="2">Regular Season</th>
+      <th class="post" colspan="1">Postseason</th>
+      <th class="ovr" colspan="4">Overall</th>
+    </tr>
+    <tr class="ft-sub">
+      <th class="ctr reg">Record</th><th class="ctr reg">Rating</th>
+      <th class="ctr post">Record</th>
+      <th class="ctr">Record</th>
+      <th class="ctr ft-hide-sm">Home</th><th class="ctr ft-hide-sm">Away</th><th class="ctr">Streak</th>
+    </tr>` : `
+    <tr>
+      <th class="num">#</th>
+      <th class="grow">${FT.esc(group.division || 'Team')}</th>
+      <th class="ctr">GP</th><th class="ctr">W</th><th class="ctr">L</th>
+      ${group.rows.some(r => r.ties != null) ? '<th class="ctr">T</th>' : ''}
+      ${group.rows.some(r => r.points != null) ? '<th class="ctr">Pts</th>' : ''}
+      <th class="ctr">Rating</th>
+    </tr>`;
+
+  const showTies = group.rows.some(r => r.ties != null);
+  const showPts = group.rows.some(r => r.points != null);
+
+  const body_ = group.rows.map(r => {
+    const s = stats ? stats.get(`${r.ball603_shortname}|${gender}`) : null;
+    const cells = full ? `
+      <td class="ctr">${r.wins ?? 0}–${r.losses ?? 0}${r.ties ? '–' + r.ties : ''}</td>
+      <td class="ctr">${fmtRating(r.rating)}</td>
+      <td class="ctr">${s ? `${s.pw}–${s.pl}` : '0–0'}</td>
+      <td class="ctr">${s ? `${s.w}–${s.l}` : '—'}</td>
+      <td class="ctr ft-hide-sm">${s ? `${s.hw}–${s.hl}` : '—'}</td>
+      <td class="ctr ft-hide-sm">${s ? `${s.aw}–${s.al}` : '—'}</td>
+      <td class="ctr">${streakOf(s)}</td>` : `
+      <td class="ctr">${r.games_played ?? '—'}</td>
+      <td class="ctr">${r.wins ?? 0}</td>
+      <td class="ctr">${r.losses ?? 0}</td>
+      ${showTies ? `<td class="ctr">${r.ties ?? 0}</td>` : ''}
+      ${showPts ? `<td class="ctr">${r.points ?? 0}</td>` : ''}
+      <td class="ctr">${fmtRating(r.rating)}</td>`;
+
+    return `<tr class="${r.is_farmington ? 'ft-us' : ''}">
+      <td class="num">${r.rank ?? ''}</td>
+      <td class="grow">${teamCell(r)}</td>
+      ${cells}
+    </tr>`;
+  }).join('');
+
+  body.innerHTML = `<table class="ft-table"><thead>${head}</thead><tbody>${body_}</tbody></table>`;
+
+  note.innerHTML = full
+    ? 'Rank, regular-season record and rating from NHIAA. Postseason, overall, home, away and streak from Ball603 coverage.'
+    : `Rank, record and rating from NHIAA. Ball603 does not cover
+       ${FT.esc((FT.SPORTS[group.sportId] || {}).name || 'this sport')},
+       so postseason and overall splits are not available for it.`;
+}
+
+const fmtRating = (v) => (v == null ? '—' : (Math.round(Number(v) * 1000) / 1000).toString());
+
+function teamCell(row) {
+  const label = row.ball603_shortname || row.team_name;
+  const img = row.school_logo_url
+    ? `<img src="${FT.esc(row.school_logo_url)}" alt="" onerror="this.remove()">` : '';
+  return `<span class="ft-logo-cell">${img}${FT.teamLink(row.ball603_shortname, row.sport_id, label)}</span>`;
+}
+
+/* ── Wiring ────────────────────────────────────────────────────────────── */
+
+document.getElementById('groupChips').addEventListener('click', (e) => {
+  const btn = e.target.closest('.ft-chip');
+  if (!btn) return;
+  active = Number(btn.dataset.group);
+  history.replaceState(null, '', location.pathname + '?group=' + active);
+  renderChips();
+  renderTable();
+});
+
+FT.load().then(data => {
+  DATA = data;
+  groups = buildGroups();
+  if (!groups.length) {
+    document.getElementById('standBody').innerHTML =
+      '<div class="ft-empty">No varsity standings are posted right now. ' +
+      'NHIAA publishes standings only while a sport is in season.</div>';
+    return;
+  }
+  const want = Number(new URLSearchParams(location.search).get('group'));
+  active = groups.some(g => g.id === want) ? want : groups[0].id;
+  renderChips();
+  renderTable();
+}).catch(err => {
+  console.error('Tigers standings failed to load:', err);
+  document.getElementById('standBody').innerHTML =
+    '<div class="ft-empty">Standings could not be loaded just now. Please refresh in a moment.</div>';
+});
+</script>
+</body>
+</html>

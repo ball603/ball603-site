@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Schedule | Farmington Tigers</title>
+<meta name="description" content="Full schedule and results for every Farmington Tigers team.">
+<link rel="icon" href="/logos/100px/Farmington.png">
+<link rel="stylesheet" href="/farmington.css">
+</head>
+<body>
+
+<div id="ft-header"></div>
+
+<main class="ft-wrap">
+  <div class="ft-pagehead">
+    <h1>Schedule</h1>
+    <span class="ft-sub" id="pageSub"></span>
+  </div>
+
+  <div class="ft-controls" id="sportChips"></div>
+  <div class="ft-controls"><select class="ft-select" id="teamPicker"></select></div>
+
+  <div id="summary"></div>
+  <div class="ft-card"><div id="scheduleBody"><div class="ft-loading">Loading the Tigers schedule&hellip;</div></div></div>
+</main>
+
+<div id="ft-footer"></div>
+
+<script src="/farmington.js"></script>
+<script>
+'use strict';
+
+FT.renderHeader('schedule');
+FT.renderFooter();
+
+let DATA = null;
+const state = { sport: null, uteam: null };
+
+/* ── Controls ──────────────────────────────────────────────────────────── */
+
+function renderSportChips() {
+  document.getElementById('sportChips').innerHTML = DATA.sports.map(id => {
+    const s = FT.SPORTS[id];
+    return `<button class="ft-chip${id === state.sport ? ' on' : ''}" data-sport="${id}">
+              <span class="ft-sport-emoji">${s.emoji}</span>${FT.esc(s.name)}</button>`;
+  }).join('');
+}
+
+/* Varsity first, then JV, then Jr. High — the order farmington_teams carries,
+   so the dropdown reads the way the athletic department lists its teams. */
+function renderTeamPicker() {
+  const sel = document.getElementById('teamPicker');
+  const teams = DATA.teamsInSport(state.sport);
+  sel.innerHTML = teams.map(t =>
+    `<option value="${t.uteam}"${t.uteam === state.uteam ? ' selected' : ''}>${FT.esc(t.name)}</option>`
+  ).join('');
+  sel.style.display = teams.length > 1 ? '' : 'none';
+}
+
+/* ── Record, last game, next game ──────────────────────────────────────── */
+
+function renderSummary(team, games) {
+  const el = document.getElementById('summary');
+  const rec = FT.recordOf(games);
+  const played = games.filter(g => FT.scoreOf(g));
+  const last = played[played.length - 1] || null;
+  const today = FT.todayKey();
+  const next = games.find(g => !FT.scoreOf(g) && g.game_date >= today) || null;
+
+  el.innerHTML = `
+    <div class="ft-summary">
+      <div class="ft-summary-record">
+        <span class="ft-label">Record</span>
+        <div class="ft-big">${rec.played ? rec.text : '—'}</div>
+      </div>
+      <div>
+        <span class="ft-label">Last game</span>
+        ${last ? resultLine(last) : '<div class="ft-none">No games played yet.</div>'}
+      </div>
+      <div>
+        <span class="ft-label">Next game</span>
+        ${next ? upcomingLine(next) : '<div class="ft-none">Nothing else on the schedule.</div>'}
+      </div>
+    </div>`;
+}
+
+function resultLine(g) {
+  const sc = FT.scoreOf(g);
+  const res = FT.resultOf(sc);
+  const opp = FT.versus(g);
+  return `
+    <div class="ft-line">
+      <span class="ft-result"><span class="${res}">${res}</span> ${sc.us}–${sc.them}</span>
+      ${sc.manual ? '<span class="ft-manual" title="Score entered by hand">●</span>' : ''}
+      ${FT.esc(opp)}
+      <div class="ft-when">${FT.esc(FT.dayLabel(g.game_date, { plain: true }))}</div>
+    </div>`;
+}
+
+function upcomingLine(g) {
+  const opp = FT.versus(g);
+  return `
+    <div class="ft-line">
+      ${FT.esc(opp)}
+      <div class="ft-when">${FT.esc(FT.dayLabel(g.game_date, { plain: true }))}
+        &middot; ${FT.esc(FT.timeLabel(g.starts_at))}</div>
+    </div>`;
+}
+
+/* ── The schedule table ────────────────────────────────────────────────── */
+
+function renderSchedule() {
+  const team = DATA.teamsById.get(state.uteam);
+  const games = team ? team.games.filter(g => g.sport_id === state.sport) : [];
+  const body = document.getElementById('scheduleBody');
+
+  document.getElementById('pageSub').textContent = team ? team.name : '';
+  renderSummary(team, games);
+
+  if (!games.length) {
+    body.innerHTML = '<div class="ft-empty">No games on the schedule for this team yet.</div>';
+    return;
+  }
+
+  const today = FT.todayKey();
+  const next = games.find(g => !FT.scoreOf(g) && g.game_date >= today);
+
+  body.innerHTML = `
+    <table class="ft-table">
+      <thead><tr>
+        <th>Date</th>
+        <th class="ctr" aria-label="Sport"></th>
+        <th>Level</th>
+        <th class="ft-hide-sm">Gender</th>
+        <th class="grow">Match-up</th>
+        <th>Time/Result</th>
+        <th class="ft-hide-sm">Location</th>
+      </tr></thead>
+      <tbody>${games.map(g => row(g, g === next)).join('')}</tbody>
+    </table>`;
+}
+
+function row(g, isNext) {
+  const sc = FT.scoreOf(g);
+  const res = FT.resultOf(sc);
+
+  const timeOrResult = sc
+    ? `<span class="ft-result"><span class="${res}">${res}</span> ${sc.us}–${sc.them}</span>${
+        sc.manual ? '<span class="ft-manual" title="Score entered by hand">●</span>' : ''}`
+    : FT.esc(FT.timeLabel(g.starts_at));
+
+  const status = (g.game_status && g.game_status !== 'Normal')
+    ? `<div class="ft-status">${FT.esc(g.game_status)}</div>` : '';
+
+  const site = g.site_name || '';
+  const sub = (g.sub_site_name && g.sub_site_name !== site) ? g.sub_site_name : '';
+  const venueText = sub ? `${site} — ${sub}` : site;
+
+  return `
+    <tr class="${isNext ? 'ft-next' : ''}">
+      <td class="ft-datecell"><b>${FT.esc(FT.shortDate(g.game_date))}</b>${FT.esc(weekday(g.game_date))}</td>
+      <td class="ctr"><span class="ft-sport-emoji" title="${FT.esc(g.sport.name)}">${g.sport.emoji}</span></td>
+      <td><span class="ft-level">${FT.esc(g.team.level || '')}</span></td>
+      <td class="ft-hide-sm"><span class="ft-level">${FT.esc(FT.genderLabel(g.gender_id, g.sport_id))}</span></td>
+      <td class="grow"><div class="ft-matchup">${matchup(g)}</div></td>
+      <td>${timeOrResult}${status}</td>
+      <td class="ft-hide-sm">
+        <div class="ft-venue-cell">${venueText ? `<span>${FT.esc(venueText)}</span>` : ''}${FT.venuePin(g)}</div>
+      </td>
+    </tr>`;
+}
+
+function weekday(key) {
+  const d = FT.parseLocal(key);
+  return d ? d.toLocaleDateString('en-US', { weekday: 'short' }) : '';
+}
+
+function matchup(g) {
+  if (g.is_meet) return FT.esc(FT.opponentLabel(g));
+  if (!g.opponent_name) return `<span class="ft-tba">${FT.esc(FT.opponentLabel(g))}</span>`;
+
+  const short = g.opponent_ball603;
+  const label = FT.opponentLabel(g);
+  // Arbiter's own school art, where the opponent has any.
+  const img = g.opponent_entity_id
+    ? `<img class="ft-oppimg" src="https://assets.arbitersports.com/logos/school/${encodeURIComponent(g.opponent_entity_id)}.jpg"
+            alt="" onerror="this.remove()">`
+    : (short ? `<img class="ft-oppimg" src="${FT.esc(FT.ball603Logo(short))}" alt="" onerror="this.remove()">` : '');
+
+  return `<span class="ft-ha${g.is_home ? ' home' : ''}">${g.is_home ? 'vs' : 'at'}</span>
+          ${img}${FT.teamLink(short, g.sport_id, label)}`;
+}
+
+/* ── Wiring ────────────────────────────────────────────────────────────── */
+
+document.getElementById('sportChips').addEventListener('click', (e) => {
+  const btn = e.target.closest('.ft-chip');
+  if (!btn) return;
+  FT.closeVenue();
+  state.sport = Number(btn.dataset.sport);
+  const varsity = DATA.varsityOf(state.sport);
+  state.uteam = varsity ? varsity.uteam : null;
+  syncUrl();
+  renderSportChips(); renderTeamPicker(); renderSchedule();
+});
+
+document.getElementById('teamPicker').addEventListener('change', (e) => {
+  FT.closeVenue();
+  state.uteam = Number(e.target.value);
+  syncUrl();
+  renderSchedule();
+});
+
+// A sport and team in the address bar, so a link to "the volleyball schedule"
+// opens on volleyball rather than on whatever plays next.
+function syncUrl() {
+  const q = new URLSearchParams({ sport: state.sport, team: state.uteam });
+  history.replaceState(null, '', location.pathname + '?' + q);
+}
+
+function openingState() {
+  const q = new URLSearchParams(location.search);
+  const wantSport = Number(q.get('sport'));
+  const wantTeam = Number(q.get('team'));
+
+  if (DATA.sports.includes(wantSport)) {
+    state.sport = wantSport;
+  } else {
+    // Whatever plays next, so the page is useful the moment it opens.
+    const today = FT.todayKey();
+    const next = DATA.games.find(g => g.game_date >= today);
+    state.sport = next ? next.sport_id : (DATA.sports[0] ?? null);
+  }
+
+  const inSport = DATA.teamsInSport(state.sport);
+  const picked = inSport.find(t => t.uteam === wantTeam);
+  const varsity = DATA.varsityOf(state.sport);
+  state.uteam = picked ? picked.uteam : (varsity ? varsity.uteam : (inSport[0] || {}).uteam);
+}
+
+FT.load().then(data => {
+  DATA = data;
+  if (!DATA.sports.length) {
+    document.getElementById('scheduleBody').innerHTML =
+      '<div class="ft-empty">No Tigers games have been published yet.</div>';
+    return;
+  }
+  openingState();
+  renderSportChips(); renderTeamPicker(); renderSchedule();
+}).catch(err => {
+  console.error('Tigers schedule failed to load:', err);
+  document.getElementById('scheduleBody').innerHTML =
+    '<div class="ft-empty">The schedule could not be loaded just now. Please refresh in a moment.</div>';
+});
+</script>
+</body>
+</html>

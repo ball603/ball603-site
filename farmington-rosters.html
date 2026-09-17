@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Rosters | Farmington Tigers</title>
+<meta name="description" content="Rosters for Farmington Tigers teams.">
+<link rel="icon" href="/logos/100px/Farmington.png">
+<link rel="stylesheet" href="/farmington.css">
+</head>
+<body>
+
+<div id="ft-header"></div>
+
+<main class="ft-wrap">
+  <div class="ft-pagehead"><h1>Rosters</h1><span class="ft-sub" id="pageSub"></span></div>
+  <div class="ft-controls" id="rosterChips"></div>
+  <div id="rosterBody"><div class="ft-loading">Loading rosters&hellip;</div></div>
+</main>
+
+<div id="ft-footer"></div>
+
+<script src="/farmington.js"></script>
+<script>
+'use strict';
+
+FT.renderHeader('rosters');
+FT.renderFooter();
+
+let LIST = [];
+let active = null;
+
+const sportOf = (r) => Object.entries(FT.SPORTS).find(([, s]) => s.ball603 === r.sport);
+
+function label(r) {
+  const entry = sportOf(r);
+  const name = entry ? entry[1].name : r.sport;
+  return `${r.gender || ''} ${name}`.trim();
+}
+
+/* Submitted rosters carry name / number / position / class. Older ones have
+   used grade and height, so each column takes the first field it finds and a
+   column nobody filled in is dropped rather than shown empty. */
+const val = (p, fields) => {
+  for (const f of fields) if (p && p[f] != null && String(p[f]).trim() !== '') return p[f];
+  return '';
+};
+
+function players(r) {
+  try {
+    const p = typeof r.players_json === 'string' ? JSON.parse(r.players_json) : (r.players_json || []);
+    return Array.isArray(p) ? p : [];
+  } catch (err) {
+    console.error('Roster JSON would not parse for submission ' + r.id, err);
+    return [];
+  }
+}
+
+function renderChips() {
+  document.getElementById('rosterChips').innerHTML = LIST.map(r => {
+    const entry = sportOf(r);
+    return `<button class="ft-chip${String(r.id) === String(active) ? ' on' : ''}" data-id="${r.id}">
+              <span class="ft-sport-emoji">${entry ? entry[1].emoji : '\u{1F3C6}'}</span>${FT.esc(label(r))}
+            </button>`;
+  }).join('');
+}
+
+function renderRoster() {
+  const r = LIST.find(x => String(x.id) === String(active));
+  const body = document.getElementById('rosterBody');
+  document.getElementById('pageSub').textContent = r ? `${label(r)} · ${r.season}` : '';
+  if (!r) { body.innerHTML = '<div class="ft-empty">Nothing to show.</div>'; return; }
+
+  const roster = players(r);
+  const cols = [
+    { h: '#',      fields: ['number', 'jersey', 'no'], cls: 'num' },
+    { h: 'Player', fields: ['name', 'player', 'full_name'], cls: 'grow' },
+    { h: 'Pos',    fields: ['position', 'pos'], cls: 'ctr' },
+    { h: 'Class',  fields: ['class', 'grade', 'year'], cls: 'ctr' },
+    { h: 'Ht',     fields: ['height', 'ht'], cls: 'ctr' }
+  ].filter(c => c.h === 'Player' || roster.some(p => val(p, c.fields) !== ''));
+
+  const coaches = [
+    r.head_coach ? `Head coach: <b>${FT.esc(r.head_coach)}</b>` : '',
+    r.assistant_coaches ? `Assistants: ${FT.esc(r.assistant_coaches)}` : ''
+  ].filter(Boolean).join(' &nbsp;&middot;&nbsp; ');
+
+  body.innerHTML = `
+    <div class="ft-card">
+      ${roster.length ? `
+        <table class="ft-table">
+          <thead><tr>${cols.map(c => `<th class="${c.cls}">${c.h}</th>`).join('')}</tr></thead>
+          <tbody>${roster.map(p => `<tr>${cols.map(c =>
+            `<td class="${c.cls}">${FT.esc(val(p, c.fields))}</td>`).join('')}</tr>`).join('')}</tbody>
+        </table>`
+      : '<div class="ft-empty">Roster on file, player list not available.</div>'}
+      ${coaches ? `<div class="ft-coaches">${coaches}</div>` : ''}
+    </div>
+    ${r.pdf_url ? `<p class="ft-note"><a href="${FT.esc(r.pdf_url)}" target="_blank" rel="noopener"
+        style="color:var(--ft-orange-dk);font-weight:600">Roster PDF &rarr;</a></p>` : ''}`;
+}
+
+document.getElementById('rosterChips').addEventListener('click', (e) => {
+  const btn = e.target.closest('.ft-chip');
+  if (!btn) return;
+  active = btn.dataset.id;
+  renderChips();
+  renderRoster();
+});
+
+FT.load().then(data => {
+  // Newest season first, then in the order the sports are played.
+  LIST = (data.rosters || []).slice().sort((a, b) => {
+    const sa = String(b.season).localeCompare(String(a.season));
+    if (sa) return sa;
+    const oa = (sportOf(a) || [0, { order: 99 }])[1].order;
+    const ob = (sportOf(b) || [0, { order: 99 }])[1].order;
+    return oa - ob;
+  });
+
+  if (!LIST.length) {
+    document.getElementById('rosterBody').innerHTML =
+      '<div class="ft-card"><div class="ft-empty">No Tigers rosters have been submitted yet.</div></div>';
+    return;
+  }
+  active = String(LIST[0].id);
+  renderChips();
+  renderRoster();
+}).catch(err => {
+  console.error('Tigers rosters failed to load:', err);
+  document.getElementById('rosterBody').innerHTML =
+    '<div class="ft-card"><div class="ft-empty">Rosters could not be loaded just now.</div></div>';
+});
+</script>
+</body>
+</html>
