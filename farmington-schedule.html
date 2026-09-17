@@ -125,7 +125,7 @@ function renderSchedule() {
         <th class="ft-hide-sm">Gender</th>
         <th class="grow">Match-up</th>
         <th>Time/Result</th>
-        <th class="ft-hide-sm">Location</th>
+        <th class="ctr">Location</th>
       </tr></thead>
       <tbody>${games.map(g => row(g, g === next)).join('')}</tbody>
     </table></div>`;
@@ -143,21 +143,15 @@ function row(g, isNext) {
   const status = (g.game_status && g.game_status !== 'Normal')
     ? `<div class="ft-status">${FT.esc(g.game_status)}</div>` : '';
 
-  const site = g.site_name || '';
-  const sub = (g.sub_site_name && g.sub_site_name !== site) ? g.sub_site_name : '';
-  const venueText = sub ? `${site} — ${sub}` : site;
-
   return `
     <tr class="${isNext ? 'ft-next' : ''}">
-      <td class="ft-datecell"><b>${FT.esc(FT.shortDate(g.game_date))}</b>${FT.esc(weekday(g.game_date))}</td>
+      <td class="ft-datecell"><span class="ft-dow">${FT.esc(weekday(g.game_date))},</span> <b>${FT.esc(FT.shortDate(g.game_date))}</b></td>
       <td class="ctr"><span class="ft-sport-emoji" title="${FT.esc(g.sport.name)}">${g.sport.emoji}</span></td>
       <td><span class="ft-level">${FT.esc(g.team.level || '')}</span></td>
       <td class="ft-hide-sm"><span class="ft-level">${FT.esc(FT.genderLabel(g.gender_id, g.sport_id))}</span></td>
       <td class="grow"><div class="ft-matchup">${matchup(g)}</div></td>
       <td>${timeOrResult}${status}</td>
-      <td class="ft-hide-sm">
-        <div class="ft-venue-cell">${venueText ? `<span>${FT.esc(venueText)}</span>` : ''}${FT.venuePin(g)}</div>
-      </td>
+      <td class="ctr"><div class="ft-venue-cell">${FT.venuePin(g)}</div></td>
     </tr>`;
 }
 
@@ -243,23 +237,18 @@ function openingState() {
   const wantSport = Number(q.get('sport'));
   const wantTeam = Number(q.get('team'));
 
-  if (new URLSearchParams(location.search).get('sport') === 'all') {
+  // All Sports is the front door. Opening on whichever sport played next meant
+  // the page could greet somebody with a Jr. High cross country meet, and even
+  // guessing well is a guess — the composite shows every team and the pills are
+  // right there to narrow it. A sport in the address bar still wins, so a link
+  // to "the volleyball schedule" opens on volleyball.
+  if (!DATA.sports.includes(wantSport)) {
     state.sport = 'all';
+    state.gender = null;
     state.uteam = null;
     return;
   }
-  if (DATA.sports.includes(wantSport)) {
-    state.sport = wantSport;
-  } else {
-    // Whatever plays next, so the page is useful the moment it opens — but
-    // preferring a sport that has a varsity side. Landing on Jr. High cross
-    // country because its meet happens to be the very next event is a worse
-    // front door than the varsity soccer game later the same day.
-    const today = FT.todayKey();
-    const upcoming = DATA.games.filter(g => g.game_date >= today);
-    const next = upcoming.find(g => DATA.hasVarsity(g.sport_id)) || upcoming[0];
-    state.sport = next ? next.sport_id : (DATA.sports[0] ?? null);
-  }
+  state.sport = wantSport;
 
   const inSport = DATA.teamsInSport(state.sport);
   const picked = inSport.find(t => t.uteam === wantTeam);
