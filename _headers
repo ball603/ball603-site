@@ -1,3 +1,13 @@
+# Allow caching of static assets (CSS, JS, images)
+/*.css
+  Cache-Control: public, max-age=3600
+
+/*.js
+  Cache-Control: public, max-age=3600
+
+/images/*
+  Cache-Control: public, max-age=86400
+
 # Prevent caching of HTML files - always check for fresh version
 /*.html
   Cache-Control: no-cache, no-store, must-revalidate
@@ -8,22 +18,19 @@
 /admin.html
   Cache-Control: no-cache, no-store, must-revalidate
 
-# Farmington Tigers shared files - always revalidate.
-# Every Tigers page loads exactly these two, so new HTML served against an
-# hour-old script breaks the whole site rather than one page. They are small;
-# revalidating costs a 304.
+# ── Overrides ──────────────────────────────────────────────────────────────
+# These two blocks must stay at the BOTTOM of the file. Where two rules match
+# the same request, Netlify serves the one it reaches last rather than the more
+# specific one. Sitting above /*.js and /*.css, as they were, they lost: the
+# live site was returning "public, max-age=3600" for farmington.js.
+#
+# That is what made the Tigers pages need a hard refresh. The HTML revalidates
+# on every visit, so a deploy reached the browser immediately — but the script
+# every Tigers page depends on did not. New page, hour-old script, and the
+# first function the page called that the old script had never heard of threw
+# before anything rendered. Both files are small; revalidating costs a 304.
 /farmington.css
   Cache-Control: no-cache, no-store, must-revalidate
 
 /farmington.js
   Cache-Control: no-cache, no-store, must-revalidate
-
-# Allow caching of static assets (CSS, JS, images)
-/*.css
-  Cache-Control: public, max-age=3600
-
-/*.js
-  Cache-Control: public, max-age=3600
-
-/images/*
-  Cache-Control: public, max-age=86400
