@@ -1025,8 +1025,9 @@
       <button class="tab" onclick="showTab('graphics', event)">&#x1F3A8; Graphics</button>
       <button class="tab" onclick="showTab('galleries', event)">&#x1F4F7; Galleries</button>
       <button class="tab" onclick="showTab('video', event)">&#x1F3AC; Video</button>
+      <button class="tab" onclick="showTab('tigerpage', event)">&#x1F42F; Tiger Page</button>
     </div>
-    
+
     <!-- Second Row of Tabs (Data Management) -->
     <div class="tabs tabs-row-2">
       <button class="tab" onclick="showTab('championships', event)">&#x1F3C6; Championships</button>
@@ -2962,6 +2963,30 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         display: none;
       }
     </style>
+    <!-- Tiger Page Panel — the three "For the fans, by the fans" stories on
+         farmingtontigersnh.com. The slot cards are built by initTigerPage()
+         rather than written out three times, so the toolbar and the editor
+         cannot drift apart between them. -->
+    <div class="panel" id="tigerPagePanel" style="display: none;">
+      <div class="toolbar" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div>
+          <h2 style="font-size:18px;margin:0 0 3px;">&#x1F42F; Tiger Page &mdash; For the fans, by the fans</h2>
+          <p style="margin:0;color:#666;font-size:13px;">
+            Up to three stories on the Farmington Tigers home page. Leave a slot empty or
+            switch Published off and it disappears from the site.
+          </p>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span id="tigerKeyState" style="font-size:12px;color:#666;"></span>
+          <button type="button" onclick="tigerForgetKey()"
+                  style="background:#eee;border:1px solid #ccc;padding:7px 12px;border-radius:5px;font-size:12px;cursor:pointer;">
+            Change key
+          </button>
+        </div>
+      </div>
+      <div id="tigerPageSlots"></div>
+    </div>
+
     <!-- Article Editor Panel -->
     <div class="panel editor-panel" id="editorPanel">
       <div class="editor-header">
@@ -9340,6 +9365,265 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       mgsSportChanged();
     }
 
+    /* ══════════════════════════════════════════════════════════════════════
+       TIGER PAGE — the three fan stories on farmingtontigersnh.com
+       ══════════════════════════════════════════════════════════════════════
+       Saves go through /.netlify/functions/farmington-story, which holds the
+       Supabase service key. The key that endpoint wants is asked for once a
+       session and kept in sessionStorage — deliberately NOT written into this
+       file, because this file is served to anyone who asks for it. */
+
+    const TIGER_SLOTS = [1, 2, 3];
+    let tigerEditors = {};
+    let tigerLoaded = false;
+
+    const tigerKey = () => sessionStorage.getItem('tiger_story_key') || '';
+
+    function tigerAskKey(force) {
+      if (!force && tigerKey()) return tigerKey();
+      const entered = prompt('Tiger Page key\n\n(Set as FARMINGTON_STORY_KEY in Netlify. Ask Claude if you have lost it.)');
+      if (entered) sessionStorage.setItem('tiger_story_key', entered.trim());
+      tigerKeyState();
+      return tigerKey();
+    }
+
+    function tigerForgetKey() {
+      sessionStorage.removeItem('tiger_story_key');
+      tigerKeyState();
+      tigerAskKey(true);
+      if (tigerKey()) tigerLoadStories();
+    }
+
+    function tigerKeyState() {
+      const el = document.getElementById('tigerKeyState');
+      if (el) el.textContent = tigerKey() ? 'Key set for this session' : 'No key set';
+    }
+
+    function tigerSlotMarkup(slot) {
+      return `
+        <div class="panel-section" style="background:#fff;border:1px solid #e3e3e3;border-radius:8px;padding:18px;margin-bottom:18px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;">
+            <h3 style="margin:0;font-size:15px;">Story ${slot}</h3>
+            <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer;">
+              <input type="checkbox" id="tigerPublished${slot}"> Published
+            </label>
+          </div>
+
+          <div class="form-group">
+            <label>Headline</label>
+            <input type="text" id="tigerHeadline${slot}" placeholder="Headline for story ${slot}" maxlength="200">
+          </div>
+
+          <div class="form-group">
+            <label>Lead image <span style="color:#888;font-weight:400;">(optional)</span></label>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+              <input type="file" accept="image/*" id="tigerImageFile${slot}"
+                     onchange="tigerUploadLead(${slot}, this)">
+              <span id="tigerImageState${slot}" style="font-size:12px;color:#666;"></span>
+              <button type="button" onclick="tigerClearLead(${slot})"
+                      style="background:#eee;border:1px solid #ccc;padding:5px 10px;border-radius:4px;font-size:12px;cursor:pointer;">
+                Remove
+              </button>
+            </div>
+            <input type="hidden" id="tigerImageUrl${slot}">
+            <img id="tigerImagePreview${slot}" alt="" style="display:none;max-width:280px;margin-top:9px;border-radius:6px;">
+          </div>
+
+          <div class="form-group">
+            <label>Story</label>
+            <div class="tiptap-editor-wrap">
+              <div class="tiptap-toolbar">
+                <span class="tt-formats">
+                  <select onchange="tigerHeading(${slot}, this.value); this.selectedIndex=0;"
+                          style="font-size:12px;padding:3px;">
+                    <option value="">Style</option>
+                    <option value="0">Normal</option>
+                    <option value="2">Heading</option>
+                    <option value="3">Subheading</option>
+                  </select>
+                </span>
+                <span class="tt-formats">
+                  <button type="button" onclick="tigerCmd(${slot},'toggleBold')" title="Bold"><strong>B</strong></button>
+                  <button type="button" onclick="tigerCmd(${slot},'toggleItalic')" title="Italic"><em>I</em></button>
+                  <button type="button" onclick="tigerCmd(${slot},'toggleUnderline')" title="Underline" style="text-decoration:underline;">U</button>
+                </span>
+                <span class="tt-formats">
+                  <button type="button" onclick="tigerCmd(${slot},'toggleOrderedList')" title="Numbered list">1.</button>
+                  <button type="button" onclick="tigerCmd(${slot},'toggleBulletList')" title="Bullet list">&#x2022;&#x2013;</button>
+                </span>
+                <span class="tt-formats">
+                  <button type="button" onclick="tigerLink(${slot})" title="Insert / edit link">&#x1F517;</button>
+                  <button type="button" onclick="tigerCmd(${slot},'toggleBlockquote')" title="Blockquote">&ldquo;&rdquo;</button>
+                </span>
+                <span class="tt-formats">
+                  <button type="button" onclick="document.getElementById('tigerInlineFile${slot}').click()" title="Insert image">&#x1F5BC;&#xFE0F;</button>
+                  <input type="file" accept="image/*" id="tigerInlineFile${slot}" style="display:none;"
+                         onchange="tigerInsertImage(${slot}, this)">
+                </span>
+              </div>
+              <div id="tigerContent${slot}"></div>
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:12px;margin-top:14px;">
+            <button type="button" onclick="tigerSave(${slot})"
+                    style="background:#F68220;color:#111;border:none;padding:11px 22px;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer;">
+              Save story ${slot}
+            </button>
+            <span id="tigerSaveState${slot}" style="font-size:13px;color:#666;"></span>
+          </div>
+        </div>`;
+    }
+
+    function initTigerPage() {
+      if (tigerLoaded) return;
+      tigerLoaded = true;
+
+      document.getElementById('tigerPageSlots').innerHTML =
+        TIGER_SLOTS.map(tigerSlotMarkup).join('');
+
+      // The module script defines this; if it has not finished loading yet,
+      // wait rather than silently leaving three empty boxes.
+      const build = () => {
+        if (!window.createTigerEditor) return setTimeout(build, 120);
+        for (const slot of TIGER_SLOTS) {
+          tigerEditors[slot] = window.createTigerEditor(
+            document.getElementById('tigerContent' + slot), 'Write story ' + slot + '...');
+        }
+        tigerKeyState();
+        if (tigerAskKey(false)) tigerLoadStories();
+      };
+      build();
+    }
+
+    async function tigerLoadStories() {
+      try {
+        const res = await fetch('/.netlify/functions/farmington-story?key=' + encodeURIComponent(tigerKey()));
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || res.status);
+
+        for (const story of (data.stories || [])) {
+          const slot = story.slot;
+          if (!TIGER_SLOTS.includes(slot)) continue;
+          document.getElementById('tigerHeadline' + slot).value = story.headline || '';
+          document.getElementById('tigerPublished' + slot).checked = !!story.published;
+          document.getElementById('tigerImageUrl' + slot).value = story.image_url || '';
+          tigerShowLead(slot, story.image_url);
+          tigerEditors[slot]?.commands.setContent(story.body || '');
+        }
+      } catch (err) {
+        console.error('Tiger stories would not load:', err);
+        alert('Could not load the Tiger Page stories: ' + err.message +
+              (String(err.message).includes('401') || /key/i.test(err.message)
+                ? '\n\nTry "Change key".' : ''));
+      }
+    }
+
+    function tigerShowLead(slot, url) {
+      const img = document.getElementById('tigerImagePreview' + slot);
+      if (!img) return;
+      if (url) { img.src = url; img.style.display = 'block'; }
+      else { img.removeAttribute('src'); img.style.display = 'none'; }
+    }
+
+    async function tigerUploadLead(slot, input) {
+      const file = input.files?.[0];
+      if (!file) return;
+      const state = document.getElementById('tigerImageState' + slot);
+      state.textContent = 'Uploading...';
+      try {
+        // The CMS's own uploader, so Tiger Page images land in the same bucket
+        // as everything else rather than somewhere only this page knows about.
+        const url = await uploadImageToSupabase(file, 'farmington');
+        document.getElementById('tigerImageUrl' + slot).value = url;
+        tigerShowLead(slot, url);
+        state.textContent = 'Uploaded';
+      } catch (err) {
+        console.error(err);
+        state.textContent = 'Upload failed';
+        alert('Image upload failed: ' + err.message);
+      }
+      input.value = '';
+    }
+
+    function tigerClearLead(slot) {
+      document.getElementById('tigerImageUrl' + slot).value = '';
+      document.getElementById('tigerImageState' + slot).textContent = '';
+      tigerShowLead(slot, null);
+    }
+
+    async function tigerInsertImage(slot, input) {
+      const file = input.files?.[0];
+      if (!file) return;
+      const editor = tigerEditors[slot];
+      try {
+        const url = await uploadImageToSupabase(file, 'farmington');
+        editor?.chain().focus().insertContent({
+          type: 'articleImage',
+          attrs: { url, caption: '', link: '', newWindow: false, align: 'center', size: 'full' }
+        }).run();
+      } catch (err) {
+        console.error(err);
+        alert('Image upload failed: ' + err.message);
+      }
+      input.value = '';
+    }
+
+    function tigerCmd(slot, cmd) {
+      tigerEditors[slot]?.chain().focus()[cmd]().run();
+    }
+
+    function tigerHeading(slot, level) {
+      const editor = tigerEditors[slot];
+      if (!editor || level === '') return;
+      const n = Number(level);
+      if (n === 0) editor.chain().focus().setParagraph().run();
+      else editor.chain().focus().toggleHeading({ level: n }).run();
+    }
+
+    function tigerLink(slot) {
+      const editor = tigerEditors[slot];
+      if (!editor) return;
+      const existing = editor.getAttributes('link').href || '';
+      const url = prompt('Link URL (leave empty to remove)', existing);
+      if (url === null) return;
+      if (!url.trim()) { editor.chain().focus().unsetLink().run(); return; }
+      editor.chain().focus().extendMarkRange('link').setLink({ href: url.trim() }).run();
+    }
+
+    async function tigerSave(slot) {
+      const key = tigerAskKey(false);
+      if (!key) return;
+      const state = document.getElementById('tigerSaveState' + slot);
+      state.textContent = 'Saving...';
+      try {
+        const res = await fetch('/.netlify/functions/farmington-story', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            key,
+            slot,
+            headline: document.getElementById('tigerHeadline' + slot).value,
+            body: tigerEditors[slot]?.getHTML() || '',
+            image_url: document.getElementById('tigerImageUrl' + slot).value,
+            published: document.getElementById('tigerPublished' + slot).checked
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || res.status);
+
+        // The endpoint refuses to publish an empty slot, so reflect what it
+        // actually did rather than what the checkbox says.
+        document.getElementById('tigerPublished' + slot).checked = !!data.published;
+        state.textContent = data.note || (data.published ? 'Saved and live' : 'Saved as a draft');
+        setTimeout(() => { state.textContent = ''; }, 6000);
+      } catch (err) {
+        console.error(err);
+        state.textContent = 'Save failed';
+        alert('Could not save: ' + err.message);
+      }
+    }
+
     function showTab(tab, evt) {
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
       const evtTarget = evt?.target || (typeof event !== 'undefined' ? event?.target : null);
@@ -9357,6 +9641,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('graphicsPanel').style.display = tab === 'graphics' ? 'block' : 'none';
       document.getElementById('galleriesPanel').style.display = tab === 'galleries' ? 'block' : 'none';
       document.getElementById('videoPanel').style.display = tab === 'video' ? 'block' : 'none';
+      document.getElementById('tigerPagePanel').style.display = tab === 'tigerpage' ? 'block' : 'none';
+      if (tab === 'tigerpage') initTigerPage();
       document.getElementById('settingsPanel').style.display = tab === 'settings' ? 'block' : 'none';
       if (tab === 'settings') initDeleteGamesDate();
       document.getElementById('boardPanel').style.display = tab === 'board' ? 'block' : 'none';
@@ -30243,6 +30529,37 @@ Respond ONLY with valid JSON:
         onSelectionUpdate: ({ editor }) => updateTiptapToolbar(editor),
         editorProps: {
           attributes: { 'data-placeholder': 'Write your article...' },
+        },
+        content: '',
+      });
+    };
+
+    /* ── A second kind of editor, for the Tiger Page ──────────────────────────
+       The article editor above is a singleton on #articleContent. The Tiger
+       Page needs three at once, so this hands back an instance rather than
+       parking one on window. Same extensions deliberately: a fan story should
+       behave exactly like an article in the box, including the image node. */
+    window.createTigerEditor = function (element, placeholder) {
+      return new Editor({
+        element,
+        extensions: [
+          StarterKit.configure({
+            hardBreak: false,
+            heading:   { levels: [2, 3] },
+            codeBlock: false,
+          }),
+          HardBreak,
+          SwappedEnter,
+          SmartPaste,
+          Link.configure({
+            openOnClick:    false,
+            HTMLAttributes: { rel: 'noopener' },
+          }),
+          Underline,
+          ArticleImageNode,
+        ],
+        editorProps: {
+          attributes: { 'data-placeholder': placeholder || 'Write the story...' },
         },
         content: '',
       });

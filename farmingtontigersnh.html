@@ -22,15 +22,10 @@
     <section>
       <div class="ft-card">
         <div class="ft-card-head">
-          <h2>Tiger <span class="ft-accent">News</span></h2>
-          <a class="ft-more" href="/farmingtontigersnh/news">All news &rarr;</a>
+          <h2>For the fans, <span class="ft-accent">by the fans</span></h2>
         </div>
-        <div class="ft-card-body" id="newsBody">
-          <div class="ft-placeholder">
-            Tigers news lives on Facebook for now.<br>
-            <a href="https://www.facebook.com/FarmingtonTigersNH/" target="_blank" rel="noopener">
-              Follow the Tigers on Facebook &rarr;</a>
-          </div>
+        <div class="ft-card-body" id="storyBody">
+          <div class="ft-loading">Loading&hellip;</div>
         </div>
       </div>
     </section>
@@ -80,6 +75,71 @@ FT.renderFooter();
 
 let DATA = null;
 let standKey = null;
+
+/* ── For the fans, by the fans ─────────────────────────────────────────── */
+/* Up to three stories written in the Ball603 CMS. The rows come back already
+   filtered — the read policy only returns published ones — so an empty result
+   is the ordinary state between stories rather than a failure.
+
+   The body is HTML and goes in as HTML, which is the whole point of giving KJ
+   a proper editor — and it is cleaned twice, on the way in by the save function
+   and again here. That is not belt and braces for its own sake: the save
+   function is only one of the ways a row could get into this table, and this is
+   the last point before the markup reaches somebody's browser. */
+
+/* A <template> is inert — assigning to its innerHTML parses the markup without
+   loading images or running anything — so the dangerous parts can be taken out
+   before the result goes anywhere near the page. Parsing rather than pattern
+   matching, because an attribute can be written more ways than a regex can
+   remember. */
+const BAD_TAGS = new Set(['SCRIPT', 'STYLE', 'IFRAME', 'OBJECT', 'EMBED', 'FORM', 'LINK', 'META', 'BASE']);
+
+function safeHtml(html) {
+  const tpl = document.createElement('template');
+  tpl.innerHTML = String(html || '');
+
+  (function walk(node) {
+    for (const el of [...node.children]) {
+      if (BAD_TAGS.has(el.tagName)) { el.remove(); continue; }
+      for (const attr of [...el.attributes]) {
+        const name = attr.name.toLowerCase();
+        if (name.startsWith('on')) el.removeAttribute(attr.name);
+        else if (/^(href|src|xlink:href|formaction)$/.test(name) &&
+                 /^\s*(javascript|data(?!:image\/(png|jpe?g|gif|webp|svg\+xml);)|vbscript):/i.test(attr.value)) {
+          el.removeAttribute(attr.name);
+        }
+      }
+      walk(el);
+    }
+  })(tpl.content);
+
+  return tpl.innerHTML;
+}
+
+function renderStories(rows) {
+  const el = document.getElementById('storyBody');
+  const live = (rows || [])
+    .filter(s => s.published && (s.headline || s.body || s.image_url))
+    .sort((a, b) => a.slot - b.slot);
+
+  if (!live.length) {
+    el.innerHTML = `
+      <div class="ft-placeholder">
+        Nothing from the fans just yet.<br>
+        <a href="https://www.facebook.com/FarmingtonTigersNH/" target="_blank" rel="noopener">
+          Follow the Tigers on Facebook &rarr;</a>
+      </div>`;
+    return;
+  }
+
+  el.innerHTML = live.map(s => `
+    <article class="ft-story">
+      ${s.headline ? `<h3>${FT.esc(s.headline)}</h3>` : ''}
+      ${s.image_url ? `<img class="ft-story-lead" src="${FT.esc(s.image_url)}" alt=""
+                            loading="lazy" onerror="this.remove()">` : ''}
+      ${s.body ? `<div class="ft-story-body">${safeHtml(s.body)}</div>` : ''}
+    </article>`).join('');
+}
 
 /* ── Recent Results and Upcoming Events ────────────────────────────────── */
 /* A calendar week was the wrong unit: a Tuesday visitor in a week whose games
@@ -279,6 +339,17 @@ document.getElementById('standChips').addEventListener('click', (e) => {
 });
 
 /* ── Boot ──────────────────────────────────────────────────────────────── */
+
+// The stories load on their own rather than through FT.load(): they are the
+// only thing on the site that does not come from the schedule, and a Supabase
+// hiccup on one should not take the other down with it.
+FT.sb('farmington_stories?select=*&order=slot')
+  .then(renderStories)
+  .catch(err => {
+    console.error('Tigers stories failed to load:', err);
+    document.getElementById('storyBody').innerHTML =
+      '<div class="ft-empty">Stories could not be loaded just now.</div>';
+  });
 
 FT.load().then(data => {
   DATA = data;
