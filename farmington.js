@@ -32,6 +32,19 @@ const SPORTS = {
 const GENDERS = { 1: 'Boys', 2: 'Girls', 3: 'Coed' };
 const genderLabel = (g, sportId) => (sportId === 50 ? 'Boys' : (GENDERS[g] || ''));
 
+/* Sports that only ever have the one gender, so naming it says nothing. There
+   is no girls football, soccer or golf to tell the boys' side apart from, and
+   no girls baseball or boys softball either — "Varsity Soccer" is the whole
+   name. Volleyball is deliberately not here: Farmington has fielded a boys
+   season before and will again, so "Girls Varsity Volleyball" earns its prefix
+   even in a year when it is the only volleyball on the site.
+
+   Distinct from genderLabel, which still answers "which gender is this row" for
+   the Ball603 lookups that key on it. This one is only ever for display. */
+const ONE_GENDER = new Set([50, 25, 29, 3, 51]);  // soccer, football, golf, baseball, softball
+const genderPrefix = (g, sportId) =>
+  (ONE_GENDER.has(Number(sportId)) ? '' : genderLabel(g, sportId));
+
 /* ── Escaping ───────────────────────────────────────────────────────────── */
 
 const esc = (s) => String(s == null ? '' : s)
@@ -174,6 +187,14 @@ function divisionLabel(name) {
 const ball603Covers = (sportId) => !!(SPORTS[sportId] && SPORTS[sportId].ball603);
 const ball603Slug = (shortname) => String(shortname).toLowerCase().replace(/[^a-z0-9]/g, '');
 const ball603Logo = (shortname) => `/logos/100px/${String(shortname).replace(/[^A-Za-z0-9]/g, '')}.png`;
+
+/* The crest to show beside a standings row. Arbiter hands back whatever logo
+   the co-op entry carries, which for soccer is Nute's — Farmington and Nute
+   field one team and Arbiter files it under Nute's mark. On a Farmington site
+   the Tigers wear their own, whoever they co-op with, so our own rows are
+   forced to the Farmington crest and everybody else keeps Arbiter's. */
+const schoolLogo = (row) =>
+  (row && row.is_farmington ? ball603Logo('Farmington') : ((row && row.school_logo_url) || ''));
 
 // A team name is a link only when Ball603 actually covers that sport. Sending a
 // soccer visitor to a Ball603 page with no soccer on it would be a dead end.
@@ -445,10 +466,10 @@ function venuePin(game) {
 /* ── Exported ───────────────────────────────────────────────────────────── */
 
 window.FT = {
-  SPORTS, GENDERS, genderLabel,
+  SPORTS, GENDERS, genderLabel, genderPrefix,
   esc, parseLocal, dateKey, todayKey, dayLabel, shortDate, timeLabel, weekWindow,
   scoreOf, resultOf, recordOf, opponentLabel, versus, divisionLabel,
-  ball603Covers, ball603Slug, ball603Logo, teamLink,
+  ball603Covers, ball603Slug, ball603Logo, schoolLogo, teamLink,
   load, sb, renderHeader, renderFooter, venuePin, closeVenue, pills, streakBadge
 };
 

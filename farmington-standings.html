@@ -117,12 +117,14 @@ function buildSports() {
   const out = [...bySport.values()].sort((a, b) => a.order - b.order);
 
   // "Girls Volleyball" is noise while girls volleyball is the only volleyball
-  // there is. The prefix returns on its own the moment a sport has two.
+  // there is. The prefix returns on its own the moment a sport has two — and
+  // genderPrefix keeps it off football, soccer and golf permanently, where
+  // there is no second gender for it to distinguish.
   const perSport = new Map();
   for (const s of out) perSport.set(s.sportId, (perSport.get(s.sportId) || 0) + 1);
   for (const s of out) {
     s.label = perSport.get(s.sportId) > 1
-      ? `${FT.genderLabel(s.genderId, s.sportId)} ${s.name}`.trim()
+      ? `${FT.genderPrefix(s.genderId, s.sportId)} ${s.name}`.trim()
       : s.name;
   }
   return out;
@@ -244,7 +246,13 @@ async function renderTable() {
   }
 
   const [stats, points] = await Promise.all([ball603Extras(sport), ball603Points(sport)]);
+  // Two different questions. `gender` is which side of a sport this table is,
+  // and Ball603's games and standings are keyed on it whether or not the site
+  // ever prints it. The heading is what a reader sees, and football, soccer and
+  // golf have no second gender to be told apart from.
   const gender = FT.genderLabel(sport.genderId, sport.sportId);
+  const shown = FT.genderPrefix(sport.genderId, sport.sportId);
+  const title = `${shown ? shown + ' ' : ''}Varsity ${sport.name}`;
   const full = !!stats;
   const playoff = playoffLine(sport, division);
 
@@ -304,7 +312,7 @@ async function renderTable() {
   body.innerHTML = `
     <div class="ft-card">
       <div class="ft-cardbar">
-        <h2>${FT.esc(gender)} Varsity ${FT.esc(sport.name)} &ndash; ${FT.esc(FT.divisionLabel(division.name))}</h2>
+        <h2>${FT.esc(title)} &ndash; ${FT.esc(FT.divisionLabel(division.name))}</h2>
         ${playoff.html}
       </div>
       <table class="ft-table"><thead>${head}</thead><tbody>${rows}</tbody></table>
@@ -313,8 +321,9 @@ async function renderTable() {
 
 function teamCell(row) {
   const label = row.ball603_shortname || row.team_name;
-  const img = row.school_logo_url
-    ? `<img src="${FT.esc(row.school_logo_url)}" alt="" onerror="this.remove()">` : '';
+  const logo = FT.schoolLogo(row);
+  const img = logo
+    ? `<img src="${FT.esc(logo)}" alt="" onerror="this.remove()">` : '';
   return `<span class="ft-logo-cell">${img}${FT.teamLink(row.ball603_shortname, row.sport_id, label)}</span>`;
 }
 
