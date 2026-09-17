@@ -218,30 +218,17 @@ function buildGameRow(event, team, ball603Names) {
   };
 }
 
-// ── Handler ─────────────────────────────────────────────────────────────────
+// ── The job ─────────────────────────────────────────────────────────────────
+// Exported so run-farmington-sync.mjs can fire it by hand. Netlify treats a
+// function carrying a schedule as scheduled-only and answers 403 to any HTTP
+// request for it, so the manual door has to be a separate, unscheduled function
+// — the same split publish-scheduled-articles / run-publish-scheduled uses.
 
-export const handler = async (event) => {
-  const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Content-Type': 'application/json'
-  };
-
-  if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
-
-  // Scheduled runs arrive with no query string; manual runs need the key.
-  const params = event.queryStringParameters || {};
-  const isScheduled = Object.keys(params).length === 0;
-  const expectedKey = process.env.SYNC_SECRET_KEY || 'ball603-sync';
-
-  if (!isScheduled && params.key !== expectedKey) {
-    return { statusCode: 401, headers, body: JSON.stringify({ error: 'Unauthorized. Provide ?key=YOUR_SYNC_KEY' }) };
-  }
+export async function runFarmingtonSync({ dryRun = false } = {}) {
   if (!SUPABASE_SERVICE_KEY) {
-    return { statusCode: 500, headers, body: JSON.stringify({ error: 'SUPABASE_SERVICE_ROLE_KEY not configured' }) };
+    return { statusCode: 500, body: { error: 'SUPABASE_SERVICE_ROLE_KEY not configured' } };
   }
 
-  const dryRun = !isScheduled && (params.dry === '1' || params.dry === 'true');
   const started = Date.now();
 
   try {
@@ -322,7 +309,7 @@ export const handler = async (event) => {
       report.success = false;
       report.error = 'No events returned for any active team — nothing written';
       console.error('Farmington sync:', JSON.stringify(report));
-      return { statusCode: 502, headers, body: JSON.stringify(report) };
+      return { statusCode: 502, body: report };
     }
 
     if (!dryRun) {
@@ -337,10 +324,18 @@ export const handler = async (event) => {
 
     report.elapsedMs = Date.now() - started;
     console.log('Farmington sync:', JSON.stringify(report));
-    return { statusCode: 200, headers, body: JSON.stringify(report) };
+    return { statusCode: 200, body: report };
 
   } catch (error) {
     console.error('Farmington sync failed:', error);
-    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Sync failed', details: error.message }) };
+    return { statusCode: 500, body: { error: 'Sync failed', details: error.message } };
   }
+}
+
+// ── Scheduled entry point ───────────────────────────────────────────────────
+// Fired by the schedule in netlify.toml. Nothing else can reach this.
+
+export const handler = async () => {
+  const { statusCode, body } = await runFarmingtonSync({ dryRun: false });
+  return { statusCode, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
 };
