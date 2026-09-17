@@ -245,12 +245,16 @@ async function childAlbums(nodeId, depth = 0) {
 const FOLDER_RE = /\/Sports\/FHS(\/|$)/i;
 const underFolder = (a) => FOLDER_RE.test(a.UrlPath || '') || FOLDER_RE.test(a.WebUri || '');
 
-// Turn lean !albumlist entries into real albums, one request each. Only needed
-// if the account-wide listing cannot be used, and capped so a fallback cannot
-// run the function out of time.
-async function hydrate(lean, limit = 80) {
+// Turn lean !albumlist entries into real albums, one request each. Bounded by
+// the clock rather than a count: how long a SmugMug request takes is not ours
+// to decide, and this runs inside the games sync's time budget, not its own.
+// Whatever does not fit is left for the next run, which is why the caller only
+// ever passes it galleries it does not already hold.
+async function hydrate(lean, deadline) {
   const out = [];
-  for (const item of lean.slice(0, limit)) {
+  let ranOut = false;
+  for (const item of lean) {
+    if (Date.now() > deadline) { ranOut = true; break; }
     try {
       const r = await smugmug(`${item.Uri}?_expand=HighlightImage`);
       const album = r?.Response?.Album;
@@ -262,82 +266,60 @@ async function hydrate(lean, limit = 80) {
     } catch (err) {
       console.warn(`Hydrating ${item.Uri} failed:`, err.message);
     }
-    await new Promise(r => setTimeout(r, 40));
   }
+  out._ranOut = ranOut;
   return out;
 }
 
-/* Several ways into the same folder, tried in turn, with what each one did
-   reported — because guessing at this has now cost two runs.
+/* KJ's side of the sync, in two steps and deliberately not one.
 
-   The account's own !albums listing leads, and the folder is applied as a path
-   filter on top. It is the same call the Ball603 side makes, which returned all
-   116 albums complete with dates and covers, so it is the shape the rest of this
-   file is written against.
+   !albumlist is the only endpoint that reaches the FHS folder, and it is cheap:
+   two requests for all 127 galleries. But it answers with a nav tree — Name,
+   Uri and UrlPath, no date to sort on, no address to link to, no cover — so
+   each entry still has to be fetched to become an album.
 
-   !albumlist is kept below it but no longer trusted on its own: it does reach
-   the folder, and it returned all 127 galleries, but as a nav tree — Name, Uri
-   and UrlPath, with no date to sort on, no address to link to, no image count
-   and no cover. Useful as a list of what exists, which is why the fallback
-   hydrates each entry into a real album rather than writing what it was handed.
+   Fetching all 127 every run is what broke it: scanning the whole account was
+   worse still, and the job stopped returning at all. So the listing is read
+   fresh every time, and only galleries we do not already hold are fetched —
+   steady state is two requests, and the first few runs work through the backlog
+   a bounded chunk at a time.
 
-   An empty result counts as a failure on purpose: a route that answers with
-   nothing is indistinguishable from one that does not work. */
-async function kjAlbums(report) {
-  const routes = [
-    [`user!albums under ${KJ_FOLDER}`, async () => {
-      const all = await pagedAlbums(`/api/v2/user/${KJ_NICK}!albums`);
-      report.scanned = all.length;
-      return all.filter(underFolder);
-    }],
-    ['folder!albumlist then hydrate', async () => {
-      const lean = await pagedAlbums(`/api/v2/folder/user/${KJ_NICK}${KJ_FOLDER}!albumlist`);
-      report.listed = lean.length;
-      return hydrate(lean);
-    }],
-    ['node!children walk', () => childAlbums(KJ_NODE)],
-    ['urlpathlookup then !albumlist', async () => {
-      const look = await smugmug(`/api/v2/user/${KJ_NICK}!urlpathlookup?urlpath=${KJ_FOLDER}`);
-      const id = look?.Response?.Node?.NodeID;
-      if (!id) throw new Error('lookup returned no node');
-      return hydrate(await pagedAlbums(`/api/v2/node/${id}!albumlist`));
-    }]
-  ];
+   `have` is the rows already in Supabase. Reusing them is not a cache in the
+   dangerous sense: SmugMug album keys are stable, so a row we hold is the same
+   gallery, and the folder listing is still what decides which galleries exist
+   at all — one that disappears is still pruned. */
+async function kjAlbums(report, have, deadline) {
+  const lean = await pagedAlbums(`/api/v2/folder/user/${KJ_NICK}${KJ_FOLDER}!albumlist`);
+  report.listed = lean.length;
+  if (!lean.length) throw new Error(`No galleries listed under ${KJ_FOLDER}`);
 
-  const tried = [];
-  for (const [label, run] of routes) {
-    try {
-      const albums = await run();
-      // Not "did it return albums" but "did it return albums worth showing".
-      // The nav-tree route passed the first question and failed the second in
-      // silence: 127 galleries with no date and no address is 127 cards that
-      // cannot be sorted or clicked.
-      const good = albums.filter(a => a.WebUri && (a.Date || a.DateAdded || a.DateModified)).length;
-      tried.push({ route: label, albums: albums.length, usable: good });
-
-      if (albums.length && good >= albums.length / 2) {
-        report.route = label;
-        report.tried = tried;
-        // What the first album actually looks like. Endpoints differ in which
-        // fields they bother to send, and guessing at that is what cost a run.
-        report.sampleFields = Object.keys(albums[0]).sort();
-        report.sampleKey = albums[0].AlbumKey || albums[0].Uri || null;
-        return albums;
-      }
-    } catch (err) {
-      tried.push({ route: label, error: String(err.message).slice(0, 160) });
-    }
+  const known = [], missing = [];
+  for (const item of lean) {
+    const key = albumKeyOf(item);
+    const row = key && have.get(key);
+    // A row we hold but that never got a date or a link is not done yet.
+    if (row && row.url && row.album_date) known.push(row); else missing.push(item);
   }
-  report.tried = tried;
-  throw new Error('No route to ' + KJ_FOLDER + ' returned usable albums');
+
+  const fetched = await hydrate(missing, deadline);
+  report.reused = known.length;
+  report.fetched = fetched.length;
+  report.pending = missing.length - fetched.length;
+  if (fetched._ranOut) report.note = 'Ran out of time; the rest arrive on the next run';
+  if (fetched.length) {
+    report.sampleFields = Object.keys(fetched[0]).sort();
+  }
+
+  return { known, fetched };
 }
 
-// Where HighlightImage came back empty. One call each, so it is capped: the
-// albums that miss out get their cover on the next run rather than pushing this
-// one past its time limit.
-async function fillThumbnails(rows, limit) {
+// Where HighlightImage came back empty. One call each, so it runs on the clock
+// as well as a count: the albums that miss out get their cover on the next run
+// rather than pushing this one past its time limit.
+async function fillThumbnails(rows, limit, deadline) {
   let filled = 0;
   for (const row of rows) {
+    if (Date.now() > deadline) break;
     if (row.thumbnail_url || filled >= limit) continue;
     try {
       const r = await smugmug(`/api/v2/album/${encodeURIComponent(row.album_key)}!images?count=1&_expand=ImageSizes`);
@@ -385,7 +367,11 @@ const toRow = (a, source, sport) => ({
 
 /* ── The sync ────────────────────────────────────────────────────────────── */
 
-export async function runPhotoSync({ dryRun = false } = {}) {
+/* budgetMs is a promise about how long this will take, not a guess. It runs
+   inside the games sync, which already spends twenty seconds of its own, and
+   the whole job has to come back before Netlify gives up on it — which it did
+   not, the once, when this went and read an entire SmugMug account. */
+export async function runPhotoSync({ dryRun = false, budgetMs = 14000 } = {}) {
   if (!API_KEY) {
     return { statusCode: 200, body: { success: false, skipped: true, error: 'SMUGMUG_API_KEY not configured' } };
   }
@@ -394,17 +380,34 @@ export async function runPhotoSync({ dryRun = false } = {}) {
   }
 
   const started = Date.now();
-  const report = { success: true, dryRun, sources: {}, rows: 0, written: 0, thumbnails: 0, elapsedMs: 0 };
+  const deadline = started + budgetMs;
+  const report = { success: true, dryRun, budgetMs, sources: {}, rows: 0, written: 0, thumbnails: 0, elapsedMs: 0 };
   const rows = [];
+
+  // What we already hold. Galleries in here cost nothing to keep — the folder
+  // listing still decides which ones exist, so this only saves the fetching.
+  let have = new Map();
+  try {
+    const existing = await supabase('farmington_albums?select=*');
+    have = new Map((existing || []).map(r => [r.album_key, r]));
+    report.alreadyHeld = have.size;
+  } catch (err) {
+    console.warn('Could not read existing galleries:', err.message);
+  }
 
   // Each source is tried on its own. A failure on one is reported and the other
   // still writes — losing KJ's galleries should not also lose Ball603's.
   const kjReport = {};
   report.sources.kjcardinal = kjReport;
   try {
-    const kj = await kjAlbums(kjReport);
-    for (const a of kj) rows.push(toRow(a, 'kjcardinal', sportFromName(a.Name) || sportFromName(a.WebUri)));
-    kjReport.albums = kj.length;
+    // Two thirds of the budget to KJ's side, because it is the one that fetches
+    // per gallery. Ball603's is a flat scan whose cost we do not control.
+    const { known, fetched } = await kjAlbums(kjReport, have, started + budgetMs * 0.66);
+    for (const r of known) rows.push({ ...r, synced_at: new Date().toISOString() });
+    for (const a of fetched) {
+      rows.push(toRow(a, 'kjcardinal', sportFromName(a.Name) || sportFromName(a.WebUri)));
+    }
+    kjReport.albums = known.length + fetched.length;
   } catch (err) {
     console.error('kjcardinal galleries failed:', err.message);
     kjReport.error = err.message;
@@ -466,7 +469,9 @@ export async function runPhotoSync({ dryRun = false } = {}) {
     };
   }
 
-  report.thumbnails = await fillThumbnails(unique, dryRun ? 3 : 60);
+  // Covers, for anything the bulk fetch did not supply, with whatever is left
+  // of the budget. Ball603's side gets them all for free, so this is KJ's.
+  report.thumbnails = await fillThumbnails(unique, dryRun ? 3 : 200, deadline);
   report.stillNoThumbnail = unique.filter(r => !r.thumbnail_url).length;
 
   if (!dryRun) {
@@ -479,13 +484,29 @@ export async function runPhotoSync({ dryRun = false } = {}) {
     }
     report.written = unique.length;
 
-    // An album KJ deletes or makes private on SmugMug has to leave the table
-    // too, or the page keeps a card pointing at a 404. Guarded by having
-    // written something, so an outage cannot empty the gallery.
-    const keys = unique.map(r => `"${r.album_key}"`).join(',');
-    const gone = await supabase(`farmington_albums?album_key=not.in.(${keys})`,
-      { method: 'DELETE', headers: { Prefer: 'return=representation' } });
-    report.removed = (gone || []).length;
+    /* A gallery deleted or made private on SmugMug has to leave the table, or
+       the page keeps a card pointing at a 404. Three conditions before anything
+       is deleted, because this is the one irreversible thing the sync does:
+
+         * one account at a time, so a SmugMug outage on KJ's side cannot take
+           Ball603's 116 galleries with it;
+         * never for an account that errored, for the same reason;
+         * and never for an account that did not finish. KJ's side works through
+           a backlog over several runs, and the galleries it has not reached yet
+           are absent from this run's rows without being gone from SmugMug. */
+    report.removed = 0;
+    for (const src of ['kjcardinal', 'ball603']) {
+      const mine = unique.filter(r => r.source === src);
+      const src_ = report.sources[src] || {};
+      if (src_.error || !mine.length) { report.prune ??= {}; report.prune[src] = 'skipped'; continue; }
+      if (src === 'kjcardinal' && kjReport.pending) { report.prune ??= {}; report.prune[src] = 'incomplete'; continue; }
+
+      const keys = mine.map(r => `"${r.album_key}"`).join(',');
+      const gone = await supabase(
+        `farmington_albums?source=eq.${src}&album_key=not.in.(${keys})`,
+        { method: 'DELETE', headers: { Prefer: 'return=representation' } });
+      report.removed += (gone || []).length;
+    }
   }
 
   report.elapsedMs = Date.now() - started;
