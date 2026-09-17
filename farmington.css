@@ -476,11 +476,11 @@ tr.ft-next td{background:var(--ft-orange-soft)}
 .ft-story{padding:0 0 20px;border-bottom:1px solid var(--ft-line-2);margin-bottom:20px}
 .ft-story:last-child{border-bottom:0;padding-bottom:0;margin-bottom:0}
 .ft-story > h3{margin:0 0 10px;font-size:20px;line-height:1.25;font-weight:750;letter-spacing:-.2px}
-/* Capped, because the lead image is whatever came off a phone: a portrait shot
-   at full width would push the story itself off the screen. */
+/* Never cropped. A portrait shot is shown whole and shrinks to fit the height
+   cap rather than being cut to a shape it was not taken in. */
 .ft-story-lead{
-  width:100%;height:auto;max-height:380px;object-fit:cover;object-position:center;
-  border-radius:9px;display:block;margin:0 0 14px;background:var(--ft-line-2);
+  max-width:100%;max-height:560px;width:auto;height:auto;
+  border-radius:9px;display:block;margin:0 auto 14px;
 }
 .ft-story-body{font-size:15px;line-height:1.65;color:var(--ft-ink)}
 .ft-story-body p{margin:0 0 13px}
@@ -495,15 +495,53 @@ tr.ft-next td{background:var(--ft-orange-soft)}
   color:var(--ft-ink-2);font-style:italic;
 }
 .ft-story-body img{max-width:100%;height:auto;border-radius:8px;display:block}
-/* The CMS's own image wrapper, which carries alignment and size classes. */
-.ft-story-body .article-image{margin:14px 0}
-.ft-story-body .article-image img{margin:0 auto}
-.ft-story-body .article-image.align-left{text-align:left}
-.ft-story-body .article-image.align-right{text-align:right}
-.ft-story-body .article-image.align-center{text-align:center}
-.ft-story-body .article-image figcaption,
-.ft-story-body .article-image .image-caption{
-  font-size:12.5px;color:var(--ft-ink-3);margin-top:6px;text-align:center;
+
+/* ── Images inside a story ────────────────────────────────────────────────
+   The CMS wraps each one in div.article-image with a size- and an align-
+   class. Size sets the WIDTH only and the height follows the picture, so an
+   8x10 stays an 8x10 — nothing here crops or forces a shape. Left and right
+   float, which is what makes the text run round them. */
+
+.ft-story-body .article-image{margin:6px 0 14px;max-width:100%}
+.ft-story-body .article-image img{width:100%;height:auto;display:block;border-radius:8px}
+.ft-story-body .article-image .caption{
+  font-size:12.5px;line-height:1.45;color:var(--ft-ink-3);margin-top:6px;
+}
+
+.ft-story-body .article-image.size-small{width:170px}
+.ft-story-body .article-image.size-medium{width:300px}
+.ft-story-body .article-image.size-large,
+.ft-story-body .article-image.size-full{width:100%}
+
+.ft-story-body .article-image.align-center{margin-left:auto;margin-right:auto;float:none}
+.ft-story-body .article-image.align-center .caption{text-align:center}
+.ft-story-body .article-image.align-left{float:left;margin:5px 20px 14px 0;clear:left}
+.ft-story-body .article-image.align-right{float:right;margin:5px 0 14px 20px;clear:right}
+
+/* A full-width picture has no room beside it for text to wrap into, so asking
+   for it left or right narrows it to something text can actually sit next to
+   rather than leaving a floated block with a one-word column down the side. */
+.ft-story-body .article-image.size-large.align-left,
+.ft-story-body .article-image.size-large.align-right,
+.ft-story-body .article-image.size-full.align-left,
+.ft-story-body .article-image.size-full.align-right{width:58%}
+
+/* Floats do not add to their parent's height, so without this a short story
+   ends up shorter than the picture beside it and the next one rides up. */
+.ft-story-body::after{content:'';display:block;clear:both}
+
+/* On a phone the column is too narrow to wrap round anything. Every image goes
+   full width and the text stays above and below it. Same specificity as the
+   rules above, and later in the file, so it wins without !important. */
+@media (max-width:620px){
+  .ft-story-body .article-image.size-small,
+  .ft-story-body .article-image.size-medium,
+  .ft-story-body .article-image.size-large.align-left,
+  .ft-story-body .article-image.size-large.align-right,
+  .ft-story-body .article-image.size-full.align-left,
+  .ft-story-body .article-image.size-full.align-right{width:100%}
+  .ft-story-body .article-image.align-left,
+  .ft-story-body .article-image.align-right{float:none;margin:12px 0}
 }
 
 /* ── Photo galleries ──────────────────────────────────────────────────────
