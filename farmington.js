@@ -236,7 +236,14 @@ function shape(rawTeams, rawGames, standings, rosters) {
     g.sport = SPORTS[g.sport_id] || { name: 'Other', emoji: '\u{1F3C6}', order: 99 };
     team.games.push(g);
   }
-  for (const t of visible) t.games.sort((a, b) => String(a.starts_at).localeCompare(String(b.starts_at)));
+  for (const t of visible) {
+    t.games.sort((a, b) => String(a.starts_at).localeCompare(String(b.starts_at)));
+    // From the games rather than the team row, because a merged squad arrives
+    // under two gender ids (Boys on one Arbiter row, Coed on the other) and the
+    // games are what genderLabel already reconciles.
+    const first = t.games[0];
+    t.gender = first ? genderLabel(first.gender_id, first.sport_id) : '';
+  }
 
   const games = visible.flatMap(t => t.games)
     .sort((a, b) => String(a.starts_at).localeCompare(String(b.starts_at)));
@@ -257,6 +264,15 @@ function shape(rawTeams, rawGames, standings, rosters) {
     },
     teamsInSport(sportId) {
       return visible.filter(t => t.games.some(g => g.sport_id === sportId));
+    },
+    // The genders a sport is actually played at, in a stable order. One entry
+    // means the sport needs no gender row at all.
+    gendersInSport(sportId) {
+      const seen = [];
+      for (const t of this.teamsInSport(sportId)) {
+        if (t.gender && !seen.includes(t.gender)) seen.push(t.gender);
+      }
+      return seen.sort((a, b) => ['Boys', 'Girls', 'Coed'].indexOf(a) - ['Boys', 'Girls', 'Coed'].indexOf(b));
     },
     // Distinct from varsityOf, which falls back to any team so that clicking a
     // Jr-High-only sport still selects something. This one answers the actual

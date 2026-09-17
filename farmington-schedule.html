@@ -13,16 +13,13 @@
 <div id="ft-header"></div>
 
 <main class="ft-wrap">
-  <div class="ft-pagehead">
-    <h1>Schedule</h1>
-    <span class="ft-sub" id="pageSub"></span>
-  </div>
+  <div class="ft-pagehead"><h1>Schedule</h1></div>
 
   <div class="ft-pillrow ft-center" id="sportChips"></div>
+  <div class="ft-pillrow ft-center" id="genderPills"></div>
   <div class="ft-pillrow ft-center" id="teamPicker"></div>
 
-  <div id="summary"></div>
-  <div class="ft-card"><div id="scheduleBody"><div class="ft-loading">Loading the Tigers schedule&hellip;</div></div></div>
+  <div id="scheduleBody"><div class="ft-loading">Loading the Tigers schedule&hellip;</div></div>
 </main>
 
 <div id="ft-footer"></div>
@@ -35,7 +32,7 @@ FT.renderHeader('schedule');
 FT.renderFooter();
 
 let DATA = null;
-const state = { sport: null, uteam: null };
+const state = { sport: null, gender: null, uteam: null };
 
 /* ── Controls ──────────────────────────────────────────────────────────── */
 
@@ -45,74 +42,54 @@ function renderSportChips() {
   document.getElementById('sportChips').innerHTML = FT.pills(items, state.sport, 'data-sport');
 }
 
+/* Basketball runs Boys and Girls at both varsity and JV, so a single row of
+   levels would read "Varsity, Varsity, JV, JV". Splitting gender out first —
+   the way the standings page splits divisions — leaves the level row saying
+   only what the level is. Sports with one gender skip the row entirely. */
+function renderGenderPills() {
+  const el = document.getElementById('genderPills');
+  if (state.sport === 'all') { el.innerHTML = ''; return; }
+  const genders = DATA.gendersInSport(state.sport);
+  el.innerHTML = genders.length > 1
+    ? FT.pills(genders.map(g => ({ value: g, label: g })), state.gender, 'data-gender')
+    : '';
+}
+
+function levelTeams() {
+  if (state.sport === 'all') return [];
+  const teams = DATA.teamsInSport(state.sport);
+  const genders = DATA.gendersInSport(state.sport);
+  return genders.length > 1 ? teams.filter(t => t.gender === state.gender) : teams;
+}
+
 /* Varsity first, then JV, then Jr. High — the order farmington_teams carries,
-   so the levels read the way the athletic department lists its teams. The pill
-   shows the level rather than the whole team name: inside Volleyball, "Varsity
-   / JV / Jr. High / Jr. High - JV" says more than four rows each beginning with
-   the word Volleyball. */
+   so the levels read the way the athletic department lists its teams. */
 function renderTeamPicker() {
   const el = document.getElementById('teamPicker');
   // All Sports is every team at once, so there is no level to pick.
   if (state.sport === 'all') { el.innerHTML = ''; return; }
-  const teams = DATA.teamsInSport(state.sport);
+  const teams = levelTeams();
   if (teams.length < 2) { el.innerHTML = ''; return; }
   el.innerHTML = FT.pills(
     teams.map(t => ({ value: t.uteam, label: t.level || t.name })), state.uteam, 'data-team');
 }
 
-/* ── Record, last game, next game ──────────────────────────────────────── */
+/* ── The black bar ─────────────────────────────────────────────────────── */
+/* What you are looking at on the left, how they have done on the right — the
+   same shape as the standings card. Last game and next game are gone; the table
+   underneath already says both, in order. */
 
-function renderSummary(team, games) {
-  const el = document.getElementById('summary');
+function cardBar(team, games) {
   const rec = FT.recordOf(games);
-  const played = games.filter(g => FT.scoreOf(g));
-  const last = played[played.length - 1] || null;
-  const today = FT.todayKey();
-  const next = games.find(g => !FT.scoreOf(g) && g.game_date >= today) || null;
-
-  el.innerHTML = `
-    <div class="ft-summary">
-      <div class="ft-summary-record">
-        <span class="ft-label">Record</span>
-        <div class="ft-big">${rec.played ? rec.text : '—'}</div>
-        ${rec.played ? `<div class="ft-splits">
-          <span><b>${rec.home}</b> home</span>
-          <span><b>${rec.away}</b> away</span>
-          <span>${FT.streakBadge(rec.streak)}</span>
-        </div>` : ''}
-      </div>
-      <div>
-        <span class="ft-label">Last game</span>
-        ${last ? resultLine(last) : '<div class="ft-none">No games played yet.</div>'}
-      </div>
-      <div>
-        <span class="ft-label">Next game</span>
-        ${next ? upcomingLine(next) : '<div class="ft-none">Nothing else on the schedule.</div>'}
-      </div>
-    </div>`;
-}
-
-function resultLine(g) {
-  const sc = FT.scoreOf(g);
-  const res = FT.resultOf(sc);
-  const opp = FT.versus(g);
-  return `
-    <div class="ft-line">
-      <span class="ft-result"><span class="${res}">${res}</span> ${sc.us}–${sc.them}</span>
-      ${sc.manual ? '<span class="ft-manual" title="Score entered by hand">●</span>' : ''}
-      ${FT.esc(opp)}
-      <div class="ft-when">${FT.esc(FT.dayLabel(g.game_date, { plain: true }))}</div>
-    </div>`;
-}
-
-function upcomingLine(g) {
-  const opp = FT.versus(g);
-  return `
-    <div class="ft-line">
-      ${FT.esc(opp)}
-      <div class="ft-when">${FT.esc(FT.dayLabel(g.game_date, { plain: true }))}
-        &middot; ${FT.esc(FT.timeLabel(g.starts_at))}</div>
-    </div>`;
+  const title = team ? team.name : 'Every Team';
+  const right = rec.played ? `
+    <span class="ft-barstats">
+      <b>${rec.text}</b>
+      <span>${rec.home} home</span>
+      <span>${rec.away} away</span>
+      ${FT.streakBadge(rec.streak)}
+    </span>` : '';
+  return `<div class="ft-cardbar"><h2>${FT.esc(title)}</h2>${right}</div>`;
 }
 
 /* ── The schedule table ────────────────────────────────────────────────── */
@@ -123,14 +100,12 @@ function renderSchedule() {
   const games = all ? DATA.games : (team ? team.games.filter(g => g.sport_id === state.sport) : []);
   const body = document.getElementById('scheduleBody');
 
-  document.getElementById('pageSub').textContent = all ? 'Every team' : (team ? team.name : '');
-  // A record across varsity, JV and Jr. High at once is a number nobody means,
-  // so the summary strip belongs to a single team.
-  if (all) document.getElementById('summary').innerHTML = '';
-  else renderSummary(team, games);
+  // A record blending varsity, JV and Jr. High is a number nobody means, so the
+  // bar carries no stats in All Sports.
+  const bar = all ? '<div class="ft-cardbar"><h2>Every Team</h2></div>' : cardBar(team, games);
 
   if (!games.length) {
-    body.innerHTML = '<div class="ft-empty">No games on the schedule for this team yet.</div>';
+    body.innerHTML = `<div class="ft-card">${bar}<div class="ft-empty">No games on the schedule for this team yet.</div></div>`;
     return;
   }
 
@@ -138,6 +113,7 @@ function renderSchedule() {
   const next = games.find(g => !FT.scoreOf(g) && g.game_date >= today);
 
   body.innerHTML = `
+    <div class="ft-card">${bar}
     <table class="ft-table">
       <thead><tr>
         <th>Date</th>
@@ -149,7 +125,7 @@ function renderSchedule() {
         <th class="ft-hide-sm">Location</th>
       </tr></thead>
       <tbody>${games.map(g => row(g, g === next)).join('')}</tbody>
-    </table>`;
+    </table></div>`;
 }
 
 function row(g, isNext) {
@@ -210,12 +186,36 @@ document.getElementById('sportChips').addEventListener('click', (e) => {
   if (!btn) return;
   FT.closeVenue();
   state.sport = btn.dataset.sport === 'all' ? 'all' : Number(btn.dataset.sport);
-  // Picking a sport lands on its varsity side.
-  const varsity = state.sport === 'all' ? null : DATA.varsityOf(state.sport);
+  pickDefaults();
+  syncUrl();
+  renderSportChips(); renderGenderPills(); renderTeamPicker(); renderSchedule();
+});
+
+document.getElementById('genderPills').addEventListener('click', (e) => {
+  const btn = e.target.closest('.ft-pill');
+  if (!btn) return;
+  FT.closeVenue();
+  state.gender = btn.dataset.gender;
+  const teams = levelTeams();
+  const varsity = teams.find(t => t.level_rank === 1) || teams[0];
   state.uteam = varsity ? varsity.uteam : null;
   syncUrl();
-  renderSportChips(); renderTeamPicker(); renderSchedule();
+  renderGenderPills(); renderTeamPicker(); renderSchedule();
 });
+
+/* Picking a sport lands on its varsity side, and on the first gender it is
+   played at. `keepGender` is only for restoring a link: choosing a new sport
+   resets the gender, because carrying "Girls" over from volleyball into
+   basketball would silently open the girls team when somebody clicked
+   Basketball. */
+function pickDefaults(keepGender) {
+  if (state.sport === 'all') { state.gender = null; state.uteam = null; return; }
+  const genders = DATA.gendersInSport(state.sport);
+  if (!keepGender || !genders.includes(state.gender)) state.gender = genders[0] || null;
+  const teams = levelTeams();
+  const varsity = teams.find(t => t.level_rank === 1) || teams[0];
+  state.uteam = varsity ? varsity.uteam : null;
+}
 
 document.getElementById('teamPicker').addEventListener('click', (e) => {
   const btn = e.target.closest('.ft-pill');
@@ -223,6 +223,7 @@ document.getElementById('teamPicker').addEventListener('click', (e) => {
   FT.closeVenue();
   state.uteam = Number(btn.dataset.team);
   syncUrl();
+  renderGenderPills();
   renderTeamPicker();
   renderSchedule();
 });
@@ -259,8 +260,12 @@ function openingState() {
 
   const inSport = DATA.teamsInSport(state.sport);
   const picked = inSport.find(t => t.uteam === wantTeam);
-  const varsity = DATA.varsityOf(state.sport);
-  state.uteam = picked ? picked.uteam : (varsity ? varsity.uteam : (inSport[0] || {}).uteam);
+  if (picked) {
+    state.gender = picked.gender;
+    state.uteam = picked.uteam;
+  } else {
+    pickDefaults(true);
+  }
 }
 
 FT.load().then(data => {
@@ -271,7 +276,7 @@ FT.load().then(data => {
     return;
   }
   openingState();
-  renderSportChips(); renderTeamPicker(); renderSchedule();
+  renderSportChips(); renderGenderPills(); renderTeamPicker(); renderSchedule();
 }).catch(err => {
   console.error('Tigers schedule failed to load:', err);
   document.getElementById('scheduleBody').innerHTML =
