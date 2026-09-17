@@ -424,14 +424,16 @@ function closeVenue() {
 
 function openVenue(btn) {
   ensureVenue();
+  // The venue as Arbiter names it, and nothing else. Arbiter's schedule feed
+  // carries siteName and subSiteName but no street address, and there is no
+  // venue endpoint to look one up from — so a Directions link was the only way
+  // to turn this into something a car could follow, and KJ would rather people
+  // took the name to their own maps app than be sent out to Google.
   const site = btn.dataset.site || '';
   const sub = btn.dataset.sub || '';
-  const maps = 'https://www.google.com/maps/search/?api=1&query=' +
-               encodeURIComponent(site + ', New Hampshire');
   venueBox.innerHTML = `
     <h4>${esc(site || 'Location')}</h4>
-    ${sub ? `<p>${esc(sub)}</p>` : ''}
-    <a href="${esc(maps)}" target="_blank" rel="noopener">Directions &rarr;</a>`;
+    ${sub ? `<p>${esc(sub)}</p>` : ''}`;
   venueBox.classList.add('on');
   veil.classList.add('on');
 

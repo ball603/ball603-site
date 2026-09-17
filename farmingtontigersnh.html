@@ -61,7 +61,7 @@
           <h2>Varsity <span class="ft-accent">Standings</span></h2>
           <a class="ft-more" id="standMore" href="/farmingtontigersnh/standings">Full standings &rarr;</a>
         </div>
-        <div class="ft-card-body" id="standChips"></div>
+        <div class="ft-card-body ft-pillrow ft-center" id="standChips"></div>
         <div id="standBody"><div class="ft-loading">Loading standings&hellip;</div></div>
       </div>
     </aside>
@@ -222,9 +222,11 @@ function renderStandings() {
   }
   if (!groups.some(g => g.id === standKey)) standKey = groups[0].id;
 
-  chipEl.innerHTML = `<div class="ft-controls" style="margin:0">` + groups.map(g =>
-    `<button class="ft-chip ft-chip-sm${g.id === standKey ? ' on' : ''}" data-group="${g.id}">
-       <span>${g.emoji}</span>${FT.esc(g.label)}</button>`).join('') + `</div>`;
+  // The same segmented control the standings page and the schedule use, rather
+  // than a row of orange capsules of its own. One pill language across the site
+  // means this box cannot drift away from the page it links to.
+  chipEl.innerHTML = FT.pills(
+    groups.map(g => ({ value: g.id, label: g.label, emoji: g.emoji })), standKey, 'data-group');
 
   const group = groups.find(g => g.id === standKey);
 
@@ -270,7 +272,7 @@ function teamCell(row, group) {
 }
 
 document.getElementById('standChips').addEventListener('click', (e) => {
-  const btn = e.target.closest('.ft-chip');
+  const btn = e.target.closest('.ft-pill');
   if (!btn) return;
   standKey = btn.dataset.group;
   renderStandings();
