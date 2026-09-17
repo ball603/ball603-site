@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Photos | Farmington Tigers</title>
+<meta name="description" content="Photo galleries from Farmington Tigers games.">
+<link rel="icon" href="/logos/100px/Farmington.png">
+<link rel="stylesheet" href="/farmington.css">
+</head>
+<body>
+
+<div id="ft-header"></div>
+
+<main class="ft-wrap">
+  <div class="ft-searchbar">
+    <input class="ft-search" id="photoSearch" type="search" autocomplete="off"
+           placeholder="Search galleries" aria-label="Search galleries">
+  </div>
+
+  <div class="ft-pillrow ft-center" id="sportPills"></div>
+
+  <p class="ft-note ft-center-text" id="photoCount"></p>
+  <div id="photoBody"><div class="ft-loading">Loading galleries&hellip;</div></div>
+</main>
+
+<div id="ft-footer"></div>
+
+<script src="/farmington.js"></script>
+<script>
+'use strict';
+
+FT.renderHeader('photos');
+FT.renderFooter();
+
+let ALL = [];
+const state = { sport: 'all', query: '' };
+
+/* ── Dates ─────────────────────────────────────────────────────────────── */
+/* SmugMug stamps these in UTC, so they are real instants rather than the bare
+   wall-clock strings the schedule uses — new Date() is the right tool here. */
+
+function when(iso) {
+  const d = iso ? new Date(iso) : null;
+  return d && !isNaN(d)
+    ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    : '';
+}
+
+/* ── Filtering ─────────────────────────────────────────────────────────── */
+
+/* Every word has to appear somewhere, so "volleyball nute" finds the one
+   gallery rather than every gallery of either. The sport is part of the
+   haystack because Ball603 names its albums "Trinity at Farmington" with the
+   sport only in the folder — searching "basketball" should still find them. */
+function matches(a) {
+  if (state.sport !== 'all' && a.sport !== state.sport) return false;
+  if (!state.query) return true;
+  const hay = `${a.name || ''} ${a.sport || ''} ${when(a.album_date)}`.toLowerCase();
+  return state.query.toLowerCase().split(/\s+/).filter(Boolean).every(w => hay.includes(w));
+}
+
+// Only the sports that actually have galleries, in the site's playing order so
+// the row reads the same as the schedule and standings pills.
+function sportsPresent() {
+  const order = Object.values(FT.SPORTS).reduce((m, s) => (m[s.name] = s.order, m), {});
+  const seen = [...new Set(ALL.map(a => a.sport).filter(Boolean))];
+  return seen.sort((a, b) => (order[a] ?? 99) - (order[b] ?? 99));
+}
+
+const emojiFor = (name) => {
+  const hit = Object.values(FT.SPORTS).find(s => s.name === name);
+  return hit ? hit.emoji : '\u{1F3C6}';
+};
+
+/* ── Rendering ─────────────────────────────────────────────────────────── */
+
+function renderPills() {
+  const el = document.getElementById('sportPills');
+  // Nothing to filter is not a filter. An "All Photos" pill on its own above an
+  // empty page is a control that does nothing.
+  if (!ALL.length) { el.innerHTML = ''; return; }
+  const items = [{ value: 'all', label: 'All Photos', emoji: '\u{1F4F7}' }].concat(
+    sportsPresent().map(s => ({ value: s, label: s, emoji: emojiFor(s) })));
+  el.innerHTML = FT.pills(items, state.sport, 'data-sport');
+}
+
+function render() {
+  const list = ALL.filter(matches);
+  const body = document.getElementById('photoBody');
+  const count = document.getElementById('photoCount');
+  const noun = (n) => `${n} galler${n === 1 ? 'y' : 'ies'}`;
+
+  count.textContent = (state.query || state.sport !== 'all')
+    ? `${noun(list.length)} of ${ALL.length}`
+    : noun(ALL.length);
+
+  if (!list.length) {
+    body.innerHTML = `<div class="ft-card"><div class="ft-empty">${
+      state.query ? 'No galleries match &ldquo;' + FT.esc(state.query) + '&rdquo;.'
+                  : 'No galleries here yet.'}</div></div>`;
+    return;
+  }
+
+  body.innerHTML = `<div class="ft-gallerygrid">${list.map(card).join('')}</div>`;
+}
+
+function card(a) {
+  const meta = [when(a.album_date), a.image_count ? `${a.image_count} photos` : ''].filter(Boolean);
+  return `
+    <a class="ft-gallery" href="${FT.esc(a.url || '#')}" target="_blank" rel="noopener">
+      <div class="ft-gallery-thumb">
+        ${a.thumbnail_url
+          ? `<img src="${FT.esc(a.thumbnail_url)}" alt="" loading="lazy" onerror="this.remove()">`
+          : ''}
+        ${a.sport ? `<span class="ft-gallery-sport">${emojiFor(a.sport)} ${FT.esc(a.sport)}</span>` : ''}
+      </div>
+      <div class="ft-gallery-body">
+        <h3>${FT.esc(a.name || 'Gallery')}</h3>
+        <div class="ft-gallery-meta">${meta.map(m => `<span>${FT.esc(m)}</span>`).join('')}</div>
+      </div>
+    </a>`;
+}
+
+/* ── Wiring ────────────────────────────────────────────────────────────── */
+
+// Sport and search both live in the address bar, so a link to "the volleyball
+// galleries" is something you can send somebody.
+function syncUrl() {
+  const q = new URLSearchParams();
+  if (state.sport !== 'all') q.set('sport', state.sport);
+  if (state.query) q.set('q', state.query);
+  history.replaceState(null, '', location.pathname + (q.toString() ? '?' + q : ''));
+}
+
+document.getElementById('sportPills').addEventListener('click', (e) => {
+  const btn = e.target.closest('.ft-pill');
+  if (!btn) return;
+  state.sport = btn.dataset.sport;
+  syncUrl(); renderPills(); render();
+});
+
+const search = document.getElementById('photoSearch');
+search.addEventListener('input', () => {
+  state.query = search.value.trim();
+  syncUrl(); render();
+});
+
+/* ── Boot ──────────────────────────────────────────────────────────────── */
+
+FT.sb('farmington_albums?hidden=eq.false&select=*&order=sort_order.asc.nullslast,album_date.desc')
+  .then(rows => {
+    ALL = rows || [];
+    const q = new URLSearchParams(location.search);
+    state.query = q.get('q') || '';
+    // `wanted` has to be checked for being there at all before it is checked
+    // against the galleries: URLSearchParams returns null for a parameter that
+    // was never set, and an album whose sport we could not work out has a null
+    // sport too — so a plain /photos matched exactly those albums and hid the
+    // rest.
+    const wanted = q.get('sport');
+    state.sport = (wanted && ALL.some(a => a.sport === wanted)) ? wanted : 'all';
+    search.value = state.query;
+    renderPills();
+    render();
+  })
+  .catch(err => {
+    console.error('Tigers galleries failed to load:', err);
+    document.getElementById('photoBody').innerHTML =
+      '<div class="ft-card"><div class="ft-empty">Galleries could not be loaded just now. ' +
+      'Please refresh in a moment.</div></div>';
+  });
+</script>
+</body>
+</html>

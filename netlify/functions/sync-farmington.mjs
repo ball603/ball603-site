@@ -9,6 +9,7 @@
 
 import { runStandingsSync } from './sync-farmington-standings.mjs';
 import { runVideoSync } from './sync-farmington-videos.mjs';
+import { runPhotoSync } from './sync-farmington-photos.mjs';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://suncdkxfqkwwnmhosxcf.supabase.co';
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
@@ -333,9 +334,9 @@ export async function runFarmingtonSync({ dryRun = false } = {}) {
       }
     }
 
-    // Standings and videos ride along on the same schedule. A failure in either
-    // must not cost us the games we just wrote, so each is reported rather than
-    // thrown.
+    // Standings, videos and galleries ride along on the same schedule. A
+    // failure in any of them must not cost us the games we just wrote, so each
+    // is reported rather than thrown.
     try {
       const st = await runStandingsSync({ dryRun });
       report.standings = st.body;
@@ -350,6 +351,14 @@ export async function runFarmingtonSync({ dryRun = false } = {}) {
     } catch (err) {
       console.error('Video sync failed inside the games sync:', err);
       report.videos = { success: false, error: err.message };
+    }
+
+    try {
+      const pics = await runPhotoSync({ dryRun });
+      report.photos = pics.body;
+    } catch (err) {
+      console.error('Photo sync failed inside the games sync:', err);
+      report.photos = { success: false, error: err.message };
     }
 
     report.elapsedMs = Date.now() - started;

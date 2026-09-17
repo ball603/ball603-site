@@ -335,6 +335,7 @@ const NAV = [
   { href: '/farmingtontigersnh/schedule',  label: 'Schedule',  key: 'schedule' },
   { href: '/farmingtontigersnh/standings', label: 'Standings', key: 'standings' },
   { href: '/farmingtontigersnh/rosters',   label: 'Rosters',   key: 'rosters' },
+  { href: '/farmingtontigersnh/photos',    label: 'Photos',    key: 'photos' },
   { href: '/farmingtontigersnh/videos',    label: 'Videos',    key: 'videos' }
 ];
 
