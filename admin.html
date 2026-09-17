@@ -2976,13 +2976,6 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             switch Published off and it disappears from the site.
           </p>
         </div>
-        <div style="display:flex;align-items:center;gap:10px;">
-          <span id="tigerKeyState" style="font-size:12px;color:#666;"></span>
-          <button type="button" onclick="tigerForgetKey()"
-                  style="background:#eee;border:1px solid #ccc;padding:7px 12px;border-radius:5px;font-size:12px;cursor:pointer;">
-            Change key
-          </button>
-        </div>
       </div>
       <div id="tigerPageSlots"></div>
     </div>
@@ -9369,35 +9362,20 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
        TIGER PAGE — the three fan stories on farmingtontigersnh.com
        ══════════════════════════════════════════════════════════════════════
        Saves go through /.netlify/functions/farmington-story, which holds the
-       Supabase service key. The key that endpoint wants is asked for once a
-       session and kept in sessionStorage — deliberately NOT written into this
-       file, because this file is served to anyone who asks for it. */
+       Supabase service key, and authenticate with the CMS password this page
+       already has — nothing extra to log into.
+
+       The reason the saves do not just go straight to Supabase the way articles
+       do: a story body is HTML that lands on the Tigers home page, and writing
+       from here would mean letting the anon key write to that table. That key
+       is in the source of every page on the site, so it would leave the front
+       page editable by anyone who looked. */
 
     const TIGER_SLOTS = [1, 2, 3];
     let tigerEditors = {};
     let tigerLoaded = false;
 
-    const tigerKey = () => sessionStorage.getItem('tiger_story_key') || '';
-
-    function tigerAskKey(force) {
-      if (!force && tigerKey()) return tigerKey();
-      const entered = prompt('Tiger Page key\n\n(Set as FARMINGTON_STORY_KEY in Netlify. Ask Claude if you have lost it.)');
-      if (entered) sessionStorage.setItem('tiger_story_key', entered.trim());
-      tigerKeyState();
-      return tigerKey();
-    }
-
-    function tigerForgetKey() {
-      sessionStorage.removeItem('tiger_story_key');
-      tigerKeyState();
-      tigerAskKey(true);
-      if (tigerKey()) tigerLoadStories();
-    }
-
-    function tigerKeyState() {
-      const el = document.getElementById('tigerKeyState');
-      if (el) el.textContent = tigerKey() ? 'Key set for this session' : 'No key set';
-    }
+    const tigerKey = () => CMS_PASSWORD;
 
     function tigerSlotMarkup(slot) {
       return `
@@ -9490,8 +9468,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           tigerEditors[slot] = window.createTigerEditor(
             document.getElementById('tigerContent' + slot), 'Write story ' + slot + '...');
         }
-        tigerKeyState();
-        if (tigerAskKey(false)) tigerLoadStories();
+        tigerLoadStories();
       };
       build();
     }
@@ -9515,7 +9492,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         console.error('Tiger stories would not load:', err);
         alert('Could not load the Tiger Page stories: ' + err.message +
               (String(err.message).includes('401') || /key/i.test(err.message)
-                ? '\n\nTry "Change key".' : ''));
+                ? '\n\nThe CMS password and FARMINGTON_STORY_KEY in Netlify have got out of step.'
+                : ''));
       }
     }
 
@@ -9592,8 +9570,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     }
 
     async function tigerSave(slot) {
-      const key = tigerAskKey(false);
-      if (!key) return;
+      const key = tigerKey();
       const state = document.getElementById('tigerSaveState' + slot);
       state.textContent = 'Saving...';
       try {

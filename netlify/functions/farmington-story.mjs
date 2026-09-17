@@ -19,9 +19,17 @@
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://suncdkxfqkwwnmhosxcf.supabase.co';
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
 
-// No default. An unset key means the endpoint refuses everything, rather than
-// quietly falling back to something guessable.
-const STORY_KEY = process.env.FARMINGTON_STORY_KEY;
+/* The CMS's own password, so there is nothing new for KJ to remember — he is
+   the only person who edits it and it is already the thing standing in front of
+   admin.html. Overridable by env var if that ever changes.
+
+   Being straight about what this is worth: the same string is a plain constant
+   in admin.html, which is served to anybody who asks, so it stops a passer-by
+   and not a determined person. It is here rather than absent for one specific
+   reason — the alternative was letting the CMS write with the anon key, which
+   is printed in the source of every page on the site, and that would leave the
+   Tigers front page writable by anyone at all. */
+const STORY_KEY = process.env.FARMINGTON_STORY_KEY || 'Gr@niteSt@teHoops';
 
 const MAX_HEADLINE = 200;
 const MAX_BODY = 60000;
