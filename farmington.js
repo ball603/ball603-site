@@ -710,7 +710,7 @@ function renderHeader(active) {
     <div class="ft-modal ft-howto" id="ft-howto" role="dialog" aria-modal="true"
          aria-label="Add the Tigers app">
       <div class="ft-modal-head">
-        <img class="ft-howto-icon" src="/icons/farmington/icon-192.png" alt="">
+        <img class="ft-howto-icon" src="/icons/farmington/v2/icon-192.png" alt="">
         <button class="ft-modal-close" id="ft-howto-close" type="button" aria-label="Close">&times;</button>
       </div>
       <div class="ft-modal-body">
@@ -736,7 +736,7 @@ function renderHeader(active) {
     <!-- The bottom banner, the way Ball603 does it. Only where installing is
          actually possible, and "Not now" buys a week of quiet. -->
     <div class="ft-install-banner" id="ft-install-banner" hidden>
-      <img src="/icons/farmington/icon-192.png" alt="">
+      <img src="/icons/farmington/v2/icon-192.png" alt="">
       <div class="ft-install-copy">
         <b>Get the Tigers app</b>
         <span>Scores and schedules, one tap from your Home Screen</span>

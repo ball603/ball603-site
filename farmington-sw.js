@@ -25,7 +25,21 @@
  *     it does not change and it is what makes a cold launch feel instant.
  */
 
-const CACHE = 'tigers-v1';
+/* BUMP THIS WHENEVER A CACHED FILE CHANGES. It is not decoration.
+ *
+ * Images are served cache-first below, and a cache is only ever cleared when
+ * this name changes — so replacing a file at the same URL leaves the OLD bytes
+ * being handed out for as long as the browser keeps the cache, which is
+ * indefinitely. That is exactly what happened with the Home Screen icon: the
+ * artwork was fixed and deployed, the icon on the phone did not change, and
+ * neither a redeploy nor re-adding the page could shift it, because this said
+ * v1 both times.
+ *
+ * The icons now live under a versioned path (/icons/farmington/v2/...) so their
+ * URLs change when they do, which is the real fix — a URL that has never been
+ * requested cannot be in any cache, here or in the browser's own. This version
+ * and that folder are meant to move together. */
+const CACHE = 'tigers-v2';
 
 // Enough to open the app offline and have it look like itself. The pages
 // themselves are cached as they are visited rather than up front, so installing
@@ -36,7 +50,7 @@ const SHELL = [
   '/farmington-offline.html',
   '/logos/farmington-tigers-wordmark.jpg',
   '/logos/100px/Farmington.png',
-  '/icons/farmington/icon-192.png'
+  '/icons/farmington/v2/icon-192.png'
 ];
 
 // Never cached, at either origin: live data and anything that writes.
