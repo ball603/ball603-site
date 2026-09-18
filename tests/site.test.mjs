@@ -2581,6 +2581,52 @@ console.log('\n36. Standings rating on a phone');
   await ctx.close();
 }
 
+// ── 37 ──────────────────────────────────────────────────────────────────────
+console.log('\n37. Phone standings fit their content');
+{
+  // A full-size division with the long names that were being cut off.
+  const names = [['Mascenic',4,0],['Portsmouth Christian',3,0],['St. Thomas Aquinas',4,0],['Belmont',5,1],['Farmington',5,1],
+    ['Raymond',4,1],['Trinity',4,1],['Winnisquam',4,1],['Newfound',3,2],['Inter-Lakes',2,2],['Nute',3,3],['Prospect Mountain',1,3]];
+  const row = (sport, gid, uid) => ([n, w, l], i) => ({ rankings_group_id: gid, unique_team_id: n === 'Farmington' ? uid : 5000 + gid + i,
+    group_name: '', division_name: 'Division III', sport_id: sport, gender_id: sport === 63 ? 2 : 1, level_id: 31, season: '2026',
+    rank: i + 1, team_name: n, school_logo_url: null, is_farmington: n === 'Farmington', ball603_shortname: n,
+    games_played: w + l, wins: w, losses: l, ties: sport === 63 ? null : 0, points: w * 4, rating: w * 4 / (w + l), record: null, extra: {} });
+  const standings = [...names.map(row(63, 335, 4575537)), ...names.map(row(50, 325, 11770124))];
+  const measure = (page) => page.evaluate(() => {
+    const t = document.querySelector('.ft-standwrap .ft-table'), w = document.querySelector('.ft-standwrap');
+    const names = [...t.querySelectorAll('tbody td.grow')];
+    const clipped = names.filter(td => td.scrollWidth > td.clientWidth + 1).map(td => td.textContent.trim());
+    return { table: t.getBoundingClientRect().width, wrap: w.clientWidth, clipped,
+             longest: Math.max(...names.map(td => td.getBoundingClientRect().width)) };
+  });
+
+  const { page, ctx } = await open('/farmingtontigersnh/standings', { width: 390, standings });
+  await page.waitForTimeout(500);
+  let m = await measure(page);
+  check('premise — the long names are in the table',
+    /Portsmouth Christian/.test(await page.textContent('tbody')) && /St\. Thomas Aquinas/.test(await page.textContent('tbody')));
+  check('volleyball: no team name is cut off', m.clipped.length === 0, m.clipped.join(', '));
+  check('the Team column is only as wide as the longest name', m.longest < 190, JSON.stringify(m));
+  check('the short group headings are used on a phone',
+    /Regular/.test(await page.textContent('thead')) && !/Regular Season/.test(await page.innerText('thead')),
+    (await page.innerText('thead')).replace(/\s+/g, ' '));
+
+  await page.click('#sportPills .ft-pill:has-text("Soccer")'); await page.waitForTimeout(400);
+  m = await measure(page);
+  check('soccer: the whole table fits the phone, no sideways scroll', m.table <= m.wrap + 1, JSON.stringify(m));
+  check('and still fills the card rather than leaving a gap', m.table >= m.wrap - 1, JSON.stringify(m));
+  check('with no name cut off either', m.clipped.length === 0, m.clipped.join(', '));
+  await ctx.close();
+}
+{
+  // Desktop keeps the full headings.
+  const { page, ctx } = await open('/farmingtontigersnh/standings', { width: 1300 });
+  await page.waitForTimeout(400);
+  const head = (await page.innerText('thead')).replace(/\s+/g, ' ');
+  check('a desktop still reads Regular Season and Postseason', /REGULAR SEASON/i.test(head) && /POSTSEASON/i.test(head), head);
+  await ctx.close();
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 
 
