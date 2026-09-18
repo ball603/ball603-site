@@ -475,9 +475,8 @@ function bannerDismissed() {
 }
 
 function wireInstall(openSheet) {
-  // Three of them — the row in the drawer for a phone, the button in the bar
-  // for everything wider, and the banner. All offer the same one thing.
-  const buttons = ['ft-install', 'ft-install-bar', 'ft-banner-install']
+  // The row at the foot of the menu and the banner. Both offer the same thing.
+  const buttons = ['ft-install', 'ft-banner-install']
     .map(id => document.getElementById(id)).filter(Boolean);
   const banner = document.getElementById('ft-install-banner');
   if (!buttons.length) return;
@@ -639,15 +638,9 @@ function renderHeader(active) {
             ${STAR_SVG}
             <span class="ft-starbtn-label">My Teams</span>
           </button>
-          <!-- The drawer's install row only exists on a phone, because the
-               hamburger does. On a wide screen there was nothing to click at
-               all, and Chrome's own install icon in the address bar is easy to
-               go a year without noticing. -->
-          <button class="ft-iconbtn ft-starbtn" id="ft-install-bar" type="button"
-                  title="Install the Tigers app" aria-label="Install the Tigers app" hidden>
-            ${INSTALL_SVG}
-            <span class="ft-starbtn-label">Install</span>
-          </button>
+          <!-- No install button in this bar. It is for the site's own tools —
+               share, My Teams — and installing is offered by the banner and the
+               menu instead. -->
           <button class="ft-burger" id="ft-burger" type="button"
                   aria-label="Menu" aria-expanded="false" aria-controls="ft-drawer">
             <span></span><span></span><span></span>
