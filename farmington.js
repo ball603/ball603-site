@@ -446,6 +446,103 @@ function setupPwa() {
     .catch(err => console.warn('[Tigers] Service worker did not register:', err.message));
 }
 
+/* ── Pull to refresh ────────────────────────────────────────────────────── */
+/* Only inside the installed app, and only on iOS.
+ *
+ * A PWA opened from the Home Screen on iOS has no browser chrome and no pull to
+ * refresh — Safari's own lives in the toolbar that standalone mode removes, so
+ * the gesture everybody expects simply does nothing and the only way to get
+ * fresh scores is to close the app and reopen it. Android's PWA shell keeps its
+ * native gesture, which is why this stays out of the way there: two of them
+ * would fire at once.
+ *
+ * In an ordinary browser tab it does not run either. The browser already has
+ * one, and a second would either double up or fight it. */
+const PULL_THRESHOLD = 68;      // how far to drag before a release counts
+const PULL_MAX = 104;           // how far the spinner travels, however hard you pull
+
+/* Whether a downward drag starting here belongs to the page or to something
+   inside it. The schedule table is its own scrolling box: a drag that starts in
+   a half-scrolled table is that table's, not a refresh. */
+function dragOwnedByPage(target) {
+  for (let el = target; el && el.nodeType === 1 && el !== document.body; el = el.parentElement) {
+    const style = getComputedStyle(el);
+    const scrolls = /(auto|scroll)/.test(style.overflowY) && el.scrollHeight > el.clientHeight + 1;
+    if (scrolls && el.scrollTop > 0) return false;
+  }
+  return (window.scrollY || document.documentElement.scrollTop || 0) <= 0;
+}
+
+function setupPullToRefresh() {
+  const el = document.getElementById('ft-pull');
+  if (!el) return;
+  // Android's shell already does this; a browser tab already does this.
+  if (!isStandalone() || !isIOS()) return;
+
+  document.body.classList.add('ft-can-pull');
+
+  let startY = 0, pulling = false, ready = false, busy = false;
+
+  const move = (distance) => {
+    el.style.transform = `translate(-50%, ${distance}px)`;
+    // The arrow turns a full half circle over the pull, so "far enough" is
+    // something you can see rather than something you have to guess.
+    el.style.setProperty('--ft-pull-turn', `${Math.min(180, (distance / PULL_THRESHOLD) * 180)}deg`);
+    el.style.opacity = String(Math.min(1, distance / 28));
+  };
+
+  const reset = () => {
+    el.classList.add('ft-pull-easing');
+    move(0);
+    el.classList.remove('ft-pull-ready');
+    setTimeout(() => el.classList.remove('ft-pull-easing'), 240);
+    pulling = false; ready = false;
+  };
+
+  document.addEventListener('touchstart', (e) => {
+    if (busy || e.touches.length !== 1) return;
+    // A drawer or the My Teams sheet is open: the page behind it is not what
+    // the finger is on.
+    if (document.body.classList.contains('ft-locked')) return;
+    if (!dragOwnedByPage(e.target)) return;
+    startY = e.touches[0].clientY;
+    pulling = true;
+    ready = false;
+    el.classList.remove('ft-pull-easing');
+  }, { passive: true });
+
+  document.addEventListener('touchmove', (e) => {
+    if (!pulling || busy) return;
+    const dy = e.touches[0].clientY - startY;
+    if (dy <= 0) { move(0); return; }
+    // preventDefault needs a non-passive listener. Without it iOS rubber-bands
+    // the whole page underneath the spinner.
+    if (e.cancelable) e.preventDefault();
+    // Resistance, so a long drag does not run away down the screen.
+    const distance = Math.min(PULL_MAX, dy * 0.52);
+    move(distance);
+    ready = distance >= PULL_THRESHOLD;
+    el.classList.toggle('ft-pull-ready', ready);
+  }, { passive: false });
+
+  document.addEventListener('touchend', () => {
+    if (!pulling || busy) return;
+    if (!ready) { reset(); return; }
+    busy = true;
+    el.classList.add('ft-pull-easing', 'ft-pull-busy');
+    move(PULL_THRESHOLD);
+    // Everything on these pages comes from a fetch on load, so a reload is the
+    // honest way to refresh all of it at once.
+    refreshNow();
+  }, { passive: true });
+
+  document.addEventListener('touchcancel', () => { if (!busy) reset(); }, { passive: true });
+}
+
+// Pulled out so a test can stand in for it, and so there is one place to change
+// if this ever becomes a re-fetch rather than a reload.
+function refreshNow() { location.reload(); }
+
 /* The install prompt.
  *
  * On Chrome this is an event the browser hands over once it decides the site is
@@ -673,6 +770,15 @@ function renderHeader(active) {
       </button>
     </nav>
 
+    <!-- Pull to refresh. Parked above the top of the screen and moved down by
+         the drag; does nothing at all outside the installed app. -->
+    <div class="ft-pull" id="ft-pull" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/>
+      </svg>
+    </div>
+
     <div id="ft-ticker"></div>
 
     <!-- My teams. A modal rather than another slide-out: choosing from a list
@@ -899,6 +1005,7 @@ function renderHeader(active) {
   const howto = panels.find(p => p.el.id === 'ft-howto');
   document.getElementById('ft-howto-done').addEventListener('click', () => shut(howto));
   wireInstall(() => show(howto));
+  setupPullToRefresh();
 
   // Share, the way Ball603 does it: the OS sheet where there is one, the
   // clipboard where there is not.

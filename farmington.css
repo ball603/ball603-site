@@ -168,6 +168,34 @@ body.ft-locked{overflow:hidden}
 .ft-drawerlink:last-child{border-bottom:0}
 .ft-drawerlink.on{color:var(--ft-orange);box-shadow:inset 3px 0 0 var(--ft-orange)}
 
+/* ── Pull to refresh ────────────────────────────────────────────────────── */
+/* Parked just above the top of the screen and moved down by the drag. Only ever
+   visible inside the installed app on iOS, which is the only place the gesture
+   is missing — see setupPullToRefresh. */
+.ft-pull{
+  position:fixed;top:calc(var(--ft-header-h) - 34px);left:50%;
+  transform:translate(-50%,0);
+  width:34px;height:34px;border-radius:50%;
+  background:var(--ft-card);color:var(--ft-orange);
+  box-shadow:0 2px 10px rgba(0,0,0,.22);
+  display:flex;align-items:center;justify-content:center;
+  z-index:900;opacity:0;pointer-events:none;
+}
+.ft-pull svg{width:19px;height:19px;transform:rotate(var(--ft-pull-turn,0deg))}
+/* The drag itself must track the finger exactly, so the transition is only on
+   while it is springing back or settling into the spin. */
+.ft-pull-easing{transition:transform .22s ease,opacity .22s ease}
+.ft-pull-ready{color:var(--ft-orange-dk)}
+.ft-pull-busy svg{animation:ft-pull-spin .8s linear infinite;transform:none}
+@keyframes ft-pull-spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){
+  .ft-pull-busy svg{animation-duration:2.4s}
+  .ft-pull-easing{transition:none}
+}
+/* Stops iOS rubber-banding the page behind the spinner mid-drag. Applied by the
+   script, so it is never on where the gesture is not. */
+body.ft-can-pull{overscroll-behavior-y:contain}
+
 /* ── My Teams ───────────────────────────────────────────────────────────── */
 /* A centred modal, the way Ball603 asks the same question: a short explanation,
    a search box, the list, and the two buttons that end it. Nothing is written
