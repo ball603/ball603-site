@@ -49,7 +49,7 @@
     <aside>
       <div class="ft-card">
         <div class="ft-card-head">
-          <h2>Recent <span class="ft-accent">Results</span></h2>
+          <h2 id="recentHead">Recent <span class="ft-accent">Results</span></h2>
           <a class="ft-more" href="/farmingtontigersnh/schedule">Full schedule &rarr;</a>
         </div>
         <div class="ft-card-body flush" id="recentBody">
@@ -59,7 +59,7 @@
 
       <div class="ft-card">
         <div class="ft-card-head">
-          <h2>Upcoming <span class="ft-accent">Events</span></h2>
+          <h2 id="upcomingHead">Upcoming <span class="ft-accent">Events</span></h2>
           <a class="ft-more" href="/farmingtontigersnh/schedule">Full schedule &rarr;</a>
         </div>
         <div class="ft-card-body flush" id="upcomingBody">
@@ -181,12 +181,25 @@ function renderStories(rows) {
 
    Both work off DATA.games, which FT.load() has already sorted by start time. */
 
+/* The card's own heading says which day it is when that day is a word people
+   use — "Yesterday's Results", "Today's Events" — and falls back to Recent /
+   Upcoming otherwise. The date line under it is then just the date, since
+   "Today ·" there would repeat the heading. */
+function yesterdayKey() {
+  const d = new Date();
+  return FT.dateKey(new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1));
+}
+function setHead(id, word, rest) {
+  const h = document.getElementById(id);
+  if (h) h.innerHTML = `${FT.esc(word)} <span class="ft-accent">${FT.esc(rest)}</span>`;
+}
+
 const dayCard = (id, day, list, empty, past) => {
   const el = document.getElementById(id);
   if (!el) return;
   el.innerHTML = day
     ? `<div class="ft-week-day${day === FT.todayKey() ? ' today' : ''}">
-         <h4>${FT.esc(FT.dayLabel(day))}</h4>
+         <h4>${FT.esc(FT.dayLabel(day, { plain: true }))}</h4>
          ${list.map(g => weekRow(g, past)).join('')}
        </div>`
     : `<div class="ft-empty">${empty}</div>`;
@@ -229,6 +242,8 @@ function renderRecent() {
   dayCard('recentBody', day,
     day ? DATA.games.filter(g => g.game_date === day && (day < today || FT.scoreOf(g))) : [],
     'No Tigers games played yet this season.', true);
+  setHead('recentHead',
+    day === today ? "Today's" : day === yesterdayKey() ? "Yesterday's" : 'Recent', 'Results');
 }
 
 // The next day with something still to play. Today counts while any of today's
@@ -241,6 +256,7 @@ function renderUpcoming() {
   dayCard('upcomingBody', day,
     day ? DATA.games.filter(g => g.game_date === day && !FT.scoreOf(g)) : [],
     'Nothing on the schedule right now.');
+  setHead('upcomingHead', day === today ? "Today's" : 'Upcoming', 'Events');
 }
 
 // What goes on the right of a game already played but with no score: why

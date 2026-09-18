@@ -118,8 +118,11 @@ console.log('\n2. Recent Results and Upcoming Events');
   const { page, ctx, errors } = await open('/farmingtontigersnh');
   const heads = (await page.locator('.ft-card-head h2').allTextContents()).map(s=>s.replace(/\s+/g,' ').trim());
   check('the week box is gone', !heads.some(h=>/Tiger Town/.test(h)), heads.join('/'));
-  check('Recent Results and Upcoming Events in its place',
-    heads.includes('Recent Results') && heads.includes('Upcoming Events'), heads.join('/'));
+  // Yesterday was the 16th and today the 17th, so both boxes name the day.
+  check('the results box is headed Yesterday\'s Results', heads.includes("Yesterday's Results"), heads.join('/'));
+  check('the events box is headed Today\'s Events', heads.includes("Today's Events"), heads.join('/'));
+  check('the accent word stays orange', await page.locator('#recentHead .ft-accent').textContent() === 'Results' &&
+    await page.locator('#upcomingHead .ft-accent').textContent() === 'Events');
 
   const recent = (await page.textContent('#recentBody')).replace(/\s+/g,' ');
   check('recent opens on the last day played', /September 16/.test(recent), recent.slice(0,90));
@@ -129,7 +132,9 @@ console.log('\n2. Recent Results and Upcoming Events');
 
   const up = (await page.textContent('#upcomingBody')).replace(/\s+/g,' ');
   check('upcoming opens on the next day with games', /September 17/.test(up), up.slice(0,90));
-  check('today is called out as today', /Today/.test(up), up.slice(0,60));
+  check('the date line is just the date, with no "Today ·" in front',
+    /^\s*Thursday, September 17/.test(up) && !/Today/.test(up), up.slice(0,60));
+  check('and still orange, as today\'s date', await page.locator('#upcomingBody .ft-week-day.today').count() === 1);
   check('both of today\'s events are listed', /Newport/.test(up) && /6-school meet/.test(up), up.slice(0,200));
   check('each one names its team', /Varsity Soccer/.test(up) && /Jr\. High Cross Country/.test(up), up.slice(0,220));
   check('kick-off times, not results', /4:00PM/.test(up), up.slice(0,200));
@@ -191,7 +196,10 @@ console.log('\n2. Recent Results and Upcoming Events');
   const { page, ctx } = await open('/farmingtontigersnh', { games });
   const recent = (await page.textContent('#recentBody')).replace(/\s+/g,' ');
   const up = (await page.textContent('#upcomingBody')).replace(/\s+/g,' ');
-  check('a score from today makes today the recent day', /Today/.test(recent) && /W 2–1/.test(recent), recent.slice(0,140));
+  check('a score from today makes today the recent day', /September 17/.test(recent) && /W 2–1/.test(recent), recent.slice(0,140));
+  check('and the box says Today\'s Results',
+    (await page.textContent('#recentHead')).replace(/\s+/g,' ').trim() === "Today's Results",
+    await page.textContent('#recentHead'));
   check('without today\'s unplayed meet', !/6-school meet/.test(recent), recent.slice(0,140));
   check('which is still upcoming', /6-school meet/.test(up), up.slice(0,140));
   check('and the scored game is not in both boxes', !/Newport/.test(up), up.slice(0,140));
@@ -201,7 +209,24 @@ console.log('\n2. Recent Results and Upcoming Events');
 {
   const { page, ctx } = await open('/farmingtontigersnh');
   const recent = (await page.textContent('#recentBody')).replace(/\s+/g,' ');
-  check('unplayed games today leave the box on yesterday', /September 16/.test(recent) && !/Today/.test(recent), recent.slice(0,90));
+  check('unplayed games today leave the box on yesterday', /September 16/.test(recent) && !/September 17/.test(recent), recent.slice(0,90));
+  await ctx.close();
+}
+// Neither box on yesterday / today: they fall back to Recent and Upcoming.
+{
+  const games = GAMES.filter(g => g.game_date !== '2026-09-16' && g.game_date !== '2026-09-17');
+  check('premise — nothing on the 16th or 17th',
+    !games.some(g => g.game_date === '2026-09-16' || g.game_date === '2026-09-17'));
+  check('premise — an older result and a later game exist',
+    games.some(g => g.game_date === '2026-09-15' && g.arbiter_my_score != null) &&
+    games.some(g => g.game_date === '2026-09-18'));
+  const { page, ctx } = await open('/farmingtontigersnh', { games });
+  const rh = (await page.textContent('#recentHead')).replace(/\s+/g,' ').trim();
+  const uh = (await page.textContent('#upcomingHead')).replace(/\s+/g,' ').trim();
+  const recent = (await page.textContent('#recentBody')).replace(/\s+/g,' ');
+  const up = (await page.textContent('#upcomingBody')).replace(/\s+/g,' ');
+  check('a day before yesterday is Recent Results', rh === 'Recent Results' && /September 15/.test(recent), `${rh} | ${recent.slice(0,60)}`);
+  check('tomorrow is Upcoming Events, not Today\'s', uh === 'Upcoming Events' && /September 18/.test(up), `${uh} | ${up.slice(0,60)}`);
   await ctx.close();
 }
 
