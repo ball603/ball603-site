@@ -1177,7 +1177,12 @@ function renderFooter() {
     <footer class="ft-footer">
       <a class="ft-powered" href="https://ball603.com" target="_blank" rel="noopener">
         <span>Powered by</span>
-        <img src="/logos/400px/Ball603-new-BLACK%20copy-400px.png" alt="Ball603">
+        <picture>
+          <!-- The black wordmark vanishes on the phone theme's dark page. Same
+               760px as the theme itself in farmington.css. -->
+          <source media="(max-width:760px)" srcset="/logos/100px/Ball603-white.png">
+          <img src="/logos/400px/Ball603-new-BLACK%20copy-400px.png" alt="Ball603">
+        </picture>
       </a>
     </footer>`;
 }
