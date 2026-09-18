@@ -784,12 +784,14 @@ function renderHeader(active) {
 
     <div id="ft-ticker"></div>
 
-    <!-- Phone only: the two pages people come for, one tap from anywhere.
-         Hidden on desktop, where the same links sit in the header. -->
-    <nav class="ft-quick" aria-label="Quick links">
-      ${NAV.filter(n => n.key === 'schedule' || n.key === 'standings').map(n =>
-        `<a class="ft-quicklink${n.key === active ? ' on' : ''}" href="${n.href}"${n.key === active ? ' aria-current="page"' : ''}>${n.label}</a>`).join('')}
-    </nav>
+    <!-- Home page, phone only: the pages people come for, one tap away.
+         Hidden on desktop, where the same links sit in the header. Photos is
+         the optional third: shown only when it fits without scrolling
+         (fitQuickLinks below). -->
+    ${active !== 'home' ? '' : `<nav class="ft-quick" aria-label="Quick links">
+      ${NAV.filter(n => ['schedule', 'standings', 'photos'].includes(n.key)).map(n =>
+        `<a class="ft-quicklink" href="${n.href}" data-key="${n.key}">${n.label}</a>`).join('')}
+    </nav>`}
 
     <!-- My teams. A modal rather than another slide-out: choosing from a list
          of a dozen is a job you finish and confirm, not a menu you glance at,
@@ -1036,6 +1038,22 @@ function renderHeader(active) {
 
   renderTicker();
   document.addEventListener('ft:favourites', renderTicker);
+  fitQuickLinks();
+  window.addEventListener('resize', fitQuickLinks);
+  // The web font can land after the first measure and change the widths.
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitQuickLinks);
+}
+
+/* ── Quick links ──────────────────────────────────────────────────────────
+   SCHEDULE and STANDINGS always; PHOTOS only if the row has room for it on
+   this screen. The row never scrolls sideways, so on a narrow phone Photos
+   simply is not there (it is still in the menu). */
+function fitQuickLinks() {
+  const row = document.querySelector('.ft-quick');
+  const photos = row && row.querySelector('[data-key="photos"]');
+  if (!row || !photos) return;
+  photos.hidden = false;
+  if (row.scrollWidth > row.clientWidth + 1) photos.hidden = true;
 }
 
 /* ── Ticker ─────────────────────────────────────────────────────────────── */

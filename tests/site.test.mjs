@@ -2688,49 +2688,70 @@ console.log('\n38. Rosters by level');
 }
 
 // ── 39 ──────────────────────────────────────────────────────────────────────
-console.log('\n39. Schedule and Standings pills under the ticker (phone only)');
+console.log('\n39. Home page on a phone: Schedule, Standings (and Photos if it fits) under the ticker');
 {
   const { page, ctx, errors } = await open('/farmingtontigersnh', { width: 390 });
   await page.waitForSelector('.ft-ticker', { timeout: 5000 }).catch(() => {});
+  await page.waitForTimeout(300);
   check('premise — the ticker is showing (fixture has games this week)', await page.locator('.ft-ticker').isVisible());
-  const pills = page.locator('.ft-quick .ft-quicklink');
-  const info = await pills.evaluateAll(els => els.map(e => ({ text: e.innerText.trim(), href: e.getAttribute('href'),
-    top: e.getBoundingClientRect().top, h: e.getBoundingClientRect().height, w: e.getBoundingClientRect().width })));
-  check('two pills, reading SCHEDULE and STANDINGS', info.map(i => i.text).join('/') === 'SCHEDULE/STANDINGS', info.map(i => i.text).join('/'));
-  check('linking to the schedule and standings pages',
-    info[0]?.href === '/farmingtontigersnh/schedule' && info[1]?.href === '/farmingtontigersnh/standings');
+  const info = await page.locator('.ft-quick .ft-quicklink').evaluateAll(els => els.filter(e => !e.hidden).map(e => {
+    const r = e.getBoundingClientRect(), cs = getComputedStyle(e);
+    return { text: e.innerText.trim(), href: e.getAttribute('href'), top: r.top, h: r.height, w: r.width, right: r.right, radius: parseFloat(cs.borderTopLeftRadius) };
+  }));
+  const row = await page.locator('.ft-quick').evaluate(e => ({ sw: e.scrollWidth, cw: e.clientWidth }));
+  check('on a 390px phone all three fit: SCHEDULE, STANDINGS, PHOTOS', info.map(i => i.text).join('/') === 'SCHEDULE/STANDINGS/PHOTOS', info.map(i => i.text).join('/'));
+  check('linking to schedule, standings and photos',
+    info.map(i => i.href).join(' ') === '/farmingtontigersnh/schedule /farmingtontigersnh/standings /farmingtontigersnh/photos');
+  check('nothing runs off the side (no sideways scroll)', row.sw <= row.cw + 1 && info.every(i => i.right <= 390), JSON.stringify(row));
   const tickerBottom = await page.locator('.ft-ticker').evaluate(e => e.getBoundingClientRect().bottom);
-  check('directly below the ticker', info.length === 2 && info[0].top > tickerBottom && info[0].top - tickerBottom < 30,
-    `ticker ends ${tickerBottom}, pills start ${info[0]?.top}`);
-  check('side by side, the same width', info.length === 2 && Math.abs(info[0].top - info[1].top) < 1 && Math.abs(info[0].w - info[1].w) < 1);
-  check('big enough to tap (44px+)', info.every(i => i.h >= 44), info.map(i => i.h).join(', '));
-  const firstMain = await page.evaluate(() => {
-    const q = document.querySelector('.ft-quick').getBoundingClientRect().bottom;
-    const m = document.querySelector('main, .ft-main, .ft-wrap');
-    return m ? { q, m: m.getBoundingClientRect().top } : null;
-  });
-  check('above the page content', !firstMain || firstMain.q <= firstMain.m + 1, JSON.stringify(firstMain));
-  check('neither is highlighted on the home page', await page.locator('.ft-quicklink.on').count() === 0);
+  check('directly below the ticker', info.length > 0 && info[0].top > tickerBottom && info[0].top - tickerBottom < 30, `ticker ends ${tickerBottom}, boxes start ${info[0]?.top}`);
+  check('one row', info.every(i => Math.abs(i.top - info[0].top) < 1));
+  check('squared-off corners (6px), not round pills', info.every(i => i.radius === 6), info.map(i => i.radius).join(', '));
+  check('sized to their words, not stretched across the screen', info.every(i => i.w < 150) && Math.abs(info[0].w - info[2].w) > 1,
+    info.map(i => Math.round(i.w)).join(', '));
+  check('still comfortable to tap (36px+)', info.every(i => i.h >= 36), info.map(i => i.h).join(', '));
   await page.locator('.ft-quicklink', { hasText: 'Standings' }).click(); await page.waitForTimeout(600);
   check('tapping STANDINGS opens the standings page', /\/farmingtontigersnh\/standings$/.test(page.url()), page.url());
-  const on = page.locator('.ft-quicklink.on');
-  check('where the STANDINGS pill is highlighted in orange',
-    (await on.count()) === 1 && (await on.innerText()).trim() === 'STANDINGS' &&
-    await on.evaluate(e => getComputedStyle(e).color) === 'rgb(246, 130, 32)');
   check('no page errors', errors.length === 0, errors.join('; '));
   await ctx.close();
 }
 {
-  // No games this week → no ticker, but the pills still show.
-  const { page, ctx } = await open('/farmingtontigersnh/rosters', { width: 390, future: true });
+  // A small phone: no room for a third box, so Photos is left out rather than scrolled to.
+  const { page, ctx } = await open('/farmingtontigersnh', { width: 320 });
+  await page.waitForTimeout(300);
+  const shown = await page.locator('.ft-quick .ft-quicklink').evaluateAll(els => els.filter(e => e.offsetParent !== null).map(e => e.innerText.trim()));
+  const row = await page.locator('.ft-quick').evaluate(e => ({ sw: e.scrollWidth, cw: e.clientWidth }));
+  check('at 320px it shows SCHEDULE and STANDINGS only', shown.join('/') === 'SCHEDULE/STANDINGS', shown.join('/'));
+  check('and nothing runs off the side', row.sw <= row.cw + 1, JSON.stringify(row));
+  // Premise: Photos really would not have fit — un-hide it and the row overflows.
+  const overflow = await page.evaluate(() => { const p = document.querySelector('[data-key="photos"]'); p.hidden = false;
+    const r = document.querySelector('.ft-quick'); const o = r.scrollWidth > r.clientWidth + 1; p.hidden = true; return o; });
+  check('premise — forcing Photos in at 320px would overflow', overflow);
+  await page.setViewportSize({ width: 390, height: 900 }); await page.waitForTimeout(300);
+  check('widen the screen → Photos comes back', await page.locator('.ft-quicklink[data-key="photos"]').isVisible());
+  await ctx.close();
+}
+{
+  // Only the home page has them.
+  const others = [];
+  for (const p of ['/farmingtontigersnh/schedule', '/farmingtontigersnh/standings', '/farmingtontigersnh/rosters', '/farmingtontigersnh/photos', '/farmingtontigersnh/videos']) {
+    const { page, ctx } = await open(p, { width: 390 });
+    if (await page.locator('.ft-quick').count()) others.push(p);
+    await ctx.close();
+  }
+  check('no other page shows them', others.length === 0, others.join(', '));
+}
+{
+  // No games this week → no ticker, but the home page still has the boxes.
+  const { page, ctx } = await open('/farmingtontigersnh', { width: 390, future: true });
   await page.waitForTimeout(800);
-  check('with no ticker, the pills are still there', await page.locator('.ft-ticker').count() === 0 &&
+  check('with no ticker, the boxes are still there', await page.locator('.ft-ticker').count() === 0 &&
     await page.locator('.ft-quick').isVisible());
   await ctx.close();
 }
 {
   const { page, ctx } = await open('/farmingtontigersnh', { width: 1300 });
-  check('on a desktop the pills are not shown', !(await page.locator('.ft-quick').isVisible()));
+  check('on a desktop they are not shown', !(await page.locator('.ft-quick').isVisible()));
   await ctx.close();
 }
 
