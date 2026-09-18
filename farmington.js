@@ -451,29 +451,35 @@ function setupPwa() {
 let installPrompt = null;
 
 function wireInstall() {
-  const row = document.getElementById('ft-install');
-  if (!row) return;
+  // Two of them — the row in the drawer for a phone, the button in the bar for
+  // everything wider. Whichever is on screen, they offer the same one prompt.
+  const buttons = ['ft-install', 'ft-install-bar']
+    .map(id => document.getElementById(id)).filter(Boolean);
+  if (!buttons.length) return;
 
-  const show = () => { row.hidden = false; };
-  if (installPrompt) show();
+  const installed = window.matchMedia('(display-mode: standalone)').matches ||
+                    window.navigator.standalone === true;
+  const setHidden = (hidden) => buttons.forEach(b => { b.hidden = hidden || installed; });
+
+  setHidden(!installPrompt);
 
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     installPrompt = e;
-    show();
+    setHidden(false);
   });
+  window.addEventListener('appinstalled', () => { installPrompt = null; setHidden(true); });
 
-  // Already installed, so there is nothing to offer.
-  window.addEventListener('appinstalled', () => { installPrompt = null; row.hidden = true; });
-  if (window.matchMedia('(display-mode: standalone)').matches) row.hidden = true;
-
-  row.addEventListener('click', async () => {
-    if (!installPrompt) return;
-    const prompt = installPrompt;
-    installPrompt = null;               // a prompt can only be used once
-    row.hidden = true;
-    try { await prompt.prompt(); } catch (err) { console.warn('[Tigers] Install prompt:', err.message); }
-  });
+  for (const btn of buttons) {
+    btn.addEventListener('click', async () => {
+      if (!installPrompt) return;
+      const prompt = installPrompt;
+      installPrompt = null;             // a prompt can only be used once
+      setHidden(true);
+      try { await prompt.prompt(); }
+      catch (err) { console.warn('[Tigers] Install prompt:', err.message); }
+    });
+  }
 }
 
 /* ── Header ─────────────────────────────────────────────────────────────── */
@@ -540,6 +546,12 @@ function groupTeamsBySport(teams) {
 // reaching into the header's markup.
 let openFavModal = null;
 
+const INSTALL_SVG = `
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+       stroke-linecap="round" stroke-linejoin="round" class="ft-star-icon" aria-hidden="true">
+    <path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
+  </svg>`;
+
 // Outline in the bar, solid inside the modal's own heading — one shape, drawn
 // twice, rather than two stars that nearly match.
 const STAR_SVG = `
@@ -583,6 +595,15 @@ function renderHeader(active) {
             ${STAR_SVG}
             <span class="ft-starbtn-label">My Teams</span>
           </button>
+          <!-- The drawer's install row only exists on a phone, because the
+               hamburger does. On a wide screen there was nothing to click at
+               all, and Chrome's own install icon in the address bar is easy to
+               go a year without noticing. -->
+          <button class="ft-iconbtn ft-starbtn" id="ft-install-bar" type="button"
+                  title="Install the Tigers app" aria-label="Install the Tigers app" hidden>
+            ${INSTALL_SVG}
+            <span class="ft-starbtn-label">Install</span>
+          </button>
           <button class="ft-burger" id="ft-burger" type="button"
                   aria-label="Menu" aria-expanded="false" aria-controls="ft-drawer">
             <span></span><span></span><span></span>
@@ -609,10 +630,7 @@ function renderHeader(active) {
       <!-- Hidden until the browser says the site is installable, which it only
            does on a platform and a visit where installing would actually work. -->
       <button class="ft-drawerlink ft-drawerstar" id="ft-install" type="button" hidden>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-             stroke-linecap="round" stroke-linejoin="round" class="ft-star-icon" aria-hidden="true">
-          <path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
-        </svg><span>Install App</span>
+        ${INSTALL_SVG}<span>Install App</span>
       </button>
     </nav>
 
