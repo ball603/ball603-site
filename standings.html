@@ -2011,12 +2011,15 @@
         document.getElementById('playoffText').textContent = `🏆 Final ${currentSeason} Standings`;
       }
       
-      // NHIAA publishes no power rating for volleyball — only points (4 per win),
-      // which is what the volleyball scraper stores in `rating`. Label and format
-      // the column to match the source instead of showing "8.000" under "Rating".
-      const usesPoints = currentSport === 'gvolleyball';
-      const ratingLabel = usesPoints ? 'Points' : 'Rating';
-      const formatRating = (v) => usesPoints ? String(Math.round(v || 0)) : (v || 0).toFixed(3);
+      /* NHIAA's volleyball table carries a points total AND a rating, and they
+         are different numbers: points are 4 per win, the rating is those points
+         divided by games played. The division is ranked on the rating, so a team
+         that has simply played more matches does not climb the table. Volleyball
+         shows both, in NHIAA's own order, so this page and theirs read alike.
+         Every other sport publishes a rating alone. */
+      const showsPoints = currentSport === 'gvolleyball';
+      const regColumns = showsPoints ? 3 : 2;
+      const formatRating = (v) => (v || 0).toFixed(3);
 
       // Build table with grouped column headers
       let html = `
@@ -2025,13 +2028,14 @@
             <tr class="group-row">
               <th class="center group-spacer" rowspan="2" style="width: 40px;">#</th>
               <th class="group-spacer" rowspan="2">Team</th>
-              <th class="center group-reg" colspan="2">Regular Season</th>
+              <th class="center group-reg" colspan="${regColumns}">Regular Season</th>
               <th class="center group-post" colspan="1">Postseason</th>
               <th class="center group-overall" colspan="4">Overall</th>
             </tr>
             <tr class="sub-row">
               <th class="center sub-reg">Record</th>
-              <th class="center">${ratingLabel}</th>
+              ${showsPoints ? '<th class="center hide-mobile">Points</th>' : ''}
+              <th class="center">Rating</th>
               <th class="center sub-post">Record</th>
               <th class="center sub-overall-first">Record</th>
               <th class="center hide-mobile">Home</th>
@@ -2100,6 +2104,7 @@
               </div>
             </td>
             <td class="record-cell center sec-reg">${regRecord}</td>
+            ${showsPoints ? `<td class="rating-cell center hide-mobile">${Math.round(team.points || 0)}</td>` : ''}
             <td class="rating-cell center">${formatRating(team.rating)}</td>
             <td class="record-cell center sec-post">${playoffRecord}</td>
             <td class="record-cell center sec-overall">${overallRecord}</td>

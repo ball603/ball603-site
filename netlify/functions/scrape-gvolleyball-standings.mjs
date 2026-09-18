@@ -20,9 +20,17 @@
 // source is what keeps the standings page correct. Hitting "Recalculate
 // Standings" in the CMS still works and will simply agree with NHIAA.
 //
-// RATING: NHIAA publishes no rating for volleyball, only points (4 per win).
-// We store points in BOTH points and rating so the standings page — which sorts
-// on rating — orders each division the way NHIAA does.
+// RATING: NHIAA DOES publish a rating for volleyball. The widget's own column
+// list is Rank / Team / GP / W / L / W-L-T / PTS / Rating, and the rating is
+// points divided by games played — 16 points from 5 games is 3.2. This file
+// used to claim otherwise and stored points in the rating field, which is not a
+// cosmetic difference: the standings page sorts on rating, so a team that had
+// simply played more games floated up the table. In September 2026 that put
+// Nashua South eighth in Division I on 12 points from 7 games, where NHIAA had
+// them thirteenth on a rating of 1.71 — five places out.
+//
+// `points` and `rating` are now two different numbers, both taken from NHIAA,
+// exactly as the baseball scraper takes its rating.
 
 import { normalizeTeamName } from './scrape-gvolleyball-core.mjs';
 
@@ -48,6 +56,13 @@ const ARBITER_SPORT_ID  = 63;  // Volleyball
 const ARBITER_GENDER_ID = 2;   // Girls
 const ARBITER_LEVEL_ID  = 31;  // Varsity
 const FALLBACK_GROUP_ID = 6;   // "Volleyball Standings" as of Sept 2026
+
+// NHIAA used to publish volleyball as one combined "Volleyball Standings" group
+// holding all three divisions. It now publishes one group PER DIVISION, and the
+// old combined group answers with an empty divisions array. Resolving a single
+// group therefore returned Division I alone and left D-II and D-III to go stale
+// while the log quietly reported 40-odd "orphan" teams. Every matching group is
+// read and merged.
 
 // Arbiter division label → Ball603 division code.
 const DIVISION_MAP = {
@@ -76,6 +91,23 @@ function toInt(value) {
   return Number.isFinite(n) ? n : 0;
 }
 
+/* NHIAA's rating, as published. Points per game played, which the source hands
+   over at five decimal places ("1.71429"). Kept as a number at that precision
+   so the page can round it for display without the stored value having been
+   rounded first — rounding twice is how two teams that are genuinely apart end
+   up looking tied.
+
+   The fallback recomputes it rather than falling back to the points total,
+   which is the mistake this replaces: a missing rating column should not
+   silently reorder a division. A team with no games has no rating, and 0 is
+   both what NHIAA shows and what sorts them to the bottom where they belong. */
+export function toRating(published, points, gamesPlayed) {
+  const n = parseFloat(String(published ?? '').trim());
+  if (Number.isFinite(n)) return n;
+  if (!gamesPlayed) return 0;
+  return Number((points / gamesPlayed).toFixed(5));
+}
+
 async function arbiterFetch(url) {
   const response = await fetch(url, {
     headers: {
@@ -87,28 +119,39 @@ async function arbiterFetch(url) {
   return response.json();
 }
 
-// The volleyball standings group id, resolved by sport/gender rather than
-// hardcoded. Falls back to the known id if the groups list is unavailable.
-export async function resolveGroupId() {
-  try {
-    const payload = await arbiterFetch(`${RANKINGS_BASE}/groups`);
-    const groups = Array.isArray(payload?.data) ? payload.data
-                 : Array.isArray(payload?.data?.groups) ? payload.data.groups
-                 : Array.isArray(payload) ? payload : [];
-    const match = groups.find(g =>
+// Pick out every volleyball group from the widget's groups list. Exported for
+// its own sake so the selection can be tested against a captured groups payload
+// without going near the network.
+export function volleyballGroups(payload) {
+  const groups = Array.isArray(payload?.data) ? payload.data
+               : Array.isArray(payload?.data?.groups) ? payload.data.groups
+               : Array.isArray(payload) ? payload : [];
+  return groups
+    .filter(g =>
       Number(g.sportId) === ARBITER_SPORT_ID &&
       Number(g.genderId) === ARBITER_GENDER_ID &&
-      (g.levelId === undefined || Number(g.levelId) === ARBITER_LEVEL_ID)
-    );
-    if (match?.rankingsGroupId != null) {
-      console.log(`  Resolved rankings group ${match.rankingsGroupId} ("${match.name}")`);
-      return match.rankingsGroupId;
+      (g.levelId === undefined || Number(g.levelId) === ARBITER_LEVEL_ID))
+    .filter(g => g.rankingsGroupId != null)
+    .map(g => ({ id: g.rankingsGroupId, name: g.name || '' }));
+}
+
+/* Every volleyball group, resolved by sport and gender rather than hardcoded.
+   Returns a list because NHIAA now publishes one group per division; it still
+   copes with a single combined group, since that is all this took before and
+   nothing says the structure will not change back. */
+export async function resolveGroupIds() {
+  try {
+    const found = volleyballGroups(await arbiterFetch(`${RANKINGS_BASE}/groups`));
+    if (found.length > 0) {
+      console.log(`  Resolved ${found.length} rankings group(s): ` +
+        found.map(g => `${g.id} ("${g.name}")`).join(', '));
+      return found;
     }
     console.log(`  ⚠️  No volleyball group in the groups list — falling back to ${FALLBACK_GROUP_ID}`);
   } catch (error) {
     console.log(`  ⚠️  Could not read groups list (${error.message}) — falling back to ${FALLBACK_GROUP_ID}`);
   }
-  return FALLBACK_GROUP_ID;
+  return [{ id: FALLBACK_GROUP_ID, name: 'fallback' }];
 }
 
 // Turn the widget payload into standings rows.
@@ -157,7 +200,10 @@ export function parseStandings(payload) {
         losses,
         ties,
         points,
-        rating: points,          // NHIAA publishes no separate rating for volleyball
+        // NHIAA's own Rating column. It is what the division is ranked on, and
+        // it is points per game rather than points — which is why it has to be
+        // read rather than assumed equal to the points total.
+        rating: toRating(v.rating, points, gamesPlayed),
         games_played: gamesPlayed,
         win_pct: decided > 0 ? Number(((wins + ties * 0.5) / decided).toFixed(3)) : 0
       });
@@ -303,12 +349,50 @@ export async function runStandingsScrape() {
   console.log('Ball603 Girls Volleyball Standings Scraper - Starting...');
 
   try {
-    const groupId = await resolveGroupId();
-    const url = `${RANKINGS_BASE}/${groupId}`;
-    console.log(`Fetching standings: ${url}`);
+    const groups = await resolveGroupIds();
 
-    const payload = await arbiterFetch(url);
-    const { rows, perDivision } = parseStandings(payload);
+    /* One fetch per group, merged. A group that fails is logged and skipped
+       rather than aborting: two divisions imported beats none, and the failure
+       shows up in the response so a run that only half worked cannot pass for a
+       clean one. */
+    const rows = [];
+    const perDivision = {};
+    const groupErrors = [];
+
+    for (const group of groups) {
+      const url = `${RANKINGS_BASE}/${group.id}`;
+      console.log(`Fetching standings: ${url}`);
+      try {
+        const parsed = parseStandings(await arbiterFetch(url));
+        if (parsed.rows.length === 0) {
+          console.log(`  ⚠️  Group ${group.id} ("${group.name}") returned no teams`);
+        }
+        rows.push(...parsed.rows);
+        Object.assign(perDivision, parsed.perDivision);
+      } catch (error) {
+        console.log(`  ❌ Group ${group.id} ("${group.name}") failed: ${error.message}`);
+        groupErrors.push(`group ${group.id} (${group.name}): ${error.message}`);
+      }
+    }
+
+    /* Two groups publishing the same school is not something NHIAA does, but a
+       renamed group sitting alongside its replacement would produce exactly
+       that, and the writer would then update one school twice with whichever
+       row happened to come last. First one wins, and the duplicate is named. */
+    const seenSchools = new Map();
+    const deduped = [];
+    for (const row of rows) {
+      const key = `${row.school}|${row.gender}`;
+      if (seenSchools.has(key)) {
+        console.log(`  ⚠️  ${row.school} appeared twice (${seenSchools.get(key)} and ${row.division}) — kept the first`);
+        continue;
+      }
+      seenSchools.set(key, row.division);
+      deduped.push(row);
+    }
+    rows.length = 0;
+    rows.push(...deduped);
+
     console.log(`  Parsed ${rows.length} teams across ${Object.keys(perDivision).length} division(s)`);
 
     if (rows.length === 0) {
@@ -316,6 +400,8 @@ export async function runStandingsScrape() {
       return new Response(JSON.stringify({
         success: false,
         error: 'No teams parsed — the rankings payload was empty or its shape changed.',
+        groups: groups.map(g => `${g.id} (${g.name})`),
+        groupErrors,
         timestamp: new Date().toISOString()
       }), { status: 200, headers: { 'Content-Type': 'application/json' } });
     }
@@ -340,8 +426,9 @@ export async function runStandingsScrape() {
     console.log(`  Updated ${result.updated}, inserted ${result.inserted}`);
 
     return new Response(JSON.stringify({
-      success: result.failures.length === 0,
-      groupId,
+      success: result.failures.length === 0 && groupErrors.length === 0,
+      groups: groups.map(g => `${g.id} (${g.name})`),
+      groupErrors,
       divisions: perDivision,
       teamsScraped: rows.length,
       teamsWritten: keep.length,
