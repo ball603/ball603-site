@@ -34,6 +34,7 @@
 
   <div class="ft-pillrow ft-center" id="sportPills"></div>
   <div class="ft-pillrow ft-center" id="genderPills"></div>
+  <div class="ft-pillrow ft-center" id="levelPills"></div>
   <div class="ft-pillrow ft-center" id="seasonPills"></div>
 
   <div id="rosterBody"><div class="ft-loading">Loading rosters&hellip;</div></div>
@@ -49,7 +50,7 @@ FT.renderHeader('rosters');
 FT.renderFooter();
 
 let LIST = [];
-const state = { sport: null, gender: null, id: null };
+const state = { sport: null, gender: null, level: null, id: null };
 
 /* Rosters are filed under Ball603's sport keys, so they have to be matched back
    to the vocabulary the rest of the site uses for emoji, name and ordering. */
@@ -76,14 +77,30 @@ const gendersIn = (sport) => {
   return seen.sort((a, b) => ['Boys', 'Girls', 'Coed'].indexOf(a) - ['Boys', 'Girls', 'Coed'].indexOf(b));
 };
 
+/* Level, the same row the schedule page has. roster_submissions.level is blank
+   for every roster Ball603 has ever collected — its form only takes varsity —
+   so blank means Varsity, and JV / Jr. High rosters carry theirs explicitly.
+   The row only appears once a sport has more than one level on file. */
+const LEVEL_ORDER = ['Varsity', 'JV', 'Jr. High', 'Jr. High - JV'];
+const levelOf = (r) => (r.level && String(r.level).trim()) || 'Varsity';
+const inGender = (sport, gender) => (r) =>
+  r.sport === sport && (gendersIn(sport).length < 2 || r.gender === gender);
+const levelsIn = (sport, gender) => {
+  const seen = [];
+  for (const r of LIST.filter(inGender(sport, gender))) if (!seen.includes(levelOf(r))) seen.push(levelOf(r));
+  const rank = (l) => { const i = LEVEL_ORDER.indexOf(l); return i < 0 ? 99 : i; };
+  return seen.sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
+};
+
 // Newest first. A team that submits a roster every year builds a history, and
 // the season row is how somebody reaches last year's.
-const seasonsIn = (sport, gender) => LIST
-  .filter(r => r.sport === sport && (gendersIn(sport).length < 2 || r.gender === gender))
+const seasonsIn = (sport, gender, level) => LIST
+  .filter(inGender(sport, gender))
+  .filter(r => levelOf(r) === (level || 'Varsity'))
   .sort((a, b) => String(b.season).localeCompare(String(a.season)));
 
 const current = () => {
-  const rows = seasonsIn(state.sport, state.gender);
+  const rows = seasonsIn(state.sport, state.gender, state.level);
   return rows.find(r => String(r.id) === String(state.id)) || rows[0] || null;
 };
 
@@ -117,7 +134,12 @@ function renderPills() {
     ? FT.pills(genders.map(g => ({ value: g, label: g })), state.gender, 'data-gender')
     : '';
 
-  const seasons = seasonsIn(state.sport, state.gender);
+  const levels = levelsIn(state.sport, state.gender);
+  document.getElementById('levelPills').innerHTML = levels.length > 1
+    ? FT.pills(levels.map(l => ({ value: l, label: l })), state.level, 'data-level')
+    : '';
+
+  const seasons = seasonsIn(state.sport, state.gender, state.level);
   const r = current();
   document.getElementById('seasonPills').innerHTML = seasons.length > 1
     ? FT.pills(seasons.map(x => ({ value: x.id, label: x.season })), r && r.id, 'data-season')
@@ -147,15 +169,12 @@ function renderRoster() {
     { h: 'Ht',     fields: ['height', 'ht'], cls: 'ctr ft-hide-sm' }
   ].filter(c => c.h === 'Player' || roster.some(p => val(p, c.fields) !== ''));
 
-  /* "Girls Varsity Volleyball" rather than "Girls Volleyball". Ball603 only
-     collects varsity rosters — its submission form has no level field at all —
-     so Varsity is a constant here rather than something read off the row. If
-     JV rosters ever start arriving, this heading is the first thing to fix.
+  /* "Girls Varsity Volleyball", "Girls JV Volleyball": gender, level, sport.
      Gender is dropped where it distinguishes nothing, the same as everywhere
      else: "Varsity Baseball", not "Boys Varsity Baseball". */
   const meta = sportMeta(r.sport);
   const shown = FT.genderPrefix(r.gender, meta.id);
-  const title = `${shown ? shown + ' ' : ''}Varsity ${meta.name}`;
+  const title = `${shown ? shown + ' ' : ''}${levelOf(r)} ${meta.name}`;
   const dot = '<i class="ft-bardot">&bull;</i>';
   const facts = [
     roster.length ? `${roster.length} <em>Players</em>` : '',
@@ -165,7 +184,8 @@ function renderRoster() {
 
   const coaches = [
     r.head_coach ? `Head coach: ${FT.esc(r.head_coach)}` : '',
-    r.assistant_coaches ? `Assistants: ${FT.esc(r.assistant_coaches)}` : ''
+    r.assistant_coaches ? `Assistants: ${FT.esc(r.assistant_coaches)}` : '',
+    r.managers && String(r.managers).trim() ? `Manager${/[,&]| and /.test(r.managers) ? 's' : ''}: ${FT.esc(r.managers)}` : ''
   ].filter(Boolean).join(' &nbsp;&middot;&nbsp; ');
 
   body.innerHTML = `
@@ -192,10 +212,14 @@ function renderRoster() {
 // Choosing a sport resets the gender, for the same reason the schedule does:
 // carrying "Girls" over from volleyball would open the girls basketball roster
 // without anybody having asked for it.
-function pickDefaults(keepGender) {
+// A new sport opens on its varsity roster (or whatever its top level is); a
+// new gender keeps the level if that side has one at the same level.
+function pickDefaults(keepGender, keepLevel) {
   const genders = gendersIn(state.sport);
   if (!keepGender || !genders.includes(state.gender)) state.gender = genders[0] || null;
-  const rows = seasonsIn(state.sport, state.gender);
+  const levels = levelsIn(state.sport, state.gender);
+  if (!keepLevel || !levels.includes(state.level)) state.level = levels[0] || 'Varsity';
+  const rows = seasonsIn(state.sport, state.gender, state.level);
   state.id = rows.length ? rows[0].id : null;
 }
 
@@ -203,7 +227,7 @@ document.getElementById('sportPills').addEventListener('click', (e) => {
   const btn = e.target.closest('.ft-pill');
   if (!btn) return;
   state.sport = btn.dataset.sport;
-  pickDefaults(false);
+  pickDefaults(false, false);
   renderPills(); renderRoster();
 });
 
@@ -211,8 +235,15 @@ document.getElementById('genderPills').addEventListener('click', (e) => {
   const btn = e.target.closest('.ft-pill');
   if (!btn) return;
   state.gender = btn.dataset.gender;
-  const rows = seasonsIn(state.sport, state.gender);
-  state.id = rows.length ? rows[0].id : null;
+  pickDefaults(true, true);
+  renderPills(); renderRoster();
+});
+
+document.getElementById('levelPills').addEventListener('click', (e) => {
+  const btn = e.target.closest('.ft-pill');
+  if (!btn) return;
+  state.level = btn.dataset.level;
+  pickDefaults(true, true);
   renderPills(); renderRoster();
 });
 
@@ -231,7 +262,7 @@ FT.load().then(data => {
     return;
   }
   state.sport = sportsWithRosters()[0];
-  pickDefaults(false);
+  pickDefaults(false, false);
   renderPills();
   renderRoster();
 }).catch(err => {

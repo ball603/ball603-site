@@ -60,11 +60,17 @@ export async function handler(event, context) {
     // Sport filtering:
     // - If sport param provided (e.g., 'baseball'), filter by that sport
     // - If no sport param, default to basketball (handles both NULL and 'basketball' values)
+    // Varsity only. roster_submissions.level is blank for every roster Ball603
+    // collects and 'JV' / 'Jr. High' for the ones the Farmington Tigers pages
+    // add; a team page has one roster per school, and it is the varsity one.
+    // PostgREST takes one `or` per request, so the two conditions are joined in
+    // a single `and` rather than sent as two `or` parameters.
+    const varsity = 'or(level.is.null,level.eq.Varsity)';
     if (sport) {
-      url += `&sport=eq.${encodeURIComponent(sport)}`;
+      url += `&sport=eq.${encodeURIComponent(sport)}&or=(level.is.null,level.eq.Varsity)`;
     } else {
       // Default to basketball - include both NULL and 'basketball' for backward compatibility
-      url += `&or=(sport.is.null,sport.eq.basketball)`;
+      url += `&and=(or(sport.is.null,sport.eq.basketball),${varsity})`;
     }
 
     // Order by school, then gender

@@ -499,7 +499,11 @@
 
         const { data: rosters, error } = await query;
         if (error) throw error;
-        allRosters = rosters || [];
+        // Varsity only. JV and Jr. High rosters live in the same table for the
+        // Farmington Tigers pages; a blank level is every roster Ball603 has
+        // ever collected. Filtered here rather than in the query so this page
+        // keeps working whether or not the level column exists yet.
+        allRosters = (rosters || []).filter(r => !r.level || r.level === 'Varsity');
       } catch (err) {
         console.error('Error loading rosters:', err);
       }

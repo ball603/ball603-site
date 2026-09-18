@@ -3,9 +3,6 @@
 Playwright, driving the real pages against stubbed Supabase responses. About 693
 checks. Each file runs standalone with `node <file>` and prints a pass/fail line.
 
-These live in the site repo at `/tests`. Nothing on the live site uses them —
-Netlify publishes the repo root, so they are publicly readable but never run.
-
 They expect the site checked out at `/root/ball603/ball603-site-main` — change the
 `ROOT` constant at the top of each file if it lives somewhere else. Chromium is
 expected at `/opt/pw-browsers/chromium`.
@@ -18,6 +15,7 @@ expected at `/opt/pw-browsers/chromium`.
 | `cron.test.mjs` | The DST-proof schedule: that the sync fires at the right five Eastern hours across both daylight-saving switches. ~30 checks. |
 | `standings.test.mjs` | Ball603's NHIAA volleyball standings scraper — group resolution and the points-vs-rating distinction. |
 | `page.test.mjs` | Ball603's `standings.html` rendered against a stubbed feed. |
+| `rosters.test.mjs` | The `get-rosters` function Ball603's team pages use: varsity rosters only, now that JV and Jr. High rosters share the table. |
 | `seed.test.mjs` | The NHIAA tiebreaker engine ("Seed Decoder"). |
 | `fixture2.mjs` | Shared fixtures: teams, games, standings, rosters, videos, albums, stories. |
 

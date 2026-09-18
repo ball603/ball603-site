@@ -2627,6 +2627,66 @@ console.log('\n37. Phone standings fit their content');
   await ctx.close();
 }
 
+// ── 38 ──────────────────────────────────────────────────────────────────────
+console.log('\n38. Rosters by level');
+{
+  const varsity = { ...ROSTERS[0], managers: 'Chloe Cartier' };
+  const jv = { id: 110, school: 'Farmington', gender: 'Girls', division: null, season: '2026', level: 'JV',
+    sport: 'gvolleyball', status: 'approved', head_coach: 'Brandi Everidge', assistant_coaches: 'Tarsha Doyle',
+    managers: 'Chloe Cartier', pdf_url: null,
+    players_json: [{ number: '1', name: 'Isabella Price', position: 'S/RS', class: 'SO' },
+                   { number: '10', name: 'Emily Brazee', position: 'DS/S', class: 'JR' }] };
+  const rosters = [varsity, ...ROSTERS.slice(1), jv];
+  const { page, ctx, errors } = await open('/farmingtontigersnh/rosters', { rosters });
+  await page.waitForTimeout(500);
+  const levels = (await page.locator('#levelPills .ft-pill').allTextContents()).map(t => t.trim());
+  check('volleyball gets a level row', levels.join('/') === 'Varsity/JV', levels.join('/'));
+  check('opening on Varsity', (await page.textContent('#levelPills .ft-pill.on')).trim() === 'Varsity');
+  let bar = (await page.textContent('.ft-cardbar h2')).trim();
+  check('the varsity roster is titled as before', bar === 'Girls Varsity Volleyball', bar);
+  check('the manager is listed on varsity', /Manager: Chloe Cartier/.test(await page.textContent('.ft-coaches')),
+    await page.textContent('.ft-coaches'));
+
+  await page.click('#levelPills .ft-pill:has-text("JV")'); await page.waitForTimeout(250);
+  bar = (await page.textContent('.ft-cardbar h2')).trim();
+  check('JV shows the JV roster', bar === 'Girls JV Volleyball', bar);
+  const names = await page.locator('tbody td.grow').allTextContents();
+  check('with its own players', names.join('/') === 'Isabella Price/Emily Brazee', names.join('/'));
+  const coaches = (await page.textContent('.ft-coaches')).replace(/\s+/g, ' ');
+  check('and its own coaches and manager', /Brandi Everidge/.test(coaches) && /Assistants: Tarsha Doyle/.test(coaches) && /Manager: Chloe Cartier/.test(coaches), coaches);
+  check('no season row: JV has only the one season', await page.locator('#seasonPills .ft-pill').count() === 0);
+
+  // Varsity still reaches its older season; JV does not borrow it.
+  await page.click('#levelPills .ft-pill:has-text("Varsity")'); await page.waitForTimeout(250);
+  const seasons = (await page.locator('#seasonPills .ft-pill').allTextContents()).map(t => t.trim());
+  check('varsity keeps both its seasons', seasons.join('/') === '2026/2025', seasons.join('/'));
+
+  // A sport with one level has no row at all.
+  await page.click('#sportPills .ft-pill:has-text("Baseball")'); await page.waitForTimeout(250);
+  check('baseball, varsity only, shows no level row', await page.locator('#levelPills .ft-pill').count() === 0);
+  check('and is still titled Varsity', (await page.textContent('.ft-cardbar h2')).trim() === 'Varsity Baseball',
+    await page.textContent('.ft-cardbar h2'));
+
+  // Back to volleyball: a new sport opens on Varsity again.
+  await page.click('#sportPills .ft-pill:has-text("Volleyball")'); await page.waitForTimeout(250);
+  check('returning to volleyball opens on Varsity', (await page.textContent('#levelPills .ft-pill.on')).trim() === 'Varsity');
+  check('no page errors', errors.length === 0, errors.join('; '));
+  await ctx.close();
+}
+{
+  // A Jr. High roster sorts after JV, whatever order they arrive in.
+  const extra = [
+    { id: 120, school: 'Farmington', gender: 'Girls', season: '2026', level: 'Jr. High', sport: 'gvolleyball', status: 'approved', players_json: [{ name: 'A B' }] },
+    { id: 121, school: 'Farmington', gender: 'Girls', season: '2026', level: 'JV', sport: 'gvolleyball', status: 'approved', players_json: [{ name: 'C D' }] }];
+  const { page, ctx } = await open('/farmingtontigersnh/rosters', { rosters: [...ROSTERS, ...extra] });
+  await page.waitForTimeout(500);
+  const levels = (await page.locator('#levelPills .ft-pill').allTextContents()).map(t => t.trim());
+  check('levels read Varsity, JV, Jr. High', levels.join('/') === 'Varsity/JV/Jr. High', levels.join('/'));
+  await page.click('#levelPills .ft-pill:has-text("Jr. High")'); await page.waitForTimeout(250);
+  check('and Jr. High is titled for its level', (await page.textContent('.ft-cardbar h2')).trim() === 'Girls Jr. High Volleyball');
+  await ctx.close();
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 
 
