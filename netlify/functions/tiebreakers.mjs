@@ -23,6 +23,61 @@ const PCT_TOLERANCE = 0.001;     // Percentages within this are considered equal
 // ============================================
 
 /**
+ * What a criterion's numbers actually settle.
+ *
+ * Every criterion scores each tied team, and there are THREE possible answers,
+ * not two:
+ *
+ *   - every score is distinct        -> the group is fully ordered
+ *   - only the leader is clear       -> that team takes the position, and the
+ *                                       teams still level with each other go
+ *                                       back through the criteria from the top
+ *   - the leader is level with someone -> this criterion settles nothing
+ *
+ * The middle case is what was missing, and it was not a rare edge. Each
+ * evaluator asked only whether the top two differed; if they did it returned
+ * the WHOLE list as a resolved order, so teams that were still exactly level
+ * were emitted in whatever order they happened to arrive in — alphabetical, as
+ * it turns out, because that is the last fallback of the standings query that
+ * feeds this. The page then printed "Resolved by Criterion 2" over positions
+ * nothing had resolved. In Division I volleyball that was four of the five
+ * teams in one tie group.
+ *
+ * Returning `topTeam` instead is what walkTiebreakers already expects: it
+ * places that team and re-runs the remaining teams from criterion 1, which is
+ * how NHIAA applies the criteria in the first place.
+ *
+ * @param {{team: string, score: number}[]} scored - one score per tied team, higher is better
+ * @param {string} detail - what this criterion measured, for the panel
+ * @param {Object} teamValues - the display strings, per team
+ * @param {number} tolerance - scores closer than this count as equal
+ */
+export function outcomeOf(scored, detail, teamValues, tolerance = PCT_TOLERANCE) {
+  const ranked = [...scored].sort((a, b) => b.score - a.score);
+  if (ranked.length < 2) return { status: 'tied', detail: `${detail} inconclusive`, teamValues };
+
+  const apart = (i) => Math.abs(ranked[i].score - ranked[i + 1].score) > tolerance;
+
+  // The leader is not clear, so nothing here separates anybody.
+  if (!apart(0)) return { status: 'tied', detail: `${detail} inconclusive`, teamValues };
+
+  const everyoneApart = ranked.every((_, i) => i === ranked.length - 1 || apart(i));
+  if (everyoneApart) {
+    return { status: 'resolved', resolved: true, order: ranked.map(r => r.team), detail, teamValues };
+  }
+
+  // The leader is clear and the rest are not. Say so rather than inventing an
+  // order for teams that are still tied.
+  return {
+    status: 'partial',
+    topTeam: ranked[0].team,
+    order: [ranked[0].team],
+    detail: `${detail} — separates ${ranked[0].team} only; the rest are still level`,
+    teamValues
+  };
+}
+
+/**
  * Normalize team name for consistent matching
  */
 export function normalizeTeamName(name) {
@@ -259,21 +314,14 @@ function evaluateHeadToHead(teams, games) {
   const secWins = secGames.filter(g => (g.home === sorted[1] && g.homeScore > g.awayScore) || (g.away === sorted[1] && g.awayScore > g.homeScore)).length;
   const secPct = secGames.length > 0 ? secWins / secGames.length : 0;
   
-  if (Math.abs(topPct - secPct) > PCT_TOLERANCE) {
-    return { 
-      status: 'resolved', 
-      resolved: true, 
-      order: sorted, 
-      detail: 'H2H win % among tied teams', 
-      teamValues 
-    };
-  }
-  
-  return { 
-    status: 'tied', 
-    detail: 'Head-to-head inconclusive', 
-    teamValues 
+  const h2hPct = (team) => {
+    const games = h2hGames.filter(g => g.home === team || g.away === team);
+    const won = games.filter(g =>
+      (g.home === team && g.homeScore > g.awayScore) || (g.away === team && g.awayScore > g.homeScore)).length;
+    return games.length > 0 ? won / games.length : 0;
   };
+  return outcomeOf(sorted.map(team => ({ team, score: h2hPct(team) })),
+    'H2H win % among tied teams', teamValues);
 }
 
 /**
@@ -297,23 +345,8 @@ function evaluateVsTournamentTeams(teams, allDivGames, tournamentTeams) {
     pcts.push({ team, pct, wins, games: vsGames.length });
   });
   
-  pcts.sort((a, b) => b.pct - a.pct);
-  
-  if (pcts.length >= 2 && Math.abs(pcts[0].pct - pcts[1].pct) > PCT_TOLERANCE) {
-    return { 
-      status: 'resolved', 
-      resolved: true, 
-      order: pcts.map(p => p.team), 
-      detail: 'Win % vs tournament teams', 
-      teamValues 
-    };
-  }
-  
-  return { 
-    status: 'tied', 
-    detail: 'Win % vs tournament teams inconclusive', 
-    teamValues 
-  };
+  return outcomeOf(pcts.map(p => ({ team: p.team, score: p.pct })),
+    'Win % vs tournament teams', teamValues);
 }
 
 /**
@@ -366,23 +399,8 @@ function evaluateQualityOfWins(teams, allDivGames, tournamentTeams) {
     rankings.push({ team, ranking });
   });
   
-  rankings.sort((a, b) => b.ranking - a.ranking);
-  
-  if (rankings.length >= 2 && Math.abs(rankings[0].ranking - rankings[1].ranking) > PCT_TOLERANCE) {
-    return { 
-      status: 'resolved', 
-      resolved: true, 
-      order: rankings.map(r => r.team), 
-      detail: 'Quality of wins ranking', 
-      teamValues 
-    };
-  }
-  
-  return { 
-    status: 'tied', 
-    detail: 'Quality of wins inconclusive', 
-    teamValues 
-  };
+  return outcomeOf(rankings.map(r => ({ team: r.team, score: r.ranking })),
+    'Quality of wins ranking', teamValues);
 }
 
 /**
@@ -409,23 +427,8 @@ function evaluateHomeAwayVsDivision(teams, allDivGames, divTeams, homeOrAway) {
     pcts.push({ team, pct });
   });
   
-  pcts.sort((a, b) => b.pct - a.pct);
-  
-  if (pcts.length >= 2 && Math.abs(pcts[0].pct - pcts[1].pct) > PCT_TOLERANCE) {
-    return { 
-      status: 'resolved', 
-      resolved: true, 
-      order: pcts.map(p => p.team), 
-      detail: `${homeOrAway === 'away' ? 'Away' : 'Home'} win % vs division`, 
-      teamValues 
-    };
-  }
-  
-  return { 
-    status: 'tied', 
-    detail: `${homeOrAway === 'away' ? 'Away' : 'Home'} win % vs division inconclusive`, 
-    teamValues 
-  };
+  return outcomeOf(pcts.map(p => ({ team: p.team, score: p.pct })),
+    `${homeOrAway === 'away' ? 'Away' : 'Home'} win % vs division`, teamValues);
 }
 
 /**
@@ -447,23 +450,8 @@ function evaluateTotalHomeAwayWins(teams, allGames, homeOrAway) {
     counts.push({ team, wins });
   });
   
-  counts.sort((a, b) => b.wins - a.wins);
-  
-  if (counts.length >= 2 && counts[0].wins !== counts[1].wins) {
-    return { 
-      status: 'resolved', 
-      resolved: true, 
-      order: counts.map(c => c.team), 
-      detail: `Total ${homeOrAway} wins`, 
-      teamValues 
-    };
-  }
-  
-  return { 
-    status: 'tied', 
-    detail: `Total ${homeOrAway} wins inconclusive`, 
-    teamValues 
-  };
+  return outcomeOf(counts.map(c => ({ team: c.team, score: c.wins })),
+    `Total ${homeOrAway} wins`, teamValues, 0.5);
 }
 
 /**
@@ -504,22 +492,11 @@ function evaluateHighestSeededWin(teams, divGames, divStandings) {
   });
   
   bestWins.sort((a, b) => a.bestSeed - b.bestSeed);
-  
-  if (bestWins.length >= 2 && bestWins[0].bestSeed !== bestWins[1].bestSeed) {
-    return { 
-      status: 'resolved', 
-      resolved: true, 
-      order: bestWins.map(b => b.team), 
-      detail: `${bestWins[0].team} defeated higher-seeded #${bestWins[0].bestSeed} ${bestWins[0].bestOpp}`, 
-      teamValues 
-    };
-  }
-  
-  return { 
-    status: 'tied', 
-    detail: 'Highest seeded win inconclusive', 
-    teamValues 
-  };
+  // Seed 1 beats seed 5, so the score is negated: the helper always reads a
+  // bigger number as better.
+  return outcomeOf(bestWins.map(b => ({ team: b.team, score: -b.bestSeed })),
+    `${bestWins[0].team} defeated higher-seeded #${bestWins[0].bestSeed} ${bestWins[0].bestOpp}`,
+    teamValues, 0.5);
 }
 
 // ============================================
@@ -663,6 +640,7 @@ export function walkTiebreakers(teams, divGames, allGames, tournamentTeams, divT
   const steps = [];
   let remainingTeams = [...teams];
   const finalOrder = [];
+  const unresolved = [];
   let pendingBelowTeams = [];
   
   while (remainingTeams.length > 1) {
@@ -690,8 +668,12 @@ export function walkTiebreakers(teams, divGames, allGames, tournamentTeams, divT
       finalOrder.push(result.topTeam);
       remainingTeams = remainingTeams.filter(t => t !== result.topTeam);
     } else {
-      // Couldn't resolve -- push remaining in original order (by rating)
+      /* Every criterion has been tried and these teams are still exactly level.
+         They go in by rating so the list is complete, but they are NAMED as
+         unresolved so the page can say so instead of presenting an order NHIAA
+         would settle in a room. */
       remainingTeams.sort((a, b) => (teamRatings[b] || 0) - (teamRatings[a] || 0));
+      unresolved.push(...remainingTeams.filter(t => !finalOrder.includes(t)));
       remainingTeams.forEach(t => {
         if (!finalOrder.includes(t)) finalOrder.push(t);
       });
@@ -720,6 +702,7 @@ export function walkTiebreakers(teams, divGames, allGames, tournamentTeams, divT
         divStandings
       );
       subResult.order.forEach(t => finalOrder.push(t));
+      unresolved.push(...(subResult.unresolved || []));
       // Merge sub-steps with a note
       steps.push({
         criterion: 'sub',
@@ -730,7 +713,9 @@ export function walkTiebreakers(teams, divGames, allGames, tournamentTeams, divT
     }
   }
   
-  return { steps, order: finalOrder };
+  // `unresolved` is the honest part of the answer: the teams whose position the
+  // criteria could not settle, in a list the caller is free to show or ignore.
+  return { steps, order: finalOrder, unresolved };
 }
 
 /**

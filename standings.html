@@ -1700,11 +1700,18 @@
           icon = '\u2705';
           labelClass = 'resolved';
           resolved = true;
+        } else if (step.status === 'partial') {
+          // Settled the top team and nobody else. Its own mark, because calling
+          // it resolved is what made the panel claim more than it had.
+          icon = '\u2B50';
+          labelClass = 'resolved';
         } else {
           icon = '\u2796';
         }
         
-        const iconClass = step.status === 'resolved' ? 'resolved' : step.status === 'tied' ? 'tied' : 'skipped';
+        const iconClass = step.status === 'resolved' ? 'resolved'
+                        : step.status === 'partial' ? 'resolved'
+                        : step.status === 'tied' ? 'tied' : 'skipped';
         const approxNote = step.approximate ? ' <span style="font-size:10px;color:#999;">(win % approx.)</span>' : '';
         const criterionLabel = step.criterion === 0 ? step.label : `${step.criterion}. ${step.label}`;
         
@@ -1734,10 +1741,22 @@
       });
       html += `</div>`;
       
-      if (res.order.length > 0 && steps.some(s => s.status === 'resolved')) {
+      /* Three outcomes, said plainly. The panel used to have two, and a group
+         where a criterion had separated only the leader was reported as fully
+         resolved — with the teams still level underneath it listed in the order
+         they arrived in, which was alphabetical and meant nothing. */
+      const stuck = res.unresolved || [];
+      const settled = res.order.filter(t => !stuck.includes(t));
+
+      if (res.order.length > 0 && stuck.length === 0 && steps.some(s => s.status === 'resolved')) {
         const resolvedStep = steps.find(s => s.status === 'resolved');
         const resolvedLabel = resolvedStep.criterion === 0 ? 'Rating' : `Criterion ${resolvedStep.criterion}`;
         html += `<div class="tiebreaker-result">\u2705 Resolved by ${resolvedLabel}: ${res.order.map((t, i) => `#${tieGroup.startRank + i} ${t}`).join(', ')}</div>`;
+      } else if (settled.length > 0) {
+        const placed = settled.map(t => `#${tieGroup.startRank + res.order.indexOf(t)} ${t}`).join(', ');
+        html += `<div class="tiebreaker-result" style="background:#fff3e0;color:#e65100;">` +
+          `\u2B50 Partly resolved \u2014 ${placed}. Still level: ${stuck.join(', ')} ` +
+          `(NHIAA decides).</div>`;
       } else {
         html += `<div class="tiebreaker-result" style="background:#fff3e0;color:#e65100;">Could not fully resolve \u2014 may require NHIAA committee</div>`;
       }
@@ -1930,27 +1949,10 @@
         });
       });
       
-      // Apply tiebreaker ordering to standings
-      // For each tie group, reorder the tied teams according to resolution
-      tieGroups.forEach(tg => {
-        if (!tg.resolution || !tg.resolution.order || tg.resolution.order.length === 0) return;
-        const startIdx = tg.startRank - 1;
-        const resolvedOrder = tg.resolution.order;
-        
-        // Save references to tied entries BEFORE overwriting
-        const tiedEntries = {};
-        for (let i = startIdx; i < startIdx + tg.teams.length && i < standings.length; i++) {
-          tiedEntries[standings[i].school] = standings[i];
-        }
-        
-        // Now replace in resolved order using saved references
-        for (let i = 0; i < resolvedOrder.length; i++) {
-          const entry = tiedEntries[resolvedOrder[i]];
-          if (entry && startIdx + i < standings.length) {
-            standings[startIdx + i] = entry;
-          }
-        }
-      });
+      // Apply tiebreaker ordering. Shared with the home page widget via app.js,
+      // because two copies of this is exactly how the two pages came to show
+      // the same division in two different orders.
+      Ball603.applyTiebreakerOrder(standings, tieGroups);
       
       // For locked divisions, sort by seed number from playoff_seeds
       const seeds = divisionSeeds[divisionKey];

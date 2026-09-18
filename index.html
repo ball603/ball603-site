@@ -3287,6 +3287,11 @@
     if (standingsSport === 'gvolleyball') standingsGender = 'Girls';
     let standingsDivision = 'D-I';
     let allStandings = [];
+    /* The Seed Decoder's answer for the division on show, and a cache keyed on
+       sport/gender/division so flicking between tabs does not re-ask for one it
+       has already been given. */
+    let standingsTieGroups = [];
+    const tieGroupCache = {};
     let allRpiData = [];
     let currentMode = 'standings'; // 'standings' or 'rpi'
     
@@ -3314,7 +3319,7 @@
           renderRpiData();
         }
       } else {
-        renderStandingsData();
+        renderStandingsWithTiebreakers();
       }
     }
     
@@ -3327,7 +3332,7 @@
       if (currentMode === 'rpi') {
         renderRpiData();
       } else {
-        renderStandingsData();
+        renderStandingsWithTiebreakers();
       }
     }
     
@@ -3340,7 +3345,7 @@
       if (currentMode === 'rpi') {
         renderRpiData();
       } else {
-        renderStandingsData();
+        renderStandingsWithTiebreakers();
       }
     }
     
@@ -3382,7 +3387,7 @@
         
         if (data.standings && data.standings.length > 0) {
           allStandings = data.standings;
-          renderStandingsData();
+          renderStandingsWithTiebreakers();
         } else {
           const emptyHtml = '<div class="standings-empty">No standings available</div>';
           container.innerHTML = emptyHtml;
@@ -3396,6 +3401,43 @@
       }
     }
     
+    /* The same tiebreaker resolution the standings page uses. A failure here is
+       not worth an error state on the home page — the widget simply shows the
+       plain rating order, which is what it always used to show. */
+    async function loadTieGroups() {
+      const season = _getSeasonForSport(standingsSport);
+      const gender = (standingsSport === 'baseball') ? 'Boys'
+                   : (standingsSport === 'gvolleyball') ? 'Girls' : standingsGender;
+      const key = `${standingsSport}-${gender}-${standingsDivision}-${season}`;
+      if (tieGroupCache[key]) { standingsTieGroups = tieGroupCache[key]; return; }
+      try {
+        const res = await fetch(`/.netlify/functions/resolve-tiebreakers?gender=${gender}` +
+          `&division=${standingsDivision}&season=${season}&sport=${standingsSport}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        standingsTieGroups = data.tieGroups || [];
+        tieGroupCache[key] = standingsTieGroups;
+      } catch (err) {
+        console.warn('[Ball603] Tiebreakers unavailable for the standings widget:', err.message);
+        standingsTieGroups = [];
+      }
+    }
+
+    /* Drawn once without the tiebreakers so the widget appears straight away,
+       then again when they arrive. They only ever reorder teams that are level
+       with each other, so nothing visibly jumps.
+
+       Every path that changes sport, gender or division comes through here.
+       Calling renderStandingsData directly would draw the new division against
+       the previous one's tie groups — which applyTiebreakerOrder would refuse
+       rather than corrupt, but the table would then quietly stop matching the
+       standings page, which is the bug this is fixing. */
+    async function renderStandingsWithTiebreakers() {
+      renderStandingsData();
+      await loadTieGroups();
+      renderStandingsData();
+    }
+
     /**
      * Render standings based on selected gender and division
      */
@@ -3418,13 +3460,23 @@
         return;
       }
       
-      // Sort by rating desc, then wins desc, then losses asc
+      /* Rating first, then wins, then losses, then the school name — the same
+         comparator the standings page uses, INCLUDING the alphabetical fallback
+         that was missing here. Without it, teams level on all three sat in
+         whatever order the database happened to return them, which is how this
+         widget and the standings page ended up disagreeing about seven
+         positions in Division I volleyball off identical data. */
       const sorted = filtered.sort((a, b) => {
         const rDiff = (b.rating || b.power_rating || 0) - (a.rating || a.power_rating || 0);
         if (rDiff !== 0) return rDiff;
         if (b.wins !== a.wins) return (b.wins || 0) - (a.wins || 0);
-        return (a.losses || 0) - (b.losses || 0);
+        if (a.losses !== b.losses) return (a.losses || 0) - (b.losses || 0);
+        return (a.school || '').localeCompare(b.school || '');
       });
+
+      // Then the Seed Decoder, which is what actually breaks the ties. Applied
+      // here exactly as the standings page applies it, so the two agree.
+      Ball603.applyTiebreakerOrder(sorted, standingsTieGroups);
       
       const standingsHtml = sorted.map((s, i) => {
         // Convert school name to URL slug (lowercase, no spaces/hyphens)

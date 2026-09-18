@@ -1294,8 +1294,57 @@ if (document.readyState === 'loading') {
   initApp();
 }
 
+/**
+ * Apply the Seed Decoder's resolved order to a sorted standings array, in place.
+ *
+ * Both the standings page and the home page widget show the same divisions, and
+ * for a while they showed them in DIFFERENT orders off identical data: the
+ * standings page reordered teams tied on rating using the tiebreaker engine and
+ * the home page did not, which came to seven positions apart in Division I
+ * volleyball. One copy, called from both, so they cannot drift again.
+ *
+ * `standings` must already be sorted the way the tie groups were computed —
+ * rating, wins, losses, then school name — because a group says "the five teams
+ * starting at rank 3", and that only means anything against that order.
+ *
+ * @param {Object[]} standings - sorted standings, reordered in place
+ * @param {Object[]} tieGroups - from /.netlify/functions/resolve-tiebreakers
+ * @returns {Object[]} the same array, for chaining
+ */
+function applyTiebreakerOrder(standings, tieGroups) {
+  if (!Array.isArray(standings) || !Array.isArray(tieGroups)) return standings;
+
+  tieGroups.forEach(group => {
+    const order = group?.resolution?.order;
+    if (!Array.isArray(order) || order.length === 0) return;
+
+    const startIdx = (group.startRank || 1) - 1;
+    const span = Math.min(group.teams?.length || order.length, standings.length - startIdx);
+    if (startIdx < 0 || span <= 1) return;
+
+    /* Grab the rows first, then write them back. Reading and writing the same
+       slice in one pass overwrites entries before they have been read, which
+       duplicates a team and loses another. */
+    const held = {};
+    for (let i = startIdx; i < startIdx + span; i++) {
+      if (standings[i]) held[standings[i].school] = standings[i];
+    }
+    // Only reorder within the slice the group actually occupies. A resolution
+    // naming a team that is not there — a stale cache, a renamed school — must
+    // not shift everybody else up by one.
+    if (!order.every(name => held[name])) return;
+
+    order.forEach((name, i) => {
+      if (startIdx + i < standings.length) standings[startIdx + i] = held[name];
+    });
+  });
+
+  return standings;
+}
+
 // ===== EXPORTS (for modules) =====
 window.Ball603 = {
+  applyTiebreakerOrder,
   state,
   getSupabase: initSupabase,
   fetchGames,
