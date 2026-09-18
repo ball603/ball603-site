@@ -217,31 +217,22 @@ function favourites() {
 
 const isFavourite = (uteam) => favourites().includes(Number(uteam));
 
-function toggleFavourite(uteam) {
-  const id = Number(uteam);
-  const now = favourites();
-  const next = now.includes(id) ? now.filter(x => x !== id) : now.concat(id);
+// The one way anything is written. Everything else goes through here so that
+// there is a single place the event is fired from.
+function setFavourites(ids) {
+  const next = [...new Set((ids || []).map(Number).filter(Number.isFinite))];
   try { localStorage.setItem(FAV_KEY, JSON.stringify(next)); } catch { /* nothing to do */ }
   // Every mounted list and the ticker redraw themselves off this.
   document.dispatchEvent(new CustomEvent('ft:favourites'));
   return next;
 }
 
-/* One list, mounted wherever it is wanted: in a card on the home page and in
-   the panel the star opens. Two copies of this would drift apart. */
-function favouritesList(mount, teams) {
-  if (!mount) return;
-  const favs = favourites();
-  mount.innerHTML = `
-    <div class="ft-favlist">
-      ${teams.map(t => `
-        <button class="ft-fav${favs.includes(t.uteam) ? ' on' : ''}" type="button"
-                data-fav="${t.uteam}" aria-pressed="${favs.includes(t.uteam) ? 'true' : 'false'}">
-          <span class="ft-fav-star" aria-hidden="true">${favs.includes(t.uteam) ? '★' : '☆'}</span>
-          <span class="ft-fav-name">${esc(t.name)}</span>
-        </button>`).join('')}
-    </div>`;
+function toggleFavourite(uteam) {
+  const id = Number(uteam);
+  const now = favourites();
+  return setFavourites(now.includes(id) ? now.filter(x => x !== id) : now.concat(id));
 }
+
 const versus = (g) => g.is_meet ? opponentLabel(g)
                                 : `${g.is_home ? 'vs' : 'at'} ${opponentLabel(g)}`;
 
@@ -429,6 +420,19 @@ const SOCIAL = [
     path: 'M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231z' }
 ];
 
+// Set when the header is rendered, which is every page. A page that wants to
+// open My Teams from its own button asks through FT.openMyTeams rather than
+// reaching into the header's markup.
+let openFavModal = null;
+
+// Outline in the bar, solid inside the modal's own heading — one shape, drawn
+// twice, rather than two stars that nearly match.
+const STAR_SVG = `
+  <svg class="ft-star-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+       stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"/>
+  </svg>`;
+
 function renderHeader(active) {
   const mount = document.getElementById('ft-header');
   if (!mount) return;
@@ -456,11 +460,12 @@ function renderHeader(active) {
               <path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/>
             </svg>
           </button>
-          <button class="ft-iconbtn" id="ft-star" type="button" title="My teams" aria-label="My teams">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                 stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"/>
-            </svg>
+          <!-- The star carries its own label on a wide screen. On a phone the
+               label is in the drawer instead, where there is room for it. -->
+          <button class="ft-iconbtn ft-starbtn" id="ft-star" type="button"
+                  title="My teams" aria-label="My teams" aria-haspopup="dialog">
+            ${STAR_SVG}
+            <span class="ft-starbtn-label">My Teams</span>
           </button>
           <button class="ft-burger" id="ft-burger" type="button"
                   aria-label="Menu" aria-expanded="false" aria-controls="ft-drawer">
@@ -480,30 +485,56 @@ function renderHeader(active) {
         <button class="ft-drawer-close" id="ft-drawer-close" type="button" aria-label="Close">&times;</button>
       </div>
       ${NAV.map(n => `<a class="ft-drawerlink${n.key === active ? ' on' : ''}" href="${n.href}">${n.label}</a>`).join('')}
+      <!-- The star's label lives here on a phone, where the bar has no room
+           for it. Same button, same modal. -->
+      <button class="ft-drawerlink ft-drawerstar" id="ft-drawer-star" type="button" aria-haspopup="dialog">
+        ${STAR_SVG}<span>My Teams</span>
+      </button>
     </nav>
 
     <div id="ft-ticker"></div>
 
-    <!-- My teams, opened by the star. The same list the home page carries. -->
-    <div class="ft-veil-nav" id="ft-fav-veil"></div>
-    <aside class="ft-favpanel" id="ft-favpanel" aria-label="My teams">
-      <div class="ft-drawer-head">
-        <span>My teams</span>
-        <button class="ft-drawer-close" id="ft-fav-close" type="button" aria-label="Close">&times;</button>
+    <!-- My teams. A modal rather than another slide-out: choosing from a list
+         of a dozen is a job you finish and confirm, not a menu you glance at,
+         and Ball603 asks the same question the same way. -->
+    <div class="ft-modal-veil" id="ft-fav-veil"></div>
+    <div class="ft-modal" id="ft-favmodal" role="dialog" aria-modal="true" aria-label="My teams">
+      <div class="ft-modal-head">
+        <span class="ft-modal-star">${STAR_SVG}</span>
+        <button class="ft-modal-close" id="ft-fav-close" type="button" aria-label="Close">&times;</button>
       </div>
-      <p class="ft-favnote">Starred teams come first in the scores ticker.</p>
-      <div id="ft-favpanel-list"><div class="ft-loading">Loading teams&hellip;</div></div>
-    </aside>`;
+      <div class="ft-modal-body">
+        <p class="ft-modal-intro">Select your favorite teams. Their games will appear first
+          in the scores ticker.</p>
+        <h3 class="ft-modal-label">Teams</h3>
+        <div class="ft-modal-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>
+          </svg>
+          <input id="ft-fav-search" type="search" autocomplete="off"
+                 placeholder="Search teams&hellip;" aria-label="Search teams">
+        </div>
+        <div class="ft-modal-list" id="ft-favmodal-list">
+          <div class="ft-loading">Loading teams&hellip;</div>
+        </div>
+      </div>
+      <div class="ft-modal-foot">
+        <button class="ft-btn ft-btn-quiet" id="ft-fav-clear" type="button">Clear All</button>
+        <button class="ft-btn ft-btn-go" id="ft-fav-save" type="button">Save Favorites</button>
+      </div>
+    </div>`;
 
-  /* Two panels that slide in from the right, opened and closed the same way.
-     Escape and the backdrop close either — a panel you can only shut with the
-     button that opened it is one people get stuck in. */
+  /* The drawer and the modal open and close the same way. Escape and the
+     backdrop close either — anything you can only shut with the button that
+     opened it is something people get stuck in. */
   const panels = [
     { el: 'ft-drawer', veil: 'ft-drawer-veil', open: 'ft-burger', close: 'ft-drawer-close' },
-    { el: 'ft-favpanel', veil: 'ft-fav-veil', open: 'ft-star', close: 'ft-fav-close' }
+    { el: 'ft-favmodal', veil: 'ft-fav-veil', open: null, close: 'ft-fav-close' }
   ].map(p => ({
     el: document.getElementById(p.el), veil: document.getElementById(p.veil),
-    opener: document.getElementById(p.open), closer: document.getElementById(p.close)
+    opener: p.open ? document.getElementById(p.open) : null,
+    closer: document.getElementById(p.close)
   }));
 
   const shut = (p) => {
@@ -516,36 +547,114 @@ function renderHeader(active) {
     if (!panels.some(q => q.el.classList.contains('on'))) document.body.classList.remove('ft-locked');
   };
   const shutAll = () => panels.forEach(shut);
-
-  for (const p of panels) {
-    p.opener.addEventListener('click', () => {
-      const wasOpen = p.el.classList.contains('on');
-      shutAll();
-      if (wasOpen) return;
-      p.el.classList.add('on');
-      p.veil.classList.add('on');
+  const show = (p) => {
+    shutAll();
+    p.el.classList.add('on');
+    p.veil.classList.add('on');
+    if (p.opener) {
       p.opener.classList.add('on');
       p.opener.setAttribute('aria-expanded', 'true');
-      document.body.classList.add('ft-locked');
-    });
+    }
+    document.body.classList.add('ft-locked');
+  };
+
+  for (const p of panels) {
+    if (p.opener) {
+      p.opener.addEventListener('click', () => {
+        if (p.el.classList.contains('on')) { shutAll(); return; }
+        show(p);
+      });
+    }
     p.closer.addEventListener('click', () => shut(p));
     p.veil.addEventListener('click', () => shut(p));
   }
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') shutAll(); });
 
-  // The star's list, filled once the teams are known.
+  /* ── The My Teams modal ──────────────────────────────────────────────── */
+  /* Ticking a box changes nothing until Save is pressed. That is deliberate:
+     somebody working down a list of a dozen teams is mid-thought, and a ticker
+     that reshuffled under them after every tick would be answering a question
+     they had not finished asking. Closing without saving leaves what they had. */
+  const modal = panels.find(p => p.el.id === 'ft-favmodal');
+  const list = document.getElementById('ft-favmodal-list');
+  const search = document.getElementById('ft-fav-search');
+  let teamsKnown = [];
+
+  function drawModalList() {
+    const chosen = favourites();
+    list.innerHTML = teamsKnown.length ? teamsKnown.map(t => `
+      <label class="ft-mrow">
+        <span class="ft-mrow-icon" aria-hidden="true">${t.emoji || '\u{1F3C6}'}</span>
+        <span class="ft-mrow-name">${esc(t.name)}</span>
+        <input type="checkbox" data-fav="${t.uteam}"${chosen.includes(t.uteam) ? ' checked' : ''}>
+      </label>`).join('')
+      : '<div class="ft-empty">No teams to choose from yet.</div>';
+    filterModalList();
+  }
+
+  // Hiding rather than re-rendering, so a box ticked before the search box was
+  // touched is still ticked after it is cleared.
+  function filterModalList() {
+    const q = (search.value || '').trim().toLowerCase();
+    for (const row of list.querySelectorAll('.ft-mrow')) {
+      const name = row.querySelector('.ft-mrow-name').textContent.toLowerCase();
+      row.hidden = q !== '' && !name.includes(q);
+    }
+    const any = [...list.querySelectorAll('.ft-mrow')].some(r => !r.hidden);
+    let none = list.querySelector('.ft-mrow-none');
+    if (!any && teamsKnown.length) {
+      if (!none) {
+        none = document.createElement('div');
+        none.className = 'ft-empty ft-mrow-none';
+        none.textContent = 'No team by that name.';
+        list.appendChild(none);
+      }
+    } else if (none) none.remove();
+  }
+
+  search.addEventListener('input', filterModalList);
+
+  document.getElementById('ft-fav-clear').addEventListener('click', () => {
+    for (const box of list.querySelectorAll('input[type=checkbox]')) box.checked = false;
+  });
+
+  document.getElementById('ft-fav-save').addEventListener('click', () => {
+    const picked = [...list.querySelectorAll('input[type=checkbox]:checked')]
+      .map(b => Number(b.dataset.fav));
+    setFavourites(picked);
+    shut(modal);
+  });
+
+  /* Opened from three places — the star in the bar, its twin at the foot of the
+     drawer, and the card on the home page. Each one re-reads the store on the
+     way in, so the boxes always show what is actually saved rather than
+     whatever was left behind by a visit somebody cancelled. */
+  openFavModal = () => {
+    drawModalList();
+    search.value = '';
+    filterModalList();
+    show(modal);
+    // The search box takes focus on a real keyboard only: on a phone it would
+    // throw up the on-screen one and cover the list somebody came to read.
+    if (window.matchMedia('(min-width:761px)').matches) search.focus();
+  };
+
+  for (const id of ['ft-star', 'ft-drawer-star']) {
+    const btn = document.getElementById(id);
+    if (btn) btn.addEventListener('click', () => openFavModal());
+  }
+
   load().then(data => {
-    const mount = document.getElementById('ft-favpanel-list');
-    const draw = () => favouritesList(mount, data.teams);
-    draw();
-    document.addEventListener('ft:favourites', draw);
-    mount.addEventListener('click', (e) => {
-      const btn = e.target.closest('[data-fav]');
-      if (btn) toggleFavourite(btn.dataset.fav);
-    });
+    // The sport's mark rather than the school crest: every team here is
+    // Farmington, so thirteen identical tiger heads would tell nobody anything.
+    teamsKnown = data.teams.map(t => ({
+      uteam: t.uteam, name: t.name,
+      emoji: t.games && t.games[0] && t.games[0].sport ? t.games[0].sport.emoji : ''
+    }));
+    drawModalList();
+    document.addEventListener('ft:favourites', drawModalList);
   }).catch(() => {
-    const mount = document.getElementById('ft-favpanel-list');
-    if (mount) mount.innerHTML = '<div class="ft-empty">Teams could not be loaded.</div>';
+    list.innerHTML = '<div class="ft-empty">Teams could not be loaded.</div>';
   });
 
   // Share, the way Ball603 does it: the OS sheet where there is one, the
@@ -804,12 +913,13 @@ function venuePin(game) {
 
 window.FT = {
   SPORTS, GENDERS, genderLabel, genderPrefix, shortenSchool,
-  favourites, isFavourite, toggleFavourite, favouritesList,
+  favourites, isFavourite, toggleFavourite, setFavourites,
   esc, parseLocal, dateKey, todayKey, dayLabel, shortDate, timeLabel, weekWindow,
   seasonLabel, seasonOfGames,
   scoreOf, resultOf, recordOf, opponentLabel, versus, divisionLabel,
   ball603Covers, ball603Slug, ball603Logo, schoolLogo, teamLink,
-  load, sb, renderHeader, renderFooter, venuePin, closeVenue, pills, streakBadge
+  load, sb, renderHeader, renderFooter, venuePin, closeVenue, pills, streakBadge,
+  openMyTeams: () => { if (openFavModal) openFavModal(); }
 };
 
 })();

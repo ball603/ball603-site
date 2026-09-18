@@ -69,7 +69,7 @@ h1,h2,h3,h4{letter-spacing:-.3px}
 .ft-nav{display:flex;align-items:center;height:100%;gap:2px;flex:1;min-width:0;overflow-x:auto;scrollbar-width:none}
 .ft-nav::-webkit-scrollbar{display:none}
 .ft-navlink{
-  color:rgba(255,255,255,.72);font-size:14px;font-weight:500;text-decoration:none;
+  color:rgba(255,255,255,.72);font-size:14px;font-weight:400;text-decoration:none;
   padding:0 15px;height:100%;display:flex;align-items:center;white-space:nowrap;
   border-bottom:3px solid transparent;transition:color .15s,border-color .15s;
 }
@@ -94,6 +94,12 @@ h1,h2,h3,h4{letter-spacing:-.3px}
   cursor:pointer;padding:0;transition:color .15s;
 }
 .ft-iconbtn svg{width:18px;height:18px}
+/* Star plus wordmark. The label goes on a phone — see the mobile block — and
+   the drawer carries it there instead. */
+.ft-starbtn{width:auto;gap:7px;padding:0 8px}
+.ft-starbtn-label{
+  font-size:12px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;white-space:nowrap;
+}
 .ft-iconbtn:hover{color:var(--ft-orange)}
 .ft-iconbtn.on{color:var(--ft-orange)}
 .ft-iconbtn.ft-copied{color:var(--ft-orange)}
@@ -119,8 +125,9 @@ h1,h2,h3,h4{letter-spacing:-.3px}
 /* Both side panels slide in from the right, the way Ball603's menu does. They
    are always in the DOM and moved off-screen, so opening one animates rather
    than appearing. */
-.ft-drawer,.ft-favpanel{
+.ft-drawer{
   position:fixed;top:0;right:0;bottom:0;width:min(300px,84vw);z-index:1400;
+  background:#0b0b0b;
   transform:translateX(100%);transition:transform .22s ease,visibility .22s;
   overflow-y:auto;-webkit-overflow-scrolling:touch;
   /* Off-screen is not the same as gone: a panel parked past the right edge
@@ -128,10 +135,7 @@ h1,h2,h3,h4{letter-spacing:-.3px}
      tabbing through the page would walk into a menu they never opened. */
   visibility:hidden;
 }
-.ft-drawer.on,.ft-favpanel.on{visibility:visible}
-.ft-drawer{background:#0b0b0b}
-.ft-favpanel{background:var(--ft-card);width:min(340px,88vw)}
-.ft-drawer.on,.ft-favpanel.on{transform:translateX(0)}
+.ft-drawer.on{visibility:visible;transform:translateX(0)}
 
 .ft-veil-nav{
   position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1300;
@@ -145,7 +149,6 @@ body.ft-locked{overflow:hidden}
   padding:15px 18px;border-bottom:1px solid #1c1c1c;
   font-weight:800;font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:#8a8a8a;
 }
-.ft-favpanel .ft-drawer-head{border-bottom-color:var(--ft-line);color:var(--ft-ink-3)}
 .ft-drawer-close{
   appearance:none;border:0;background:none;color:inherit;font-size:24px;line-height:1;
   cursor:pointer;padding:0 2px;
@@ -153,29 +156,123 @@ body.ft-locked{overflow:hidden}
 .ft-drawer-close:hover{color:var(--ft-orange)}
 
 .ft-drawerlink{
-  display:block;color:rgba(255,255,255,.8);text-decoration:none;
-  font-size:15px;font-weight:600;padding:14px 20px;border-bottom:1px solid #1c1c1c;
+  display:block;width:100%;box-sizing:border-box;text-align:left;
+  appearance:none;border:0;background:none;font-family:inherit;cursor:pointer;
+  color:rgba(255,255,255,.8);text-decoration:none;
+  font-size:15px;font-weight:400;padding:14px 20px;border-bottom:1px solid #1c1c1c;
 }
+/* My Teams at the foot of the drawer. The star's label lives here on a phone,
+   where the bar itself has no room for it. */
+.ft-drawerstar{display:flex;align-items:center;gap:10px;color:var(--ft-orange);border-top:1px solid #1c1c1c}
+.ft-drawerstar .ft-star-icon{width:17px;height:17px;flex:none}
 .ft-drawerlink:last-child{border-bottom:0}
 .ft-drawerlink.on{color:var(--ft-orange);box-shadow:inset 3px 0 0 var(--ft-orange)}
 
-/* ── My teams ─────────────────────────────────────────────────────────── */
-.ft-favnote{margin:14px 18px 10px;font-size:12.5px;color:var(--ft-ink-3);line-height:1.5}
-.ft-favlist{display:flex;flex-direction:column;padding:0 10px 18px}
-/* The same list inside the home page card. The card supplies its own padding,
-   and a school with fifteen teams would otherwise push the results box a screen
-   and a half down, so the list scrolls inside a fixed height. */
-.ft-favnote{margin:0 0 8px}
-.ft-card-body .ft-favlist{padding:0;max-height:252px;overflow:auto}
-.ft-fav{
-  appearance:none;border:0;background:none;text-align:left;cursor:pointer;
-  display:flex;align-items:center;gap:10px;padding:10px 10px;border-radius:8px;
-  font-size:14px;color:var(--ft-ink);width:100%;
+/* ── My Teams ───────────────────────────────────────────────────────────── */
+/* A centred modal, the way Ball603 asks the same question: a short explanation,
+   a search box, the list, and the two buttons that end it. Nothing is written
+   until Save is pressed. */
+.ft-modal-veil{
+  position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1500;
+  opacity:0;pointer-events:none;transition:opacity .18s;
 }
-.ft-fav:hover{background:var(--ft-line-2)}
-.ft-fav-star{font-size:16px;color:var(--ft-ink-3);flex:none;line-height:1}
-.ft-fav.on .ft-fav-star{color:var(--ft-orange)}
-.ft-fav.on .ft-fav-name{font-weight:700}
+.ft-modal-veil.on{opacity:1;pointer-events:auto}
+.ft-modal{
+  position:fixed;z-index:1510;left:50%;top:50%;
+  transform:translate(-50%,-50%) scale(.97);
+  width:min(460px,calc(100vw - 28px));max-height:min(86vh,720px);
+  background:var(--ft-card);border-radius:16px;box-shadow:0 24px 60px rgba(0,0,0,.35);
+  display:flex;flex-direction:column;overflow:hidden;
+  /* Hidden rather than merely transparent: a dialog that is only invisible is
+     still in the tab order, and somebody keyboarding down the page walks into
+     a list of checkboxes with nothing to say why. */
+  opacity:0;visibility:hidden;transition:opacity .18s,transform .18s,visibility .18s;
+}
+.ft-modal.on{opacity:1;visibility:visible;transform:translate(-50%,-50%) scale(1)}
+
+.ft-modal-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 18px;border-bottom:1px solid var(--ft-line);flex:none;
+}
+.ft-modal-star{display:flex;color:var(--ft-orange)}
+.ft-modal-star .ft-star-icon{width:24px;height:24px;fill:var(--ft-orange)}
+.ft-modal-close{
+  appearance:none;border:0;background:none;color:var(--ft-ink-2);
+  font-size:26px;line-height:1;cursor:pointer;padding:0 2px;
+}
+.ft-modal-close:hover{color:var(--ft-ink)}
+
+.ft-modal-body{padding:16px 18px;overflow:auto;flex:1;min-height:0}
+.ft-modal-intro{margin:0 0 16px;color:var(--ft-ink-2);font-size:14.5px;line-height:1.5}
+.ft-modal-label{
+  margin:0 0 8px;font-size:11px;font-weight:700;letter-spacing:1.1px;
+  text-transform:uppercase;color:var(--ft-ink-3);
+}
+
+.ft-modal-search{position:relative;margin-bottom:12px}
+.ft-modal-search svg{
+  position:absolute;left:12px;top:50%;transform:translateY(-50%);
+  width:17px;height:17px;color:var(--ft-ink-3);pointer-events:none;
+}
+.ft-modal-search input{
+  width:100%;box-sizing:border-box;appearance:none;
+  border:1px solid var(--ft-line);border-radius:10px;background:var(--ft-card);
+  padding:12px 12px 12px 38px;font-size:15px;color:var(--ft-ink);font-family:inherit;
+}
+.ft-modal-search input:focus{outline:2px solid var(--ft-orange);outline-offset:-1px;border-color:var(--ft-orange)}
+
+.ft-modal-list{
+  border:1px solid var(--ft-line);border-radius:10px;
+  max-height:46vh;overflow:auto;-webkit-overflow-scrolling:touch;
+}
+.ft-mrow{
+  display:flex;align-items:center;gap:12px;padding:12px 14px;cursor:pointer;
+  border-bottom:1px solid var(--ft-line-2);font-size:15px;color:var(--ft-ink);
+}
+.ft-mrow:last-child{border-bottom:0}
+.ft-mrow:hover{background:var(--ft-line-2)}
+.ft-mrow[hidden]{display:none}
+.ft-mrow-icon{font-size:19px;flex:none;width:24px;text-align:center;line-height:1}
+.ft-mrow-name{flex:1;min-width:0}
+/* A real checkbox, so it reads as one to a screen reader and to a thumb. */
+.ft-mrow input{
+  appearance:none;flex:none;width:22px;height:22px;margin:0;cursor:pointer;
+  border:2px solid var(--ft-line);border-radius:6px;background:var(--ft-card);
+  transition:background .15s,border-color .15s;
+}
+.ft-mrow input:checked{background:var(--ft-orange);border-color:var(--ft-orange)}
+.ft-mrow input:checked::after{
+  content:'';display:block;width:6px;height:11px;margin:1px auto 0;
+  border:solid #fff;border-width:0 2.5px 2.5px 0;transform:rotate(45deg);
+}
+.ft-mrow input:focus-visible{outline:2px solid var(--ft-orange);outline-offset:2px}
+.ft-mrow-none{padding:18px}
+
+.ft-modal-foot{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:14px 18px;border-top:1px solid var(--ft-line);flex:none;
+}
+/* The shared button is full-width with a margin above it, which is right inside
+   a form and wrong in a footer holding two. */
+.ft-modal-foot .ft-btn{width:auto;margin-top:0}
+/* Doubled up on .ft-btn deliberately: the shared button is defined further down
+   this file, and a single class here would lose to it on source order alone. */
+.ft-btn.ft-btn-quiet{background:transparent;color:var(--ft-ink-2);border:1px solid var(--ft-line)}
+.ft-btn.ft-btn-quiet:hover{background:#f3f3f3;color:var(--ft-ink)}
+.ft-btn.ft-btn-go{background:var(--ft-orange);color:#fff}
+.ft-btn.ft-btn-go:hover{background:var(--ft-orange-dk);color:#fff}
+.ft-btn.ft-btn-wide{width:100%;margin-top:14px}
+
+/* The home page card: what has been chosen, and the button that changes it. */
+.ft-favnote{margin:0 0 10px}
+.ft-favchips{display:flex;flex-wrap:wrap;gap:7px}
+.ft-favchip{
+  display:inline-flex;align-items:center;gap:6px;
+  background:var(--ft-line-2);border-radius:999px;padding:7px 13px;
+  font-size:13.5px;color:var(--ft-ink);
+}
+.ft-favchip::before{content:'\2605';color:var(--ft-orange);font-size:13px;line-height:1}
+.ft-favempty{padding:6px 0 2px;text-align:left}
 .ft-fav-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 /* ── Ticker ───────────────────────────────────────────────────────────────
@@ -303,7 +400,7 @@ body.ft-locked{overflow:hidden}
 }
 .ft-pill{
   appearance:none;border:0;background:transparent;color:var(--ft-ink-2);
-  font-weight:600;font-size:13.5px;line-height:1;padding:9px 16px;border-radius:6px;cursor:pointer;
+  font-weight:500;font-size:13.5px;line-height:1;padding:9px 16px;border-radius:6px;cursor:pointer;
   white-space:nowrap;transition:all .2s;display:inline-flex;align-items:center;gap:6px;
 }
 .ft-pill:hover{color:var(--ft-ink);background:rgba(255,255,255,.6)}
@@ -543,10 +640,19 @@ body.ft-locked{overflow:hidden}
 
   .ft-header-inner{padding:0 10px;gap:4px}
   .ft-logo{margin-right:0;flex:1;min-width:0}
-  .ft-logo img{height:28px;max-width:140px}
-  .ft-social{width:28px;height:28px}
+  /* The wordmark is 600x159, so at 44px tall it wants 166px of width. Raising
+     the height alone did nothing visible, because max-width was the binding
+     constraint and the image was being held at 140. Both had to move. */
+  .ft-logo img{height:44px;max-width:172px}
+  /* The width for that comes out of the icons beside it: the bar itself stays
+     60px and everything still fits across a 390px screen. */
+  .ft-social{width:24px;height:24px}
   .ft-social svg{width:13px;height:13px}
-  .ft-header-right{gap:4px}
+  .ft-iconbtn{width:28px;height:28px}
+  .ft-burger{width:28px;height:28px}
+  .ft-starbtn-label{display:none}
+  .ft-starbtn{padding:0}
+  .ft-header-right{gap:3px}
 
   .ft-wrap{padding:12px 12px 40px}
   .ft-pagehead{margin-bottom:12px}
@@ -605,8 +711,9 @@ body.ft-locked{overflow:hidden}
   .ft-pills{gap:3px;padding:3px}
   .ft-pill{padding:7px 7px;font-size:11.5px;gap:3px}
   .ft-pill .ft-sport-emoji{font-size:12px}
-  .ft-logo img{height:25px;max-width:118px}
-  .ft-social{width:26px;height:26px}
+  /* The wordmark keeps its full 44px here too — it is the one thing on this bar
+     somebody is actually looking at. The socials give up the width for it. */
+  .ft-social{width:22px;height:22px}
   .ft-tcard{min-width:186px}
 }
 

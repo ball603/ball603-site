@@ -60,8 +60,9 @@
           <span class="ft-more" id="favCount"></span>
         </div>
         <div class="ft-card-body">
-          <p class="ft-note ft-favnote">Star your teams and their games come first in the scores ticker.</p>
+          <p class="ft-note ft-favnote">Your teams' games come first in the scores ticker.</p>
           <div id="favBody"><div class="ft-loading">Loading teams&hellip;</div></div>
+          <button class="ft-btn ft-btn-go ft-btn-wide" id="favPick" type="button">Choose your teams</button>
         </div>
       </div>
 
@@ -176,20 +177,25 @@ const dayCard = (id, day, list, empty) => {
 };
 
 /* ── My Teams ──────────────────────────────────────────────────────────── */
-/* The same list the star in the header opens, put where somebody arriving at
-   the site will actually meet it. Both write to the same place, and both
-   redraw when either one is touched, so a team starred here is starred there
-   without a reload.
+/* What has been chosen, and a button to change it. The choosing itself happens
+   in the modal the header star opens, not here: one list to maintain, and one
+   answer to "does ticking this save it straight away" rather than two.
 
-   Nothing here is sent anywhere: the choice lives in this browser's own
-   storage, which is why there is no sign-in to make and nothing to lose. */
+   Nothing is sent anywhere. The choice lives in this browser's own storage,
+   which is why there is no sign-in to make and nothing to lose. */
 function renderFavourites() {
   const mount = document.getElementById('favBody');
   if (!mount) return;
-  FT.favouritesList(mount, DATA.teams);
-  const n = FT.favourites().length;
+  const chosen = FT.favourites();
+  const mine = DATA.teams.filter(t => chosen.includes(t.uteam));
+
+  mount.innerHTML = mine.length
+    ? `<div class="ft-favchips">${mine.map(t =>
+        `<span class="ft-favchip">${FT.esc(t.name)}</span>`).join('')}</div>`
+    : '<div class="ft-empty ft-favempty">No teams chosen yet.</div>';
+
   const count = document.getElementById('favCount');
-  if (count) count.textContent = n ? `${n} starred` : '';
+  if (count) count.textContent = mine.length ? `${mine.length} chosen` : '';
 }
 
 // The most recent day that produced a result. Everything else that day comes
@@ -389,13 +395,10 @@ FT.load().then(data => {
   renderUpcoming();
   renderStandings();
 
-  // Clicks here and clicks in the header panel both land on toggleFavourite,
-  // which fires ft:favourites — so the card, the panel and the ticker all
-  // redraw from one event rather than each knowing about the others.
-  document.getElementById('favBody').addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-fav]');
-    if (btn) FT.toggleFavourite(btn.dataset.fav);
-  });
+  // The button opens the header's modal. Saving there fires ft:favourites, and
+  // the card, the modal and the ticker all redraw from that one event rather
+  // than each having to know about the others.
+  document.getElementById('favPick').addEventListener('click', () => FT.openMyTeams());
   document.addEventListener('ft:favourites', renderFavourites);
 }).catch(err => {
   console.error('Tigers home page failed to load:', err);

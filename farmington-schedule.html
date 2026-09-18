@@ -102,7 +102,12 @@ function cardBar(team, games) {
 
 /* ── The schedule table ────────────────────────────────────────────────── */
 
-function renderSchedule() {
+/* `toToday` is only true on the first render. Opening the page part-way into a
+   season on a wall of finished games is no use to anybody, so the first view
+   starts at today — but once somebody has picked a sport they have asked to see
+   that sport's schedule, and the answer to that is the whole thing from the
+   first game, not the middle of it. */
+function renderSchedule(toToday) {
   const all = state.sport === 'all';
   const team = all ? null : DATA.teamsById.get(state.uteam);
   const games = all ? DATA.games : (team ? team.games.filter(g => g.sport_id === state.sport) : []);
@@ -152,7 +157,11 @@ function renderSchedule() {
     </table></div></div>`;
 
   sizeScroller();
-  scrollToToday(false);
+  if (toToday) scrollToToday(false);
+  else {
+    const wrap = document.querySelector('.ft-tablescroll');
+    if (wrap) wrap.scrollTop = 0;
+  }
 }
 
 /* ── Today ─────────────────────────────────────────────────────────────── */
@@ -195,7 +204,9 @@ function scrollToToday(smooth) {
 
 // A window that changes shape changes how many rows fit, but not which row is
 // at the top.
-window.addEventListener('resize', () => { sizeScroller(); scrollToToday(false); });
+// Only the box is re-measured: a window that changes shape changes how many
+// rows fit, not which row somebody had scrolled to.
+window.addEventListener('resize', sizeScroller);
 
 function row(g, isNext, isAnchor, perSport) {
   const sc = FT.scoreOf(g);
@@ -251,9 +262,9 @@ document.getElementById('sportChips').addEventListener('click', (e) => {
   state.sport = btn.dataset.sport === 'all' ? 'all' : Number(btn.dataset.sport);
   pickDefaults();
   syncUrl();
-  // renderSchedule sizes the box and puts today at the top of it, so switching
-  // sport lands on that sport's today rather than wherever the last one left off.
-  renderSportChips(); renderGenderPills(); renderTeamPicker(); renderSchedule();
+  // Picking a sport asks for that sport's schedule, so it opens at the first
+  // game rather than in the middle of the season.
+  renderSportChips(); renderGenderPills(); renderTeamPicker(); renderSchedule(false);
 });
 
 document.getElementById('genderPills').addEventListener('click', (e) => {
@@ -265,7 +276,7 @@ document.getElementById('genderPills').addEventListener('click', (e) => {
   const varsity = teams.find(t => t.level_rank === 1) || teams[0];
   state.uteam = varsity ? varsity.uteam : null;
   syncUrl();
-  renderGenderPills(); renderTeamPicker(); renderSchedule();
+  renderGenderPills(); renderTeamPicker(); renderSchedule(false);
 });
 
 /* Picking a sport lands on its varsity side, and on the first gender it is
@@ -290,7 +301,7 @@ document.getElementById('teamPicker').addEventListener('click', (e) => {
   syncUrl();
   renderGenderPills();
   renderTeamPicker();
-  renderSchedule();
+  renderSchedule(false);
 });
 
 // A sport and team in the address bar, so a link to "the volleyball schedule"
@@ -336,7 +347,7 @@ FT.load().then(data => {
     return;
   }
   openingState();
-  renderSportChips(); renderGenderPills(); renderTeamPicker(); renderSchedule();
+  renderSportChips(); renderGenderPills(); renderTeamPicker(); renderSchedule(true);
 }).catch(err => {
   console.error('Tigers schedule failed to load:', err);
   document.getElementById('scheduleBody').innerHTML =
