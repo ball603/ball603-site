@@ -181,13 +181,13 @@ function renderStories(rows) {
 
    Both work off DATA.games, which FT.load() has already sorted by start time. */
 
-const dayCard = (id, day, list, empty) => {
+const dayCard = (id, day, list, empty, past) => {
   const el = document.getElementById(id);
   if (!el) return;
   el.innerHTML = day
     ? `<div class="ft-week-day${day === FT.todayKey() ? ' today' : ''}">
          <h4>${FT.esc(FT.dayLabel(day))}</h4>
-         ${list.map(weekRow).join('')}
+         ${list.map(g => weekRow(g, past)).join('')}
        </div>`
     : `<div class="ft-empty">${empty}</div>`;
 };
@@ -214,16 +214,21 @@ function renderFavourites() {
   if (count) count.textContent = mine.length ? `${mine.length} chosen` : '';
 }
 
-// The most recent day that produced a result. Everything else that day comes
-// with it — a postponed game alongside two finals is part of the same day, and
-// dropping it would make the box disagree with the schedule page.
+// The most recent day the Tigers played, whether or not the scores are in.
+// A day used to count only once it had a score, and Arbiter often never gets
+// one for a Jr. High match or a meet — so the box skipped straight past
+// yesterday to whatever day last had a number on it. Now yesterday is
+// yesterday: games with a score show it, and the rest say why they do not.
+//
+// Today counts only for games already scored. An unplayed game tonight belongs
+// in Upcoming Events, and showing it here too would put it in both boxes.
 function renderRecent() {
   const today = FT.todayKey();
-  const played = DATA.games.filter(g => g.game_date <= today && FT.scoreOf(g));
-  const day = played.length ? played[played.length - 1].game_date : null;
+  const done = DATA.games.filter(g => g.game_date < today || (g.game_date === today && FT.scoreOf(g)));
+  const day = done.reduce((latest, g) => (g.game_date > latest ? g.game_date : latest), '') || null;
   dayCard('recentBody', day,
-    day ? DATA.games.filter(g => g.game_date === day) : [],
-    'No Tigers results yet this season.');
+    day ? DATA.games.filter(g => g.game_date === day && (day < today || FT.scoreOf(g))) : [],
+    'No Tigers games played yet this season.', true);
 }
 
 // The next day with something still to play. Today counts while any of today's
@@ -238,13 +243,22 @@ function renderUpcoming() {
     'Nothing on the schedule right now.');
 }
 
-function weekRow(g) {
+// What goes on the right of a game already played but with no score: why
+// there is none. A time would read as though it had not happened yet.
+function noScoreLabel(g) {
+  if (g.game_status && g.game_status !== 'Normal') return g.game_status;   // Postponed, Cancelled
+  return g.is_meet ? 'Final' : 'No score yet';
+}
+
+function weekRow(g, past) {
   const sc = FT.scoreOf(g);
   const res = FT.resultOf(sc);
   const opp = FT.versus(g);
   const right = sc
     ? `<span class="ft-result"><span class="${res}">${res}</span> ${sc.us}–${sc.them}</span>`
-    : `<span class="ft-week-time">${FT.esc(FT.timeLabel(g.starts_at))}</span>`;
+    : past
+      ? `<span class="ft-week-time">${FT.esc(noScoreLabel(g))}</span>`
+      : `<span class="ft-week-time">${FT.esc(FT.timeLabel(g.starts_at))}</span>`;
 
   return `
     <div class="ft-week-game">

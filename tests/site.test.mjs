@@ -4,7 +4,7 @@ import { TEAMS, GAMES, STANDINGS, ROSTERS, B6_GAMES, VIDEOS, ALBUMS, STORIES, ST
 import fs from 'node:fs'; import http from 'node:http'; import path from 'node:path';
 
 const ROOT = '/root/ball603/ball603-site-main', PORT = 8321;
-const MIME = { '.html':'text/html','.js':'text/javascript','.css':'text/css','.png':'image/png','.jpg':'image/jpeg' };
+const MIME = { '.html':'text/html','.js':'text/javascript','.css':'text/css','.png':'image/png','.jpg':'image/jpeg','.svg':'image/svg+xml' };
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==','base64');
 const WORDMARK = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAlgAAACfCAIAAACqdjCuAAABK0lEQVR42u3BAQEAAACCIP+vbkhAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHBkXtMAAcHRrSEAAAAASUVORK5CYII=','base64');
 
@@ -143,12 +143,65 @@ console.log('\n2. Recent Results and Upcoming Events');
 {
   const { page, ctx, errors } = await open('/farmingtontigersnh', { future: true });
   check('before the first game, recent says so',
-    /No Tigers results yet/.test(await page.textContent('#recentBody')),
+    /No Tigers games played yet/.test(await page.textContent('#recentBody')),
     (await page.textContent('#recentBody')).replace(/\s+/g,' ').slice(0,80));
   check('and upcoming still has the opener',
     /September/.test(await page.textContent('#upcomingBody')),
     (await page.textContent('#upcomingBody')).replace(/\s+/g,' ').slice(0,80));
   check('no page errors', errors.length===0, errors[0]||'');
+  await ctx.close();
+}
+
+// The live case that broke it, 18 Sept 2026: yesterday's games were a Jr. High
+// volleyball match and a meet, and Arbiter had no score for either. The box
+// used to skip them and fall back to the last day with a number on it.
+{
+  const clone = (id, o) => ({ ...GAMES.find(g => g.unique_game_id === id), ...o });
+  const games = [
+    ...GAMES.filter(g => g.game_date !== '2026-09-16'),
+    clone(60, { unique_game_id: 901, game_date: '2026-09-16', starts_at: '2026-09-16T16:30:00',
+                opponent_name: 'Portsmouth Middle School', opponent_ball603: null }),
+    clone(65, { unique_game_id: 902, game_date: '2026-09-16', starts_at: '2026-09-16T16:00:00' }),
+    clone(40, { unique_game_id: 903, game_date: '2026-09-16', starts_at: '2026-09-16T17:00:00',
+                opponent_name: 'Kingswood Regional High School', opponent_ball603: 'Kingswood' })
+  ];
+  // Premise: the fixture really has yesterday unscored and an older scored day.
+  check('premise — nothing on the 16th has a score',
+    games.filter(g => g.game_date === '2026-09-16').every(g => g.arbiter_my_score == null && g.manual_my_score == null));
+  check('premise — the 15th does', games.some(g => g.game_date === '2026-09-15' && g.arbiter_my_score != null));
+
+  const { page, ctx, errors } = await open('/farmingtontigersnh', { games });
+  const recent = (await page.textContent('#recentBody')).replace(/\s+/g,' ');
+  check('an unscored yesterday is still the most recent day', /September 16/.test(recent), recent.slice(0,90));
+  check('not the older day that happens to have a score', !/September 15/.test(recent), recent.slice(0,90));
+  check('every game from that day is listed',
+    /Portsmouth/.test(recent) && /6-school meet/.test(recent) && /Kingswood/.test(recent), recent.slice(0,260));
+  check('a match with no score says so', /Portsmouth.*No score yet/.test(recent), recent.slice(0,260));
+  check('a meet reads as finished', /6-school meet.*Final/.test(recent), recent.slice(0,260));
+  check('a postponed game says postponed', /Kingswood.*Postponed/.test(recent), recent.slice(0,260));
+  check('and no kick-off times, which would read as still to come', !/\d:\d\d[AP]M/.test(recent), recent.slice(0,260));
+  check('no page errors', errors.length===0, errors[0]||'');
+  await ctx.close();
+}
+// A result already in from today moves the box to today, with only the
+// finished game — tonight's unplayed ones stay in Upcoming.
+{
+  const games = GAMES.map(g => g.unique_game_id === 41
+    ? { ...g, arbiter_my_score: 2, arbiter_opp_score: 1, arbiter_result: 'W' } : g);
+  const { page, ctx } = await open('/farmingtontigersnh', { games });
+  const recent = (await page.textContent('#recentBody')).replace(/\s+/g,' ');
+  const up = (await page.textContent('#upcomingBody')).replace(/\s+/g,' ');
+  check('a score from today makes today the recent day', /Today/.test(recent) && /W 2–1/.test(recent), recent.slice(0,140));
+  check('without today\'s unplayed meet', !/6-school meet/.test(recent), recent.slice(0,140));
+  check('which is still upcoming', /6-school meet/.test(up), up.slice(0,140));
+  check('and the scored game is not in both boxes', !/Newport/.test(up), up.slice(0,140));
+  await ctx.close();
+}
+// Today with nothing scored yet is not "recent": yesterday is.
+{
+  const { page, ctx } = await open('/farmingtontigersnh');
+  const recent = (await page.textContent('#recentBody')).replace(/\s+/g,' ');
+  check('unplayed games today leave the box on yesterday', /September 16/.test(recent) && !/Today/.test(recent), recent.slice(0,90));
   await ctx.close();
 }
 
@@ -2244,7 +2297,15 @@ for (const [path, rows] of PHONE_PAGES) {
   // The footer credit: the black wordmark would vanish on a black page.
   const { page, ctx } = await open('/farmingtontigersnh', { width: 390 });
   const src = await page.locator('.ft-powered img').evaluate(e => e.currentSrc);
-  check('on a phone the footer carries the WHITE Ball603 wordmark', src.endsWith('/logos/100px/Ball603-white.png'), src);
+  check('on a phone the footer carries the white wordmark from Ball603\'s navbar',
+    src.endsWith('/Ball603-new-WHITE.svg'), src);
+  const box = await page.locator('.ft-powered img').evaluate(e => ({ w: e.getBoundingClientRect().width,
+    h: e.getBoundingClientRect().height, loaded: e.complete && e.naturalWidth > 0 }));
+  // Loaded, not just sized: a broken image draws its alt text at much the same width.
+  check('the footer wordmark actually loads', box.loaded, JSON.stringify(box));
+  // An SVG with no width or height of its own can collapse to nothing; this one
+  // is 276x74, so at 22px tall it should be about 82 wide.
+  check('and it is actually drawn, at the wordmark\'s shape', box.h === 22 && box.w > 70 && box.w < 95, JSON.stringify(box));
   // My Teams is a modal on the same card colours: open it and sweep it too.
   await page.click('#ft-star');
   await page.waitForTimeout(400);

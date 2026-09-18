@@ -39,8 +39,8 @@
  * URLs change when they do, which is the real fix — a URL that has never been
  * requested cannot be in any cache, here or in the browser's own. When the
  * icons change, this and that folder move together; a change to anything else
- * in SHELL moves this alone (v3: the phone dark theme in farmington.css). */
-const CACHE = 'tigers-v3';
+ * in SHELL moves this alone (v3: phone dark theme; v4: footer wordmark in farmington.js). */
+const CACHE = 'tigers-v4';
 
 // Enough to open the app offline and have it look like itself. The pages
 // themselves are cached as they are visited rather than up front, so installing
