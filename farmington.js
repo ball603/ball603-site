@@ -784,6 +784,13 @@ function renderHeader(active) {
 
     <div id="ft-ticker"></div>
 
+    <!-- Phone only: the two pages people come for, one tap from anywhere.
+         Hidden on desktop, where the same links sit in the header. -->
+    <nav class="ft-quick" aria-label="Quick links">
+      ${NAV.filter(n => n.key === 'schedule' || n.key === 'standings').map(n =>
+        `<a class="ft-quicklink${n.key === active ? ' on' : ''}" href="${n.href}"${n.key === active ? ' aria-current="page"' : ''}>${n.label}</a>`).join('')}
+    </nav>
+
     <!-- My teams. A modal rather than another slide-out: choosing from a list
          of a dozen is a job you finish and confirm, not a menu you glance at,
          and Ball603 asks the same question the same way. -->

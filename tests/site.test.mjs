@@ -2687,6 +2687,53 @@ console.log('\n38. Rosters by level');
   await ctx.close();
 }
 
+// ── 39 ──────────────────────────────────────────────────────────────────────
+console.log('\n39. Schedule and Standings pills under the ticker (phone only)');
+{
+  const { page, ctx, errors } = await open('/farmingtontigersnh', { width: 390 });
+  await page.waitForSelector('.ft-ticker', { timeout: 5000 }).catch(() => {});
+  check('premise — the ticker is showing (fixture has games this week)', await page.locator('.ft-ticker').isVisible());
+  const pills = page.locator('.ft-quick .ft-quicklink');
+  const info = await pills.evaluateAll(els => els.map(e => ({ text: e.innerText.trim(), href: e.getAttribute('href'),
+    top: e.getBoundingClientRect().top, h: e.getBoundingClientRect().height, w: e.getBoundingClientRect().width })));
+  check('two pills, reading SCHEDULE and STANDINGS', info.map(i => i.text).join('/') === 'SCHEDULE/STANDINGS', info.map(i => i.text).join('/'));
+  check('linking to the schedule and standings pages',
+    info[0]?.href === '/farmingtontigersnh/schedule' && info[1]?.href === '/farmingtontigersnh/standings');
+  const tickerBottom = await page.locator('.ft-ticker').evaluate(e => e.getBoundingClientRect().bottom);
+  check('directly below the ticker', info.length === 2 && info[0].top > tickerBottom && info[0].top - tickerBottom < 30,
+    `ticker ends ${tickerBottom}, pills start ${info[0]?.top}`);
+  check('side by side, the same width', info.length === 2 && Math.abs(info[0].top - info[1].top) < 1 && Math.abs(info[0].w - info[1].w) < 1);
+  check('big enough to tap (44px+)', info.every(i => i.h >= 44), info.map(i => i.h).join(', '));
+  const firstMain = await page.evaluate(() => {
+    const q = document.querySelector('.ft-quick').getBoundingClientRect().bottom;
+    const m = document.querySelector('main, .ft-main, .ft-wrap');
+    return m ? { q, m: m.getBoundingClientRect().top } : null;
+  });
+  check('above the page content', !firstMain || firstMain.q <= firstMain.m + 1, JSON.stringify(firstMain));
+  check('neither is highlighted on the home page', await page.locator('.ft-quicklink.on').count() === 0);
+  await page.locator('.ft-quicklink', { hasText: 'Standings' }).click(); await page.waitForTimeout(600);
+  check('tapping STANDINGS opens the standings page', /\/farmingtontigersnh\/standings$/.test(page.url()), page.url());
+  const on = page.locator('.ft-quicklink.on');
+  check('where the STANDINGS pill is highlighted in orange',
+    (await on.count()) === 1 && (await on.innerText()).trim() === 'STANDINGS' &&
+    await on.evaluate(e => getComputedStyle(e).color) === 'rgb(246, 130, 32)');
+  check('no page errors', errors.length === 0, errors.join('; '));
+  await ctx.close();
+}
+{
+  // No games this week → no ticker, but the pills still show.
+  const { page, ctx } = await open('/farmingtontigersnh/rosters', { width: 390, future: true });
+  await page.waitForTimeout(800);
+  check('with no ticker, the pills are still there', await page.locator('.ft-ticker').count() === 0 &&
+    await page.locator('.ft-quick').isVisible());
+  await ctx.close();
+}
+{
+  const { page, ctx } = await open('/farmingtontigersnh', { width: 1300 });
+  check('on a desktop the pills are not shown', !(await page.locator('.ft-quick').isVisible()));
+  await ctx.close();
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 
 
