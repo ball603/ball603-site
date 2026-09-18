@@ -275,13 +275,25 @@ async function renderTable() {
   const full = !!stats;
   const playoff = playoffLine(sport, division);
 
+  /* Both numbers NHIAA publishes, when it publishes both. The table is in
+     NHIAA's rank order, and for volleyball that order follows the rating
+     (points ÷ games played), not the points — so a Points column on its own
+     reads as a list sorted wrong. Rating is the one kept on a phone, the way
+     Ball603's standings page does it. */
   const anyPoints = division.rows.some(r => r.points != null) || !!points;
-  const rateLabel = anyPoints ? 'Points' : 'Rating';
-  const rateOf = (r) => {
+  const anyRating = division.rows.some(r => r.rating != null);
+  const pointsOf = (r) => {
     if (points && points.has(`${r.ball603_shortname}|${gender}`)) return points.get(`${r.ball603_shortname}|${gender}`);
-    if (r.points != null) return r.points;
-    return r.rating == null ? '—' : (Math.round(Number(r.rating) * 1000) / 1000);
+    return r.points ?? '—';
   };
+  const ratingOf = (r) => r.rating == null ? '—' : Number(r.rating).toFixed(3);
+  const rateCols = (anyPoints ? 1 : 0) + (anyRating ? 1 : 0) || 1;
+  const rateHeads = !anyPoints && !anyRating ? '<th class="ctr">Rating</th>'
+    : (anyPoints ? `<th class="ctr${anyRating ? ' ft-hide-sm' : ''}">Points</th>` : '') +
+      (anyRating ? '<th class="ctr">Rating</th>' : '');
+  const rateCells = (r) => !anyPoints && !anyRating ? '<td class="ctr">—</td>'
+    : (anyPoints ? `<td class="ctr${anyRating ? ' ft-hide-sm' : ''}">${FT.esc(pointsOf(r))}</td>` : '') +
+      (anyRating ? `<td class="ctr ft-rating">${FT.esc(ratingOf(r))}</td>` : '');
 
   const showTies = division.rows.some(r => r.ties != null);
 
@@ -289,12 +301,12 @@ async function renderTable() {
     <tr class="ft-group">
       <th class="num" rowspan="2">#</th>
       <th class="grow" rowspan="2">Team</th>
-      <th class="reg sep" colspan="2">Regular Season</th>
+      <th class="reg sep" colspan="${1 + rateCols}">Regular Season</th>
       <th class="post sep" colspan="1">Postseason</th>
       <th class="ovr sep" colspan="4">Overall</th>
     </tr>
     <tr class="ft-sub">
-      <th class="ctr sep">Record</th><th class="ctr">${rateLabel}</th>
+      <th class="ctr sep">Record</th>${rateHeads}
       <th class="ctr sep">Record</th>
       <th class="ctr sep">Record</th>
       <th class="ctr ft-hide-sm">Home</th><th class="ctr ft-hide-sm">Away</th><th class="ctr">Streak</th>
@@ -302,7 +314,7 @@ async function renderTable() {
     <tr>
       <th class="num">#</th><th class="grow">Team</th>
       <th class="ctr sep">GP</th><th class="ctr">Record</th>
-      <th class="ctr">${rateLabel}</th>
+      ${rateHeads}
     </tr>`;
 
   const rows = division.rows.map((r, i) => {
@@ -310,7 +322,7 @@ async function renderTable() {
     const record = `${r.wins ?? 0}–${r.losses ?? 0}${(showTies && r.ties) ? '–' + r.ties : ''}`;
     const cells = full ? `
       <td class="ctr sep">${record}</td>
-      <td class="ctr">${FT.esc(rateOf(r))}</td>
+      ${rateCells(r)}
       <td class="ctr sep">${s ? `${s.pw}–${s.pl}` : '0–0'}</td>
       <td class="ctr sep">${s ? `${s.w}–${s.l}` : '—'}</td>
       <td class="ctr ft-hide-sm">${s ? `${s.hw}–${s.hl}` : '—'}</td>
@@ -318,7 +330,7 @@ async function renderTable() {
       <td class="ctr">${FT.streakBadge(streakOf(s))}</td>` : `
       <td class="ctr sep">${r.games_played ?? '—'}</td>
       <td class="ctr">${record}</td>
-      <td class="ctr">${FT.esc(rateOf(r))}</td>`;
+      ${rateCells(r)}`;
 
     const cut = playoff.spots && (i + 1) === playoff.spots ? ' ft-cut' : '';
     return `<tr class="${r.is_farmington ? 'ft-us' : ''}${cut}">

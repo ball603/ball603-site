@@ -42,7 +42,7 @@ const browser = await chromium.launch({ executablePath:'/opt/pw-browsers/chromiu
 let pass=0, fail=0;
 const check=(l,c,x='')=>{ console.log(`   ${c?'PASS':'FAIL'}  ${l}${x?'  — '+x:''}`); c?pass++:fail++; };
 
-async function open(page_path, { width=1300, breakDb=false, standings=STANDINGS, games=GAMES, b6fail=false, videos=VIDEOS, albums=ALBUMS, stories=STORIES, rosters=ROSTERS, future=false } = {}) {
+async function open(page_path, { width=1300, breakDb=false, standings=STANDINGS, games=GAMES, b6fail=false, videos=VIDEOS, albums=ALBUMS, stories=STORIES, rosters=ROSTERS, future=false, teams=TEAMS } = {}) {
   /* Service workers blocked. This suite is about what the pages do, and the
      Tigers site now installs a worker that caches farmington.js — which means
      one section could serve a later section a stale script and the failure
@@ -61,7 +61,7 @@ async function open(page_path, { width=1300, breakDb=false, standings=STANDINGS,
   await page.route('**/rest/v1/**', r=>{
     const u = r.request().url();
     if (breakDb) return r.fulfill({ status:500, body:'boom' });
-    if (u.includes('farmington_teams')) return r.fulfill({ json: TEAMS });
+    if (u.includes('farmington_teams')) return r.fulfill({ json: teams });
     if (u.includes('farmington_games')) return r.fulfill({ json: games });
     if (u.includes('farmington_standings')) return r.fulfill({ json: standings });
     if (u.includes('farmington_videos')) return r.fulfill({ json: videos });
@@ -446,6 +446,38 @@ console.log('\n4b. All Sports');
   check('no page errors', errors.length===0, errors[0]||'');
   await ctx.close();
 }
+{
+  // Every volleyball level says Girls; sports with one gender, and names that
+  // already carry it, are left alone.
+  const { page, ctx } = await open('/farmingtontigersnh/schedule');
+  const barFor = async (sport, level) => {
+    await page.click(`#sportChips .ft-pill:has-text("${sport}")`); await page.waitForTimeout(250);
+    if (level) { await page.click(`#teamPicker .ft-pill:text-is("${level}")`); await page.waitForTimeout(250); }
+    return (await page.textContent('.ft-cardbar h2')).trim();
+  };
+  check('JV volleyball is Girls JV Volleyball', await barFor('Volleyball', 'JV') === 'Girls JV Volleyball');
+  const levels = (await page.locator('#teamPicker .ft-pill').allTextContents()).map(t => t.trim());
+  check('premise — volleyball has a Jr. High side too', levels.includes('Jr. High - JV'), levels.join('/'));
+  check('and so is Jr. High', await barFor('Volleyball', 'Jr. High - JV') === 'Girls Jr. High - JV Volleyball',
+    await page.textContent('.ft-cardbar h2'));
+  check('soccer gets no prefix', await barFor('Soccer') === 'Farmington-Nute Varsity Soccer', await page.textContent('.ft-cardbar h2'));
+  check('basketball, which already says Boys, is not doubled',
+    await barFor('Basketball') === 'Varsity Boys Basketball', await page.textContent('.ft-cardbar h2'));
+  await ctx.close();
+}
+{
+  // A year with boys volleyball: the same page says Boys for that team.
+  const teams = TEAMS.map(t => t.uteam === 4575537 ? { ...t, gender_id: 1, description: 'Boys Varsity Volleyball' } : t);
+  const games = GAMES.map(g => g.uteam === 4575537 ? { ...g, gender_id: 1 } : g);
+  const { page, ctx } = await open('/farmingtontigersnh/schedule', { teams, games });
+  await page.click('#sportChips .ft-pill:has-text("Volleyball")'); await page.waitForTimeout(300);
+  const genders = (await page.locator('#genderPills .ft-pill').allTextContents()).map(t => t.trim());
+  check('premise — the page now sees boys and girls volleyball', genders.includes('Boys') && genders.includes('Girls'), genders.join('/'));
+  await page.click('#genderPills .ft-pill:has-text("Boys")'); await page.waitForTimeout(300);
+  check('boys volleyball is Boys Varsity Volleyball',
+    (await page.textContent('.ft-cardbar h2')).trim() === 'Boys Varsity Volleyball', await page.textContent('.ft-cardbar h2'));
+  await ctx.close();
+}
 
 console.log('\n5. Schedule — the black bar');
 {
@@ -453,7 +485,10 @@ console.log('\n5. Schedule — the black bar');
   await page.click('#sportChips .ft-pill:has-text("Volleyball")');
   await page.waitForTimeout(400);
   const bar = (await page.textContent('.ft-cardbar')).replace(/\s+/g,' ').trim();
-  check('bar names the team', bar.startsWith('Varsity Volleyball'), bar);
+  check('bar names the team, with Girls in front', bar.startsWith('Girls Varsity Volleyball'), bar);
+  check('while the sport pill still just says Volleyball',
+    (await page.textContent('#sportChips .ft-pill.on')).replace(/[^A-Za-z ]/g,'').trim() === 'Volleyball',
+    await page.textContent('#sportChips .ft-pill.on'));
   check('record counts the manual result', /2–1/.test(bar), bar);
   check('home split', /1–1 Home/.test(bar), bar);
   check('away split', /1–0 Away/.test(bar), bar);
@@ -623,8 +658,21 @@ console.log('\n9. Standings page');
   check('other divisions are not on screen',
     !/Salem|Bedford|Hollis/.test(await page.textContent('tbody')),
     (await page.textContent('tbody')).replace(/\s+/g,' ').slice(0,100));
-  check('NHIAA points are shown, not a rating', /Points/.test(await page.textContent('thead')),
-    (await page.textContent('thead')).replace(/\s+/g,' ').trim());
+  // Points AND rating: the table is in NHIAA's rank order, which for
+  // volleyball follows the rating, so the rating has to be on show.
+  const vhead = (await page.textContent('thead')).replace(/\s+/g,' ').trim();
+  check('NHIAA points are shown', /Points/.test(vhead), vhead);
+  check('and the rating beside them', /Points\s*Rating/.test(vhead), vhead);
+  const ratings = await page.locator('tbody td.ft-rating').allTextContents();
+  check('premise — every team has a rating', ratings.length === 3, ratings.join('/'));
+  check('ratings print to three places, in the order the table is ranked',
+    ratings.join('/') === '1.000/0.833/0.500', ratings.join('/'));
+  check('the header still lines up with the rows', await page.evaluate(() => {
+    const n = (row) => [...row.children].reduce((a, c) => a + (c.colSpan || 1), 0);
+    const g = document.querySelector('thead tr.ft-group'), sub = document.querySelector('thead tr.ft-sub');
+    const body = document.querySelector('tbody tr');
+    return n(g) === n(body) && n(sub) + 2 === n(body);
+  }));
 
   // Football: no Ball603 coverage, so reduced columns and no invented field size.
   await page.click('#sportPills .ft-pill:has-text("Football")');
@@ -2516,6 +2564,20 @@ console.log('\n35. Score Entry in the phone menu');
   check('and Score Entry is not visible anywhere', !(await page.locator('#ft-drawer-score').isVisible()));
   const navText = (await page.textContent('.ft-nav')).replace(/\s+/g, ' ');
   check('nor in the desktop nav row', !/Score Entry/.test(navText), navText);
+  await ctx.close();
+}
+
+// ── 36 ──────────────────────────────────────────────────────────────────────
+console.log('\n36. Standings rating on a phone');
+{
+  const { page, ctx } = await open('/farmingtontigersnh/standings', { width: 390 });
+  await page.waitForTimeout(500);
+  const shown = await page.evaluate(() => [...document.querySelectorAll('thead th')]
+    .filter(th => getComputedStyle(th).display !== 'none').map(th => th.textContent.trim()));
+  check('a phone keeps Rating', shown.includes('Rating'), shown.join('/'));
+  check('and lets Points go, as Ball603 does', !shown.includes('Points'), shown.join('/'));
+  const r = await page.locator('tbody tr.ft-us td.ft-rating').textContent();
+  check('Farmington\'s rating is on its row', r === '0.833', r);
   await ctx.close();
 }
 

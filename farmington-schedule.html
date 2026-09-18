@@ -96,9 +96,24 @@ function renderTeamPicker() {
    same shape as the standings card. Last game and next game are gone; the table
    underneath already says both, in order. */
 
+/* The sport pills can just say Volleyball; the bar names the actual team, and
+   that includes whose it is. Girls' teams are stored as "Varsity Volleyball"
+   because this year there is only the one side — but Farmington has fielded
+   boys' volleyball before, so the bar says Girls (or Boys) outright. Only for a
+   Boys/Girls split: Coed says nothing, and a name that already carries the
+   gender ("Varsity Boys Basketball") is left alone. */
+function teamTitle(team) {
+  const g = team.gender;
+  if ((g === 'Boys' || g === 'Girls') && !/\b(Boys|Girls)\b/.test(team.name)) {
+    const prefix = FT.genderPrefix(g, team.sport_id);
+    if (prefix) return `${prefix} ${team.name}`;
+  }
+  return team.name;
+}
+
 function cardBar(team, games) {
   const rec = FT.recordOf(games);
-  const title = team ? team.name : 'Every Team';
+  const title = team ? teamTitle(team) : 'Every Team';
   // Bullets rather than bare spacing: four numbers in a row need something
   // between them or they read as one long figure.
   const dot = '<i class="ft-bardot">&bull;</i>';
