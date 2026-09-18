@@ -25,14 +25,31 @@
     </div>
   </section>
 
-  <section class="ft-step" id="s-pick">
+  <!-- Same order as Ball603's finalscore page: the sport, then that sport's
+       games for one day — today to start — with arrows to step a day at a
+       time. Every level is in the one list, labelled, because a scorekeeper
+       at the gym is as likely to be holding the JV score as the varsity one. -->
+  <section class="ft-step" id="s-sport">
     <div class="ft-card ft-pad">
-      <h2>Which game?</h2>
-      <p class="ft-hint" id="pickHint">Recent and upcoming Tigers games.</p>
-      <label for="teamSel">Team</label>
-      <select id="teamSel"></select>
+      <h2>Let's choose your game.</h2>
+      <p class="ft-hint">Pick a sport.</p>
+      <div class="ft-sportgrid" id="sportGrid"></div>
+    </div>
+  </section>
+
+  <section class="ft-step" id="s-games">
+    <div class="ft-card ft-pad">
+      <button class="ft-linkbtn" id="sportBack">&larr; Sports</button>
+      <div class="ft-daynav">
+        <button class="ft-dayarrow" id="dayPrev" type="button" aria-label="Previous day">&#8249;</button>
+        <div class="ft-daylabel">
+          <b id="daySport"></b>
+          <span id="dayDate"></span>
+        </div>
+        <button class="ft-dayarrow" id="dayNext" type="button" aria-label="Next day">&#8250;</button>
+      </div>
       <div class="ft-gamelist" id="gameList"></div>
-      <button class="ft-btn ghost" id="showAll">Show the whole season</button>
+      <div id="dayJump"></div>
     </div>
   </section>
 
@@ -53,7 +70,7 @@
       </div>
       <button class="ft-btn" id="saveBtn">Save score</button>
       <button class="ft-btn danger" id="clearBtn" style="display:none">Remove this score</button>
-      <button class="ft-btn ghost" id="backBtn">Pick a different game</button>
+      <button class="ft-btn ghost" id="backBtn">&larr; Back to the games</button>
       <div class="ft-err" id="scoreErr"></div>
     </div>
   </section>
@@ -103,7 +120,7 @@ const todayKey = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
-const S = { pw: '', games: [], teams: [], team: 'all', all: false, game: null };
+const S = { pw: '', data: null, sport: null, day: todayKey(), game: null };
 
 const show = (id) => {
   document.querySelectorAll('.ft-step').forEach(s => s.classList.toggle('on', s.id === id));
@@ -142,7 +159,8 @@ async function login() {
     }
     S.pw = pw;
     await loadGames();
-    show('s-pick');
+    renderSports();
+    show('s-sport');
   } catch (err) {
     console.error(err);
     fail('loginErr', 'Could not reach the server. Try again in a moment.');
@@ -153,48 +171,68 @@ async function login() {
 document.getElementById('loginBtn').addEventListener('click', login);
 document.getElementById('pw').addEventListener('keypress', (e) => { if (e.key === 'Enter') login(); });
 
-/* ── Game picking ──────────────────────────────────────────────────────── */
+/* ── Sport, then day ───────────────────────────────────────────────────── */
 
 async function loadGames() {
   // Same source the rest of the site uses, so a squad Arbiter splits in two is
   // one team here as well and every name is the one Farmington uses.
-  const data = await FT.load();
-  S.games = data.games.slice().reverse();          // newest first
-  S.teams = data.teams;
-
-  const sel = document.getElementById('teamSel');
-  const withGames = data.teams.filter(t => t.games.length);
-  sel.innerHTML = '<option value="all">All teams</option>' +
-    withGames.map(t => `<option value="${t.uteam}">${esc(t.name)}</option>`).join('');
-  renderGames();
+  S.data = await FT.load();
 }
 
-function visibleGames() {
-  let list = S.games.filter(g => !g.is_meet);
-  if (S.team !== 'all') list = list.filter(g => g.uteam === +S.team);
-  if (!S.all) {
-    // Default to the window somebody entering a score actually cares about:
-    // the last three weeks and the next week.
-    const now = new Date();
-    const from = new Date(now); from.setDate(from.getDate() - 21);
-    const to = new Date(now); to.setDate(to.getDate() + 7);
-    const key = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    const a = key(from), b = key(to);
-    list = list.filter(g => g.game_date >= a && g.game_date <= b);
-  }
-  return list;
+// Meets have no single opponent score to type in, so a sport that is only
+// ever meets (cross country) has nothing to offer here and is left off.
+const scorable = (g) => !g.is_meet;
+const sportName = (id) => (FT.SPORTS[id] || { name: 'Other' }).name;
+const sportEmoji = (id) => (FT.SPORTS[id] || { emoji: '' }).emoji;
+
+function renderSports() {
+  const ids = S.data.sports.filter(id => S.data.games.some(g => g.sport_id === id && scorable(g)));
+  const grid = document.getElementById('sportGrid');
+  grid.innerHTML = ids.length
+    ? ids.map(id => `<button class="ft-sportbtn" data-sport="${id}">
+          <span class="ft-sport-emoji">${sportEmoji(id)}</span>${esc(sportName(id))}</button>`).join('')
+    : '<div class="ft-empty">No Tigers games to score yet.</div>';
+  grid.querySelectorAll('.ft-sportbtn').forEach(b =>
+    b.addEventListener('click', () => { S.sport = +b.dataset.sport; S.day = todayKey(); renderDay(); show('s-games'); }));
 }
 
-function renderGames() {
-  const list = visibleGames();
+const shiftDay = (key, n) => {
+  const d = parseLocal(key); d.setDate(d.getDate() + n);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+const longDate = (key) => parseLocal(key).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+const timeOnly = (g) => {
+  const d = parseLocal(g.starts_at);
+  if (!d || (d.getHours() === 0 && d.getMinutes() === 0)) return '';
+  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).replace(' ', '');
+};
+
+function renderDay() {
+  const sportGames = S.data.games.filter(g => g.sport_id === S.sport && scorable(g));
+  // All levels, varsity first, then by start time — the order the teams table
+  // sets everywhere else on the site.
+  const list = sportGames.filter(g => g.game_date === S.day)
+    .sort((a, b) => (a.team.level_rank ?? 99) - (b.team.level_rank ?? 99) ||
+                    String(a.starts_at).localeCompare(String(b.starts_at)));
+
+  document.getElementById('daySport').textContent = `${sportEmoji(S.sport)} ${sportName(S.sport)}`;
+  document.getElementById('dayDate').textContent =
+    (S.day === todayKey() ? 'Today · ' : '') + longDate(S.day);
+
   const el = document.getElementById('gameList');
-  document.getElementById('showAll').style.display = S.all ? 'none' : '';
-  document.getElementById('pickHint').textContent = S.all
-    ? 'Every Tigers game this year.'
-    : 'Games from the last three weeks and the week ahead.';
+  const jump = document.getElementById('dayJump');
+  jump.innerHTML = '';
 
   if (!list.length) {
-    el.innerHTML = '<div style="padding:18px;text-align:center;color:var(--ft-ink-3);font-size:14px">No games in this window.</div>';
+    el.innerHTML = `<div class="ft-empty">No ${esc(sportName(S.sport).toLowerCase())} games ${S.day === todayKey() ? 'today' : 'on this day'}.</div>`;
+    // One tap to the nearest day that has something, in either direction,
+    // rather than pressing an arrow until one turns up.
+    const before = sportGames.filter(g => g.game_date < S.day).map(g => g.game_date).sort().pop();
+    const after = sportGames.filter(g => g.game_date > S.day).map(g => g.game_date).sort()[0];
+    const btn = (key, dir) => key
+      ? `<button class="ft-btn ghost ft-jump" data-day="${key}">${dir === -1 ? '&larr; ' : ''}${esc(parseLocal(key).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }))}${dir === 1 ? ' &rarr;' : ''}</button>` : '';
+    jump.innerHTML = `<div class="ft-jumps">${btn(before, -1)}${btn(after, 1)}</div>`;
+    jump.querySelectorAll('.ft-jump').forEach(b => b.addEventListener('click', () => { S.day = b.dataset.day; renderDay(); }));
     return;
   }
 
@@ -202,13 +240,15 @@ function renderGames() {
     const opp = g.opponent_name || 'Opponent TBA';
     const manual = g.manual_my_score != null && g.manual_opp_score != null;
     const arb = g.arbiter_my_score != null && g.arbiter_opp_score != null;
-    const bits = [whenLabel(g)];
-    if (S.team === 'all' && g.team) bits.push(g.team.name);
-    if (manual) bits.push(`<span class="ft-has">${g.manual_my_score}–${g.manual_opp_score} entered</span>`);
-    else if (arb) bits.push(`${g.arbiter_my_score}–${g.arbiter_opp_score} from Arbiter`);
+    const right = manual
+      ? `<em class="ft-has">${g.manual_my_score}–${g.manual_opp_score} entered</em>`
+      : arb ? `<em>${g.arbiter_my_score}–${g.arbiter_opp_score} from Arbiter</em>`
+      : `<em>${esc(timeOnly(g) || 'Enter score')}</em>`;
+    const status = g.game_status && g.game_status !== 'Normal' ? ` · ${esc(g.game_status)}` : '';
     return `<button class="ft-gitem" data-i="${i}">
         <b>${g.is_home ? 'vs' : 'at'} ${esc(opp)}</b>
-        <span>${bits.join(' · ')}</span>
+        <span>${esc(g.team.name)}${status}</span>
+        ${right}
       </button>`;
   }).join('');
 
@@ -216,8 +256,9 @@ function renderGames() {
     b.addEventListener('click', () => pickGame(list[+b.dataset.i])));
 }
 
-document.getElementById('teamSel').addEventListener('change', (e) => { S.team = e.target.value; renderGames(); });
-document.getElementById('showAll').addEventListener('click', () => { S.all = true; renderGames(); });
+document.getElementById('dayPrev').addEventListener('click', () => { S.day = shiftDay(S.day, -1); renderDay(); });
+document.getElementById('dayNext').addEventListener('click', () => { S.day = shiftDay(S.day, 1); renderDay(); });
+document.getElementById('sportBack').addEventListener('click', () => show('s-sport'));
 
 /* ── Score entry ───────────────────────────────────────────────────────── */
 // Home team on the left, the way a scoreboard reads — so whoever is typing does
@@ -300,11 +341,10 @@ document.getElementById('clearBtn').addEventListener('click', async () => {
   show('s-done');
 });
 
-document.getElementById('backBtn').addEventListener('click', () => { renderGames(); show('s-pick'); });
-document.getElementById('anotherBtn').addEventListener('click', async () => {
-  await loadGames();
-  show('s-pick');
-});
+// Back to the same sport and day: the next score to enter is usually the game
+// before or after this one in the same gym.
+document.getElementById('backBtn').addEventListener('click', () => { renderDay(); show('s-games'); });
+document.getElementById('anotherBtn').addEventListener('click', () => { renderDay(); show('s-games'); });
 </script>
 </body>
 </html>

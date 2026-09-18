@@ -2389,6 +2389,91 @@ if (onOrangeSeen.size) {
   [...onOrangeSeen].forEach(x => console.log('         ' + x));
 }
 
+// ── 34 ──────────────────────────────────────────────────────────────────────
+console.log('\n34. Score entry: sport, then a day at a time');
+{
+  const { page, ctx, errors } = await open('/farmingtonscore.html', { width: 390 });
+  const posts = [];
+  await page.route('**/.netlify/functions/farmington-score', async r => {
+    const body = JSON.parse(r.request().postData() || '{}');
+    posts.push(body);
+    if (String(body.password).toLowerCase() !== 'tigers') return r.fulfill({ status: 401, json: { error: 'Wrong password' } });
+    if (body.unique_game_id === -1) return r.fulfill({ status: 404, json: { error: 'No such game' } });
+    return r.fulfill({ json: { game: { manual_my_score: body.my_score ?? null, manual_opp_score: body.opp_score ?? null } } });
+  });
+  const visible = (sel) => page.locator(sel).evaluate(e => e.classList.contains('on')).catch(() => false);
+  const txt = async (sel) => (await page.textContent(sel)).replace(/\s+/g, ' ').trim();
+
+  await page.fill('#pw', 'nope'); await page.click('#loginBtn'); await page.waitForTimeout(300);
+  check('a wrong password is turned away', /not right/.test(await txt('#loginErr')), await txt('#loginErr'));
+  await page.fill('#pw', 'Tigers'); await page.click('#loginBtn'); await page.waitForTimeout(500);
+  check('the right one opens the sport picker', await visible('#s-sport'));
+
+  const sports = await page.locator('.ft-sportbtn').allTextContents();
+  const names = sports.map(s => s.replace(/[^A-Za-z ]/g, '').trim());
+  check('premise — there are sports to choose from', names.length >= 3, names.join('/'));
+  check('one button per sport, in the site\'s order',
+    names.join('/') === 'Volleyball/Soccer/Football/Golf/Basketball', names.join('/'));
+  check('cross country is left off: its meets have no score to type', !names.includes('Cross Country'));
+
+  // Soccer, today: Thursday the 17th, varsity at home to Newport.
+  await page.click('.ft-sportbtn:has-text("Soccer")'); await page.waitForTimeout(200);
+  check('picking a sport opens that sport\'s games', await visible('#s-games'));
+  check('headed with the sport', /Soccer/.test(await txt('#daySport')), await txt('#daySport'));
+  check('and opening on today', await txt('#dayDate') === 'Today · Thursday, September 17', await txt('#dayDate'));
+  let rows = await page.locator('#gameList .ft-gitem').allTextContents();
+  check('today\'s soccer game is listed', rows.length === 1 && /vs Newport/.test(rows[0]), rows.join(' | '));
+  check('with its team named, since every level shares the list', /Varsity Soccer/.test(rows[0]), rows[0]);
+
+  // Forward a day: nothing on the 18th, and a shortcut to the days either side.
+  await page.click('#dayNext'); await page.waitForTimeout(150);
+  check('the right arrow moves a day forward', await txt('#dayDate') === 'Friday, September 18', await txt('#dayDate'));
+  check('an empty day says so', /No soccer games on this day/.test(await txt('#gameList')), await txt('#gameList'));
+  const jumps = await page.locator('.ft-jump').allTextContents();
+  check('with a jump to the nearest game day either side',
+    jumps.length === 2 && /Sep 17/.test(jumps[0]) && /Sep 19/.test(jumps[1]), jumps.join(' | '));
+  await page.click('.ft-jump:has-text("Sep 19")'); await page.waitForTimeout(150);
+  rows = await page.locator('#gameList .ft-gitem').allTextContents();
+  check('the jump lands on that day', await txt('#dayDate') === 'Saturday, September 19', await txt('#dayDate'));
+  check('a JV game appears alongside, and its status shows', rows.length === 1 && /JV Soccer/.test(rows[0]) && /Postponed/.test(rows[0]), rows.join(' | '));
+
+  // Back two days to the 17th, then one more to the 16th: the left arrow.
+  await page.click('#dayPrev'); await page.click('#dayPrev'); await page.click('#dayPrev'); await page.waitForTimeout(150);
+  check('the left arrow moves a day back', await txt('#dayDate') === 'Wednesday, September 16', await txt('#dayDate'));
+
+  // Volleyball on the 18th: varsity and JV both, varsity first even though JV starts earlier.
+  await page.click('#sportBack'); await page.waitForTimeout(100);
+  check('the back link returns to the sports', await visible('#s-sport'));
+  await page.click('.ft-sportbtn:has-text("Volleyball")'); await page.waitForTimeout(150);
+  check('a new sport starts on today again', /^Today/.test(await txt('#dayDate')), await txt('#dayDate'));
+  await page.click('#dayNext'); await page.waitForTimeout(150);
+  rows = await page.locator('#gameList .ft-gitem').allTextContents();
+  check('every level is on the one day', rows.length === 2, rows.join(' | '));
+  check('varsity first, then JV', /Varsity Volleyball/.test(rows[0]) && /JV Volleyball/.test(rows[1]), rows.join(' | '));
+  check('an unplayed game shows its start time', /6:15PM/.test(rows[0]), rows[0]);
+
+  // Enter a score and check exactly what is sent.
+  await page.locator('#gameList .ft-gitem').first().click(); await page.waitForTimeout(150);
+  check('tapping a game opens score entry', await visible('#s-score'));
+  check('the home team is on the left', await txt('#leftLabel') === 'Farmington', await txt('#leftLabel'));
+  await page.fill('#leftScore', '3'); await page.fill('#rightScore', '1');
+  await page.click('#saveBtn'); await page.waitForTimeout(300);
+  const sent = posts[posts.length - 1];
+  check('the save carries the right game and our score first',
+    sent.unique_game_id === 4 && sent.uteam === 4575537 && sent.my_score === 3 && sent.opp_score === 1 && sent.password === 'Tigers',
+    JSON.stringify(sent));
+  check('and the done screen confirms it', await visible('#s-done') && /3–1/.test(await txt('#doneSub')), await txt('#doneSub'));
+
+  await page.click('#anotherBtn'); await page.waitForTimeout(150);
+  check('"Enter another" returns to the same sport and day',
+    await visible('#s-games') && await txt('#dayDate') === 'Friday, September 18' && /Volleyball/.test(await txt('#daySport')),
+    await txt('#dayDate'));
+  rows = await page.locator('#gameList .ft-gitem').allTextContents();
+  check('where the game now shows the score just entered', /3–1 entered/.test(rows[0]), rows[0]);
+  check('no page errors', errors.length === 0, errors.join('; '));
+  await ctx.close();
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 
 
