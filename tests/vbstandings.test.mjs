@@ -100,6 +100,15 @@ console.log('\n4. Comparing with NHIAA — the note for the CMS');
   const same = compareWithNhiaa({ wins: 0, losses: 6, points: 0, games_played: 6, games: [] }, { wins: 0, losses: 6, points: 24, games_played: 6 });
   check('same games, different points → flagged as a scoring difference', /^Same 6 games, different numbers/.test(same) && /NHIAA 0-6, 24 pts/.test(same), same);
   check('a team NHIAA has not been read for yet → no note', compareWithNhiaa(ours, { games_played: null }) === null);
+  // The real case: NHIAA had counted STA's 9/17 game but not the 9/16 one, so
+  // "most recent" guesses wrong. Mascoma is also ahead of NHIAA; Prospect Mountain is not.
+  const sta = { wins: 6, losses: 0, points: 24, games_played: 6, games: [
+    { date: '2026-09-14', opponent: 'Raymond', result: 'W' }, { date: '2026-09-16', opponent: 'Mascoma', result: 'W' },
+    { date: '2026-09-17', opponent: 'Prospect Mountain', result: 'W' }] };
+  const n5 = { wins: 5, losses: 0, points: 20, games_played: 5 };
+  check('premise — without knowing who else is ahead, it guesses the latest game (9/17)', /9\/17 W vs Prospect Mountain/.test(compareWithNhiaa(sta, n5)));
+  const pinned = compareWithNhiaa(sta, n5, new Set(['St. Thomas Aquinas', 'Mascoma']));
+  check('knowing Mascoma is also ahead, it names the 9/16 Mascoma match', /9\/16 W vs Mascoma/.test(pinned) && !/Prospect/.test(pinned), pinned);
 }
 
 // A fake Supabase that records every request.

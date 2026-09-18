@@ -93,7 +93,7 @@ export function computeStandings(teams, games) {
    Returns null when they agree, otherwise a one-line note for the CMS.
    `nhiaa` = { wins, losses, points, games_played } or nulls when NHIAA has not
    been read yet (a brand-new team) — no note then, there is nothing to compare. */
-export function compareWithNhiaa(ours, nhiaa) {
+export function compareWithNhiaa(ours, nhiaa, aheadSchools = null) {
   if (!nhiaa || nhiaa.games_played == null) return null;
   const n = { w: nhiaa.wins ?? 0, l: nhiaa.losses ?? 0, p: nhiaa.points ?? 0, gp: nhiaa.games_played ?? 0 };
   if (ours.wins === n.w && ours.losses === n.l && ours.points === n.p && ours.games_played === n.gp) return null;
@@ -103,8 +103,11 @@ export function compareWithNhiaa(ours, nhiaa) {
 
   if (ours.games_played > n.gp) {
     const extra = ours.games_played - n.gp;
-    // NHIAA's missing games are almost always the most recent ones.
-    const recent = ours.games.slice(-extra)
+    // An uncounted game leaves BOTH teams ahead of NHIAA, so prefer games whose
+    // opponent is also ahead; otherwise fall back to the most recent ones.
+    const both = aheadSchools ? ours.games.filter(g => aheadSchools.has(g.opponent)) : [];
+    const pool = both.length >= extra ? both : ours.games;
+    const recent = pool.slice(-extra)
       .map(g => `${shortDate(g.date)} ${g.result} vs ${g.opponent}`).join('; ');
     return `NHIAA hasn't counted ${extra} game${extra > 1 ? 's' : ''} yet (likely ${recent}). ${theirs} · ${mine}`;
   }
@@ -154,11 +157,15 @@ export async function recomputeVolleyballStandings() {
   const now = new Date().toISOString();
   let updated = 0, flagged = 0;
   const failures = [];
+  // Teams with more games than NHIAA shows — used to pin down which game it is.
+  const ahead = new Set(teams.filter(t => t.nhiaa_games_played != null &&
+    bySchool.get(t.school).games_played > t.nhiaa_games_played).map(t => t.school));
+
   for (const t of teams) {
     const r = bySchool.get(t.school);
     const note = compareWithNhiaa(r, {
       wins: t.nhiaa_wins, losses: t.nhiaa_losses, points: t.nhiaa_points, games_played: t.nhiaa_games_played
-    });
+    }, ahead);
     if (note) { flagged++; console.log(`  ≠ ${t.school}: ${note}`); }
 
     const res = await sb(
