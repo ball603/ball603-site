@@ -340,6 +340,10 @@ function shape(rawTeams, rawGames, standings, rosters) {
     // here rather than one on each page, so the schedule, the home page boxes
     // and every record agree about what a season is.
     if (g.is_scrimmage) continue;
+    // A game switched off by hand because Arbiter has it wrong (filed under
+    // the wrong team, entered twice). The sync never writes this column, so it
+    // stays off; the corrected game is usually a hand-added row (is_manual).
+    if (g.hidden) continue;
     const target = resolve(g.uteam);
     const team = visibleById.get(target);
     if (!team) continue;

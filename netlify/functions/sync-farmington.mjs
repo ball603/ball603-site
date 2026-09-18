@@ -141,7 +141,10 @@ const upsert = (table, rows, onConflict) => supabase(
 //     persistence is the whole reason these tables exist),
 //   * only inside the date window Arbiter just described for that team, so
 //     next season's feed can never delete this season's games,
-//   * and never a row somebody typed a score into by hand.
+//   * never a row somebody typed a score into by hand,
+//   * and never a game added by hand (is_manual) — those exist precisely
+//     because Arbiter has the game wrong or missing, so Arbiter not listing
+//     them is expected, not a reason to delete them.
 async function pruneRemoved(uteam, rows) {
   if (!rows.length) return 0;
   const dates = rows.map(r => r.game_date).filter(Boolean).sort();
@@ -152,7 +155,8 @@ async function pruneRemoved(uteam, rows) {
     `game_date=gte.${dates[0]}`,
     `game_date=lte.${dates[dates.length - 1]}`,
     `unique_game_id=not.in.(${ids})`,
-    `manual_my_score=is.null`
+    `manual_my_score=is.null`,
+    `is_manual=is.false`
   ].join('&');
   const gone = await supabase(`farmington_games?${query}`, {
     method: 'DELETE',

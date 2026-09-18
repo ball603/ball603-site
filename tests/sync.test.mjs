@@ -107,6 +107,13 @@ console.log('\n1. The sync never writes a hand-entered score');
   check('no manual_* key in any row', manualKeys.length === 0, manualKeys.join(','));
   check('and the delete protects them', calls.some(c =>
     c.method === 'DELETE' && c.url.includes('manual_my_score=is.null')));
+  // Games added by hand (Arbiter had them wrong) are never pruned, and the
+  // sync never writes the columns that mark a game hand-added or hidden.
+  const dels = calls.filter(c => c.method === 'DELETE' && c.url.includes('farmington_games'));
+  check('premise — the sync does prune games', dels.length > 0);
+  check('every prune spares hand-added games', dels.every(c => c.url.includes('is_manual=is.false')), dels.map(c => c.url).join(' | ').slice(0, 300));
+  const touched = rows.flatMap(r => Object.keys(r)).filter(k => k === 'hidden' || k === 'is_manual');
+  check('no row written by the sync sets hidden or is_manual', touched.length === 0, touched.join(','));
 }
 
 // ── 2. The co-op trap ───────────────────────────────────────────────────────

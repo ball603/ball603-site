@@ -2762,6 +2762,34 @@ console.log('\n39. Home page on a phone: Schedule, Standings (and Photos if it f
   await ctx.close();
 }
 
+// ── 40 ──────────────────────────────────────────────────────────────────────
+console.log('\n40. Games fixed by hand: hidden rows stay off, hand-added rows show');
+{
+  // Arbiter files Tuesday's 5:00 Jr. High match at Nottingham under the JV team.
+  // The fix: hide that row, add the same match by hand under Jr. High.
+  const fixed = GAMES.map(g => g.unique_game_id === 60 ? { ...g, hidden: true } : g).concat([{
+    ...GAMES.find(g => g.unique_game_id === 60), unique_game_id: -60, uteam: 11745629,
+    team_description: 'Girls 7/8th Volleyball - MS Varsity', is_manual: true, hidden: false }]);
+  const tuesday = async (games) => {
+    const { page, ctx, errors } = await open('/farmingtontigersnh/schedule', { width: 1300, games });
+    const r = await page.evaluate(async () => {
+      const d = await FT.load();
+      const on = (name) => (d.teams.find(t => t.name === name)?.games || [])
+        .filter(g => g.game_date === '2026-09-22').map(g => `${g.starts_at.slice(11, 16)} ${g.opponent_name}`);
+      return { jv: on('Jr. High - JV Volleyball'), jh: on('Jr. High Volleyball') };
+    });
+    await ctx.close();
+    return { ...r, errors };
+  };
+  const before = await tuesday(GAMES);
+  check('premise — straight from Arbiter, Tuesday is JV at 5:00 and no Jr. High game',
+    before.jv.join(',') === '17:00 Nottingham' && before.jh.length === 0, JSON.stringify(before));
+  const after = await tuesday(fixed);
+  check('with the wrong row hidden, JV is the 4:00 match', after.jv.join(',') === '16:00 Nottingham', after.jv.join(','));
+  check('and the hand-added 5:00 match shows under Jr. High', after.jh.join(',') === '17:00 Nottingham', after.jh.join(','));
+  check('no page errors', after.errors.length === 0, after.errors.join('; '));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 
 
