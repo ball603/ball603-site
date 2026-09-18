@@ -397,6 +397,85 @@ function shape(rawTeams, rawGames, standings, rosters) {
   };
 }
 
+/* ── Installable app ────────────────────────────────────────────────────── */
+/* The Tigers site answers on two origins — ball603.com/farmingtontigersnh/ and
+   farmingtontigersnh.com/ — and a PWA is defined relative to the origin it is
+   installed from: the manifest's scope, the service worker's scope and the
+   start URL all have to agree with each other AND with the host in the address
+   bar. So the paths are worked out here rather than hard-coded into six HTML
+   heads, and _redirects serves the same manifest and worker at both.
+
+   Anyone who installed from ball603.com gets an app that opens at
+   /farmingtontigersnh/ and stays inside it; anyone who installs from the Tigers
+   domain gets one rooted at /. Both are the same site. */
+const PWA = (() => {
+  const ownDomain = /(^|\.)farmingtontigersnh\.com$/i.test(location.hostname);
+  const base = ownDomain ? '/' : '/farmingtontigersnh/';
+  return { base, manifest: base + 'manifest.json', worker: base + 'sw.js' };
+})();
+
+function setupPwa() {
+  let link = document.querySelector('link[rel="manifest"]');
+  if (!link) {
+    link = document.createElement('link');
+    link.rel = 'manifest';
+    document.head.appendChild(link);
+  }
+  link.href = PWA.manifest;
+
+  if (!('serviceWorker' in navigator)) return;
+  // Service workers need a secure context. Saying so beats a red console error
+  // that looks like the code is broken — as of this writing the Tigers domain
+  // has DNS but no certificate, so it will hit this until Netlify issues one.
+  if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+    console.info('[Tigers] Not a secure context, so no app install here:', location.origin);
+    return;
+  }
+
+  navigator.serviceWorker.register(PWA.worker, { scope: PWA.base })
+    .then(reg => {
+      // A deploy should reach an installed app on the next launch, not whenever
+      // the browser next feels like checking.
+      reg.update();
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') reg.update();
+      });
+    })
+    .catch(err => console.warn('[Tigers] Service worker did not register:', err.message));
+}
+
+/* The install prompt. Held rather than fired: Chrome hands this over the moment
+   it decides the site is installable, and throwing a dialog at somebody who has
+   just arrived is how people learn to dismiss them. It waits in the menu until
+   they go looking. */
+let installPrompt = null;
+
+function wireInstall() {
+  const row = document.getElementById('ft-install');
+  if (!row) return;
+
+  const show = () => { row.hidden = false; };
+  if (installPrompt) show();
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    installPrompt = e;
+    show();
+  });
+
+  // Already installed, so there is nothing to offer.
+  window.addEventListener('appinstalled', () => { installPrompt = null; row.hidden = true; });
+  if (window.matchMedia('(display-mode: standalone)').matches) row.hidden = true;
+
+  row.addEventListener('click', async () => {
+    if (!installPrompt) return;
+    const prompt = installPrompt;
+    installPrompt = null;               // a prompt can only be used once
+    row.hidden = true;
+    try { await prompt.prompt(); } catch (err) { console.warn('[Tigers] Install prompt:', err.message); }
+  });
+}
+
 /* ── Header ─────────────────────────────────────────────────────────────── */
 /* Rendered from here rather than copied into five files, the same way Ball603
    injects its own header through nav-loader.js. */
@@ -470,6 +549,7 @@ const STAR_SVG = `
   </svg>`;
 
 function renderHeader(active) {
+  setupPwa();
   const mount = document.getElementById('ft-header');
   if (!mount) return;
   mount.innerHTML = `
@@ -525,6 +605,14 @@ function renderHeader(active) {
            for it. Same button, same modal. -->
       <button class="ft-drawerlink ft-drawerstar" id="ft-drawer-star" type="button" aria-haspopup="dialog">
         ${STAR_SVG}<span>My Teams</span>
+      </button>
+      <!-- Hidden until the browser says the site is installable, which it only
+           does on a platform and a visit where installing would actually work. -->
+      <button class="ft-drawerlink ft-drawerstar" id="ft-install" type="button" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round" class="ft-star-icon" aria-hidden="true">
+          <path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
+        </svg><span>Install App</span>
       </button>
     </nav>
 
@@ -706,6 +794,8 @@ function renderHeader(active) {
   }).catch(() => {
     list.innerHTML = '<div class="ft-empty">Teams could not be loaded.</div>';
   });
+
+  wireInstall();
 
   // Share, the way Ball603 does it: the OS sheet where there is one, the
   // clipboard where there is not.
