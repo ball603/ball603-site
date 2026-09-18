@@ -186,9 +186,9 @@ function recordOf(games) {
    next. Meets have no opponent and are named by the meet instead. */
 /* "Somersworth Middle School" is Somersworth to everyone who reads this site,
    and the extra words cost a column's worth of width on a phone. Only the
-   school-type tail comes off, and only when the name actually ends in one:
-   "Chichester Central School" keeps its Central, "Paul Elementary School" keeps
-   its Elementary, because neither is what was asked for. */
+   school-type tail comes off, and only when the name actually ends in one.
+   Schools whose name the tail rule can't reach are renamed outright in
+   OPPONENT_RENAMES instead. */
 const SCHOOL_TAIL = /\s+(?:middle|high|senior|junior|jr\.?|sr\.?|and|&|\/|-|\s)+\s*schools?\s*$/i;
 
 function shortenSchool(name) {
@@ -196,9 +196,39 @@ function shortenSchool(name) {
   return out || String(name || '');
 }
 
+// Arbiter's name → what this site calls the school. Paul Elementary is the
+// Wakefield school, and the other two are known by their town.
+const OPPONENT_RENAMES = {
+  'Deerfield Community School': 'Deerfield',
+  'Chichester Central School':  'Chichester',
+  'Paul Elementary School':     'Wakefield'
+};
+
+function opponentShort(g) {
+  const name = g.opponent_name && OPPONENT_RENAMES[g.opponent_name.trim()];
+  return g.opponent_ball603 || name || shortenSchool(g.opponent_name);
+}
+
 function opponentLabel(g) {
   if (g.is_meet) return g.game_title || g.tournament_name || `${g.team_count}-school meet`;
-  return g.opponent_ball603 || shortenSchool(g.opponent_name) || 'Opponent TBA';
+  return opponentShort(g) || 'Opponent TBA';
+}
+
+/* An opponent's crest. Ball603's logo first whenever the short name matches a
+   Ball603 school — so Portsmouth Middle School and Dover Middle School wear the
+   Portsmouth and Dover high school logos — then Arbiter's school art, then
+   nothing. Each image falls through to the next if it isn't there. */
+function opponentLogo(g, cls) {
+  if (!g || g.is_meet) return '';
+  const short = opponentShort(g);
+  const srcs = [
+    short ? ball603Logo(short) : null,
+    g.opponent_entity_id ? `https://assets.arbitersports.com/logos/school/${encodeURIComponent(g.opponent_entity_id)}.jpg` : null
+  ].filter(Boolean);
+  if (!srcs.length) return '';
+  const next = srcs[1] ? ` data-next="${esc(srcs[1])}"` : '';
+  return `<img${cls ? ` class="${cls}"` : ''} src="${esc(srcs[0])}"${next} alt="" ` +
+    `onerror="if(this.dataset.next){this.src=this.dataset.next;this.removeAttribute('data-next')}else{this.remove()}">`;
 }
 
 /* ── Favourite teams ────────────────────────────────────────────────────── */
@@ -1162,7 +1192,6 @@ function tickerCard(g) {
   const status = tickerLabel(g, win);
   const res = resultOf(sc);
   const opp = opponentLabel(g);
-  const logo = g.opponent_ball603 ? ball603Logo(g.opponent_ball603) : null;
   const href = `/farmingtontigersnh/schedule?sport=${esc(g.sport_id)}`;
 
   // A star on the games belonging to a team somebody has chosen. They already
@@ -1192,9 +1221,9 @@ function tickerCard(g) {
       </a>`;
   }
 
-  const row = (name, src, score, won) => `
+  const row = (name, img, score, won) => `
     <span class="ft-tcard-row${won ? ' win' : ''}">
-      ${src ? `<img src="${esc(src)}" alt="" onerror="this.remove()">` : '<i class="ft-tcard-nologo"></i>'}
+      ${img || '<i class="ft-tcard-nologo"></i>'}
       <span class="ft-tcard-name">${esc(name)}</span>
       <span class="ft-tcard-score">${score}</span>
     </span>`;
@@ -1202,8 +1231,8 @@ function tickerCard(g) {
   return `
     <a class="ft-tcard" href="${href}" ${owner}>
       <span class="ft-tcard-teams">
-        ${row('Farmington', ball603Logo('Farmington'), sc ? sc.us : '', res === 'W')}
-        ${row(opp, logo, sc ? sc.them : '', res === 'L')}
+        ${row('Farmington', `<img src="${esc(ball603Logo('Farmington'))}" alt="" onerror="this.remove()">`, sc ? sc.us : '', res === 'W')}
+        ${row(opp, opponentLogo(g), sc ? sc.them : '', res === 'L')}
       </span>
       ${meta}
     </a>`;
@@ -1320,7 +1349,7 @@ window.FT = {
   esc, parseLocal, dateKey, todayKey, dayLabel, shortDate, timeLabel, weekWindow,
   seasonLabel, seasonOfGames,
   scoreOf, resultOf, recordOf, opponentLabel, versus, divisionLabel,
-  ball603Covers, ball603Slug, ball603Logo, schoolLogo, teamLink,
+  ball603Covers, ball603Slug, ball603Logo, schoolLogo, teamLink, opponentLogo,
   load, sb, renderHeader, renderFooter, venuePin, closeVenue, pills, streakBadge,
   openMyTeams: () => { if (openFavModal) openFavModal(); }
 };
