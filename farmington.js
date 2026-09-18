@@ -398,21 +398,24 @@ function shape(rawTeams, rawGames, standings, rosters) {
 }
 
 /* ── Installable app ────────────────────────────────────────────────────── */
-/* The Tigers site answers on two origins — ball603.com/farmingtontigersnh/ and
-   farmingtontigersnh.com/ — and a PWA is defined relative to the origin it is
-   installed from: the manifest's scope, the service worker's scope and the
-   start URL all have to agree with each other AND with the host in the address
-   bar. So the paths are worked out here rather than hard-coded into six HTML
-   heads, and _redirects serves the same manifest and worker at both.
+/* One origin, one app. The Tigers site is served only from
+   ball603.com/farmingtontigersnh/ — farmingtontigersnh.com redirects here — so
+   the manifest's scope, the worker's scope and the start URL are all simply
+   that path.
 
-   Anyone who installed from ball603.com gets an app that opens at
-   /farmingtontigersnh/ and stays inside it; anyone who installs from the Tigers
-   domain gets one rooted at /. Both are the same site. */
-const PWA = (() => {
-  const ownDomain = /(^|\.)farmingtontigersnh\.com$/i.test(location.hostname);
-  const base = ownDomain ? '/' : '/farmingtontigersnh/';
-  return { base, manifest: base + 'manifest.json', worker: base + 'sw.js' };
-})();
+   It used to answer on both hosts, and a PWA is defined relative to the origin
+   it is installed from, so every one of those three had to be worked out at
+   runtime from the hostname. That was the root of a long chase over an app icon
+   that would not change: the two origins each needed their own manifest path,
+   worker scope and icon fetch, and fixing one did nothing for the other.
+
+   The manifest link is still written from here rather than into six HTML heads,
+   because that keeps it in one place — but it is now a constant. */
+const PWA = {
+  base: '/farmingtontigersnh/',
+  manifest: '/farmingtontigersnh/manifest.json',
+  worker: '/farmingtontigersnh/sw.js'
+};
 
 function setupPwa() {
   let link = document.querySelector('link[rel="manifest"]');
@@ -425,8 +428,7 @@ function setupPwa() {
 
   if (!('serviceWorker' in navigator)) return;
   // Service workers need a secure context. Saying so beats a red console error
-  // that looks like the code is broken — as of this writing the Tigers domain
-  // has DNS but no certificate, so it will hit this until Netlify issues one.
+  // that looks like the code is broken.
   if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
     console.info('[Tigers] Not a secure context, so no app install here:', location.origin);
     return;

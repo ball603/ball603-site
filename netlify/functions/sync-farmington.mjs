@@ -377,9 +377,44 @@ export async function runFarmingtonSync({ dryRun = false } = {}) {
 }
 
 // ── Scheduled entry point ───────────────────────────────────────────────────
-// Fired by the schedule in netlify.toml. Nothing else can reach this.
+/* Fired hourly by netlify.toml. Nothing else can reach this.
+ *
+ * WHY HOURLY, FOR FIVE RUNS A DAY. Netlify's cron is UTC and has no notion of
+ * time zones, so a schedule written for Eastern time is only right for half the
+ * year: the five hours that mean 5:30am in March mean 6:30am in November. This
+ * file used to carry a comment saying "change these five numbers on Nov 1",
+ * which is a chore that comes back every spring and autumn and is forgotten
+ * exactly once before somebody notices the scores posting an hour late.
+ *
+ * So the cron fires every hour at :30 and the decision is made here, where the
+ * runtime knows what Eastern time actually is today — Intl handles the DST
+ * switch by itself. Nineteen of the twenty-four wake up, read a clock and stop,
+ * which is a few hundred invocations a month against an allowance of 125,000.
+ */
+
+// The five Eastern hours the sync is wanted at, all at half past.
+const RUN_AT_ET = [5, 12, 17, 21, 23];
+
+// The hour it is right now in Farmington, whatever the date and whatever the
+// server's own clock is set to.
+export function easternHour(now = new Date()) {
+  const hour = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York', hour: 'numeric', hour12: false
+  }).format(now);
+  // hour12:false gives "24" rather than "0" for midnight in some runtimes.
+  return Number(hour) % 24;
+}
+
+export const shouldRunNow = (now = new Date()) => RUN_AT_ET.includes(easternHour(now));
 
 export const handler = async () => {
+  if (!shouldRunNow()) {
+    return {
+      statusCode: 200,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ skipped: true, easternHour: easternHour(), runsAt: RUN_AT_ET })
+    };
+  }
   const { statusCode, body } = await runFarmingtonSync({ dryRun: false });
   return { statusCode, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
 };
