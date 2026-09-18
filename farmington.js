@@ -1114,6 +1114,32 @@ function tickerWindow(now) {
   return { from: day(-1), to: day(1), today: day(0) };
 }
 
+/* After lunch on a game day the ticker is about tonight, not last night: from
+   12:35 PM Eastern, if anything is on today, earlier results drop off. Eastern
+   whatever the phone's own time zone. Ball603's ticker follows the same rule. */
+const TICKER_CUTOFF_MIN = 12 * 60 + 35;
+
+function easternNow(now) {
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York',
+    year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+    .formatToParts(now || new Date()).reduce((o, p) => (o[p.type] = p.value, o), {});
+  return { date: `${parts.year}-${parts.month}-${parts.day}`, minutes: Number(parts.hour) * 60 + Number(parts.minute) };
+}
+
+function pastResultsOff(games, now) {
+  const et = easternNow(now);
+  return et.minutes >= TICKER_CUTOFF_MIN && games.some(g => g.game_date === et.date);
+}
+
+// If the page is open at 12:35 Eastern, redraw then rather than on the next load.
+let tickerTimer = null;
+function scheduleTickerCutoff() {
+  clearTimeout(tickerTimer);
+  const et = easternNow();
+  const wait = (TICKER_CUTOFF_MIN - et.minutes) * 60000 - new Date().getSeconds() * 1000;
+  if (wait > 0) tickerTimer = setTimeout(renderTicker, wait + 1000);
+}
+
 /* The small orange line on the right of a card. Short on purpose — it sits at
    9px and anything longer than a couple of words stops being readable. Today's
    games are just a time; another day gets the weekday in front of it so nobody
@@ -1136,8 +1162,10 @@ async function renderTicker() {
 
   const win = tickerWindow();
   const favs = favourites();
-  const games = (data.games || [])
-    .filter(g => g.game_date >= win.from && g.game_date <= win.to)
+  let inWindow = (data.games || []).filter(g => g.game_date >= win.from && g.game_date <= win.to);
+  if (pastResultsOff(inWindow)) inWindow = inWindow.filter(g => g.game_date >= easternNow().date);
+  scheduleTickerCutoff();
+  const games = inWindow
     // Starred teams first, and inside each half still in time order. Somebody
     // who has told us they follow the JV side should not have to scroll past
     // four varsity games to find them.
@@ -1147,7 +1175,7 @@ async function renderTicker() {
       return fa - fb || String(a.starts_at).localeCompare(String(b.starts_at));
     });
 
-  if (!games.length) return;            // nothing on, so nothing shown
+  if (!games.length) { mount.innerHTML = ''; return; }   // nothing on, so nothing shown
 
   mount.innerHTML = `
     <div class="ft-ticker">
@@ -1349,7 +1377,7 @@ window.FT = {
   esc, parseLocal, dateKey, todayKey, dayLabel, shortDate, timeLabel, weekWindow,
   seasonLabel, seasonOfGames,
   scoreOf, resultOf, recordOf, opponentLabel, versus, divisionLabel,
-  ball603Covers, ball603Slug, ball603Logo, schoolLogo, teamLink, opponentLogo,
+  ball603Covers, ball603Slug, ball603Logo, schoolLogo, teamLink, opponentLogo, pastResultsOff, easternNow,
   load, sb, renderHeader, renderFooter, venuePin, closeVenue, pills, streakBadge,
   openMyTeams: () => { if (openFavModal) openFavModal(); }
 };

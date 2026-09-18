@@ -2394,8 +2394,10 @@
     
     /**
      * Render scores ticker - Enhanced version with polling, animations, time-based display
-     * Before noon EST: Yesterday's finals + Today's games
-     * Noon and after: Today's games only
+     * Finals from the last 4 days + games today and the next 4 days.
+     * From 12:35 PM Eastern on a day with games, earlier results drop off so the
+     * ticker is about tonight. Off days keep the recent results all day.
+     * (The Farmington Tigers ticker follows the same rule.)
      */
     
     // Ticker settings (loaded from Supabase or defaults)
@@ -2552,6 +2554,13 @@
         return game.level === 'NHIAA' || game.level === 'High School';
       });
       
+      // After 12:35 PM Eastern on a game day, earlier days' results come off.
+      const etNow = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+      const etMinutes = etNow.getHours() * 60 + etNow.getMinutes();
+      if (etMinutes >= 12 * 60 + 35 && tickerGames.some(g => g.date === todayStr)) {
+        tickerGames = tickerGames.filter(g => g.date >= todayStr);
+      }
+
       // Sort: My Teams first, then finals (most recent first), then upcoming by time
       tickerGames.sort((a, b) => {
         // First priority: favorite teams (My Teams)
