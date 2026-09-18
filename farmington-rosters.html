@@ -132,15 +132,19 @@ function renderRoster() {
   if (!r) { body.innerHTML = '<div class="ft-card"><div class="ft-empty">Nothing to show.</div></div>'; return; }
 
   const roster = players(r);
+  /* Class before Pos: a parent scanning a roster is looking for the year first,
+     and on a phone the leftmost columns are the ones that survive. */
   const cols = [
     { h: '#',      fields: ['number', 'jersey', 'no'], cls: 'num' },
     { h: 'Player', fields: ['name', 'player', 'full_name'], cls: 'grow' },
-    { h: 'Pos',    fields: ['position', 'pos'], cls: 'ctr' },
-    { h: 'Class',  fields: ['class', 'grade', 'year'], cls: 'ctr' },
+    { h: 'Class',  fields: ['class', 'grade', 'year'], cls: 'ctr tight' },
+    { h: 'Pos',    fields: ['position', 'pos'], cls: 'ctr tight' },
     // Co-op squads are drawn from two schools and it matters to the families
     // which one a player is at. Only appears on a roster that says.
-    { h: 'School', fields: ['school', 'from'], cls: 'ctr' },
-    { h: 'Ht',     fields: ['height', 'ht'], cls: 'ctr' }
+    { h: 'School', fields: ['school', 'from'], cls: 'ctr tight' },
+    // Height is the one thing nobody came for, so it is the one that goes when
+    // the screen runs out of room.
+    { h: 'Ht',     fields: ['height', 'ht'], cls: 'ctr ft-hide-sm' }
   ].filter(c => c.h === 'Player' || roster.some(p => val(p, c.fields) !== ''));
 
   /* "Girls Varsity Volleyball" rather than "Girls Volleyball". Ball603 only
@@ -171,8 +175,8 @@ function renderRoster() {
         ${facts.length ? `<span class="ft-barstats">${facts.join(dot)}</span>` : ''}
       </div>
       ${roster.length ? `
-        <div class="ft-tablewrap">
-          <table class="ft-table">
+        <div class="ft-tablewrap ft-rosterwrap">
+          <table class="ft-table ft-rostertable">
             <thead><tr>${cols.map(c => `<th class="${c.cls}">${c.h}</th>`).join('')}</tr></thead>
             <tbody>${roster.map(p => `<tr>${cols.map(c =>
               `<td class="${c.cls}">${FT.esc(val(p, c.fields))}</td>`).join('')}</tr>`).join('')}</tbody>
