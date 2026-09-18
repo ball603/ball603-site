@@ -768,6 +768,9 @@ function renderHeader(active) {
       <button class="ft-drawerlink ft-drawerstar" id="ft-install" type="button" hidden>
         ${INSTALL_SVG}<span>Install App</span>
       </button>
+      <!-- Last, for the people keeping score at the game. Only in the drawer,
+           and the drawer only opens on a phone, so desktop never shows it. -->
+      <a class="ft-drawerlink ft-drawerscore" id="ft-drawer-score" href="/farmingtonscore">Score Entry</a>
     </nav>
 
     <!-- Pull to refresh. Parked above the top of the screen and moved down by

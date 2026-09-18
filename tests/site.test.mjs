@@ -18,7 +18,8 @@ const server = http.createServer((q,s)=>{
     '/farmingtontigersnh/news':'/farmington-news.html',
     '/farmingtontigersnh/schedule':'/farmington-schedule.html',
     '/farmingtontigersnh/standings':'/farmington-standings.html',
-    '/farmingtontigersnh/rosters':'/farmington-rosters.html'
+    '/farmingtontigersnh/rosters':'/farmington-rosters.html',
+    '/farmingtonscore':'/farmingtonscore.html'
   };
   if (MAP[p]) p = MAP[p];
   // Any logo, .png or .jpg: the site zip ships without /logos, and the header
@@ -1518,8 +1519,10 @@ console.log('\n22. On a phone');
     await page.locator('#ft-drawer').evaluate(e => getComputedStyle(e).visibility) === 'visible');
   // Links only: the drawer's last row is the My Teams button, not a page.
   const links = await page.locator('#ft-drawer a.ft-drawerlink').allTextContents();
-  check('with every nav link in it',
-    links.join('/') === 'Schedule/Standings/Rosters/Photos/Videos', links.join('/'));
+  // Score Entry is a link too, but a tool for scorekeepers rather than a page,
+  // and it sits apart at the very bottom (section 35).
+  check('with every nav link in it, then Score Entry',
+    links.join('/') === 'Schedule/Standings/Rosters/Photos/Videos/Score Entry', links.join('/'));
   check('and the current page marked',
     (await page.locator('.ft-drawerlink.on').textContent()).trim() === 'Schedule');
   check('it says so to a screen reader',
@@ -1995,9 +1998,10 @@ console.log('\n28. My Teams on a phone');
   // Last of the things somebody can actually see. Install App sits below it and
   // is hidden until the browser offers it, so "the bottom" means the bottom of
   // what is on show.
-  const visible = rows.filter((_, i) => i < rows.length - 1 || rows[i] !== 'Install App');
+  // Score Entry is the one row below it, set apart as a tool (section 35).
+  const visible = rows.filter(r => r !== 'Install App' && r !== 'Score Entry');
   check('the drawer carries My Teams below the pages',
-    visible[visible.length - 1] === 'My Teams', rows.join('/'));
+    visible[visible.length - 1] === 'My Teams' && rows[rows.length - 1] === 'Score Entry', rows.join('/'));
   check('and every page above it', rows.slice(0, 5).join('/') === 'Schedule/Standings/Rosters/Photos/Videos',
     rows.join('/'));
   await page.locator('#ft-drawer-star').click();
@@ -2471,6 +2475,34 @@ console.log('\n34. Score entry: sport, then a day at a time');
   rows = await page.locator('#gameList .ft-gitem').allTextContents();
   check('where the game now shows the score just entered', /3–1 entered/.test(rows[0]), rows[0]);
   check('no page errors', errors.length === 0, errors.join('; '));
+  await ctx.close();
+}
+
+// ── 35 ──────────────────────────────────────────────────────────────────────
+console.log('\n35. Score Entry in the phone menu');
+{
+  const { page, ctx, errors } = await open('/farmingtontigersnh/schedule', { width: 390 });
+  await page.click('#ft-burger'); await page.waitForTimeout(350);
+  const items = await page.locator('#ft-drawer .ft-drawerlink').evaluateAll(els =>
+    els.filter(e => !e.hidden && getComputedStyle(e).display !== 'none').map(e => e.textContent.replace(/\s+/g, ' ').trim()));
+  check('premise — the menu opened with its links', items.length >= 5, items.join(' / '));
+  check('Score Entry is the last thing in it', items[items.length - 1] === 'Score Entry', items.join(' / '));
+  const link = page.locator('#ft-drawer-score');
+  check('and it goes to the score page', await link.getAttribute('href') === '/farmingtonscore');
+  check('on a phone it can actually be seen', await link.isVisible());
+  await link.click(); await page.waitForTimeout(600);
+  check('tapping it opens the score page', /\/farmingtonscore/.test(page.url()) &&
+    await page.locator('#pw').count() === 1, page.url());
+  check('no page errors', errors.length === 0, errors.join('; '));
+  await ctx.close();
+}
+{
+  // Desktop: no hamburger, so no way to open the drawer, so no link on screen.
+  const { page, ctx } = await open('/farmingtontigersnh/schedule', { width: 1300 });
+  check('on a desktop the menu button is not there', !(await page.locator('#ft-burger').isVisible()));
+  check('and Score Entry is not visible anywhere', !(await page.locator('#ft-drawer-score').isVisible()));
+  const navText = (await page.textContent('.ft-nav')).replace(/\s+/g, ' ');
+  check('nor in the desktop nav row', !/Score Entry/.test(navText), navText);
   await ctx.close();
 }
 
