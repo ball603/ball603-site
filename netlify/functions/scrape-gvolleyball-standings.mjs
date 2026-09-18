@@ -13,12 +13,15 @@
 // The widget API below is live and matches the NHIAA-issued division breakdown
 // exactly (20 / 22 / 21 = 63 teams).
 //
-// WHAT THIS OWNS: W-L-T, games played, points and rating — imported directly
-// from NHIAA. This deliberately differs from scrape-baseball-standings.mjs,
-// which imports rating only and leaves W-L to update-standings.mjs. Volleyball
-// has no scheduled update-standings run, so taking the record straight from the
-// source is what keeps the standings page correct. Hitting "Recalculate
-// Standings" in the CMS still works and will simply agree with NHIAA.
+// WHAT THIS OWNS: each team's DIVISION, who is in the league, and NHIAA's own
+// published numbers (stored in nhiaa_wins / nhiaa_losses / nhiaa_points /
+// nhiaa_rating / nhiaa_games_played, for comparison only).
+//
+// The public W-L, points and rating are NOT copied from NHIAA any more. After
+// the NHIAA read, recomputeVolleyballStandings() (gvolleyball-index.mjs)
+// computes them from our games table with the NHIAA Index Plan, so a result
+// counts as soon as its score is in rather than when NHIAA gets to it. Any team
+// where the two disagree gets a note for the CMS Standings Check panel.
 //
 // RATING: NHIAA DOES publish a rating for volleyball. The widget's own column
 // list is Rank / Team / GP / W / L / W-L-T / PTS / Rating, and the rating is
@@ -29,10 +32,11 @@
 // Nashua South eighth in Division I on 12 points from 7 games, where NHIAA had
 // them thirteenth on a rating of 1.71 — five places out.
 //
-// `points` and `rating` are now two different numbers, both taken from NHIAA,
-// exactly as the baseball scraper takes its rating.
+// NHIAA's rating is kept in nhiaa_rating for comparison. The public `rating`
+// is computed the same way (points ÷ games played) in gvolleyball-index.mjs.
 
 import { normalizeTeamName } from './scrape-gvolleyball-core.mjs';
+import { recomputeVolleyballStandings } from './gvolleyball-index.mjs';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -270,14 +274,15 @@ async function updateStandings(scraped, allScrapedSchools) {
 
   for (const s of scraped) {
     const currentDivision = existingBySchool.get(s.school);
+    // NHIAA's numbers go in the nhiaa_* columns only. The public wins / losses
+    // / points / rating are written by recomputeVolleyballStandings() from our
+    // own games, straight after this.
     const record = {
-      wins: s.wins,
-      losses: s.losses,
-      ties: s.ties,
-      points: s.points,
-      rating: s.rating,
-      games_played: s.games_played,
-      win_pct: s.win_pct,
+      nhiaa_wins: s.wins,
+      nhiaa_losses: s.losses,
+      nhiaa_points: s.points,
+      nhiaa_rating: s.rating,
+      nhiaa_games_played: s.games_played,
       division: s.division,
       gender: s.gender,
       scraped_at: now,
@@ -425,8 +430,19 @@ export async function runStandingsScrape() {
 
     console.log(`  Updated ${result.updated}, inserted ${result.inserted}`);
 
+    // Now the public numbers, from our games. A failure here must not hide the
+    // NHIAA import that already succeeded, so it is reported, not thrown.
+    let computed = null, computeError = null;
+    try {
+      computed = await recomputeVolleyballStandings();
+    } catch (error) {
+      computeError = error.message;
+      console.log(`  ❌ Computing standings from games failed: ${error.message}`);
+    }
+
     return new Response(JSON.stringify({
-      success: result.failures.length === 0 && groupErrors.length === 0,
+      success: result.failures.length === 0 && groupErrors.length === 0 && !computeError &&
+               !(computed && computed.failures.length),
       groups: groups.map(g => `${g.id} (${g.name})`),
       groupErrors,
       divisions: perDivision,
@@ -437,6 +453,9 @@ export async function runStandingsScrape() {
       divisionChanges: result.divisionChanges,
       orphans: result.orphans,
       failures: result.failures,
+      computed: computed && { gamesCounted: computed.gamesCounted, teamsWritten: computed.updated,
+        differFromNhiaa: computed.flagged, notCounted: computed.skipped, failures: computed.failures },
+      computeError,
       timestamp: new Date().toISOString()
     }), { status: 200, headers: { 'Content-Type': 'application/json' } });
 
@@ -450,7 +469,9 @@ export async function runStandingsScrape() {
 export default async (request) => runStandingsScrape();
 
 export const config = {
-  // Every 4 hours during volleyball season (August–November), matching the
-  // cadence of scrape-baseball-standings.mjs.
-  schedule: "0 */4 * 8,9,10,11 *"
+  // Hourly during volleyball season (August–November). Scores entered on
+  // Ball603 and scores picked up by the schedule scraper recompute the
+  // standings immediately; this run is what refreshes divisions and NHIAA's
+  // numbers for the CMS comparison.
+  schedule: "0 * * 8,9,10,11 *"
 };

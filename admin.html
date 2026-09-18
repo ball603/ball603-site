@@ -6332,6 +6332,21 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         </div>
       </div>
       
+      <!-- Volleyball Standings Check (private: CMS only, never on the public site) -->
+      <div id="standingsCheckCard" style="background: #fff; border-radius: 10px; padding: 25px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.08);">
+        <h3 style="margin: 0 0 12px; font-size: 18px; color: #333; border-bottom: 2px solid #f57c00; padding-bottom: 10px;">
+          &#127952; Volleyball Standings Check
+        </h3>
+        <p style="margin: 0 0 14px; font-size: 13px; color: #666;">
+          Ball603's volleyball standings are computed from our scores with the NHIAA Index Plan. Teams listed here differ from NHIAA's published standings. Usually NHIAA just hasn't caught up yet. Only visible here.
+        </p>
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 14px;">
+          <button onclick="loadStandingsCheck()" style="background: #f57c00; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer;">&#x21BB; Refresh</button>
+          <span id="standingsCheckSummary" style="font-size: 13px; color: #555;"></span>
+        </div>
+        <div id="standingsCheckList"></div>
+      </div>
+
       <!-- Ticker Settings -->
       <div style="background: #fff; border-radius: 10px; padding: 25px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.08);">
         <h3 style="margin: 0 0 20px; font-size: 18px; color: #333; border-bottom: 2px solid #f57c00; padding-bottom: 10px;">
@@ -8404,6 +8419,53 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       }
     }
 
+    // Volleyball Standings Check — teams whose computed standings differ from
+    // NHIAA's published ones. standings_note is written by gvolleyball-index.mjs.
+    async function loadStandingsCheck() {
+      const summary = document.getElementById('standingsCheckSummary');
+      const list = document.getElementById('standingsCheckList');
+      if (!summary || !list) return;
+      summary.textContent = 'Loading...';
+      list.innerHTML = '';
+      const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+      try {
+        const { data, error } = await db
+          .from('standings')
+          .select('school, division, wins, losses, points, rating, nhiaa_wins, nhiaa_losses, nhiaa_points, nhiaa_rating, standings_note, scraped_at')
+          .eq('sport', 'gvolleyball')
+          .eq('season', '2026');
+        if (error) throw error;
+        const rows = data || [];
+        const flagged = rows.filter(r => r.standings_note)
+          .sort((a, b) => (a.division || '').localeCompare(b.division || '') || a.school.localeCompare(b.school));
+        const last = rows.map(r => r.scraped_at).filter(Boolean).sort().pop();
+        const lastText = last ? ' · NHIAA last read ' + new Date(last).toLocaleString([], { month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+        if (!flagged.length) {
+          summary.textContent = `All ${rows.length} teams match NHIAA` + lastText;
+          return;
+        }
+        summary.textContent = `${flagged.length} of ${rows.length} teams differ from NHIAA` + lastText;
+        const fmt = (w, l, p, r) => `${w ?? '–'}-${l ?? '–'} · ${p ?? '–'} pts · ${r == null ? '–' : Number(r).toFixed(3)}`;
+        list.innerHTML = `<table style="width:100%; border-collapse:collapse; font-size:13px;">
+          <thead><tr style="text-align:left; border-bottom:2px solid #eee; color:#555;">
+            <th style="padding:6px 8px;">Team</th><th style="padding:6px 8px;">Ball603</th><th style="padding:6px 8px;">NHIAA</th><th style="padding:6px 8px;">Why</th>
+          </tr></thead><tbody>` +
+          flagged.map(r => {
+            return `<tr class="standings-check-row" style="border-bottom:1px solid #f0f0f0; vertical-align:top;">
+              <td style="padding:6px 8px; white-space:nowrap;"><strong>${esc(r.school)}</strong> <span style="color:#999;">${esc(r.division)}</span></td>
+              <td style="padding:6px 8px; white-space:nowrap;">${esc(fmt(r.wins, r.losses, r.points, r.rating))}</td>
+              <td style="padding:6px 8px; white-space:nowrap;">${esc(fmt(r.nhiaa_wins, r.nhiaa_losses, r.nhiaa_points, r.nhiaa_rating))}</td>
+              <td style="padding:6px 8px; color:#555;">${esc(r.standings_note.replace(/ NHIAA \d+-\d+, \d+ pts · Ball603 \d+-\d+, \d+ pts$/, ''))}</td>
+            </tr>`;
+          }).join('') + '</tbody></table>';
+      } catch (e) {
+        console.error('Standings check failed:', e);
+        summary.textContent = /nhiaa_|standings_note/.test(e.message || '')
+          ? 'The standings check columns are missing. Run the SQL for the new volleyball standings first.'
+          : 'Could not load the standings check: ' + (e.message || e);
+      }
+    }
+
     async function recalculateStandings() {
       const btn = document.getElementById('recalcStandingsBtn');
       btn.disabled = true;
@@ -8413,6 +8475,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         const data = await res.json();
         if (data.success) {
           showToast(`Standings updated! ${data.gamesAnalyzed} games analyzed.`, 'success');
+          loadStandingsCheck();
         } else {
           showToast('Error recalculating standings', 'error');
         }
@@ -9783,6 +9846,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       // Load settings when tab is selected
       if (tab === 'settings') {
         loadSiteSettings();
+        loadStandingsCheck();
       }
       
       // Load fan submissions when tab is selected

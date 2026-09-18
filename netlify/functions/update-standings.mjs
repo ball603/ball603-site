@@ -2,6 +2,8 @@
 // Calculates W-L-T records from the games table
 // Called after manual score entry or on demand
 
+import { recomputeVolleyballStandings } from './gvolleyball-index.mjs';
+
 const SUPABASE_URL = process.env.SUPABASE_URL;
 
 // Normalize team names to canonical form (matches scraper normalization)
@@ -67,9 +69,12 @@ export default async (request) => {
     
     // Step 2: Fetch all completed NHIAA non-basketball games
     // IMPORTANT: Basketball standings are finalized — never touch them here.
+    // Girls volleyball is excluded too: it has full NHIAA Index Plan standings
+    // (W-L, points AND rating) computed in gvolleyball-index.mjs, called below.
+    // Writing W-L alone here would leave the rating behind.
     // Basketball W-L is managed by scrape-standings.mjs during basketball season only.
     const gamesResponse = await fetch(
-      `${SUPABASE_URL}/rest/v1/games?level=eq.NHIAA&sport=not.is.null&sport=neq.basketball&select=home_team,away_team,home_score,away_score,gender,division,date,sport&or=(home_score.not.is.null,away_score.not.is.null)`,
+      `${SUPABASE_URL}/rest/v1/games?level=eq.NHIAA&sport=not.is.null&sport=not.in.(basketball,gvolleyball)&select=home_team,away_team,home_score,away_score,gender,division,date,sport&or=(home_score.not.is.null,away_score.not.is.null)`,
       {
         headers: {
           'apikey': SUPABASE_KEY,
@@ -236,11 +241,22 @@ export default async (request) => {
     }
     
     console.log(`  Updated ${updatedCount} team standings`);
+
+    // Girls volleyball: full standings from the games table.
+    let volleyball = null;
+    try {
+      volleyball = await recomputeVolleyballStandings();
+    } catch (e) {
+      console.error('  Volleyball standings failed:', e.message);
+      volleyball = { error: e.message };
+    }
     
     return new Response(JSON.stringify({
       success: true,
       gamesAnalyzed: games.length,
       teamsUpdated: updatedCount,
+      volleyball: volleyball && (volleyball.error ? { error: volleyball.error }
+        : { teamsWritten: volleyball.updated, differFromNhiaa: volleyball.flagged }),
       timestamp: now
     }), { status: 200, headers });
     

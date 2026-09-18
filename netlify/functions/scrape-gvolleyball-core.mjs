@@ -935,6 +935,19 @@ export async function runScrape() {
     console.log('Step 5: Upserting to Supabase...');
     const { rowCount, changesDetected } = await updateSupabase(activeGames);
 
+    // Step 6: Standings straight from the games just written, so a score picked
+    // up here counts right away instead of waiting for NHIAA. Reported, never
+    // thrown — the games themselves are already saved.
+    let standings = null;
+    try {
+      const { recomputeVolleyballStandings } = await import('./gvolleyball-index.mjs');
+      const r = await recomputeVolleyballStandings();
+      standings = { teamsWritten: r.updated, differFromNhiaa: r.flagged };
+    } catch (error) {
+      console.log(`  ❌ Standings recompute failed: ${error.message}`);
+      standings = { error: error.message };
+    }
+
     return new Response(JSON.stringify({
       success: true,
       gamesScraped: activeGames.length,
@@ -945,6 +958,7 @@ export async function runScrape() {
       cascadesPerformed,
       preservedWithLinks,
       scheduleChanges: changesDetected,
+      standings,
       timestamp: new Date().toISOString()
     }), {
       status: 200,
