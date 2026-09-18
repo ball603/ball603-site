@@ -420,6 +420,42 @@ const SOCIAL = [
     path: 'M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231z' }
 ];
 
+/* The My Teams list, grouped under the sport each team plays.
+
+   Sports run A to Z by name rather than in the SPORTS playing order the rest of
+   the site uses: this is a list somebody is scanning for one team by name, not
+   a season in progress, and alphabetical is the order you can guess.
+
+   Inside a sport, gender first and then level — Boys Varsity, Boys JV, Girls
+   Varsity — so the squads of one programme stay together instead of interleaving
+   by level across both. A sport with only one gender skips straight to level.
+
+   A team with no games at all is left out. There is nothing of theirs for the
+   ticker to put first, so starring them would be a tick that did nothing. */
+const GENDER_ORDER = ['Boys', 'Girls', 'Coed'];
+
+function groupTeamsBySport(teams) {
+  const groups = new Map();
+  for (const t of teams || []) {
+    const first = t.games && t.games[0];
+    if (!first || !first.sport) continue;
+    const key = first.sport.name;
+    if (!groups.has(key)) groups.set(key, { sport: key, emoji: first.sport.emoji, teams: [] });
+    groups.get(key).teams.push(t);
+  }
+  const rank = (g) => {
+    const i = GENDER_ORDER.indexOf(g);
+    return i === -1 ? GENDER_ORDER.length : i;
+  };
+  for (const g of groups.values()) {
+    g.teams.sort((a, b) =>
+      rank(a.gender) - rank(b.gender) ||
+      (a.level_rank ?? 99) - (b.level_rank ?? 99) ||
+      String(a.name).localeCompare(String(b.name)));
+  }
+  return [...groups.values()].sort((a, b) => a.sport.localeCompare(b.sport));
+}
+
 // Set when the header is rendered, which is every page. A page that wants to
 // open My Teams from its own button asks through FT.openMyTeams rather than
 // reaching into the header's markup.
@@ -578,31 +614,50 @@ function renderHeader(active) {
   const modal = panels.find(p => p.el.id === 'ft-favmodal');
   const list = document.getElementById('ft-favmodal-list');
   const search = document.getElementById('ft-fav-search');
-  let teamsKnown = [];
+  let teamGroups = [];
+  const teamCount = () => teamGroups.reduce((n, g) => n + g.teams.length, 0);
 
   function drawModalList() {
     const chosen = favourites();
-    list.innerHTML = teamsKnown.length ? teamsKnown.map(t => `
-      <label class="ft-mrow">
-        <span class="ft-mrow-icon" aria-hidden="true">${t.emoji || '\u{1F3C6}'}</span>
-        <span class="ft-mrow-name">${esc(t.name)}</span>
-        <input type="checkbox" data-fav="${t.uteam}"${chosen.includes(t.uteam) ? ' checked' : ''}>
-      </label>`).join('')
-      : '<div class="ft-empty">No teams to choose from yet.</div>';
+    if (!teamGroups.length) {
+      list.innerHTML = '<div class="ft-empty">No teams to choose from yet.</div>';
+      return;
+    }
+    list.innerHTML = teamGroups.map(grp => `
+      <div class="ft-mgroup">
+        <div class="ft-mgroup-head">
+          <span aria-hidden="true">${grp.emoji}</span>${esc(grp.sport)}
+        </div>
+        ${grp.teams.map(t => `
+          <label class="ft-mrow">
+            <span class="ft-mrow-name">${esc(t.name)}</span>
+            <input type="checkbox" data-fav="${t.uteam}"${chosen.includes(t.uteam) ? ' checked' : ''}>
+          </label>`).join('')}
+      </div>`).join('');
     filterModalList();
   }
 
-  // Hiding rather than re-rendering, so a box ticked before the search box was
-  // touched is still ticked after it is cleared.
+  /* Hiding rather than re-rendering, so a box ticked before the search box was
+     touched is still ticked after it is cleared. A sport heading goes when
+     every team under it has gone, which is the difference between a filtered
+     list and a list with gaps in it. Searching the sport name matches its whole
+     group, so "basketball" finds all four basketball teams even though not one
+     of them is called that. */
   function filterModalList() {
     const q = (search.value || '').trim().toLowerCase();
-    for (const row of list.querySelectorAll('.ft-mrow')) {
-      const name = row.querySelector('.ft-mrow-name').textContent.toLowerCase();
-      row.hidden = q !== '' && !name.includes(q);
+    for (const grp of list.querySelectorAll('.ft-mgroup')) {
+      const sport = grp.querySelector('.ft-mgroup-head').textContent.toLowerCase();
+      let shown = 0;
+      for (const row of grp.querySelectorAll('.ft-mrow')) {
+        const name = row.querySelector('.ft-mrow-name').textContent.toLowerCase();
+        row.hidden = q !== '' && !name.includes(q) && !sport.includes(q);
+        if (!row.hidden) shown++;
+      }
+      grp.hidden = shown === 0;
     }
     const any = [...list.querySelectorAll('.ft-mrow')].some(r => !r.hidden);
     let none = list.querySelector('.ft-mrow-none');
-    if (!any && teamsKnown.length) {
+    if (!any && teamCount()) {
       if (!none) {
         none = document.createElement('div');
         none.className = 'ft-empty ft-mrow-none';
@@ -645,12 +700,7 @@ function renderHeader(active) {
   }
 
   load().then(data => {
-    // The sport's mark rather than the school crest: every team here is
-    // Farmington, so thirteen identical tiger heads would tell nobody anything.
-    teamsKnown = data.teams.map(t => ({
-      uteam: t.uteam, name: t.name,
-      emoji: t.games && t.games[0] && t.games[0].sport ? t.games[0].sport.emoji : ''
-    }));
+    teamGroups = groupTeamsBySport(data.teams);
     drawModalList();
     document.addEventListener('ft:favourites', drawModalList);
   }).catch(() => {
@@ -776,15 +826,23 @@ function tickerCard(g) {
   const logo = g.opponent_ball603 ? ball603Logo(g.opponent_ball603) : null;
   const href = `/farmingtontigersnh/schedule?sport=${esc(g.sport_id)}`;
 
+  // A star on the games belonging to a team somebody has chosen. They already
+  // sort to the front of the strip, but the front of the strip is also just
+  // where the earliest game sits — the star is what says which is which.
+  const starred = isFavourite(g.team.uteam);
+  const star = starred
+    ? '<span class="ft-tcard-star" title="One of my teams" aria-label="One of my teams">\u2605</span>'
+    : '';
+
   const meta = `
     <span class="ft-tcard-meta">
-      <span class="ft-tcard-sub">${g.sport.emoji} ${esc(g.team.level || g.team.name)}</span>
+      <span class="ft-tcard-sub">${star}${g.sport.emoji} ${esc(g.team.level || g.team.name)}</span>
       <span class="ft-tcard-status">${esc(status)}</span>
     </span>`;
 
   // Which team the card belongs to, so that the starred ones can be told apart
   // from the rest without reading the label and guessing.
-  const owner = `data-uteam="${esc(g.team.uteam)}"${isFavourite(g.team.uteam) ? ' data-starred="1"' : ''}`;
+  const owner = `data-uteam="${esc(g.team.uteam)}"${starred ? ' data-starred="1"' : ''}`;
 
   // A meet has no opponent and no score, so it gets one line instead of two.
   if (g.is_meet) {
@@ -913,7 +971,7 @@ function venuePin(game) {
 
 window.FT = {
   SPORTS, GENDERS, genderLabel, genderPrefix, shortenSchool,
-  favourites, isFavourite, toggleFavourite, setFavourites,
+  favourites, isFavourite, toggleFavourite, setFavourites, groupTeamsBySport,
   esc, parseLocal, dateKey, todayKey, dayLabel, shortDate, timeLabel, weekWindow,
   seasonLabel, seasonOfGames,
   scoreOf, resultOf, recordOf, opponentLabel, versus, divisionLabel,
