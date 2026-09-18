@@ -15,6 +15,7 @@
   </script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0"></script>
   <script src="/js/coverage-gap.js"></script>
+  <script src="/js/rpi-ncaa.js"></script>
   <!-- Fabric.js for Graphic Creator -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
   <!-- Google Fonts for Graphic Creator -->
@@ -25420,11 +25421,14 @@ Respond ONLY with valid JSON:
         <em style="color:#e65100;">&#x26BE; Baseball RPI begins the first Monday of May</em>
       `,
       gvolleyball: `
-        <strong>How RPI is calculated (Girls Volleyball):</strong><br>
-        &bull; <strong>RPI:</strong> (Win % &times; 25%) + (Opp Win % &times; 50%) + (Opp-Opp Win % &times; 25%)<br>
-        &bull; <strong>Win %:</strong> Weighted by location (road win=1.4, home win=0.6, road loss=0.6, home loss=1.4)<br>
-        &bull; <strong>Opp Win %:</strong> Opponents' win % excluding games against this team<br>
-        &bull; <strong>Opp-Opp Win %:</strong> Average of opponents' Opp Win % values
+        <strong>How RPI is calculated (Girls Volleyball) — mirrors the NCAA Division I volleyball RPI:</strong><br>
+        &bull; <strong>RPI:</strong> (Win % &times; 25%) + (Opp Win % &times; 50%) + (Opp-Opp Win % &times; 25%), then bonuses and penalties<br>
+        &bull; <strong>Win %:</strong> plain wins &divide; matches &mdash; no home/road weighting, as the NCAA does for volleyball<br>
+        &bull; <strong>Opp Win % / Opp-Opp Win %:</strong> same-division opponents only, excluding matches against this team<br>
+        &bull; <strong>Bonus:</strong> each win over a team ranked 1&ndash;2 in the division (original RPI) adds about two ranking positions<br>
+        &bull; <strong>Penalty:</strong> each loss to one of the division's bottom two (original RPI) takes away about two positions<br>
+        &bull; <strong>Two positions</strong> = the average RPI gap between teams two places apart in that division, measured each time<br>
+        <em style="color:#1565c0;">Preview only &mdash; nothing is public until you click Publish below.</em>
       `
     };
     
@@ -25489,6 +25493,32 @@ Respond ONLY with valid JSON:
       return today < startDate;
     }
     
+    // The season an RPI covers. Every query below is filtered on it, so a
+    // second season in the tables (next fall's volleyball, say) can never be
+    // blended into this one. Same rule Publish has always used.
+    function rpiSeasonFor(sport) {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = now.getMonth() + 1;
+      if (sport === 'basketball') {
+        return month >= 8 ? `${year}-${(year + 1).toString().slice(-2)}` : `${year - 1}-${year.toString().slice(-2)}`;
+      }
+      return year.toString();
+    }
+
+    // Completed same-division games per team — who counts as "in the field"
+    // for the NCAA-style bonuses.
+    function sameDivisionGames(completedGames, divisionOf) {
+      const n = new Map();
+      for (const g of completedGames) {
+        const hd = divisionOf(g.home_team), ad = divisionOf(g.away_team);
+        if (!hd || hd !== ad) continue;
+        n.set(g.home_team, (n.get(g.home_team) || 0) + 1);
+        n.set(g.away_team, (n.get(g.away_team) || 0) + 1);
+      }
+      return n;
+    }
+
     async function loadSOSData() {
       const sport = document.getElementById('sosSport')?.value || 'basketball';
       const gender = document.getElementById('sosGender').value;
@@ -25503,11 +25533,9 @@ Respond ONLY with valid JSON:
         return;
       }
       
-      if (sport === 'gvolleyball' && isBeforeSeasonStart('gvolleyball')) {
-        tbody.innerHTML = '<tr><td colspan="11" style="padding: 40px; text-align: center; color: #666;"><span style="font-size: 24px;">&#x1F3D0;</span><br><br><strong>Girls Volleyball RPI begins the third Monday in September</strong><br><span style="color: #888;">Check back when the season is underway!</span></td></tr>';
-        document.getElementById('sosLastUpdated').textContent = '';
-        return;
-      }
+      // No date gate for volleyball: this table is a private preview, and
+      // nothing reaches the public page until Publish is pressed.
+      const season = rpiSeasonFor(sport);
       
       tbody.innerHTML = '<tr><td colspan="11" style="padding: 40px; text-align: center; color: #888;">Loading...</td></tr>';
       
@@ -25519,6 +25547,7 @@ Respond ONLY with valid JSON:
           .eq('level', 'NHIAA')
           .eq('gender', gender)
           .eq('sport', sport)
+          .eq('season', season)
           .not('home_score', 'is', null)
           .not('away_score', 'is', null);
         
@@ -25531,6 +25560,7 @@ Respond ONLY with valid JSON:
           .eq('level', 'NHIAA')
           .eq('gender', gender)
           .eq('sport', sport)
+          .eq('season', season)
           .is('home_score', null);
         
         if (futureError) throw futureError;
@@ -25540,7 +25570,8 @@ Respond ONLY with valid JSON:
           .from('standings')
           .select('school, gender, division, wins, losses')
           .eq('gender', gender)
-          .eq('sport', sport);
+          .eq('sport', sport)
+          .eq('season', season);
         
         if (standingsError) throw standingsError;
         
@@ -25553,6 +25584,7 @@ Respond ONLY with valid JSON:
             .from('rpi_rankings')
             .select('week_of')
             .eq('sport', sport)
+            .eq('season', season)
             .eq('gender', gender)
             .order('week_of', { ascending: false })
             .limit(1);
@@ -25655,7 +25687,7 @@ Respond ONLY with valid JSON:
         // Baseball: Home Win = 0.7, Road Win = 1.3, Home Loss = 1.3, Road Loss = 0.7
         const RPI_WEIGHTS = {
           basketball: { homeWin: 0.6, roadWin: 1.4, homeLoss: 1.4, roadLoss: 0.6 },
-          gvolleyball: { homeWin: 0.6, roadWin: 1.4, homeLoss: 1.4, roadLoss: 0.6 },
+          gvolleyball: { homeWin: 1, roadWin: 1, homeLoss: 1, roadLoss: 1 },  // NCAA volleyball: every result counts the same
           baseball:   { homeWin: 0.7, roadWin: 1.3, homeLoss: 1.3, roadLoss: 0.7 }
         };
         const weights = RPI_WEIGHTS[sport] || RPI_WEIGHTS.basketball;
@@ -25849,6 +25881,24 @@ Respond ONLY with valid JSON:
           });
         }
         
+        // Volleyball: NCAA-style bonuses and penalties (js/rpi-ncaa.js), the
+        // same call Publish makes. `results` is one division, which is the
+        // whole field the cutoffs are drawn from.
+        if (sport === 'gvolleyball' && window.Ball603Rpi) {
+          const played = sameDivisionGames(completedGames, t => teamDivisions.get(`${t}_${gender}`));
+          const adj = Ball603Rpi.applyNcaaAdjustments(
+            results.map(r => ({ team: r.team, division: r.division, rpi: r.rpi, games: played.get(r.team) || 0 })),
+            completedGames);
+          for (const r of results) {
+            const a = adj.get(r.team);
+            r.rpiOriginal = r.rpi;
+            r.rpi = a.adjusted;
+            r.bonusWins = a.bonusWins;
+            r.penaltyLosses = a.penaltyLosses;
+            r.rpiStep = a.step;
+          }
+        }
+        
         // Assign ranks
         results.sort((a, b) => b.rpi - a.rpi);
         results.forEach((r, i) => r.rpiRank = i + 1);
@@ -25879,7 +25929,9 @@ Respond ONLY with valid JSON:
         renderSOSTable(results);
         highlightSortedColumn('rpi');
         
-        document.getElementById('sosLastUpdated').textContent = `Updated: ${new Date().toLocaleTimeString()}`;
+        document.getElementById('sosLastUpdated').textContent = sport === 'gvolleyball'
+          ? `Preview (${season}) — not published · ${new Date().toLocaleTimeString()}`
+          : `Updated: ${new Date().toLocaleTimeString()}`;
         
       } catch (err) {
         console.error('Error loading SOS data:', err);
@@ -25996,6 +26048,12 @@ Respond ONLY with valid JSON:
               <img src="/logos/100px/${logoSlug}.png" onerror="this.src='/logos/100px/Ball603-white.png'" style="width: 24px; height: 24px; object-fit: contain;">
               <span style="font-weight: 500;">${r.team}</span>
             </div>
+            ${r.rpiOriginal !== undefined && (r.bonusWins.length || r.penaltyLosses.length) ? `
+            <div style="font-size: 11.5px; color: #666; margin: 3px 0 0 32px;">
+              Original ${fmtPct(r.rpiOriginal)}
+              ${r.bonusWins.length ? `&middot; <span style="color:#2e7d32;">+${r.bonusWins.length} bonus (beat ${r.bonusWins.join(', ')})</span>` : ''}
+              ${r.penaltyLosses.length ? `&middot; <span style="color:#c62828;">&minus;${r.penaltyLosses.length} penalty (lost to ${r.penaltyLosses.join(', ')})</span>` : ''}
+            </div>` : ''}
           </td>
           <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center; font-weight: 600;">${fmtPct(r.rpi)}</td>
           <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center; font-weight: 700; color: ${changeColor};">${changeDisplay}</td>
@@ -26019,18 +26077,9 @@ Respond ONLY with valid JSON:
       const sportLabels = { basketball: '&#x1F3C0; Basketball', baseball: '&#x26BE; Baseball', gvolleyball: '&#x1F3D0; Girls Volleyball' };
       const sportLabel = sportLabels[sport] || sport;
       
-      // Determine season based on sport
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = now.getMonth() + 1;
-      let season;
-      if (sport === 'basketball') {
-        // Basketball season spans two years (e.g., "2025-26")
-        season = month >= 8 ? `${year}-${(year + 1).toString().slice(-2)}` : `${year - 1}-${year.toString().slice(-2)}`;
-      } else {
-        // Baseball and Girls Volleyball are single-year seasons
-        season = year.toString();
-      }
+      // Same season rule as the preview (rpiSeasonFor), so the two can never
+      // disagree about which games they are looking at.
+      const season = rpiSeasonFor(sport);
       
       // Get the Monday of current week for week_of
       const today = new Date();
@@ -26059,6 +26108,7 @@ Respond ONLY with valid JSON:
             .eq('level', 'NHIAA')
             .eq('gender', gender)
             .eq('sport', sport)
+            .eq('season', season)
             .not('home_score', 'is', null)
             .not('away_score', 'is', null);
           
@@ -26071,6 +26121,7 @@ Respond ONLY with valid JSON:
             .eq('level', 'NHIAA')
             .eq('gender', gender)
             .eq('sport', sport)
+            .eq('season', season)
             .is('home_score', null);
           
           if (futureError) throw futureError;
@@ -26080,7 +26131,8 @@ Respond ONLY with valid JSON:
             .from('standings')
             .select('school, gender, division, wins, losses')
             .eq('gender', gender)
-            .eq('sport', sport);
+            .eq('sport', sport)
+            .eq('season', season);
           
           if (standingsError) throw standingsError;
           
@@ -26126,7 +26178,7 @@ Respond ONLY with valid JSON:
           // Sport-specific weights
           const RPI_WEIGHTS = {
             basketball: { homeWin: 0.6, roadWin: 1.4, homeLoss: 1.4, roadLoss: 0.6 },
-            gvolleyball: { homeWin: 0.6, roadWin: 1.4, homeLoss: 1.4, roadLoss: 0.6 },
+            gvolleyball: { homeWin: 1, roadWin: 1, homeLoss: 1, roadLoss: 1 },  // NCAA volleyball: every result counts the same
             baseball:   { homeWin: 0.7, roadWin: 1.3, homeLoss: 1.3, roadLoss: 0.7 }
           };
           const weights = RPI_WEIGHTS[sport] || RPI_WEIGHTS.basketball;
@@ -26249,6 +26301,17 @@ Respond ONLY with valid JSON:
               rpi,
               remaining_sos: remainingSos
             });
+          }
+          
+          // Volleyball: the same NCAA-style bonuses and penalties the preview
+          // shows. The published `rpi` is the adjusted one.
+          if (sport === 'gvolleyball' && window.Ball603Rpi) {
+            const everyone = Object.values(divisionResults).flat();
+            const played = sameDivisionGames(completedGames, t => teamDivisions.get(`${t}_${gender}`));
+            const adj = Ball603Rpi.applyNcaaAdjustments(
+              everyone.map(r => ({ team: r.team, division: r.division, rpi: r.rpi, games: played.get(r.team) || 0 })),
+              completedGames);
+            for (const r of everyone) r.rpi = adj.get(r.team).adjusted;
           }
           
           // Rank within each division and add to allRecords
