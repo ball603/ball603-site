@@ -444,40 +444,84 @@ function setupPwa() {
     .catch(err => console.warn('[Tigers] Service worker did not register:', err.message));
 }
 
-/* The install prompt. Held rather than fired: Chrome hands this over the moment
-   it decides the site is installable, and throwing a dialog at somebody who has
-   just arrived is how people learn to dismiss them. It waits in the menu until
-   they go looking. */
+/* The install prompt.
+ *
+ * On Chrome this is an event the browser hands over once it decides the site is
+ * installable, and pressing a button replays it. On iOS there is no such event
+ * and no API at all: Safari has never let a page offer to install itself, so
+ * the only route is Share → Add to Home Screen and the most a site can do is
+ * say so. That is not a gap in this code — Ball603 shows a how-to sheet there
+ * for the same reason, which is the thing KJ went looking for and did not find.
+ */
 let installPrompt = null;
 
-function wireInstall() {
-  // Two of them — the row in the drawer for a phone, the button in the bar for
-  // everything wider. Whichever is on screen, they offer the same one prompt.
-  const buttons = ['ft-install', 'ft-install-bar']
+// iPadOS reports itself as a Mac, so the touch check is what catches an iPad.
+const isIOS = () =>
+  /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+const isStandalone = () =>
+  window.matchMedia('(display-mode: standalone)').matches ||
+  window.navigator.standalone === true;
+
+const DISMISS_KEY = 'ft_install_dismissed';
+// Dismissing hides the banner for a week rather than forever: somebody saying
+// "not now" on a Tuesday in November may well mean it come basketball season.
+function bannerDismissed() {
+  try {
+    const at = Number(localStorage.getItem(DISMISS_KEY));
+    return Number.isFinite(at) && at > 0 && (Date.now() - at) < 7 * 864e5;
+  } catch { return false; }
+}
+
+function wireInstall(openSheet) {
+  // Three of them — the row in the drawer for a phone, the button in the bar
+  // for everything wider, and the banner. All offer the same one thing.
+  const buttons = ['ft-install', 'ft-install-bar', 'ft-banner-install']
     .map(id => document.getElementById(id)).filter(Boolean);
+  const banner = document.getElementById('ft-install-banner');
   if (!buttons.length) return;
 
-  const installed = window.matchMedia('(display-mode: standalone)').matches ||
-                    window.navigator.standalone === true;
-  const setHidden = (hidden) => buttons.forEach(b => { b.hidden = hidden || installed; });
-
-  setHidden(!installPrompt);
+  /* Offerable, which is not the same as "the browser gave us a prompt". On iOS
+     there will never be a prompt and the answer is still yes — there is just
+     something to explain rather than something to press. */
+  const canOffer = () => !isStandalone() && (!!installPrompt || isIOS());
+  const sync = () => {
+    const on = canOffer();
+    buttons.forEach(b => { b.hidden = !on; });
+    if (banner) banner.hidden = !on || bannerDismissed() || !isIOS() && !installPrompt;
+  };
+  sync();
 
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     installPrompt = e;
-    setHidden(false);
+    sync();
   });
-  window.addEventListener('appinstalled', () => { installPrompt = null; setHidden(true); });
+  window.addEventListener('appinstalled', () => {
+    installPrompt = null;
+    try { localStorage.setItem(DISMISS_KEY, String(Date.now())); } catch { /* fine */ }
+    sync();
+  });
 
   for (const btn of buttons) {
     btn.addEventListener('click', async () => {
-      if (!installPrompt) return;
+      if (banner) banner.hidden = true;
+      // No prompt to replay means iOS, where the sheet is the whole feature.
+      if (!installPrompt) { openSheet(); return; }
       const prompt = installPrompt;
       installPrompt = null;             // a prompt can only be used once
-      setHidden(true);
+      buttons.forEach(b => { b.hidden = true; });
       try { await prompt.prompt(); }
       catch (err) { console.warn('[Tigers] Install prompt:', err.message); }
+    });
+  }
+
+  const dismiss = document.getElementById('ft-banner-dismiss');
+  if (dismiss) {
+    dismiss.addEventListener('click', () => {
+      try { localStorage.setItem(DISMISS_KEY, String(Date.now())); } catch { /* fine */ }
+      if (banner) banner.hidden = true;
     });
   }
 }
@@ -665,6 +709,49 @@ function renderHeader(active) {
         <button class="ft-btn ft-btn-quiet" id="ft-fav-clear" type="button">Clear All</button>
         <button class="ft-btn ft-btn-go" id="ft-fav-save" type="button">Save Favorites</button>
       </div>
+    </div>
+
+    <!-- How to add the app on iOS, where Safari offers no install button of its
+         own and never has. Three steps, because that is the whole of it. -->
+    <div class="ft-modal-veil" id="ft-howto-veil"></div>
+    <div class="ft-modal ft-howto" id="ft-howto" role="dialog" aria-modal="true"
+         aria-label="Add the Tigers app">
+      <div class="ft-modal-head">
+        <img class="ft-howto-icon" src="/icons/farmington/icon-192.png" alt="">
+        <button class="ft-modal-close" id="ft-howto-close" type="button" aria-label="Close">&times;</button>
+      </div>
+      <div class="ft-modal-body">
+        <h3 class="ft-howto-title">Add the Tigers to your Home Screen</h3>
+        <p class="ft-modal-intro">Safari has no install button, so this is the way in on an
+          iPhone or iPad. It takes about five seconds.</p>
+        <ol class="ft-howto-steps">
+          <li><span class="ft-howto-num">1</span><span class="ft-howto-text">Tap the
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round" aria-label="Share">
+              <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13"/>
+            </svg> Share button at the bottom of Safari</span></li>
+          <li><span class="ft-howto-num">2</span><span class="ft-howto-text">Scroll down and tap
+            <b>Add to Home Screen</b></span></li>
+          <li><span class="ft-howto-num">3</span><span class="ft-howto-text">Tap <b>Add</b></span></li>
+        </ol>
+      </div>
+      <div class="ft-modal-foot ft-howto-foot">
+        <button class="ft-btn ft-btn-go" id="ft-howto-done" type="button">Got it</button>
+      </div>
+    </div>
+
+    <!-- The bottom banner, the way Ball603 does it. Only where installing is
+         actually possible, and "Not now" buys a week of quiet. -->
+    <div class="ft-install-banner" id="ft-install-banner" hidden>
+      <img src="/icons/farmington/icon-192.png" alt="">
+      <div class="ft-install-copy">
+        <b>Get the Tigers app</b>
+        <span>Scores and schedules, one tap from your Home Screen</span>
+      </div>
+      <div class="ft-install-actions">
+        <button class="ft-btn ft-btn-go" id="ft-banner-install" type="button">Install</button>
+        <button class="ft-banner-dismiss" id="ft-banner-dismiss" type="button">Not now</button>
+      </div>
     </div>`;
 
   /* The drawer and the modal open and close the same way. Escape and the
@@ -672,7 +759,8 @@ function renderHeader(active) {
      opened it is something people get stuck in. */
   const panels = [
     { el: 'ft-drawer', veil: 'ft-drawer-veil', open: 'ft-burger', close: 'ft-drawer-close' },
-    { el: 'ft-favmodal', veil: 'ft-fav-veil', open: null, close: 'ft-fav-close' }
+    { el: 'ft-favmodal', veil: 'ft-fav-veil', open: null, close: 'ft-fav-close' },
+    { el: 'ft-howto', veil: 'ft-howto-veil', open: null, close: 'ft-howto-close' }
   ].map(p => ({
     el: document.getElementById(p.el), veil: document.getElementById(p.veil),
     opener: p.open ? document.getElementById(p.open) : null,
@@ -813,7 +901,9 @@ function renderHeader(active) {
     list.innerHTML = '<div class="ft-empty">Teams could not be loaded.</div>';
   });
 
-  wireInstall();
+  const howto = panels.find(p => p.el.id === 'ft-howto');
+  document.getElementById('ft-howto-done').addEventListener('click', () => shut(howto));
+  wireInstall(() => show(howto));
 
   // Share, the way Ball603 does it: the OS sheet where there is one, the
   // clipboard where there is not.
