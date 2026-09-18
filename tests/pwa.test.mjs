@@ -284,7 +284,7 @@ console.log('\n7. Installing');
      never fires beforeinstallprompt, so what is checked here is that it starts
      hidden and that the wiring shows it when the event arrives. */
   check('which stays out of the way until it is offered',
-    await row.evaluate(e => e.hidden));
+    await row.evaluate(e => e.hidden && e.getBoundingClientRect().height === 0));
 
   await page.evaluate(() => {
     const e = new Event('beforeinstallprompt');
@@ -292,7 +292,7 @@ console.log('\n7. Installing');
     window.dispatchEvent(e);
   });
   await page.waitForTimeout(300);
-  check('and appears when it is', !(await row.evaluate(e => e.hidden)));
+  check('and appears when it is', !(await row.evaluate(e => e.hidden && e.getBoundingClientRect().height === 0)));
   check('reading as an action, not a setting',
     (await row.textContent()).trim() === 'Install App', (await row.textContent()).trim());
   await ctx.close();
@@ -382,7 +382,7 @@ console.log('\n9. iPhone, where there is no prompt to give');
 
   const banner = page.locator('#ft-install-banner');
   check('the banner appears with no prompt event at all',
-    !(await banner.evaluate(e => e.hidden)));
+    !(await banner.evaluate(e => e.hidden && e.getBoundingClientRect().height === 0)));
   check('and says what it is offering',
     /Get the Tigers app/i.test(await banner.textContent()),
     (await banner.textContent()).replace(/\s+/g, ' ').trim().slice(0, 60));
@@ -392,7 +392,7 @@ console.log('\n9. iPhone, where there is no prompt to give');
   await page.locator('#ft-burger').click();
   await page.waitForTimeout(400);
   check('and the menu offers it too',
-    !(await page.locator('#ft-install').evaluate(e => e.hidden)));
+    !(await page.locator('#ft-install').evaluate(e => e.hidden && e.getBoundingClientRect().height === 0)));
   await page.locator('#ft-drawer-close').click();
   await page.waitForTimeout(300);
 
@@ -408,7 +408,7 @@ console.log('\n9. iPhone, where there is no prompt to give');
   check('then Add to Home Screen', /add to home screen/i.test(steps[1]),
     steps[1].replace(/\s+/g, ' ').trim());
   check('the banner steps aside while it is open',
-    await banner.evaluate(e => e.hidden));
+    await banner.evaluate(e => e.hidden && e.getBoundingClientRect().height === 0));
   check('Got it closes it', await (async () => {
     await page.locator('#ft-howto-done').click();
     await page.waitForTimeout(400);
@@ -420,15 +420,15 @@ console.log('\n9. iPhone, where there is no prompt to give');
   await page.waitForTimeout(1200);
   await page.locator('#ft-banner-dismiss').click();
   await page.waitForTimeout(300);
-  check('Not now hides it', await banner.evaluate(e => e.hidden));
+  check('Not now hides it', await banner.evaluate(e => e.hidden && e.getBoundingClientRect().height === 0));
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1200);
   check('and it stays hidden on the next visit',
-    await page.locator('#ft-install-banner').evaluate(e => e.hidden));
+    await page.locator('#ft-install-banner').evaluate(e => e.hidden && e.getBoundingClientRect().height === 0));
   check('but the menu still has it, for anyone who changes their mind', await (async () => {
     await page.locator('#ft-burger').click();
     await page.waitForTimeout(400);
-    return !(await page.locator('#ft-install').evaluate(e => e.hidden));
+    return !(await page.locator('#ft-install').evaluate(e => e.hidden && e.getBoundingClientRect().height === 0));
   })());
   check('the week is remembered, not the click',
     await page.evaluate(() => {
@@ -455,11 +455,11 @@ console.log('\n10. Already installed');
   await page.addInitScript(() => { window.navigator.standalone = true; });
   await page.goto(`http://localhost:${PORT}/farmingtontigersnh/`, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1500);
-  check('no banner', await page.locator('#ft-install-banner').evaluate(e => e.hidden));
+  check('no banner', await page.locator('#ft-install-banner').evaluate(e => e.hidden && e.getBoundingClientRect().height === 0));
   await page.locator('#ft-burger').click();
   await page.waitForTimeout(400);
   check('and no install row in the menu',
-    await page.locator('#ft-install').evaluate(e => e.hidden));
+    await page.locator('#ft-install').evaluate(e => e.hidden && e.getBoundingClientRect().height === 0));
   await ctx.close();
 }
 
@@ -469,7 +469,7 @@ console.log('\n11. Desktop, where the banner would be noise');
   const { page, ctx } = await open('/farmingtontigersnh/', 1300);
   await page.waitForTimeout(1200);
   check('no banner without an install prompt',
-    await page.locator('#ft-install-banner').evaluate(e => e.hidden));
+    await page.locator('#ft-install-banner').evaluate(e => e.hidden && e.getBoundingClientRect().height === 0));
   await ctx.close();
 }
 

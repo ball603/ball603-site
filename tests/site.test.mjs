@@ -2490,6 +2490,19 @@ console.log('\n35. Score Entry in the phone menu');
   const link = page.locator('#ft-drawer-score');
   check('and it goes to the score page', await link.getAttribute('href') === '/farmingtonscore');
   check('on a phone it can actually be seen', await link.isVisible());
+  // At the foot of the panel, not just after the last row: its bottom edge is
+  // the screen's bottom edge, with a gap above it where the list ran out.
+  const geo = await page.evaluate(() => {
+    const a = document.getElementById('ft-drawer-score').getBoundingClientRect();
+    const rows = [...document.querySelectorAll('#ft-drawer .ft-drawerlink')]
+      .filter(e => e.id !== 'ft-drawer-score' && getComputedStyle(e).display !== 'none' && !e.hidden);
+    const prev = rows[rows.length - 1].getBoundingClientRect();
+    return { bottom: a.bottom, screen: innerHeight, gap: a.top - prev.bottom,
+             color: getComputedStyle(document.getElementById('ft-drawer-score')).color };
+  });
+  check('pinned to the bottom of the screen', Math.abs(geo.bottom - geo.screen) <= 1, JSON.stringify(geo));
+  check('with open space between it and the list', geo.gap > 100, JSON.stringify(geo));
+  check('and dimmer than the links above it', geo.color === 'rgb(102, 102, 102)', geo.color);
   await link.click(); await page.waitForTimeout(600);
   check('tapping it opens the score page', /\/farmingtonscore/.test(page.url()) &&
     await page.locator('#pw').count() === 1, page.url());
