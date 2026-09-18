@@ -104,6 +104,7 @@
 
   <!-- Supabase SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0"></script>
+  <script src="/js/seasons.js"></script>
   
   <script>
     // Supabase initialization
@@ -115,14 +116,8 @@
     var featuredContributor = null;
     var portfolioData = {};
     
-    // Season order for sorting (earlier = more experience)
-    var SEASON_ORDER = {
-      '2021-22': 1,
-      '2022-23': 2,
-      '2023-24': 3,
-      '2024-25': 4,
-      '2025-26': 5
-    };
+    // Seasons ("3rd Season") come from /js/seasons.js, which rolls over to the
+    // next season every July 1 on its own.
     
     // Role config
     var ROLES = {
@@ -241,11 +236,12 @@
           }
           
           // Fallback: sort by experience (first_season)
-          var seasonA = SEASON_ORDER[a.first_season] || 99;
-          var seasonB = SEASON_ORDER[b.first_season] || 99;
+          // "2021-22" sorts before "2025-26", so earlier = more experience.
+          var seasonA = a.first_season || '9999';
+          var seasonB = b.first_season || '9999';
           
           if (seasonA !== seasonB) {
-            return seasonA - seasonB; // Earlier season = more experience = comes first
+            return seasonA < seasonB ? -1 : 1; // Earlier season = more experience = comes first
           }
           
           // Same experience level, sort alphabetically
@@ -500,12 +496,11 @@
       var hasMeta = c.nhiaa_alma_mater || c.college || c.primary_area || c.first_season;
       if (hasMeta) {
         html += '<div class="modal-meta">';
-        if (c.first_season) {
-          var seasonNum = 6 - (SEASON_ORDER[c.first_season] || 5);
-          var suffix = seasonNum === 1 ? 'st' : seasonNum === 2 ? 'nd' : seasonNum === 3 ? 'rd' : 'th';
+        var seasonText = (c.first_season && window.Ball603Seasons) ? Ball603Seasons.seasonLabel(c.first_season) : '';
+        if (seasonText) {
           html += '<div class="modal-meta-item">';
           html += '<span class="modal-meta-icon">&#127942;</span>';
-          html += '<span>' + seasonNum + suffix + ' Season</span>';
+          html += '<span>' + seasonText + '</span>';
           html += '</div>';
         }
         if (c.nhiaa_alma_mater) {
