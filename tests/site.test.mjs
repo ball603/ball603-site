@@ -2706,6 +2706,8 @@ console.log('\n39. Home page on a phone: Schedule, Standings (and Photos if it f
   const tickerBottom = await page.locator('.ft-ticker').evaluate(e => e.getBoundingClientRect().bottom);
   check('directly below the ticker', info.length > 0 && info[0].top > tickerBottom && info[0].top - tickerBottom < 30, `ticker ends ${tickerBottom}, boxes start ${info[0]?.top}`);
   check('one row', info.every(i => Math.abs(i.top - info[0].top) < 1));
+  const left = info[0].w ? Math.round(info[0].right - info[0].w) : 0, rightGap = Math.round(390 - info[info.length - 1].right);
+  check('centred on the page (equal space either side)', Math.abs(left - rightGap) <= 1 && left > 16, `left ${left}, right ${rightGap}`);
   check('squared-off corners (6px), not round pills', info.every(i => i.radius === 6), info.map(i => i.radius).join(', '));
   check('sized to their words, not stretched across the screen', info.every(i => i.w < 150) && Math.abs(info[0].w - info[2].w) > 1,
     info.map(i => Math.round(i.w)).join(', '));
@@ -2722,10 +2724,15 @@ console.log('\n39. Home page on a phone: Schedule, Standings (and Photos if it f
   const shown = await page.locator('.ft-quick .ft-quicklink').evaluateAll(els => els.filter(e => e.offsetParent !== null).map(e => e.innerText.trim()));
   const row = await page.locator('.ft-quick').evaluate(e => ({ sw: e.scrollWidth, cw: e.clientWidth }));
   check('at 320px it shows SCHEDULE and STANDINGS only', shown.join('/') === 'SCHEDULE/STANDINGS', shown.join('/'));
+  const two = await page.locator('.ft-quick .ft-quicklink:not([hidden])').evaluateAll(els => els.map(e => e.getBoundingClientRect()));
+  check('and those two are centred too', Math.abs(Math.round(two[0].left) - Math.round(320 - two[1].right)) <= 1,
+    `left ${Math.round(two[0].left)}, right ${Math.round(320 - two[1].right)}`);
   check('and nothing runs off the side', row.sw <= row.cw + 1, JSON.stringify(row));
   // Premise: Photos really would not have fit — un-hide it and the row overflows.
   const overflow = await page.evaluate(() => { const p = document.querySelector('[data-key="photos"]'); p.hidden = false;
-    const r = document.querySelector('.ft-quick'); const o = r.scrollWidth > r.clientWidth + 1; p.hidden = true; return o; });
+    const r = document.querySelector('.ft-quick'); const links = [...r.children];
+    const o = links[0].getBoundingClientRect().left < 16 || links[links.length - 1].getBoundingClientRect().right > r.clientWidth - 16;
+    p.hidden = true; return o; });
   check('premise — forcing Photos in at 320px would overflow', overflow);
   await page.setViewportSize({ width: 390, height: 900 }); await page.waitForTimeout(300);
   check('widen the screen → Photos comes back', await page.locator('.ft-quicklink[data-key="photos"]').isVisible());

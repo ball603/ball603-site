@@ -1053,7 +1053,14 @@ function fitQuickLinks() {
   const photos = row && row.querySelector('[data-key="photos"]');
   if (!row || !photos) return;
   photos.hidden = false;
-  if (row.scrollWidth > row.clientWidth + 1) photos.hidden = true;
+  // Measured from the boxes themselves: the row is centred, and a centred row
+  // that overflows spills off BOTH ends, which scrollWidth does not report.
+  const cs = getComputedStyle(row);
+  const room = row.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  const links = [...row.children].filter(a => !a.hidden);
+  const need = links.reduce((w, a) => w + a.getBoundingClientRect().width, 0) +
+               parseFloat(cs.columnGap || cs.gap || 0) * (links.length - 1);
+  if (need > room + 1) photos.hidden = true;
 }
 
 /* ── Ticker ─────────────────────────────────────────────────────────────── */
