@@ -16,6 +16,7 @@ expected at `/opt/pw-browsers/chromium`.
 | `standings.test.mjs` | Ball603's NHIAA volleyball standings scraper — group resolution and the points-vs-rating distinction. |
 | `page.test.mjs` | Ball603's `standings.html` rendered against a stubbed feed. |
 | `rosters.test.mjs` | The `get-rosters` function Ball603's team pages use: varsity rosters only, now that JV and Jr. High rosters share the table. |
+| `vbdivision.test.mjs` | The girls volleyball game scraper files each game under the teams' volleyball division (from the standings), not Arbiter's school-wide classification. |
 | `seed.test.mjs` | The NHIAA tiebreaker engine ("Seed Decoder"). |
 | `fixture2.mjs` | Shared fixtures: teams, games, standings, rosters, videos, albums, stories. |
 

@@ -301,7 +301,19 @@ function toIntOrNull(val) {
 
 // Resolve a team entry from the API into { name, division }
 // Uses entityId → canonical name map when possible; falls back to normalizeTeamName.
-function resolveTeam(teamEntry, unknownIds) {
+//
+// DIVISION: a school is not in one division for every sport. Arbiter's
+// `classification` on a team entry is the school's general classification, and
+// it disagrees with the volleyball alignment for some schools — Hollis-Brookline
+// is classified D-I but plays D-II volleyball; Prospect Mountain and Winnisquam
+// are classified D-II but play D-III. Taking the division from it put every one
+// of their home games in the wrong division.
+//
+// So the volleyball division comes from Ball603's own volleyball standings,
+// which are built from NHIAA's per-division volleyball groups (see
+// scrape-gvolleyball-standings.mjs). Classification is only the fallback, for a
+// school the standings do not list yet.
+function resolveTeam(teamEntry, unknownIds, divisionBySchool) {
   const entityId = teamEntry.entityId;
   const canonical = TEAM_ID_MAP[entityId];
   let name;
@@ -314,8 +326,31 @@ function resolveTeam(teamEntry, unknownIds) {
       unknownIds.set(entityId, { teamName: teamEntry.teamName, normalized: name });
     }
   }
-  const division = CLASSIFICATION_TO_DIVISION[teamEntry.classification] || null;
-  return { name, division };
+  const fromStandings = divisionBySchool && divisionBySchool.get(name);
+  const division = fromStandings || CLASSIFICATION_TO_DIVISION[teamEntry.classification] || null;
+  return { name, division, divisionSource: fromStandings ? 'standings' : (division ? 'classification' : null) };
+}
+
+// School → volleyball division, from Ball603's volleyball standings for this
+// season. An empty map (standings not scraped yet, or Supabase unreachable)
+// means every team falls back to Arbiter's classification, which is exactly the
+// old behaviour — never worse than before.
+export async function fetchVolleyballDivisions() {
+  try {
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/standings?sport=eq.${SPORT}&season=eq.${SEASON}&select=school,division`,
+      { headers: { 'apikey': SUPABASE_SERVICE_KEY, 'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}` } }
+    );
+    if (!response.ok) {
+      console.log(`  ⚠️  Could not read volleyball standings (${response.status}) — using Arbiter classification for divisions`);
+      return new Map();
+    }
+    const rows = await response.json();
+    return new Map(rows.filter(r => r.school && r.division).map(r => [r.school, r.division]));
+  } catch (err) {
+    console.log(`  ⚠️  Could not read volleyball standings (${err.message}) — using Arbiter classification for divisions`);
+    return new Map();
+  }
 }
 
 // Fetch the full girls-volleyball schedule from Arbiter.
@@ -346,9 +381,12 @@ async function fetchArbiterSchedule() {
 
 // Transform Arbiter API game objects into Ball603-shaped game records.
 // Filters out jamborees, alumni games, sub-varsity, and multi-team events.
-function parseGames(arbiterGames) {
+export function parseGames(arbiterGames, divisionBySchool = new Map()) {
   const games = [];
   const unknownIds = new Map();
+  // Schools whose division had to come from Arbiter's classification because
+  // the volleyball standings did not list them. Logged at the end.
+  const classificationFallbacks = new Set();
   let skippedMultiTeam = 0;
   let skippedByTitle = 0;
   let skippedSubVarsity = 0;
@@ -421,10 +459,13 @@ function parseGames(arbiterGames) {
       continue;
     }
 
-    const home = resolveTeam(homeEntry, unknownIds);
-    const away = resolveTeam(awayEntry, unknownIds);
+    const home = resolveTeam(homeEntry, unknownIds, divisionBySchool);
+    const away = resolveTeam(awayEntry, unknownIds, divisionBySchool);
+    if (home.divisionSource === 'classification') classificationFallbacks.add(home.name);
+    if (away.divisionSource === 'classification') classificationFallbacks.add(away.name);
 
-    // Division comes from home team's classification (fall back to away)
+    // Division comes from the home team's VOLLEYBALL division (fall back to
+    // away). A cross-division match is filed under the home team's.
     const division = home.division || away.division;
     if (!division) {
       // Cross-division or unclassified — likely a non-league game we can't confidently place.
@@ -524,6 +565,10 @@ function parseGames(arbiterGames) {
     console.log(`    (If regular-season games are missing, expand REGULAR_SEASON_GAME_TYPE_IDS)`);
   }
   if (skippedFutureScores > 0) console.log(`    ${skippedFutureScores} future games had scores stripped as safeguard`);
+
+  if (classificationFallbacks.size > 0) {
+    console.log(`  ℹ️  Division from Arbiter classification (not in volleyball standings yet): ${[...classificationFallbacks].sort().join(', ')}`);
+  }
 
   // Log unmapped entityIds — these are the fastest way to expand the team map
   if (unknownIds.size > 0) {
@@ -871,7 +916,9 @@ export async function runScrape() {
 
     // Step 2: Parse & filter into Ball603 shape
     console.log('Step 2: Parsing & filtering...');
-    const allGames = parseGames(arbiterGames);
+    const divisionBySchool = await fetchVolleyballDivisions();
+    console.log(`  Volleyball divisions on file for ${divisionBySchool.size} schools`);
+    const allGames = parseGames(arbiterGames, divisionBySchool);
 
     // Step 3: Separate postponed/cancelled from active
     const postponedGames = allGames.filter(g => g.isPostponed);
