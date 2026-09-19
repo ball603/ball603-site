@@ -733,9 +733,15 @@ function openGallery(photos, startIndex = 0, title = '') {
   // Build carousel HTML
   const galleryMain = overlay.querySelector('.gallery-main');
   if (galleryMain) {
+    // Slides start EMPTY: no src. Only the photos near the one on screen get
+    // a real image (see loadNearbySlides). Loading every photo as you swipe
+    // kept all of them in memory at once, and in the Facebook / Instagram
+    // in-app browsers on iPhone, which get far less memory than Safari, a big
+    // gallery ran out about halfway through: the page crashed, flashed white
+    // and reloaded back to the story.
     const slidesHtml = photos.map((photo, i) => `
       <div class="gallery-slide" data-index="${i}">
-        <img src="${photo.src || photo.url}" alt="${photo.caption || ''}" loading="${i <= startIndex + 2 ? 'eager' : 'lazy'}">
+        <img data-src="${photo.src || photo.url}" alt="${photo.caption || ''}" decoding="async">
       </div>
     `).join('');
     
@@ -775,6 +781,9 @@ function closeGallery() {
   overlay.classList.remove('active');
   document.body.style.overflow = '';
   state.currentGallery = null;
+  // Let go of the photos, so a reader who opens a second gallery starts clean.
+  const galleryMain = overlay.querySelector('.gallery-main');
+  if (galleryMain) galleryMain.innerHTML = '';
 }
 
 /**
@@ -820,6 +829,8 @@ function updateCarouselPosition(animate = true) {
     carousel.style.transform = `translateX(${offset}%)`;
   }
   
+  loadNearbySlides();
+
   // Update caption
   const photo = state.currentGallery[state.currentPhotoIndex];
   const caption = document.getElementById('galleryCaption');
@@ -832,6 +843,32 @@ function updateCarouselPosition(animate = true) {
   // Update dots
   document.querySelectorAll('.gallery-dot').forEach((dot, i) => {
     dot.classList.toggle('active', i === state.currentPhotoIndex);
+  });
+}
+
+/**
+ * Keep only a small window of real images in the carousel: the photo on
+ * screen and two either side get their src; every other slide has its image
+ * released. Memory stays flat however long the gallery is, so swiping through
+ * 200 photos costs the same as swiping through 5.
+ */
+const GALLERY_WINDOW = 2;
+function loadNearbySlides() {
+  if (!state.currentGallery) return;
+  const total = state.currentGallery.length;
+  const cur = state.currentPhotoIndex;
+  document.querySelectorAll('#galleryCarousel .gallery-slide').forEach(slide => {
+    const i = Number(slide.dataset.index);
+    const img = slide.querySelector('img');
+    if (!img) return;
+    // Distance around the loop, since next/prev wrap from last to first.
+    const d = Math.min(Math.abs(i - cur), total - Math.abs(i - cur));
+    if (d <= GALLERY_WINDOW) {
+      if (!img.getAttribute('src') && img.dataset.src) img.setAttribute('src', img.dataset.src);
+    } else if (img.getAttribute('src')) {
+      img.removeAttribute('src');
+      img.style.transform = '';
+    }
   });
 }
 
