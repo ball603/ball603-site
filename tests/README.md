@@ -20,6 +20,7 @@ expected at `/opt/pw-browsers/chromium`.
 | `rpi.test.mjs` | The NCAA-style volleyball RPI bonuses and penalties (`js/rpi-ncaa.js`): top-2 / bottom-2 of each division, the two-position step, ties, idle teams. |
 | `vbstandings.test.mjs` | Girls volleyball standings computed from Ball603's games with the NHIAA Index Plan: the point table, which games count, a real Sept. 18, 2026 snapshot checked team by team against NHIAA (`fixtures/gvolleyball-2026-09-18.json`), the NHIAA comparison notes, the recompute after score entry and scraping, and the private CMS Standings Check panel. |
 | `seasons.test.mjs` | Contributor seasons roll over every July 1 (`js/seasons.js`): the First Season dropdowns in the CMS and contributor portal, and "Nth Season" on profiles (our-team and home page), checked with the clock set to different dates. |
+| `gallery.test.mjs` | The Ball603 story photo viewer: three slides only (strip never wider than three screens, three photos loaded), swiping forward/back, short drags snapping back, quick swipes, jumps, wrap-around, 1- and 2-photo galleries, double-tap zoom. |
 | `seed.test.mjs` | The NHIAA tiebreaker engine ("Seed Decoder"). |
 | `fixture2.mjs` | Shared fixtures: teams, games, standings, rosters, videos, albums, stories. |
 
