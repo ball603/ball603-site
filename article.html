@@ -1220,8 +1220,7 @@
         -webkit-touch-callout: none;
         pointer-events: none;
         transform-origin: center center;
-        /* No will-change: it gave every photo its own graphics layer, memory
-           the Facebook in-app browser on iPhone does not have to spare. */
+        will-change: transform;
       }
       
       .gallery-overlay .gallery-info {
@@ -1267,12 +1266,8 @@
       .gallery-overlay .gallery-action-btn:active {
         background: #333;
       }
-      .gallery-overlay a.gallery-action-btn { text-decoration: none; }
     }
     
-    /* display:flex on the buttons would otherwise override [hidden]. */
-    .gallery-action-btn[hidden] { display: none !important; }
-
     /* Desktop styles */
     @media (min-width: 769px) {
       .gallery-overlay .gallery-slide {
@@ -1838,10 +1833,6 @@
       <div class="gallery-actions">
         <button class="gallery-action-btn" onclick="sharePhoto()">↗️ Share</button>
         <button class="gallery-action-btn" onclick="purchasePhoto()">🛒 Purchase</button>
-        <!-- Only inside the Facebook / Instagram apps on iPhone, whose built-in
-             browser has too little memory for a big gallery. Opens this story
-             in Safari at the same photo. -->
-        <a class="gallery-action-btn" id="gallerySafariBtn" href="#" hidden onclick="return openGalleryInSafari()">🧭 Safari</a>
       </div>
     </div>
   </div>
@@ -2777,12 +2768,6 @@
               </div>
               <div class="gallery-count-info">${data.images.length} photos</div>
             `;
-            // Arrived from the in-app browser's "Safari" button: reopen the
-            // gallery at the photo the reader was on.
-            const photoParam = parseInt(new URLSearchParams(window.location.search).get('photo'), 10);
-            if (photoParam >= 1 && photoParam <= data.images.length) {
-              openGalleryLightbox(photoParam - 1);
-            }
             return; // Success — exit
           }
           
@@ -2815,37 +2800,13 @@
     /**
      * Open lightbox for gallery images
      */
-    // The Facebook and Instagram apps' built-in browser on iPhone.
-    function inAppBrowserIOS() {
-      const ua = navigator.userAgent || '';
-      return /iPhone|iPad|iPod/.test(ua) && /FBAN|FBAV|FB_IAB|FBIOS|Instagram/.test(ua);
-    }
-
-    // x-safari-https:// is how an iPhone page asks for real Safari; it keeps
-    // the photo number so Safari opens the gallery where the reader was.
-    function gallerySafariUrl() {
-      const url = new URL(window.location.href);
-      url.searchParams.set('photo', String((Ball603.state.currentPhotoIndex || 0) + 1));
-      return 'x-safari-' + url.toString();
-    }
-    function openGalleryInSafari() {
-      window.location.href = gallerySafariUrl();
-      return false;
-    }
-
     function openGalleryLightbox(index) {
       if (!window.galleryImages || !window.galleryImages.length) return;
-      const safariBtn = document.getElementById('gallerySafariBtn');
-      if (safariBtn) safariBtn.hidden = !inAppBrowserIOS();
       
-      // Phones get SmugMug's 800px "Large": on a phone screen it looks the
-      // same, and it is about 40% less memory per photo than 1024px, which is
-      // what the Facebook / Instagram in-app browsers run out of.
-      const phone = window.matchMedia('(max-width: 768px)').matches;
       const images = window.galleryImages.map(img => ({
-        src: phone
-          ? (img.large || img.xlarge || img.x2large || img.archivedUri || img.original || img.medium || img.thumbnail)
-          : (img.x2large || img.xlarge || img.large || img.archivedUri || img.original || img.medium || img.thumbnail),
+        // Use x2large for display (good quality, faster than original)
+        // Fallback chain: x2large -> xlarge -> large -> original
+        src: img.x2large || img.xlarge || img.large || img.archivedUri || img.original || img.medium || img.thumbnail,
         original: img.archivedUri || img.original || img.x2large || img.xlarge,
         thumb: img.thumbnail,
         caption: img.caption || img.title || '',
