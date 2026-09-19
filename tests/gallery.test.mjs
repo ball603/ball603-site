@@ -62,6 +62,40 @@ await p.evaluate(()=>Ball603.closeGallery());
 await open(1,0); await swipe(-280); s=await st(); check('1 photo: swiping stays on it', s.count==='1 / 1' && s.shown===0, JSON.stringify(s));
 await p.evaluate(()=>Ball603.closeGallery());
 await open(179,60); s=await st(); check('opening from a thumbnail mid-gallery (61)', s.shown===60 && s.count==='61 / 179', JSON.stringify(s));
+
+console.log('\nStory page: photo size, Safari button');
+{
+  // The story's own opener: phones get the 800px "large" photo.
+  const pick = await p.evaluate(() => { window.galleryImages = Array.from({length:3},(_,i)=>({large:`/img/${i}.svg?L`, x2large:`/img/${i}.svg?X2`, thumbnail:`/img/${i}.svg?Th`}));
+    openGalleryLightbox(0); return document.querySelector('#galleryCarousel .gallery-slide[data-pos="0"] img').getAttribute('src'); });
+  check('on a phone the viewer loads the 800px Large photo', /\?L$/.test(pick), pick);
+  const btn = await p.evaluate(() => { const b = document.getElementById('gallerySafariBtn'); return { hidden: b.hidden, shown: getComputedStyle(b).display !== 'none' }; });
+  check('Safari button hidden in a normal browser', btn.hidden && !btn.shown, JSON.stringify(btn));
+  await p.evaluate(()=>Ball603.closeGallery());
+}
+{
+  const fb = await b.newContext({ viewport:{width:390,height:844}, isMobile:true, hasTouch:true, serviceWorkers:'block',
+    userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/22F76 [FBAN/FBIOS;FBAV/520.0.0.40.108;FBBV/123;FBDV/iPhone15,2;FBMD/iPhone;FBSN/iOS;FBSV/18.5;FBSS/3;FBID/phone;FBLC/en_US;FBOP/5]' });
+  const q = await fb.newPage(); const qerr=[]; q.on('pageerror', e=>qerr.push(e.message));
+  await q.route('**/cdn.jsdelivr.net/**supabase**', r=>r.fulfill({contentType:'text/javascript', body:STUB}));
+  await q.route('**/supabase.co/**', r=>r.fulfill({json:[]}));
+  await q.route('**/.netlify/functions/smugmug*', r=>r.fulfill({json:{ success:true, images: Array.from({length:179},(_,i)=>({large:`/img/${i}.svg`, thumbnail:`/img/${i}.svg`})) }}));
+  await q.goto('http://localhost:8981/article/x?photo=42'); await q.waitForTimeout(1200);
+  await q.evaluate(() => { if (!document.getElementById('gallerySection')) document.body.insertAdjacentHTML('beforeend','<div id="gallerySection"><a id="smugmugLink"></a><div id="smugmugEmbed"></div></div>'); });
+  await q.evaluate(() => loadGalleryPhotos({ smugmug_gallery_url: 'https://ball603.smugmug.com/Volleyball/2026/Test' })); await q.waitForTimeout(800);
+  const r = await q.evaluate(() => ({ open: document.getElementById('galleryOverlay').classList.contains('active'), count: document.getElementById('galleryCount').textContent,
+    btn: getComputedStyle(document.getElementById('gallerySafariBtn')).display !== 'none' }));
+  check('arriving with ?photo=42 reopens the gallery at photo 42', r.open && r.count === '42 / 179', JSON.stringify(r));
+  check('inside the Facebook app on iPhone the Safari button shows', r.btn);
+  let went = null;
+  await q.evaluate(() => { for (let i=0;i<3;i++) Ball603.nextPhoto(); });
+  await q.waitForTimeout(400);
+  q.on('request', req => { if (!went) went = req.url(); });
+  const href = await q.evaluate(() => gallerySafariUrl());
+  check('the Safari link keeps the photo the reader is on (45)', /^x-safari-http:\/\/localhost:8981\/article\/x\?photo=45$/.test(href), href);
+  check('no errors in the Facebook-app page', qerr.length === 0, qerr.join('; '));
+  await fb.close();
+}
 check('no page errors', errs.length===0, errs.join('; '));
 console.log(`\n${pass} passed, ${fail} failed`);
 await b.close(); process.exit(fail ? 1 : 0);
