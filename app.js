@@ -733,19 +733,14 @@ function openGallery(photos, startIndex = 0, title = '') {
   // Build carousel HTML
   const galleryMain = overlay.querySelector('.gallery-main');
   if (galleryMain) {
-    // Slides start EMPTY: no src. Only the photos near the one on screen get
-    // a real image (see loadNearbySlides). Loading every photo as you swipe
-    // kept all of them in memory at once, and in the Facebook / Instagram
-    // in-app browsers on iPhone, which get far less memory than Safari, a big
-    // gallery ran out about halfway through: the page crashed, flashed white
-    // and reloaded back to the story.
-    const slidesHtml = photos.map((photo, i) => `
-      <div class="gallery-slide" data-index="${i}">
-        <img data-src="${photo.src || photo.url}" alt="${photo.caption || ''}" decoding="async">
-      </div>
-    `).join('');
-    
-    galleryMain.innerHTML = `<div class="gallery-carousel" id="galleryCarousel">${slidesHtml}</div>`;
+    // The carousel starts EMPTY. Only the photo on screen and two either side
+    // ever exist as slides (see loadNearbySlides); the rest are built as you
+    // reach them and thrown away once you have passed. Building a slide for
+    // every photo kept a whole gallery in memory, and in the Facebook /
+    // Instagram in-app browsers on iPhone, which get far less memory than
+    // Safari, a big gallery ran out partway through: the page crashed, flashed
+    // white and reloaded back to the story.
+    galleryMain.innerHTML = `<div class="gallery-carousel" id="galleryCarousel" style="position:relative"></div>`;
   }
   
   // Render dots
@@ -854,21 +849,43 @@ function updateCarouselPosition(animate = true) {
  */
 const GALLERY_WINDOW = 2;
 function loadNearbySlides() {
-  if (!state.currentGallery) return;
-  const total = state.currentGallery.length;
+  const carousel = document.getElementById('galleryCarousel');
+  if (!state.currentGallery || !carousel) return;
+  const photos = state.currentGallery;
+  const total = photos.length;
   const cur = state.currentPhotoIndex;
-  document.querySelectorAll('#galleryCarousel .gallery-slide').forEach(slide => {
+
+  // Which photos should exist right now: the current one and two either side,
+  // wrapping, since next/prev loop from the last photo to the first.
+  const want = new Set();
+  for (let d = -GALLERY_WINDOW; d <= GALLERY_WINDOW; d++) want.add(((cur + d) % total + total) % total);
+
+  // Remove the slides that have fallen out of the window, image and all.
+  carousel.querySelectorAll('.gallery-slide').forEach(slide => {
     const i = Number(slide.dataset.index);
-    const img = slide.querySelector('img');
-    if (!img) return;
-    // Distance around the loop, since next/prev wrap from last to first.
-    const d = Math.min(Math.abs(i - cur), total - Math.abs(i - cur));
-    if (d <= GALLERY_WINDOW) {
-      if (!img.getAttribute('src') && img.dataset.src) img.setAttribute('src', img.dataset.src);
-    } else if (img.getAttribute('src')) {
-      img.removeAttribute('src');
-      img.style.transform = '';
+    if (!want.has(i)) {
+      const img = slide.querySelector('img');
+      if (img) img.removeAttribute('src');
+      slide.remove();
+    } else {
+      want.delete(i);   // already there
     }
+  });
+
+  // Build the ones that are missing, each parked at its own place in the strip
+  // so the existing translateX(-index * 100%) still lines it up on screen.
+  want.forEach(i => {
+    const photo = photos[i];
+    const slide = document.createElement('div');
+    slide.className = 'gallery-slide';
+    slide.dataset.index = String(i);
+    slide.style.cssText = `position:absolute;top:0;left:${i * 100}%;width:100%;height:100%`;
+    const img = document.createElement('img');
+    img.alt = photo.caption || '';
+    img.decoding = 'async';
+    img.src = photo.src || photo.url;
+    slide.appendChild(img);
+    carousel.appendChild(slide);
   });
 }
 
@@ -883,6 +900,10 @@ function updateGalleryPhoto() {
  * Preload next/prev images for faster navigation
  */
 function preloadAdjacentImages() {
+  // The slide window in loadNearbySlides already loads the photos either side
+  // of the current one. Separate Image() preloads only held extra decoded
+  // copies in memory, which is what the in-app browsers run out of.
+  return;
   if (!state.currentGallery || state.currentGallery.length <= 1) return;
   
   const total = state.currentGallery.length;
