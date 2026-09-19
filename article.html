@@ -1272,6 +1272,19 @@
     /* display:flex on the buttons would otherwise override [hidden]. */
     .gallery-action-btn[hidden] { display: none !important; }
 
+    /* "Continue in Safari" prompt (Facebook / Instagram apps on iPhone). */
+    .gallery-safari-prompt { position: absolute; inset: 0; z-index: 30; display: flex; align-items: center;
+      justify-content: center; padding: 24px; background: rgba(0,0,0,.6); }
+    .gallery-safari-prompt[hidden] { display: none !important; }
+    .gallery-safari-card { width: 100%; max-width: 320px; background: #1a1a1a; border: 1px solid #333; border-radius: 12px;
+      padding: 20px; color: #fff; text-align: center; font-size: 14px; line-height: 1.4; }
+    .gallery-safari-card strong { display: block; font-size: 18px; margin-bottom: 6px; }
+    .gallery-safari-card p { margin: 0 0 16px; color: #ccc; }
+    .gallery-safari-go { display: block; padding: 12px; border-radius: 8px; background: #F68220; color: #fff;
+      font-weight: 700; text-decoration: none; margin-bottom: 8px; }
+    .gallery-safari-stay { display: block; width: 100%; padding: 10px; border: 0; background: none; color: #aaa;
+      font-size: 13px; cursor: pointer; }
+
     /* Desktop styles */
     @media (min-width: 769px) {
       .gallery-overlay .gallery-slide {
@@ -1818,6 +1831,18 @@
   
   <!-- Photo Gallery Overlay -->
   <div class="gallery-overlay" id="galleryOverlay">
+    <!-- Facebook / Instagram apps on iPhone only. Their built-in browser runs
+         out of memory partway through a big gallery (it flashes white and drops
+         back to the story), so after SAFARI_PROMPT_AFTER photos we offer Safari
+         before that can happen. Shown once per visit. -->
+    <div class="gallery-safari-prompt" id="gallerySafariPrompt" hidden>
+      <div class="gallery-safari-card">
+        <strong>Big gallery!</strong>
+        <p>Facebook's browser can run out of memory on galleries this size. Keep going in Safari, right where you are.</p>
+        <a href="#" class="gallery-safari-go" onclick="return openGalleryInSafari()">Continue in Safari &rarr;</a>
+        <button type="button" class="gallery-safari-stay" onclick="dismissSafariPrompt()">Keep swiping here</button>
+      </div>
+    </div>
     <div class="gallery-header gallery-header-lightbox">
       <button class="gallery-close" onclick="Ball603.closeGallery()">✕</button>
       <span class="gallery-title" id="galleryTitle"></span>
@@ -2832,19 +2857,49 @@
       return false;
     }
 
+    // The prompt appears once this many different photos have been looked at
+    // in one visit — well before the ~90 where the Facebook browser has been
+    // giving out.
+    const SAFARI_PROMPT_AFTER = 50;
+    let safariPromptSeen = false;
+    const galleryPhotosSeen = new Set();   // photo numbers looked at this visit
+    let galleryCountWatcher = null;
+
+    function dismissSafariPrompt() {
+      const pr = document.getElementById('gallerySafariPrompt');
+      if (pr) pr.hidden = true;
+    }
+
+    // Counts photos by watching the "12 / 179" counter the viewer updates on
+    // every move (each different value is a different photo), so the viewer
+    // itself (app.js) is untouched.
+    function watchForSafariPrompt() {
+      const counter = document.getElementById('galleryCount');
+      if (!counter || galleryCountWatcher || !inAppBrowserIOS()) return;
+      galleryCountWatcher = new MutationObserver(() => {
+        const now = counter.textContent;
+        if (!now) return;
+        galleryPhotosSeen.add(now);
+        if (!safariPromptSeen && galleryPhotosSeen.size >= SAFARI_PROMPT_AFTER) {
+          safariPromptSeen = true;
+          const pr = document.getElementById('gallerySafariPrompt');
+          if (pr) pr.hidden = false;
+        }
+      });
+      galleryCountWatcher.observe(counter, { childList: true, characterData: true, subtree: true });
+    }
+
     function openGalleryLightbox(index) {
       if (!window.galleryImages || !window.galleryImages.length) return;
       const safariBtn = document.getElementById('gallerySafariBtn');
       if (safariBtn) safariBtn.hidden = !inAppBrowserIOS();
+      dismissSafariPrompt();
+      watchForSafariPrompt();
       
-      // Phones get SmugMug's 800px "Large": on a phone screen it looks the
-      // same, and it is about 40% less memory per photo than 1024px, which is
-      // what the Facebook / Instagram in-app browsers run out of.
-      const phone = window.matchMedia('(max-width: 768px)').matches;
       const images = window.galleryImages.map(img => ({
-        src: phone
-          ? (img.large || img.xlarge || img.x2large || img.archivedUri || img.original || img.medium || img.thumbnail)
-          : (img.x2large || img.xlarge || img.large || img.archivedUri || img.original || img.medium || img.thumbnail),
+        // Full size everywhere. The Facebook / Instagram in-app browsers are
+        // handled by the "Continue in Safari" prompt instead of smaller photos.
+        src: img.x2large || img.xlarge || img.large || img.archivedUri || img.original || img.medium || img.thumbnail,
         original: img.archivedUri || img.original || img.x2large || img.xlarge,
         thumb: img.thumbnail,
         caption: img.caption || img.title || '',

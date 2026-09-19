@@ -68,7 +68,11 @@ console.log('\nStory page: photo size, Safari button');
   // The story's own opener: phones get the 800px "large" photo.
   const pick = await p.evaluate(() => { window.galleryImages = Array.from({length:3},(_,i)=>({large:`/img/${i}.svg?L`, x2large:`/img/${i}.svg?X2`, thumbnail:`/img/${i}.svg?Th`}));
     openGalleryLightbox(0); return document.querySelector('#galleryCarousel .gallery-slide[data-pos="0"] img').getAttribute('src'); });
-  check('on a phone the viewer loads the 800px Large photo', /\?L$/.test(pick), pick);
+  check('photos load at full size (no smaller phone version)', /\?X2$/.test(pick), pick);
+  for (let i = 0; i < 3; i++) await p.evaluate(()=>Ball603.nextPhoto());
+  for (let i = 0; i < 60; i++) { await p.evaluate(()=>Ball603.nextPhoto()); await p.waitForTimeout(10); }
+  await p.waitForTimeout(400);
+  check('outside Facebook the prompt never appears, even after 60 photos', await p.evaluate(()=>document.getElementById('gallerySafariPrompt').hidden));
   const btn = await p.evaluate(() => { const b = document.getElementById('gallerySafariBtn'); return { hidden: b.hidden, shown: getComputedStyle(b).display !== 'none' }; });
   check('Safari button hidden in a normal browser', btn.hidden && !btn.shown, JSON.stringify(btn));
   await p.evaluate(()=>Ball603.closeGallery());
@@ -88,11 +92,27 @@ console.log('\nStory page: photo size, Safari button');
   check('arriving with ?photo=42 reopens the gallery at photo 42', r.open && r.count === '42 / 179', JSON.stringify(r));
   check('inside the Facebook app on iPhone the Safari button shows', r.btn);
   let went = null;
-  await q.evaluate(() => { for (let i=0;i<3;i++) Ball603.nextPhoto(); });
+  for (let i=0;i<3;i++) { await q.evaluate(() => Ball603.nextPhoto()); await q.waitForTimeout(15); }  // one swipe at a time, as a reader does
   await q.waitForTimeout(400);
   q.on('request', req => { if (!went) went = req.url(); });
   const href = await q.evaluate(() => gallerySafariUrl());
   check('the Safari link keeps the photo the reader is on (45)', /^x-safari-http:\/\/localhost:8981\/article\/x\?photo=45$/.test(href), href);
+  // The "Continue in Safari" prompt: after 50 photos, once.
+  const pr = () => q.evaluate(() => !document.getElementById('gallerySafariPrompt').hidden);
+  check('prompt not shown yet (4 photos seen)', !(await pr()));
+  for (let i = 0; i < 45; i++) { await q.evaluate(() => Ball603.nextPhoto()); await q.waitForTimeout(15); }
+  await q.waitForTimeout(400);
+  check('still not shown after 49 photos', !(await pr()));
+  await q.evaluate(() => Ball603.nextPhoto()); await q.waitForTimeout(400);
+  check('shown at the 50th photo', await pr());
+  await q.screenshot({ path: '/home/claude/shots/fb-prompt.png' });
+  const goHref = await q.evaluate(() => gallerySafariUrl());
+  check('its Safari link keeps the photo the reader is on', /photo=91$/.test(goHref), goHref);
+  await q.click('.gallery-safari-stay'); await q.waitForTimeout(200);
+  check('"Keep swiping here" closes it', !(await pr()));
+  for (let i = 0; i < 60; i++) { await q.evaluate(() => Ball603.nextPhoto()); await q.waitForTimeout(10); }
+  await q.waitForTimeout(400);
+  check('and it does not come back on the same visit', !(await pr()));
   check('no errors in the Facebook-app page', qerr.length === 0, qerr.join('; '));
   await fb.close();
 }
