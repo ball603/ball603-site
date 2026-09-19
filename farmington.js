@@ -515,7 +515,7 @@ function setupPullToRefresh() {
 
   document.body.classList.add('ft-can-pull');
 
-  let startY = 0, pulling = false, ready = false, busy = false;
+  let startX = 0, startY = 0, pulling = false, ready = false, busy = false;
 
   const move = (distance) => {
     el.style.transform = `translate(-50%, ${distance}px)`;
@@ -539,6 +539,9 @@ function setupPullToRefresh() {
     // the finger is on.
     if (document.body.classList.contains('ft-locked')) return;
     if (!dragOwnedByPage(e.target)) return;
+    // The ticker is swiped sideways; a swipe there is never a pull.
+    if (e.target.closest && e.target.closest('.ft-ticker')) return;
+    startX = e.touches[0].clientX;
     startY = e.touches[0].clientY;
     pulling = true;
     ready = false;
@@ -547,8 +550,12 @@ function setupPullToRefresh() {
 
   document.addEventListener('touchmove', (e) => {
     if (!pulling || busy) return;
+    const dx = e.touches[0].clientX - startX;
     const dy = e.touches[0].clientY - startY;
     if (dy <= 0) { move(0); return; }
+    // A mostly sideways drag is somebody scrolling something, not pulling.
+    // Let it go for the rest of this touch.
+    if (Math.abs(dx) > dy) { reset(); return; }
     // preventDefault needs a non-passive listener. Without it iOS rubber-bands
     // the whole page underneath the spinner.
     if (e.cancelable) e.preventDefault();
@@ -1182,7 +1189,13 @@ async function renderTicker() {
       <div class="ft-ticker-inner">
         <span class="ft-ticker-label"><span>Scores</span></span>
         <button class="ft-ticker-arrow" data-dir="-1" type="button" aria-label="Earlier games">&#8249;</button>
-        <div class="ft-ticker-scroll">${games.map(tickerCard).join('')}</div>
+        <div class="ft-ticker-scrollwrap">
+          <div class="ft-ticker-scroll">${games.map(tickerCard).join('')}</div>
+          <!-- Phone only: a soft fade and chevron on whichever edge has more
+               games past it. Tappable, and gone at that end. -->
+          <button class="ft-ticker-cue ft-ticker-cue-l" data-dir="-1" type="button" aria-label="Earlier games">&#8249;</button>
+          <button class="ft-ticker-cue ft-ticker-cue-r" data-dir="1" type="button" aria-label="Later games">&#8250;</button>
+        </div>
         <button class="ft-ticker-arrow" data-dir="1" type="button" aria-label="Later games">&#8250;</button>
       </div>
     </div>`;
@@ -1197,12 +1210,23 @@ async function renderTicker() {
       strip.scrollBy({ left: Number(a.dataset.dir) * strip.clientWidth * 0.8, behavior: 'smooth' });
     });
   }
+  // The phone cues move one card at a time.
+  for (const c of mount.querySelectorAll('.ft-ticker-cue')) {
+    c.addEventListener('click', () => {
+      const card = strip.querySelector('.ft-tcard');
+      const step = card ? card.getBoundingClientRect().width + 1 : strip.clientWidth * 0.8;
+      strip.scrollBy({ left: Number(c.dataset.dir) * step, behavior: 'smooth' });
+    });
+  }
 
   // An arrow that cannot do anything says so, and the pair disappear entirely
   // when everything already fits.
   const updateArrows = () => {
     const room = strip.scrollWidth - strip.clientWidth;
-    mount.querySelector('.ft-ticker').classList.toggle('ft-ticker-fits', room < 4);
+    const bar = mount.querySelector('.ft-ticker');
+    bar.classList.toggle('ft-ticker-fits', room < 4);
+    bar.classList.toggle('ft-ticker-atstart', strip.scrollLeft <= 1);
+    bar.classList.toggle('ft-ticker-atend', strip.scrollLeft >= room - 1);
     arrows[0].disabled = strip.scrollLeft <= 1;
     arrows[1].disabled = strip.scrollLeft >= room - 1;
   };

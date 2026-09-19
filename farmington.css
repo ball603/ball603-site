@@ -505,6 +505,9 @@ body.ft-can-pull{overscroll-behavior-y:contain}
   -webkit-overflow-scrolling:touch;scroll-snap-type:x proximity;min-width:0;flex:1;
 }
 .ft-ticker-scroll::-webkit-scrollbar{display:none}
+/* Holds the strip and, on a phone, the edge cues laid over it. */
+.ft-ticker-scrollwrap{position:relative;display:flex;flex:1;min-width:0}
+.ft-ticker-cue{display:none}
 
 /* Twenty-six pixels taller than it started — ten, then another sixteen — and
    the divider lifted from #232323 so it actually reads as a line between
@@ -944,9 +947,23 @@ body.ft-can-pull{overscroll-behavior-y:contain}
   .ft-ha{font-size:10.5px}
 
   .ft-ticker-label{padding:0 10px;font-size:10px;letter-spacing:1px}
-  .ft-tcard{min-width:196px;padding:15px 12px;gap:10px}
+  /* A fixed width well under the strip's, so the next score always peeks in
+     from the right edge: you can see there is more without being told. Long
+     team names ellipsize inside it instead of widening the card. */
+  .ft-tcard{min-width:0;width:min(66vw,260px);padding:15px 12px;gap:10px}
   /* Swiping is the natural gesture here and the arrows only eat width. */
   .ft-ticker-arrow{display:none}
+  /* In their place, a fade and a small chevron on whichever edge has more. */
+  .ft-ticker-cue{
+    display:flex;align-items:center;justify-content:center;position:absolute;top:0;bottom:0;width:30px;
+    border:0;padding:0;margin:0;font-size:22px;line-height:1;color:rgba(255,255,255,.7);cursor:pointer;
+    transition:opacity .2s;z-index:1;
+  }
+  .ft-ticker-cue-r{right:0;justify-content:flex-end;padding-right:6px;background:linear-gradient(to left,#111 30%,rgba(17,17,17,0))}
+  .ft-ticker-cue-l{left:0;justify-content:flex-start;padding-left:6px;background:linear-gradient(to right,#111 30%,rgba(17,17,17,0))}
+  .ft-ticker-atstart .ft-ticker-cue-l,
+  .ft-ticker-atend .ft-ticker-cue-r,
+  .ft-ticker-fits .ft-ticker-cue{opacity:0;pointer-events:none}
 }
 
 /* A phone held upright. The pills get one more squeeze so every sport is on
@@ -958,7 +975,6 @@ body.ft-can-pull{overscroll-behavior-y:contain}
   /* The wordmark keeps its full 44px here too — it is the one thing on this bar
      somebody is actually looking at. The socials give up the width for it. */
   .ft-social{width:22px;height:22px}
-  .ft-tcard{min-width:186px}
 }
 
 /* ── Score entry ──────────────────────────────────────────────────────────
