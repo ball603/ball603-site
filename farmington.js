@@ -1247,7 +1247,11 @@ function tickerCard(g) {
   const win = tickerWindow();
   const sc = scoreOf(g);
   const status = tickerLabel(g, win);
-  const dayTag = `<span class="ft-tcard-day">${esc(tickerDay(g, win))}</span>`;
+  // Styled inline as well as in farmington.css: if a phone ends up with this
+  // script but an older copy of the stylesheet (a weak signal, where the app
+  // falls back to its saved copy), the day still comes out small and sideways
+  // instead of big and flat across the card.
+  const dayTag = `<span class="ft-tcard-day" style="writing-mode:vertical-rl;transform:rotate(180deg);font-size:9px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:rgba(255,255,255,.4);flex:none;margin-right:-4px">${esc(tickerDay(g, win))}</span>`;
   const res = resultOf(sc);
   const opp = opponentLabel(g);
   const href = `/farmingtontigersnh/schedule?sport=${esc(g.sport_id)}`;
