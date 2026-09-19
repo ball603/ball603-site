@@ -1154,11 +1154,16 @@ function scheduleTickerCutoff() {
 function tickerLabel(g, win) {
   const sc = scoreOf(g);
   if (sc) return 'Final';
-  const time = timeLabel(g.starts_at);
-  if (g.game_date === win.today) return time;
+  // The day sits on the card's left edge now (tickerDay), so just the time.
+  return timeLabel(g.starts_at);
+}
+
+/* The day, turned on its side down the left edge of each card, as Ball603's
+   ticker does: TODAY, or WED / FRI and so on. */
+function tickerDay(g, win) {
+  if (g.game_date === win.today) return 'Today';
   const d = parseLocal(g.game_date);
-  const day = d ? d.toLocaleDateString('en-US', { weekday: 'short' }) : '';
-  return `${day} ${time}`.trim();
+  return d ? d.toLocaleDateString('en-US', { weekday: 'short' }) : '';
 }
 
 async function renderTicker() {
@@ -1242,6 +1247,7 @@ function tickerCard(g) {
   const win = tickerWindow();
   const sc = scoreOf(g);
   const status = tickerLabel(g, win);
+  const dayTag = `<span class="ft-tcard-day">${esc(tickerDay(g, win))}</span>`;
   const res = resultOf(sc);
   const opp = opponentLabel(g);
   const href = `/farmingtontigersnh/schedule?sport=${esc(g.sport_id)}`;
@@ -1268,6 +1274,7 @@ function tickerCard(g) {
   if (g.is_meet) {
     return `
       <a class="ft-tcard" href="${href}" ${owner}>
+        ${dayTag}
         <span class="ft-tcard-teams"><span class="ft-tcard-meet">${esc(opp)}</span></span>
         ${meta}
       </a>`;
@@ -1282,6 +1289,7 @@ function tickerCard(g) {
 
   return `
     <a class="ft-tcard" href="${href}" ${owner}>
+      ${dayTag}
       <span class="ft-tcard-teams">
         ${row('Farmington', `<img src="${esc(ball603Logo('Farmington'))}" alt="" onerror="this.remove()">`, sc ? sc.us : '', res === 'W')}
         ${row(opp, opponentLogo(g), sc ? sc.them : '', res === 'L')}
