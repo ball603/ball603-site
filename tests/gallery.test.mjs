@@ -100,19 +100,25 @@ console.log('\nStory page: photo size, Safari button');
   // The "Continue in Safari" prompt: after 50 photos, once.
   const pr = () => q.evaluate(() => !document.getElementById('gallerySafariPrompt').hidden);
   check('prompt not shown yet (4 photos seen)', !(await pr()));
-  for (let i = 0; i < 45; i++) { await q.evaluate(() => Ball603.nextPhoto()); await q.waitForTimeout(15); }
+  for (let i = 0; i < 55; i++) { await q.evaluate(() => Ball603.nextPhoto()); await q.waitForTimeout(15); }
   await q.waitForTimeout(400);
-  check('still not shown after 49 photos', !(await pr()));
+  check('still not shown after 59 photos', !(await pr()));
   await q.evaluate(() => Ball603.nextPhoto()); await q.waitForTimeout(400);
-  check('shown at the 50th photo', await pr());
+  check('shown at the 60th photo in a 179-photo gallery', await pr());
   await q.screenshot({ path: '/home/claude/shots/fb-prompt.png' });
   const goHref = await q.evaluate(() => gallerySafariUrl());
-  check('its Safari link keeps the photo the reader is on', /photo=91$/.test(goHref), goHref);
+  check('its Safari link keeps the photo the reader is on', /photo=101$/.test(goHref), goHref);
   await q.click('.gallery-safari-stay'); await q.waitForTimeout(200);
   check('"Keep swiping here" closes it', !(await pr()));
   for (let i = 0; i < 60; i++) { await q.evaluate(() => Ball603.nextPhoto()); await q.waitForTimeout(10); }
   await q.waitForTimeout(400);
   check('and it does not come back on the same visit', !(await pr()));
+  // An 80-photo gallery never prompts, however far you go.
+  await q.evaluate(() => { Ball603.closeGallery(); window.galleryImages = Array.from({length:80},(_,i)=>({large:`/img/${i}.svg`, thumbnail:`/img/${i}.svg`})); });
+  await q.evaluate(() => { safariPromptSeen = false; galleryPhotosSeen.clear(); openGalleryLightbox(0); });
+  for (let i = 0; i < 79; i++) { await q.evaluate(() => Ball603.nextPhoto()); await q.waitForTimeout(10); }
+  await q.waitForTimeout(400);
+  check('an 80-photo gallery never shows it, even after all 80', !(await pr()));
   check('no errors in the Facebook-app page', qerr.length === 0, qerr.join('; '));
   await fb.close();
 }

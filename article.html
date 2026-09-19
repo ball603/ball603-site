@@ -1833,7 +1833,7 @@
   <div class="gallery-overlay" id="galleryOverlay">
     <!-- Facebook / Instagram apps on iPhone only. Their built-in browser runs
          out of memory partway through a big gallery (it flashes white and drops
-         back to the story), so after SAFARI_PROMPT_AFTER photos we offer Safari
+         back to the story), so in big galleries, after SAFARI_PROMPT_AFTER photos, we offer Safari
          before that can happen. Shown once per visit. -->
     <div class="gallery-safari-prompt" id="gallerySafariPrompt" hidden>
       <div class="gallery-safari-card">
@@ -2857,10 +2857,12 @@
       return false;
     }
 
-    // The prompt appears once this many different photos have been looked at
-    // in one visit — well before the ~90 where the Facebook browser has been
-    // giving out.
-    const SAFARI_PROMPT_AFTER = 50;
+    // In galleries of more than 80 photos, the prompt appears once 60
+    // different photos have been looked at in one visit — well before the ~90
+    // where the Facebook browser has been giving out.
+    const SAFARI_PROMPT_AFTER = 60;
+    // Smaller galleries never reach the danger zone, so they never prompt.
+    const SAFARI_PROMPT_MIN_GALLERY = 81;
     let safariPromptSeen = false;
     const galleryPhotosSeen = new Set();   // photo numbers looked at this visit
     let galleryCountWatcher = null;
@@ -2880,7 +2882,8 @@
         const now = counter.textContent;
         if (!now) return;
         galleryPhotosSeen.add(now);
-        if (!safariPromptSeen && galleryPhotosSeen.size >= SAFARI_PROMPT_AFTER) {
+        const big = (window.galleryImages || []).length >= SAFARI_PROMPT_MIN_GALLERY;
+        if (big && !safariPromptSeen && galleryPhotosSeen.size >= SAFARI_PROMPT_AFTER) {
           safariPromptSeen = true;
           const pr = document.getElementById('gallerySafariPrompt');
           if (pr) pr.hidden = false;
