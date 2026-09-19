@@ -1,5 +1,5 @@
 // Ball603 Service Worker
-const CACHE_NAME = 'ball603-v40';
+const CACHE_NAME = 'ball603-v41';
 
 // Static assets to cache immediately on install
 const STATIC_ASSETS = [

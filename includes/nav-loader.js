@@ -276,6 +276,8 @@
           justify-content: center;
         }
       }
+      /* Never over an open photo gallery, where it covered Share / Purchase. */
+      body.gallery-open .pwa-install-banner { display: none !important; }
     `;
     document.head.appendChild(style);
 

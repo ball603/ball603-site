@@ -763,6 +763,7 @@ function openGallery(photos, startIndex = 0, title = '') {
   // Show overlay
   overlay.classList.add('active');
   document.body.style.overflow = 'hidden';
+  document.body.classList.add('gallery-open');   // hides the "Get the App" banner
   
   // Preload adjacent images
   preloadAdjacentImages();
@@ -782,6 +783,7 @@ function closeGallery() {
   
   overlay.classList.remove('active');
   document.body.style.overflow = '';
+  document.body.classList.remove('gallery-open');
   state.currentGallery = null;
   clearTimeout(gallerySettleTimer); gallerySettle = null; gallerySlideShown = null;
   // Let go of the photos, so a reader who opens a second gallery starts clean.
