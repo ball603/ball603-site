@@ -733,21 +733,19 @@ function openGallery(photos, startIndex = 0, title = '') {
   // Build carousel HTML
   const galleryMain = overlay.querySelector('.gallery-main');
   if (galleryMain) {
-    // Three slides, always: previous, current, next, parked one screen left,
-    // on screen and one screen right. The strip that moves is never wider
-    // than three screens, whatever the size of the gallery.
-    //
-    // Why: the old carousel had one slide per photo in one long strip moved
-    // with translateX(-index * 100%). On iPhone that strip becomes one GPU
-    // layer as wide as the whole gallery, and the Facebook / Instagram in-app
-    // browsers, which get far less memory than Safari, crashed on it (white
-    // flash, back to the story) partway through a big gallery.
-    galleryMain.innerHTML = `<div class="gallery-carousel" id="galleryCarousel" style="position:relative">` +
-      [-1, 0, 1].map(pos =>
-        `<div class="gallery-slide" data-pos="${pos}" style="position:absolute;top:0;left:${pos * 100}%;width:100%;height:100%">` +
-        `<img alt="" decoding="async"></div>`).join('') +
-      `</div>`;
-    gallerySlideShown = null;
+    // Slides start EMPTY: no src. Only the photos near the one on screen get
+    // a real image (see loadNearbySlides). Loading every photo as you swipe
+    // kept all of them in memory at once, and in the Facebook / Instagram
+    // in-app browsers on iPhone, which get far less memory than Safari, a big
+    // gallery ran out about halfway through: the page crashed, flashed white
+    // and reloaded back to the story.
+    const slidesHtml = photos.map((photo, i) => `
+      <div class="gallery-slide" data-index="${i}">
+        <img data-src="${photo.src || photo.url}" alt="${photo.caption || ''}" decoding="async">
+      </div>
+    `).join('');
+    
+    galleryMain.innerHTML = `<div class="gallery-carousel" id="galleryCarousel">${slidesHtml}</div>`;
   }
   
   // Render dots
@@ -783,7 +781,6 @@ function closeGallery() {
   overlay.classList.remove('active');
   document.body.style.overflow = '';
   state.currentGallery = null;
-  clearTimeout(gallerySettleTimer); gallerySettle = null; gallerySlideShown = null;
   // Let go of the photos, so a reader who opens a second gallery starts clean.
   const galleryMain = overlay.querySelector('.gallery-main');
   if (galleryMain) galleryMain.innerHTML = '';
@@ -820,117 +817,58 @@ function goToPhoto(index) {
 }
 
 /**
- * The three-slide carousel.
- *
- * gallerySlideShown is the photo index sitting in the middle slide. Moving to
- * the next photo slides the strip one screen left; when that finishes, the
- * slides are rotated (old current becomes previous, old next becomes current,
- * old previous is reused as the new next and given the following photo) and
- * the strip snaps back to 0 with no animation. Photos already on screen keep
- * their loaded image, so nothing flickers, and only three images ever exist.
+ * Update carousel position (IG-style)
  */
-let gallerySlideShown = null;
-let gallerySettleTimer = null;
-let gallerySettle = null;
-
-const wrapIndex = (i) => {
-  const n = state.currentGallery ? state.currentGallery.length : 1;
-  return ((i % n) + n) % n;
-};
-
-function gallerySlide(pos) {
-  return document.querySelector(`#galleryCarousel .gallery-slide[data-pos="${pos}"]`);
-}
-
-function fillSlide(slide, index) {
-  if (!slide || !state.currentGallery) return;
-  const photo = state.currentGallery[index];
-  const img = slide.querySelector('img');
-  slide.dataset.index = String(index);
-  if (!img || !photo) return;
-  const src = photo.src || photo.url || '';
-  if (img.getAttribute('src') !== src) {
-    img.style.transform = '';
-    img.setAttribute('src', src);
-  }
-  img.alt = photo.caption || '';
-}
-
-function placeSlide(slide, pos) {
-  slide.dataset.pos = String(pos);
-  slide.style.left = `${pos * 100}%`;
-}
-
-// Put the photo at `index` in the middle with its neighbours either side,
-// strip at rest. Used on open, on jumps (dots) and after every animated move.
-function centreOn(index) {
-  const carousel = document.getElementById('galleryCarousel');
-  if (!carousel) return;
-  fillSlide(gallerySlide(0), index);
-  if (state.currentGallery.length > 1) {
-    fillSlide(gallerySlide(-1), wrapIndex(index - 1));
-    fillSlide(gallerySlide(1), wrapIndex(index + 1));
-  }
-  carousel.style.transition = 'none';
-  carousel.style.transform = 'translateX(0)';
-  gallerySlideShown = index;
-}
-
-// Finish any move still animating, so a quick second swipe starts clean.
-function settleGallery() {
-  if (gallerySettle) { const f = gallerySettle; gallerySettle = null; clearTimeout(gallerySettleTimer); f(); }
-}
-
 function updateCarouselPosition(animate = true) {
   if (!state.currentGallery) return;
+  
   const carousel = document.getElementById('galleryCarousel');
-  const cur = state.currentPhotoIndex;
-
   if (carousel) {
-    settleGallery();
-    const n = state.currentGallery.length;
-    const dir = gallerySlideShown === null || n < 2 ? 0
-              : cur === gallerySlideShown ? 0
-              : cur === wrapIndex(gallerySlideShown + 1) ? 1
-              : cur === wrapIndex(gallerySlideShown - 1) ? -1
-              : null;                                   // a jump
-
-    if (gallerySlideShown === null || dir === null || !animate) {
-      centreOn(cur);
-    } else if (dir === 0) {
-      // Not far enough to change photo: glide back to the middle.
-      carousel.style.transition = 'transform 0.3s ease-out';
-      carousel.style.transform = 'translateX(0)';
-    } else {
-      carousel.style.transition = 'transform 0.3s ease-out';
-      carousel.style.transform = `translateX(${-dir * 100}%)`;
-      gallerySettle = () => {
-        // Rotate: the slide we moved onto becomes the middle one.
-        const leaving = gallerySlide(-dir), middle = gallerySlide(0), arriving = gallerySlide(dir);
-        placeSlide(middle, -dir);
-        placeSlide(arriving, 0);
-        placeSlide(leaving, dir);
-        gallerySlideShown = cur;
-        fillSlide(leaving, wrapIndex(cur + dir));      // the new far neighbour
-        carousel.style.transition = 'none';
-        carousel.style.transform = 'translateX(0)';
-      };
-      gallerySettleTimer = setTimeout(settleGallery, 320);
-    }
+    const offset = -state.currentPhotoIndex * 100;
+    carousel.style.transition = animate ? 'transform 0.3s ease-out' : 'none';
+    carousel.style.transform = `translateX(${offset}%)`;
   }
+  
+  loadNearbySlides();
 
   // Update caption
-  const photo = state.currentGallery[cur];
+  const photo = state.currentGallery[state.currentPhotoIndex];
   const caption = document.getElementById('galleryCaption');
   if (caption) caption.textContent = photo?.caption || '';
   
   // Update count
   const count = document.getElementById('galleryCount');
-  if (count) count.textContent = `${cur + 1} / ${state.currentGallery.length}`;
+  if (count) count.textContent = `${state.currentPhotoIndex + 1} / ${state.currentGallery.length}`;
   
   // Update dots
   document.querySelectorAll('.gallery-dot').forEach((dot, i) => {
-    dot.classList.toggle('active', i === cur);
+    dot.classList.toggle('active', i === state.currentPhotoIndex);
+  });
+}
+
+/**
+ * Keep only a small window of real images in the carousel: the photo on
+ * screen and two either side get their src; every other slide has its image
+ * released. Memory stays flat however long the gallery is, so swiping through
+ * 200 photos costs the same as swiping through 5.
+ */
+const GALLERY_WINDOW = 2;
+function loadNearbySlides() {
+  if (!state.currentGallery) return;
+  const total = state.currentGallery.length;
+  const cur = state.currentPhotoIndex;
+  document.querySelectorAll('#galleryCarousel .gallery-slide').forEach(slide => {
+    const i = Number(slide.dataset.index);
+    const img = slide.querySelector('img');
+    if (!img) return;
+    // Distance around the loop, since next/prev wrap from last to first.
+    const d = Math.min(Math.abs(i - cur), total - Math.abs(i - cur));
+    if (d <= GALLERY_WINDOW) {
+      if (!img.getAttribute('src') && img.dataset.src) img.setAttribute('src', img.dataset.src);
+    } else if (img.getAttribute('src')) {
+      img.removeAttribute('src');
+      img.style.transform = '';
+    }
   });
 }
 
@@ -945,11 +883,6 @@ function updateGalleryPhoto() {
  * Preload next/prev images for faster navigation
  */
 function preloadAdjacentImages() {
-  // Nothing to do: the previous and next photos are already loaded in the
-  // slides either side of the current one. Extra Image() preloads only held
-  // more decoded photos in memory.
-  return;
-  // eslint-disable-next-line no-unreachable
   if (!state.currentGallery || state.currentGallery.length <= 1) return;
   
   const total = state.currentGallery.length;
@@ -1032,7 +965,7 @@ function initTouchHandlers() {
   }
   
   function getCurrentImage() {
-    const currentSlide = document.querySelector('#galleryCarousel .gallery-slide[data-pos="0"]');
+    const currentSlide = document.querySelector(`.gallery-slide[data-index="${state.currentPhotoIndex}"]`);
     return currentSlide?.querySelector('img');
   }
   
@@ -1076,8 +1009,7 @@ function initTouchHandlers() {
       lastTapTime = 0;
       return;
     }
-    // lastTapTime is set in touchend, and only for a tap. Setting it here
-    // made two quick SWIPES count as a double-tap and zoom instead of moving.
+    lastTapTime = now;
     
     // Pinch start
     if (e.touches.length === 2) {
@@ -1101,8 +1033,6 @@ function initTouchHandlers() {
     // Disable carousel transition during drag
     const carousel = document.getElementById('galleryCarousel');
     if (carousel && currentScale === 1) {
-      settleGallery();
-      carousel.style.transition = 'none';
       carousel.classList.add('dragging');
     }
   }, { passive: false });
@@ -1148,7 +1078,8 @@ function initTouchHandlers() {
       const carousel = document.getElementById('galleryCarousel');
       if (carousel && state.currentGallery) {
         const percentOffset = (diffX / window.innerWidth) * 100;
-        carousel.style.transform = `translateX(${percentOffset}%)`;
+        const currentOffset = -state.currentPhotoIndex * 100;
+        carousel.style.transform = `translateX(${currentOffset + percentOffset}%)`;
       }
     } else if (dragDirection === 'vertical') {
       e.preventDefault();
@@ -1175,7 +1106,6 @@ function initTouchHandlers() {
     const touchEndY = e.changedTouches[0].clientY;
     const diffX = touchEndX - touchStartX;
     const diffY = touchEndY - touchStartY;
-    lastTapTime = (Math.abs(diffX) < 10 && Math.abs(diffY) < 10) ? Date.now() : 0;
     
     const carousel = document.getElementById('galleryCarousel');
     if (carousel) {
