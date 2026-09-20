@@ -200,10 +200,27 @@ const dayCard = (id, day, list, empty, past) => {
   el.innerHTML = day
     ? `<div class="ft-week-day${day === FT.todayKey() ? ' today' : ''}">
          <h4>${FT.esc(FT.dayLabel(day, { plain: true }))}</h4>
-         ${list.map(g => weekRow(g, past)).join('')}
+         ${dayRows(list, past)}
        </div>`
     : `<div class="ft-empty">${empty}</div>`;
 };
+
+/* Golf names its course above that day's matches — the Tigers play three
+   opponents in one round and they are all at the same place, so it is one line,
+   not three pins. Only in Upcoming Events: once a round has been played the
+   course is history, and Yesterday's Results stays a list of scores. */
+function dayRows(list, past) {
+  const seen = new Set();
+  return list.map(g => {
+    const key = past ? '' : FT.courseKey(g);
+    let head = '';
+    if (key && !seen.has(key)) {
+      seen.add(key);
+      head = `<div class="ft-course">${g.sport.emoji} ${FT.esc(FT.courseName(g))}</div>`;
+    }
+    return head + weekRow(g, past);
+  }).join('');
+}
 
 /* ── My Teams ──────────────────────────────────────────────────────────── */
 /* What has been chosen, and a button to change it. The choosing itself happens

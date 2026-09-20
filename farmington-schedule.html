@@ -185,7 +185,7 @@ function renderSchedule(toToday) {
         <th>Time/Result</th>
         <th class="ctr ft-hide-sm">Location</th>
       </tr></thead>
-      <tbody>${games.map(g => row(g, g === next, g === anchor, perSport)).join('')}</tbody>
+      <tbody>${withCourses(games, next, anchor, perSport)}</tbody>
     </table></div></div>`;
 
   sizeScroller();
@@ -230,7 +230,12 @@ function scrollToToday(smooth) {
   // them or it opens underneath its own header.
   const head = wrap.querySelector('thead');
   const headH = head ? head.getBoundingClientRect().height : 0;
-  const offset = el.getBoundingClientRect().top - wrap.getBoundingClientRect().top;
+  // A golf day opens with its course on the line above, which is part of today
+  // rather than the day before it — scroll to that instead, or it hides under
+  // the pinned column headings.
+  const prev = el.previousElementSibling;
+  const top = prev && prev.classList.contains('ft-courserow') ? prev : el;
+  const offset = top.getBoundingClientRect().top - wrap.getBoundingClientRect().top;
   wrap.scrollTo({ top: Math.max(0, wrap.scrollTop + offset - headH), behavior });
 }
 
@@ -262,6 +267,29 @@ function row(g, isNext, isAnchor, perSport) {
       <td>${timeOrResult}${status}</td>
       <td class="ctr ft-hide-sm"><div class="ft-venue-cell">${FT.venuePin(g)}</div></td>
     </tr>`;
+}
+
+/* Golf's course, once, on a line of its own above that day's matches. Every
+   other sport is untouched — this only fires on a game FT.courseName() claims,
+   which today means golf and nothing else.
+
+   Keyed on day + course rather than emitted whenever the course changes, so a
+   golf match that lands between two soccer rows in All Sports cannot make the
+   same course print twice. */
+function withCourses(games, next, anchor, perSport) {
+  const seen = new Set();
+  let out = '';
+  for (const g of games) {
+    const key = FT.courseKey(g);
+    if (key && !seen.has(key)) {
+      seen.add(key);
+      out += `<tr class="ft-courserow"><td colspan="7">
+                <span class="ft-sport-emoji">${g.sport.emoji}</span> ${FT.esc(FT.courseName(g))}
+              </td></tr>`;
+    }
+    out += row(g, g === next, g === anchor, perSport);
+  }
+  return out;
 }
 
 function weekday(key) {

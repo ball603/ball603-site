@@ -1405,6 +1405,35 @@ function venuePin(game) {
                   title="${esc(full)}" aria-label="Location: ${esc(full)}">\u{1F4CD}</button>`;
 }
 
+/* ── Golf courses ───────────────────────────────────────────────────────── */
+/* Golf is the one sport where the venue is news. A volleyball match "at
+   Nottingham" says where it is in the opponent's name, but "at Inter-Lakes"
+   tells a golfer nothing — the round could be at Waukewan or at Rockingham, an
+   hour apart, and the Tigers play three opponents in the same round. Every
+   Tigers match on a given date is at the same course, so the course belongs
+   once above the day's matches rather than three times behind a pin.
+
+   Every golf row Arbiter sends carries it, on away dates as well as home ones,
+   so nothing has to be entered by hand. */
+
+const COURSE_SPORTS = new Set([29]);          // Golf
+
+// "Farmington CC", or "" for a sport whose venue is not worth naming.
+function courseName(game) {
+  if (!game || !COURSE_SPORTS.has(game.sport_id)) return '';
+  const site = String(game.site_name || '').trim();
+  const sub = String(game.sub_site_name || '').trim();
+  if (!site) return sub;
+  return sub && sub !== site ? `${site} — ${sub}` : site;
+}
+
+// One key per day per course, so a day is labelled once however its matches
+// happen to be ordered, and a day that somehow used two courses gets two.
+function courseKey(game) {
+  const name = courseName(game);
+  return name ? `${game.game_date}|${name}` : '';
+}
+
 /* ── Exported ───────────────────────────────────────────────────────────── */
 
 window.FT = {
@@ -1415,6 +1444,7 @@ window.FT = {
   scoreOf, resultOf, recordOf, opponentLabel, versus, divisionLabel,
   ball603Covers, ball603Slug, ball603Logo, schoolLogo, teamLink, opponentLogo, pastResultsOff, easternNow,
   load, sb, renderHeader, renderFooter, venuePin, closeVenue, pills, streakBadge,
+  courseName, courseKey,
   openMyTeams: () => { if (openFavModal) openFavModal(); }
 };
 
