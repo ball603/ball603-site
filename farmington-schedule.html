@@ -257,8 +257,12 @@ function row(g, isNext, isAnchor, perSport) {
   const status = (g.game_status && g.game_status !== 'Normal')
     ? `<div class="ft-status">${FT.esc(g.game_status)}</div>` : '';
 
+  // A tint on the matches under a course heading, so three rows that share one
+  // round read as one block rather than three unrelated games.
+  const cls = [isNext ? 'ft-next' : '', FT.courseName(g) ? 'ft-coursegame' : ''].filter(Boolean).join(' ');
+
   return `
-    <tr class="${isNext ? 'ft-next' : ''}"${isAnchor ? ' id="ft-today-anchor"' : ''}>
+    <tr class="${cls}"${isAnchor ? ' id="ft-today-anchor"' : ''}>
       <td class="ft-datecell"><span class="ft-dow">${FT.esc(weekday(g.game_date))},</span> <b>${FT.esc(FT.shortDate(g.game_date))}</b></td>
       <td class="ctr${perSport}"><span class="ft-sport-emoji" title="${FT.esc(g.sport.name)}">${g.sport.emoji}</span></td>
       <td class="${(perSport || '').trim()}"><span class="ft-level">${FT.esc(g.team.level || '')}</span></td>
@@ -283,9 +287,7 @@ function withCourses(games, next, anchor, perSport) {
     const key = FT.courseKey(g);
     if (key && !seen.has(key)) {
       seen.add(key);
-      out += `<tr class="ft-courserow"><td colspan="7">
-                <span class="ft-sport-emoji">${g.sport.emoji}</span> ${FT.esc(FT.courseName(g))}
-              </td></tr>`;
+      out += `<tr class="ft-courserow"><td colspan="7">${FT.courseLine(g)}</td></tr>`;
     }
     out += row(g, g === next, g === anchor, perSport);
   }

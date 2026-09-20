@@ -1434,6 +1434,17 @@ function courseKey(game) {
   return name ? `${game.game_date}|${name}` : '';
 }
 
+/* The line itself: "⛳ at Farmington CC". The "at" is quiet and set apart from
+   the name so the course still reads as the heading of the matches below it,
+   and so the schedule page and the home page cannot drift apart. */
+function courseLine(game) {
+  const name = courseName(game);
+  if (!name) return '';
+  const emoji = (game.sport && game.sport.emoji) || '⛳';
+  return `<span class="ft-sport-emoji">${emoji}</span> ` +
+         `<span class="ft-course-at">at</span> ${esc(name)}`;
+}
+
 /* ── Exported ───────────────────────────────────────────────────────────── */
 
 window.FT = {
@@ -1444,7 +1455,7 @@ window.FT = {
   scoreOf, resultOf, recordOf, opponentLabel, versus, divisionLabel,
   ball603Covers, ball603Slug, ball603Logo, schoolLogo, teamLink, opponentLogo, pastResultsOff, easternNow,
   load, sb, renderHeader, renderFooter, venuePin, closeVenue, pills, streakBadge,
-  courseName, courseKey,
+  courseName, courseKey, courseLine,
   openMyTeams: () => { if (openFavModal) openFavModal(); }
 };
 
