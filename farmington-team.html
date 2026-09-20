@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Teams | Farmington Tigers</title>
+<meta name="description" content="Every Farmington Tigers team: schedule, roster and standings on one page.">
+<link rel="canonical" href="https://ball603.com/farmingtontigersnh/teams">
+<link rel="icon" href="/logos/100px/Farmington.png">
+<!-- Installable app. The manifest link is set by farmington.js rather than
+     written here, because its path depends on which of the two Tigers hosts you
+     are on; everything below is the same either way. -->
+<meta name="theme-color" content="#000000">
+<link rel="apple-touch-icon" sizes="180x180" href="/icons/farmington/v2/apple-touch-icon.png">
+<link rel="apple-touch-icon" sizes="167x167" href="/icons/farmington/v2/apple-touch-icon-167.png">
+<link rel="apple-touch-icon" sizes="152x152" href="/icons/farmington/v2/apple-touch-icon-152.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/farmington/v2/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/icons/farmington/v2/favicon-16.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Tigers">
+<link rel="stylesheet" href="/farmington.css">
+</head>
+<body>
+
+<div id="ft-header"></div>
+
+<main class="ft-wrap">
+  <div class="ft-pagehead"><h1 id="teamHead">Teams</h1></div>
+  <div id="teamBody"><div class="ft-loading">Loading&hellip;</div></div>
+</main>
+
+<div id="ft-footer"></div>
+
+<script src="/farmington.js"></script>
+<!-- The three cards this page is made of, each shared with the page that owns
+     it: the schedule table, the roster card and the standings table. This page
+     picks a team and puts all three in one place. -->
+<script src="/farmington-schedule.js"></script>
+<script src="/farmington-roster.js"></script>
+<script src="/farmington-standings.js"></script>
+<script>
+'use strict';
+
+FT.renderHeader('teams');
+FT.renderFooter();
+
+let DATA = null;
+
+/* ── Which team ────────────────────────────────────────────────────────── */
+/* The slug is the last part of the path: /farmingtontigersnh/teams/varsity-golf.
+   ?team=<uteam> also works, so a link built from Arbiter's number never breaks
+   even if a team is renamed. No slug at all means the index. */
+
+function wantedSlug() {
+  const m = /\/teams\/([^/?#]+)/.exec(location.pathname);
+  return m ? decodeURIComponent(m[1]).toLowerCase() : '';
+}
+
+function findTeam() {
+  const q = new URLSearchParams(location.search);
+  const byId = Number(q.get('team'));
+  if (byId && DATA.teamsById.has(byId)) return DATA.teamsById.get(byId);
+  const slug = wantedSlug() || (q.get('name') || '').toLowerCase();
+  if (!slug) return null;
+  return DATA.teams.find(t => FT.teamSlug(t) === slug) || null;
+}
+
+// A team's sport is whichever one it actually plays: read off the games rather
+// than the team row, because a co-op squad arrives under more than one Arbiter
+// record and the games are the thing that agrees with itself.
+function sportOf(team) {
+  const counts = new Map();
+  for (const g of team.games) counts.set(g.sport_id, (counts.get(g.sport_id) || 0) + 1);
+  let best = null, n = -1;
+  for (const [id, c] of counts) if (c > n) { best = id; n = c; }
+  return best;
+}
+
+/* ── Next Up and Last Time Out ─────────────────────────────────────────── */
+/* The two games anybody opening a team page is actually looking for. The full
+   schedule is further down and says the same things in order; these two are
+   here so nobody has to find them in it. */
+
+function nextGame(games) {
+  const today = FT.todayKey();
+  return games.find(g => g.game_date >= today && !FT.scoreOf(g)) || null;
+}
+
+function lastGame(games) {
+  const today = FT.todayKey();
+  const done = games.filter(g => g.game_date < today || FT.scoreOf(g));
+  return done.length ? done[done.length - 1] : null;
+}
+
+function sideLabel(g) {
+  if (g.is_meet) return '';
+  return g.is_home ? 'Home' : 'Away';
+}
+
+// The opponent with their crest, the way the schedule table draws them.
+function opponentBlock(g) {
+  if (g.is_meet || !g.opponent_name) {
+    return `<span class="ft-bigopp"><span class="ft-bigname">${FT.esc(FT.opponentLabel(g))}</span></span>`;
+  }
+  // The name goes in a span of its own: the row is a flex box, and a bare text
+  // node in one runs under the time instead of ending in an ellipsis.
+  return `<span class="ft-bigopp">
+            <span class="ft-ha${g.is_home ? ' home' : ''}">${g.is_home ? 'vs' : 'at'}</span>
+            ${FT.opponentLogo(g, 'ft-oppimg')}
+            <span class="ft-bigname">${FT.esc(FT.opponentLabel(g))}</span>
+          </span>`;
+}
+
+function gameCard(title, g, past) {
+  if (!g) {
+    return `<div class="ft-card ft-halfcard">
+              <div class="ft-cardbar"><h2>${FT.esc(title)}</h2></div>
+              <div class="ft-empty">${past ? 'No games played yet.' : 'Nothing left on the schedule.'}</div>
+            </div>`;
+  }
+  const sc = FT.scoreOf(g);
+  const res = FT.resultOf(sc);
+  // The course belongs here for the same reason it belongs on the schedule: for
+  // golf it is the one thing the opponent's name does not tell you.
+  const course = FT.courseName(g);
+  const right = sc
+    ? `<span class="ft-bigresult"><span class="${res}">${res}</span> ${sc.us}&ndash;${sc.them}</span>`
+    : `<span class="ft-bigwhen">${FT.esc(FT.timeLabel(g.starts_at))}</span>`;
+
+  return `
+    <div class="ft-card ft-halfcard">
+      <div class="ft-cardbar"><h2>${FT.esc(title)}</h2>
+        <span class="ft-barstats"><span>${FT.esc(sideLabel(g))}</span></span>
+      </div>
+      <div class="ft-bigrow">
+        <span class="ft-sport-emoji">${g.sport.emoji}</span>
+        ${opponentBlock(g)}
+        ${right}
+      </div>
+      <div class="ft-bigmeta">
+        ${FT.esc(FT.dayLabel(g.game_date, { plain: true }))}
+        ${course ? `<i class="ft-bardot">&bull;</i><span class="ft-course-at">at</span> ${FT.esc(course)}`
+                 : (g.site_name ? `<i class="ft-bardot">&bull;</i>${FT.esc(g.site_name)}` : '')}
+        ${(g.game_status && g.game_status !== 'Normal')
+          ? `<i class="ft-bardot">&bull;</i><b class="ft-status-inline">${FT.esc(g.game_status)}</b>` : ''}
+      </div>
+    </div>`;
+}
+
+/* ── The roster for this team ──────────────────────────────────────────── */
+/* Rosters are filed under Ball603's sport keys with a level and a gender, not
+   under Arbiter's uteam, so the match is made on those three. The newest
+   season on file wins; a team with nothing on file says so plainly rather than
+   showing an empty table. */
+
+function rosterFor(team, sportId) {
+  const key = FT.SPORTS[sportId] && (FT.SPORTS[sportId].roster || FT.SPORTS[sportId].ball603);
+  if (!key) return null;
+  const level = team.level || 'Varsity';
+  const rows = (DATA.rosters || []).filter(r =>
+    r.sport === key &&
+    FTRoster.levelOf(r) === level &&
+    (!r.gender || !team.gender || r.gender === team.gender));
+  rows.sort((a, b) => String(b.season).localeCompare(String(a.season)));
+  return rows[0] || null;
+}
+
+/* ── The standings for this team ───────────────────────────────────────── */
+/* Only varsity teams have any: NHIAA publishes one table per division and JV
+   and Jr. High are not in it. Saying that outright is better than an empty
+   card that looks like something failed. */
+
+function standingsFor(team, sportId) {
+  if (team.level_rank !== 1) return null;
+  const sports = FTStandings.buildSports(DATA);
+  const group = sports.find(s => s.sportId === sportId &&
+    (!team.gender || FT.genderLabel(s.genderId, s.sportId) === team.gender)) ||
+    sports.find(s => s.sportId === sportId);
+  if (!group) return null;
+  const division = group.divisions.find(d => d.rows.some(r => r.is_farmington)) || group.divisions[0];
+  return division ? { group, division } : null;
+}
+
+/* ── The page ──────────────────────────────────────────────────────────── */
+
+function renderTeam(team) {
+  const sportId = sportOf(team);
+  const games = team.games;
+  const title = FTSchedule.teamTitle(team);
+  document.getElementById('teamHead').textContent = title;
+  document.title = `${title} | Farmington Tigers`;
+
+  const body = document.getElementById('teamBody');
+  body.innerHTML = `
+    <div id="teamBar"></div>
+    <div class="ft-teamsplit">
+      ${gameCard('Next Up', nextGame(games), false)}
+      ${gameCard('Last Time Out', lastGame(games), true)}
+    </div>
+    <div id="teamSchedule"></div>
+    <div id="teamRoster"></div>
+    <div id="teamStandings"></div>
+    <p class="ft-teamback"><a href="/farmingtontigersnh/teams">&larr; All Tigers teams</a></p>`;
+
+  // The black bar on its own, above the two game cards: it is the team's
+  // record, not the schedule's, and the schedule below has its own.
+  document.getElementById('teamBar').innerHTML =
+    `<div class="ft-card ft-barcard">${FTSchedule.cardBar(team, games)}</div>`;
+
+  /* Each card's own black bar is its heading. The team's name is already the
+     page's, so the schedule and roster bars say what the card is instead of
+     repeating it, and the standings bar names the division. */
+  FTSchedule.render('teamSchedule', team, games, false,
+    { scroll: false, stats: false, title: 'Schedule' });
+
+  const roster = rosterFor(team, sportId);
+  document.getElementById('teamRoster').innerHTML = roster
+    ? FTRoster.card(roster, '', 'Roster')
+    : `<div class="ft-card"><div class="ft-cardbar"><h2>Roster</h2></div>` +
+      `<div class="ft-empty">No roster on file for this team yet. ` +
+      `Coaches can send one in and it appears here.</div></div>`;
+
+  const st = standingsFor(team, sportId);
+  if (st) FTStandings.renderTable('teamStandings', st.group, st.division);
+  else document.getElementById('teamStandings').innerHTML =
+    `<div class="ft-card"><div class="ft-cardbar"><h2>Standings</h2></div>` +
+    `<div class="ft-empty">${team.level_rank === 1
+      ? 'No standings are posted for this sport right now. They appear while the sport is in season.'
+      : 'NHIAA publishes standings for varsity teams only.'}</div></div>`;
+}
+
+/* ── The index ─────────────────────────────────────────────────────────── */
+/* Every team, in playing order, with its record and what it does next. This is
+   the page the Teams link in the menu opens, and the one link to hand somebody
+   who wants "the Tigers teams". */
+
+function indexCard(sportId, teams) {
+  const sport = FT.SPORTS[sportId] || { name: 'Other', emoji: '\u{1F3C6}' };
+  const rows = teams.map(t => {
+    const rec = FT.recordOf(t.games);
+    const next = nextGame(t.games);
+    return `
+      <a class="ft-teamrow" href="${FT.esc(FT.teamHref(t))}">
+        <span class="ft-teamrow-name">${FT.esc(FTSchedule.teamTitle(t))}</span>
+        <span class="ft-teamrow-rec">${rec.played ? FT.esc(rec.text) : '&mdash;'}</span>
+        <span class="ft-teamrow-next">${next
+          ? `${FT.esc(FT.shortDate(next.game_date))} ${FT.esc(FT.opponentLabel(next))}`
+          : 'Season complete'}</span>
+      </a>`;
+  }).join('');
+
+  return `
+    <div class="ft-card">
+      <div class="ft-cardbar">
+        <h2><span class="ft-sport-emoji">${sport.emoji}</span> ${FT.esc(sport.name)}</h2>
+      </div>
+      <div class="ft-teamrows">${rows}</div>
+    </div>`;
+}
+
+function renderIndex(note) {
+  document.getElementById('teamHead').textContent = 'Teams';
+  // Grouped by sport in playing order, and inside a sport by level — which is
+  // the order DATA.teams already comes in.
+  const bySport = new Map();
+  for (const t of DATA.teams) {
+    if (!t.games.length) continue;          // a team with no schedule has no page worth opening
+    const id = sportOf(t);
+    if (!bySport.has(id)) bySport.set(id, []);
+    bySport.get(id).push(t);
+  }
+  const ids = [...bySport.keys()].sort((a, b) =>
+    ((FT.SPORTS[a] || {}).order ?? 99) - ((FT.SPORTS[b] || {}).order ?? 99));
+
+  document.getElementById('teamBody').innerHTML =
+    (note ? `<div class="ft-card"><div class="ft-empty">${FT.esc(note)}</div></div>` : '') +
+    (ids.length
+      ? ids.map(id => indexCard(id, bySport.get(id))).join('')
+      : '<div class="ft-card"><div class="ft-empty">No Tigers teams have a schedule yet.</div></div>');
+}
+
+/* ── Wiring ────────────────────────────────────────────────────────────── */
+
+FT.load().then(data => {
+  DATA = data;
+  const team = findTeam();
+  if (team) renderTeam(team);
+  else if (wantedSlug()) renderIndex('That team could not be found. Here is every Tigers team.');
+  else renderIndex('');
+}).catch(err => {
+  console.error('Tigers team page failed to load:', err);
+  document.getElementById('teamBody').innerHTML =
+    '<div class="ft-card"><div class="ft-empty">This page could not be loaded just now. ' +
+    'Please refresh in a moment.</div></div>';
+});
+</script>
+</body>
+</html>

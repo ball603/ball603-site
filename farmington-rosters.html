@@ -43,6 +43,9 @@
 <div id="ft-footer"></div>
 
 <script src="/farmington.js"></script>
+<!-- The card itself. Shared with the team pages, which show one team's
+     current roster in the same shape. -->
+<script src="/farmington-roster.js"></script>
 <script>
 'use strict';
 
@@ -50,15 +53,27 @@ FT.renderHeader('rosters');
 FT.renderFooter();
 
 let LIST = [];
+let TEAMS = [];
 const state = { sport: null, gender: null, level: null, id: null };
 
-/* Rosters are filed under Ball603's sport keys, so they have to be matched back
-   to the vocabulary the rest of the site uses for emoji, name and ordering. */
-function sportMeta(key) {
-  const hit = Object.entries(FT.SPORTS).find(([, s]) => (s.roster || s.ball603) === key);
-  // The numeric id comes back too, because the heading needs it to decide
-  // whether naming the gender says anything.
-  return hit ? { ...hit[1], id: Number(hit[0]) } : { name: key, emoji: '\u{1F3C6}', order: 99, id: null };
+// The card, the sport lookup and the level rules all live in the shared file.
+const { sportMeta, levelOf, players, LEVEL_ORDER } = FTRoster;
+const renderRoster = () => {
+  const r = current();
+  document.getElementById('rosterBody').innerHTML = FTRoster.card(r, teamPageFor(r));
+};
+
+/* A roster is filed under a sport key, a level and a gender rather than under
+   Arbiter's team number, so the team page it belongs to is found on those
+   three. No match — an old season whose team no longer exists — means no link
+   rather than a link to nothing. */
+function teamPageFor(r) {
+  if (!r || !TEAMS.length) return '';
+  const meta = sportMeta(r.sport);
+  const level = levelOf(r);
+  const team = TEAMS.find(t => t.games.some(g => g.sport_id === meta.id) &&
+    (t.level || 'Varsity') === level && (!r.gender || !t.gender || t.gender === r.gender));
+  return team ? FT.teamHref(team) : '';
 }
 
 const sportsWithRosters = () => {
@@ -77,12 +92,6 @@ const gendersIn = (sport) => {
   return seen.sort((a, b) => ['Boys', 'Girls', 'Coed'].indexOf(a) - ['Boys', 'Girls', 'Coed'].indexOf(b));
 };
 
-/* Level, the same row the schedule page has. roster_submissions.level is blank
-   for every roster Ball603 has ever collected — its form only takes varsity —
-   so blank means Varsity, and JV / Jr. High rosters carry theirs explicitly.
-   The row only appears once a sport has more than one level on file. */
-const LEVEL_ORDER = ['Varsity', 'JV', 'Jr. High', 'Jr. High - JV'];
-const levelOf = (r) => (r.level && String(r.level).trim()) || 'Varsity';
 const inGender = (sport, gender) => (r) =>
   r.sport === sport && (gendersIn(sport).length < 2 || r.gender === gender);
 const levelsIn = (sport, gender) => {
@@ -103,24 +112,6 @@ const current = () => {
   const rows = seasonsIn(state.sport, state.gender, state.level);
   return rows.find(r => String(r.id) === String(state.id)) || rows[0] || null;
 };
-
-/* Submitted rosters carry name / number / position / class. Older ones have
-   used grade and height, so each column takes the first field it finds and a
-   column nobody filled in is dropped rather than shown empty. */
-const val = (p, fields) => {
-  for (const f of fields) if (p && p[f] != null && String(p[f]).trim() !== '') return p[f];
-  return '';
-};
-
-function players(r) {
-  try {
-    const p = typeof r.players_json === 'string' ? JSON.parse(r.players_json) : (r.players_json || []);
-    return Array.isArray(p) ? p : [];
-  } catch (err) {
-    console.error('Roster JSON would not parse for submission ' + r.id, err);
-    return [];
-  }
-}
 
 /* ── Controls ──────────────────────────────────────────────────────────── */
 
@@ -144,67 +135,6 @@ function renderPills() {
   document.getElementById('seasonPills').innerHTML = seasons.length > 1
     ? FT.pills(seasons.map(x => ({ value: x.id, label: x.season })), r && r.id, 'data-season')
     : '';
-}
-
-/* ── The roster ────────────────────────────────────────────────────────── */
-
-function renderRoster() {
-  const body = document.getElementById('rosterBody');
-  const r = current();
-  if (!r) { body.innerHTML = '<div class="ft-card"><div class="ft-empty">Nothing to show.</div></div>'; return; }
-
-  const roster = players(r);
-  /* Class before Pos: a parent scanning a roster is looking for the year first,
-     and on a phone the leftmost columns are the ones that survive. */
-  const cols = [
-    { h: '#',      fields: ['number', 'jersey', 'no'], cls: 'num' },
-    { h: 'Player', fields: ['name', 'player', 'full_name'], cls: 'grow' },
-    { h: 'Class',  fields: ['class', 'grade', 'year'], cls: 'ctr tight' },
-    { h: 'Pos',    fields: ['position', 'pos'], cls: 'ctr tight' },
-    // Co-op squads are drawn from two schools and it matters to the families
-    // which one a player is at. Only appears on a roster that says.
-    { h: 'School', fields: ['school', 'from'], cls: 'ctr tight' },
-    // Height is the one thing nobody came for, so it is the one that goes when
-    // the screen runs out of room.
-    { h: 'Ht',     fields: ['height', 'ht'], cls: 'ctr ft-hide-sm' }
-  ].filter(c => c.h === 'Player' || roster.some(p => val(p, c.fields) !== ''));
-
-  /* "Girls Varsity Volleyball", "Girls JV Volleyball": gender, level, sport.
-     Gender is dropped where it distinguishes nothing, the same as everywhere
-     else: "Varsity Baseball", not "Boys Varsity Baseball". */
-  const meta = sportMeta(r.sport);
-  const shown = FT.genderPrefix(r.gender, meta.id);
-  const title = `${shown ? shown + ' ' : ''}${levelOf(r)} ${meta.name}`;
-  const dot = '<i class="ft-bardot">&bull;</i>';
-  const facts = [
-    roster.length ? `${roster.length} <em>Players</em>` : '',
-    r.division ? `<em>Div</em> ${FT.esc(r.division)}` : '',
-    r.season ? `<em>Season</em> ${FT.esc(r.season)}` : ''
-  ].filter(Boolean);
-
-  const coaches = [
-    r.head_coach ? `Head coach: ${FT.esc(r.head_coach)}` : '',
-    r.assistant_coaches ? `Assistants: ${FT.esc(r.assistant_coaches)}` : '',
-    r.managers && String(r.managers).trim() ? `Manager${/[,&]| and /.test(r.managers) ? 's' : ''}: ${FT.esc(r.managers)}` : ''
-  ].filter(Boolean).join(' &nbsp;&middot;&nbsp; ');
-
-  body.innerHTML = `
-    <div class="ft-card">
-      <div class="ft-cardbar">
-        <h2>${FT.esc(title)}</h2>
-        ${facts.length ? `<span class="ft-barstats">${facts.join(dot)}</span>` : ''}
-      </div>
-      ${roster.length ? `
-        <div class="ft-tablewrap ft-rosterwrap">
-          <table class="ft-table ft-rostertable">
-            <thead><tr>${cols.map(c => `<th class="${c.cls}">${c.h}</th>`).join('')}</tr></thead>
-            <tbody>${roster.map(p => `<tr>${cols.map(c =>
-              `<td class="${c.cls}">${FT.esc(val(p, c.fields))}</td>`).join('')}</tr>`).join('')}</tbody>
-          </table>
-        </div>`
-      : '<div class="ft-empty">Roster on file, player list not available.</div>'}
-      ${coaches ? `<div class="ft-coaches">${coaches}</div>` : ''}
-    </div>`;
 }
 
 /* ── Wiring ────────────────────────────────────────────────────────────── */
@@ -256,6 +186,7 @@ document.getElementById('seasonPills').addEventListener('click', (e) => {
 
 FT.load().then(data => {
   LIST = data.rosters || [];
+  TEAMS = data.teams || [];
   if (!LIST.length) {
     document.getElementById('rosterBody').innerHTML =
       '<div class="ft-card"><div class="ft-empty">No Tigers rosters have been submitted yet.</div></div>';

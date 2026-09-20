@@ -39,8 +39,8 @@
  * URLs change when they do, which is the real fix — a URL that has never been
  * requested cannot be in any cache, here or in the browser's own. When the
  * icons change, this and that folder move together; a change to anything else
- * in SHELL moves this alone (v3: phone dark theme; v4: footer wordmark; v5: score page styles; v6: Score Entry in the menu; v7: pinned to its foot; v8: phone standings fit). */
-const CACHE = 'tigers-v19';
+ * in SHELL moves this alone (v3: phone dark theme; v4: footer wordmark; v5: score page styles; v6: Score Entry in the menu; v7: pinned to its foot; v8: phone standings fit; v20: team pages and their three shared scripts). */
+const CACHE = 'tigers-v20';
 
 // Enough to open the app offline and have it look like itself. The pages
 // themselves are cached as they are visited rather than up front, so installing
@@ -48,6 +48,9 @@ const CACHE = 'tigers-v19';
 const SHELL = [
   '/farmington.css',
   '/farmington.js',
+  '/farmington-schedule.js',
+  '/farmington-roster.js',
+  '/farmington-standings.js',
   '/farmington-offline.html',
   '/logos/farmington-tigers-wordmark.jpg',
   '/logos/100px/Farmington.png',
@@ -58,8 +61,11 @@ const SHELL = [
 const LIVE = [/\/rest\/v1\//, /\.netlify\/functions\//, /supabase\.co/,
               /arbitersports\.com/, /smugmug\.com/, /googleapis\.com/];
 
-// Must always match the deployed HTML, so never served from cache while online.
-const ALWAYS_FRESH = [/\/farmington\.css$/, /\/farmington\.js$/];
+/* Must always match the deployed HTML, so never served from cache while online.
+   The pattern covers farmington-schedule.js, -roster.js and -standings.js as
+   well: a page that loads a stale one of those throws before it renders, which
+   is the same bug the two originals are here to stop. */
+const ALWAYS_FRESH = [/\/farmington\.css$/, /\/farmington(-[a-z0-9-]+)?\.js$/];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

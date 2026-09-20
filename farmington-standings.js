@@ -1,0 +1,327 @@
+/* The standings table, shared by the Tigers standings page and the team pages.
+ *
+ * It lives here rather than inside farmington-standings.html because a team
+ * page shows the same table for one team's sport, and two copies of a table
+ * this particular — NHIAA's rank order, the Ball603 columns, the playoff cut
+ * line — would drift apart the first time either of them changed.
+ *
+ * Each page keeps its own pills, URL and state. This file answers two
+ * questions: which sports have Tigers standings (buildSports), and what does
+ * one of those divisions look like as a table (renderTable).
+ */
+(function (root) {
+'use strict';
+
+
+/* Playoff field sizes, carried across from Ball603's standings page. These are
+   NHIAA's published figures, not anything derivable from the standings feed —
+   so a sport that isn't in this table simply shows no qualifying line rather
+   than a guess. Telling a parent their team is in the field when we don't
+   actually know would be worse than saying nothing. */
+const PLAYOFF_TEAMS = {
+  basketball: { Boys: { 'D-I': 15, 'D-II': 14, 'D-III': 15, 'D-IV': 16 },
+                Girls:{ 'D-I': 16, 'D-II': 14, 'D-III': 14, 'D-IV': 16 } },
+  baseball:   { Boys: { 'D-I': 15, 'D-II': 13, 'D-III': 15, 'D-IV': 15 } }
+  // Volleyball deliberately absent: KJ asked for its qualifying line to come
+  // off. Removing the entry rather than the feature keeps the line available
+  // for the winter and spring sports.
+};
+const DIVISION_CODE = {
+  'Division I': 'D-I', 'Division II': 'D-II', 'Division III': 'D-III', 'Division IV': 'D-IV'
+};
+const calculateByes = (teams) => (teams <= 16 ? 16 - teams : 32 - teams);
+
+function playoffLine(group, division) {
+  const key = FT.SPORTS[group.sportId] && FT.SPORTS[group.sportId].ball603;
+  const table = key && PLAYOFF_TEAMS[key] && PLAYOFF_TEAMS[key][FT.genderLabel(group.genderId, group.sportId)];
+  const spots = table && table[DIVISION_CODE[FT.divisionLabel(division.name)]];
+  if (!spots) return { html: '', spots: 0, byes: 0 };
+
+  const byes = calculateByes(spots);
+  let text = `Top ${spots} make playoffs`;
+  if (byes === 1) text += ' • Top seed gets a bye';
+  else if (byes > 1) text += ` • Top ${byes} get byes`;
+  return { html: `<span class="ft-playoffline">${FT.esc(text)}</span>`, spots, byes };
+}
+
+/* ── Grouping: sport, then the divisions inside it ─────────────────────── */
+
+function buildSports(DATA) {
+  // Keyed on the division itself, not on Arbiter's group id. One group can
+  // publish several divisions — volleyball's combined "Volleyball Standings"
+  // group carries all three — so treating a group as a division would put two
+  // divisions of schools into one table.
+  const byGroup = new Map();
+  for (const row of DATA.standings) {
+    const id = `${row.sport_id}|${row.gender_id}|${row.division_name || row.group_name || ''}`;
+    if (!byGroup.has(id)) {
+      byGroup.set(id, {
+        id, sportId: row.sport_id, genderId: row.gender_id,
+        name: row.division_name || row.group_name || '', season: row.season, rows: []
+      });
+    }
+    byGroup.get(id).rows.push(row);
+  }
+  for (const d of byGroup.values()) {
+    // Two Arbiter groups can publish the same bracket — football currently has
+    // "Football Standings" and a "Division IV" group over the same eight teams.
+    // The sync keeps one, but rows from the other can still be in the table
+    // between runs, so a school is shown once here regardless.
+    const seen = new Set();
+    d.rows = d.rows
+      .sort((a, b) => a.rankings_group_id - b.rankings_group_id)
+      .filter(r => !seen.has(r.unique_team_id) && seen.add(r.unique_team_id))
+      .sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99));
+  }
+
+  // Only the division Farmington is actually in. The table holds every division
+  // of every sport they play — that is what lets the home page and any future
+  // view reach them — but this page is about where the Tigers stand, and a row
+  // of pills offering Division I and II under volleyball, or all seven football
+  // brackets, is a choice nobody visiting this site wants to make.
+  const bySport = new Map();
+  const ours = [...byGroup.values()].filter(d => d.rows.some(r => r.is_farmington));
+  for (const d of ours.sort((a, b) => String(a.id).localeCompare(String(b.id)))) {
+    const key = `${d.sportId}|${d.genderId}`;
+    if (!bySport.has(key)) {
+      const sport = FT.SPORTS[d.sportId];
+      bySport.set(key, {
+        key, sportId: d.sportId, genderId: d.genderId,
+        emoji: sport ? sport.emoji : '\u{1F3C6}',
+        order: sport ? sport.order : 99,
+        name: sport ? sport.name : d.name,
+        divisions: []
+      });
+    }
+    bySport.get(key).divisions.push(d);
+  }
+
+  const out = [...bySport.values()].sort((a, b) => a.order - b.order);
+
+  // "Girls Volleyball" is noise while girls volleyball is the only volleyball
+  // there is. The prefix returns on its own the moment a sport has two — and
+  // genderPrefix keeps it off football, soccer and golf permanently, where
+  // there is no second gender for it to distinguish.
+  const perSport = new Map();
+  for (const s of out) perSport.set(s.sportId, (perSport.get(s.sportId) || 0) + 1);
+  for (const s of out) {
+    s.label = perSport.get(s.sportId) > 1
+      ? `${FT.genderPrefix(s.genderId, s.sportId)} ${s.name}`.trim()
+      : s.name;
+  }
+  return out;
+}
+
+/* ── Ball603 extras ────────────────────────────────────────────────────── */
+/* Rank, record and points come from the varsity standings feed for every sport.
+   Overall, home, away, streak and the postseason record are computed from
+   Ball603's own games, so they exist only for the sports Ball603 covers. All of
+   them are optional: if the fetch fails the table renders without them rather
+   than the page breaking. */
+
+const b6cache = new Map();
+
+async function ball603Extras(sport) {
+  const key = FT.SPORTS[sport.sportId] && FT.SPORTS[sport.sportId].ball603;
+  if (!key) return null;
+  if (b6cache.has(key)) return b6cache.get(key);
+
+  const promise = (async () => {
+    const res = await fetch(`/.netlify/functions/get-games?sport=${encodeURIComponent(key)}`);
+    if (!res.ok) throw new Error('get-games ' + res.status);
+    const games = (await res.json()).games || [];
+
+    // Ball603 seasons read "2026" for volleyball and baseball but "2025-26" for
+    // basketball, so take the latest season present rather than guessing.
+    const seasons = [...new Set(games.map(g => g.season).filter(Boolean))].sort();
+    const season = seasons[seasons.length - 1];
+
+    const stats = new Map();
+    const get = (team, gender) => {
+      const k = `${team}|${gender}`;
+      if (!stats.has(k)) stats.set(k, { w:0, l:0, hw:0, hl:0, aw:0, al:0, pw:0, pl:0, results: [] });
+      return stats.get(k);
+    };
+
+    for (const g of games) {
+      if (g.season !== season) continue;
+      const hs = parseInt(g.home_score, 10), as = parseInt(g.away_score, 10);
+      if (!Number.isFinite(hs) || !Number.isFinite(as) || hs === as) continue;
+
+      const home = get(g.home, g.gender), away = get(g.away, g.gender);
+      const homeWon = hs > as;
+
+      if (g.is_playoff) {
+        if (homeWon) { home.pw++; away.pl++; } else { home.pl++; away.pw++; }
+      } else {
+        if (homeWon) { home.hw++; away.al++; } else { home.hl++; away.aw++; }
+      }
+      // Streak and overall span both halves of the season.
+      if (homeWon) { home.w++; away.l++; home.results.push('W'); away.results.push('L'); }
+      else         { home.l++; away.w++; home.results.push('L'); away.results.push('W'); }
+    }
+    return stats;
+  })().catch(err => {
+    console.warn('Ball603 extras unavailable for ' + key + ':', err.message);
+    return null;
+  });
+
+  b6cache.set(key, promise);
+  return promise;
+}
+
+// Ball603's own standings carry NHIAA points, which the rankings feed only
+// reports for some sports. Used for the Points column where it exists.
+const b6points = new Map();
+async function ball603Points(sport) {
+  const key = FT.SPORTS[sport.sportId] && FT.SPORTS[sport.sportId].ball603;
+  if (!key) return null;
+  if (b6points.has(key)) return b6points.get(key);
+  const promise = FT.sb(`standings?sport=eq.${encodeURIComponent(key)}&select=school,gender,points,season`)
+    .then(rows => {
+      const seasons = [...new Set(rows.map(r => r.season).filter(Boolean))].sort();
+      const season = seasons[seasons.length - 1];
+      const m = new Map();
+      for (const r of rows) if (r.season === season) m.set(`${r.school}|${r.gender}`, r.points);
+      return m;
+    })
+    .catch(() => null);
+  b6points.set(key, promise);
+  return promise;
+}
+
+function streakOf(s) {
+  if (!s || !s.results.length) return '—';
+  const last = s.results[s.results.length - 1];
+  let n = 0;
+  for (let i = s.results.length - 1; i >= 0 && s.results[i] === last; i--) n++;
+  return last + n;
+}
+
+/* `mount` is the element (or its id) the card is written into, so the
+   standings page can hand it #standBody and a team page its own slot. */
+async function renderTable(mount, sport, division) {
+  const body = typeof mount === 'string' ? document.getElementById(mount) : mount;
+  if (!body) return;
+  if (!sport || !division) {
+    body.innerHTML = '<div class="ft-card"><div class="ft-empty">No standings posted.</div></div>';
+    return;
+  }
+
+  const [stats, points] = await Promise.all([ball603Extras(sport), ball603Points(sport)]);
+  // Two different questions. `gender` is which side of a sport this table is,
+  // and Ball603's games and standings are keyed on it whether or not the site
+  // ever prints it. The heading is what a reader sees, and football, soccer and
+  // golf have no second gender to be told apart from.
+  const gender = FT.genderLabel(sport.genderId, sport.sportId);
+  const shown = FT.genderPrefix(sport.genderId, sport.sportId);
+  const title = `${shown ? shown + ' ' : ''}Varsity ${sport.name}`;
+  const full = !!stats;
+  const playoff = playoffLine(sport, division);
+
+  /* Both numbers NHIAA publishes, when it publishes both. The table is in
+     NHIAA's rank order, and for volleyball that order follows the rating
+     (points ÷ games played), not the points — so a Points column on its own
+     reads as a list sorted wrong. Rating is the one kept on a phone, the way
+     Ball603's standings page does it. */
+  const anyPoints = division.rows.some(r => r.points != null) || !!points;
+  const anyRating = division.rows.some(r => r.rating != null);
+  const pointsOf = (r) => {
+    if (points && points.has(`${r.ball603_shortname}|${gender}`)) return points.get(`${r.ball603_shortname}|${gender}`);
+    return r.points ?? '—';
+  };
+  const ratingOf = (r) => r.rating == null ? '—' : Number(r.rating).toFixed(3);
+  const rateCols = (anyPoints ? 1 : 0) + (anyRating ? 1 : 0) || 1;
+  const rateHeads = !anyPoints && !anyRating ? '<th class="ctr">Rating</th>'
+    : (anyPoints ? `<th class="ctr${anyRating ? ' ft-hide-sm' : ''}">Points</th>` : '') +
+      (anyRating ? '<th class="ctr">Rating</th>' : '');
+  const rateCells = (r) => !anyPoints && !anyRating ? '<td class="ctr">—</td>'
+    : (anyPoints ? `<td class="ctr${anyRating ? ' ft-hide-sm' : ''}">${FT.esc(pointsOf(r))}</td>` : '') +
+      (anyRating ? `<td class="ctr ft-rating">${FT.esc(ratingOf(r))}</td>` : '');
+
+  const showTies = division.rows.some(r => r.ties != null);
+
+  const head = full ? `
+    <tr class="ft-group">
+      <th class="num" rowspan="2">#</th>
+      <th class="grow" rowspan="2">Team</th>
+      <th class="reg sep" colspan="${1 + rateCols}"><span class="ft-long">Regular Season</span><span class="ft-short">Regular</span></th>
+      <th class="post sep" colspan="1"><span class="ft-long">Postseason</span><span class="ft-short">Post</span></th>
+      <th class="ovr sep" colspan="4">Overall</th>
+    </tr>
+    <tr class="ft-sub">
+      <th class="ctr sep">Record</th>${rateHeads}
+      <th class="ctr sep">Record</th>
+      <th class="ctr sep">Record</th>
+      <th class="ctr ft-hide-sm">Home</th><th class="ctr ft-hide-sm">Away</th><th class="ctr">Streak</th>
+    </tr>` : `
+    <tr>
+      <th class="num">#</th><th class="grow">Team</th>
+      <th class="ctr sep">GP</th><th class="ctr">Record</th>
+      ${rateHeads}
+    </tr>`;
+
+  const rows = division.rows.map((r, i) => {
+    const s = stats ? stats.get(`${r.ball603_shortname}|${gender}`) : null;
+    const record = `${r.wins ?? 0}–${r.losses ?? 0}${(showTies && r.ties) ? '–' + r.ties : ''}`;
+    const cells = full ? `
+      <td class="ctr sep">${record}</td>
+      ${rateCells(r)}
+      <td class="ctr sep">${s ? `${s.pw}–${s.pl}` : '0–0'}</td>
+      <td class="ctr sep">${s ? `${s.w}–${s.l}` : '—'}</td>
+      <td class="ctr ft-hide-sm">${s ? `${s.hw}–${s.hl}` : '—'}</td>
+      <td class="ctr ft-hide-sm">${s ? `${s.aw}–${s.al}` : '—'}</td>
+      <td class="ctr">${FT.streakBadge(streakOf(s))}</td>` : `
+      <td class="ctr sep">${r.games_played ?? '—'}</td>
+      <td class="ctr">${record}</td>
+      ${rateCells(r)}`;
+
+    const cut = playoff.spots && (i + 1) === playoff.spots ? ' ft-cut' : '';
+    return `<tr class="${r.is_farmington ? 'ft-us' : ''}${cut}">
+      <td class="num"><span class="ft-rank">${r.rank ?? i + 1}</span></td>
+      <td class="grow">${teamCell(r)}</td>
+      ${cells}
+    </tr>`;
+  }).join('');
+
+  body.innerHTML = `
+    <div class="ft-card">
+      <div class="ft-cardbar">
+        <h2>${FT.esc(title)} &ndash; ${FT.esc(FT.divisionLabel(division.name))}</h2>
+        <span class="ft-barright">
+          ${playoff.html}
+          <span class="ft-barstats"><span><em>Season</em> ${FT.esc(seasonOf(division))}</span></span>
+        </span>
+      </div>
+      <div class="ft-tablewrap ft-standwrap">
+        <table class="ft-table"><thead>${head}</thead><tbody>${rows}</tbody></table>
+      </div>
+    </div>`;
+}
+
+/* Arbiter files a season as a bare year — "2026" for everything played in the
+   2026-27 school year, autumn and the following spring alike. The schedule bar
+   and the roster bar both say "2026-27", and two bars on the same site giving
+   different answers for the same season is worse than either. So a feed value
+   is used only when it already reads as a school year, and otherwise the label
+   is worked out from the calendar the way the schedule does it. */
+function seasonOf(division) {
+  const raw = String(division.season || '').trim();
+  return /\d{4}\s*[-–]\s*\d{2,4}/.test(raw) ? raw : FT.seasonLabel();
+}
+
+function teamCell(row) {
+  const label = row.ball603_shortname || row.team_name;
+  const logo = FT.schoolLogo(row);
+  const img = logo
+    ? `<img src="${FT.esc(logo)}" alt="" onerror="this.remove()">` : '';
+  return `<span class="ft-logo-cell">${img}${FT.teamLink(row.ball603_shortname, row.sport_id, label)}</span>`;
+}
+
+root.FTStandings = {
+  buildSports: buildSports,
+  renderTable: renderTable,
+  playoffLine: playoffLine,
+  seasonOf: seasonOf
+};
+})(typeof window !== 'undefined' ? window : globalThis);

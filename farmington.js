@@ -672,6 +672,7 @@ function wireInstall(openSheet) {
 // News is deliberately absent: with no way to pull Facebook posts into the
 // page, a News tab was a link to an apology. The page still exists, unlinked.
 const NAV = [
+  { href: '/farmingtontigersnh/teams',     label: 'Teams',     key: 'teams' },
   { href: '/farmingtontigersnh/schedule',  label: 'Schedule',  key: 'schedule' },
   { href: '/farmingtontigersnh/standings', label: 'Standings', key: 'standings' },
   { href: '/farmingtontigersnh/rosters',   label: 'Rosters',   key: 'rosters' },
@@ -1251,7 +1252,7 @@ function tickerCard(g) {
   // script but an older copy of the stylesheet (a weak signal, where the app
   // falls back to its saved copy), the day still comes out small and sideways
   // instead of big and flat across the card.
-  const dayTag = `<span class="ft-tcard-day" style="writing-mode:vertical-rl;transform:rotate(180deg);font-size:9px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:rgba(255,255,255,.4);flex:none;margin-right:-4px">${esc(tickerDay(g, win))}</span>`;
+  const dayTag = `<span class="ft-tcard-day" style="writing-mode:vertical-rl;transform:rotate(180deg);font-size:9px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:rgba(255,255,255,.55);flex:none;margin-right:-4px">${esc(tickerDay(g, win))}</span>`;
   const res = resultOf(sc);
   const opp = opponentLabel(g);
   const href = `/farmingtontigersnh/schedule?sport=${esc(g.sport_id)}`;
@@ -1405,6 +1406,30 @@ function venuePin(game) {
                   title="${esc(full)}" aria-label="Location: ${esc(full)}">\u{1F4CD}</button>`;
 }
 
+/* ── Team pages ─────────────────────────────────────────────────────────── */
+/* One page per team, addressed by the team's own name rather than by Arbiter's
+   uteam number, so a link somebody sends a parent says what it is. The names
+   are unique across the Tigers' teams — "Jr. High Volleyball" and "Jr. High -
+   JV Volleyball" slug apart — and the page falls back to ?team=<uteam> for
+   anything that ever collides. */
+
+function teamSlug(team) {
+  return String((team && (team.name || team.display_name || team.description)) || '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
+function teamHref(team) {
+  const slug = teamSlug(team);
+  return slug ? `/farmingtontigersnh/teams/${slug}` : '/farmingtontigersnh/teams';
+}
+
+// The team's own name as a link to its page. Used wherever a page already
+// prints which team a game belongs to.
+function teamPageLink(team, label) {
+  if (!team) return esc(label || '');
+  return `<a class="ft-teampagelink" href="${esc(teamHref(team))}">${esc(label || team.name)}</a>`;
+}
+
 /* ── Golf courses ───────────────────────────────────────────────────────── */
 /* Golf is the one sport where the venue is news. A volleyball match "at
    Nottingham" says where it is in the opponent's name, but "at Inter-Lakes"
@@ -1456,6 +1481,7 @@ window.FT = {
   ball603Covers, ball603Slug, ball603Logo, schoolLogo, teamLink, opponentLogo, pastResultsOff, easternNow,
   load, sb, renderHeader, renderFooter, venuePin, closeVenue, pills, streakBadge,
   courseName, courseKey, courseLine,
+  teamSlug, teamHref, teamPageLink,
   openMyTeams: () => { if (openFavModal) openFavModal(); }
 };
 
