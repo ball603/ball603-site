@@ -262,8 +262,8 @@ function indexCard(sportId, teams) {
 
 function renderIndex(note) {
   document.getElementById('teamHead').textContent = 'Teams';
-  // Grouped by sport in playing order, and inside a sport by level — which is
-  // the order DATA.teams already comes in.
+  // Grouped by sport, and inside a sport by level — which is the order
+  // DATA.teams already comes in.
   const bySport = new Map();
   for (const t of DATA.teams) {
     if (!t.games.length) continue;          // a team with no schedule has no page worth opening
@@ -271,8 +271,12 @@ function renderIndex(note) {
     if (!bySport.has(id)) bySport.set(id, []);
     bySport.get(id).push(t);
   }
+  /* Alphabetical, not the site's usual playing order: this is a directory, and
+     somebody looking for Cross Country should find it where the alphabet says
+     it is rather than have to know which season it belongs to. The teams
+     inside each sport keep their own order — varsity, JV, Jr. High. */
   const ids = [...bySport.keys()].sort((a, b) =>
-    ((FT.SPORTS[a] || {}).order ?? 99) - ((FT.SPORTS[b] || {}).order ?? 99));
+    String((FT.SPORTS[a] || {}).name || '').localeCompare(String((FT.SPORTS[b] || {}).name || '')));
 
   document.getElementById('teamBody').innerHTML =
     (note ? `<div class="ft-card"><div class="ft-empty">${FT.esc(note)}</div></div>` : '') +

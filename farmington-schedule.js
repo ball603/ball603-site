@@ -107,7 +107,7 @@ function renderSchedule(mount, team, games, toToday, opts) {
 
   body.innerHTML = `
     <div class="ft-card">${bar}
-    <div class="${scroll ? 'ft-tablescroll' : 'ft-tablewrap'}">
+    <div class="${scroll ? 'ft-tablescroll' : 'ft-tablewrap ft-teamsched'}">
     <table class="ft-table">
       <thead><tr>
         <th>Date</th>

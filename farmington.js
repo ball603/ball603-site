@@ -828,10 +828,11 @@ function renderHeader(active) {
 
     <!-- Home page, phone only: the pages people come for, one tap away.
          Hidden on desktop, where the same links sit in the header. Photos is
-         the optional third: shown only when it fits without scrolling
+         the optional last one: shown only when it fits without scrolling
          (fitQuickLinks below). -->
     ${active !== 'home' ? '' : `<nav class="ft-quick" aria-label="Quick links">
-      ${NAV.filter(n => ['schedule', 'standings', 'photos'].includes(n.key)).map(n =>
+      ${['teams', 'schedule', 'standings', 'photos'].map(key => NAV.find(n => n.key === key))
+        .filter(Boolean).map(n =>
         `<a class="ft-quicklink" href="${n.href}" data-key="${n.key}">${n.label}</a>`).join('')}
     </nav>`}
 
@@ -1087,8 +1088,8 @@ function renderHeader(active) {
 }
 
 /* ── Quick links ──────────────────────────────────────────────────────────
-   SCHEDULE and STANDINGS always; PHOTOS only if the row has room for it on
-   this screen. The row never scrolls sideways, so on a narrow phone Photos
+   TEAMS, SCHEDULE and STANDINGS always; PHOTOS only if the row has room for it
+   on this screen. The row never scrolls sideways, so on a narrow phone Photos
    simply is not there (it is still in the menu). */
 function fitQuickLinks() {
   const row = document.querySelector('.ft-quick');

@@ -40,7 +40,7 @@
  * requested cannot be in any cache, here or in the browser's own. When the
  * icons change, this and that folder move together; a change to anything else
  * in SHELL moves this alone (v3: phone dark theme; v4: footer wordmark; v5: score page styles; v6: Score Entry in the menu; v7: pinned to its foot; v8: phone standings fit; v20: team pages and their three shared scripts). */
-const CACHE = 'tigers-v20';
+const CACHE = 'tigers-v21';
 
 // Enough to open the app offline and have it look like itself. The pages
 // themselves are cached as they are visited rather than up front, so installing
