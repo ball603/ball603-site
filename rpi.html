@@ -657,6 +657,12 @@
         </table>
       </div>
       
+      <!-- Both paragraphs are replaced by setFormulaNote() as soon as the script
+           runs, because the formula is not the same in every sport — volleyball
+           follows the NCAA volleyball RPI and basketball and baseball weight by
+           location. What is written here is the basketball wording, which is
+           what shows for the half-second before the script runs and what a
+           reader with no JavaScript would see. -->
       <div class="rpi-footer">
         <div class="rpi-info-text" id="rpiFormulaNote">
           <strong>How RPI is calculated:</strong>
@@ -666,9 +672,9 @@
           <strong>Last Week</strong> = rank from previous week.
           <strong>Rem SOS</strong> (Remaining Strength of Schedule) = the average RPI of a team's remaining regular-season opponents. A higher value indicates a tougher remaining schedule. <strong>Opp RPI</strong> shows this value and <strong>Rem SOS Rank</strong> ranks teams by it within their division (1 = toughest remaining schedule).
         </div>
-        <div class="rpi-info-text" style="margin-top: 8px;">
-          <strong>Non-NHIAA opponents:</strong>
-          Games against non-NHIAA teams (out-of-state, prep schools, etc.) count toward a team's Wtd Win %. However, because full season records are not available for non-NHIAA opponents, they are assigned a default .500 win percentage for Opponent Win % (OWP) and Opponent's Opponent Win % (OOWP) calculations. This ensures teams are not unfairly penalized or rewarded for scheduling out-of-state games.
+        <div class="rpi-info-text" id="rpiOpponentsNote" style="margin-top: 8px;">
+          <strong>Which games count:</strong>
+          A team's own win percentage counts every game it has played, including ones against teams outside the NHIAA &mdash; out-of-state schools, prep schools and the like. Opponent Win % and Opponent's Opponent Win % count only opponents inside the team's own NHIAA division: a non-NHIAA opponent, or one from another division, is left out of those two figures rather than being given an assumed record, because we do not have its full season.
         </div>
         <div class="rpi-source">Data calculated from Ball603 game results</div>
       </div>
@@ -771,6 +777,29 @@
       gvolleyball: '🏐'
     };
     
+    /* Which games count. The same in every sport, except for the name of the
+       team's own win percentage — weighted by location in basketball and
+       baseball, plain in volleyball.
+
+       This used to say non-NHIAA opponents were "assigned a default .500 win
+       percentage" for OWP and OOWP. They are not, and have not been for a
+       while: the calculation skips them outright (`if (!nhiaaTeams.has(opp))
+       continue`), and skips opponents from another division too. */
+    const opponentsNote = (ownPct) => `
+      <strong>Which games count:</strong>
+      A team's ${ownPct} counts every game it has played, including ones against
+      teams outside the NHIAA &mdash; out-of-state schools, prep schools and the like.
+      Opponent Win % and Opponent's Opponent Win % count only opponents inside the
+      team's own NHIAA division: a non-NHIAA opponent, or one from another division,
+      is left out of those two figures rather than being given an assumed record,
+      because we do not have its full season.
+    `;
+    const OPPONENT_NOTES = {
+      basketball:  opponentsNote('Wtd Win %'),
+      baseball:    opponentsNote('Wtd Win %'),
+      gvolleyball: opponentsNote('Win %')
+    };
+
     // Formula notes for each sport
     const FORMULA_NOTES = {
       basketball: `
@@ -838,12 +867,7 @@
         document.getElementById('btnBoys').classList.remove('active');
       }
       
-      // Update formula note based on sport
-      const formulaNote = document.getElementById('rpiFormulaNote');
-      if (formulaNote && FORMULA_NOTES[sport]) {
-        formulaNote.innerHTML = FORMULA_NOTES[sport];
-      }
-      
+      setFormulaNote(sport);
       applyDivisionTabs();
       updatePageTitle();
       refreshSeasonSelect();
@@ -851,6 +875,19 @@
       loadRPIData();
     }
     
+    /* The notes under the table, for whichever sport is on show. A function
+       rather than four lines inside selectSport, because the initial load does
+       everything selectSport does and had quietly skipped this one — so the
+       page opened in September on volleyball while telling everybody the
+       basketball formula, and only started telling the truth once somebody
+       clicked a different sport and came back. */
+    function setFormulaNote(sport) {
+      const formula = document.getElementById('rpiFormulaNote');
+      if (formula && FORMULA_NOTES[sport]) formula.innerHTML = FORMULA_NOTES[sport];
+      const opponents = document.getElementById('rpiOpponentsNote');
+      if (opponents && OPPONENT_NOTES[sport]) opponents.innerHTML = OPPONENT_NOTES[sport];
+    }
+
     function updatePageTitle() {
       const sportName = SPORT_NAMES[currentSport] || 'Sports';
       document.getElementById('pageTitle').textContent = `${sportName} RPI Rankings | Ball603`;
@@ -1155,6 +1192,7 @@
       genderToggle.style.display = 'none';
     }
     
+    setFormulaNote(currentSport);
     applyDivisionTabs();
     updatePageTitle();
     refreshSeasonSelect();
