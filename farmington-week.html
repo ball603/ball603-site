@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>This Week in Tiger Town</title>
+<!-- Unlisted: not in the menu, not linked from any public page, and told
+     outright not to be indexed. Anybody who typed the URL would still see it —
+     it is a schedule, so that is no worse than the schedule page. -->
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="/logos/100px/Farmington.png">
+
+<!-- This page deliberately does NOT load farmington.css. It is a graphic to be
+     screen-grabbed, not a page of the site: fixed at 1080px whatever the
+     window, always dark, and unaffected by the phone/desktop theme switch that
+     the site stylesheet does at 760px. Its own styles, all of them, are here. -->
+<style>
+  :root{
+    --orange:#F68220;
+    --ink:#fff;
+    --ink-2:#c9c9c9;
+    --ink-3:#8f8f8f;
+    --panel:#101010;
+    --row:#181818;
+    --row-2:#141414;
+    --line:#2a2a2a;
+    --win:#8bd694;
+    --loss:#f2938c;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:#3a3a3a;color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;}
+
+  /* The controls. Outside the panel and mid grey on grey, so a grab of the
+     panel alone never catches them — and they are hidden outright for a
+     full-window grab (the ⌘⇧4 kind) by pressing H. */
+  .bar{
+    width:1080px;margin:0 auto;padding:18px 0 12px;
+    display:flex;align-items:center;justify-content:space-between;gap:14px;
+  }
+  .bar.hide{visibility:hidden}
+  .navbtn{
+    appearance:none;border:1px solid #555;background:#2b2b2b;color:#ddd;
+    border-radius:7px;padding:9px 15px;font-size:14px;font-weight:700;cursor:pointer;
+  }
+  .navbtn:hover{background:#3a3a3a;color:#fff}
+  .navbtn:active{transform:translateY(1px)}
+  .hint{color:#9a9a9a;font-size:12.5px;text-align:center;flex:1}
+  .hint b{color:#ccc}
+
+  /* The panel. 1080 wide to match what Instagram and Facebook want, and as
+     tall as the week needs — a quiet week is a short graphic. */
+  .panel{width:1080px;margin:0 auto 40px;background:var(--panel);overflow:hidden}
+
+  .head{background:#000;padding:30px 44px 26px;border-bottom:4px solid var(--orange)}
+  .head h1{
+    margin:0;font-size:46px;line-height:1.05;font-weight:900;letter-spacing:-0.5px;
+    text-transform:uppercase;
+  }
+  .head h1 em{font-style:normal;color:var(--orange)}
+  .head .range{margin:11px 0 0;font-size:19px;font-weight:700;letter-spacing:2.4px;
+    text-transform:uppercase;color:var(--ink-3)}
+
+  .day{border-bottom:1px solid var(--line)}
+  .day:last-child{border-bottom:0}
+  .day-name{
+    background:var(--orange);color:#000;padding:9px 44px;
+    font-size:16px;font-weight:900;letter-spacing:2.2px;text-transform:uppercase;
+  }
+  .day.empty .day-name{background:#242424;color:var(--ink-3)}
+  .day-none{padding:11px 44px;color:#6e6e6e;font-size:15px;font-style:italic}
+
+  .game{
+    display:flex;align-items:center;gap:16px;padding:13px 44px;
+    border-bottom:1px solid #1e1e1e;background:var(--row-2);
+  }
+  .game:nth-child(even){background:var(--row)}
+  .game:last-child{border-bottom:0}
+
+  .when{width:104px;flex:none;font-size:20px;font-weight:800;letter-spacing:-0.3px}
+  .when.res .W{color:var(--win)}
+  .when.res .L{color:var(--loss)}
+  .when.res{font-size:19px}
+  .when small{display:block;font-size:11px;font-weight:700;letter-spacing:1.2px;
+    text-transform:uppercase;color:var(--ink-3);margin-top:2px}
+
+  .emoji{width:30px;flex:none;font-size:24px;line-height:1;text-align:center}
+
+  .who{flex:1;min-width:0}
+  .who .team{font-size:19px;font-weight:800;line-height:1.25}
+  .who .team .ha{color:var(--orange);font-size:14px;font-weight:900;letter-spacing:1.4px;
+    text-transform:uppercase;margin-right:7px}
+  .who .sub{margin-top:3px;font-size:13.5px;font-weight:600;letter-spacing:.4px;
+    text-transform:uppercase;color:var(--ink-3)}
+  .who .sub .status{color:var(--loss)}
+
+  .opp{display:flex;align-items:center;gap:11px;min-width:0}
+  .opp img{width:30px;height:30px;object-fit:contain;flex:none}
+  .opp .name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  .where{
+    width:268px;flex:none;text-align:right;font-size:14px;font-weight:600;
+    color:var(--ink-2);line-height:1.35;
+  }
+  .where .place{color:var(--ink-3);font-size:13px;display:block;margin-top:2px}
+
+  .foot{background:#000;padding:16px 44px;display:flex;align-items:center;
+    justify-content:space-between;gap:16px;border-top:4px solid var(--orange)}
+  .foot .mark{font-size:15px;font-weight:900;letter-spacing:2.4px;text-transform:uppercase;color:var(--orange)}
+  .foot .site{font-size:13.5px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:var(--ink-3)}
+
+  .state{width:1080px;margin:0 auto 40px;background:var(--panel);
+    padding:60px 44px;text-align:center;color:var(--ink-3);font-size:18px}
+</style>
+</head>
+<body>
+
+<div class="bar" id="bar">
+  <button class="navbtn" id="prev" type="button">&larr; Previous week</button>
+  <div class="hint">
+    Grab the black panel below &mdash; these controls are not part of it.
+    Press <b>H</b> to hide them for a full-screen grab, <b>T</b> for this week.
+  </div>
+  <button class="navbtn" id="next" type="button">Next week &rarr;</button>
+</div>
+
+<div id="out"><div class="state">Loading the week&hellip;</div></div>
+
+<!-- The site's own script, for the games and for every rule about what a game
+     is — hidden teams, merged squads, scrimmages, hand-entered scores. No
+     stylesheet and no renderHeader(), so nothing of the site's furniture comes
+     with it. -->
+<script src="/farmington.js"></script>
+<script>
+'use strict';
+
+let DATA = null;
+let offset = Number(new URLSearchParams(location.search).get('w') || 0) || 0;
+
+/* ── The week ──────────────────────────────────────────────────────────── */
+/* Monday to Sunday, which is the week a schedule graphic is about. FT's own
+   weekWindow runs Sunday to Saturday — that one is right for the site's boxes
+   and wrong here, so this page works its own out. */
+
+function mondayOf(date) {
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  // getDay(): 0 is Sunday, and Sunday belongs to the week that is ending.
+  const back = (d.getDay() + 6) % 7;
+  d.setDate(d.getDate() - back);
+  return d;
+}
+
+function weekDays(n) {
+  const start = mondayOf(new Date());
+  start.setDate(start.getDate() + n * 7);
+  const days = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+    days.push({ date: d, key: FT.dateKey(d) });
+  }
+  return days;
+}
+
+const rangeLabel = (days) => {
+  const a = days[0].date, b = days[6].date;
+  const month = (d) => d.toLocaleDateString('en-US', { month: 'long' });
+  const same = a.getMonth() === b.getMonth();
+  return same
+    ? `${month(a)} ${a.getDate()}–${b.getDate()}, ${b.getFullYear()}`
+    : `${month(a)} ${a.getDate()} – ${month(b)} ${b.getDate()}, ${b.getFullYear()}`;
+};
+
+/* ── A game ────────────────────────────────────────────────────────────── */
+
+/* "Girls Varsity Volleyball" with the gender dropped wherever it distinguishes
+   nothing, the same rule the rest of the site follows. */
+function teamLine(g) {
+  const t = g.team;
+  const prefix = FT.genderPrefix(g.gender_id, g.sport_id);
+  const name = t.name;
+  return (prefix && !new RegExp('\\b(Boys|Girls)\\b').test(name)) ? `${prefix} ${name}` : name;
+}
+
+// Home or away, and where — the course by name for golf, since that is the one
+// sport where the opponent's name does not say where you are going.
+function placeLine(g) {
+  const course = FT.courseName(g);
+  if (course) return { side: g.is_home ? 'Home' : 'Away', place: course };
+  if (g.is_meet) return { side: '', place: g.site_name || '' };
+  return { side: g.is_home ? 'Home' : 'Away', place: g.is_home ? '' : (g.site_name || '') };
+}
+
+function gameRow(g) {
+  const sc = FT.scoreOf(g);
+  const res = FT.resultOf(sc);
+  const status = (g.game_status && g.game_status !== 'Normal') ? g.game_status : '';
+
+  // A played game shows what happened; everything else shows when it starts.
+  const when = sc
+    ? `<div class="when res"><span class="${res}">${res}</span> ${sc.us}&ndash;${sc.them}<small>Final</small></div>`
+    : `<div class="when">${FT.esc(FT.timeLabel(g.starts_at))}</div>`;
+
+  const opp = g.is_meet
+    ? `<span class="name">${FT.esc(FT.opponentLabel(g))}</span>`
+    : `<span class="ha">${g.is_home ? 'vs' : 'at'}</span>` +
+      FT.opponentLogo(g) +
+      `<span class="name">${FT.esc(FT.opponentLabel(g))}</span>`;
+
+  const w = placeLine(g);
+
+  return `
+    <div class="game">
+      ${when}
+      <div class="emoji">${g.sport.emoji}</div>
+      <div class="who">
+        <div class="team opp">${opp}</div>
+        <div class="sub">${FT.esc(teamLine(g))}${
+          status ? ` &middot; <span class="status">${FT.esc(status)}</span>` : ''}</div>
+      </div>
+      <div class="where">${FT.esc(w.side)}${
+        w.place ? `<span class="place">${FT.esc(w.place)}</span>` : ''}</div>
+    </div>`;
+}
+
+/* ── The panel ─────────────────────────────────────────────────────────── */
+
+function render() {
+  const days = weekDays(offset);
+  const from = days[0].key, to = days[6].key;
+  // Already in start-time order from FT.load(), so each day comes out in the
+  // order it will be played.
+  const week = DATA.games.filter(g => g.game_date >= from && g.game_date <= to);
+
+  const body = days.map(d => {
+    const games = week.filter(g => g.game_date === d.key);
+    const name = d.date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+    return `
+      <div class="day${games.length ? '' : ' empty'}">
+        <div class="day-name">${FT.esc(name)}</div>
+        ${games.length ? games.map(gameRow).join('')
+                       : '<div class="day-none">No games scheduled</div>'}
+      </div>`;
+  }).join('');
+
+  document.getElementById('out').innerHTML = `
+    <div class="panel">
+      <div class="head">
+        <h1>This Week in <em>Tiger Town</em></h1>
+        <div class="range">${FT.esc(rangeLabel(days))}</div>
+      </div>
+      ${body}
+      <div class="foot">
+        <span class="mark">Farmington Tigers</span>
+        <span class="site">FarmingtonTigersNH.com</span>
+      </div>
+    </div>`;
+
+  // The week in the address bar, so a particular week can be bookmarked or
+  // reopened, and the browser's own back button walks the weeks.
+  const url = offset ? `${location.pathname}?w=${offset}` : location.pathname;
+  history.replaceState(null, '', url);
+  document.title = offset ? `Tiger Town · ${rangeLabel(days)}` : 'This Week in Tiger Town';
+}
+
+/* ── Wiring ────────────────────────────────────────────────────────────── */
+
+const step = (n) => { offset += n; render(); window.scrollTo(0, 0); };
+document.getElementById('prev').addEventListener('click', () => step(-1));
+document.getElementById('next').addEventListener('click', () => step(1));
+
+document.addEventListener('keydown', (e) => {
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.key === 'ArrowLeft') step(-1);
+  else if (e.key === 'ArrowRight') step(1);
+  else if (e.key === 't' || e.key === 'T') { offset = 0; render(); }
+  else if (e.key === 'h' || e.key === 'H') document.getElementById('bar').classList.toggle('hide');
+});
+
+FT.load().then(data => {
+  DATA = data;
+  render();
+}).catch(err => {
+  console.error('This Week in Tiger Town failed to load:', err);
+  document.getElementById('out').innerHTML =
+    '<div class="state">The schedule could not be loaded just now. Please refresh in a moment.</div>';
+});
+</script>
+</body>
+</html>
