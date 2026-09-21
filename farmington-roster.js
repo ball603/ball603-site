@@ -34,6 +34,27 @@ const val = (p, fields) => {
   return '';
 };
 
+/* Numerical order, whatever order the submission arrived in. Coaches send
+   rosters the way their own sheet happens to be — by position, by year, by
+   nothing at all — and a number column that does not climb is hard to read
+   down. Ball603's own roster tables have always sorted this way; this brings
+   the Tigers card in line with them.
+
+   Anything that is not a number sorts to the end rather than to the front, and
+   a shared number (or a blank one) falls back to the name so the order is the
+   same every time the page is drawn. "88/50" reads as 88, the number that
+   player mostly wears. */
+function jerseyNumber(p) {
+  const n = parseInt(val(p, ['number', 'jersey', 'no']), 10);
+  return Number.isNaN(n) ? 999 : n;
+}
+
+function byNumber(a, b) {
+  return jerseyNumber(a) - jerseyNumber(b) ||
+    String(val(a, ['name', 'player', 'full_name']))
+      .localeCompare(String(val(b, ['name', 'player', 'full_name'])));
+}
+
 function players(r) {
   try {
     const p = typeof r.players_json === 'string' ? JSON.parse(r.players_json) : (r.players_json || []);
@@ -49,7 +70,7 @@ function players(r) {
 function card(r, href, heading) {
   if (!r) return '<div class="ft-card"><div class="ft-empty">Nothing to show.</div></div>';
 
-  const roster = players(r);
+  const roster = players(r).slice().sort(byNumber);
   /* Class before Pos: a parent scanning a roster is looking for the year first,
      and on a phone the leftmost columns are the ones that survive. */
   const cols = [
@@ -106,6 +127,7 @@ function card(r, href, heading) {
 
 root.FTRoster = {
   sportMeta: sportMeta, levelOf: levelOf, players: players, card: card,
+  byNumber: byNumber, jerseyNumber: jerseyNumber,
   LEVEL_ORDER: LEVEL_ORDER
 };
 })(typeof window !== 'undefined' ? window : globalThis);
