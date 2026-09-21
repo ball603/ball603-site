@@ -338,6 +338,31 @@ function load() {
 function shape(rawTeams, rawGames, standings, rosters) {
   const byId = new Map(rawTeams.map(t => [t.uteam, t]));
 
+  /* Golf's home-and-away flag cannot be trusted, and it is not a small error:
+     a round at Waukewan came through with two of the three matches marked
+     home. Arbiter files one row per opponent and whoever entered them set the
+     flag per row, so the same round can say home against one school and away
+     against another — which is nonsense, since everybody is standing on the
+     same course.
+
+     The course settles it, and the course is always in the data: Farmington CC
+     is home and anywhere else is away. Done here, once, so the schedule, the
+     tickers, the home page boxes, the team pages and the home/away split in
+     every record all agree — rather than in each of them separately.
+
+     Only golf. Every other sport is played at a gym or a field that belongs to
+     one side or the other, and its flag has never been wrong. */
+  const HOME_COURSE = /farmington/i;
+
+  function fixGolfHome(g) {
+    if (!COURSE_SPORTS.has(g.sport_id)) return;
+    const course = `${g.site_name || ''} ${g.sub_site_name || ''}`.trim();
+    if (!course) return;                       // nothing to judge it by; leave it alone
+    const home = HOME_COURSE.test(course);
+    if (home !== !!g.is_home) g.arbiter_is_home = g.is_home;   // kept for the CMS check
+    g.is_home = home;
+  }
+
   // Follow merge_into to whichever team a squad is displayed as. The loop guard
   // is not paranoia: a typo pointing two rows at each other would hang the page.
   function resolve(uteam, depth) {
@@ -382,6 +407,7 @@ function shape(rawTeams, rawGames, standings, rosters) {
     seen.add(dupeKey);
     g.team = team;
     g.sport = SPORTS[g.sport_id] || { name: 'Other', emoji: '\u{1F3C6}', order: 99 };
+    fixGolfHome(g);
     team.games.push(g);
   }
   for (const t of visible) {
