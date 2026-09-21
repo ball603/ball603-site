@@ -36,81 +36,105 @@
      panel alone never catches them — and they are hidden outright for a
      full-window grab (the ⌘⇧4 kind) by pressing H. */
   .bar{
-    width:1080px;margin:0 auto;padding:18px 0 12px;
+    width:1080px;max-width:96vw;margin:0 auto;padding:9px 0 7px;
     display:flex;align-items:center;justify-content:space-between;gap:14px;
   }
   .bar.hide{visibility:hidden}
   .navbtn{
     appearance:none;border:1px solid #555;background:#2b2b2b;color:#ddd;
-    border-radius:7px;padding:9px 15px;font-size:14px;font-weight:700;cursor:pointer;
+    border-radius:7px;padding:6px 13px;font-size:13px;font-weight:700;cursor:pointer;
   }
   .navbtn:hover{background:#3a3a3a;color:#fff}
   .navbtn:active{transform:translateY(1px)}
-  .hint{color:#9a9a9a;font-size:12.5px;text-align:center;flex:1}
+  .hint{color:#9a9a9a;font-size:12px;text-align:center;flex:1}
   .hint b{color:#ccc}
 
-  /* The panel. 1080 wide to match what Instagram and Facebook want, and as
-     tall as the week needs — a quiet week is a short graphic. */
-  .panel{width:1080px;margin:0 auto 40px;background:var(--panel);overflow:hidden}
+  /* The panel. Always drawn at 1080 wide — what Instagram and Facebook want —
+     and as tall as the week needs. The stage around it then scales the whole
+     thing down until it fits the window, so however busy the week is, it is
+     always one screen grab. Nothing is ever scaled UP past its own size.
 
-  .head{background:#000;padding:30px 44px 26px;border-bottom:4px solid var(--orange)}
+     Scaled rather than shrunk by setting smaller type: a transform keeps every
+     proportion identical week to week, so a graphic template built round one
+     grab still lines up with the next. */
+  /* The wrapper carries the scaled height; the stage inside it carries the
+     transform. Putting both on one element would scale the height it was just
+     given, and the panel would end up half the size it should be. */
+  .stagewrap{width:100%;overflow:hidden}
+  .stage{width:1080px;margin:0 auto;transform-origin:top center}
+  .panel{width:1080px;background:var(--panel);overflow:hidden}
+
+  /* The header carries the title and the dates on one line on a busy week,
+     because every row of height it gives back is a row of games that stays
+     full size when the stage scales. */
+  .head{background:#000;padding:18px 36px 15px;border-bottom:3px solid var(--orange);
+    display:flex;align-items:baseline;justify-content:space-between;gap:24px;flex-wrap:wrap}
   .head h1{
-    margin:0;font-size:46px;line-height:1.05;font-weight:900;letter-spacing:-0.5px;
+    margin:0;font-size:36px;line-height:1;font-weight:900;letter-spacing:-0.5px;
     text-transform:uppercase;
   }
   .head h1 em{font-style:normal;color:var(--orange)}
-  .head .range{margin:11px 0 0;font-size:19px;font-weight:700;letter-spacing:2.4px;
-    text-transform:uppercase;color:var(--ink-3)}
+  .head .range{font-size:16px;font-weight:700;letter-spacing:2px;
+    text-transform:uppercase;color:var(--ink-3);white-space:nowrap}
 
   .day{border-bottom:1px solid var(--line)}
   .day:last-child{border-bottom:0}
   .day-name{
-    background:var(--orange);color:#000;padding:9px 44px;
-    font-size:16px;font-weight:900;letter-spacing:2.2px;text-transform:uppercase;
+    background:var(--orange);color:#000;padding:5px 36px;
+    font-size:13.5px;font-weight:900;letter-spacing:2px;text-transform:uppercase;
   }
-  .day.empty .day-name{background:#242424;color:var(--ink-3)}
-  .day-none{padding:11px 44px;color:#6e6e6e;font-size:15px;font-style:italic}
+  /* A day with nothing on is one thin line rather than a bar and a sentence:
+     the week still reads Monday to Sunday, at a quarter of the height. */
+  .day.empty .day-name{
+    background:#1c1c1c;color:#6e6e6e;letter-spacing:1.6px;font-weight:700;
+    display:flex;justify-content:space-between;gap:16px;padding:4px 36px;
+  }
+  .day.empty .day-name em{font-style:italic;font-weight:600;letter-spacing:0;text-transform:none;font-size:12.5px}
 
   .game{
-    display:flex;align-items:center;gap:16px;padding:13px 44px;
+    display:flex;align-items:center;gap:14px;padding:7px 36px;
     border-bottom:1px solid #1e1e1e;background:var(--row-2);
   }
   .game:nth-child(even){background:var(--row)}
   .game:last-child{border-bottom:0}
 
-  .when{width:104px;flex:none;font-size:20px;font-weight:800;letter-spacing:-0.3px}
+  /* Time and result on one line each — "W 3–1 FINAL" rather than a second row
+     under it, which cost every played game an extra 14px of panel. */
+  .when{width:112px;flex:none;font-size:17px;font-weight:800;letter-spacing:-0.3px;white-space:nowrap}
   .when.res .W{color:var(--win)}
   .when.res .L{color:var(--loss)}
-  .when.res{font-size:19px}
-  .when small{display:block;font-size:11px;font-weight:700;letter-spacing:1.2px;
-    text-transform:uppercase;color:var(--ink-3);margin-top:2px}
+  .when small{font-size:9.5px;font-weight:700;letter-spacing:1px;
+    text-transform:uppercase;color:var(--ink-3);margin-left:5px}
 
-  .emoji{width:30px;flex:none;font-size:24px;line-height:1;text-align:center}
+  .emoji{width:24px;flex:none;font-size:19px;line-height:1;text-align:center}
 
-  .who{flex:1;min-width:0}
-  .who .team{font-size:19px;font-weight:800;line-height:1.25}
-  .who .team .ha{color:var(--orange);font-size:14px;font-weight:900;letter-spacing:1.4px;
-    text-transform:uppercase;margin-right:7px}
-  .who .sub{margin-top:3px;font-size:13.5px;font-weight:600;letter-spacing:.4px;
-    text-transform:uppercase;color:var(--ink-3)}
+  /* Opponent and team on one line: the team name follows the opponent in
+     smaller type rather than sitting under it, which halves the row. */
+  .who{flex:1;min-width:0;display:flex;align-items:baseline;gap:10px;min-width:0}
+  .who .team{font-size:17px;font-weight:800;line-height:1.2;flex:none;max-width:52%}
+  .who .team .ha{color:var(--orange);font-size:12.5px;font-weight:900;letter-spacing:1.3px;
+    text-transform:uppercase;margin-right:6px}
+  .who .sub{font-size:11.5px;font-weight:600;letter-spacing:.4px;
+    text-transform:uppercase;color:var(--ink-3);min-width:0;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .who .sub .status{color:var(--loss)}
 
-  .opp{display:flex;align-items:center;gap:11px;min-width:0}
-  .opp img{width:30px;height:30px;object-fit:contain;flex:none}
+  .opp{display:flex;align-items:center;gap:9px;min-width:0}
+  .opp img{width:24px;height:24px;object-fit:contain;flex:none}
   .opp .name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
   .where{
-    width:268px;flex:none;text-align:right;font-size:14px;font-weight:600;
-    color:var(--ink-2);line-height:1.35;
+    width:250px;flex:none;text-align:right;font-size:12.5px;font-weight:700;
+    color:var(--ink-2);line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   }
-  .where .place{color:var(--ink-3);font-size:13px;display:block;margin-top:2px}
+  .where .place{color:var(--ink-3);font-size:11.5px;font-weight:600;margin-left:7px}
 
-  .foot{background:#000;padding:16px 44px;display:flex;align-items:center;
-    justify-content:space-between;gap:16px;border-top:4px solid var(--orange)}
-  .foot .mark{font-size:15px;font-weight:900;letter-spacing:2.4px;text-transform:uppercase;color:var(--orange)}
-  .foot .site{font-size:13.5px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:var(--ink-3)}
+  .foot{background:#000;padding:9px 36px;display:flex;align-items:center;
+    justify-content:space-between;gap:16px;border-top:3px solid var(--orange)}
+  .foot .mark{font-size:13px;font-weight:900;letter-spacing:2.2px;text-transform:uppercase;color:var(--orange)}
+  .foot .site{font-size:11.5px;font-weight:700;letter-spacing:1.3px;text-transform:uppercase;color:var(--ink-3)}
 
-  .state{width:1080px;margin:0 auto 40px;background:var(--panel);
+  .state{width:1080px;margin:0 auto;background:var(--panel);
     padding:60px 44px;text-align:center;color:var(--ink-3);font-size:18px}
 </style>
 </head>
@@ -235,16 +259,18 @@ function render() {
   const body = days.map(d => {
     const games = week.filter(g => g.game_date === d.key);
     const name = d.date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
-    return `
-      <div class="day${games.length ? '' : ' empty'}">
-        <div class="day-name">${FT.esc(name)}</div>
-        ${games.length ? games.map(gameRow).join('')
-                       : '<div class="day-none">No games scheduled</div>'}
-      </div>`;
+    return games.length
+      ? `<div class="day">
+           <div class="day-name">${FT.esc(name)}</div>
+           ${games.map(gameRow).join('')}
+         </div>`
+      : `<div class="day empty">
+           <div class="day-name">${FT.esc(name)}<em>No games</em></div>
+         </div>`;
   }).join('');
 
   document.getElementById('out').innerHTML = `
-    <div class="panel">
+    <div class="stagewrap" id="stagewrap"><div class="stage" id="stage"><div class="panel">
       <div class="head">
         <h1>This Week in <em>Tiger Town</em></h1>
         <div class="range">${FT.esc(rangeLabel(days))}</div>
@@ -254,7 +280,9 @@ function render() {
         <span class="mark">Farmington Tigers</span>
         <span class="site">FarmingtonTigersNH.com</span>
       </div>
-    </div>`;
+    </div></div></div>`;
+
+  fit();
 
   // The week in the address bar, so a particular week can be bookmarked or
   // reopened, and the browser's own back button walks the weeks.
@@ -262,6 +290,36 @@ function render() {
   history.replaceState(null, '', url);
   document.title = offset ? `Tiger Town · ${rangeLabel(days)}` : 'This Week in Tiger Town';
 }
+
+/* ── One screen ────────────────────────────────────────────────────────── */
+/* However many games a week holds, the panel ends up inside the window — a
+   quiet week at full size, a heavy one scaled down to fit. Scaled and never
+   stretched: a panel smaller than the window is left alone rather than blown
+   up soft. The stage is given the scaled height so the page itself never grows
+   a scrollbar, which would otherwise eat into the very height being measured. */
+function fit() {
+  const stage = document.getElementById('stage');
+  const wrap = document.getElementById('stagewrap');
+  if (!stage || !wrap) return;
+  stage.style.transform = 'none';
+  wrap.style.height = '';
+
+  const bar = document.getElementById('bar');
+  const barH = bar.classList.contains('hide') ? 0 : Math.ceil(bar.getBoundingClientRect().height);
+  const natural = stage.offsetHeight;
+  // A little air top and bottom so the panel is not flush against the window.
+  const room = window.innerHeight - barH - 16;
+  const k = Math.min(1, room / natural);
+
+  stage.style.transform = k < 1 ? `scale(${k})` : 'none';
+  wrap.style.height = Math.ceil(natural * k) + 'px';
+}
+
+let fitTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(fitTimer);
+  fitTimer = setTimeout(fit, 80);
+});
 
 /* ── Wiring ────────────────────────────────────────────────────────────── */
 
@@ -274,7 +332,10 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'ArrowLeft') step(-1);
   else if (e.key === 'ArrowRight') step(1);
   else if (e.key === 't' || e.key === 'T') { offset = 0; render(); }
-  else if (e.key === 'h' || e.key === 'H') document.getElementById('bar').classList.toggle('hide');
+  else if (e.key === 'h' || e.key === 'H') {
+    document.getElementById('bar').classList.toggle('hide');
+    fit();   // the hidden bar gives its height back to the panel
+  }
 });
 
 FT.load().then(data => {
