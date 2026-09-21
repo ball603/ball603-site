@@ -343,6 +343,27 @@
     }
     
     /* Footer */
+    .rpi-held {
+      padding: 46px 30px;
+      text-align: center;
+    }
+    .rpi-held .rpi-held-emoji { font-size: 40px; line-height: 1; display: block; margin-bottom: 14px; }
+    .rpi-held h2 {
+      margin: 0 0 10px;
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.2px;
+    }
+    .rpi-held .rpi-held-when { color: var(--accent); }
+    .rpi-held p {
+      margin: 0 auto;
+      max-width: 620px;
+      font-size: 14.5px;
+      line-height: 1.6;
+      color: #666;
+    }
+    .rpi-held p + p { margin-top: 12px; }
+
     .rpi-footer {
       padding: 16px 20px;
       background: var(--bg-secondary);
@@ -608,8 +629,14 @@
       <button class="gender-btn" onclick="setGender('Girls')" id="btnGirls">🏀 Girls</button>
     </div>
     
+    <!-- Shown instead of the rankings while a sport's RPI is being held back.
+         Filled and switched on by applyReleaseGate(). -->
+    <div class="rpi-card" id="rpiHeldCard" style="display:none;">
+      <div class="rpi-held" id="rpiHeldBody"></div>
+    </div>
+
     <!-- Division Tabs -->
-    <div class="division-tabs-wrapper">
+    <div class="division-tabs-wrapper" id="divisionTabsWrapper">
       <div class="division-tabs">
         <button class="division-tab active" onclick="setDivision('D-I')" id="tabDI" data-division="D-I">Division I</button>
         <button class="division-tab" onclick="setDivision('D-II')" id="tabDII" data-division="D-II">Division II</button>
@@ -619,7 +646,7 @@
     </div>
     
     <!-- RPI Card -->
-    <div class="rpi-card">
+    <div class="rpi-card" id="rpiCard">
       <div class="rpi-card-header">
         <span class="rpi-card-title" id="cardTitle">Boys Division I</span>
         <span class="rpi-card-badge">
@@ -777,6 +804,43 @@
       gvolleyball: '🏐'
     };
     
+/* ── Holding a sport's RPI back until it means something ──────────────────
+   RPI is three-quarters other people's records, so over the first few weeks
+   it says very little about anybody. Measured across this season's volleyball:
+   on 7 September, with a median of one match played, 87 teams with losing
+   records outranked unbeaten teams in their own division and the average team
+   moved 6.7 places in a week. By 21 September that was down to 6 and 1.9. It
+   settles, but it is not worth reading before it does.
+
+   So a sport can be given a date to start publishing on. Before that date the
+   page says so plainly instead of showing a table; on that Monday it appears
+   with nothing to deploy. Publishing to the table carries on the whole time,
+   so when it opens it opens with every week's history behind it.
+
+   Keyed by season as well as sport, deliberately: a date left in the code
+   would silently hold next season's rankings back too. A season with no entry
+   is not held at all.
+
+   Volleyball 2026: Monday 5 October, by when every team will have played nine
+   to twelve matches — median eleven, none below eight. */
+const RPI_RELEASE = {
+  gvolleyball: {
+    '2026': { date: '2026-10-05', label: 'Monday, October 5' }
+  }
+};
+
+// The release this sport and season are waiting on, or null if there is none
+// and nothing is being held.
+function rpiHeldBy(sport, season) {
+  const held = (RPI_RELEASE[sport] || {})[String(season)];
+  if (!held) return null;
+  // Compared as YYYY-MM-DD strings in the reader's own day, so it opens on the
+  // morning of the 5th wherever they are rather than at some UTC moment.
+  const d = new Date();
+  const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return today < held.date ? held : null;
+}
+
     /* Which games count. The same in every sport, except for the name of the
        team's own win percentage — weighted by location in basketball and
        baseball, plain in volleyball.
@@ -868,10 +932,11 @@
       }
       
       setFormulaNote(sport);
-      applyDivisionTabs();
       updatePageTitle();
-      refreshSeasonSelect();
       Ball603PageSponsor.load('page-sponsor-banner', 'rpi', sport, { basketball:'Basketball', baseball:'Baseball', gvolleyball:'Girls Volleyball' }[sport] || '');
+      if (!applyReleaseGate(sport, currentSeason)) return;
+      applyDivisionTabs();
+      refreshSeasonSelect();
       loadRPIData();
     }
     
@@ -886,6 +951,39 @@
       if (formula && FORMULA_NOTES[sport]) formula.innerHTML = FORMULA_NOTES[sport];
       const opponents = document.getElementById('rpiOpponentsNote');
       if (opponents && OPPONENT_NOTES[sport]) opponents.innerHTML = OPPONENT_NOTES[sport];
+    }
+
+    /* Either the rankings or the notice, never both. Everything the table needs
+       to make sense — the division tabs, the gender toggle, the notes
+       underneath — goes with it. */
+    function applyReleaseGate(sport, season) {
+      const held = rpiHeldBy(sport, season);
+      const show = (id, on) => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = on ? '' : 'none';
+      };
+
+      show('rpiHeldCard', !!held);
+      show('rpiCard', !held);
+      show('divisionTabsWrapper', !held);
+      // The gender toggle has its own rules per sport; only ever hidden here.
+      if (held) show('genderToggle', false);
+
+      if (!held) return true;
+
+      const name = SPORT_NAMES[sport] || 'RPI';
+      const emoji = SPORT_EMOJIS[sport] || '';
+      document.getElementById('rpiHeldBody').innerHTML = `
+        <span class="rpi-held-emoji">${emoji}</span>
+        <h2>${name} RPI opens <span class="rpi-held-when">${held.label}</span></h2>
+        <p>RPI is half opponents' records and a quarter their opponents' records,
+           so until teams have played a good number of matches it reflects who
+           they happened to draw first rather than how good they are. Early in
+           this season it had winless teams ranked above unbeaten ones.</p>
+        <p>We are calculating it every week in the meantime. On ${held.label} it
+           opens with the whole season behind it, and it will be worth reading
+           from the first day you see it.</p>`;
+      return false;
     }
 
     function updatePageTitle() {
@@ -1193,11 +1291,16 @@
     }
     
     setFormulaNote(currentSport);
-    applyDivisionTabs();
+    /* The title and the sponsor go up either way — the page is still the RPI
+       page while it is waiting. Only the table and the things that drive it
+       are skipped. */
     updatePageTitle();
-    refreshSeasonSelect();
     Ball603PageSponsor.load('page-sponsor-banner', 'rpi', currentSport, { basketball:'Basketball', baseball:'Baseball', gvolleyball:'Girls Volleyball' }[currentSport] || '');
-    loadRPIData();
+    if (applyReleaseGate(currentSport, currentSeason)) {
+      applyDivisionTabs();
+      refreshSeasonSelect();
+      loadRPIData();
+    }
     
     // ===== GROUP HEADER ROW =====
     // Inject via JS with all inline styles to avoid any CSS conflicts
