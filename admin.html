@@ -26411,31 +26411,32 @@ Respond ONLY with valid JSON:
           }
         }
         
-        status.textContent = `Deleting old records for ${weekOf}...`;
-        
-        // Delete existing records for this sport/season/week
-        const { error: deleteError } = await db
-          .from('rpi_rankings')
-          .delete()
-          .eq('sport', sport)
-          .eq('season', season)
-          .eq('week_of', weekOf);
-        
-        if (deleteError) throw deleteError;
-        
-        status.textContent = `Inserting ${allRecords.length} RPI records...`;
-        
-        // Insert new records
-        const { error: insertError } = await db
-          .from('rpi_rankings')
-          .insert(allRecords);
-        
-        if (insertError) throw insertError;
+        status.textContent = `Saving ${allRecords.length} RPI records for ${weekOf}...`;
+
+        /* The write goes through a function, not through `db`. rpi_rankings is
+           read-only to the anon key this page uses — its only policy is "Allow
+           public read access" — so a delete from here silently did nothing and
+           an insert came back "new row violates row-level security policy".
+           publish-rpi-save.mjs holds the service key and does both, behind the
+           CMS password. It replaces the week rather than merging into it, and
+           it reports what it actually removed and wrote so a step can never
+           fail quietly again. */
+        const saveRes = await fetch('/.netlify/functions/publish-rpi-save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            key: CMS_PASSWORD, sport, season, week_of: weekOf, rows: allRecords
+          })
+        });
+        const saved = await saveRes.json().catch(() => ({}));
+        if (!saveRes.ok) throw new Error(saved.error || `Save failed (${saveRes.status})`);
         
         const btnLabels = { basketball: '&#x1F3C0; Publish Basketball', baseball: '&#x26BE; Publish Baseball', gvolleyball: '&#x1F3D0; Publish Girls Volleyball' };
         
         status.style.color = '#2e7d32';
-        status.textContent = `\u{2705} Published ${allRecords.length} RPI rankings for ${sport} (${season}, week of ${weekOf})`;
+        status.textContent = `\u{2705} Published ${saved.inserted} RPI rankings for ${sport} ` +
+          `(${season}, week of ${weekOf})` +
+          (saved.deleted ? ` \u{2014} replaced ${saved.deleted} from an earlier publish` : '');
         btn.textContent = '\u{2705} Published!';
         
         setTimeout(() => {

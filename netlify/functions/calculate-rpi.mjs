@@ -1,6 +1,8 @@
-// Ball603 Scheduled RPI Calculator
-// Runs Monday 6 AM ET (11 AM UTC) via netlify.toml schedule
-// This is a scheduled function - it cannot be called via HTTP
+// Ball603 RPI Calculator, the scheduled copy.
+//
+// NOT SCHEDULED any more. netlify.toml has no entry for this function: RPI is
+// published by hand from the CMS for every sport, deliberately, because a week
+// that turns over with results still missing produces a ranking nobody wants.
 // For manual triggers, use publish-rpi.mjs instead
 
 export default async () => {

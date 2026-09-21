@@ -1,8 +1,15 @@
-// Ball603 RPI Calculator
-// Scheduled: Mondays at 6 AM ET (11 AM UTC)
-// Also callable manually via POST from admin panel
-// Add ?test=1 to URL for diagnostic mode
-// Supports multi-sport (defaults to basketball for backward compatibility)
+// Ball603 RPI Calculator (basketball)
+//
+// NOT SCHEDULED. It used to run Mondays at 6am ET; that schedule is gone and
+// netlify.toml carries no entry for it, because RPI must never publish on its
+// own — results are often still missing when a week turns over and a ranking
+// built on a half-finished week is worse than no ranking. Every sport is now
+// published by hand from the CMS, which calculates its own RPI, shows a
+// preview, and saves it through publish-rpi-save.mjs.
+//
+// What is left here: a manual POST endpoint and, with ?test=1, a diagnostic.
+// Nothing in the site calls it. Kept rather than deleted because it is the
+// only server-side copy of the basketball calculation.
 
 // Sport and season for this calculator (basketball-specific)
 const SPORT = 'basketball';
