@@ -2064,13 +2064,30 @@
                 return sportList.includes(currentSport);
               });
               if (matchingSponsors.length > 0) {
-                matchingSponsors.sort((a, b) => {
-                  if (a.tier === 'town' && b.tier !== 'town') return 1;
-                  if (b.tier === 'town' && a.tier !== 'town') return -1;
-                  return (a.sport || '').split(',').length - (b.sport || '').split(',').length;
-                });
-                teamData.sponsors = [matchingSponsors[0]];
-                renderSponsors([matchingSponsors[0]]);
+                /* This used to sort the school tier ("town") LAST and then show
+                   matchingSponsors[0] — exactly one sponsor. That was defensible
+                   when "town" was an unused catch-all: prefer whoever is most
+                   specific to the sport being viewed.
+
+                   It stopped being defensible the moment the school tier went on
+                   sale at $1,000, because the old order meant any $400 team
+                   sponsor silently suppressed a school sponsor on that page. The
+                   school sponsor paid more, for more, and appeared nowhere.
+
+                   Flipping the sort alone would just reverse the unfairness and
+                   bury the $400 sponsors instead. Both tiers were sold a place on
+                   this page, so both get one: the school sponsor leads, and the
+                   most sport-specific team sponsor follows. At most two, so the
+                   page doesn't turn into a sponsor wall. */
+                const schoolTier = matchingSponsors.filter(s => s.tier === 'town');
+                const teamTier = matchingSponsors
+                  .filter(s => s.tier !== 'town')
+                  .sort((a, b) =>
+                    (a.sport || '').split(',').length - (b.sport || '').split(',').length);
+
+                const shown = [schoolTier[0], teamTier[0]].filter(Boolean);
+                teamData.sponsors = shown;
+                renderSponsors(shown);
                 return;
               }
             }

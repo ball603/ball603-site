@@ -3486,6 +3486,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           <select id="sponsorStatusFilter" onchange="filterSponsors()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px;">
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
+            <option value="expiring">&#x23F3; Expiring (60 days)</option>
+            <option value="expired">&#x26A0; Expired</option>
             <option value="all">All</option>
           </select>
           <input type="text" id="sponsorSearchBox" placeholder="Search sponsors..." oninput="filterSponsors()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px; width: 150px;">
@@ -3493,13 +3495,14 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       </div>
       
       <div class="article-list" id="sponsorList" style="margin-top: 15px;">
-        <div class="article-row header" style="grid-template-columns: 80px 1fr 150px 100px 100px 100px 100px;">
+        <div class="article-row header" style="grid-template-columns: 80px 1fr 140px 90px 90px 90px 95px 100px;">
           <div>Logo</div>
           <div>Sponsor</div>
           <div>Team</div>
           <div>Sport</div>
           <div>Tier</div>
           <div>Status</div>
+          <div>Ends</div>
           <div>Actions</div>
         </div>
         <div class="loading">Loading sponsors...</div>
@@ -3570,6 +3573,9 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
                 <span>&#x1F3D0; Girls Volleyball</span>
               </label>
             </div>
+            <div id="sponsorSportsAllNote" style="display:none; font-size:11px; color:#e65100; background:#fff3e0; border-radius:5px; padding:6px 9px; margin-top:4px;">
+              School tier covers all three sports automatically &mdash; these boxes are ignored.
+            </div>
           </div>
         </div>
         
@@ -3577,8 +3583,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           <div class="form-group">
             <label>Tier</label>
             <select id="sponsorTier" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;" onchange="updateSponsorTierUI()">
-              <option value="sport">Sport — team page + sport-specific articles</option>
-              <option value="town">Town — team page + ALL school articles</option>
+              <option value="sport">Team — $400 — one team, one sport, all year</option>
+              <option value="town">School — $1,000 — every team at the school, all sports, all year</option>
               <option value="presenting">Presenting — homepage, sitewide bar &amp; footer</option>
             </select>
           </div>
@@ -24108,7 +24114,75 @@ Respond ONLY with valid JSON:
     function filterSponsors() {
       renderSponsorList();
     }
-    
+
+    /* RENEWALS.
+     *
+     * end_date has always been stored and editable, and nothing has ever read
+     * it — not team.html, not article.html, not get-sponsors. A sponsor whose
+     * term ran out last spring is still on their team page today, and the only
+     * thing that ever takes one down is KJ remembering to uncheck Active.
+     *
+     * That stays true on the public side on purpose: a term quietly lapsing is
+     * far more often "hasn't gotten the check in yet" than "is done", and a
+     * sponsor vanishing from their team's page mid-conversation is the worst
+     * possible way to open a renewal call. So nothing here hides anybody. The
+     * dates drive the CMS only — a nudge, with the decision left to him.
+     */
+    const RENEWAL_WINDOW_DAYS = 60;
+
+    // Dates are stored as plain YYYY-MM-DD. Parsing that with new Date() reads
+    // it as UTC midnight and then renders it in local time, which in New
+    // Hampshire is the evening BEFORE — an Aug 31 term would show as Aug 30 and
+    // count as expired a day early. Split the string instead.
+    function sponsorEndDate(sponsor) {
+      const raw = (sponsor.end_date || '').trim();
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+      if (!m) return null;
+      return new Date(+m[1], +m[2] - 1, +m[3]);
+    }
+
+    // Whole days from today to the end of the term. Today is floored to
+    // midnight so a sponsor whose term ends today reads as 0 days, not -1.
+    function sponsorDaysLeft(sponsor) {
+      const end = sponsorEndDate(sponsor);
+      if (!end) return null;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      return Math.round((end - today) / 86400000);
+    }
+
+    // Only active sponsors can be "expiring" — an inactive row is already off
+    // the site, so surfacing it as a renewal to chase is just noise.
+    function sponsorRenewalState(sponsor) {
+      if (!sponsor.active) return 'inactive';
+      const days = sponsorDaysLeft(sponsor);
+      if (days === null) return 'nodate';
+      if (days < 0) return 'expired';
+      if (days <= RENEWAL_WINDOW_DAYS) return 'expiring';
+      return 'current';
+    }
+
+    function sponsorEndCell(sponsor) {
+      const state = sponsorRenewalState(sponsor);
+      if (state === 'nodate') {
+        return '<span style="font-size:11px; color:#bbb;">no date</span>';
+      }
+      const days = sponsorDaysLeft(sponsor);
+      const end = sponsorEndDate(sponsor);
+      const label = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' });
+      const style = {
+        expired:  'background:#ffebee; color:#c62828;',
+        expiring: 'background:#fff3e0; color:#e65100;'
+      }[state] || 'color:#666;';
+      const note = state === 'expired'  ? `${Math.abs(days)}d ago`
+                 : state === 'expiring' ? `${days}d left`
+                 : '';
+      return `<div style="font-size:12px; ${style} border-radius:10px; padding:2px 7px; display:inline-block;">${label}</div>` +
+             (note ? `<div style="font-size:10px; color:#999; margin-top:2px;">${note}</div>` : '');
+    }
+
+    const SPONSOR_TIER_LABEL = { sport: 'Team', town: 'School', presenting: 'Presenting' };
+
     function renderSponsorList() {
       const container = document.getElementById('sponsorList');
       const sportFilter = document.getElementById('sponsorSportFilter').value;
@@ -24133,6 +24207,10 @@ Respond ONLY with valid JSON:
         filtered = filtered.filter(s => s.active);
       } else if (statusFilter === 'inactive') {
         filtered = filtered.filter(s => !s.active);
+      } else if (statusFilter === 'expiring') {
+        filtered = filtered.filter(s => sponsorRenewalState(s) === 'expiring');
+      } else if (statusFilter === 'expired') {
+        filtered = filtered.filter(s => sponsorRenewalState(s) === 'expired');
       }
 
       if (searchFilter) {
@@ -24141,16 +24219,24 @@ Respond ONLY with valid JSON:
           (s.teams || s.team_shortname || '').toLowerCase().includes(searchFilter)
         );
       }
-      
+
+      // In a renewal view the only useful order is by how soon the money runs
+      // out. Everywhere else the existing order is left alone.
+      if (statusFilter === 'expiring' || statusFilter === 'expired') {
+        filtered = filtered.slice().sort((a, b) =>
+          (sponsorDaysLeft(a) ?? 1e9) - (sponsorDaysLeft(b) ?? 1e9));
+      }
+
       if (filtered.length === 0) {
         container.innerHTML = `
-          <div class="article-row header" style="grid-template-columns: 80px 1fr 150px 100px 100px 100px 100px;">
+          <div class="article-row header" style="grid-template-columns: 80px 1fr 140px 90px 90px 90px 95px 100px;">
             <div>Logo</div>
             <div>Sponsor</div>
             <div>Team</div>
             <div>Sport</div>
             <div>Tier</div>
             <div>Status</div>
+            <div>Ends</div>
             <div>Actions</div>
           </div>
           <div class="empty-state">
@@ -24167,18 +24253,36 @@ Respond ONLY with valid JSON:
         return sportStr.split(',').map(s => sportEmoji[s] || s).join(' ');
       };
       
+      /* The renewal summary counts every sponsor, not the filtered view — the
+         point of it is to be the one place that tells him money is coming due
+         even while he is looking at, say, volleyball only. */
+      const counts = allSponsors.reduce((acc, s) => {
+        acc[sponsorRenewalState(s)] = (acc[sponsorRenewalState(s)] || 0) + 1;
+        return acc;
+      }, {});
+      const summaryBits = [
+        `<strong>${allSponsors.filter(s => s.active).length}</strong> active`,
+        counts.expiring ? `<a href="#" onclick="document.getElementById('sponsorStatusFilter').value='expiring';filterSponsors();return false;" style="color:#e65100; font-weight:600;">${counts.expiring} expiring in ${RENEWAL_WINDOW_DAYS} days</a>` : '',
+        counts.expired ? `<a href="#" onclick="document.getElementById('sponsorStatusFilter').value='expired';filterSponsors();return false;" style="color:#c62828; font-weight:600;">${counts.expired} expired &mdash; still showing on the site</a>` : '',
+        counts.nodate ? `<span style="color:#999;">${counts.nodate} with no end date</span>` : ''
+      ].filter(Boolean);
+
       container.innerHTML = `
-        <div class="article-row header" style="grid-template-columns: 80px 1fr 150px 100px 100px 100px 100px;">
+        <div style="padding:9px 12px; margin-bottom:10px; background:#fafafa; border:1px solid #eee; border-radius:8px; font-size:13px; color:#555;">
+          ${summaryBits.join(' &nbsp;·&nbsp; ')}
+        </div>
+        <div class="article-row header" style="grid-template-columns: 80px 1fr 140px 90px 90px 90px 95px 100px;">
           <div>Logo</div>
           <div>Sponsor</div>
           <div>Team</div>
           <div>Sport</div>
           <div>Tier</div>
           <div>Status</div>
+          <div>Ends</div>
           <div>Actions</div>
         </div>
         ${filtered.map(sponsor => `
-          <div class="article-row" style="grid-template-columns: 80px 1fr 150px 100px 100px 100px 100px;">
+          <div class="article-row" style="grid-template-columns: 80px 1fr 140px 90px 90px 90px 95px 100px;">
             <div>
               <img src="${sponsor.logo_url}" alt="${sponsor.name}" style="max-width: 70px; max-height: 35px; object-fit: contain; border-radius: 4px;" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 50%22><rect fill=%22%23f5f5f5%22 width=%22100%22 height=%2250%22/><text x=%2250%22 y=%2230%22 text-anchor=%22middle%22 fill=%22%23999%22 font-size=%2212%22>No Logo</text></svg>'">
             </div>
@@ -24188,8 +24292,9 @@ Respond ONLY with valid JSON:
             </div>
             <div style="font-size: 13px;">${(sponsor.teams || sponsor.team_shortname || '—').split(',').map(t => t.trim()).join(', ')}</div>
             <div style="font-size: 13px;">${getSportEmojis(sponsor.sport)}</div>
-            <div><span style="font-size: 11px; padding: 3px 8px; border-radius: 10px; background: ${sponsor.tier === 'town' ? '#fff3e0' : sponsor.tier === 'presenting' ? '#e8f5e9' : '#f5f5f5'}; color: ${sponsor.tier === 'town' ? '#e65100' : sponsor.tier === 'presenting' ? '#2e7d32' : '#666'};">${sponsor.tier || 'sport'}</span></div>
+            <div><span style="font-size: 11px; padding: 3px 8px; border-radius: 10px; background: ${sponsor.tier === 'town' ? '#fff3e0' : sponsor.tier === 'presenting' ? '#e8f5e9' : '#f5f5f5'}; color: ${sponsor.tier === 'town' ? '#e65100' : sponsor.tier === 'presenting' ? '#2e7d32' : '#666'};">${SPONSOR_TIER_LABEL[sponsor.tier] || 'Team'}</span></div>
             <div><span class="article-status ${sponsor.active ? 'published' : 'draft'}">${sponsor.active ? 'Active' : 'Inactive'}</span></div>
+            <div>${sponsorEndCell(sponsor)}</div>
             <div class="article-actions">
               <button class="btn-edit" onclick="editSponsor('${sponsor.id}')">Edit</button>
               <button class="btn-delete" onclick="confirmDeleteSponsor('${sponsor.id}', '${sponsor.name.replace(/'/g, "\\'")}')">Delete</button>
@@ -24330,9 +24435,30 @@ Respond ONLY with valid JSON:
     // ─────────────────────────────────────────────────────────────────────────
 
     function updateSponsorTierUI() {
-      // All tiers have full access to team, sport, and page placements.
-      // A presenting sponsor can also be a team/sport sponsor (e.g. Tropical Smoothie).
-      buildPagePlacementsUI();
+      /* All tiers have full access to team, sport, and page placements, and a
+         presenting sponsor can also be a team sponsor (Tropical Smoothie is),
+         so there is nothing here for the tier to rebuild.
+
+         This used to call buildPagePlacementsUI() with no argument, which reads
+         the checked boxes out of its one parameter — so it rebuilt the block
+         with every page placement UNCHECKED. Both callers already build the
+         block themselves immediately before calling this (editSponsor passes
+         the sponsor's saved placements, openSponsorModal passes ''), so the
+         rebuild only ever undid the one that mattered: open a sponsor that had
+         placements, press Save without touching them, and they were cleared.
+         Harmless so far only because almost every row has the field empty. */
+
+      /* The School tier ("town" in the database — the stored value is left alone
+         so no migration is needed) already bypasses the sport filter everywhere
+         it is read: get-sponsors, team.html and article.html all short-circuit on
+         it. So the sport checkboxes do nothing for a school sponsor, and leaving
+         them looking meaningful is how someone ends up believing they sold three
+         sports and only checked one. Say so instead of hiding them, because the
+         boxes still hold whatever a sponsor had before the tier was changed. */
+      const isSchool = document.getElementById('sponsorTier').value === 'town';
+      const note = document.getElementById('sponsorSportsAllNote');
+      if (note) note.style.display = isSchool ? 'block' : 'none';
+      document.getElementById('sponsorSportsCheckboxes').style.opacity = isSchool ? '.45' : '1';
     }
 
     function buildPagePlacementsUI(existingPlacements) {
