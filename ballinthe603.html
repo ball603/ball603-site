@@ -484,7 +484,25 @@
         async function initMap() {
             const isMobile = window.innerWidth <= 768;
             map = L.map('map', { zoomControl: true, minZoom: 7, maxZoom: 14 });
-            L.tileLayer(isMobile ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: '&copy; CARTO', subdomains: 'abcd', maxZoom: 19 }).addTo(map);
+            /* Esri's grey canvas, light on a desktop and dark on a phone, which
+               is what the rest of the page does.
+
+               It used to be CARTO's light_all / dark_all. CARTO began requiring
+               an API key on those in September 2026 and did not stop serving
+               them — every tile simply came back with "API KEY REQUIRED"
+               written across it, so the map looked broken rather than failing
+               outright. Esri's canvas basemaps are the closest free stand-in
+               and need no key.
+
+               Two things about the URL that are not the same as CARTO's: the
+               path is z/y/x rather than z/x/y, and there is no @2x version, so
+               no {r} and no subdomain list. If these are ever keyed too, the
+               fix is either a free CARTO key here or OpenStreetMap's own
+               tiles, which are keyless but a good deal busier to look at. */
+            const canvas = isMobile ? 'World_Dark_Gray_Base' : 'World_Light_Gray_Base';
+            L.tileLayer(`https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/${canvas}/MapServer/tile/{z}/{y}/{x}`,
+              { attribution: 'Tiles &copy; Esri &mdash; Esri, HERE, Garmin, &copy; OpenStreetMap contributors',
+                maxZoom: 16 }).addTo(map);
             nhBorderLayer = L.geoJSON(nhBoundary, { style: { color: '#f5831f', weight: 3, fillColor: 'transparent', fillOpacity: 0, opacity: 1 }, interactive: false }).addTo(map);
             map.fitBounds(nhBounds, { padding: [15, 15] });
             currentDate = getToday();
