@@ -7562,6 +7562,42 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     window.tournamentBrackets = tournamentBrackets;
   </script>
   <script>
+
+    /* AI STORY CALLS — read the status before trusting the body.
+     *
+     * Every generator here posts to a Netlify function and then calls
+     * .json() on the reply. That is fine right up until the function does
+     * not run: a platform 500, a cold-start timeout, a deploy mid-flight.
+     * The body then comes back as plain text — "Error - Request ID: 01M..."
+     * — and .json() throws a SyntaxError that lands in a catch which says
+     * "Error generating story" and nothing else.
+     *
+     * That is exactly what happened on Sept 23, 2026. Every page, asset and
+     * function on the site was returning 500, and the only thing the CMS
+     * could say was "Error generating story" — no status, no hint that the
+     * problem was the hosting rather than the game data. Diagnosing it meant
+     * going out to the netlify.app host to watch a PNG fail.
+     *
+     * So: take the body as TEXT first, try to parse it, and if it is not
+     * JSON throw an error that names the HTTP status and quotes what came
+     * back. A JSON body is passed straight through, so every existing
+     * data.success / data.error check keeps working untouched. */
+    async function aiJson(res) {
+      const raw = await res.text();
+      try {
+        if (raw) return JSON.parse(raw);
+      } catch (_) { /* not JSON — fall through and report the status */ }
+
+      const snippet = raw.trim().replace(/\s+/g, ' ').slice(0, 120);
+      const where = res.status >= 500
+        ? ' — this is a hosting/server error, not a problem with the game data'
+        : '';
+      throw new Error(
+        'HTTP ' + res.status + (res.statusText ? ' ' + res.statusText : '') +
+        (snippet ? ' — "' + snippet + '"' : ' — empty response') + where
+      );
+    }
+
     // Supabase config
     const SUPABASE_URL = 'https://suncdkxfqkwwnmhosxcf.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_hHSpgZPD327r11GaQG9iHw_uZbuaWmF';
@@ -9242,7 +9278,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             }
           })
         });
-        const data = await res.json();
+        const data = await aiJson(res);
         if (!res.ok || !data.success) {
           console.error('Manual Game Story: AI draft failed', data);
           showToast(data.error || 'Could not write a draft — type the story instead.', 'error');
@@ -9253,7 +9289,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         showToast('Draft written — read it over before you publish.', 'success');
       } catch (e) {
         console.error('Manual Game Story: AI draft failed', e);
-        showToast('Could not reach the story writer — type the story instead.', 'error');
+        showToast('Could not reach the story writer — type the story instead. (' + err.message + ')', 'error');
       } finally {
         btn.disabled = false;
         btn.innerHTML = originalLabel;
@@ -9563,7 +9599,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     async function tigerLoadStories() {
       try {
         const res = await fetch('/.netlify/functions/farmington-story?key=' + encodeURIComponent(tigerKey()));
-        const data = await res.json();
+        const data = await aiJson(res);
         if (!res.ok) throw new Error(data.error || res.status);
 
         for (const story of (data.stories || [])) {
@@ -9739,7 +9775,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             published: document.getElementById('tigerPublished' + slot).checked
           })
         });
-        const data = await res.json();
+        const data = await aiJson(res);
         if (!res.ok) throw new Error(data.error || res.status);
 
         // The endpoint refuses to publish an empty slot, so reflect what it
@@ -11300,7 +11336,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           })
         });
         
-        const data = await response.json();
+        const data = await aiJson(response);
         console.log('Social API response:', data);
         
         if (data.success) {
@@ -11393,7 +11429,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         }
       } catch (err) {
         console.error('Social generation error:', err);
-        showToast('Failed to generate social posts', 'error');
+        showToast('Failed to generate social posts: ' + err.message, 'error');
       }
       
       btn.disabled = false;
@@ -11951,7 +11987,7 @@ Respond ONLY with valid JSON:
         }
       } catch (err) {
         console.error('BBS error:', err);
-        showToast('Error generating story', 'error');
+        showToast('Error generating story: ' + err.message, 'error');
       } finally {
         btn.disabled = false;
         btn.innerHTML = '&#x2728; Read Boxscore &amp; Generate Story';
@@ -12012,7 +12048,7 @@ Respond ONLY with valid JSON:
             galleryUrl: null
           })
         });
-        const socialData = await socialResponse.json();
+        const socialData = await aiJson(socialResponse);
         generatedSocialPosts = socialData.success ? {
           facebookPost: socialData.facebookPost || null,
           instagramPost: socialData.instagramPost || null,
@@ -12438,7 +12474,7 @@ Respond ONLY with valid JSON:
           })
         });
 
-        const data = await res.json();
+        const data = await aiJson(res);
         if (!data.success) {
           console.error('Volleyball generation error:', data.error, data.raw || '');
           showToast((data.error || 'Error generating story') + (data.raw ? ': ' + String(data.raw).substring(0, 80) : ''), 'error');
@@ -12466,7 +12502,7 @@ Respond ONLY with valid JSON:
         document.getElementById('vbsStep3').style.display = 'block';
       } catch (err) {
         console.error('VBS error:', err);
-        showToast('Error generating story', 'error');
+        showToast('Error generating story: ' + err.message, 'error');
       } finally {
         btn.disabled = false;
         btn.innerHTML = '&#x2728; Generate Story';
@@ -12534,7 +12570,7 @@ Respond ONLY with valid JSON:
             galleryUrl: null
           })
         });
-        const socialData = await socialResponse.json();
+        const socialData = await aiJson(socialResponse);
         generatedSocialPosts = socialData.success ? {
           facebookPost: socialData.facebookPost || null,
           instagramPost: socialData.instagramPost || null,
@@ -12706,7 +12742,7 @@ Respond ONLY with valid JSON:
             })
           });
 
-          const data = await response.json();
+          const data = await aiJson(response);
 
           if (data.success) {
             gsGeneratedData = {
@@ -12758,7 +12794,7 @@ Respond ONLY with valid JSON:
           }
         } catch(err) {
           console.error('Error:', err);
-          showToast('Error generating story', 'error');
+          showToast('Error generating story: ' + err.message, 'error');
         } finally {
           btn.disabled = false;
           btn.innerHTML = '&#x2728; Generate Story';
@@ -12918,7 +12954,7 @@ Respond ONLY with valid JSON:
           })
         });
         
-        const data = await response.json();
+        const data = await aiJson(response);
         
         if (data.success) {
           // Store data for later use
@@ -12994,7 +13030,7 @@ Respond ONLY with valid JSON:
         }
       } catch (err) {
         console.error('Generation error:', err);
-        showToast('Failed to generate story', 'error');
+        showToast('Failed to generate story: ' + err.message, 'error');
       }
       
       btn.disabled = false;
@@ -13318,7 +13354,7 @@ Respond ONLY with valid JSON:
           })
         });
         
-        const data = await response.json();
+        const data = await aiJson(response);
         
         if (data.success) {
           // Close modal and open editor with generated content
@@ -13370,7 +13406,7 @@ Respond ONLY with valid JSON:
         }
       } catch (err) {
         console.error('Generation error:', err);
-        showToast('Failed to generate story', 'error');
+        showToast('Failed to generate story: ' + err.message, 'error');
       }
       
       btn.disabled = false;
@@ -15223,7 +15259,7 @@ Respond ONLY with valid JSON:
           })
         });
         
-        const data = await response.json();
+        const data = await aiJson(response);
         
         if (data.success && data.extracted) {
           extractedData = data.extracted;
@@ -15236,7 +15272,7 @@ Respond ONLY with valid JSON:
         }
       } catch (err) {
         console.error('Extract error:', err);
-        showToast('Failed to extract box score', 'error');
+        showToast('Failed to extract box score: ' + err.message, 'error');
       }
       
       btn.disabled = false;
@@ -15406,7 +15442,7 @@ Respond ONLY with valid JSON:
           })
         });
         
-        const data = await response.json();
+        const data = await aiJson(response);
         
         if (data.success) {
           if (data.headline) {
@@ -15423,7 +15459,7 @@ Respond ONLY with valid JSON:
         }
       } catch (err) {
         console.error('Generation error:', err);
-        showToast('Failed to generate article', 'error');
+        showToast('Failed to generate article: ' + err.message, 'error');
       }
       
       btn.disabled = false;
@@ -15492,7 +15528,7 @@ Respond ONLY with valid JSON:
           })
         });
         
-        const data = await response.json();
+        const data = await aiJson(response);
         
         if (data.success) {
           if (data.headline) {
@@ -15514,7 +15550,7 @@ Respond ONLY with valid JSON:
         }
       } catch (err) {
         console.error('Generation error:', err);
-        showToast('Failed to generate article', 'error');
+        showToast('Failed to generate article: ' + err.message, 'error');
       }
       
       btn.disabled = false;
@@ -19554,7 +19590,7 @@ Respond ONLY with valid JSON:
           })
         });
         
-        const result = await response.json();
+        const result = await aiJson(response);
         
         if (result.success) {
           // Store generated social posts
@@ -20642,7 +20678,7 @@ Respond ONLY with valid JSON:
           })
         });
         
-        const data = await response.json();
+        const data = await aiJson(response);
         
         if (data.success) {
           // Store for later
@@ -21012,7 +21048,7 @@ Respond ONLY with valid JSON:
           })
         });
         
-        const socialData = await response.json();
+        const socialData = await aiJson(response);
         
         if (!socialData.success) {
           console.error('Social generation failed:', socialData.error);
@@ -21420,7 +21456,7 @@ Respond ONLY with valid JSON:
           })
         });
         
-        const result = await response.json();
+        const result = await aiJson(response);
         
         if (result.success) {
           // Store generated social posts
