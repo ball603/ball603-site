@@ -35,15 +35,33 @@ const ACCESS_SECRET = process.env.SMUGMUG_ACCESS_SECRET;
 
 const BASE = 'https://api.smugmug.com';
 const KJ_NICK = 'kjcardinal';
-const KJ_FOLDER = '/Sports/FHS';
 
-// The FHS folder's node id, read off the page's own markup — SmugMug stamps it
-// into the body class ("sm-page-node-T8JSWF"). Pinned for the same reason the
-// video sync pins its channel id: resolving it by path is the fragile step, and
-// !urlpathlookup came back empty on the first live run. If KJ ever rebuilds the
-// folder the id changes, so the path lookup is kept as one of the fallbacks
-// rather than thrown away.
-const KJ_NODE = 'T8JSWF';
+/* KJ shoots the high school and the middle school into two sibling folders, so
+   the Tigers site has to read both or the Jr. High teams have pages with no
+   pictures on them — which is what happened when Jr. High football went up.
+   HWMS is Henry Wilson Memorial School; its albums are titled the same way FHS
+   albums are ("2025 HWMS Baseball Photos"), so sportFromName reads them with
+   no change.
+
+   The node ids are read off each folder's own page markup — SmugMug stamps one
+   into the body class ("sm-page-node-T8JSWF"). Pinned for the same reason the
+   video sync pins its channel id: resolving a folder by path is the fragile
+   step, and !urlpathlookup came back empty on the first live run. If KJ ever
+   rebuilds a folder its id changes, so the path lookup is kept as a fallback
+   rather than thrown away.
+
+   Both write source 'kjcardinal'. That matters: pruning deletes rows for a
+   source whose album_key was not in this run's listing, so the two folders
+   have to be scanned together or each would prune the other's galleries away
+   on every run. */
+const KJ_FOLDERS = [
+  { path: '/Sports/FHS',  node: 'T8JSWF' },   // Farmington High School
+  { path: '/Sports/HWMS', node: 'jCFdbb' }    // Henry Wilson Memorial (Jr. High)
+];
+
+// Kept for the fallbacks below, which still speak in a single folder.
+const KJ_FOLDER = KJ_FOLDERS[0].path;
+const KJ_NODE = KJ_FOLDERS[0].node;
 
 /* ── OAuth 1.0a ──────────────────────────────────────────────────────────── */
 /* Same signing sync-smugmug.mjs uses. Copied rather than shared because those
@@ -240,9 +258,9 @@ async function childAlbums(nodeId, depth = 0) {
   return out;
 }
 
-// Is this album inside the FHS folder? Albums carry their own path, so the
-// folder is a filter rather than somewhere we have to navigate to.
-const FOLDER_RE = /\/Sports\/FHS(\/|$)/i;
+// Is this album inside one of KJ's Farmington folders? Albums carry their own
+// path, so the folder is a filter rather than somewhere we have to navigate to.
+const FOLDER_RE = /\/Sports\/(FHS|HWMS)(\/|$)/i;
 const underFolder = (a) => FOLDER_RE.test(a.UrlPath || '') || FOLDER_RE.test(a.WebUri || '');
 
 // Turn lean !albumlist entries into real albums, one request each. Bounded by
@@ -289,9 +307,43 @@ async function hydrate(lean, deadline) {
    gallery, and the folder listing is still what decides which galleries exist
    at all — one that disappears is still pruned. */
 async function kjAlbums(report, have, deadline) {
-  const lean = await pagedAlbums(`/api/v2/folder/user/${KJ_NICK}${KJ_FOLDER}!albumlist`);
+  /* Both folders, listed in one pass. Each is tried on its own so a folder
+     that is renamed, emptied or made private costs only its own galleries —
+     the other still syncs, and the report names which one failed. That is the
+     same reasoning as the two accounts above: partial is better than nothing.
+
+     Only a run where EVERY folder failed throws. It has to: returning an empty
+     list would look to the pruner like KJ deleted his entire library, and it
+     would obediently wipe every kjcardinal row. */
+  const lean = [];
+  const seen = new Set();
+  report.folders = {};
+  let ok = 0;
+
+  for (const folder of KJ_FOLDERS) {
+    try {
+      const part = await pagedAlbums(
+        `/api/v2/folder/user/${KJ_NICK}${folder.path}!albumlist`);
+      // A gallery filed under both folders would otherwise be hydrated twice.
+      let added = 0;
+      for (const item of part) {
+        const key = albumKeyOf(item) || item.Uri;
+        if (key && seen.has(key)) continue;
+        if (key) seen.add(key);
+        lean.push(item);
+        added++;
+      }
+      report.folders[folder.path] = added;
+      ok++;
+    } catch (err) {
+      report.folders[folder.path] = { error: err.message };
+      console.warn(`Listing ${folder.path} failed:`, err.message);
+    }
+  }
+
   report.listed = lean.length;
-  if (!lean.length) throw new Error(`No galleries listed under ${KJ_FOLDER}`);
+  if (!ok) throw new Error(`Could not list any of ${KJ_FOLDERS.map(f => f.path).join(', ')}`);
+  if (!lean.length) throw new Error(`No galleries listed under ${KJ_FOLDERS.map(f => f.path).join(', ')}`);
 
   const known = [], missing = [];
   for (const item of lean) {
