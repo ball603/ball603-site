@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Put your business behind your school's teams. Ball603 covers 90 New Hampshire high schools with premium photography and video.">
+  <meta name="description" content="Put your business behind your school's teams. Ball 603 covers 90 New Hampshire high schools with premium photography and video.">
   <meta name="theme-color" content="#f57c00">
-  <title>Sponsor Your School | Ball603</title>
+  <title>Sponsor Your School | Ball 603</title>
 
-  <meta property="og:title" content="Own the Baseline — Sponsor Your School | Ball603">
+  <meta property="og:title" content="Own the Baseline — Sponsor Your School | Ball 603">
   <meta property="og:description" content="One sponsor per school, per sport. Check whether your school's slot is still open.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://ball603.com/sponsor">
@@ -55,6 +55,13 @@
        which rendered the primary button transparent with near-black text on a
        near-black bar. Invisible, and silent. */
     :root { --sp-accent: var(--brand-orange, #f57c00); }
+
+    /* nav-loader injects the rotating presenting-sponsor bar under the header
+       on every page. It is hidden here and only here: a page whose whole job
+       is selling sponsorships should not open with other sponsors' logos
+       sliding past. Done in CSS rather than by changing nav-loader.js, so no
+       other page is affected. */
+    #presenting-sponsor-bar { display: none !important; }
 
     /* ── Hero ─────────────────────────────────────────────────────────── */
     .sp-hero {
@@ -153,12 +160,30 @@
     }
     .sp-select:focus { outline: 2px solid var(--sp-accent); outline-offset: 1px; }
 
+    /* Logo beside the dropdown. Sits on a white tile because most of these
+       crests are dark artwork on transparency — the same reason the presenting
+       bar tiles its logos. Hidden entirely until a school is chosen, and again
+       if the file 404s, so a missing crest leaves no empty square. */
+    .sp-pickerow { display: flex; align-items: center; gap: 11px; }
+    .sp-pickerow .sp-select { flex: 1; min-width: 0; }
+    .sp-schoollogo {
+      display: none;
+      flex: 0 0 auto;
+      width: 52px;
+      height: 52px;
+      object-fit: contain;
+      background: #fff;
+      border-radius: 10px;
+      padding: 5px;
+    }
+    .sp-schoollogo.show { display: block; }
+
     .sp-ctas {
       display: flex;
       gap: 10px;
       justify-content: center;
       flex-wrap: wrap;
-      margin-top: 16px;
+      margin-top: 18px;
     }
     .sp-btn {
       display: inline-flex;
@@ -254,20 +279,34 @@
       padding: 0 20px;
     }
 
-    /* ── Your school panel ────────────────────────────────────────────── */
-    .sp-school {
-      background: var(--bg-secondary, #f5f5f5);
-      border-top: 1px solid var(--border-color, #e0e0e0);
-      border-bottom: 1px solid var(--border-color, #e0e0e0);
+    /* ── Your school panel ──────────────────────────────────────────────
+     * This lives INSIDE the hero now, so it is styled for a dark background at
+     * every width rather than inheriting the theme variables — on desktop
+     * those resolve to near-black text, which would have been invisible here.
+     */
+    #spSchoolPanel {
+      max-width: 620px;
+      margin: 26px auto 0;
+      padding-top: 22px;
+      border-top: 1px solid rgba(255,255,255,.14);
     }
     .sp-schoolname {
       text-align: center;
-      font-size: clamp(24px, 6.5vw, 36px);
+      font-size: clamp(23px, 6.2vw, 34px);
       font-weight: 800;
       letter-spacing: -.02em;
-      color: var(--text-primary);
-      margin: 0 0 4px;
+      color: #fff;
+      margin: 0 0 6px;
     }
+    .sp-schoollede {
+      text-align: center;
+      font-size: 15px;
+      line-height: 1.5;
+      color: #c9c9c9;
+      margin: 0 auto;
+      max-width: 520px;
+    }
+    .sp-schoollede strong { color: #fff; }
     .sp-slots {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -279,14 +318,14 @@
       border-radius: 11px;
       padding: 15px 12px;
       text-align: center;
-      border: 1px solid var(--border-color, #e0e0e0);
-      background: var(--bg-card, #fff);
+      border: 1px solid rgba(255,255,255,.16);
+      background: rgba(255,255,255,.05);
     }
     .sp-slot .sp-slot-sport {
       font-size: 12px;
       letter-spacing: .07em;
       text-transform: uppercase;
-      color: var(--text-muted, #999);
+      color: #9e9e9e;
       font-weight: 700;
     }
     .sp-slot .sp-slot-state {
@@ -299,7 +338,7 @@
       display: block;
       margin-top: 3px;
       font-size: 11px;
-      color: var(--text-muted, #999);
+      color: #8f8f8f;
       line-height: 1.3;
     }
     .sp-slot.open {
@@ -308,7 +347,7 @@
     }
     .sp-slot.open .sp-slot-state { color: var(--sp-accent); }
     .sp-slot.taken { opacity: .72; }
-    .sp-slot.taken .sp-slot-state { color: var(--text-secondary, #666); }
+    .sp-slot.taken .sp-slot-state { color: #cfcfcf; }
 
     /* Galleries we have actually shot at that school. */
     .sp-galleries {
@@ -321,13 +360,13 @@
       -webkit-overflow-scrolling: touch;
     }
     .sp-galleries::-webkit-scrollbar { height: 5px; }
-    .sp-galleries::-webkit-scrollbar-thumb { background: var(--border-color,#ccc); border-radius: 3px; }
+    .sp-galleries::-webkit-scrollbar-thumb { background: rgba(255,255,255,.25); border-radius: 3px; }
     .sp-gal {
       flex: 0 0 auto;
       width: 208px;
       scroll-snap-align: start;
-      background: var(--bg-card, #fff);
-      border: 1px solid var(--border-color, #e0e0e0);
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.15);
       border-radius: 11px;
       overflow: hidden;
       text-decoration: none;
@@ -338,13 +377,13 @@
       font-size: 13px;
       font-weight: 700;
       line-height: 1.32;
-      color: var(--text-primary);
+      color: #fff;
       display: -webkit-box;
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
       overflow: hidden;
     }
-    .sp-gal-meta { font-size: 11px; color: var(--text-muted,#999); margin-top: 4px; }
+    .sp-gal-meta { font-size: 11px; color: #9a9a9a; margin-top: 4px; }
 
     /* ── Logo preview ─────────────────────────────────────────────────── */
     .sp-preview {
@@ -640,28 +679,48 @@
 
     <!-- ── HERO ─────────────────────────────────────────────────────── -->
     <section class="sp-hero" id="spHero">
-      <div class="sp-eyebrow">Ball603 Team Sponsorship &middot; 2026&ndash;27</div>
+      <div class="sp-eyebrow">Ball 603 Team Sponsorship &middot; 2026&ndash;27</div>
       <h1>Own the Baseline.<br><em>Support Your Local Athletes.</em></h1>
       <p class="sp-sub">
-        Ball603 is on the baseline at <strong>90 New Hampshire high schools</strong>,
-        covering basketball, baseball and girls volleyball through photography and
-        video &mdash; at the schools no one else still covers.
+        Ball 603 is on the baseline at <strong>90 New Hampshire high schools</strong>,
+        covering basketball, baseball and girls volleyball through photography and video.
       </p>
 
       <div class="sp-picker">
         <label for="spSchool">Start with your school</label>
-        <select class="sp-select" id="spSchool" aria-label="Select your New Hampshire high school">
-          <option value="">Select your NH high school&hellip;</option>
-        </select>
-        <div class="sp-ctas">
-          <button class="sp-btn sp-btn-primary" id="spLockBtn" type="button">Lock In Your School</button>
-          <a class="sp-btn sp-btn-ghost" href="/media-kit.pdf" target="_blank" rel="noopener">Media Kit</a>
+        <div class="sp-pickerow">
+          <img class="sp-schoollogo" id="spSchoolLogo" alt="" aria-hidden="true">
+          <select class="sp-select" id="spSchool" aria-label="Select your New Hampshire high school">
+            <option value="">Select your NH high school&hellip;</option>
+          </select>
         </div>
+      </div>
+
+      <!-- Revealed on selection, inside the hero so it reads as one dark block
+           continuing from the dropdown rather than a separate section. -->
+      <div id="spSchoolPanel" style="display:none;">
+        <h2 class="sp-schoolname" id="spSchoolName">&nbsp;</h2>
+        <p class="sp-schoollede" id="spSchoolLede">&nbsp;</p>
+        <div class="sp-slots" id="spSlots"></div>
+        <div id="spGalleryWrap" style="display:none;">
+          <p class="sp-schoollede" style="margin-top:22px;" id="spGalleryLede">&nbsp;</p>
+          <div class="sp-galleries" id="spGalleries"></div>
+        </div>
+      </div>
+
+      <div class="sp-ctas">
+        <button class="sp-btn sp-btn-primary" id="spLockBtn" type="button">Lock In Your School</button>
+        <a class="sp-btn sp-btn-ghost" href="/media-kit.pdf" target="_blank" rel="noopener">Media Kit</a>
       </div>
     </section>
 
     <!-- ── STATS ────────────────────────────────────────────────────── -->
-    <section style="padding: 34px 0 8px;">
+    <section class="sp-section" style="padding-bottom: 8px;">
+      <div class="sp-kicker">The reach you'd be joining</div>
+      <h2>What your name sits next to</h2>
+      <p class="sp-lede">
+        Twelve months of Ball 603 coverage and the audience that follows it.
+      </p>
       <div class="sp-stats">
         <div class="sp-stat"><b>16.1M</b><span>Post views</span></div>
         <div class="sp-stat"><b>29,051</b><span>Followers<br>FB &middot; IG &middot; X</span></div>
@@ -671,38 +730,24 @@
       <p class="sp-stats-note">Sept 23, 2025 &ndash; Sept 23, 2026.</p>
     </section>
 
-    <!-- ── YOUR SCHOOL (revealed on selection) ──────────────────────── -->
-    <section class="sp-school" id="spSchoolPanel" style="display:none;">
-      <div class="sp-section">
-        <div class="sp-kicker">Your school</div>
-        <h2 class="sp-schoolname" id="spSchoolName">&nbsp;</h2>
-        <p class="sp-lede" id="spSchoolLede">&nbsp;</p>
-        <div class="sp-slots" id="spSlots"></div>
-        <div id="spGalleryWrap" style="display:none;">
-          <p class="sp-lede" style="margin:26px auto 0;" id="spGalleryLede">&nbsp;</p>
-          <div class="sp-galleries" id="spGalleries"></div>
-        </div>
-      </div>
-    </section>
-
     <!-- ── TIERS ────────────────────────────────────────────────────── -->
     <section class="sp-section" id="spTiers">
       <div class="sp-kicker">Partnership</div>
       <h2>Two ways to put your name behind a program</h2>
-      <p class="sp-lede">One season year, September through August.</p>
+      <p class="sp-lede">One season &mdash; September through August.</p>
 
       <table class="sp-tier-table">
         <thead>
           <tr>
             <th style="width:148px;"></th>
-            <th>Team Sponsor<small>$400</small></th>
-            <th>School Sponsor<small>$1,000</small></th>
+            <th>Team Sponsor<small>$400 &middot; one team, one season</small></th>
+            <th>School Sponsor<small>$1,000 &middot; the whole school, one season</small></th>
           </tr>
         </thead>
         <tbody>
           <tr>
             <th scope="row">Scope</th>
-            <td>One team, one sport, all year.</td>
+            <td>One team, one sport, all season.</td>
             <td>Every team at that school, all three sports.</td>
           </tr>
           <tr>
@@ -737,9 +782,9 @@
       <div class="sp-tier-cards">
         <div class="sp-tier-card">
           <h3>Team Sponsor</h3>
-          <div class="sp-price">$400 &middot; one team, one season year</div>
+          <div class="sp-price">$400 &middot; one team, one season</div>
           <dl>
-            <dt>Scope</dt><dd>One team, one sport, all year.</dd>
+            <dt>Scope</dt><dd>One team, one sport, all season.</dd>
             <dt>Exclusivity</dt><dd>The only team sponsor for that team.</dd>
             <dt>Logo placement</dt><dd>That team's page, plus every story featuring them.</dd>
             <dt>Photo coverage</dt><dd>At least one game shot by us.</dd>
@@ -748,7 +793,7 @@
         </div>
         <div class="sp-tier-card feature">
           <h3>School Sponsor</h3>
-          <div class="sp-price">$1,000 &middot; the whole school, one season year</div>
+          <div class="sp-price">$1,000 &middot; the whole school, one season</div>
           <dl>
             <dt>Scope</dt><dd>Every team at that school, all three sports.</dd>
             <dt>Exclusivity</dt><dd>Only one per high school, and it takes every sport off the board.</dd>
@@ -781,7 +826,7 @@
     <!-- ── INTEGRITY ────────────────────────────────────────────────── -->
     <section class="sp-section" style="padding-top:0;">
       <div class="sp-integrity">
-        <span class="sp-badge">The Ball603 Independence Guarantee</span>
+        <span class="sp-badge">The Ball 603 Independence Guarantee</span>
         <p>
           <strong>We cover the games, we don't sell the scores.</strong>
           Sponsoring a school doesn't buy it a story, a better headline, or a kinder
@@ -883,7 +928,7 @@
       <a href="/contact">Contact</a>
       <a href="/sponsor">Sponsor</a>
     </div>
-    <p class="footer-copyright">&copy; 2026 Ball603. All rights reserved.</p>
+    <p class="footer-copyright">&copy; 2026 Ball 603. All rights reserved.</p>
   </footer>
 
   <script src="/app.js"></script>
@@ -906,7 +951,7 @@
    * than guessed at, and the rest of the page still sells.
    */
 
-  const SCHOOLS = ["Alvirne","Bedford","Belmont","Berlin","Bishop Brady","Bishop Guertin","Bow","Campbell","Canaan","Coe-Brown","Colebrook","ConVal","Conant","Concord","Concord Christian","Derryfield","Dover","Epping","Exeter","Fall Mountain","Farmington","Franklin","Gilford","Goffstown","Gorham","Groveton","Hanover","Hillsboro-Deering","Hinsdale","Hollis-Brookline","Holy Family","Hopkinton","Inter-Lakes","John Stark","Kearsarge","Keene","Kennett","Kingswood","Laconia","Lebanon","Lin-Wood","Lisbon","Littleton","Londonderry","Manchester Central","Manchester Memorial","Manchester West","Mascenic","Mascoma Valley","Merrimack","Merrimack Valley","Milford","Monadnock","Moultonborough","Mount Royal","Nashua North","Nashua South","Newfound","Newmarket","Newport","Nute","Oyster River","Pelham","Pembroke","Pinkerton","Pittsburg-Canaan","Pittsfield","Plymouth","Portsmouth","Portsmouth Christian","Profile","Prospect Mountain","Raymond","Saint Thomas Aquinas","Salem","Sanborn","Somersworth","Souhegan","Spaulding","Stevens","Sunapee","Timberlane","Trinity","White Mountains","Wilton-Lyndeborough","Windham","Winnacunnet","Winnisquam","Woodsville"];
+  const SCHOOLS = ["Alvirne","Bedford","Belmont","Berlin","Bishop Brady","Bishop Guertin","Bow","Campbell","Coe-Brown","Colebrook","ConVal","Conant","Concord","Concord Christian","Derryfield","Dover","Epping","Exeter","Fall Mountain","Farmington","Franklin","Gilford","Goffstown","Gorham","Groveton","Hanover","Hillsboro-Deering","Hinsdale","Hollis-Brookline","Holy Family","Hopkinton","Inter-Lakes","John Stark","Kearsarge","Keene","Kennett","Kingswood","Laconia","Lebanon","Lin-Wood","Lisbon","Littleton","Londonderry","Manchester Central","Manchester Memorial","Manchester West","Mascenic","Mascoma Valley","Merrimack","Merrimack Valley","Milford","Monadnock","Moultonborough","Mount Royal","Nashua North","Nashua South","Newfound","Newmarket","Newport","Nute","Oyster River","Pelham","Pembroke","Pinkerton","Pittsburg-Canaan","Pittsfield","Plymouth","Portsmouth","Portsmouth Christian","Profile","Prospect Mountain","Raymond","St. Thomas Aquinas","Salem","Sanborn","Somersworth","Souhegan","Spaulding","Stevens","Sunapee","Timberlane","Trinity","White Mountains","Wilton-Lyndeborough","Windham","Winnacunnet","Winnisquam","Woodsville"];
 
   const SPORTS = [
     { key: 'basketball',  label: 'Basketball' },
@@ -915,6 +960,22 @@
   ];
 
   const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+  /* School crests live at /logos/100px/<PascalCase, no punctuation>.png —
+     "Coe-Brown" is CoeBrown.png, "White Mountains" is WhiteMountains.png. Two
+     files do not follow from the name, so they are named outright rather than
+     guessed at. A miss just hides the image; it never leaves a broken square. */
+  const LOGO_ALIAS = {
+    'st. thomas aquinas': 'StThomasAquinas',
+    'pittsburg-canaan':   'PittsburgCanaan'
+  };
+  const logoFor = school => {
+    const alias = LOGO_ALIAS[String(school).toLowerCase().trim()];
+    const file = alias || String(school).replace(/[^A-Za-z0-9 ]/g, ' ')
+      .split(/\s+/).filter(Boolean)
+      .map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('');
+    return '/logos/100px/' + file + '.png';
+  };
   const esc  = s => String(s == null ? '' : s).replace(/[&<>"']/g,
     c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
@@ -1012,12 +1073,20 @@
   async function showSchool(school) {
     if (!school) {
       document.getElementById('spSchoolPanel').style.display = 'none';
+      document.getElementById('spSchoolLogo').classList.remove('show');
       document.getElementById('spPreviewTeam').textContent = "Your school's team page";
       return;
     }
 
     document.getElementById('spSchoolName').textContent = school;
     document.getElementById('spSchoolPanel').style.display = '';
+
+    const logo = document.getElementById('spSchoolLogo');
+    logo.classList.remove('show');
+    logo.onload  = () => logo.classList.add('show');
+    logo.onerror = () => logo.classList.remove('show');
+    logo.alt = school + ' logo';
+    logo.src = logoFor(school);
 
     // Slots — only when we genuinely know. Guessing here would be worse than
     // saying nothing, because "open" is a promise.
