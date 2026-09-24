@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Put your business behind your school's teams. Ball603 covers 90 New Hampshire high schools with premium photography and video.">
+  <meta name="theme-color" content="#f57c00">
+  <title>Sponsor Your School | Ball603</title>
+
+  <meta property="og:title" content="Own the Baseline — Sponsor Your School | Ball603">
+  <meta property="og:description" content="One sponsor per school, per sport. Check whether your school's slot is still open.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://ball603.com/sponsor">
+
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="apple-touch-icon" href="/logo.png">
+
+  <!-- Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-S4BN80729K"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-S4BN80729K');
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0"></script>
+  <link rel="stylesheet" href="/styles.css">
+
+  <style>
+    /* ===== SPONSOR PAGE =====================================================
+     *
+     * THEME. This page inherits styles.css, which is light on desktop and
+     * switches to a dark palette inside @media (max-width: 768px). That is the
+     * site's convention, not an accident, so the body here follows it rather
+     * than forcing one palette — a hard-dark page would match the phone and
+     * look like a different website on a laptop.
+     *
+     * The HERO is the deliberate exception: black at every size, because it
+     * carries a photograph and because a dark masthead over a light page reads
+     * as intentional (the printed one-pager does the same thing).
+     *
+     * ACCENT is --brand-orange (#f57c00), the site's real brand colour.
+     *
+     * MOBILE. Every multi-column block here collapses to one or two columns at
+     * 768px. The tier comparison is the one that matters: a two-column table
+     * with five feature rows cannot be read at 390px, so it is built twice —
+     * a real table for desktop, stacked cards for phones — rather than being
+     * allowed to scroll sideways.
+     */
+
+    /* On :root, not on .sp-wrap. The sticky CTA bar is a sibling of <main>,
+       so a variable scoped to .sp-wrap is undefined inside it — and
+       `background: var(--sp-accent)` with no fallback resolves to nothing,
+       which rendered the primary button transparent with near-black text on a
+       near-black bar. Invisible, and silent. */
+    :root { --sp-accent: var(--brand-orange, #f57c00); }
+
+    /* ── Hero ─────────────────────────────────────────────────────────── */
+    .sp-hero {
+      position: relative;
+      background: #0d0d0d;
+      color: #fff;
+      overflow: hidden;
+      padding: 54px 20px 40px;
+      text-align: center;
+    }
+    /* Drop a real photograph in by setting --sp-hero-photo on .sp-hero.
+       Until then the gradient stands on its own rather than stretching a
+       thumbnail into something blurry. */
+    .sp-hero::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image: var(--sp-hero-photo, none);
+      background-size: cover;
+      background-position: center 30%;
+      opacity: .38;
+    }
+    .sp-hero::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(120% 90% at 50% 0%, rgba(245,124,0,.22) 0%, transparent 60%),
+        linear-gradient(180deg, rgba(13,13,13,.55) 0%, rgba(13,13,13,.92) 100%);
+    }
+    .sp-hero > * { position: relative; z-index: 1; }
+
+    .sp-eyebrow {
+      font-size: 11px;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      color: var(--sp-accent);
+      font-weight: 700;
+      margin-bottom: 14px;
+    }
+    .sp-hero h1 {
+      font-size: clamp(30px, 8vw, 54px);
+      line-height: 1.04;
+      font-weight: 800;
+      letter-spacing: -.02em;
+      margin: 0 auto 14px;
+      max-width: 760px;
+    }
+    .sp-hero h1 em { font-style: normal; color: var(--sp-accent); }
+    .sp-hero p.sp-sub {
+      font-size: clamp(14px, 3.6vw, 17px);
+      line-height: 1.5;
+      color: #d4d4d4;
+      max-width: 620px;
+      margin: 0 auto 26px;
+    }
+
+    /* The school picker. First thing, not last — once a school is chosen the
+       rest of the page is about that school. */
+    .sp-picker {
+      max-width: 430px;
+      margin: 0 auto;
+      background: rgba(255,255,255,.07);
+      border: 1px solid rgba(255,255,255,.16);
+      border-radius: 14px;
+      padding: 16px;
+      backdrop-filter: blur(4px);
+    }
+    .sp-picker label {
+      display: block;
+      font-size: 12px;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      color: #b9b9b9;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    /* A native <select> on purpose: iOS renders a proper wheel for 90 options,
+       which beats any custom dropdown on a phone. 16px min or iOS zooms the
+       whole page when it gains focus. */
+    .sp-select {
+      width: 100%;
+      font-size: 16px;
+      font-family: inherit;
+      padding: 13px 14px;
+      min-height: 48px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,.22);
+      background: #1b1b1b;
+      color: #fff;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23f57c00'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      background-size: 22px;
+    }
+    .sp-select:focus { outline: 2px solid var(--sp-accent); outline-offset: 1px; }
+
+    .sp-ctas {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-top: 16px;
+    }
+    .sp-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      min-height: 48px;
+      padding: 13px 22px;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 700;
+      text-decoration: none;
+      border: 0;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .sp-btn-primary { background: var(--sp-accent); color: #1a1a1a; }
+    .sp-btn-primary:hover { background: var(--brand-orange-hover, #ff9800); }
+    .sp-btn-ghost {
+      background: transparent;
+      color: #fff;
+      border: 1px solid rgba(255,255,255,.34);
+    }
+    .sp-btn-ghost:hover { background: rgba(255,255,255,.1); }
+
+    /* ── Shared section furniture ─────────────────────────────────────── */
+    .sp-section { padding: 44px 20px; max-width: 1080px; margin: 0 auto; }
+    .sp-section h2 {
+      font-size: clamp(21px, 5vw, 29px);
+      font-weight: 800;
+      letter-spacing: -.015em;
+      color: var(--text-primary);
+      margin: 0 0 8px;
+      text-align: center;
+    }
+    .sp-section .sp-lede {
+      text-align: center;
+      color: var(--text-secondary);
+      font-size: 15px;
+      line-height: 1.55;
+      max-width: 620px;
+      margin: 0 auto 26px;
+    }
+    .sp-kicker {
+      text-align: center;
+      font-size: 11px;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+      color: var(--sp-accent);
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    /* ── Stat grid: 2×2 on phones, never 1×4 ──────────────────────────── */
+    .sp-stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+    .sp-stat {
+      background: var(--bg-card, #fff);
+      border: 1px solid var(--border-color, #e0e0e0);
+      border-top: 3px solid var(--sp-accent);
+      border-radius: 12px;
+      padding: 18px 12px;
+      text-align: center;
+    }
+    .sp-stat b {
+      display: block;
+      font-size: clamp(22px, 5.6vw, 32px);
+      font-weight: 800;
+      line-height: 1.05;
+      color: var(--text-primary);
+      letter-spacing: -.02em;
+    }
+    .sp-stat span {
+      display: block;
+      margin-top: 5px;
+      font-size: 11px;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+      color: var(--text-muted, #999);
+      line-height: 1.3;
+    }
+    .sp-stats-note {
+      text-align: center;
+      font-size: 11px;
+      color: var(--text-muted, #999);
+      margin: 12px auto 0;
+      padding: 0 20px;
+    }
+
+    /* ── Your school panel ────────────────────────────────────────────── */
+    .sp-school {
+      background: var(--bg-secondary, #f5f5f5);
+      border-top: 1px solid var(--border-color, #e0e0e0);
+      border-bottom: 1px solid var(--border-color, #e0e0e0);
+    }
+    .sp-schoolname {
+      text-align: center;
+      font-size: clamp(24px, 6.5vw, 36px);
+      font-weight: 800;
+      letter-spacing: -.02em;
+      color: var(--text-primary);
+      margin: 0 0 4px;
+    }
+    .sp-slots {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      max-width: 620px;
+      margin: 20px auto 0;
+    }
+    .sp-slot {
+      border-radius: 11px;
+      padding: 15px 12px;
+      text-align: center;
+      border: 1px solid var(--border-color, #e0e0e0);
+      background: var(--bg-card, #fff);
+    }
+    .sp-slot .sp-slot-sport {
+      font-size: 12px;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+      color: var(--text-muted, #999);
+      font-weight: 700;
+    }
+    .sp-slot .sp-slot-state {
+      display: block;
+      margin-top: 7px;
+      font-size: 15px;
+      font-weight: 800;
+    }
+    .sp-slot .sp-slot-who {
+      display: block;
+      margin-top: 3px;
+      font-size: 11px;
+      color: var(--text-muted, #999);
+      line-height: 1.3;
+    }
+    .sp-slot.open {
+      border-color: var(--sp-accent);
+      box-shadow: 0 0 0 1px var(--sp-accent) inset;
+    }
+    .sp-slot.open .sp-slot-state { color: var(--sp-accent); }
+    .sp-slot.taken { opacity: .72; }
+    .sp-slot.taken .sp-slot-state { color: var(--text-secondary, #666); }
+
+    /* Galleries we have actually shot at that school. */
+    .sp-galleries {
+      display: flex;
+      gap: 12px;
+      overflow-x: auto;
+      padding: 4px 20px 14px;
+      margin: 20px -20px 0;
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+    }
+    .sp-galleries::-webkit-scrollbar { height: 5px; }
+    .sp-galleries::-webkit-scrollbar-thumb { background: var(--border-color,#ccc); border-radius: 3px; }
+    .sp-gal {
+      flex: 0 0 auto;
+      width: 208px;
+      scroll-snap-align: start;
+      background: var(--bg-card, #fff);
+      border: 1px solid var(--border-color, #e0e0e0);
+      border-radius: 11px;
+      overflow: hidden;
+      text-decoration: none;
+      color: inherit;
+    }
+    .sp-gal-body { padding: 11px 12px 13px; }
+    .sp-gal-title {
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.32;
+      color: var(--text-primary);
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .sp-gal-meta { font-size: 11px; color: var(--text-muted,#999); margin-top: 4px; }
+
+    /* ── Logo preview ─────────────────────────────────────────────────── */
+    .sp-preview {
+      max-width: 520px;
+      margin: 0 auto;
+      background: #101010;
+      border-radius: 14px;
+      padding: 22px 18px 24px;
+      text-align: center;
+      border: 1px solid #2a2a2a;
+    }
+    .sp-preview-label {
+      font-size: 11px;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: #8a8a8a;
+      font-weight: 700;
+    }
+    .sp-preview-team {
+      color: #fff;
+      font-size: 17px;
+      font-weight: 800;
+      margin: 7px 0 15px;
+    }
+    .sp-preview-tile {
+      background: #fff;
+      border-radius: 11px;
+      min-height: 76px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 14px 18px;
+      margin: 0 auto;
+      max-width: 300px;
+    }
+    .sp-preview-tile span {
+      font-size: 17px;
+      font-weight: 800;
+      color: #1a1a1a;
+      line-height: 1.25;
+      word-break: break-word;
+    }
+    .sp-preview-tile.empty span { color: #bbb; font-weight: 600; }
+    .sp-preview-hint { font-size: 11px; color: #7a7a7a; margin-top: 12px; }
+
+    /* ── Tiers ────────────────────────────────────────────────────────── */
+    .sp-tier-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      max-width: 860px;
+      margin: 0 auto;
+      font-size: 14px;
+    }
+    .sp-tier-table th, .sp-tier-table td {
+      padding: 13px 15px;
+      text-align: left;
+      border-bottom: 1px solid var(--border-color, #e0e0e0);
+      vertical-align: top;
+    }
+    .sp-tier-table thead th {
+      background: var(--bg-secondary, #f5f5f5);
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--text-primary);
+      border-bottom: 2px solid var(--sp-accent);
+    }
+    .sp-tier-table thead th small {
+      display: block;
+      font-weight: 700;
+      font-size: 13px;
+      color: var(--sp-accent);
+      margin-top: 3px;
+    }
+    .sp-tier-table tbody th {
+      font-weight: 700;
+      color: var(--text-secondary, #666);
+      font-size: 12px;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      width: 148px;
+      background: transparent;
+    }
+    .sp-tier-table td { color: var(--text-primary); }
+    .sp-tier-cards { display: none; }
+
+    .sp-tier-card {
+      background: var(--bg-card, #fff);
+      border: 1px solid var(--border-color, #e0e0e0);
+      border-radius: 14px;
+      padding: 18px;
+      margin-bottom: 14px;
+    }
+    .sp-tier-card.feature { border: 2px solid var(--sp-accent); }
+    .sp-tier-card h3 { font-size: 19px; font-weight: 800; margin: 0 0 2px; color: var(--text-primary); }
+    .sp-tier-card .sp-price { font-size: 15px; font-weight: 800; color: var(--sp-accent); margin-bottom: 12px; }
+    .sp-tier-card dl { margin: 0; }
+    .sp-tier-card dt {
+      font-size: 11px;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--text-muted, #999);
+      font-weight: 700;
+      margin-top: 11px;
+    }
+    .sp-tier-card dd { margin: 3px 0 0; font-size: 14px; line-height: 1.45; color: var(--text-primary); }
+
+    /* ── Exclusivity + integrity ──────────────────────────────────────── */
+    .sp-exclusive {
+      max-width: 700px;
+      margin: 24px auto 0;
+      text-align: center;
+      font-size: 15px;
+      line-height: 1.5;
+      color: var(--text-primary);
+      background: var(--brand-orange-light, #fff3e0);
+      border: 1px solid #f3d4ab;
+      border-radius: 11px;
+      padding: 14px 18px;
+    }
+    .sp-exclusive b { color: #b4530a; }
+    @media (max-width: 768px) {
+      .sp-exclusive { background: var(--brand-orange-dark, #3d2a00); border-color: #6b4a12; }
+      .sp-exclusive b { color: var(--brand-orange-hover, #ff9800); }
+    }
+
+    .sp-integrity {
+      background: #101010;
+      color: #e8e8e8;
+      border-radius: 16px;
+      max-width: 780px;
+      margin: 0 auto;
+      padding: 26px 22px;
+      text-align: center;
+    }
+    .sp-integrity .sp-badge {
+      display: inline-block;
+      font-size: 11px;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      font-weight: 800;
+      color: #1a1a1a;
+      background: var(--sp-accent);
+      border-radius: 20px;
+      padding: 5px 13px;
+      margin-bottom: 14px;
+    }
+    .sp-integrity p {
+      font-size: clamp(14px, 3.6vw, 16px);
+      line-height: 1.6;
+      margin: 0;
+      color: #d8d8d8;
+    }
+    .sp-integrity p strong { color: #fff; }
+
+    /* ── Sponsor wall ─────────────────────────────────────────────────── */
+    .sp-wall {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      max-width: 940px;
+      margin: 0 auto;
+    }
+    /* White tiles for the same reason the presenting bar uses them: most of
+       these logos are dark artwork on transparent backgrounds. */
+    .sp-wall img {
+      height: 62px;
+      max-width: 168px;
+      object-fit: contain;
+      background: #fff;
+      border-radius: 9px;
+      padding: 7px 11px;
+      border: 1px solid var(--border-color, #e0e0e0);
+    }
+
+    /* ── Form ─────────────────────────────────────────────────────────── */
+    .sp-form {
+      max-width: 560px;
+      margin: 0 auto;
+      background: var(--bg-card, #fff);
+      border: 1px solid var(--border-color, #e0e0e0);
+      border-radius: 16px;
+      padding: 22px 20px 24px;
+    }
+    .sp-field { margin-bottom: 14px; }
+    .sp-field label {
+      display: block;
+      font-size: 12px;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: var(--text-secondary, #666);
+      margin-bottom: 6px;
+    }
+    .sp-field input, .sp-field textarea, .sp-field select {
+      width: 100%;
+      font-size: 16px;          /* 16px minimum or iOS zooms on focus */
+      font-family: inherit;
+      padding: 12px 13px;
+      min-height: 48px;
+      border-radius: 10px;
+      border: 1px solid var(--border-color, #ddd);
+      background: var(--bg-primary, #fff);
+      color: var(--text-primary);
+    }
+    .sp-field textarea { min-height: 84px; resize: vertical; }
+    .sp-field input:focus, .sp-field textarea:focus, .sp-field select:focus {
+      outline: 2px solid var(--sp-accent);
+      outline-offset: 1px;
+    }
+    .sp-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .sp-submit { width: 100%; margin-top: 4px; }
+    .sp-formnote { font-size: 12px; color: var(--text-muted,#999); text-align: center; margin-top: 12px; line-height: 1.5; }
+    .sp-status { margin-top: 14px; font-size: 14px; border-radius: 10px; padding: 12px 14px; display: none; line-height: 1.5; }
+    .sp-status.ok   { display: block; background: #e7f7ea; color: #14532d; border: 1px solid #a7e3b5; }
+    .sp-status.bad  { display: block; background: #fdecec; color: #7f1d1d; border: 1px solid #f3b4b4; }
+    @media (max-width: 768px) {
+      .sp-status.ok  { background: #10321a; color: #b6f0c4; border-color: #1f6b35; }
+      .sp-status.bad { background: #3a1414; color: #f6b8b8; border-color: #7a2a2a; }
+    }
+
+    /* ── Sticky mobile CTA ────────────────────────────────────────────── */
+    .sp-sticky {
+      position: fixed;
+      left: 0; right: 0; bottom: 0;
+      z-index: var(--z-sticky, 500);
+      display: none;
+      gap: 10px;
+      align-items: center;
+      padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+      background: rgba(13,13,13,.96);
+      border-top: 1px solid #2c2c2c;
+      backdrop-filter: blur(6px);
+    }
+    .sp-sticky.show { display: flex; }
+    .sp-sticky .sp-sticky-text {
+      flex: 1;
+      min-width: 0;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.25;
+    }
+    .sp-sticky .sp-sticky-text small { display: block; font-weight: 400; color: #9d9d9d; font-size: 11px; }
+    .sp-sticky .sp-btn { min-height: 44px; padding: 10px 16px; font-size: 14px; white-space: nowrap; }
+
+    /* ── Responsive ───────────────────────────────────────────────────── */
+    @media (max-width: 768px) {
+      .sp-hero { padding: 38px 18px 32px; }
+      .sp-section { padding: 34px 18px; }
+      .sp-stats { grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 0 18px; }
+
+      /* Three stacked centre-aligned cards ran to ~600px of panel on a phone —
+         most of it whitespace — and pushed the galleries below the fold. Same
+         information as a compact row: sport on the left, status on the right. */
+      .sp-slots { grid-template-columns: 1fr; gap: 8px; }
+      .sp-slot {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        text-align: left;
+        padding: 12px 14px;
+      }
+      .sp-slot .sp-slot-sport { flex: 0 0 auto; }
+      .sp-slot .sp-slot-state { margin-top: 0; text-align: right; }
+      .sp-slot .sp-slot-who {
+        margin-top: 2px;
+        text-align: right;
+        max-width: 190px;
+      }
+      .sp-slot > div:last-child { text-align: right; min-width: 0; }
+      .sp-tier-table { display: none; }
+      .sp-tier-cards { display: block; max-width: 520px; margin: 0 auto; }
+      .sp-galleries { padding: 4px 18px 14px; margin: 18px -18px 0; }
+      .sp-gal { width: 176px; }
+      .sp-row { grid-template-columns: 1fr; gap: 0; }
+      .sp-wall img { height: 52px; max-width: 136px; }
+      body.sp-haspad { padding-bottom: 76px; }
+    }
+    @media (min-width: 769px) {
+      .sp-sticky { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="site-header"></div>
+  <div id="mobile-menu"></div>
+
+  <main class="sp-wrap">
+
+    <!-- ── HERO ─────────────────────────────────────────────────────── -->
+    <section class="sp-hero" id="spHero">
+      <div class="sp-eyebrow">Ball603 Team Sponsorship &middot; 2026&ndash;27</div>
+      <h1>Own the Baseline.<br><em>Support Your Local Athletes.</em></h1>
+      <p class="sp-sub">
+        Ball603 is on the baseline at <strong>90 New Hampshire high schools</strong>,
+        covering basketball, baseball and girls volleyball through photography and
+        video &mdash; at the schools no one else still covers.
+      </p>
+
+      <div class="sp-picker">
+        <label for="spSchool">Start with your school</label>
+        <select class="sp-select" id="spSchool" aria-label="Select your New Hampshire high school">
+          <option value="">Select your NH high school&hellip;</option>
+        </select>
+        <div class="sp-ctas">
+          <button class="sp-btn sp-btn-primary" id="spLockBtn" type="button">Lock In Your School</button>
+          <a class="sp-btn sp-btn-ghost" href="/media-kit.pdf" target="_blank" rel="noopener">Media Kit</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── STATS ────────────────────────────────────────────────────── -->
+    <section style="padding: 34px 0 8px;">
+      <div class="sp-stats">
+        <div class="sp-stat"><b>16.1M</b><span>Post views</span></div>
+        <div class="sp-stat"><b>29,051</b><span>Followers<br>FB &middot; IG &middot; X</span></div>
+        <div class="sp-stat"><b>90</b><span>NH high schools</span></div>
+        <div class="sp-stat"><b>615</b><span>Photo galleries</span></div>
+      </div>
+      <p class="sp-stats-note">Sept 23, 2025 &ndash; Sept 23, 2026.</p>
+    </section>
+
+    <!-- ── YOUR SCHOOL (revealed on selection) ──────────────────────── -->
+    <section class="sp-school" id="spSchoolPanel" style="display:none;">
+      <div class="sp-section">
+        <div class="sp-kicker">Your school</div>
+        <h2 class="sp-schoolname" id="spSchoolName">&nbsp;</h2>
+        <p class="sp-lede" id="spSchoolLede">&nbsp;</p>
+        <div class="sp-slots" id="spSlots"></div>
+        <div id="spGalleryWrap" style="display:none;">
+          <p class="sp-lede" style="margin:26px auto 0;" id="spGalleryLede">&nbsp;</p>
+          <div class="sp-galleries" id="spGalleries"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── TIERS ────────────────────────────────────────────────────── -->
+    <section class="sp-section" id="spTiers">
+      <div class="sp-kicker">Partnership</div>
+      <h2>Two ways to put your name behind a program</h2>
+      <p class="sp-lede">One season year, September through August.</p>
+
+      <table class="sp-tier-table">
+        <thead>
+          <tr>
+            <th style="width:148px;"></th>
+            <th>Team Sponsor<small>$400</small></th>
+            <th>School Sponsor<small>$1,000</small></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row">Scope</th>
+            <td>One team, one sport, all year.</td>
+            <td>Every team at that school, all three sports.</td>
+          </tr>
+          <tr>
+            <th scope="row">Exclusivity</th>
+            <td>The only team sponsor for that team.</td>
+            <td>Only one per high school &mdash; and it takes every sport off the board.</td>
+          </tr>
+          <tr>
+            <th scope="row">Logo placement</th>
+            <td>That team's page, plus every story featuring them.</td>
+            <td>Every one of that school's team pages, and every story about the school.</td>
+          </tr>
+          <tr>
+            <th scope="row">Photo coverage</th>
+            <td>At least one game shot by us.</td>
+            <td>Coverage across the school's seasons.</td>
+          </tr>
+          <tr>
+            <th scope="row">Social launch</th>
+            <td>Announcement post to Facebook, Instagram and X.</td>
+            <td>Multi-platform announcement campaign.</td>
+          </tr>
+          <tr>
+            <th scope="row">Availability</th>
+            <td>First come, first served.</td>
+            <td>Only where no sport at the school is taken.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Phones get cards. Same content; a 2-column table is unreadable at 390px. -->
+      <div class="sp-tier-cards">
+        <div class="sp-tier-card">
+          <h3>Team Sponsor</h3>
+          <div class="sp-price">$400 &middot; one team, one season year</div>
+          <dl>
+            <dt>Scope</dt><dd>One team, one sport, all year.</dd>
+            <dt>Exclusivity</dt><dd>The only team sponsor for that team.</dd>
+            <dt>Logo placement</dt><dd>That team's page, plus every story featuring them.</dd>
+            <dt>Photo coverage</dt><dd>At least one game shot by us.</dd>
+            <dt>Social launch</dt><dd>Announcement post to Facebook, Instagram and X.</dd>
+          </dl>
+        </div>
+        <div class="sp-tier-card feature">
+          <h3>School Sponsor</h3>
+          <div class="sp-price">$1,000 &middot; the whole school, one season year</div>
+          <dl>
+            <dt>Scope</dt><dd>Every team at that school, all three sports.</dd>
+            <dt>Exclusivity</dt><dd>Only one per high school, and it takes every sport off the board.</dd>
+            <dt>Logo placement</dt><dd>Every one of that school's team pages, and every story about the school.</dd>
+            <dt>Photo coverage</dt><dd>Coverage across the school's seasons.</dd>
+            <dt>Social launch</dt><dd>Multi-platform announcement campaign.</dd>
+          </dl>
+        </div>
+      </div>
+
+      <div class="sp-exclusive">
+        <b>One sponsor per school, per sport.</b>
+        When your school's slot is taken, it's taken for the year.
+      </div>
+    </section>
+
+    <!-- ── LOGO PREVIEW ─────────────────────────────────────────────── -->
+    <section class="sp-section" style="padding-top:0;">
+      <div class="sp-kicker">What it looks like</div>
+      <h2>Your name, on your school's page</h2>
+      <p class="sp-lede">Type your business name to see it.</p>
+      <div class="sp-preview">
+        <div class="sp-preview-label">Presented by</div>
+        <div class="sp-preview-team" id="spPreviewTeam">Your school's team page</div>
+        <div class="sp-preview-tile empty" id="spPreviewTile"><span>Your business here</span></div>
+        <div class="sp-preview-hint">Your real logo replaces the text once you're on board.</div>
+      </div>
+    </section>
+
+    <!-- ── INTEGRITY ────────────────────────────────────────────────── -->
+    <section class="sp-section" style="padding-top:0;">
+      <div class="sp-integrity">
+        <span class="sp-badge">The Ball603 Independence Guarantee</span>
+        <p>
+          <strong>We cover the games, we don't sell the scores.</strong>
+          Sponsoring a school doesn't buy it a story, a better headline, or a kinder
+          result &mdash; we cover every school the same either way, and we always will.
+          That independence is exactly why this community trusts your logo next to our lens.
+        </p>
+      </div>
+    </section>
+
+    <!-- ── SPONSOR WALL ─────────────────────────────────────────────── -->
+    <section class="sp-section" id="spWallSection" style="display:none; padding-top:0;">
+      <div class="sp-kicker">In good company</div>
+      <h2>Businesses already behind their teams</h2>
+      <p class="sp-lede" id="spWallLede">&nbsp;</p>
+      <div class="sp-wall" id="spWall"></div>
+    </section>
+
+    <!-- ── FORM ─────────────────────────────────────────────────────── -->
+    <section class="sp-section" id="spForm" style="padding-top:0;">
+      <div class="sp-kicker">Claim your school</div>
+      <h2>Let's get your name on it</h2>
+      <p class="sp-lede">Tell us the school and we'll take it from there. No payment now &mdash; we'll confirm what's available and follow up.</p>
+
+      <form class="sp-form" id="spInquiry" novalidate>
+        <div class="sp-field">
+          <label for="spFormSchool">Your NH high school</label>
+          <select class="sp-select" id="spFormSchool" style="background:var(--bg-primary,#fff); color:var(--text-primary); border-color:var(--border-color,#ddd);" required>
+            <option value="">Select a school&hellip;</option>
+          </select>
+        </div>
+        <div class="sp-field">
+          <label for="spFormTier">Sponsorship level</label>
+          <select class="sp-select" id="spFormTier" style="background:var(--bg-primary,#fff); color:var(--text-primary); border-color:var(--border-color,#ddd);" required>
+            <option value="team">Team Sponsor &mdash; $400</option>
+            <option value="school">School Sponsor &mdash; $1,000</option>
+            <option value="unsure">Not sure yet &mdash; tell me more</option>
+          </select>
+        </div>
+        <div class="sp-field" id="spSportField">
+          <label for="spFormSport">Which sport</label>
+          <select class="sp-select" id="spFormSport" style="background:var(--bg-primary,#fff); color:var(--text-primary); border-color:var(--border-color,#ddd);">
+            <option value="">Any / not sure</option>
+            <option value="basketball">Basketball</option>
+            <option value="baseball">Baseball</option>
+            <option value="gvolleyball">Girls Volleyball</option>
+          </select>
+        </div>
+        <div class="sp-row">
+          <div class="sp-field">
+            <label for="spFormBusiness">Business name</label>
+            <input type="text" id="spFormBusiness" autocomplete="organization" required>
+          </div>
+          <div class="sp-field">
+            <label for="spFormName">Your name</label>
+            <input type="text" id="spFormName" autocomplete="name" required>
+          </div>
+        </div>
+        <div class="sp-row">
+          <div class="sp-field">
+            <label for="spFormEmail">Email</label>
+            <input type="email" id="spFormEmail" autocomplete="email" inputmode="email" required>
+          </div>
+          <div class="sp-field">
+            <label for="spFormPhone">Phone <span style="text-transform:none;letter-spacing:0;font-weight:400;">(optional)</span></label>
+            <input type="tel" id="spFormPhone" autocomplete="tel" inputmode="tel">
+          </div>
+        </div>
+        <div class="sp-field">
+          <label for="spFormNote">Anything else <span style="text-transform:none;letter-spacing:0;font-weight:400;">(optional)</span></label>
+          <textarea id="spFormNote" placeholder="Connection to the school, questions, timing&hellip;"></textarea>
+        </div>
+        <button type="submit" class="sp-btn sp-btn-primary sp-submit" id="spSubmit">Claim This School</button>
+        <div class="sp-status" id="spStatus" role="status" aria-live="polite"></div>
+        <p class="sp-formnote">
+          Or reach KJ directly &mdash;
+          <a href="mailto:kj@ball603.com" style="color:var(--sp-accent);">kj@ball603.com</a>
+          &middot; <a href="tel:+16172167639" style="color:var(--sp-accent);">617-216-7639</a>
+        </p>
+      </form>
+    </section>
+
+  </main>
+
+  <!-- Sticky CTA, phones only, once the hero has scrolled away -->
+  <div class="sp-sticky" id="spSticky">
+    <div class="sp-sticky-text" id="spStickyText">
+      One sponsor per school, per sport
+      <small>See if yours is still open</small>
+    </div>
+    <button class="sp-btn sp-btn-primary" type="button" id="spStickyBtn">Claim it</button>
+  </div>
+
+  <footer class="site-footer">
+    <div class="footer-logo">
+      <a href="/" aria-label="Ball603 home"><img src="/logo.png" alt="Ball603"></a>
+    </div>
+    <div class="footer-links">
+      <a href="/about">About Us</a>
+      <a href="/contact">Contact</a>
+      <a href="/sponsor">Sponsor</a>
+    </div>
+    <p class="footer-copyright">&copy; 2026 Ball603. All rights reserved.</p>
+  </footer>
+
+  <script src="/app.js"></script>
+  <script src="/includes/nav-loader.js"></script>
+
+  <script>
+  /* ===== SPONSOR PAGE LOGIC ==============================================
+   *
+   * Three data sources, all of them already live:
+   *
+   *   get-sponsors  — who sponsors whom. Drives both the availability slots
+   *                   and the logo wall. ~28 rows, so one call does both.
+   *   games         — photos_url per game, which is how the page shows the
+   *                   galleries actually shot at a given school. 380 games
+   *                   across 99 schools, median 6 per school.
+   *   SCHOOLS       — the 90 NHIAA schools, inlined rather than pulling in
+   *                   rosters_data.js (115KB) for 90 strings.
+   *
+   * Everything degrades: if get-sponsors fails the slots are hidden rather
+   * than guessed at, and the rest of the page still sells.
+   */
+
+  const SCHOOLS = ["Alvirne","Bedford","Belmont","Berlin","Bishop Brady","Bishop Guertin","Bow","Campbell","Canaan","Coe-Brown","Colebrook","ConVal","Conant","Concord","Concord Christian","Derryfield","Dover","Epping","Exeter","Fall Mountain","Farmington","Franklin","Gilford","Goffstown","Gorham","Groveton","Hanover","Hillsboro-Deering","Hinsdale","Hollis-Brookline","Holy Family","Hopkinton","Inter-Lakes","John Stark","Kearsarge","Keene","Kennett","Kingswood","Laconia","Lebanon","Lin-Wood","Lisbon","Littleton","Londonderry","Manchester Central","Manchester Memorial","Manchester West","Mascenic","Mascoma Valley","Merrimack","Merrimack Valley","Milford","Monadnock","Moultonborough","Mount Royal","Nashua North","Nashua South","Newfound","Newmarket","Newport","Nute","Oyster River","Pelham","Pembroke","Pinkerton","Pittsburg-Canaan","Pittsfield","Plymouth","Portsmouth","Portsmouth Christian","Profile","Prospect Mountain","Raymond","Saint Thomas Aquinas","Salem","Sanborn","Somersworth","Souhegan","Spaulding","Stevens","Sunapee","Timberlane","Trinity","White Mountains","Wilton-Lyndeborough","Windham","Winnacunnet","Winnisquam","Woodsville"];
+
+  const SPORTS = [
+    { key: 'basketball',  label: 'Basketball' },
+    { key: 'baseball',    label: 'Baseball' },
+    { key: 'gvolleyball', label: 'Volleyball' }
+  ];
+
+  const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const esc  = s => String(s == null ? '' : s).replace(/[&<>"']/g,
+    c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  let SPONSORS = null;   // null = not loaded / failed, [] = loaded and empty
+  let SLOTS = {};        // "normschool|sport" -> sponsor name
+
+  /* ── Schools into both dropdowns ─────────────────────────────────── */
+  function fillSchools() {
+    const opts = SCHOOLS.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
+    document.getElementById('spSchool').insertAdjacentHTML('beforeend', opts);
+    document.getElementById('spFormSchool').insertAdjacentHTML('beforeend', opts);
+  }
+
+  /* ── Availability ───────────────────────────────────────────────── */
+  async function loadSponsors() {
+    try {
+      const r = await fetch('/.netlify/functions/get-sponsors');
+      const raw = await r.text();
+      let data = null;
+      try { data = JSON.parse(raw); } catch (_) {}
+      if (!data) throw new Error('HTTP ' + r.status + ' — ' + raw.slice(0, 80));
+
+      SPONSORS = Array.isArray(data.sponsors) ? data.sponsors : [];
+
+      /* Any sponsor tagged to a school holds that school's slot, whatever its
+         tier — a presenting sponsor tagged to Spaulding has bought Spaulding.
+         A school-tier sponsor takes all three sports. */
+      SLOTS = {};
+      SPONSORS.forEach(s => {
+        const teams = String(s.teams || s.team_shortname || '')
+          .split(',').map(t => t.trim()).filter(Boolean);
+        if (!teams.length) return;
+        const sports = s.tier === 'town'
+          ? SPORTS.map(x => x.key)
+          : String(s.sport || 'basketball').split(',').map(t => t.trim()).filter(Boolean);
+        teams.forEach(t => sports.forEach(sp => { SLOTS[norm(t) + '|' + sp] = s.name; }));
+      });
+
+      renderWall();
+    } catch (err) {
+      console.warn('Sponsor availability unavailable:', err.message);
+      SPONSORS = null;    // the slots block stays hidden rather than lying
+    }
+  }
+
+  function renderWall() {
+    if (!SPONSORS || !SPONSORS.length) return;
+    const withLogos = SPONSORS.filter(s => s.logo_url && String(s.logo_url).trim());
+    if (!withLogos.length) return;
+    // Presenting first — they are the recognisable names, and social proof
+    // works best when the biggest one is read first.
+    withLogos.sort((a, b) => (a.tier === 'presenting' ? 0 : 1) - (b.tier === 'presenting' ? 0 : 1));
+    document.getElementById('spWall').innerHTML = withLogos.map(s => `
+      <img src="${esc(s.logo_url)}" alt="${esc(s.name)}" title="${esc(s.name)}"
+           loading="lazy" onerror="this.style.display='none'">`).join('');
+    document.getElementById('spWallLede').textContent =
+      `${withLogos.length} New Hampshire businesses are behind their schools' teams.`;
+    document.getElementById('spWallSection').style.display = '';
+  }
+
+  /* ── Galleries actually shot at a school ────────────────────────── */
+  async function galleriesFor(school) {
+    try {
+      const db = window.supabaseClient || (window.initSupabase && window.initSupabase());
+      if (!db) return [];
+      const { data, error } = await db
+        .from('games')
+        .select('date,sport,home_team,away_team,photos_url')
+        .not('photos_url', 'is', null)
+        .or(`home_team.eq.${school},away_team.eq.${school}`)
+        .order('date', { ascending: false })
+        .limit(12);
+      if (error) throw new Error(error.message);
+      const seen = new Set();
+      return (data || []).filter(g => {
+        const u = String(g.photos_url || '').trim();
+        if (!u || seen.has(u)) return false;
+        seen.add(u); return true;
+      });
+    } catch (err) {
+      console.warn('Galleries unavailable:', err.message);
+      return [];
+    }
+  }
+
+  const SPORT_LABEL = { basketball: 'Basketball', baseball: 'Baseball', gvolleyball: 'Volleyball' };
+  const prettyDate = d => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(d || ''));
+    if (!m) return '';
+    return new Date(+m[1], +m[2] - 1, +m[3])
+      .toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  /* ── The school panel ───────────────────────────────────────────── */
+  async function showSchool(school) {
+    if (!school) {
+      document.getElementById('spSchoolPanel').style.display = 'none';
+      document.getElementById('spPreviewTeam').textContent = "Your school's team page";
+      return;
+    }
+
+    document.getElementById('spSchoolName').textContent = school;
+    document.getElementById('spSchoolPanel').style.display = '';
+
+    // Slots — only when we genuinely know. Guessing here would be worse than
+    // saying nothing, because "open" is a promise.
+    const slotsEl = document.getElementById('spSlots');
+    const ledeEl  = document.getElementById('spSchoolLede');
+    if (SPONSORS === null) {
+      slotsEl.innerHTML = '';
+      ledeEl.textContent = "Tell us the sport you're interested in and we'll confirm what's open.";
+    } else {
+      const open = [];
+      slotsEl.innerHTML = SPORTS.map(sp => {
+        const who = SLOTS[norm(school) + '|' + sp.key];
+        if (!who) open.push(sp.label);
+        /* Two children, not three: the state and the sponsor name are grouped
+           so the mobile rule can lay this out as one compact row (sport left,
+           status right) while desktop keeps it as a centred card. */
+        return `
+          <div class="sp-slot ${who ? 'taken' : 'open'}">
+            <div class="sp-slot-sport">${esc(sp.label)}</div>
+            <div>
+              <span class="sp-slot-state">${who ? 'Taken' : 'Open'}</span>
+              <span class="sp-slot-who">${who ? esc(who) : 'Available for 2026&ndash;27'}</span>
+            </div>
+          </div>`;
+      }).join('');
+      ledeEl.innerHTML = open.length
+        ? `<strong>${open.length} of 3 sports still open at ${esc(school)}</strong> &mdash; ${esc(open.join(', '))}.`
+        : `Every sport at ${esc(school)} is taken for 2026&ndash;27. Ask us about next season.`;
+    }
+
+    // Preview team line
+    document.getElementById('spPreviewTeam').textContent = school + ' Basketball';
+
+    // Mirror into the form
+    const fs = document.getElementById('spFormSchool');
+    if (fs.value !== school) fs.value = school;
+    updateSticky(school);
+
+    // Galleries
+    const wrap = document.getElementById('spGalleryWrap');
+    wrap.style.display = 'none';
+    const games = await galleriesFor(school);
+    if (document.getElementById('spSchool').value !== school) return;  // changed while loading
+    if (!games.length) return;
+
+    document.getElementById('spGalleryLede').innerHTML =
+      `<strong>We've already shot ${games.length === 12 ? '12+' : games.length} game${games.length === 1 ? '' : 's'} at ${esc(school)}.</strong> Here they are.`;
+    document.getElementById('spGalleries').innerHTML = games.map(g => {
+      const opp = norm(g.home_team) === norm(school) ? g.away_team : g.home_team;
+      const home = norm(g.home_team) === norm(school);
+      return `
+        <a class="sp-gal" href="${esc(g.photos_url)}" target="_blank" rel="noopener">
+          <div class="sp-gal-body">
+            <div class="sp-gal-title">${home ? '' : 'at '}${esc(opp || 'Game')}</div>
+            <div class="sp-gal-meta">${esc(SPORT_LABEL[g.sport] || '')} &middot; ${esc(prettyDate(g.date))}</div>
+          </div>
+        </a>`;
+    }).join('');
+    wrap.style.display = '';
+  }
+
+  /* ── Sticky bar ─────────────────────────────────────────────────── */
+  function updateSticky(school) {
+    const t = document.getElementById('spStickyText');
+    if (!school) {
+      t.innerHTML = 'One sponsor per school, per sport<small>See if yours is still open</small>';
+      return;
+    }
+    if (SPONSORS === null) {
+      t.innerHTML = `${esc(school)}<small>Ask us what's available</small>`;
+      return;
+    }
+    const open = SPORTS.filter(sp => !SLOTS[norm(school) + '|' + sp.key]);
+    t.innerHTML = open.length
+      ? `${esc(school)}<small>${open.length} of 3 sports open</small>`
+      : `${esc(school)}<small>Fully sponsored &mdash; ask about next year</small>`;
+  }
+
+  /* ── Wiring ─────────────────────────────────────────────────────── */
+  function scrollToForm() {
+    document.getElementById('spForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setTimeout(() => {
+      const b = document.getElementById('spFormBusiness');
+      // Focusing on a phone pops the keyboard over the form, so only on desktop.
+      if (window.matchMedia('(min-width: 769px)').matches && b) b.focus();
+    }, 420);
+  }
+
+  document.getElementById('spSchool').addEventListener('change', e => showSchool(e.target.value));
+  document.getElementById('spFormSchool').addEventListener('change', e => {
+    const hero = document.getElementById('spSchool');
+    if (hero.value !== e.target.value) { hero.value = e.target.value; showSchool(e.target.value); }
+  });
+  document.getElementById('spLockBtn').addEventListener('click', () => {
+    const v = document.getElementById('spSchool').value;
+    if (!v) { document.getElementById('spSchool').focus(); return; }
+    scrollToForm();
+  });
+  document.getElementById('spStickyBtn').addEventListener('click', scrollToForm);
+
+  document.getElementById('spFormBusiness').addEventListener('input', e => {
+    const v = e.target.value.trim();
+    const tile = document.getElementById('spPreviewTile');
+    tile.classList.toggle('empty', !v);
+    tile.querySelector('span').textContent = v || 'Your business here';
+  });
+
+  document.getElementById('spFormTier').addEventListener('change', e => {
+    // A school sponsor covers every sport, so asking which one is meaningless.
+    document.getElementById('spSportField').style.display =
+      e.target.value === 'school' ? 'none' : '';
+  });
+
+  // Sticky bar appears once the hero is gone.
+  const sticky = document.getElementById('spSticky');
+  if ('IntersectionObserver' in window) {
+    new IntersectionObserver(([entry]) => {
+      sticky.classList.toggle('show', !entry.isIntersecting);
+      document.body.classList.toggle('sp-haspad', !entry.isIntersecting);
+    }, { threshold: 0 }).observe(document.getElementById('spHero'));
+  }
+
+  /* ── Submit ─────────────────────────────────────────────────────── */
+  document.getElementById('spInquiry').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const status = document.getElementById('spStatus');
+    const btn = document.getElementById('spSubmit');
+    const val = id => document.getElementById(id).value.trim();
+
+    const payload = {
+      school:   val('spFormSchool'),
+      tier:     val('spFormTier'),
+      sport:    document.getElementById('spFormTier').value === 'school' ? '' : val('spFormSport'),
+      business: val('spFormBusiness'),
+      name:     val('spFormName'),
+      email:    val('spFormEmail'),
+      phone:    val('spFormPhone'),
+      note:     val('spFormNote'),
+      page:     location.pathname
+    };
+
+    const missing = ['school', 'business', 'name', 'email'].filter(k => !payload[k]);
+    if (missing.length) {
+      status.className = 'sp-status bad';
+      status.textContent = 'Please fill in your school, business name, your name and an email.';
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(payload.email)) {
+      status.className = 'sp-status bad';
+      status.textContent = 'That email address does not look right.';
+      return;
+    }
+
+    btn.disabled = true;
+    const label = btn.textContent;
+    btn.textContent = 'Sending…';
+    status.className = 'sp-status';
+    status.textContent = '';
+
+    try {
+      const res = await fetch('/.netlify/functions/sponsor-inquiry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      // Read as text first: a platform 500 returns plain text, and .json()
+      // would throw a SyntaxError that tells the visitor nothing.
+      const raw = await res.text();
+      let data = null;
+      try { data = raw ? JSON.parse(raw) : null; } catch (_) {}
+      if (!data) throw new Error('HTTP ' + res.status + (res.status >= 500 ? ' — our end, not yours' : ''));
+      if (!data.ok) throw new Error(data.error || 'Could not send that');
+
+      status.className = 'sp-status ok';
+      status.innerHTML = `<strong>Got it — thanks.</strong> We'll be in touch about ${esc(payload.school)} shortly. ` +
+        `If you'd rather not wait, call or text KJ at 617-216-7639.`;
+      document.getElementById('spInquiry').reset();
+      document.getElementById('spPreviewTile').classList.add('empty');
+      document.getElementById('spPreviewTile').querySelector('span').textContent = 'Your business here';
+      if (window.gtag) gtag('event', 'sponsor_inquiry', { school: payload.school, tier: payload.tier });
+    } catch (err) {
+      console.error('Sponsor inquiry failed:', err);
+      status.className = 'sp-status bad';
+      status.innerHTML = `Sorry — that didn't go through (${esc(err.message)}). ` +
+        `Email <a href="mailto:kj@ball603.com" style="color:inherit;text-decoration:underline;">kj@ball603.com</a> ` +
+        `or call 617-216-7639 and we'll sort it out.`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = label;
+    }
+  });
+
+  /* ── Boot ───────────────────────────────────────────────────────── */
+  (async function init() {
+    fillSchools();
+    if (window.initSupabase) window.initSupabase();
+    await loadSponsors();
+
+    // ?school=Kingswood — so team pages can deep-link straight into context.
+    const q = new URLSearchParams(location.search).get('school');
+    if (q) {
+      const match = SCHOOLS.find(s => norm(s) === norm(q));
+      if (match) {
+        document.getElementById('spSchool').value = match;
+        showSchool(match);
+      }
+    }
+    updateSticky(document.getElementById('spSchool').value);
+  })();
+  </script>
+</body>
+</html>
