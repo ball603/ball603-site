@@ -1040,6 +1040,7 @@
       <button class="tab" onclick="showTab('sos', event)">&#x1F4CA; NHIAA RPI</button>
       <button class="tab" onclick="showTab('seasons', event)">&#x1F4C5; Season Manager</button>
       <button class="tab" onclick="showTab('scheduledsocial', event)">&#x1F550; Scheduled Posts</button>
+      <button class="tab" onclick="showTab('inquiries', event)" id="inquiriesTabBtn">&#x1F4E5; Inquiries</button>
       <button class="tab" onclick="showTab('settings', event)" style="margin-left: auto;">&#x2699;&#xFE0F; Settings</button>
     </div>
     
@@ -6448,6 +6449,41 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
   </div>
   
   <!-- Season Manager Panel -->
+  <!-- Sponsor Inquiries Panel -->
+  <div class="panel" id="inquiriesPanel" style="display: none;">
+    <div style="max-width: 980px; margin: 0 auto; padding: 20px;">
+      <h2 style="margin-bottom: 6px; color: #333;">&#x1F4E5; Sponsor Inquiries</h2>
+      <p style="color: #666; font-size: 14px; margin-bottom: 20px; max-width: 760px;">
+        Everyone who has filled in the form on
+        <a href="https://ball603.com/sponsor" target="_blank" rel="noopener" style="color: #f57c00;">ball603.com/sponsor</a>.
+        Mark one <strong>Contacted</strong> when you have reached out, then <strong>Won</strong> or
+        <strong>Passed</strong> once you know. Won doesn't create the sponsor record &mdash; add that in
+        the Sponsors tab as usual.
+      </p>
+
+      <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 18px;">
+        <select id="inquiryFilter" onchange="loadInquiries()"
+                style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
+          <option value="new">New</option>
+          <option value="contacted">Contacted</option>
+          <option value="won">Won</option>
+          <option value="passed">Passed</option>
+          <option value="all">Everything</option>
+        </select>
+
+        <button onclick="loadInquiries()"
+                style="background: #f57c00; color: #fff; border: none; padding: 9px 16px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;">
+          Refresh
+        </button>
+
+        <span id="inquiryCounts" style="color: #888; font-size: 13px; margin-left: auto;"></span>
+      </div>
+
+      <div id="inquiryStatus" style="display: none; margin-bottom: 16px; padding: 12px; border-radius: 8px; font-size: 14px;"></div>
+      <div id="inquiryList"></div>
+    </div>
+  </div>
+
   <!-- Scheduled Posts Panel -->
   <div class="panel" id="scheduledSocialPanel" style="display: none;">
     <div style="max-width: 980px; margin: 0 auto; padding: 20px;">
@@ -8491,7 +8527,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       populatePhotographerDropdown();
       populateAuthorDropdown();
       loadSponsors(); // Load sponsors for article dropdown
-      
+      // Puts a count on the Inquiries tab. Ball 603 has no outbound email, so
+      // this badge is the only thing that announces a new sponsor lead.
+      refreshInquiryBadge();
+
       // Initialize TipTap editor
       setTimeout(() => {
         initTipTapEditor();
@@ -9938,6 +9977,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('seasonsPanel').style.display = tab === 'seasons' ? 'block' : 'none';
       document.getElementById('scheduledSocialPanel').style.display = tab === 'scheduledsocial' ? 'block' : 'none';
       if (tab === 'scheduledsocial') loadScheduledSocial();
+      document.getElementById('inquiriesPanel').style.display = tab === 'inquiries' ? 'block' : 'none';
+      if (tab === 'inquiries') loadInquiries();
       document.getElementById('editorPanel').style.display = 'none';
       
       // Load teams when tab is selected
@@ -14480,6 +14521,230 @@ Respond ONLY with valid JSON:
         line += `<br><span style="color: ${refused ? '#c05600' : '#777'};">${refused ? '&#x26A0;&#xFE0F; ' : ''}${res.note}</span>`;
       }
       return line;
+    }
+
+    /* =====================================================================
+       SPONSOR INQUIRIES
+
+       The public half of this is sponsor-inquiry.mjs, which takes submissions
+       from ball603.com/sponsor. Everything here goes through
+       sponsor-inquiries.mjs behind the CMS password, because this list holds
+       the name, email and phone of everyone who has asked — the one genuinely
+       personal dataset on the site, and the reason that table has RLS on with
+       no policies at all.
+       ===================================================================== */
+
+    let inquiries = [];
+    let inquiryEditing = null;
+
+    async function inquiryApi(action, payload = {}) {
+      const res = await fetch('/.netlify/functions/sponsor-inquiries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: CMS_PASSWORD, action, ...payload })
+      });
+      const raw = await res.text();
+      let data = {};
+      try { data = raw ? JSON.parse(raw) : {}; } catch (_) {
+        throw new Error(`HTTP ${res.status} — ${raw.slice(0, 120) || 'empty response'}`);
+      }
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      return data;
+    }
+
+    function inquiryNote(message, kind) {
+      const div = document.getElementById('inquiryStatus');
+      if (!message) { div.style.display = 'none'; return; }
+      const styles = {
+        error:   ['#ffebee', '#c62828', '#8e1b1b'],
+        warn:    ['#fff3e0', '#ef6c00', '#6d4c00'],
+        success: ['#e8f5e9', '#2e7d32', '#1b5e20']
+      };
+      const [bg, border, color] = styles[kind] || styles.success;
+      div.style.display = 'block';
+      div.style.background = bg;
+      div.style.border = `1px solid ${border}`;
+      div.style.color = color;
+      div.innerHTML = message;
+    }
+
+    // Puts the number of unworked leads on the tab, so one can't sit unseen.
+    // Ball 603 has no outbound email, so this badge is the only thing that
+    // says a lead has arrived.
+    function renderInquiryBadge(counts) {
+      const btn = document.getElementById('inquiriesTabBtn');
+      if (!btn) return;
+      const n = counts?.new || 0;
+      btn.innerHTML = '&#x1F4E5; Inquiries' + (n
+        ? ` <span style="background: #c62828; color: #fff; border-radius: 10px; padding: 1px 7px; font-size: 11px; font-weight: 700; margin-left: 4px;">${n}</span>`
+        : '');
+    }
+
+    async function refreshInquiryBadge() {
+      try {
+        const data = await inquiryApi('list', { status: 'new', limit: 1 });
+        renderInquiryBadge(data.counts);
+      } catch (_) {
+        // A badge is not worth an error message on a page the user may not
+        // even be using for this.
+      }
+    }
+
+    async function loadInquiries() {
+      const list = document.getElementById('inquiryList');
+      const status = document.getElementById('inquiryFilter').value;
+      list.innerHTML = '<p style="color: #888; font-size: 14px;">Loading&hellip;</p>';
+      inquiryNote(null);
+
+      try {
+        const data = await inquiryApi('list', { status });
+        inquiries = data.inquiries || [];
+        document.getElementById('inquiryCounts').textContent =
+          `${data.counts.new} new · ${data.counts.contacted} contacted · ` +
+          `${data.counts.won} won · ${data.counts.passed} passed`;
+        renderInquiryBadge(data.counts);
+        renderInquiries();
+      } catch (err) {
+        list.innerHTML = '';
+        inquiryNote(
+          `Could not load enquiries: ${escapeHtml(err.message)}` +
+          (/does not exist|relation|Supabase 40/i.test(err.message)
+            ? '<br><span style="font-size: 13px;">If this says the table does not exist, ' +
+              'sponsor-inquiries.sql has not been run yet.</span>'
+            : ''),
+          'error');
+      }
+    }
+
+    const INQUIRY_STATUS_STYLE = {
+      new:       { label: 'New',       bg: '#ffebee', color: '#c62828' },
+      contacted: { label: 'Contacted', bg: '#e3f2fd', color: '#1565c0' },
+      won:       { label: 'Won',       bg: '#e8f5e9', color: '#2e7d32' },
+      passed:    { label: 'Passed',    bg: '#f1f1f1', color: '#777' }
+    };
+
+    const TIER_LABEL = { sport: 'Team — $400', school: 'School — $1,000', town: 'School — $1,000' };
+
+    function renderInquiries() {
+      const list = document.getElementById('inquiryList');
+
+      if (inquiries.length === 0) {
+        list.innerHTML = `
+          <div style="background: #fff; border-radius: 10px; padding: 34px; text-align: center; color: #888; box-shadow: 0 2px 10px rgba(0,0,0,0.06);">
+            Nothing here.
+          </div>`;
+        return;
+      }
+
+      list.innerHTML = inquiries.map(q => {
+        const pill = INQUIRY_STATUS_STYLE[q.status] || { label: q.status, bg: '#eee', color: '#555' };
+        const when = new Date(q.created_at);
+        const editing = inquiryEditing === q.id;
+
+        return `
+          <div style="background: #fff; border-radius: 10px; padding: 18px; margin-bottom: 14px; box-shadow: 0 2px 10px rgba(0,0,0,0.07); border-left: 4px solid ${pill.color};">
+            <div style="display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 8px;">
+              <strong style="font-size: 16px; color: #333;">${escapeHtml(q.business)}</strong>
+              <span style="background: ${pill.bg}; color: ${pill.color}; font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 12px;">
+                ${pill.label}
+              </span>
+              <span style="color: #555; font-size: 14px;">for ${escapeHtml(q.school)}</span>
+              ${q.tier ? `<span style="color: #888; font-size: 13px;">${escapeHtml(TIER_LABEL[q.tier] || q.tier)}</span>` : ''}
+              ${q.sport ? `<span style="color: #888; font-size: 13px;">${escapeHtml(q.sport)}</span>` : ''}
+              <span style="color: #999; font-size: 13px; margin-left: auto;">
+                ${when.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                &middot; ${relativeWhen(q.created_at)}
+              </span>
+            </div>
+
+            <div style="font-size: 14px; color: #444; margin-bottom: 8px;">
+              ${escapeHtml(q.name)} &middot;
+              <a href="mailto:${encodeURIComponent(q.email)}" style="color: #1565c0;">${escapeHtml(q.email)}</a>
+              ${q.phone ? ` &middot; <a href="tel:${encodeURIComponent(q.phone)}" style="color: #1565c0;">${escapeHtml(q.phone)}</a>` : ''}
+            </div>
+
+            ${q.note ? `<div style="white-space: pre-wrap; font-size: 13px; color: #555; line-height: 1.5; background: #fafafa; padding: 10px 12px; border-radius: 6px; margin-bottom: 10px;">${escapeHtml(q.note)}</div>` : ''}
+
+            ${q.admin_notes ? `<div style="font-size: 13px; color: #6d4c00; background: #fff8e1; padding: 8px 12px; border-radius: 6px; margin-bottom: 10px;"><strong>Your notes:</strong> ${escapeHtml(q.admin_notes)}</div>` : ''}
+
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+              ${['new', 'contacted', 'won', 'passed'].filter(s => s !== q.status).map(s => {
+                const st = INQUIRY_STATUS_STYLE[s];
+                return `<button onclick="setInquiryStatus(${q.id}, '${s}')"
+                          style="background: ${st.bg}; color: ${st.color}; border: none; padding: 6px 13px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer;">
+                          ${st.label}
+                        </button>`;
+              }).join('')}
+              <button onclick="toggleInquiryNotes(${q.id})"
+                      style="background: #fff; color: #555; border: 1px solid #ccc; padding: 6px 13px; border-radius: 6px; font-size: 13px; cursor: pointer;">
+                ${editing ? 'Close' : (q.admin_notes ? 'Edit notes' : 'Add notes')}
+              </button>
+              <button onclick="deleteInquiry(${q.id})" title="For spam only — use Passed for real leads"
+                      style="background: none; color: #bbb; border: none; padding: 6px 8px; font-size: 13px; cursor: pointer; margin-left: auto;">
+                spam
+              </button>
+            </div>
+
+            ${editing ? `
+              <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #eee;">
+                <textarea id="inquiryNotes-${q.id}" rows="3" placeholder="Left a voicemail, wants to talk after the season&hellip;"
+                          style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; font-family: inherit; line-height: 1.5; margin-bottom: 10px;"></textarea>
+                <button onclick="saveInquiryNotes(${q.id})"
+                        style="background: #2e7d32; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer;">
+                  Save notes
+                </button>
+              </div>` : ''}
+          </div>`;
+      }).join('');
+    }
+
+    function toggleInquiryNotes(id) {
+      inquiryEditing = inquiryEditing === id ? null : id;
+      renderInquiries();
+      if (inquiryEditing === id) {
+        // Assigned rather than written into the markup: escapeHtml leaves
+        // quotes alone, and notes are exactly the sort of text that has them.
+        const q = inquiries.find(x => x.id === id);
+        const box = document.getElementById(`inquiryNotes-${id}`);
+        if (box && q) { box.value = q.admin_notes || ''; box.focus(); }
+      }
+    }
+
+    async function setInquiryStatus(id, status) {
+      try {
+        await inquiryApi('update', { id, status });
+        inquiryNote(`Marked ${INQUIRY_STATUS_STYLE[status].label.toLowerCase()}.`, 'success');
+        await loadInquiries();
+      } catch (err) {
+        inquiryNote(`Could not update: ${escapeHtml(err.message)}`, 'error');
+      }
+    }
+
+    async function saveInquiryNotes(id) {
+      const box = document.getElementById(`inquiryNotes-${id}`);
+      if (!box) return;
+      try {
+        await inquiryApi('update', { id, admin_notes: box.value });
+        inquiryEditing = null;
+        inquiryNote('Notes saved.', 'success');
+        await loadInquiries();
+      } catch (err) {
+        inquiryNote(`Could not save notes: ${escapeHtml(err.message)}`, 'error');
+      }
+    }
+
+    async function deleteInquiry(id) {
+      const q = inquiries.find(x => x.id === id);
+      if (!confirm(`Delete this enquiry permanently?\n\n${q ? q.business + ' — ' + q.email : '#' + id}\n\n` +
+                   `Only do this for spam. A real lead that went nowhere should be marked Passed, ` +
+                   `so you keep the record of who asked.`)) return;
+      try {
+        await inquiryApi('delete', { id });
+        inquiryNote('Deleted.', 'success');
+        await loadInquiries();
+      } catch (err) {
+        inquiryNote(`Could not delete: ${escapeHtml(err.message)}`, 'error');
+      }
     }
 
     /* =====================================================================

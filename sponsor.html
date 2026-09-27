@@ -898,6 +898,16 @@
           <label for="spFormNote">Anything else <span style="text-transform:none;letter-spacing:0;font-weight:400;">(optional)</span></label>
           <textarea id="spFormNote" placeholder="Connection to the school, questions, timing&hellip;"></textarea>
         </div>
+        <!-- Honeypot. Nobody sees this; scripted submitters fill every input
+             they find, and sponsor-inquiry.mjs discards anything that arrives
+             with it set. Hidden with inline styles rather than type="hidden"
+             so a bot reading the markup has no obvious tell, and taken out of
+             the tab order and the accessibility tree so it cannot trap anyone
+             using a keyboard or a screen reader. -->
+        <div style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;" aria-hidden="true">
+          <label for="spFormWebsite">Website</label>
+          <input type="text" id="spFormWebsite" name="website" tabindex="-1" autocomplete="off">
+        </div>
         <button type="submit" class="sp-btn sp-btn-primary sp-submit" id="spSubmit">Claim This School</button>
         <div class="sp-status" id="spStatus" role="status" aria-live="polite"></div>
         <p class="sp-formnote">
@@ -1225,7 +1235,8 @@
       email:    val('spFormEmail'),
       phone:    val('spFormPhone'),
       note:     val('spFormNote'),
-      page:     location.pathname
+      page:     location.pathname,
+      website:  val('spFormWebsite')   // honeypot — a real person leaves this empty
     };
 
     const missing = ['school', 'business', 'name', 'email'].filter(k => !payload[k]);
