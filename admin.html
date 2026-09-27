@@ -1829,6 +1829,46 @@
     
     <!-- Teams Panel -->
     <div class="panel" id="teamsPanel" style="display: none;">
+      <!-- Social Tags grid: the Instagram handles tagged on a game post -->
+      <div id="socialTagsGrid" style="display: none; padding: 20px; max-width: 1000px; margin: 0 auto;">
+        <h2 style="margin-bottom: 6px; color: #333;">&#x1F4F8; Social Tags</h2>
+        <p style="color: #666; font-size: 14px; margin-bottom: 18px; max-width: 720px;">
+          The Instagram accounts tagged in the cover photo of a game post &mdash; each school, and each
+          team where the team runs its own account. Leave a row blank and it simply isn't tagged.
+          Handles only; a private account or a typo can't be tagged, and the post will say so rather
+          than failing.
+        </p>
+
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px;">
+          <input type="text" id="socialTagsSearch" placeholder="Filter schools&hellip;" oninput="renderSocialTagsGrid()"
+                 style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; min-width: 200px;">
+
+          <select id="socialTagsScope" onchange="renderSocialTagsGrid()"
+                  style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
+            <option value="all">Schools and teams</option>
+            <option value="school">Schools only</option>
+            <option value="basketball|Boys">Boys basketball</option>
+            <option value="basketball|Girls">Girls basketball</option>
+            <option value="baseball|Boys">Baseball</option>
+            <option value="gvolleyball|Girls">Girls volleyball</option>
+          </select>
+
+          <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #555; cursor: pointer;">
+            <input type="checkbox" id="socialTagsOnlyBlank" onchange="renderSocialTagsGrid()">
+            Only rows still blank
+          </label>
+
+          <button onclick="saveSocialTagsGrid()" id="socialTagsSaveBtn"
+                  style="background: #2e7d32; color: #fff; border: none; padding: 9px 18px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; margin-left: auto;">
+            Save changes
+          </button>
+        </div>
+
+        <div id="socialTagsStatus" style="display: none; margin-bottom: 14px; padding: 12px; border-radius: 8px; font-size: 14px;"></div>
+        <div id="socialTagsCount" style="font-size: 13px; color: #888; margin-bottom: 10px;"></div>
+        <div id="socialTagsRows"></div>
+      </div>
+
       <div class="toolbar" style="flex-wrap: wrap; gap: 10px;">
         <button class="btn-new" onclick="openTeamModal()">
           <span>+</span> Add Team
@@ -1838,6 +1878,9 @@
         </button>
         <button class="btn-new" style="background: #fff3e0; color: #e65100;" onclick="exportTeams()">
           <span>&#x1F4E4;</span> Export CSV
+        </button>
+        <button class="btn-new" style="background: #fce4ec; color: #ad1457;" onclick="toggleSocialTagsGrid()" id="socialTagsToggle">
+          <span>&#x1F4F8;</span> Social Tags
         </button>
         <div style="display: flex; gap: 8px; align-items: center; margin-left: auto;">
           <select id="teamLevelFilter" onchange="filterTeams()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px;">
@@ -4234,6 +4277,29 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         </div>
       </div>
       
+      <!-- Who this post credits and tags on Instagram -->
+      <div style="margin-bottom: 20px; padding: 15px; background: #fdf3f7; border-radius: 8px; border: 1px solid #e1306c;">
+        <label style="display: block; margin-bottom: 10px; font-weight: 600; color: #ad1457;">
+          &#x1F4F8; Instagram credits &amp; tags
+        </label>
+
+        <div style="margin-bottom: 10px;">
+          <div style="font-size: 12px; font-weight: 600; color: #777; margin-bottom: 3px;">
+            Collaborator &mdash; co-authors the post, appears on their profile once they accept
+          </div>
+          <div id="socialCollabSummary" style="font-size: 13px;"></div>
+        </div>
+
+        <div>
+          <div style="font-size: 12px; font-weight: 600; color: #777; margin-bottom: 3px;">
+            Tagged in the cover photo
+            <a href="#" onclick="resolveSocialPhotoTags(); return false;"
+               style="font-weight: 400; color: #1565c0; margin-left: 6px;">refresh</a>
+          </div>
+          <div id="socialPhotoTags" style="font-size: 13px;"></div>
+        </div>
+      </div>
+
       <!-- Contributors (hidden but needed for JS) -->
       <div style="display: none;">
         <div id="socialContributorsList"></div>
@@ -14297,18 +14363,62 @@ Respond ONLY with valid JSON:
       renderSocialContributors();
     }
     
-    /* The handles that will actually be sent to Instagram as collaborators.
-       Instagram's hard limit is 3 per post, and it rejects the whole container
+    /* The handles sent to Instagram as collaborators.
+       Instagram's hard limit is 3 per post and it rejects the whole container
        if the list is longer, so the cap is applied here rather than discovered
-       at post time. Selecting more contributors than that is fine — the extras
-       just don't get tagged, and renderSocialContributors() says which. */
+       at post time.
+
+       THE PHOTOGRAPHER GOES FIRST. A collaborator credit puts the post on that
+       person's own profile, which matters most to whoever actually shot the
+       game — so if the cap bites, it must not be their slot that gets cut. */
     const IG_COLLABORATOR_LIMIT = 3;
 
+    function articlePhotographerContributor() {
+      if (!currentArticle) return null;
+      if (currentArticle.photographer_id) {
+        const byId = allContributors.find(c => c.id === currentArticle.photographer_id);
+        if (byId) return byId;
+      }
+      if (currentArticle.photographer) {
+        const name = String(currentArticle.photographer).toLowerCase().trim();
+        return allContributors.find(c => (c.name || '').toLowerCase().trim() === name) || null;
+      }
+      return null;
+    }
+
     function igCollaboratorHandles() {
-      return socialContributors
+      const photog = articlePhotographerContributor();
+      const ordered = [...socialContributors];
+
+      if (photog) {
+        const at = ordered.findIndex(c => c.id === photog.id);
+        if (at > 0) ordered.unshift(ordered.splice(at, 1)[0]);
+        else if (at === -1 && photog.instagram_username) ordered.unshift(photog);
+      }
+
+      return ordered
         .map(c => c.instagram_username)
         .filter(Boolean)
         .slice(0, IG_COLLABORATOR_LIMIT);
+    }
+
+    function renderSocialCollabSummary() {
+      const el = document.getElementById('socialCollabSummary');
+      if (!el) return;
+
+      const handles = igCollaboratorHandles();
+      const photog = articlePhotographerContributor();
+
+      if (handles.length === 0) {
+        el.innerHTML = photog
+          ? `<span style="color: #c05600;">${escapeHtml(photog.name)} has no Instagram username on file &mdash; add one in Contributors and they can be credited.</span>`
+          : '<span style="color: #888;">No photographer on this story, so nobody is credited.</span>';
+        return;
+      }
+
+      el.innerHTML = handles.map(h =>
+        `<span style="display: inline-block; background: #f3e5f5; color: #6a1b9a; padding: 3px 9px; border-radius: 12px; font-size: 12px; margin: 2px 3px 2px 0;">@${escapeHtml(h)}</span>`
+      ).join('');
     }
 
     function socialWhenText(iso) {
@@ -14336,9 +14446,14 @@ Respond ONLY with valid JSON:
 
       // Instagram queued on our side.
       if (res.scheduled) {
-        const who = (res.collaborators || []).length
-          ? ` &middot; will invite ${res.collaborators.map(h => '@' + h).join(', ')}`
-          : '';
+        const bits = [];
+        if ((res.collaborators || []).length) {
+          bits.push(`crediting ${res.collaborators.map(h => '@' + h).join(', ')}`);
+        }
+        if ((res.photoTags || []).length) {
+          bits.push(`tagging ${res.photoTags.map(h => '@' + h).join(', ')}`);
+        }
+        const who = bits.length ? ` &middot; ${bits.join(', ')}` : '';
         return `&#x1F550; ${label}: Scheduled for ${socialWhenText(res.scheduled_for || scheduledTime)}${imgs}${who}`;
       }
 
@@ -14349,12 +14464,20 @@ Respond ONLY with valid JSON:
       }
 
       let line = `&#x2705; ${label}: Posted${imgs}`;
-      if ((res.collaboratorsDropped || []).length) {
-        line += `<br><span style="color: #c05600;">&#x26A0;&#xFE0F; ${res.note}</span>`;
-      } else if ((res.collaboratorsInvited || []).length) {
-        line += ` &middot; invited ${res.collaboratorsInvited.map(h => '@' + h).join(', ')}`;
-      } else if (res.note) {
-        line += `<br><span style="color: #777;">${res.note}</span>`;
+
+      const landed = [];
+      if ((res.collaboratorsInvited || []).length) {
+        landed.push(`credited ${res.collaboratorsInvited.map(h => '@' + h).join(', ')}`);
+      }
+      if ((res.photoTagged || []).length) {
+        landed.push(`tagged ${res.photoTagged.map(h => '@' + h).join(', ')}`);
+      }
+      if (landed.length) line += ` &middot; ${landed.join(', ')}`;
+
+      // res.note is set only when Instagram refused something, and says what.
+      if (res.note) {
+        const refused = (res.collaboratorsDropped || []).length || (res.photoTagsDropped || []).length;
+        line += `<br><span style="color: ${refused ? '#c05600' : '#777'};">${refused ? '&#x26A0;&#xFE0F; ' : ''}${res.note}</span>`;
       }
       return line;
     }
@@ -14729,6 +14852,8 @@ Respond ONLY with valid JSON:
         `;
       }).join('');
 
+      renderSocialCollabSummary();
+
       // Say plainly who will and won't be tagged, rather than letting Instagram
       // silently drop the overflow.
       const withHandles = socialContributors.filter(c => c.instagram_username);
@@ -14896,6 +15021,7 @@ Respond ONLY with valid JSON:
               message: igPost,
               imageUrls: imageUrls,
               collaborators: igCollaborators,
+              photoTags: socialPhotoTags,
               scheduledTime: scheduledTime,
               // Provenance, so the Scheduled Posts panel can name the story.
               articleId: currentArticle?.id ?? null,
@@ -15099,6 +15225,7 @@ Respond ONLY with valid JSON:
               message: igPost,
               imageUrls: imageUrls,
               collaborators: igCollaborators,
+              photoTags: socialPhotoTags,
               scheduledTime: scheduledTime,
               // Provenance, so the Scheduled Posts panel can name the story.
               articleId: currentArticle?.id ?? null,
@@ -15154,11 +15281,341 @@ Respond ONLY with valid JSON:
       // Then auto-add photographer (needs allContributors to be populated)
       autoAddPhotographerFromArticle();
       renderSocialImages();
-      
+
       // Reset scheduling
       document.querySelector('input[name="socialSchedule"][value="now"]').checked = true;
       document.getElementById('schedulePicker').style.display = 'none';
       document.getElementById('socialSendStatus').style.display = 'none';
+
+      // Work out which school and team accounts this story should tag.
+      // Deliberately not awaited: the panel should open immediately, and the
+      // tag row fills itself in a moment later.
+      resolveSocialPhotoTags();
+    }
+
+    /* =====================================================================
+       PHOTO TAGS — the schools and teams tagged in the cover photo.
+
+       A different Instagram feature from collaborators, and worth keeping
+       straight: a collaborator co-authors the post, must accept, and it then
+       appears on their profile — that slot is the photographer's. A photo tag
+       is tagging an account IN the picture: no acceptance, still notifies
+       them, and it goes on the cover image. That is what the teams get.
+       ===================================================================== */
+
+    let socialPhotoTags = [];        // handles that will be sent
+    let socialPhotoTagDetail = [];   // including the ones with no handle on file
+
+    // The teams this story is about, as social-tags needs them. Sport and
+    // gender come straight from the CMS's own vocabulary, which matches the
+    // social_tags columns: basketball / baseball / gvolleyball, Boys / Girls.
+    function socialTeamsForTagging() {
+      const sport = document.getElementById('articleSport')?.value ||
+                    currentArticle?.sport || '';
+
+      let game = selectedGame;
+      if (!game && currentArticle?.game_id) {
+        const pool = (typeof allGames !== 'undefined' && allGames) ? allGames
+                   : (typeof games !== 'undefined' && games) ? games : [];
+        game = pool.find(g => g.game_id === currentArticle.game_id) || null;
+      }
+      if (!game) return [];
+
+      const gender = game.gender || currentArticle?.game_data?.gender || '';
+
+      return [game.home_team, game.away_team]
+        .map(s => String(s || '').trim())
+        .filter(Boolean)
+        .map(school => ({ school, sport, gender }));
+    }
+
+    async function resolveSocialPhotoTags() {
+      socialPhotoTags = [];
+      socialPhotoTagDetail = [];
+      renderSocialPhotoTags();
+
+      const teams = socialTeamsForTagging();
+      if (teams.length === 0) { renderSocialPhotoTags(); return; }
+
+      try {
+        const res = await fetch('/.netlify/functions/social-tags', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key: CMS_PASSWORD, action: 'resolve', teams })
+        });
+        const raw = await res.text();
+        let data = {};
+        try { data = raw ? JSON.parse(raw) : {}; } catch (_) {
+          throw new Error(`HTTP ${res.status} — ${raw.slice(0, 100) || 'empty response'}`);
+        }
+        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+
+        socialPhotoTags = data.handles || [];
+        socialPhotoTagDetail = data.detail || [];
+      } catch (err) {
+        // A tag lookup failing must never block posting — it just means no
+        // tags, and the row says why rather than showing an empty state that
+        // looks like "nothing to tag".
+        console.error('Photo tag lookup failed:', err);
+        socialPhotoTagDetail = [{ error: err.message }];
+      }
+      renderSocialPhotoTags();
+    }
+
+    function renderSocialPhotoTags() {
+      const el = document.getElementById('socialPhotoTags');
+      if (!el) return;
+
+      const err = socialPhotoTagDetail.find(d => d.error);
+      if (err) {
+        el.innerHTML = `<span style="color: #c62828;">Couldn't look up team tags: ${escapeHtml(err.error)} &mdash; the post will go out untagged.</span>`;
+        return;
+      }
+
+      if (socialPhotoTags.length === 0 && socialPhotoTagDetail.length === 0) {
+        el.innerHTML = '<span style="color: #888;">No linked game, so nothing to tag.</span>';
+        return;
+      }
+
+      const tagged = socialPhotoTags.map(h =>
+        `<span style="display: inline-block; background: #fce4ec; color: #ad1457; padding: 3px 9px; border-radius: 12px; font-size: 12px; margin: 2px 3px 2px 0;">@${escapeHtml(h)}</span>`
+      ).join('');
+
+      const missing = socialPhotoTagDetail.filter(d => d.missing);
+      const missingNote = missing.length
+        ? `<div style="margin-top: 6px; font-size: 12px; color: #888;">No handle on file for ${
+            missing.map(m => escapeHtml(m.school) + (m.why === 'team' ? ' (team)' : '')).join(', ')
+          } &mdash; add one in Teams &rarr; Social Tags.</div>`
+        : '';
+
+      el.innerHTML = (tagged || '<span style="color: #888;">No handles on file for these teams yet.</span>') + missingNote;
+    }
+
+    /* =====================================================================
+       SOCIAL TAGS GRID — bulk entry for the school and team handles.
+
+       Reads and writes through social-tags.mjs: the table has RLS on and no
+       policies, so the anon key on this page cannot touch it. Only the handle
+       is writable; the identity columns come from the seed and match what
+       games spells, so letting this grid rewrite them would quietly break
+       every lookup.
+       ===================================================================== */
+
+    let socialTagRows = [];
+    const socialTagEdits = new Map();   // id -> handle as typed
+
+    const SPORT_LABEL = {
+      basketball: 'Basketball',
+      baseball: 'Baseball',
+      gvolleyball: 'Volleyball'
+    };
+
+    function socialTagRowLabel(row) {
+      if (row.scope === 'school') return 'School account';
+      const sport = SPORT_LABEL[row.sport] || row.sport || '';
+      return `${row.gender || ''} ${sport}`.trim();
+    }
+
+    async function toggleSocialTagsGrid() {
+      const grid = document.getElementById('socialTagsGrid');
+      const panel = document.getElementById('teamsPanel');
+      const showing = grid.style.display !== 'none';
+
+      grid.style.display = showing ? 'none' : 'block';
+      // Hide the ordinary Teams furniture while the grid is up, so the two
+      // don't stack on one screen.
+      panel.querySelectorAll(':scope > .toolbar, :scope > #teamList').forEach(el => {
+        el.style.display = showing ? '' : 'none';
+      });
+      document.getElementById('socialTagsToggle').style.opacity = showing ? '' : '0.7';
+
+      if (!showing && socialTagRows.length === 0) await loadSocialTagsGrid();
+    }
+
+    function socialTagsNote(message, kind) {
+      const div = document.getElementById('socialTagsStatus');
+      if (!message) { div.style.display = 'none'; return; }
+      const styles = {
+        error:   ['#ffebee', '#c62828', '#8e1b1b'],
+        warn:    ['#fff3e0', '#ef6c00', '#6d4c00'],
+        success: ['#e8f5e9', '#2e7d32', '#1b5e20']
+      };
+      const [bg, border, color] = styles[kind] || styles.success;
+      div.style.display = 'block';
+      div.style.background = bg;
+      div.style.border = `1px solid ${border}`;
+      div.style.color = color;
+      div.innerHTML = message;
+    }
+
+    async function loadSocialTagsGrid() {
+      const rows = document.getElementById('socialTagsRows');
+      rows.innerHTML = '<p style="color: #888; font-size: 14px;">Loading&hellip;</p>';
+      socialTagsNote(null);
+
+      try {
+        const res = await fetch('/.netlify/functions/social-tags', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key: CMS_PASSWORD, action: 'list' })
+        });
+        const raw = await res.text();
+        let data = {};
+        try { data = raw ? JSON.parse(raw) : {}; } catch (_) {
+          throw new Error(`HTTP ${res.status} — ${raw.slice(0, 120) || 'empty response'}`);
+        }
+        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+
+        socialTagRows = data.rows || [];
+        socialTagEdits.clear();
+        renderSocialTagsGrid();
+      } catch (err) {
+        rows.innerHTML = '';
+        socialTagsNote(
+          `Could not load the tag list: ${escapeHtml(err.message)}` +
+          (/does not exist|relation|Supabase 40/i.test(err.message)
+            ? '<br><span style="font-size: 13px;">If this says the table does not exist, ' +
+              'social-tags.sql has not been run yet.</span>'
+            : ''),
+          'error');
+      }
+    }
+
+    // Typed-but-unsaved values must survive a filter change, so they are read
+    // out of the inputs before the grid is rebuilt.
+    function captureSocialTagEdits() {
+      document.querySelectorAll('#socialTagsRows input[data-tag-id]').forEach(input => {
+        socialTagEdits.set(Number(input.dataset.tagId), input.value);
+      });
+    }
+
+    function socialTagCurrentValue(row) {
+      if (socialTagEdits.has(row.id)) return socialTagEdits.get(row.id);
+      return row.instagram ? '@' + row.instagram : '';
+    }
+
+    function renderSocialTagsGrid() {
+      captureSocialTagEdits();
+
+      const search = document.getElementById('socialTagsSearch').value.trim().toLowerCase();
+      const scope = document.getElementById('socialTagsScope').value;
+      const onlyBlank = document.getElementById('socialTagsOnlyBlank').checked;
+      const container = document.getElementById('socialTagsRows');
+
+      let rows = socialTagRows;
+      if (search) rows = rows.filter(r => (r.school || '').toLowerCase().includes(search));
+      if (scope === 'school') rows = rows.filter(r => r.scope === 'school');
+      else if (scope !== 'all') {
+        const [sport, gender] = scope.split('|');
+        rows = rows.filter(r => r.scope === 'team' && r.sport === sport && r.gender === gender);
+      }
+      if (onlyBlank) rows = rows.filter(r => !socialTagCurrentValue(r).trim());
+
+      const filled = socialTagRows.filter(r => (r.instagram || '').trim()).length;
+      document.getElementById('socialTagsCount').textContent =
+        `${filled} of ${socialTagRows.length} rows have a handle` +
+        (rows.length !== socialTagRows.length ? ` — showing ${rows.length}` : '');
+
+      if (rows.length === 0) {
+        container.innerHTML = '<div style="background: #fff; border-radius: 10px; padding: 30px; text-align: center; color: #888;">Nothing matches that filter.</div>';
+        return;
+      }
+
+      // Grouped by school, so a school and its four teams sit together.
+      const bySchool = new Map();
+      for (const r of rows) {
+        if (!bySchool.has(r.school)) bySchool.set(r.school, []);
+        bySchool.get(r.school).push(r);
+      }
+
+      container.innerHTML = [...bySchool.entries()].map(([school, group]) => {
+        const coOp = group.find(r => r.scope === 'school' && Array.isArray(r.co_op_members) && r.co_op_members.length);
+        const coOpNote = coOp
+          ? `<span style="font-size: 12px; color: #ad1457; font-weight: 400;"> &mdash; co-op, tags ${
+              coOp.co_op_members.map(m => escapeHtml(m)).join(' and ')}</span>`
+          : '';
+
+        const lines = group.map(r => `
+          <div style="display: grid; grid-template-columns: 170px 1fr; gap: 10px; align-items: center; padding: 5px 0;">
+            <div style="font-size: 13px; color: #666;">${escapeHtml(socialTagRowLabel(r))}</div>
+            <input type="text" data-tag-id="${r.id}" placeholder="@handle"
+                   style="padding: 7px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;">
+          </div>`).join('');
+
+        return `
+          <div style="background: #fff; border-radius: 10px; padding: 14px 18px; margin-bottom: 10px; box-shadow: 0 1px 6px rgba(0,0,0,0.06);">
+            <div style="font-weight: 600; color: #333; margin-bottom: 6px;">${escapeHtml(school)}${coOpNote}</div>
+            ${lines}
+          </div>`;
+      }).join('');
+
+      // Values are assigned after insertion rather than in the markup, because
+      // escapeHtml does not escape quotes and a handle sits in an attribute.
+      container.querySelectorAll('input[data-tag-id]').forEach(input => {
+        const row = socialTagRows.find(r => r.id === Number(input.dataset.tagId));
+        if (row) input.value = socialTagCurrentValue(row);
+      });
+    }
+
+    async function saveSocialTagsGrid() {
+      captureSocialTagEdits();
+
+      // Only send what actually changed.
+      const changed = [];
+      for (const [id, value] of socialTagEdits.entries()) {
+        const row = socialTagRows.find(r => r.id === id);
+        if (!row) continue;
+        const before = row.instagram ? '@' + row.instagram : '';
+        if (value.trim() !== before.trim()) changed.push({ id, instagram: value });
+      }
+
+      if (changed.length === 0) { socialTagsNote('Nothing has changed.', 'warn'); return; }
+
+      const btn = document.getElementById('socialTagsSaveBtn');
+      const label = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Saving…';
+
+      try {
+        const res = await fetch('/.netlify/functions/social-tags', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key: CMS_PASSWORD, action: 'save', rows: changed })
+        });
+        const raw = await res.text();
+        let data = {};
+        try { data = raw ? JSON.parse(raw) : {}; } catch (_) {
+          throw new Error(`HTTP ${res.status} — ${raw.slice(0, 120) || 'empty response'}`);
+        }
+        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+
+        const bits = [];
+        if (data.saved) bits.push(`${data.saved} handle${data.saved > 1 ? 's' : ''} saved`);
+        if (data.cleared) bits.push(`${data.cleared} cleared`);
+
+        // Name the rejects rather than reporting a clean save of fewer rows
+        // than were typed.
+        const rejected = data.rejected || [];
+        if (rejected.length) {
+          const names = rejected.map(r => {
+            const row = socialTagRows.find(x => x.id === r.id);
+            return row ? `${row.school} (${socialTagRowLabel(row)}): "${r.value || ''}"` : `#${r.id}`;
+          });
+          socialTagsNote(
+            `${bits.join(', ') || 'Nothing saved'}. ${rejected.length} not saved &mdash; ` +
+            `not a usable Instagram username: ${escapeHtml(names.join('; '))}`,
+            'warn');
+        } else {
+          socialTagsNote(bits.join(', ') + '.', 'success');
+        }
+
+        await loadSocialTagsGrid();
+      } catch (err) {
+        socialTagsNote(`Could not save: ${escapeHtml(err.message)}`, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = label;
+      }
     }
     
     function generateSlug(title) {

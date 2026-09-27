@@ -34,11 +34,18 @@ const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.en
 const MIN_LEAD_MS = 10 * 60 * 1000;
 const MAX_LEAD_MS = 180 * 24 * 60 * 60 * 1000;
 
+/* TWO DIFFERENT INSTAGRAM FEATURES, easily confused:
+     collaborators — max 3, the account must ACCEPT, and the post then appears
+                     on their profile. Used for the photographer who shot it.
+     user_tags     — tagging accounts IN the image. No acceptance step, the
+                     account is still notified. Used for the teams and schools,
+                     and it goes on the cover photo only. */
 const MAX_COLLABORATORS = 3;
+const MAX_PHOTO_TAGS = 10;
 
 // Instagram handles: letters, numbers, period, underscore, 30 characters.
 // A leading @ is what a person types, so it is accepted and stripped.
-function cleanCollaborators(list) {
+function cleanHandles(list, max) {
   if (!Array.isArray(list)) return [];
   const seen = new Set();
   const out = [];
@@ -51,9 +58,26 @@ function cleanCollaborators(list) {
     if (seen.has(handle)) continue;
     seen.add(handle);
     out.push(handle);
-    if (out.length === MAX_COLLABORATORS) break;
+    if (out.length === max) break;
   }
   return out;
+}
+
+const cleanCollaborators = (list) => cleanHandles(list, MAX_COLLABORATORS);
+const cleanPhotoTags = (list) => cleanHandles(list, MAX_PHOTO_TAGS);
+
+/* user_tags needs a position for every handle — x and y are required for
+   images, as a 0..1 fraction of the picture. The tags are invisible until
+   someone taps the photo, so placement is only about not stacking them on top
+   of each other: spread evenly across the lower third, which on a game photo
+   is usually floor or grass rather than a face. */
+function buildUserTags(handles) {
+  const n = handles.length;
+  return handles.map((username, i) => ({
+    username,
+    x: Number(((i + 1) / (n + 1)).toFixed(2)),
+    y: 0.85
+  }));
 }
 
 function parseSchedule(scheduledTime) {
@@ -117,17 +141,19 @@ exports.handler = async (event, context) => {
 
   try {
     const body = JSON.parse(event.body);
-    const { platform, message, imageUrls, tags, collaborators, scheduledTime,
-            articleId, articleTitle } = body;
+    const { platform, message, imageUrls, tags, collaborators, photoTags,
+            scheduledTime, articleId, articleTitle } = body;
 
     const igCollaborators = cleanCollaborators(collaborators);
+    const igPhotoTags = cleanPhotoTags(photoTags);
 
     console.log('Social post request:', {
       platform,
       imageCount: imageUrls?.length,
       hasMessage: !!message,
       scheduledTime: scheduledTime || null,
-      collaborators: igCollaborators
+      collaborators: igCollaborators,
+      photoTags: igPhotoTags
     });
 
     // Validate the slot once, up front, so a bad time is a 400 rather than a
@@ -200,6 +226,11 @@ exports.handler = async (event, context) => {
               caption: message || null,
               image_urls: imageUrls,
               collaborators: igCollaborators,
+              /* Resolved now, not at publish time, so what goes out is what
+                 was on screen when it was scheduled. Editing a handle in the
+                 tag grid afterwards cannot silently re-target a post that has
+                 already been reviewed. */
+              photo_tags: igPhotoTags,
               scheduled_for: when.toISOString(),
               article_id: articleId != null ? String(articleId) : null,
               article_title: articleTitle || null
@@ -210,7 +241,8 @@ exports.handler = async (event, context) => {
               queueId: row?.id || null,
               scheduled_for: when.toISOString(),
               imagesQueued: imageUrls.length,
-              collaborators: igCollaborators
+              collaborators: igCollaborators,
+              photoTags: igPhotoTags
             };
           } catch (err) {
             /* Deliberately NOT falling back to posting immediately. Posting now
@@ -225,7 +257,7 @@ exports.handler = async (event, context) => {
           }
         }
       } else {
-        const igResult = await postToInstagram(message, imageUrls || [], igCollaborators);
+        const igResult = await postToInstagram(message, imageUrls || [], igCollaborators, igPhotoTags);
         results.instagram = igResult;
       }
     }
@@ -383,7 +415,7 @@ async function postToFacebook(message, imageUrls, tags, scheduledTime) {
 // while the scheduled worker records the container id to the database and
 // re-checks an existing container's status_code before publishing, so a
 // function timeout cannot post the same photo set twice. Keep them in step.
-async function postToInstagram(message, imageUrls, collaborators) {
+async function postToInstagram(message, imageUrls, collaborators, photoTagHandles) {
   const userId = process.env.INSTAGRAM_USER_ID;
   const accessToken = process.env.INSTAGRAM_ACCESS_TOKEN;
 
@@ -397,10 +429,12 @@ async function postToInstagram(message, imageUrls, collaborators) {
 
   const API_VERSION = 'v19.0';
   const collabs = Array.isArray(collaborators) ? collaborators : [];
+  const photoTags = Array.isArray(photoTagHandles) ? photoTagHandles : [];
 
-  // Set once if the post had to go out without its collaborator tags, so the
-  // CMS can say so instead of implying they were invited.
+  // Set if the post had to go out without one of its extras, so the CMS can
+  // say so instead of implying the tag landed.
   let collaboratorsDropped = null;
+  let photoTagsDropped = null;
 
   const createMedia = async (params) => {
     const res = await fetch(
@@ -410,11 +444,15 @@ async function postToInstagram(message, imageUrls, collaborators) {
     return res.json();
   };
 
-  /* One rejected handle — a private account, a typo, someone who has
-     collaborator invites switched off — fails the whole container, which would
-     mean no post at all. A container is not a post, so retrying without the
-     tags is free and cannot double-publish. Better to get the photos up and
-     report the lost tag than to lose the post over it. */
+  /* One rejected handle — a private account, a typo, someone who has tagging
+     switched off — fails the whole container, which would mean no post at all.
+     A container is not a post, so retrying without the tags is free and cannot
+     double-publish. Better to get the photos up and report the lost tag.
+
+     WHICH EXTRA GETS DROPPED FIRST: the photo tags. A team's handle is
+     replaceable and can be fixed in the grid; the collaborator slot carries
+     the photographer's co-author credit on their own work, which is the last
+     thing to give up. */
   const createMediaAllowingCollabLoss = async (buildParams) => {
     const first = await createMedia(buildParams(true));
     if (!first.error || collabs.length === 0) return first;
@@ -432,8 +470,9 @@ async function postToInstagram(message, imageUrls, collaborators) {
     let childIds = [];
 
     if (imageUrls.length === 1) {
-      // Single image post
-      const buildParams = (withCollabs) => {
+      // Single image: both extras ride on the same container, so the fallback
+      // is staged — tags first, then collaborators.
+      const buildParams = ({ withCollabs, withTags }) => {
         const params = new URLSearchParams({
           image_url: imageUrls[0],
           caption: message || '',
@@ -443,12 +482,40 @@ async function postToInstagram(message, imageUrls, collaborators) {
         if (withCollabs && collabs.length) {
           params.append('collaborators', JSON.stringify(collabs));
         }
+        // Tagged accounts with x/y positions on the image itself.
+        if (withTags && photoTags.length) {
+          params.append('user_tags', JSON.stringify(buildUserTags(photoTags)));
+        }
         return params;
       };
 
-      console.log('Creating single IG media...', collabs.length ? `collaborators: ${collabs.join(', ')}` : '');
+      console.log('Creating single IG media...',
+        collabs.length ? `collaborators: ${collabs.join(', ')}` : '',
+        photoTags.length ? `photo tags: ${photoTags.join(', ')}` : '');
 
-      const createData = await createMediaAllowingCollabLoss(buildParams);
+      let createData = await createMedia(buildParams({ withCollabs: true, withTags: true }));
+
+      if (createData.error && photoTags.length) {
+        const reason = createData.error.message;
+        console.warn('IG container failed, retrying without photo tags:', reason);
+        const retry = await createMedia(buildParams({ withCollabs: true, withTags: false }));
+        if (!retry.error) photoTagsDropped = { handles: photoTags.slice(), reason };
+        createData = retry;
+      }
+
+      if (createData.error && collabs.length) {
+        const reason = createData.error.message;
+        console.warn('IG container still failing, retrying without collaborators too:', reason);
+        const retry = await createMedia(buildParams({ withCollabs: false, withTags: false }));
+        if (!retry.error) {
+          collaboratorsDropped = { handles: collabs.slice(), reason };
+          if (photoTags.length && !photoTagsDropped) {
+            photoTagsDropped = { handles: photoTags.slice(), reason };
+          }
+        }
+        createData = retry;
+      }
+
       console.log('IG create response:', JSON.stringify(createData));
 
       if (createData.error) {
@@ -462,16 +529,31 @@ async function postToInstagram(message, imageUrls, collaborators) {
       console.log('Creating', imageUrls.length, 'Instagram carousel items (parallel)...');
 
       const uploadResults = await Promise.all(imageUrls.map(async (url, index) => {
-        const itemParams = new URLSearchParams({
-          image_url: url,
-          is_carousel_item: 'true',
-          access_token: accessToken
-        });
-        const itemResponse = await fetch(
-          `https://graph.facebook.com/${API_VERSION}/${userId}/media`,
-          { method: 'POST', body: itemParams }
-        );
-        const itemData = await itemResponse.json();
+        /* Photo tags go on the COVER image only, and on the carousel CHILD
+           rather than the parent — Instagram applies user_tags per item, since
+           a tag is a position on one picture. Collaborators are the opposite:
+           they belong on the parent container. */
+        const buildItem = (withTags) => {
+          const p = new URLSearchParams({
+            image_url: url,
+            is_carousel_item: 'true',
+            access_token: accessToken
+          });
+          if (withTags && index === 0 && photoTags.length) {
+            p.append('user_tags', JSON.stringify(buildUserTags(photoTags)));
+          }
+          return p;
+        };
+
+        let itemData = await createMedia(buildItem(true));
+
+        if (itemData.error && index === 0 && photoTags.length) {
+          const reason = itemData.error.message;
+          console.warn('Cover image failed with photo tags, retrying without:', reason);
+          itemData = await createMedia(buildItem(false));
+          if (!itemData.error) photoTagsDropped = { handles: photoTags.slice(), reason };
+        }
+
         if (itemData.id) {
           console.log(`Carousel item ${index + 1}/${imageUrls.length} uploaded`);
           return itemData.id;
@@ -546,16 +628,30 @@ async function postToInstagram(message, imageUrls, collaborators) {
       imagesPosted: creationId ? (imageUrls.length === 1 ? 1 : childIds.length) : 0
     };
 
+    // Say plainly what didn't land. The post is up; some tags may not be.
+    const notes = [];
+
     if (collaboratorsDropped) {
-      // Say it plainly. The post is up; the tags are not.
       result.collaboratorsDropped = collaboratorsDropped.handles;
-      result.note = `Posted, but Instagram refused the collaborator tag${
+      notes.push(`Instagram refused the collaborator invite${
         collaboratorsDropped.handles.length > 1 ? 's' : ''} (${
         collaboratorsDropped.handles.map(h => '@' + h).join(', ')}): ${
-        collaboratorsDropped.reason}`;
+        collaboratorsDropped.reason}`);
     } else if (collabs.length) {
       result.collaboratorsInvited = collabs.slice();
     }
+
+    if (photoTagsDropped) {
+      result.photoTagsDropped = photoTagsDropped.handles;
+      notes.push(`Instagram refused the photo tag${
+        photoTagsDropped.handles.length > 1 ? 's' : ''} (${
+        photoTagsDropped.handles.map(h => '@' + h).join(', ')}): ${
+        photoTagsDropped.reason}`);
+    } else if (photoTags.length) {
+      result.photoTagged = photoTags.slice();
+    }
+
+    if (notes.length) result.note = 'Posted, but ' + notes.join('. ');
 
     return result;
 

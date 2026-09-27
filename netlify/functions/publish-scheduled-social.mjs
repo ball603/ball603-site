@@ -100,29 +100,45 @@ async function containerStatus(containerId) {
   return res.json();
 }
 
+/* user_tags needs a position per handle — x and y are required for images, as
+   a 0..1 fraction. Tags are invisible until the photo is tapped, so placement
+   only has to stop them stacking: spread across the lower third, which on a
+   game photo is usually floor or grass rather than a face. Mirrors
+   buildUserTags() in social-post.js. */
+function buildUserTags(handles) {
+  const n = handles.length;
+  return handles.map((username, i) => ({
+    username,
+    x: Number(((i + 1) / (n + 1)).toFixed(2)),
+    y: 0.85
+  }));
+}
+
 // Build the container for a queued post and return its id.
-// Mirrors postToInstagram() in social-post.js, including the deliberate retry
-// without collaborator tags — one private or mistyped handle otherwise fails
+//
+// Mirrors postToInstagram() in social-post.js, including the deliberate retries
+// without the optional extras — one private or mistyped handle otherwise fails
 // the container and the post is lost entirely. A container is not a post, so
 // retrying it cannot double-publish.
+//
+// WHICH EXTRA IS GIVEN UP FIRST: the photo tags. A school's handle is
+// replaceable and fixable in the tag grid; the collaborator slot carries the
+// photographer's co-author credit on their own work.
 async function buildContainer(post) {
   const imageUrls = asArray(post.image_urls);
   const collabs = asArray(post.collaborators);
+  const photoTags = asArray(post.photo_tags);
   if (imageUrls.length === 0) throw new Error('No image URLs on the queued post');
 
   let droppedCollaborators = null;
+  let droppedPhotoTags = null;
 
-  const create = async (build) => {
-    const first = await graphPost(`${IG_USER_ID}/media`, build(true));
-    if (!first.error || collabs.length === 0) return first;
-    console.warn(`  collaborators refused (${first.error.message}); retrying without`);
-    const retry = await graphPost(`${IG_USER_ID}/media`, build(false));
-    if (!retry.error) droppedCollaborators = collabs.slice();
-    return retry;
-  };
+  const media = (params) => graphPost(`${IG_USER_ID}/media`, params);
 
   if (imageUrls.length === 1) {
-    const build = (withCollabs) => {
+    // Single image: both extras ride on the same container, so the fallback is
+    // staged — tags first, then collaborators.
+    const build = ({ withCollabs, withTags }) => {
       const p = new URLSearchParams({
         image_url: imageUrls[0],
         caption: post.caption || '',
@@ -130,21 +146,61 @@ async function buildContainer(post) {
       });
       // Up to 3 Instagram USERNAMES. Numeric user IDs are not accepted here.
       if (withCollabs && collabs.length) p.append('collaborators', JSON.stringify(collabs));
+      if (withTags && photoTags.length) p.append('user_tags', JSON.stringify(buildUserTags(photoTags)));
       return p;
     };
-    const data = await create(build);
+
+    let data = await media(build({ withCollabs: true, withTags: true }));
+
+    if (data.error && photoTags.length) {
+      const reason = data.error.message;
+      console.warn(`  photo tags refused (${reason}); retrying without`);
+      const retry = await media(build({ withCollabs: true, withTags: false }));
+      if (!retry.error) droppedPhotoTags = photoTags.slice();
+      data = retry;
+    }
+
+    if (data.error && collabs.length) {
+      const reason = data.error.message;
+      console.warn(`  collaborators refused too (${reason}); retrying without both`);
+      const retry = await media(build({ withCollabs: false, withTags: false }));
+      if (!retry.error) {
+        droppedCollaborators = collabs.slice();
+        if (photoTags.length && !droppedPhotoTags) droppedPhotoTags = photoTags.slice();
+      }
+      data = retry;
+    }
+
     if (data.error) throw new Error(`Container: ${data.error.message}`);
-    return { containerId: data.id, children: 1, droppedCollaborators };
+    return { containerId: data.id, children: 1, droppedCollaborators, droppedPhotoTags };
   }
 
-  // Carousel: children first, then the parent container.
+  /* Carousel: children first, then the parent container. Photo tags go on the
+     COVER child rather than the parent — Instagram positions a tag on one
+     picture, so user_tags on a carousel parent would go nowhere. Collaborators
+     are the opposite: parent only. */
   const children = await Promise.all(imageUrls.map(async (url, i) => {
-    const p = new URLSearchParams({
-      image_url: url,
-      is_carousel_item: 'true',
-      access_token: IG_TOKEN
-    });
-    const data = await graphPost(`${IG_USER_ID}/media`, p);
+    const buildItem = (withTags) => {
+      const p = new URLSearchParams({
+        image_url: url,
+        is_carousel_item: 'true',
+        access_token: IG_TOKEN
+      });
+      if (withTags && i === 0 && photoTags.length) {
+        p.append('user_tags', JSON.stringify(buildUserTags(photoTags)));
+      }
+      return p;
+    };
+
+    let data = await media(buildItem(true));
+
+    if (data.error && i === 0 && photoTags.length) {
+      const reason = data.error.message;
+      console.warn(`  cover photo tags refused (${reason}); retrying without`);
+      data = await media(buildItem(false));
+      if (!data.error) droppedPhotoTags = photoTags.slice();
+    }
+
     if (!data.id) {
       console.error(`  carousel item ${i + 1} failed:`, data.error?.message);
       return null;
@@ -167,9 +223,16 @@ async function buildContainer(post) {
     return p;
   };
 
-  const data = await create(build);
+  let data = await media(build(true));
+  if (data.error && collabs.length) {
+    console.warn(`  collaborators refused (${data.error.message}); retrying without`);
+    const retry = await media(build(false));
+    if (!retry.error) droppedCollaborators = collabs.slice();
+    data = retry;
+  }
+
   if (data.error) throw new Error(`Carousel container: ${data.error.message}`);
-  return { containerId: data.id, children: childIds.length, droppedCollaborators };
+  return { containerId: data.id, children: childIds.length, droppedCollaborators, droppedPhotoTags };
 }
 
 // Best effort: the panel's "View post" link. A post with no permalink is still
@@ -273,7 +336,10 @@ async function sendOne(post) {
     if (!containerId) {
       const built = await buildContainer(row);
       containerId = built.containerId;
-      dropped = built.droppedCollaborators;
+      dropped = {
+        collaborators: built.droppedCollaborators,
+        photoTags: built.droppedPhotoTags
+      };
       // Written BEFORE publishing, on purpose — see defence 2 in the header.
       await patchRow(post.id, { ig_container_id: containerId });
     }
@@ -283,14 +349,26 @@ async function sendOne(post) {
 
     // published_at is the real moment it went out, not the slot it was aimed
     // at. scheduled_for already records the intention.
+    /* Anything Instagram refused is recorded against the row even though the
+       post succeeded, so the panel can show it rather than implying every tag
+       landed. last_error is the field the panel already surfaces; on a
+       published row it renders as a warning rather than a failure. */
+    const lost = [];
+    if (dropped?.collaborators?.length) {
+      lost.push(`the collaborator invite${dropped.collaborators.length > 1 ? 's' : ''} (${
+        dropped.collaborators.map(h => '@' + h).join(', ')})`);
+    }
+    if (dropped?.photoTags?.length) {
+      lost.push(`the photo tag${dropped.photoTags.length > 1 ? 's' : ''} (${
+        dropped.photoTags.map(h => '@' + h).join(', ')})`);
+    }
+
     await patchRow(post.id, {
       status: 'published',
       ig_media_id: mediaId,
       permalink,
       published_at: new Date().toISOString(),
-      last_error: dropped
-        ? `Posted, but Instagram refused the collaborator tag(s): ${dropped.map(h => '@' + h).join(', ')}`
-        : null
+      last_error: lost.length ? `Posted, but Instagram refused ${lost.join(' and ')}.` : null
     });
 
     console.log(`  + #${post.id} published as ${mediaId}`);
@@ -298,7 +376,8 @@ async function sendOne(post) {
       published: true,
       id: post.id,
       mediaId,
-      collaboratorsDropped: dropped || undefined
+      collaboratorsDropped: dropped?.collaborators || undefined,
+      photoTagsDropped: dropped?.photoTags || undefined
     };
 
   } catch (err) {

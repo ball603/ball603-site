@@ -40,6 +40,7 @@ const GRAPH = `https://graph.facebook.com/${API_VERSION}`;
 const MIN_LEAD_MS = 10 * 60 * 1000;
 const MAX_LEAD_MS = 180 * 24 * 60 * 60 * 1000;
 const MAX_COLLABORATORS = 3;
+const MAX_PHOTO_TAGS = 10;
 
 const EDITABLE = new Set(['pending', 'failed']);
 
@@ -58,7 +59,7 @@ async function supabase(path, options = {}) {
   return text ? JSON.parse(text) : null;
 }
 
-function cleanCollaborators(list) {
+function cleanHandles(list, max) {
   if (!Array.isArray(list)) return [];
   const seen = new Set();
   const out = [];
@@ -69,10 +70,12 @@ function cleanCollaborators(list) {
     if (seen.has(handle)) continue;
     seen.add(handle);
     out.push(handle);
-    if (out.length === MAX_COLLABORATORS) break;
+    if (out.length === max) break;
   }
   return out;
 }
+
+const cleanCollaborators = (list) => cleanHandles(list, MAX_COLLABORATORS);
 
 function parseSchedule(value) {
   const when = new Date(value);
@@ -170,6 +173,13 @@ export default async (request) => {
           return fail(400, 'Collaborators are an Instagram feature.');
         }
         update.collaborators = cleanCollaborators(body.collaborators);
+      }
+
+      if (body.photo_tags != null) {
+        if (row.platform !== 'instagram') {
+          return fail(400, 'Photo tags are an Instagram feature.');
+        }
+        update.photo_tags = cleanHandles(body.photo_tags, MAX_PHOTO_TAGS);
       }
 
       if (Object.keys(update).length === 0) return fail(400, 'Nothing to change');
