@@ -1039,6 +1039,7 @@
       <button class="tab" onclick="showTab('fanvideos', event)">&#x1F3AC; Fan Videos</button>
       <button class="tab" onclick="showTab('sos', event)">&#x1F4CA; NHIAA RPI</button>
       <button class="tab" onclick="showTab('seasons', event)">&#x1F4C5; Season Manager</button>
+      <button class="tab" onclick="showTab('scheduledsocial', event)">&#x1F550; Scheduled Posts</button>
       <button class="tab" onclick="showTab('settings', event)" style="margin-left: auto;">&#x2699;&#xFE0F; Settings</button>
     </div>
     
@@ -3888,8 +3889,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
                 <input type="url" id="contribInstagramUrl" placeholder="https://instagram.com/username">
               </div>
               <div class="form-group">
-                <label>Instagram User ID</label>
-                <input type="text" id="contribInstagramUserId" placeholder="17841450712579843">
+                <label>Instagram Username &mdash; used for collaborator invites</label>
+                <input type="text" id="contribInstagramUsername" placeholder="@username">
               </div>
               <div class="form-group">
                 <label>Facebook URL</label>
@@ -3898,6 +3899,14 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
               <div class="form-group">
                 <label>Facebook Page ID</label>
                 <input type="text" id="contribFacebookPageId" placeholder="104289287659890">
+              </div>
+              <div class="form-group" style="grid-column: 1 / -1;">
+                <label style="color: #777;">Instagram User ID &mdash; not used any more</label>
+                <input type="text" id="contribInstagramUserId" placeholder="17841450712579843">
+                <div style="font-size: 12px; color: #777; margin-top: 4px;">
+                  Instagram collaborator invites take a <strong>username</strong>, not this number, so the
+                  field above is the one that matters. Kept only for the records already entered.
+                </div>
               </div>
               <div class="form-group">
                 <label>Twitter/X URL</label>
@@ -6373,6 +6382,47 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
   </div>
   
   <!-- Season Manager Panel -->
+  <!-- Scheduled Posts Panel -->
+  <div class="panel" id="scheduledSocialPanel" style="display: none;">
+    <div style="max-width: 980px; margin: 0 auto; padding: 20px;">
+      <h2 style="margin-bottom: 6px; color: #333;">&#x1F550; Scheduled Posts</h2>
+      <p style="color: #666; font-size: 14px; margin-bottom: 20px; max-width: 760px;">
+        Everything waiting to go out, and what happened to everything that already has.
+        Instagram posts are held here and sent by Ball 603 on a five-minute timer, so they
+        can be edited or called off right up to their slot. Facebook holds its own scheduled
+        posts &mdash; those are listed too, and changes here are sent on to Facebook.
+      </p>
+
+      <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 18px;">
+        <select id="scheduledSocialFilter" onchange="loadScheduledSocial()"
+                style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
+          <option value="upcoming">Waiting to go out</option>
+          <option value="published">Already posted</option>
+          <option value="failed">Failed</option>
+          <option value="canceled">Canceled</option>
+          <option value="all">Everything</option>
+        </select>
+
+        <button onclick="loadScheduledSocial()"
+                style="background: #f57c00; color: #fff; border: none; padding: 9px 16px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;">
+          Refresh
+        </button>
+
+        <button onclick="runSocialQueueNow()" id="runSocialQueueBtn"
+                style="background: #fff; color: #555; border: 1px solid #ccc; padding: 9px 16px; border-radius: 6px; font-size: 14px; cursor: pointer;"
+                title="Send anything that is already due, without waiting for the next five-minute run">
+          Send due posts now
+        </button>
+
+        <span id="scheduledSocialCount" style="color: #888; font-size: 13px; margin-left: auto;"></span>
+      </div>
+
+      <div id="scheduledSocialStatus" style="display: none; margin-bottom: 16px; padding: 12px; border-radius: 8px; font-size: 14px;"></div>
+
+      <div id="scheduledSocialList"></div>
+    </div>
+  </div>
+
   <div class="panel" id="seasonsPanel" style="display: none;">
     <div style="max-width: 900px; margin: 0 auto; padding: 20px;">
       <h2 style="margin-bottom: 6px; color: #333;">&#x1F4C5; Season Manager</h2>
@@ -9820,6 +9870,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('ncaaplayersPanel').style.display = tab === 'ncaaplayers' ? 'block' : 'none';
       document.getElementById('sosPanel').style.display = tab === 'sos' ? 'block' : 'none';
       document.getElementById('seasonsPanel').style.display = tab === 'seasons' ? 'block' : 'none';
+      document.getElementById('scheduledSocialPanel').style.display = tab === 'scheduledsocial' ? 'block' : 'none';
+      if (tab === 'scheduledsocial') loadScheduledSocial();
       document.getElementById('editorPanel').style.display = 'none';
       
       // Load teams when tab is selected
@@ -14206,10 +14258,12 @@ Respond ONLY with valid JSON:
       
       console.log('Social dropdown: Total:', allContributors.length, 
                   'Active:', contribs.length,
-                  'With social IDs:', contribs.filter(c => c.instagram_user_id || c.facebook_page_id).length);
-      
+                  'With social IDs:', contribs.filter(c => c.instagram_username || c.facebook_page_id).length);
+
       contribs.forEach(c => {
-        const hasIG = c.instagram_user_id ? '&#x1F4F8;' : '';
+        // instagram_username, not instagram_user_id: the collaborator field
+        // takes a handle, so the number cannot tag anybody.
+        const hasIG = c.instagram_username ? '&#x1F4F8;' : '';
         const hasFB = c.facebook_page_id ? '&#x1F535;' : '';
         const badges = (hasIG || hasFB) ? ` ${hasIG}${hasFB}` : '';
         select.innerHTML += `<option value="${c.id}">${c.name}${badges}</option>`;
@@ -14243,6 +14297,413 @@ Respond ONLY with valid JSON:
       renderSocialContributors();
     }
     
+    /* The handles that will actually be sent to Instagram as collaborators.
+       Instagram's hard limit is 3 per post, and it rejects the whole container
+       if the list is longer, so the cap is applied here rather than discovered
+       at post time. Selecting more contributors than that is fine — the extras
+       just don't get tagged, and renderSocialContributors() says which. */
+    const IG_COLLABORATOR_LIMIT = 3;
+
+    function igCollaboratorHandles() {
+      return socialContributors
+        .map(c => c.instagram_username)
+        .filter(Boolean)
+        .slice(0, IG_COLLABORATOR_LIMIT);
+    }
+
+    function socialWhenText(iso) {
+      if (!iso) return 'its scheduled time';
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return 'its scheduled time';
+      return d.toLocaleString('en-US', {
+        weekday: 'short', month: 'short', day: 'numeric',
+        hour: 'numeric', minute: '2-digit'
+      });
+    }
+
+    /* One line describing what actually happened on one platform.
+       The old wording said "Posted successfully (scheduled)", which for
+       Instagram was not merely confusing but false — the server ignored the
+       schedule and posted immediately. A queued post now says Scheduled and
+       nothing else, so the panel never claims something went out when it
+       hasn't. */
+    function socialResultLine(label, res, scheduledTime) {
+      if (!res) return '';
+      if (!res.success) return `&#x274C; ${label}: ${res.error || 'Failed'}`;
+
+      const count = res.imagesPosted || res.imagesQueued || 0;
+      const imgs = count ? ` (${count} image${count > 1 ? 's' : ''})` : '';
+
+      // Instagram queued on our side.
+      if (res.scheduled) {
+        const who = (res.collaborators || []).length
+          ? ` &middot; will invite ${res.collaborators.map(h => '@' + h).join(', ')}`
+          : '';
+        return `&#x1F550; ${label}: Scheduled for ${socialWhenText(res.scheduled_for || scheduledTime)}${imgs}${who}`;
+      }
+
+      // Facebook holds its own scheduled posts, so a scheduledTime with a
+      // successful result means Facebook has it.
+      if (scheduledTime) {
+        return `&#x1F550; ${label}: Scheduled for ${socialWhenText(scheduledTime)}${imgs}`;
+      }
+
+      let line = `&#x2705; ${label}: Posted${imgs}`;
+      if ((res.collaboratorsDropped || []).length) {
+        line += `<br><span style="color: #c05600;">&#x26A0;&#xFE0F; ${res.note}</span>`;
+      } else if ((res.collaboratorsInvited || []).length) {
+        line += ` &middot; invited ${res.collaboratorsInvited.map(h => '@' + h).join(', ')}`;
+      } else if (res.note) {
+        line += `<br><span style="color: #777;">${res.note}</span>`;
+      }
+      return line;
+    }
+
+    /* =====================================================================
+       SCHEDULED POSTS PANEL
+
+       scheduled_social_posts has RLS on and no policies, so the anon key this
+       page uses cannot read it — everything here goes through social-manage,
+       which holds the service key behind the CMS password. See that file for
+       why the table is locked down.
+       ===================================================================== */
+
+    let scheduledSocialPosts = [];
+    let scheduledSocialEditing = null;
+
+    async function socialManage(action, payload = {}) {
+      const res = await fetch('/.netlify/functions/social-manage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: CMS_PASSWORD, action, ...payload })
+      });
+      // Read as text first so a 500 from the platform reports its status
+      // instead of throwing a SyntaxError from JSON.parse.
+      const raw = await res.text();
+      let data = {};
+      try { data = raw ? JSON.parse(raw) : {}; } catch (_) {
+        throw new Error(`HTTP ${res.status} — ${raw.slice(0, 120) || 'empty response'}`);
+      }
+      if (!res.ok) {
+        const err = new Error(data.error || `HTTP ${res.status}`);
+        err.details = data;
+        throw err;
+      }
+      return data;
+    }
+
+    function scheduledSocialNote(message, kind) {
+      const div = document.getElementById('scheduledSocialStatus');
+      if (!message) { div.style.display = 'none'; return; }
+      const styles = {
+        error:   ['#ffebee', '#c62828', '#8e1b1b'],
+        warn:    ['#fff3e0', '#ef6c00', '#6d4c00'],
+        success: ['#e8f5e9', '#2e7d32', '#1b5e20']
+      };
+      const [bg, border, color] = styles[kind] || styles.success;
+      div.style.display = 'block';
+      div.style.background = bg;
+      div.style.border = `1px solid ${border}`;
+      div.style.color = color;
+      div.innerHTML = message;
+    }
+
+    /* datetime-local works in LOCAL time, so the value must be built from the
+       local getters. Using toISOString().slice(0,16) here would silently show
+       every slot four or five hours off in Eastern. */
+    function isoToLocalInput(iso) {
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return '';
+      const pad = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
+             `T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
+    function relativeWhen(iso) {
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return '';
+      const mins = Math.round((d.getTime() - Date.now()) / 60000);
+      const ahead = mins >= 0;
+      const n = Math.abs(mins);
+      let span;
+      if (n < 1) span = 'less than a minute';
+      else if (n < 60) span = `${n} minute${n > 1 ? 's' : ''}`;
+      else if (n < 60 * 36) {
+        const h = Math.round(n / 60);
+        span = `${h} hour${h > 1 ? 's' : ''}`;
+      } else {
+        const days = Math.round(n / 1440);
+        span = `${days} day${days > 1 ? 's' : ''}`;
+      }
+      return ahead ? `in ${span}` : `${span} ago`;
+    }
+
+    async function loadScheduledSocial() {
+      const list = document.getElementById('scheduledSocialList');
+      const status = document.getElementById('scheduledSocialFilter').value;
+      list.innerHTML = '<p style="color: #888; font-size: 14px;">Loading&hellip;</p>';
+      scheduledSocialNote(null);
+
+      try {
+        const data = await socialManage('list', { status });
+        scheduledSocialPosts = data.posts || [];
+        renderScheduledSocial();
+      } catch (err) {
+        list.innerHTML = '';
+        scheduledSocialNote(
+          `Could not load the queue: ${escapeHtml(err.message)}` +
+          (/Supabase 40|does not exist|relation/i.test(err.message)
+            ? '<br><span style="font-size: 13px;">If this says the table does not exist, ' +
+              'sql/scheduled-social-posts.sql has not been run yet.</span>'
+            : ''),
+          'error');
+      }
+    }
+
+    function renderScheduledSocial() {
+      const list = document.getElementById('scheduledSocialList');
+      const count = document.getElementById('scheduledSocialCount');
+
+      count.textContent = scheduledSocialPosts.length
+        ? `${scheduledSocialPosts.length} post${scheduledSocialPosts.length > 1 ? 's' : ''}`
+        : '';
+
+      if (scheduledSocialPosts.length === 0) {
+        const filter = document.getElementById('scheduledSocialFilter').value;
+        list.innerHTML = `
+          <div style="background: #fff; border-radius: 10px; padding: 34px; text-align: center; color: #888; box-shadow: 0 2px 10px rgba(0,0,0,0.06);">
+            ${filter === 'upcoming'
+              ? 'Nothing is waiting to go out. Schedule a post from the Social tab after creating a story.'
+              : 'Nothing here.'}
+          </div>`;
+        return;
+      }
+
+      list.innerHTML = scheduledSocialPosts.map(scheduledSocialCard).join('');
+    }
+
+    const SCHEDULED_STATUS_STYLE = {
+      pending:    { label: 'Waiting',   bg: '#e3f2fd', color: '#1565c0' },
+      publishing: { label: 'Sending',   bg: '#fff3e0', color: '#ef6c00' },
+      published:  { label: 'Posted',    bg: '#e8f5e9', color: '#2e7d32' },
+      failed:     { label: 'Failed',    bg: '#ffebee', color: '#c62828' },
+      canceled:   { label: 'Canceled',  bg: '#f1f1f1', color: '#777' }
+    };
+
+    function scheduledSocialCard(post) {
+      const pill = SCHEDULED_STATUS_STYLE[post.status] || { label: post.status, bg: '#eee', color: '#555' };
+      const isIG = post.platform === 'instagram';
+      const editable = post.status === 'pending' || post.status === 'failed';
+      const images = Array.isArray(post.image_urls) ? post.image_urls : [];
+      const collabs = Array.isArray(post.collaborators) ? post.collaborators : [];
+      const when = new Date(post.scheduled_for);
+      const editing = scheduledSocialEditing === post.id;
+
+      const thumbs = images.slice(0, 6).map(u =>
+        `<img src="${encodeURI(u)}" alt="" style="width: 46px; height: 46px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd;">`
+      ).join('');
+
+      return `
+        <div style="background: #fff; border-radius: 10px; padding: 18px; margin-bottom: 14px; box-shadow: 0 2px 10px rgba(0,0,0,0.07); border-left: 4px solid ${pill.color};">
+          <div style="display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 8px;">
+            <strong style="font-size: 15px; color: #333;">
+              ${isIG ? '&#x1F4F8; Instagram' : '&#x1F535; Facebook'}
+            </strong>
+            <span style="background: ${pill.bg}; color: ${pill.color}; font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 12px;">
+              ${pill.label}
+            </span>
+            <span style="color: #555; font-size: 14px;">
+              ${when.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+            </span>
+            <span style="color: #999; font-size: 13px;">${relativeWhen(post.scheduled_for)}</span>
+            ${post.permalink
+              ? `<a href="${encodeURI(post.permalink)}" target="_blank" rel="noopener" style="margin-left: auto; font-size: 13px; color: #1565c0;">View post &rarr;</a>`
+              : ''}
+          </div>
+
+          ${post.article_title
+            ? `<div style="font-size: 13px; color: #777; margin-bottom: 8px;">From: ${escapeHtml(post.article_title)}</div>`
+            : ''}
+
+          <div style="display: flex; gap: 12px; align-items: flex-start;">
+            ${thumbs ? `<div style="display: flex; gap: 4px; flex-wrap: wrap; max-width: 160px;">${thumbs}</div>` : ''}
+            <div style="flex: 1; min-width: 200px;">
+              <div style="white-space: pre-wrap; font-size: 13px; color: #444; line-height: 1.5; max-height: 86px; overflow: hidden;">${escapeHtml((post.caption || '').slice(0, 320))}${(post.caption || '').length > 320 ? '&hellip;' : ''}</div>
+              ${collabs.length
+                ? `<div style="margin-top: 8px; font-size: 12px; color: #e1306c;">Inviting ${collabs.map(h => '@' + escapeHtml(h)).join(', ')}</div>`
+                : ''}
+            </div>
+          </div>
+
+          ${post.last_error
+            ? `<div style="margin-top: 10px; padding: 8px 10px; background: ${post.status === 'published' ? '#fff3e0' : '#ffebee'}; border-radius: 6px; font-size: 12px; color: ${post.status === 'published' ? '#6d4c00' : '#8e1b1b'};">${escapeHtml(post.last_error)}</div>`
+            : ''}
+
+          ${post.attempts > 1 && post.status !== 'published'
+            ? `<div style="margin-top: 6px; font-size: 12px; color: #999;">${post.attempts} attempts so far</div>`
+            : ''}
+
+          ${editable ? `
+            <div style="margin-top: 12px; display: flex; gap: 8px;">
+              <button onclick="toggleScheduledEdit(${post.id})"
+                      style="background: ${editing ? '#eee' : '#f57c00'}; color: ${editing ? '#555' : '#fff'}; border: ${editing ? '1px solid #ccc' : 'none'}; padding: 7px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer;">
+                ${editing ? 'Close' : 'Edit'}
+              </button>
+              <button onclick="cancelScheduledPost(${post.id})"
+                      style="background: #fff; color: #c62828; border: 1px solid #e0b4b4; padding: 7px 14px; border-radius: 6px; font-size: 13px; cursor: pointer;">
+                Delete
+              </button>
+            </div>` : ''}
+
+          ${editing ? `
+            <div style="margin-top: 14px; padding-top: 14px; border-top: 1px solid #eee;">
+              <label style="display: block; font-size: 13px; font-weight: 600; color: #555; margin-bottom: 4px;">When to post</label>
+              <input type="datetime-local" id="editSchedTime-${post.id}" value="${isoToLocalInput(post.scheduled_for)}"
+                     style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; margin-bottom: 12px;">
+
+              <label style="display: block; font-size: 13px; font-weight: 600; color: #555; margin-bottom: 4px;">Caption</label>
+              <textarea id="editSchedCaption-${post.id}" rows="6"
+                        style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; font-family: inherit; line-height: 1.5; margin-bottom: 12px;"></textarea>
+
+              ${isIG ? `
+                <label style="display: block; font-size: 13px; font-weight: 600; color: #555; margin-bottom: 4px;">
+                  Collaborators &mdash; up to 3 Instagram usernames, comma separated
+                </label>
+                <input type="text" id="editSchedCollabs-${post.id}" value="${collabs.map(h => '@' + h).join(', ')}"
+                       placeholder="@handle, @handle"
+                       style="width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; margin-bottom: 12px;">` : ''}
+
+              ${post.status === 'failed'
+                ? `<p style="font-size: 12px; color: #6d4c00; background: #fff3e0; padding: 8px 10px; border-radius: 6px;">
+                     Saving with a new time puts this back in the queue and starts its attempt count over.
+                   </p>`
+                : ''}
+
+              ${!isIG
+                ? `<p style="font-size: 12px; color: #777;">Changes are sent on to Facebook, which is holding this post.</p>`
+                : ''}
+
+              <button onclick="saveScheduledPost(${post.id})"
+                      style="background: #2e7d32; color: #fff; border: none; padding: 9px 18px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;">
+                Save changes
+              </button>
+            </div>` : ''}
+        </div>`;
+    }
+
+    function toggleScheduledEdit(id) {
+      scheduledSocialEditing = scheduledSocialEditing === id ? null : id;
+      renderScheduledSocial();
+      if (scheduledSocialEditing === id) {
+        // Set the caption through .value rather than in the markup: escapeHtml
+        // does not escape quotes, and a caption is exactly the kind of text
+        // that contains them.
+        const post = scheduledSocialPosts.find(p => p.id === id);
+        const box = document.getElementById(`editSchedCaption-${id}`);
+        if (box && post) box.value = post.caption || '';
+      }
+    }
+
+    async function saveScheduledPost(id) {
+      const post = scheduledSocialPosts.find(p => p.id === id);
+      if (!post) return;
+
+      const timeVal = document.getElementById(`editSchedTime-${id}`).value;
+      const caption = document.getElementById(`editSchedCaption-${id}`).value;
+      const collabInput = document.getElementById(`editSchedCollabs-${id}`);
+
+      if (!timeVal) { showToast('Pick a date and time', 'error'); return; }
+
+      // A datetime-local value is local time, which is what the editor means.
+      const when = new Date(timeVal);
+      if (isNaN(when.getTime())) { showToast('That date and time did not parse', 'error'); return; }
+      if (when.getTime() - Date.now() < 10 * 60 * 1000) {
+        showToast('Pick a time at least 10 minutes from now', 'error');
+        return;
+      }
+
+      const payload = { id, scheduled_for: when.toISOString(), caption };
+      if (collabInput) {
+        payload.collaborators = collabInput.value
+          .split(',')
+          .map(s => s.trim().replace(/^@+/, '').toLowerCase())
+          .filter(Boolean);
+      }
+
+      try {
+        const data = await socialManage('update', payload);
+        scheduledSocialEditing = null;
+        scheduledSocialNote(
+          `Saved. ${post.platform === 'instagram' ? 'Instagram' : 'Facebook'} post now goes out ` +
+          `${socialWhenText(when.toISOString())}.` +
+          ((data.notes || []).length ? ' ' + data.notes.join(' ') : ''),
+          'success');
+        await loadScheduledSocial();
+      } catch (err) {
+        scheduledSocialNote(`Could not save: ${escapeHtml(err.message)}`, 'error');
+      }
+    }
+
+    async function cancelScheduledPost(id) {
+      const post = scheduledSocialPosts.find(p => p.id === id);
+      if (!post) return;
+
+      const where = post.platform === 'instagram' ? 'Instagram' : 'Facebook';
+      if (!confirm(`Delete this scheduled ${where} post?\n\n` +
+                   `${(post.caption || '').slice(0, 120)}\n\n` +
+                   `It will not go out.`)) return;
+
+      try {
+        await socialManage('cancel', { id });
+        scheduledSocialNote(`Deleted. That ${where} post will not go out.`, 'success');
+        await loadScheduledSocial();
+      } catch (err) {
+        /* A Facebook refusal matters: Meta only lets "select developers" delete
+           a post through the API. The post is still scheduled, so say so
+           instead of showing a tidy confirmation. */
+        scheduledSocialNote(
+          `${escapeHtml(err.message)}` +
+          (err.details?.still_scheduled
+            ? '<br><a href="https://business.facebook.com/latest/content" target="_blank" rel="noopener" style="color: #1565c0;">Open Meta Business Suite &rarr;</a>'
+            : ''),
+          'error');
+      }
+    }
+
+    async function runSocialQueueNow() {
+      const btn = document.getElementById('runSocialQueueBtn');
+      const label = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Running…';
+      scheduledSocialNote(null);
+
+      try {
+        const res = await fetch('/.netlify/functions/run-publish-scheduled-social');
+        const raw = await res.text();
+        let data = {};
+        try { data = raw ? JSON.parse(raw) : {}; } catch (_) {
+          throw new Error(`HTTP ${res.status} — ${raw.slice(0, 120) || 'empty response'}`);
+        }
+        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+
+        const sent = (data.published || []).length;
+        const failed = (data.failures || []).length;
+        const bits = [];
+        bits.push(data.due === 0 ? 'Nothing was due.' : `${data.due} due.`);
+        if (sent) bits.push(`${sent} posted.`);
+        if (failed) bits.push(`${failed} failed: ${(data.failures || []).map(f => f.error).join('; ')}`);
+        if (data.recovered) bits.push(`${data.recovered} recovered from a stalled run.`);
+
+        scheduledSocialNote(escapeHtml(bits.join(' ')), failed ? 'warn' : 'success');
+        await loadScheduledSocial();
+      } catch (err) {
+        scheduledSocialNote(`Could not run the queue: ${escapeHtml(err.message)}`, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = label;
+      }
+    }
+
     function renderSocialContributors() {
       const listDiv = document.getElementById('socialContributorsList');
       const noMsg = document.getElementById('noContributorsMsg');
@@ -14253,9 +14714,11 @@ Respond ONLY with valid JSON:
       }
       
       listDiv.innerHTML = socialContributors.map(c => {
-        const hasIG = c.instagram_user_id ? '<span title="IG Collaborator Invite" style="color: #e1306c;">&#x1F4F8;</span>' : '<span title="No IG User ID - set in Contributor Manager" style="opacity: 0.3; cursor: help;">&#x1F4F8;</span>';
+        const hasIG = c.instagram_username
+          ? `<span title="IG collaborator invite to @${c.instagram_username}" style="color: #e1306c;">&#x1F4F8;</span>`
+          : '<span title="No Instagram username on file &mdash; add one in Contributor Manager" style="opacity: 0.3; cursor: help;">&#x1F4F8;</span>';
         const hasFB = c.facebook_page_id ? '<span title="FB Page Tag" style="color: #1877f2;">&#x1F535;</span>' : '<span title="No FB Page ID - set in Contributor Manager" style="opacity: 0.3; cursor: help;">&#x1F535;</span>';
-        const noSocialIds = !c.instagram_user_id && !c.facebook_page_id;
+        const noSocialIds = !c.instagram_username && !c.facebook_page_id;
         const chipStyle = noSocialIds ? 'background: #fff3e0; border: 1px dashed #f57c00;' : 'background: #f3e5f5;';
         return `
           <div style="display: inline-flex; align-items: center; gap: 6px; ${chipStyle} padding: 6px 10px; border-radius: 20px; font-size: 13px;" ${noSocialIds ? 'title="Add IG/FB IDs in Contributor Manager for social integration"' : ''}>
@@ -14265,6 +14728,20 @@ Respond ONLY with valid JSON:
           </div>
         `;
       }).join('');
+
+      // Say plainly who will and won't be tagged, rather than letting Instagram
+      // silently drop the overflow.
+      const withHandles = socialContributors.filter(c => c.instagram_username);
+      if (withHandles.length > IG_COLLABORATOR_LIMIT) {
+        const tagged = withHandles.slice(0, IG_COLLABORATOR_LIMIT).map(c => '@' + c.instagram_username);
+        const skipped = withHandles.slice(IG_COLLABORATOR_LIMIT).map(c => '@' + c.instagram_username);
+        listDiv.innerHTML += `
+          <div style="margin-top: 10px; padding: 8px 12px; background: #fff3e0; border: 1px solid #f57c00; border-radius: 6px; font-size: 12px; color: #6d4c00;">
+            Instagram allows ${IG_COLLABORATOR_LIMIT} collaborators per post.
+            Inviting ${tagged.join(', ')} &mdash; not ${skipped.join(', ')}.
+            The first three you added win; remove one to swap somebody in.
+          </div>`;
+      }
     }
     
     function autoAddPhotographerFromArticle() {
@@ -14361,10 +14838,8 @@ Respond ONLY with valid JSON:
       const imageUrls = socialImages.map(img => img.url);
       
       // Get collaborators/tags
-      const igCollaborators = socialContributors
-        .filter(c => c.instagram_user_id)
-        .map(c => c.instagram_user_id);
-      
+      const igCollaborators = igCollaboratorHandles();
+
       const fbTags = socialContributors
         .filter(c => c.facebook_page_id)
         .map(c => c.facebook_page_id);
@@ -14389,7 +14864,10 @@ Respond ONLY with valid JSON:
               message: fbPost,
               imageUrls: imageUrls,
               tags: fbTags,
-              scheduledTime: scheduledTime
+              scheduledTime: scheduledTime,
+              // Provenance, so the Scheduled Posts panel can name the story.
+              articleId: currentArticle?.id ?? null,
+              articleTitle: currentArticle?.title ?? null
             })
           }).then(async (fbResponse) => {
             const contentType = fbResponse.headers.get('content-type');
@@ -14418,7 +14896,10 @@ Respond ONLY with valid JSON:
               message: igPost,
               imageUrls: imageUrls,
               collaborators: igCollaborators,
-              scheduledTime: scheduledTime
+              scheduledTime: scheduledTime,
+              // Provenance, so the Scheduled Posts panel can name the story.
+              articleId: currentArticle?.id ?? null,
+              articleTitle: currentArticle?.title ?? null
             })
           }).then(async (igResponse) => {
             const contentType = igResponse.headers.get('content-type');
@@ -14445,28 +14926,15 @@ Respond ONLY with valid JSON:
       let hasError = false;
       
       if (results.facebook) {
-        if (results.facebook.success) {
-          const schedText = scheduledTime ? ' (scheduled)' : '';
-          statusMessages.push(`&#x2705; Facebook: Posted successfully${schedText}`);
-          hasSuccess = true;
-        } else {
-          statusMessages.push(`&#x274C; Facebook: ${results.facebook.error || 'Failed'}`);
-          hasError = true;
-        }
+        statusMessages.push(socialResultLine('Facebook', results.facebook, scheduledTime));
+        if (results.facebook.success) hasSuccess = true; else hasError = true;
       }
-      
+
       if (results.instagram) {
-        if (results.instagram.success) {
-          const schedText = scheduledTime ? ' (scheduled)' : '';
-          const imgCount = results.instagram.imagesPosted ? ` (${results.instagram.imagesPosted} images)` : '';
-          statusMessages.push(`&#x2705; Instagram: Posted successfully${imgCount}${schedText}`);
-          hasSuccess = true;
-        } else {
-          statusMessages.push(`&#x274C; Instagram: ${results.instagram.error || 'Failed'}`);
-          hasError = true;
-        }
+        statusMessages.push(socialResultLine('Instagram', results.instagram, scheduledTime));
+        if (results.instagram.success) hasSuccess = true; else hasError = true;
       }
-      
+
       // Update status display
       if (hasError && !hasSuccess) {
         statusDiv.style.background = '#ffebee';
@@ -14539,7 +15007,9 @@ Respond ONLY with valid JSON:
             message: fbPost,
             imageUrls: imageUrls,
             tags: fbTags,
-            scheduledTime: scheduledTime
+            scheduledTime: scheduledTime,
+            articleId: currentArticle?.id ?? null,
+            articleTitle: currentArticle?.title ?? null
           })
         });
         
@@ -14555,10 +15025,9 @@ Respond ONLY with valid JSON:
         }
         
         if (result.success) {
-          const schedText = scheduledTime ? ' (scheduled)' : '';
           statusDiv.style.background = '#e8f5e9';
           statusDiv.style.border = '1px solid #2e7d32';
-          statusDiv.innerHTML = `&#x2705; Facebook: Posted successfully${schedText}`;
+          statusDiv.innerHTML = socialResultLine('Facebook', result, scheduledTime);
           await saveSocialPosts();
         } else {
           statusDiv.style.background = '#ffebee';
@@ -14608,7 +15077,7 @@ Respond ONLY with valid JSON:
       }
       
       const imageUrls = socialImages.map(img => img.url);
-      const igCollaborators = socialContributors.filter(c => c.instagram_user_id).map(c => c.instagram_user_id);
+      const igCollaborators = igCollaboratorHandles();
       
       statusDiv.style.display = 'block';
       statusDiv.style.background = '#fff3e0';
@@ -14630,7 +15099,10 @@ Respond ONLY with valid JSON:
               message: igPost,
               imageUrls: imageUrls,
               collaborators: igCollaborators,
-              scheduledTime: scheduledTime
+              scheduledTime: scheduledTime,
+              // Provenance, so the Scheduled Posts panel can name the story.
+              articleId: currentArticle?.id ?? null,
+              articleTitle: currentArticle?.title ?? null
             })
           });
           clearTimeout(fetchTimeout);
@@ -14655,11 +15127,9 @@ Respond ONLY with valid JSON:
         }
         
         if (result.success) {
-          const schedText = scheduledTime ? ' (scheduled)' : '';
-          const imgText = result.imagesPosted ? ` (${result.imagesPosted} images)` : '';
-          statusDiv.style.background = '#e8f5e9';
-          statusDiv.style.border = '1px solid #2e7d32';
-          statusDiv.innerHTML = `&#x2705; Instagram: Posted successfully${imgText}${schedText}`;
+          statusDiv.style.background = result.scheduled ? '#e3f2fd' : '#e8f5e9';
+          statusDiv.style.border = result.scheduled ? '1px solid #1565c0' : '1px solid #2e7d32';
+          statusDiv.innerHTML = socialResultLine('Instagram', result, scheduledTime);
           await saveSocialPosts();
         } else {
           statusDiv.style.background = '#ffebee';
@@ -16781,6 +17251,8 @@ Respond ONLY with valid JSON:
       // Social media fields
       document.getElementById('contribInstagramUrl').value = contrib.instagram_url || '';
       document.getElementById('contribInstagramUserId').value = contrib.instagram_user_id || '';
+      document.getElementById('contribInstagramUsername').value =
+        contrib.instagram_username ? '@' + contrib.instagram_username : '';
       document.getElementById('contribFacebookUrl').value = contrib.facebook_url || '';
       document.getElementById('contribFacebookPageId').value = contrib.facebook_page_id || '';
       document.getElementById('contribTwitterUrl').value = contrib.twitter_url || '';
@@ -16869,7 +17341,21 @@ Respond ONLY with valid JSON:
       const handle = input.replace(/^@/, '');
       return 'https://instagram.com/' + handle;
     }
-    
+
+    /* Store a bare handle: no @, lowercase, and a whole profile URL reduced to
+       the handle inside it, because that is what gets pasted half the time.
+       Instagram's collaborator field takes usernames in exactly this shape. */
+    function normalizeInstagramHandle(input) {
+      if (!input) return null;
+      let v = String(input).trim();
+      if (!v) return null;
+      const fromUrl = v.match(/instagram\.com\/+@?([^/?#\s]+)/i);
+      if (fromUrl) v = fromUrl[1];
+      v = v.replace(/^@+/, '').toLowerCase();
+      if (!/^[a-z0-9._]{1,30}$/.test(v)) return null;
+      return v;
+    }
+
     function normalizeFacebookUrl(input) {
       if (!input) return null;
       input = input.trim();
@@ -16956,6 +17442,7 @@ Respond ONLY with valid JSON:
         // Social media (with URL normalization)
         instagram_url: normalizeInstagramUrl(document.getElementById('contribInstagramUrl').value),
         instagram_user_id: document.getElementById('contribInstagramUserId').value.trim() || null,
+        instagram_username: normalizeInstagramHandle(document.getElementById('contribInstagramUsername').value),
         facebook_url: normalizeFacebookUrl(document.getElementById('contribFacebookUrl').value),
         facebook_page_id: document.getElementById('contribFacebookPageId').value.trim() || null,
         twitter_url: normalizeTwitterUrl(document.getElementById('contribTwitterUrl').value),

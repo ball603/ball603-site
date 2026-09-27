@@ -458,18 +458,26 @@
         
         <!-- Social IDs for collaborations -->
         <div style="background: #e3f2fd; border-radius: 8px; padding: 15px; margin-top: 15px;">
-          <h4 style="margin: 0 0 10px 0; font-size: 14px; color: #1565c0;">📱 Social Media IDs (for Ball603 collaborations)</h4>
+          <h4 style="margin: 0 0 10px 0; font-size: 14px; color: #1565c0;">📱 Social tagging (for Ball 603 collaborations)</h4>
           <p style="font-size: 12px; color: #666; margin-bottom: 12px;">
-            These IDs let Ball603 invite you as a collaborator on Instagram posts and tag you on Facebook posts.
+            Your Instagram username lets Ball 603 invite you as a collaborator on a post, so it appears
+            on your profile too. You'll get an invite in Instagram to accept. Your account has to be
+            public for this to work.
           </p>
           <div class="form-row">
             <div class="form-group">
-              <label>Instagram User ID</label>
-              <input type="text" id="profileInstagramUserId" placeholder="e.g., 17841450712579843">
+              <label>Instagram Username</label>
+              <input type="text" id="profileInstagramUsername" placeholder="@yourhandle">
             </div>
             <div class="form-group">
               <label>Facebook Page ID</label>
               <input type="text" id="profileFacebookPageId" placeholder="e.g., 104289287659890">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label style="color: #777;">Instagram User ID (no longer needed)</label>
+              <input type="text" id="profileInstagramUserId" placeholder="e.g., 17841450712579843">
             </div>
           </div>
         </div>
@@ -1369,6 +1377,8 @@
       document.getElementById('profileInstagram').value = c.instagram_url || '';
       document.getElementById('profileFacebook').value = c.facebook_url || '';
       document.getElementById('profileInstagramUserId').value = c.instagram_user_id || '';
+      document.getElementById('profileInstagramUsername').value =
+        c.instagram_username ? '@' + c.instagram_username : '';
       document.getElementById('profileFacebookPageId').value = c.facebook_page_id || '';
       document.getElementById('profileTwitter').value = c.twitter_url || '';
       
@@ -1441,6 +1451,15 @@
         instagram_url: document.getElementById('profileInstagram').value.trim(),
         facebook_url: document.getElementById('profileFacebook').value.trim(),
         instagram_user_id: document.getElementById('profileInstagramUserId').value.trim(),
+        // A bare lowercase handle is what Instagram's collaborator field takes,
+        // so a pasted profile URL or a leading @ is reduced to that here.
+        instagram_username: (() => {
+          const raw = document.getElementById('profileInstagramUsername').value.trim();
+          if (!raw) return null;
+          const m = raw.match(/instagram\.com\/+@?([^/?#\s]+)/i);
+          const handle = (m ? m[1] : raw).replace(/^@+/, '').toLowerCase();
+          return /^[a-z0-9._]{1,30}$/.test(handle) ? handle : null;
+        })(),
         facebook_page_id: document.getElementById('profileFacebookPageId').value.trim(),
         twitter_url: document.getElementById('profileTwitter').value.trim(),
         camera_brand: cameraBrand,
