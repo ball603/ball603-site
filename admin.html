@@ -4328,6 +4328,18 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
                style="font-weight: 400; color: #1565c0; margin-left: 6px;">refresh</a>
           </div>
           <div id="socialPhotoTags" style="font-size: 13px;"></div>
+
+          <!-- Type-to-find picker, so a story with no linked game can still be
+               tagged, and so extra schools can be added to one that has. -->
+          <div style="position: relative; margin-top: 6px;">
+            <input id="socialTagSearch" type="text" autocomplete="off"
+                   placeholder="Add a tag &mdash; type e.g. Salem girls volleyball"
+                   oninput="onSocialTagSearch()" onfocus="onSocialTagSearch()"
+                   onkeydown="onSocialTagSearchKey(event)"
+                   style="width: 100%; padding: 7px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; box-sizing: border-box;">
+            <div id="socialTagSearchResults"
+                 style="display: none; position: absolute; z-index: 30; left: 0; right: 0; top: 100%; margin-top: 2px; max-height: 240px; overflow-y: auto; background: #fff; border: 1px solid #ddd; border-radius: 6px; box-shadow: 0 6px 18px rgba(0,0,0,0.12);"></div>
+          </div>
         </div>
       </div>
 
@@ -15316,7 +15328,7 @@ Respond ONLY with valid JSON:
               message: igPost,
               imageUrls: imageUrls,
               collaborators: igCollaborators,
-              photoTags: socialPhotoTags,
+              photoTags: socialAllPhotoTags(),
               scheduledTime: scheduledTime,
               // Provenance, so the Scheduled Posts panel can name the story.
               articleId: currentArticle?.id ?? null,
@@ -15520,7 +15532,7 @@ Respond ONLY with valid JSON:
               message: igPost,
               imageUrls: imageUrls,
               collaborators: igCollaborators,
-              photoTags: socialPhotoTags,
+              photoTags: socialAllPhotoTags(),
               scheduledTime: scheduledTime,
               // Provenance, so the Scheduled Posts panel can name the story.
               articleId: currentArticle?.id ?? null,
@@ -15569,6 +15581,12 @@ Respond ONLY with valid JSON:
     async function initSocialPublishingPanel() {
       socialImages = [];
       socialContributors = [];
+      // Hand-picked tags belong to one post, not to the next article opened.
+      socialManualTags = [];
+      const tagSearch = document.getElementById('socialTagSearch');
+      if (tagSearch) tagSearch.value = '';
+      const tagResults = document.getElementById('socialTagSearchResults');
+      if (tagResults) tagResults.style.display = 'none';
       
       // Load contributors first (fetches if not already loaded)
       await populateSocialContributorDropdown();
@@ -15598,8 +15616,138 @@ Respond ONLY with valid JSON:
        them, and it goes on the cover image. That is what the teams get.
        ===================================================================== */
 
-    let socialPhotoTags = [];        // handles that will be sent
+    let socialPhotoTags = [];        // handles the linked game resolved to
     let socialPhotoTagDetail = [];   // including the ones with no handle on file
+    let socialManualTags = [];       // [{handle, label}] added by hand for this post
+    let socialTagCatalog = null;     // every handle in social_tags, fetched once
+
+    /* Instagram's own ceiling on user_tags for one photo. Enforced again in
+       social-post.js; repeated here so the CMS can say so before you post
+       rather than letting the overflow be dropped silently. */
+    const IG_PHOTO_TAG_LIMIT = 10;
+
+    /* What actually goes to Instagram: the game's tags first, then the hand-
+       picked ones, deduped. Order matters — buildUserTags() spreads them
+       across the photo in this order. */
+    function socialAllPhotoTags() {
+      const seen = new Set();
+      const out = [];
+      for (const h of [...socialPhotoTags, ...socialManualTags.map(t => t.handle)]) {
+        const k = String(h || '').replace(/^@/, '').toLowerCase();
+        if (!k || seen.has(k)) continue;
+        seen.add(k);
+        out.push(k);
+      }
+      return out;
+    }
+
+    async function loadSocialTagCatalog() {
+      if (socialTagCatalog) return socialTagCatalog;
+      try {
+        const res = await fetch('/.netlify/functions/social-tags', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key: CMS_PASSWORD, action: 'list' })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+        socialTagCatalog = (data.rows || [])
+          .filter(r => r.instagram && r.active !== false)
+          .map(r => {
+            const label = socialTagRowLabel(r);
+            const handle = String(r.instagram).replace(/^@/, '');
+            return {
+              handle, label,
+              school: r.school,
+              // One string to match against, so "salem girls volleyball" and
+              // "shsg" both find the same row.
+              hay: `${r.school} ${label} ${handle}`.toLowerCase()
+            };
+          });
+      } catch (err) {
+        console.error('Tag catalog failed:', err);
+        socialTagCatalog = [];
+      }
+      return socialTagCatalog;
+    }
+
+    let socialTagSearchHits = [];
+    let socialTagSearchCursor = -1;
+
+    async function onSocialTagSearch() {
+      const q = (document.getElementById('socialTagSearch').value || '').trim().toLowerCase();
+      const box = document.getElementById('socialTagSearchResults');
+      const rows = await loadSocialTagCatalog();
+
+      if (!q) { box.style.display = 'none'; socialTagSearchHits = []; return; }
+
+      // Every word must appear somewhere, so word order does not matter.
+      const words = q.split(/\s+/).filter(Boolean);
+      const already = new Set(socialAllPhotoTags());
+      socialTagSearchHits = rows
+        .filter(r => words.every(w => r.hay.includes(w)))
+        .filter(r => !already.has(r.handle.toLowerCase()))
+        .slice(0, 40);
+      socialTagSearchCursor = -1;
+
+      if (socialTagSearchHits.length === 0) {
+        box.style.display = 'block';
+        box.innerHTML = '<div style="padding: 9px 11px; font-size: 13px; color: #888;">Nothing matches, or it is already tagged.</div>';
+        return;
+      }
+
+      box.style.display = 'block';
+      box.innerHTML = socialTagSearchHits.map((r, i) => `
+        <div onclick="addSocialManualTag(${i})" data-hit="${i}"
+             style="padding: 8px 11px; font-size: 13px; cursor: pointer; border-bottom: 1px solid #f0f0f0;">
+          <strong>${escapeHtml(r.school)}</strong>
+          <span style="color: #777;"> &middot; ${escapeHtml(r.label)}</span>
+          <span style="color: #ad1457;"> @${escapeHtml(r.handle)}</span>
+        </div>
+      `).join('');
+    }
+
+    function onSocialTagSearchKey(e) {
+      const box = document.getElementById('socialTagSearchResults');
+      if (box.style.display === 'none' || socialTagSearchHits.length === 0) return;
+
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        const n = socialTagSearchHits.length;
+        socialTagSearchCursor = e.key === 'ArrowDown'
+          ? (socialTagSearchCursor + 1) % n
+          : (socialTagSearchCursor - 1 + n) % n;
+        box.querySelectorAll('[data-hit]').forEach(d => {
+          d.style.background = Number(d.dataset.hit) === socialTagSearchCursor ? '#fce4ec' : '';
+        });
+        const cur = box.querySelector(`[data-hit="${socialTagSearchCursor}"]`);
+        if (cur) cur.scrollIntoView({ block: 'nearest' });
+        return;
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        addSocialManualTag(socialTagSearchCursor < 0 ? 0 : socialTagSearchCursor);
+        return;
+      }
+      if (e.key === 'Escape') { box.style.display = 'none'; }
+    }
+
+    function addSocialManualTag(i) {
+      const hit = socialTagSearchHits[i];
+      if (!hit) return;
+      if (!socialAllPhotoTags().includes(hit.handle.toLowerCase())) {
+        socialManualTags.push({ handle: hit.handle, label: `${hit.school} \u00b7 ${hit.label}` });
+      }
+      document.getElementById('socialTagSearch').value = '';
+      document.getElementById('socialTagSearchResults').style.display = 'none';
+      socialTagSearchHits = [];
+      renderSocialPhotoTags();
+    }
+
+    function removeSocialManualTag(handle) {
+      socialManualTags = socialManualTags.filter(t => t.handle !== handle);
+      renderSocialPhotoTags();
+    }
 
     // The teams this story is about, as social-tags needs them. Sport and
     // gender come straight from the CMS's own vocabulary, which matches the
@@ -15667,14 +15815,26 @@ Respond ONLY with valid JSON:
         return;
       }
 
-      if (socialPhotoTags.length === 0 && socialPhotoTagDetail.length === 0) {
-        el.innerHTML = '<span style="color: #888;">No linked game, so nothing to tag.</span>';
+      /* No early return when the game resolved nothing: hand-picked tags must
+         still show, which is the whole point of the picker. */
+      const chip = (inner, removable) =>
+        `<span style="display: inline-flex; align-items: center; gap: 5px; background: #fce4ec; color: #ad1457; padding: 3px 9px; border-radius: 12px; font-size: 12px; margin: 2px 3px 2px 0;">${inner}${removable}</span>`;
+
+      const tagged = socialPhotoTags.map(h => chip('@' + escapeHtml(h), '')).join('')
+        + socialManualTags.map(t => chip(
+            `@${escapeHtml(t.handle)}<span style="color: #c48; opacity: .75;" title="${escapeHtml(t.label)}">&nbsp;</span>`,
+            `<button onclick="removeSocialManualTag('${escapeHtml(t.handle)}')" title="Remove ${escapeHtml(t.label)}" style="background: none; border: none; color: #ad1457; cursor: pointer; font-size: 13px; padding: 0; line-height: 1;">&times;</button>`
+          )).join('');
+
+      const total = socialAllPhotoTags().length;
+      const overNote = total > IG_PHOTO_TAG_LIMIT
+        ? `<div style="margin-top: 6px; font-size: 12px; color: #c62828;"><strong>${total} tags &mdash; Instagram takes ${IG_PHOTO_TAG_LIMIT}.</strong> The last ${total - IG_PHOTO_TAG_LIMIT} will be dropped. Remove some with the &times;.</div>`
+        : '';
+
+      if (total === 0 && socialPhotoTagDetail.length === 0) {
+        el.innerHTML = '<span style="color: #888;">No linked game &mdash; use the box below to tag by hand.</span>';
         return;
       }
-
-      const tagged = socialPhotoTags.map(h =>
-        `<span style="display: inline-block; background: #fce4ec; color: #ad1457; padding: 3px 9px; border-radius: 12px; font-size: 12px; margin: 2px 3px 2px 0;">@${escapeHtml(h)}</span>`
-      ).join('');
 
       const missing = socialPhotoTagDetail.filter(d => d.missing);
       const missingNote = missing.length
@@ -15683,7 +15843,8 @@ Respond ONLY with valid JSON:
           } &mdash; add one in Teams &rarr; Social Tags.</div>`
         : '';
 
-      el.innerHTML = (tagged || '<span style="color: #888;">No handles on file for these teams yet.</span>') + missingNote;
+      el.innerHTML = (tagged || '<span style="color: #888;">No handles on file for these teams yet.</span>')
+        + overNote + missingNote;
     }
 
     /* =====================================================================
