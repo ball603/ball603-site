@@ -1859,10 +1859,40 @@
             Only rows still blank
           </label>
 
+          <button onclick="toggleSocialTagsPaste()" id="socialTagsPasteBtn"
+                  style="background: #e3f2fd; color: #1565c0; border: none; padding: 9px 16px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; margin-left: auto;">
+            Paste a list
+          </button>
+
           <button onclick="saveSocialTagsGrid()" id="socialTagsSaveBtn"
-                  style="background: #2e7d32; color: #fff; border: none; padding: 9px 18px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; margin-left: auto;">
+                  style="background: #2e7d32; color: #fff; border: none; padding: 9px 18px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;">
             Save changes
           </button>
+        </div>
+
+        <!-- Bulk paste: school name and handle per line, tab or comma separated -->
+        <div id="socialTagsPaste" style="display: none; background: #fff; border: 1px solid #1565c0; border-radius: 10px; padding: 16px; margin-bottom: 16px;">
+          <div style="font-size: 13px; color: #555; margin-bottom: 8px;">
+            Paste straight from a spreadsheet, tab or comma separated. Two shapes both work:<br>
+            &bull; <strong>school</strong>, <strong>handle</strong> &mdash; fills that school's account<br>
+            &bull; <strong>school</strong>, <strong>sport</strong>, <strong>handle</strong> &mdash; fills one team's account.
+            Sport can be <em>School</em>, <em>Baseball</em>, <em>Boys Basketball</em>, <em>Girls Basketball</em> or <em>Girls Volleyball</em>.<br>
+            A header row is ignored, blank handles are skipped, and extra columns like the link and notes are ignored.
+          </div>
+          <textarea id="socialTagsPasteBox" rows="8" placeholder="Souhegan&#9;School&#9;souheganhighschool&#10;Alvirne&#9;Baseball&#9;alvirnebaseball&#10;Oyster River&#9;oysterriverathletics"
+                    style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; font-family: ui-monospace, Menlo, monospace; line-height: 1.5;"></textarea>
+          <div style="display: flex; gap: 10px; align-items: center; margin-top: 10px; flex-wrap: wrap;">
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #555; cursor: pointer;">
+              <input type="checkbox" id="socialTagsPasteOverwrite">
+              Overwrite handles already filled in
+            </label>
+            <button onclick="applySocialTagsPaste()"
+                    style="background: #1565c0; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer;">
+              Fill the grid
+            </button>
+            <span style="font-size: 12px; color: #888;">Fills the boxes below &mdash; nothing is saved until you press Save changes.</span>
+          </div>
+          <div id="socialTagsPasteReport" style="display: none; margin-top: 12px; font-size: 13px;"></div>
         </div>
 
         <div id="socialTagsStatus" style="display: none; margin-bottom: 14px; padding: 12px; border-radius: 8px; font-size: 14px;"></div>
@@ -15820,6 +15850,100 @@ Respond ONLY with valid JSON:
         const row = socialTagRows.find(r => r.id === Number(input.dataset.tagId));
         if (row) input.value = socialTagCurrentValue(row);
       });
+    }
+
+    function toggleSocialTagsPaste() {
+      const box = document.getElementById('socialTagsPaste');
+      const showing = box.style.display !== 'none';
+      box.style.display = showing ? 'none' : 'block';
+      if (!showing) document.getElementById('socialTagsPasteBox').focus();
+    }
+
+    /* Fills the grid from a pasted list. Deliberately does NOT save: the paste
+       lands in the same edit buffer as typing, so you see what it did and can
+       fix or abandon it before anything reaches the database.
+
+       Only school-level rows are touched. The list is of school accounts, and
+       quietly writing the same handle onto a school's four team rows would
+       mean tagging the same account five times on one post. */
+    function applySocialTagsPaste() {
+      const text = document.getElementById('socialTagsPasteBox').value;
+      const overwrite = document.getElementById('socialTagsPasteOverwrite').checked;
+      const report = document.getElementById('socialTagsPasteReport');
+
+      const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      if (lines.length === 0) {
+        report.style.display = 'block';
+        report.innerHTML = '<span style="color: #c62828;">Nothing pasted.</span>';
+        return;
+      }
+
+      // Index by a loosened name, so "St. Thomas Aquinas" matches
+      // "st thomas aquinas" and a stray double space doesn't cost a row.
+      const loosen = s => String(s).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+      const byKey = new Map();
+      for (const r of socialTagRows) {
+        const sportKey = r.scope === 'school' ? 'school' : `${r.sport}|${r.gender}`;
+        byKey.set(`${loosen(r.school)}|${sportKey}`, r);
+      }
+
+      // How a sport column may be written, mapped to the row it means.
+      const SPORT_WORDS = {
+        'school': 'school', 'school account': 'school', 'athletics': 'school',
+        'baseball': 'baseball|Boys',
+        'boys basketball': 'basketball|Boys', 'boys hoops': 'basketball|Boys',
+        'girls basketball': 'basketball|Girls', 'girls hoops': 'basketball|Girls',
+        'girls volleyball': 'gvolleyball|Girls', 'volleyball': 'gvolleyball|Girls'
+      };
+
+      const filled = [], skipped = [], unmatched = [], bad = [];
+
+      for (const line of lines) {
+        // Tab first — a comma is legal inside a school name, a tab is not.
+        const parts = (line.includes('\t') ? line.split('\t') : line.split(',')).map(p => p.trim());
+        const school = parts[0] || '';
+        if (!school) continue;
+
+        // Header row, whatever it is called.
+        if (/^school$/i.test(school)) continue;
+
+        /* Second column is either a sport or the handle itself. Deciding by
+           whether it names a sport — rather than by counting columns — means
+           both shapes can appear in the same paste, which is what happens
+           when two sheets get combined. */
+        const second = parts[1] || '';
+        const sportKey = SPORT_WORDS[loosen(second)];
+        const raw = sportKey ? (parts[2] || '') : second;
+
+        const row = byKey.get(`${loosen(school)}|${sportKey || 'school'}`);
+        const label = sportKey && sportKey !== 'school' ? `${school} ${second}` : school;
+        if (!row) { unmatched.push(label); continue; }
+
+        if (!raw) { skipped.push(`${label} (blank)`); continue; }
+
+        const handle = normalizeInstagramHandle(raw);
+        if (!handle) { bad.push(`${label}: "${raw}"`); continue; }
+
+        const existing = (socialTagEdits.has(row.id) ? socialTagEdits.get(row.id) : (row.instagram || '')).trim();
+        if (existing && !overwrite) { skipped.push(`${label} (already @${existing.replace(/^@/, '')})`); continue; }
+
+        socialTagEdits.set(row.id, '@' + handle);
+        filled.push(label);
+      }
+
+      renderSocialTagsGrid();
+
+      const block = (label, items, color) => items.length
+        ? `<div style="margin-top: 6px; color: ${color};"><strong>${label} (${items.length}):</strong> ${escapeHtml(items.join(', '))}</div>`
+        : '';
+
+      report.style.display = 'block';
+      report.innerHTML =
+        `<div style="color: #1b5e20;"><strong>Filled ${filled.length} school${filled.length === 1 ? '' : 's'}.</strong>
+         Check them below, then press Save changes.</div>` +
+        block('Skipped', skipped, '#6d4c00') +
+        block('Not a usable handle', bad, '#c62828') +
+        block('No school row by that name', unmatched, '#c62828');
     }
 
     async function saveSocialTagsGrid() {
