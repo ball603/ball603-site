@@ -15789,8 +15789,13 @@ Respond ONLY with valid JSON:
       return row.instagram ? '@' + row.instagram : '';
     }
 
-    function renderSocialTagsGrid() {
-      captureSocialTagEdits();
+    /* skipCapture matters: captureSocialTagEdits() reads the CURRENT input
+       boxes back into socialTagEdits, so calling it at the start of a render
+       that was triggered BY a change to that map would overwrite the new
+       values with the stale ones still sitting in the DOM. That is exactly
+       what silently discarded a pasted list. */
+    function renderSocialTagsGrid(skipCapture) {
+      if (!skipCapture) captureSocialTagEdits();
 
       const search = document.getElementById('socialTagsSearch').value.trim().toLowerCase();
       const scope = document.getElementById('socialTagsScope').value;
@@ -15871,6 +15876,9 @@ Respond ONLY with valid JSON:
       const overwrite = document.getElementById('socialTagsPasteOverwrite').checked;
       const report = document.getElementById('socialTagsPasteReport');
 
+      // Preserve anything typed by hand before the paste overwrites the map.
+      captureSocialTagEdits();
+
       const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
       if (lines.length === 0) {
         report.style.display = 'block';
@@ -15931,7 +15939,7 @@ Respond ONLY with valid JSON:
         filled.push(label);
       }
 
-      renderSocialTagsGrid();
+      renderSocialTagsGrid(true);
 
       const block = (label, items, color) => items.length
         ? `<div style="margin-top: 6px; color: ${color};"><strong>${label} (${items.length}):</strong> ${escapeHtml(items.join(', '))}</div>`
@@ -15939,7 +15947,7 @@ Respond ONLY with valid JSON:
 
       report.style.display = 'block';
       report.innerHTML =
-        `<div style="color: #1b5e20;"><strong>Filled ${filled.length} school${filled.length === 1 ? '' : 's'}.</strong>
+        `<div style="color: #1b5e20;"><strong>Filled ${filled.length} row${filled.length === 1 ? '' : 's'}.</strong>
          Check them below, then press Save changes.</div>` +
         block('Skipped', skipped, '#6d4c00') +
         block('Not a usable handle', bad, '#c62828') +
