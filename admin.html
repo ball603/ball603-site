@@ -4048,7 +4048,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           </div>
           <div class="form-group" style="margin-bottom: 15px;">
             <label>Password *</label>
-            <input type="text" id="createPassword" value="Gr@niteSt@teHoops">
+            <input type="text" id="createPassword" value="" placeholder="Choose a password">
           </div>
           
           <div style="display: flex; justify-content: flex-end; gap: 10px;">
@@ -7798,7 +7798,16 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     
     // CMS Password
-    const CMS_PASSWORD = 'Gr@niteSt@teHoops';
+    /* The CMS password is NOT stored in this file.
+
+       It used to be a literal here, and admin.html is a public static file, so
+       the password was readable by anyone who viewed source — no login needed
+       to see it. Now it is typed at login, checked against the server, and
+       held in sessionStorage for that tab only. Nothing to find in the page
+       source, and closing the tab forgets it.
+
+       Every guarded call reads it through cmsKey(). */
+    const cmsKey = () => sessionStorage.getItem('cms_key') || '';
     
     // State
     let articles = [];
@@ -8543,19 +8552,44 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     }
     
     // Login
-    function login() {
+    /* Ask the server rather than comparing against a string in this file.
+
+       'ping' is not a real action. social-tags checks the key BEFORE it looks
+       at the action, so the status alone answers the question and no data
+       comes back:
+         400 — key accepted (it got as far as rejecting the action)
+         401 — wrong password
+         500 — CMS_LOGIN_KJ is not set on the server */
+    async function login() {
       const password = document.getElementById('loginPassword').value;
-      if (password === CMS_PASSWORD) {
+      const err = document.getElementById('loginError');
+      const show = (msg) => { err.textContent = msg; err.style.display = 'block'; };
+
+      err.style.display = 'none';
+      if (!password) { show('Enter the password'); return; }
+
+      try {
+        const res = await fetch('/.netlify/functions/social-tags', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key: password, action: 'ping' })
+        });
+
+        if (res.status === 401) { show('Incorrect password'); return; }
+        if (res.status === 500) { show('The server has no CMS key set — check CMS_LOGIN_KJ in Netlify.'); return; }
+        if (res.status !== 400 && !res.ok) { show(`Could not reach the server (HTTP ${res.status})`); return; }
+
+        sessionStorage.setItem('cms_key', password);
         sessionStorage.setItem('cms_auth', 'true');
         showApp();
-      } else {
-        document.getElementById('loginError').textContent = 'Incorrect password';
-        document.getElementById('loginError').style.display = 'block';
+      } catch (e) {
+        show('Could not reach the server. Check your connection.');
       }
     }
     
     function logout() {
       sessionStorage.removeItem('cms_auth');
+      sessionStorage.removeItem('cms_key');   // otherwise the key outlives the logout
       location.reload();
     }
     
@@ -9693,7 +9727,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     let tigerEditors = {};
     let tigerLoaded = false;
 
-    const tigerKey = () => CMS_PASSWORD;
+    const tigerKey = () => cmsKey();
 
     function tigerSlotMarkup(slot) {
       return `
@@ -14583,7 +14617,7 @@ Respond ONLY with valid JSON:
       const res = await fetch('/.netlify/functions/sponsor-inquiries', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: CMS_PASSWORD, action, ...payload })
+        body: JSON.stringify({ key: cmsKey(), action, ...payload })
       });
       const raw = await res.text();
       let data = {};
@@ -14805,7 +14839,7 @@ Respond ONLY with valid JSON:
       const res = await fetch('/.netlify/functions/social-manage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: CMS_PASSWORD, action, ...payload })
+        body: JSON.stringify({ key: cmsKey(), action, ...payload })
       });
       // Read as text first so a 500 from the platform reports its status
       // instead of throwing a SyntaxError from JSON.parse.
@@ -15647,7 +15681,7 @@ Respond ONLY with valid JSON:
         const res = await fetch('/.netlify/functions/social-tags', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key: CMS_PASSWORD, action: 'list' })
+          body: JSON.stringify({ key: cmsKey(), action: 'list' })
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
@@ -15784,7 +15818,7 @@ Respond ONLY with valid JSON:
         const res = await fetch('/.netlify/functions/social-tags', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key: CMS_PASSWORD, action: 'resolve', teams })
+          body: JSON.stringify({ key: cmsKey(), action: 'resolve', teams })
         });
         const raw = await res.text();
         let data = {};
@@ -15913,7 +15947,7 @@ Respond ONLY with valid JSON:
         const res = await fetch('/.netlify/functions/social-tags', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key: CMS_PASSWORD, action: 'list' })
+          body: JSON.stringify({ key: cmsKey(), action: 'list' })
         });
         const raw = await res.text();
         let data = {};
@@ -16138,7 +16172,7 @@ Respond ONLY with valid JSON:
         const res = await fetch('/.netlify/functions/social-tags', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key: CMS_PASSWORD, action: 'save', rows: changed })
+          body: JSON.stringify({ key: cmsKey(), action: 'save', rows: changed })
         });
         const raw = await res.text();
         let data = {};
@@ -18523,7 +18557,7 @@ Respond ONLY with valid JSON:
       document.body.style.overflow = 'hidden';
       document.getElementById('createName').value = '';
       document.getElementById('createEmail').value = '';
-      document.getElementById('createPassword').value = 'Gr@niteSt@teHoops';
+      document.getElementById('createPassword').value = '';
     }
     
     function closeCreateAccountModal() {
@@ -18576,7 +18610,7 @@ Respond ONLY with valid JSON:
         return;
       }
       
-      const password = prompt(`Create accounts for ${noAuth.length} contributor(s):\n\n${noAuth.map(c => c.name).join('\n')}\n\nEnter password for all accounts:`, 'Gr@niteSt@teHoops');
+      const password = prompt(`Create accounts for ${noAuth.length} contributor(s):\n\n${noAuth.map(c => c.name).join('\n')}\n\nEnter password for all accounts:`);
       
       if (!password) return;
       
@@ -28089,7 +28123,7 @@ Respond ONLY with valid JSON:
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            key: CMS_PASSWORD, sport, season, week_of: weekOf, rows: allRecords
+            key: cmsKey(), sport, season, week_of: weekOf, rows: allRecords
           })
         });
         const saved = await saveRes.json().catch(() => ({}));
