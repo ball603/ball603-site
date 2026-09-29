@@ -13,7 +13,7 @@ const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZi
 
 /* ── Vocabulary ─────────────────────────────────────────────────────────── */
 
-// Arbiter's numeric sport ids, with the emoji the schedule uses to flag each
+// the schedule feed's numeric sport ids, with the emoji the schedule uses to flag each
 // one and the Ball603 sport key where Ball603 covers it. A sport with no
 // ball603 key gets no team links — Ball603 has no page to send anyone to.
 // `roster` is how roster_submissions spells the sport, which is NOT the same
@@ -32,7 +32,7 @@ const SPORTS = {
   51: { name: 'Softball',      emoji: '\u{1F94E}', order: 8, roster: 'softball' }
 };
 
-// Farmington fields no girls soccer, and Arbiter files the same squad under
+// Farmington fields no girls soccer, and the schedule feed files the same squad under
 // Boys on one row and Coed on another. On this site they are one thing.
 const GENDERS = { 1: 'Boys', 2: 'Girls', 3: 'Coed' };
 const genderLabel = (g, sportId) => (sportId === 50 ? 'Boys' : (GENDERS[g] || ''));
@@ -47,7 +47,7 @@ const genderLabel = (g, sportId) => (sportId === 50 ? 'Boys' : (GENDERS[g] || ''
    Distinct from genderLabel, which still answers "which gender is this row" for
    the Ball603 lookups that key on it. This one is only ever for display. */
 const ONE_GENDER = new Set([50, 25, 29, 3, 51]);  // soccer, football, golf, baseball, softball
-// Takes Arbiter's numeric gender id, or a label already in hand — rosters come
+// Takes the schedule feed's numeric gender id, or a label already in hand — rosters come
 // from Ball603's submissions table, which stores "Girls" rather than a 2.
 const genderPrefix = (g, sportId) => {
   if (ONE_GENDER.has(Number(sportId))) return '';
@@ -127,15 +127,15 @@ function weekWindow(now) {
 
 /* ── Scores ─────────────────────────────────────────────────────────────── */
 /* A hand-entered score always wins. That is the whole point of the manual
-   columns: the sync refreshes Arbiter's numbers five times a day and would
+   columns: the sync refreshes the schedule feed's numbers five times a day and would
    otherwise walk over anything typed in by hand. */
 
 function scoreOf(g) {
   if (g.manual_my_score != null && g.manual_opp_score != null) {
     return { us: g.manual_my_score, them: g.manual_opp_score, manual: true };
   }
-  if (g.arbiter_my_score != null && g.arbiter_opp_score != null) {
-    return { us: g.arbiter_my_score, them: g.arbiter_opp_score, manual: false };
+  if (g.feed_my_score != null && g.feed_opp_score != null) {
+    return { us: g.feed_my_score, them: g.feed_opp_score, manual: false };
   }
   return null;
 }
@@ -196,7 +196,7 @@ function shortenSchool(name) {
   return out || String(name || '');
 }
 
-// Arbiter's name → what this site calls the school. Paul Elementary is the
+// the schedule feed's name → what this site calls the school. Paul Elementary is the
 // Wakefield school, and the other two are known by their town.
 const OPPONENT_RENAMES = {
   'Deerfield Community School': 'Deerfield',
@@ -216,14 +216,14 @@ function opponentLabel(g) {
 
 /* An opponent's crest. Ball603's logo first whenever the short name matches a
    Ball603 school — so Portsmouth Middle School and Dover Middle School wear the
-   Portsmouth and Dover high school logos — then Arbiter's school art, then
+   Portsmouth and Dover high school logos — then the schedule feed's school art, then
    nothing. Each image falls through to the next if it isn't there. */
 function opponentLogo(g, cls) {
   if (!g || g.is_meet) return '';
   const short = opponentShort(g);
   const srcs = [
     short ? ball603Logo(short) : null,
-    g.opponent_entity_id ? `https://assets.arbitersports.com/logos/school/${encodeURIComponent(g.opponent_entity_id)}.jpg` : null
+    g.opponent_entity_id ? `/school-logo/${encodeURIComponent(g.opponent_entity_id)}` : null
   ].filter(Boolean);
   if (!srcs.length) return '';
   const next = srcs[1] ? ` data-next="${esc(srcs[1])}"` : '';
@@ -289,13 +289,22 @@ const ball603Covers = (sportId) => !!(SPORTS[sportId] && SPORTS[sportId].ball603
 const ball603Slug = (shortname) => String(shortname).toLowerCase().replace(/[^a-z0-9]/g, '');
 const ball603Logo = (shortname) => `/logos/100px/${String(shortname).replace(/[^A-Za-z0-9]/g, '')}.png`;
 
-/* The crest to show beside a standings row. Arbiter hands back whatever logo
+/* The crest to show beside a standings row. the schedule feed hands back whatever logo
    the co-op entry carries, which for soccer is Nute's — Farmington and Nute
-   field one team and Arbiter files it under Nute's mark. On a Farmington site
+   field one team and the schedule feed files it under Nute's mark. On a Farmington site
    the Tigers wear their own, whoever they co-op with, so our own rows are
-   forced to the Farmington crest and everybody else keeps Arbiter's. */
+   forced to the Farmington crest and everybody else keeps the schedule feed's. */
 const schoolLogo = (row) =>
-  (row && row.is_farmington ? ball603Logo('Farmington') : ((row && row.school_logo_url) || ''));
+  (row && row.is_farmington ? ball603Logo('Farmington') : feedLogo(row && row.school_logo_url));
+
+/* Standings rows carry a full logo URL from the feed. Sending it through our
+   own proxy keeps the provider's host out of the browser's network tab; a URL
+   that is already local (or empty) is handed back untouched. */
+function feedLogo(u) {
+  if (!u) return '';
+  if (u.startsWith('/')) return u;
+  return '/.netlify/functions/school-logo?u=' + encodeURIComponent(u);
+}
 
 // A team name is a link only when Ball603 actually covers that sport. Sending a
 // soccer visitor to a Ball603 page with no soccer on it would be a dead end.
@@ -340,7 +349,7 @@ function shape(rawTeams, rawGames, standings, rosters) {
 
   /* Golf's home-and-away flag cannot be trusted, and it is not a small error:
      a round at Waukewan came through with two of the three matches marked
-     home. Arbiter files one row per opponent and whoever entered them set the
+     home. the schedule feed files one row per opponent and whoever entered them set the
      flag per row, so the same round can say home against one school and away
      against another — which is nonsense, since everybody is standing on the
      same course.
@@ -359,7 +368,7 @@ function shape(rawTeams, rawGames, standings, rosters) {
     const course = `${g.site_name || ''} ${g.sub_site_name || ''}`.trim();
     if (!course) return;                       // nothing to judge it by; leave it alone
     const home = HOME_COURSE.test(course);
-    if (home !== !!g.is_home) g.arbiter_is_home = g.is_home;   // kept for the CMS check
+    if (home !== !!g.is_home) g.feed_is_home = g.is_home;   // kept for the CMS check
     g.is_home = home;
   }
 
@@ -385,7 +394,7 @@ function shape(rawTeams, rawGames, standings, rosters) {
   }
   const visibleById = new Map(visible.map(t => [t.uteam, t]));
 
-  // Arbiter carries the JV2 volleyball squad as a second team whose three games
+  // the schedule feed carries the JV2 volleyball squad as a second team whose three games
   // are already on the Jr. High JV schedule under different game ids. Merging
   // without this check would show those matchups twice.
   const seen = new Set();
@@ -395,7 +404,7 @@ function shape(rawTeams, rawGames, standings, rosters) {
     // here rather than one on each page, so the schedule, the home page boxes
     // and every record agree about what a season is.
     if (g.is_scrimmage) continue;
-    // A game switched off by hand because Arbiter has it wrong (filed under
+    // A game switched off by hand because the schedule feed has it wrong (filed under
     // the wrong team, entered twice). The sync never writes this column, so it
     // stays off; the corrected game is usually a hand-added row (is_manual).
     if (g.hidden) continue;
@@ -413,7 +422,7 @@ function shape(rawTeams, rawGames, standings, rosters) {
   for (const t of visible) {
     t.games.sort((a, b) => String(a.starts_at).localeCompare(String(b.starts_at)));
     // From the games rather than the team row, because a merged squad arrives
-    // under two gender ids (Boys on one Arbiter row, Coed on the other) and the
+    // under two gender ids (Boys on one the schedule feed row, Coed on the other) and the
     // games are what genderLabel already reconciles.
     const first = t.games[0];
     t.gender = first ? genderLabel(first.gender_id, first.sport_id) : '';
@@ -1392,7 +1401,7 @@ function closeVenue() {
 
 function openVenue(btn) {
   ensureVenue();
-  // The venue as Arbiter names it, and nothing else. Arbiter's schedule feed
+  // The venue as the schedule feed names it, and nothing else. the schedule feed's schedule feed
   // carries siteName and subSiteName but no street address, and there is no
   // venue endpoint to look one up from — so a Directions link was the only way
   // to turn this into something a car could follow, and KJ would rather people
@@ -1434,7 +1443,7 @@ function venuePin(game) {
 }
 
 /* ── Team pages ─────────────────────────────────────────────────────────── */
-/* One page per team, addressed by the team's own name rather than by Arbiter's
+/* One page per team, addressed by the team's own name rather than by the schedule feed's
    uteam number, so a link somebody sends a parent says what it is. The names
    are unique across the Tigers' teams — "Jr. High Volleyball" and "Jr. High -
    JV Volleyball" slug apart — and the page falls back to ?team=<uteam> for
@@ -1465,7 +1474,7 @@ function teamPageLink(team, label) {
    Tigers match on a given date is at the same course, so the course belongs
    once above the day's matches rather than three times behind a pin.
 
-   Every golf row Arbiter sends carries it, on away dates as well as home ones,
+   Every golf row the schedule feed sends carries it, on away dates as well as home ones,
    so nothing has to be entered by hand. */
 
 const COURSE_SPORTS = new Set([29]);          // Golf

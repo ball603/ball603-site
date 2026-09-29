@@ -266,7 +266,7 @@ async function updateSupabase(standings) {
             seed: s.seed || null,
             qualifies: s.qualifies || false,
             tournament_spots: s.tournament_spots || null,
-            scraped_at: now
+            refreshed_at: now
           })
         }
       );
@@ -305,7 +305,7 @@ async function updateSupabase(standings) {
             seed: s.seed || null,
             qualifies: s.qualifies || false,
             tournament_spots: s.tournament_spots || null,
-            scraped_at: now,
+            refreshed_at: now,
             updated_at: now
           })
         }

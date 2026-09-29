@@ -47,7 +47,7 @@ function playoffLine(group, division) {
 /* ── Grouping: sport, then the divisions inside it ─────────────────────── */
 
 function buildSports(DATA) {
-  // Keyed on the division itself, not on Arbiter's group id. One group can
+  // Keyed on the division itself, not on the schedule feed's group id. One group can
   // publish several divisions — volleyball's combined "Volleyball Standings"
   // group carries all three — so treating a group as a division would put two
   // divisions of schools into one table.
@@ -63,7 +63,7 @@ function buildSports(DATA) {
     byGroup.get(id).rows.push(row);
   }
   for (const d of byGroup.values()) {
-    // Two Arbiter groups can publish the same bracket — football currently has
+    // Two the schedule feed groups can publish the same bracket — football currently has
     // "Football Standings" and a "Division IV" group over the same eight teams.
     // The sync keeps one, but rows from the other can still be in the table
     // between runs, so a school is shown once here regardless.
@@ -299,7 +299,7 @@ async function renderTable(mount, sport, division) {
     </div>`;
 }
 
-/* Arbiter files a season as a bare year — "2026" for everything played in the
+/* the schedule feed files a season as a bare year — "2026" for everything played in the
    2026-27 school year, autumn and the following spring alike. The schedule bar
    and the roster bar both say "2026-27", and two bars on the same site giving
    different answers for the same season is worse than either. So a feed value

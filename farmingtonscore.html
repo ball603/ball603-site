@@ -174,7 +174,7 @@ document.getElementById('pw').addEventListener('keypress', (e) => { if (e.key ==
 /* ── Sport, then day ───────────────────────────────────────────────────── */
 
 async function loadGames() {
-  // Same source the rest of the site uses, so a squad Arbiter splits in two is
+  // Same source the rest of the site uses, so a squad the schedule feed splits in two is
   // one team here as well and every name is the one Farmington uses.
   S.data = await FT.load();
 }
@@ -239,10 +239,10 @@ function renderDay() {
   el.innerHTML = list.map((g, i) => {
     const opp = g.opponent_name || 'Opponent TBA';
     const manual = g.manual_my_score != null && g.manual_opp_score != null;
-    const arb = g.arbiter_my_score != null && g.arbiter_opp_score != null;
+    const arb = g.feed_my_score != null && g.feed_opp_score != null;
     const right = manual
       ? `<em class="ft-has">${g.manual_my_score}–${g.manual_opp_score} entered</em>`
-      : arb ? `<em>${g.arbiter_my_score}–${g.arbiter_opp_score} from Arbiter</em>`
+      : arb ? `<em>${g.feed_my_score}–${g.feed_opp_score} from the schedule feed</em>`
       : `<em>${esc(timeOnly(g) || 'Enter score')}</em>`;
     const status = g.game_status && g.game_status !== 'Normal' ? ` · ${esc(g.game_status)}` : '';
     return `<button class="ft-gitem" data-i="${i}">
@@ -278,8 +278,8 @@ function pickGame(g) {
   document.getElementById('leftLabel').textContent = usLeft ? 'Farmington' : opp;
   document.getElementById('rightLabel').textContent = usLeft ? opp : 'Farmington';
 
-  const my = g.manual_my_score ?? g.arbiter_my_score;
-  const th = g.manual_opp_score ?? g.arbiter_opp_score;
+  const my = g.manual_my_score ?? g.feed_my_score;
+  const th = g.manual_opp_score ?? g.feed_opp_score;
   document.getElementById('leftScore').value = (usLeft ? my : th) ?? '';
   document.getElementById('rightScore').value = (usLeft ? th : my) ?? '';
 
@@ -337,7 +337,7 @@ document.getElementById('clearBtn').addEventListener('click', async () => {
   Object.assign(S.game, data.game);
   document.getElementById('doneTitle').textContent = 'Score removed';
   document.getElementById('doneSub').textContent =
-    'The site is back to whatever Arbiter has for this game.';
+    'The site is back to whatever the schedule feed has for this game.';
   show('s-done');
 });
 

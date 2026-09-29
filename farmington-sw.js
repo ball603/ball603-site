@@ -19,7 +19,7 @@
  *     there. Every Tigers page depends on that pair matching the HTML, and a
  *     stale script is exactly the bug the _headers overrides were written to
  *     stop. Cached copies exist solely so an offline launch renders something.
- *   - Supabase, Arbiter and SmugMug are never touched. Scores go stale in
+ *   - Supabase, the schedule feed and SmugMug are never touched. Scores go stale in
  *     minutes and a cached score is worse than no score.
  *   - Everything else (logos, icons, the offline page) is cache-first, because
  *     it does not change and it is what makes a cold launch feel instant.
@@ -59,7 +59,7 @@ const SHELL = [
 
 // Never cached, at either origin: live data and anything that writes.
 const LIVE = [/\/rest\/v1\//, /\.netlify\/functions\//, /supabase\.co/,
-              /arbitersports\.com/, /smugmug\.com/, /googleapis\.com/];
+              /the schedule feed\.com/, /smugmug\.com/, /googleapis\.com/];
 
 /* Must always match the deployed HTML, so never served from cache while online.
    The pattern covers farmington-schedule.js, -roster.js and -standings.js as

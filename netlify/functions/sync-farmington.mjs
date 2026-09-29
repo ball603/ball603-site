@@ -226,9 +226,9 @@ function buildGameRow(event, team, ball603Names) {
     team_count: roster.length,
     is_meet: isMeet,
 
-    arbiter_my_score: Number.isFinite(myScore) ? myScore : null,
-    arbiter_opp_score: Number.isFinite(oppScore) ? oppScore : null,
-    arbiter_result: (mine && mine.gameWLTStatus) || null,
+    feed_my_score: Number.isFinite(myScore) ? myScore : null,
+    feed_opp_score: Number.isFinite(oppScore) ? oppScore : null,
+    feed_result: (mine && mine.gameWLTStatus) || null,
 
     // manual_my_score / manual_opp_score / manual_updated_at are deliberately
     // absent. They belong to whoever types a score into the Tigers score page,

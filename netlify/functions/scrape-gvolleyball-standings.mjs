@@ -285,7 +285,7 @@ async function updateStandings(scraped, allScrapedSchools) {
       nhiaa_games_played: s.games_played,
       division: s.division,
       gender: s.gender,
-      scraped_at: now,
+      refreshed_at: now,
       updated_at: now
     };
 

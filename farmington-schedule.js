@@ -239,7 +239,7 @@ function matchup(g) {
 
   const short = g.opponent_ball603;
   const label = FT.opponentLabel(g);
-  // Ball603's logo when the name matches a Ball603 school, else Arbiter's art.
+  // Ball603's logo when the name matches a Ball603 school, else the schedule feed's art.
   const img = FT.opponentLogo(g, 'ft-oppimg');
 
   return `<span class="ft-ha${g.is_home ? ' home' : ''}">${g.is_home ? 'vs' : 'at'}</span>
