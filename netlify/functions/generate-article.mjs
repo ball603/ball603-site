@@ -2,6 +2,58 @@
 // Supports three modes: 'extract' (read scorebook), 'write' (generate from scorebook data), 'boxscore' (parse pasted boxscore)
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+
+/* Read the JSON out of a Claude reply.
+
+   Two things go wrong in practice:
+
+   1. The model wraps the object in a ```json fence. Stripping the fences
+      handles that, and did before this helper existed.
+
+   2. The reply hits max_tokens and stops mid-object, so the text is valid
+      JSON right up to the point it was cut off. That used to surface as a
+      bare "Failed to parse AI response" with no hint that length was the
+      cause. parseAiJson cannot recover a truncated story — the words simply
+      are not there — so callers check stop_reason and say so plainly.
+
+   Returns { ok, value } | { ok: false, error }. */
+function parseAiJson(rawText) {
+  const text = String(rawText || '').replace(/```json|```/g, '').trim();
+  if (!text) return { ok: false, error: 'empty response' };
+
+  try {
+    return { ok: true, value: JSON.parse(text) };
+  } catch (_) { /* fall through */ }
+
+  // Prose either side of the object ("Here is the JSON:") — take the object.
+  const first = text.indexOf('{');
+  const last = text.lastIndexOf('}');
+  if (first !== -1 && last > first) {
+    try {
+      return { ok: true, value: JSON.parse(text.slice(first, last + 1)) };
+    } catch (_) { /* fall through */ }
+  }
+
+  return { ok: false, error: 'not valid JSON' };
+}
+
+/* The message a failed parse sends back. A truncated reply is a different
+   problem from malformed JSON and needs a different fix, so it is named. */
+function aiParseError(headers, rawText, stopReason) {
+  const truncated = stopReason === 'max_tokens';
+  return {
+    statusCode: 500,
+    headers,
+    body: JSON.stringify({
+      error: truncated
+        ? 'The story came back too long and was cut off before it finished. Try again — if it keeps happening, trim the notes you are feeding it.'
+        : 'Failed to parse AI response',
+      truncated,
+      stop_reason: stopReason || null,
+      raw: rawText
+    })
+  };
+}
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
@@ -1229,7 +1281,7 @@ The headline should be 8-12 words, punchy, no quotes. The excerpt should be 1-2 
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-6',
-      max_tokens: 1024,
+      max_tokens: 4096,
       messages: [{ role: 'user', content: prompt }]
     })
   });
@@ -1241,12 +1293,9 @@ The headline should be 8-12 words, punchy, no quotes. The excerpt should be 1-2 
   const aiData = await response.json();
   const rawText = aiData.content?.[0]?.text || '';
 
-  let parsed;
-  try {
-    parsed = JSON.parse(rawText.replace(/```json|```/g, '').trim());
-  } catch(e) {
-    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to parse AI response', raw: rawText }) };
-  }
+  const attempt = parseAiJson(rawText);
+  if (!attempt.ok) return aiParseError(headers, rawText, aiData.stop_reason);
+  const parsed = attempt.value;
 
   return {
     statusCode: 200,
@@ -1533,7 +1582,7 @@ The headline should be 8-12 words, no quotes. The excerpt should be 1-2 sentence
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-6',
-      max_tokens: 2048,
+      max_tokens: 8192,
       messages: [{ role: 'user', content: prompt }]
     })
   });
@@ -1547,12 +1596,9 @@ The headline should be 8-12 words, no quotes. The excerpt should be 1-2 sentence
   const aiData = await response.json();
   const rawText = aiData.content?.[0]?.text || '';
 
-  let parsed;
-  try {
-    parsed = JSON.parse(rawText.replace(/```json|```/g, '').trim());
-  } catch (e) {
-    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to parse AI response', raw: rawText }) };
-  }
+  const attempt = parseAiJson(rawText);
+  if (!attempt.ok) return aiParseError(headers, rawText, aiData.stop_reason);
+  const parsed = attempt.value;
 
   let articleText = String(parsed.article || '').trim();
 
@@ -1766,7 +1812,7 @@ The excerpt is one or two sentences summarizing the result.`;
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-6',
-      max_tokens: 2048,
+      max_tokens: 8192,
       messages: [{ role: 'user', content: prompt }]
     })
   });
@@ -1780,12 +1826,9 @@ The excerpt is one or two sentences summarizing the result.`;
   const aiData = await response.json();
   const rawText = aiData.content?.[0]?.text || '';
 
-  let parsed;
-  try {
-    parsed = JSON.parse(rawText.replace(/```json|```/g, '').trim());
-  } catch (e) {
-    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to parse AI response', raw: rawText }) };
-  }
+  const attempt = parseAiJson(rawText);
+  if (!attempt.ok) return aiParseError(headers, rawText, aiData.stop_reason);
+  const parsed = attempt.value;
 
   return {
     statusCode: 200,
