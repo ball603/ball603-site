@@ -37,7 +37,10 @@ const NOTIFY_FROM = process.env.SPONSOR_INQUIRY_FROM || 'Ball 603 <noreply@ball6
 // Salts the IP hash so the stored value can't be reversed by hashing a list of
 // candidate addresses. Any stable secret works; the service key is already
 // here and never leaves the server.
-const IP_SALT = process.env.SPONSOR_INQUIRY_SALT || SUPABASE_SERVICE_KEY || 'ball603';
+/* Salt for the submitter hash. Falls back to the service key, which is not
+   public; the old 'ball603' literal was, which would have made the stored
+   hashes reversible by anyone who read this file. */
+const IP_SALT = process.env.SPONSOR_INQUIRY_SALT || SUPABASE_SERVICE_KEY || '';
 
 // Generous for a real person, tight enough that nothing enormous lands in the
 // table. A note longer than this is almost certainly paste or spam.

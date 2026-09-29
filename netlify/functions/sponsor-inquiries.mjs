@@ -18,7 +18,18 @@
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://suncdkxfqkwwnmhosxcf.supabase.co';
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
 
-const CMS_KEY = process.env.CMS_KEY || process.env.FARMINGTON_STORY_KEY || 'Gr@niteSt@teHoops';
+/* The CMS key. Read from the environment only — there is deliberately no
+   literal fallback here.
+
+   There used to be one, and because the repo root is Netlify's publish
+   directory this file was being served as readable text at
+   /netlify/functions/<name>, so that fallback was a published password. The
+   env var was never set, which made the fallback the live key. /netlify/* is
+   now blocked in _redirects, and the key comes from CMS_LOGIN_KJ.
+
+   If CMS_LOGIN_KJ is missing the guarded actions refuse rather than falling
+   back to anything, so a misconfigured deploy fails shut, not open. */
+const CMS_KEY = process.env.CMS_LOGIN_KJ || process.env.CMS_KEY || process.env.FARMINGTON_STORY_KEY || '';
 
 const STATUSES = new Set(['new', 'contacted', 'won', 'passed']);
 const MAX_NOTES = 4000;
@@ -57,6 +68,10 @@ export default async (request) => {
   try { body = await request.json(); }
   catch { return fail(400, 'Bad JSON'); }
 
+  /* Fail shut. With no fallback literal, an unset CMS_LOGIN_KJ leaves CMS_KEY
+     as '' — and '' === '' would let an empty key straight through. Refuse
+     before the comparison is ever reached. */
+  if (!CMS_KEY) return fail(500, 'CMS key is not configured on the server');
   if (body.key !== CMS_KEY) return fail(401, 'Wrong key');
 
   const action = String(body.action || '');

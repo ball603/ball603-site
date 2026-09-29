@@ -29,7 +29,18 @@ const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.en
    reason — the alternative was letting the CMS write with the anon key, which
    is printed in the source of every page on the site, and that would leave the
    Tigers front page writable by anyone at all. */
-const STORY_KEY = process.env.FARMINGTON_STORY_KEY || 'Gr@niteSt@teHoops';
+/* The CMS key. Read from the environment only — there is deliberately no
+   literal fallback here.
+
+   There used to be one, and because the repo root is Netlify's publish
+   directory this file was being served as readable text at
+   /netlify/functions/<name>, so that fallback was a published password. The
+   env var was never set, which made the fallback the live key. /netlify/* is
+   now blocked in _redirects, and the key comes from CMS_LOGIN_KJ.
+
+   If CMS_LOGIN_KJ is missing the guarded actions refuse rather than falling
+   back to anything, so a misconfigured deploy fails shut, not open. */
+const STORY_KEY = process.env.CMS_LOGIN_KJ || process.env.CMS_KEY || process.env.FARMINGTON_STORY_KEY || '';
 
 const MAX_HEADLINE = 200;
 const MAX_BODY = 60000;
@@ -82,6 +93,7 @@ export default async (request) => {
 
   try {
     if (request.method === 'GET') {
+      if (!STORY_KEY) return fail(500, 'CMS key is not configured on the server');
       if (url.searchParams.get('key') !== STORY_KEY) return fail(401, 'Wrong key');
       const rows = await supabase('farmington_stories?select=*&order=slot');
       return new Response(JSON.stringify({ stories: rows || [] }), { status: 200, headers });
@@ -93,6 +105,8 @@ export default async (request) => {
     try { body = await request.json(); }
     catch { return fail(400, 'Bad JSON'); }
 
+    /* Fail shut: an unset key would otherwise match an empty submitted one. */
+    if (!STORY_KEY) return fail(500, 'CMS key is not configured on the server');
     if (body.key !== STORY_KEY) return fail(401, 'Wrong key');
 
     const slot = Number(body.slot);
