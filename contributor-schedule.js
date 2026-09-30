@@ -18,6 +18,20 @@
  */
 
 class ContributorSchedule {
+  /* Turn a failed assignment write into something the person can act on.
+     A blanket "Error saving. Please try again." sent someone retrying forever
+     when the real answer was "your session expired, sign in again". */
+  async describeSaveFailure(response) {
+    if (!response) return 'Error saving. Please try again.';
+    let detail = '';
+    try { detail = (await response.clone().json())?.error || ''; } catch (e) { /* not JSON */ }
+    if (response.status === 401) return detail || 'Your session expired — sign in again.';
+    if (response.status === 500 && /not configured/i.test(detail)) {
+      return 'Server is missing its auth configuration — tell KJ.';
+    }
+    return detail ? ('Could not save: ' + detail) : 'Error saving. Please try again.';
+  }
+
   /* The access token for the signed-in contributor.
 
      update-assignment used to accept a game id and a value from anyone. It now
@@ -1705,7 +1719,7 @@ class ContributorSchedule {
         this.renderGames();
         this.showToast('Coverage claimed!', 'success');
       } else {
-        this.showToast('Error saving. Please try again.', 'error');
+        this.showToast(await this.describeSaveFailure(response), 'error');
       }
     } catch (err) {
       this.showToast('Error saving. Please try again.', 'error');

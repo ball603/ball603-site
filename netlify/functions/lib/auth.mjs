@@ -139,19 +139,29 @@ export async function asLegacy(response) {
    and quietly broken.
    --------------------------------------------------------------------------- */
 const SUPABASE_URL = process.env.SUPABASE_URL || '';
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || '';
+
+/* The apikey header on /auth/v1/user just identifies the project — either key
+   works, and it is NOT what authenticates the caller; the Bearer token is.
+   Service key first because it is set for every function here, while
+   SUPABASE_ANON_KEY is not reliably set (teams.mjs already treats it as a
+   fallback). Requiring the anon key was what made the first version of this
+   return "Auth is not configured" and break game claiming. */
+const SUPABASE_PROJECT_KEY =
+  process.env.SUPABASE_SERVICE_KEY ||
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  process.env.SUPABASE_ANON_KEY || '';
 
 export async function verifySupabaseUser(reqOrEvent) {
   const raw = headerValue(reqOrEvent, 'authorization');
   const token = raw.startsWith('Bearer ') ? raw.slice(7).trim() : '';
   if (!token) return { ok: false, status: 401, error: 'Sign in required' };
-  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  if (!SUPABASE_URL || !SUPABASE_PROJECT_KEY) {
     return { ok: false, status: 500, error: 'Auth is not configured on the server' };
   }
 
   try {
     const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${token}` }
+      headers: { apikey: SUPABASE_PROJECT_KEY, Authorization: `Bearer ${token}` }
     });
     if (!res.ok) return { ok: false, status: 401, error: 'Session expired — sign in again' };
     const user = await res.json();
