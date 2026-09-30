@@ -8613,9 +8613,19 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       }, 100);
     }
     
-    // Check auth on load
-    if (sessionStorage.getItem('cms_auth') === 'true') {
+    /* Check auth on load.
+
+       Both flags must be present. A tab that was already open when the
+       password moved out of this file has cms_auth set but no cms_key, and
+       restoring the app in that state loads a CMS that cannot talk to any
+       guarded function — every call comes back "Wrong key", which reads as a
+       broken feature rather than a stale login. Drop the half-session and
+       show the login screen instead. */
+    if (sessionStorage.getItem('cms_auth') === 'true' && sessionStorage.getItem('cms_key')) {
       showApp();
+    } else {
+      sessionStorage.removeItem('cms_auth');
+      sessionStorage.removeItem('cms_key');
     }
     
     // Tabs
