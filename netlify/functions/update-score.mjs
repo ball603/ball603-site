@@ -1,4 +1,5 @@
 // Ball603 Manual Score Entry API
+import { requireCmsOrScoreKey } from './lib/auth.mjs';
 // Allows contributors to enter scores via /finalscore and /playoffscores pages
 // Supports live scoring with game_status and auto-advance for playoffs
 
@@ -155,7 +156,14 @@ export default async (request) => {
   }
   
   try {
-    const { game_id, away_score, home_score, time, game_status } = await request.json();
+    /* Whole body first so the guard sees the key. Either the CMS key or the
+       score-entry key opens this: scorekeepers post finals from the score
+       pages, and the CMS must be able to do anything they can. */
+    const body = await request.json();
+    const denied = requireCmsOrScoreKey(request, body);
+    if (denied) return denied;
+
+    const { game_id, away_score, home_score, time, game_status } = body;
     
     // Validate inputs
     if (!game_id) {

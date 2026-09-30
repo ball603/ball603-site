@@ -1,4 +1,5 @@
 // trigger-smugmug-sync.mjs
+import { requireCmsKey } from './lib/auth.mjs';
 // Proxy that triggers sync-smugmug using the server-side SYNC_SECRET_KEY.
 // Called from admin.html — keeps the secret key out of the browser entirely.
 
@@ -17,6 +18,14 @@ export default async (request) => {
   if (request.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'POST only' }), { status: 405, headers });
   }
+
+  /* This hands the caller the effect of SYNC_SECRET_KEY without the key, so
+     it needs the CMS guard or it is simply a public sync trigger. Body is
+     optional here, so the key normally arrives as a header. */
+  let body = {};
+  try { body = await request.json(); } catch { /* no body is fine */ }
+  const denied = requireCmsKey(request, body);
+  if (denied) return denied;
 
   const syncKey = process.env.SYNC_SECRET_KEY;
   if (!syncKey) {

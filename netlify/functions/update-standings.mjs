@@ -1,4 +1,5 @@
 // Ball603 Update Standings from Games
+import { requireCmsOrScoreKey } from './lib/auth.mjs';
 // Calculates W-L-T records from the games table
 // Called after manual score entry or on demand
 
@@ -40,6 +41,14 @@ export default async (request) => {
     return new Response('', { status: 200, headers });
   }
   
+  /* Recomputes and rewrites the whole standings table, so it is a privileged
+     write even though it takes no arguments. No body of its own — the key
+     normally arrives as a header. */
+  let body = {};
+  try { body = await request.json(); } catch { /* no body is fine */ }
+  const denied = requireCmsOrScoreKey(request, body);
+  if (denied) return denied;
+
   console.log('Update Standings - Calculating from games table...');
   
   try {

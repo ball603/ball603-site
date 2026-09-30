@@ -7808,6 +7808,35 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
 
        Every guarded call reads it through cmsKey(). */
     const cmsKey = () => sessionStorage.getItem('cms_key') || '';
+
+    /* Attach the CMS key to every call this page makes to our own functions.
+
+       The alternative was editing 34 separate fetch() sites, where missing one
+       means a feature that silently stops working in production. One wrapper
+       cannot miss a site, and a new call added later is covered automatically.
+
+       Only same-origin /.netlify/functions/ URLs are touched, so nothing is
+       sent to third parties. Endpoints that do not check the key ignore the
+       header. A call that already sets the header keeps its own value. */
+    (function attachCmsKey() {
+      const nativeFetch = window.fetch.bind(window);
+      window.fetch = function (input, init = {}) {
+        let url = '';
+        try { url = typeof input === 'string' ? input : (input && input.url) || ''; }
+        catch (_) { url = ''; }
+
+        const ours = url.startsWith('/.netlify/functions/') ||
+                     url.startsWith(location.origin + '/.netlify/functions/');
+        if (!ours) return nativeFetch(input, init);
+
+        const key = cmsKey();
+        if (!key) return nativeFetch(input, init);   // signed out: let it 401
+
+        const headers = new Headers(init.headers || (typeof input === 'object' ? input.headers : undefined) || {});
+        if (!headers.has('x-cms-key')) headers.set('x-cms-key', key);
+        return nativeFetch(input, { ...init, headers });
+      };
+    })();
     
     // State
     let articles = [];
@@ -12078,141 +12107,63 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           img.src = url;
         });
 
-        // Fetch API key and call Claude directly from browser (no Netlify timeout)
-        const keyRes = await fetch('/.netlify/functions/get-ai-key');
-        const { key: anthropicKey } = await keyRes.json();
+        /* Read the boxscore on the server.
 
-        const awayMascot = awaySchoolInfo?.mascot || '';
-        const homeMascot = homeSchoolInfo?.mascot || '';
-        const gameTown = homeSchoolInfo?.town || bbsSelectedGame.home;
-
-        const mediaType = compressedMime || bbsSelectedFile.type;
-        const msgContent = mediaType === 'application/pdf'
-          ? [{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } }, { type: 'text', text: buildBbsPrompt() }]
-          : [{ type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } }, { type: 'text', text: buildBbsPrompt() }];
-
-        function buildBbsPrompt() {
-          const gameDay = (() => { try { const d = new Date((bbsSelectedGame.date||'')+'T12:00:00'); return ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][d.getDay()]; } catch(e) { return 'Tuesday'; } })();
-          return `You are a sports data reader and AP-style reporter for Ball603.com covering NH high school baseball.
-
-TASK 1: Extract all stats from this boxscore image.
-TASK 2: Write a detailed game recap article.
-
-GAME INFO:
-- Away: ${bbsSelectedGame.away}${awayMascot ? ' ('+awayMascot+')' : ''}
-- Home: ${bbsSelectedGame.home}${homeMascot ? ' ('+homeMascot+')' : ''}
-- Location: ${gameTown}, N.H.
-- Date: ${gameDay}
-- Division: ${bbsSelectedGame.division || 'N/A'}${bbsSelectedGame.is_playoff ? ' | PLAYOFF: '+(bbsSelectedGame.round||'Playoff') : ''}
-${document.getElementById('bbsNotes').value.trim() ? '- Notes: '+document.getElementById('bbsNotes').value.trim() : ''}
-${photogs.join(' & ') ? '- Photographer: '+photogs.join(' & ') : ''}
-${document.getElementById('bbsGcStory').value.trim() ? `
-GAMECHANGER STORY (authoritative source for individual stats and plays):
-${document.getElementById('bbsGcStory').value.trim()}
-
-Use the above GameChanger story as the primary source for player stats, specific plays (grand slams, doubles, stolen bases, etc.), and game narrative. Cross-reference with the boxscore image for the line score.` : ''}
-
-LINE SCORE EXTRACTION:
-- The line score at the TOP shows: team abbrev | inning columns (1 2 3 4 5 6 7) | R | H | E
-- awayR, awayH, awayE, homeR, homeH, homeE come ONLY from the R/H/E columns — NEVER from the batting table
-- CRITICAL: "X" means the home team did not bat that inning (game over, home team won). The X is the LAST inning entry. Any number immediately after X in that row is the R total — NOT another inning. Do not include the R total value as an inning.
-- Example: "0 2 6 0 3 X | 11 9 0" means homeInnings=[0,2,6,0,3,"X"], homeR=11, homeH=9, homeE=0
-- The away team always bats all innings. The home team may have one fewer inning (replaced by X) if they won.
-- awayInnings and homeInnings arrays should have the same length (X counts as one entry)
-- Verify: sum of non-X inning values must equal R for each team
-
-BATTING TABLE: Extract per-player: name, pos, AB, R, H, RBI, BB, SO
-PITCHING TABLE: Extract per-pitcher: name, IP, H, R, ER, BB, SO, decision (W/L/S)
-
-ARTICLE REQUIREMENTS:
-- AP style, past tense, third person, 180-280 words
-- ONLY reference stats, players, and events that are EXPLICITLY present in the extracted data above
-- DO NOT invent or infer home runs, triples, stolen bases, or any specific plays unless they appear in the batting/pitching data you extracted
-- DO NOT reference season totals (e.g. "his fifth of the season") — you have no access to season stats
-- DO NOT say a player "blasted a grand slam" or any specific play unless the boxscore data explicitly confirms it
-- If a batter went 2-for-4 with 1 RBI, say exactly that — do not embellish
-- Name winning/losing pitchers with their exact extracted line (IP, H, R, ER, BB, SO)
-- Lead with the most factually supported stat from the data (big inning runs, dominant pitcher, etc.)
-- When in doubt, leave it out
-- If a GameChanger story was provided, use its specific play details (grand slams, doubles, stolen bases, walk-off hits, etc.) — these are verified facts
-- If no GameChanger story was provided, only reference stats explicitly visible in the extracted boxscore data
-- FIRST PARAGRAPH: Use only school names (e.g. "Groveton", "Littleton") — no mascot nicknames whatsoever in the opening paragraph
-- SECOND PARAGRAPH AND BEYOND: Mascot nicknames are permitted (e.g. "the Eagles", "the Tigers")
-- HEADLINE: Use sentence case only — capitalize the first word and proper nouns only. Do NOT capitalize every word. Example: "Collins homers as Groveton tops Littleton 11-7" not "Collins Homers As Groveton Tops Littleton 11-7"
-
-Respond ONLY with valid JSON:
-{"awayInnings":[],"homeInnings":[],"awayR":0,"awayH":0,"awayE":0,"homeR":0,"homeH":0,"homeE":0,"awayBatters":[{"name":"","pos":"","ab":0,"r":0,"h":0,"rbi":0,"bb":0,"so":0}],"homeBatters":[{"name":"","pos":"","ab":0,"r":0,"h":0,"rbi":0,"bb":0,"so":0}],"awayPitchers":[{"name":"","ip":"","h":0,"r":0,"er":0,"bb":0,"so":0,"decision":""}],"homePitchers":[{"name":"","ip":"","h":0,"r":0,"er":0,"bb":0,"so":0,"decision":""}],"awayNotes":"","homeNotes":"","headline":"","article":"","excerpt":""}`;
-        }
-
+           This used to fetch the Anthropic key from /.netlify/functions/get-ai-key
+           and call the API straight from the browser, to dodge the function
+           timeout. That endpoint handed the key to anyone who asked, so both it
+           and this call are gone. generate-article's 'baseball-boxscore' mode
+           does the same work with the key never leaving the server, and the
+           walk-off line-score correction moved there with it — so the response
+           below is already corrected and is used as-is. */
         btn.textContent = '⏳ Reading boxscore...';
-        const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
+
+        const bbsRes = await fetch('/.netlify/functions/generate-article', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': anthropicKey,
-            'anthropic-version': '2023-06-01',
-            'anthropic-dangerous-direct-browser-access': 'true'
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            model: 'claude-sonnet-4-6',
-            max_tokens: 3000,
-            messages: [{ role: 'user', content: msgContent }]
+            key: cmsKey(),
+            mode: 'baseball-boxscore',
+            // `base64` and `compressedMime` come from the compression step above.
+            fileBase64: base64,
+            fileMimeType: compressedMime || bbsSelectedFile.type,
+            gameData: {
+              awayTeam: bbsSelectedGame.away,
+              homeTeam: bbsSelectedGame.home,
+              date: bbsSelectedGame.date,
+              division: bbsSelectedGame.division,
+              is_playoff: bbsSelectedGame.is_playoff,
+              round: bbsSelectedGame.round
+            },
+            notes: document.getElementById('bbsNotes')?.value || '',
+            photographerName: photogs?.[0]?.name || '',
+            schoolData: { away: awaySchoolInfo, home: homeSchoolInfo }
           })
         });
 
-        if (!claudeRes.ok) {
-          const errText = await claudeRes.text();
-          console.error('Claude error:', errText);
-          showToast('Claude API error: ' + claudeRes.status, 'error');
+        if (!bbsRes.ok) {
+          const errText = await bbsRes.text();
+          console.error('Boxscore read failed:', bbsRes.status, errText.slice(0, 300));
+          showToast(bbsRes.status === 401
+            ? 'Session expired — sign in again'
+            : 'Boxscore read failed (' + bbsRes.status + ')', 'error');
           btn.disabled = false;
           btn.innerHTML = '&#x2728; Read Boxscore &amp; Generate Story';
           return;
         }
 
-        const aiData = await claudeRes.json();
-        let stats;
-        try {
-          let raw = aiData.content?.[0]?.text || '';
-          raw = raw.replace(/```json|```/g, '').trim();
-          stats = JSON.parse(raw);
-        } catch(e) {
-          console.error('Parse error:', aiData.content?.[0]?.text?.substring(0, 300));
-          showToast('Failed to parse response — check console', 'error');
+        const payload = await bbsRes.json();
+        if (!payload.success) {
+          console.error('Boxscore read error:', payload.error, payload.raw || '');
+          showToast(payload.error || 'Error reading boxscore', 'error');
           btn.disabled = false;
           btn.innerHTML = '&#x2728; Read Boxscore &amp; Generate Story';
           return;
         }
 
-        // Post-process: fix walk-off X inning misread
-        // Claude often reads the R total as a final inning value when home team has X
-        // e.g. reads [0,2,6,0,3,X,11] when correct is [0,2,6,0,3,0,X] with R=11
-        function fixWalkoffInnings(homeInnings, awayInnings) {
-          if (!homeInnings || homeInnings.length === 0) return homeInnings;
-          const xIdx = homeInnings.findIndex(v => v === 'X' || v === 'x');
-          if (xIdx === -1) return homeInnings;
-          // Step 1: strip everything after X (misread R/H/E values)
-          let fixed = homeInnings.slice(0, xIdx + 1);
-          // Step 2: if home now has fewer innings than away, insert 0s before X
-          // (Claude skipped inning values that were 0)
-          const awayLen = (awayInnings || []).length;
-          while (fixed.length < awayLen) {
-            fixed.splice(fixed.length - 1, 0, 0);
-          }
-          return fixed;
-        }
-        stats.homeInnings = fixWalkoffInnings(stats.homeInnings, stats.awayInnings);
-        function sumInnings(innings) {
-          return (innings||[]).reduce((s,v) => s + (v==='X'||v==='x' ? 0 : (parseInt(v)||0)), 0);
-        }
-        console.log('After fix — Away:', stats.awayInnings, 'R:'+stats.awayR, '| Home:', stats.homeInnings, 'R:'+stats.homeR);
-
-        const awayInnings = stats.awayInnings || [];
-        const homeInnings = stats.homeInnings || [];
-        const awayWon = (stats.awayR||0) > (stats.homeR||0);
-        const inningHeaders = awayInnings.map((_,i) => `<th style="padding:6px 8px;text-align:center;color:#666;font-weight:500;">${i+1}</th>`).join('');
-        const scoreBoxHtml = `<table style="width:100%;border-collapse:collapse;font-size:13px;text-align:center;"><thead><tr style="border-bottom:2px solid #ddd;"><th style="text-align:left;padding:8px 10px;font-weight:600;">Team</th>${inningHeaders}<th style="padding:6px 8px;font-weight:700;border-left:2px solid #ccc;">R</th><th style="padding:6px 8px;font-weight:500;color:#666;">H</th><th style="padding:6px 8px;font-weight:500;color:#666;">E</th></tr></thead><tbody><tr><td style="text-align:left;padding:10px;font-weight:600;">${bbsSelectedGame.away}</td>${awayInnings.map(v=>`<td style="padding:8px;">${v}</td>`).join('')}<td style="padding:8px;font-weight:700;font-size:15px;border-left:2px solid #ccc;color:${awayWon?'#f57c00':'#333'}">${stats.awayR}</td><td style="padding:8px;">${stats.awayH}</td><td style="padding:8px;">${stats.awayE}</td></tr><tr style="border-top:1px solid #eee;"><td style="text-align:left;padding:10px;font-weight:600;">${bbsSelectedGame.home}</td>${homeInnings.map(v=>`<td style="padding:8px;">${v}</td>`).join('')}<td style="padding:8px;font-weight:700;font-size:15px;border-left:2px solid #ccc;color:${!awayWon?'#f57c00':'#333'}">${stats.homeR}</td><td style="padding:8px;">${stats.homeH}</td><td style="padding:8px;">${stats.homeE}</td></tr></tbody></table>`;
-
-        const data = { success: true, headline: stats.headline||'', article: stats.article||'', excerpt: stats.excerpt||'', scoreBoxHtml, stats, photographers: photogs };
+        const stats = payload.stats || {};
+        const scoreBoxHtml = payload.scoreBoxHtml || '';
+        const data = { ...payload, photographers: photogs };
 
         if (data.success) {
           bbsGeneratedData = data;

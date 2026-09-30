@@ -141,6 +141,13 @@ exports.handler = async (event, context) => {
 
   try {
     const body = JSON.parse(event.body);
+
+    /* CMS only — this posts to Ball 603's real Instagram and Facebook
+       accounts. CommonJS file, so the guard is loaded with a dynamic import
+       rather than a top-level one. */
+    const { requireCmsKey, asLegacy } = await import('./lib/auth.mjs');
+    const denied = await asLegacy(requireCmsKey(event, body));
+    if (denied) return denied;
     const { platform, message, imageUrls, tags, collaborators, photoTags,
             scheduledTime, articleId, articleTitle } = body;
 

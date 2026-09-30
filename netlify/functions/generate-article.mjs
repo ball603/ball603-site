@@ -1,4 +1,5 @@
 // AI Article Generation using Claude API
+import { requireCmsKey, asLegacy } from './lib/auth.mjs';
 // Supports three modes: 'extract' (read scorebook), 'write' (generate from scorebook data), 'boxscore' (parse pasted boxscore)
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
@@ -292,6 +293,14 @@ export const handler = async (event) => {
   
   try {
     const body = JSON.parse(event.body || '{}');
+
+    /* CMS only. Every mode below spends Anthropic credits on our account, so
+       an unauthenticated caller here is a direct bill, not just a data risk.
+       Guarded after parsing so the key can arrive in the body, which is how
+       admin.html sends it. */
+    const denied = await asLegacy(requireCmsKey(event, body));
+    if (denied) return denied;
+
     const mode = body.mode || 'extract';
     
     if (mode === 'extract') {
@@ -1947,6 +1956,32 @@ Respond ONLY with this JSON (no markdown, no explanation):
     console.error('Parse error:', e, 'Raw:', aiData.content?.[0]?.text);
     return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to parse Claude response' }) };
   }
+
+  /* Walk-off line scores need fixing before anything is built from them.
+
+     This ran in the browser while the boxscore read was a client-side call.
+     Moving that call server-side would have quietly dropped it, so it moves
+     with it — and this is the right place for it anyway, since scoreBoxHtml
+     is built from these arrays a few lines down.
+
+     The misread: when the home team walks off, the line score ends in X, and
+     the model tends to carry the R/H/E totals into the inning array, e.g.
+     [0,2,6,0,3,X,11] where the truth is [0,2,6,0,3,0,X]. Two corrections —
+     drop everything after the X, then pad with zeros if the home side now has
+     fewer innings than the away side, which happens when zero innings were
+     skipped. */
+  function fixWalkoffInnings(homeInns, awayInns) {
+    if (!homeInns || homeInns.length === 0) return homeInns;
+    const xIdx = homeInns.findIndex(v => v === 'X' || v === 'x');
+    if (xIdx === -1) return homeInns;
+    let fixed = homeInns.slice(0, xIdx + 1);
+    const awayLen = (awayInns || []).length;
+    while (fixed.length < awayLen) {
+      fixed.splice(fixed.length - 1, 0, 0);
+    }
+    return fixed;
+  }
+  stats.homeInnings = fixWalkoffInnings(stats.homeInnings, stats.awayInnings);
 
   const awayInnings = stats.awayInnings || [];
   const homeInnings = stats.homeInnings || [];

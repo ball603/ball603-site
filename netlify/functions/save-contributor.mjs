@@ -1,4 +1,5 @@
 // save-contributor.mjs
+import { requireCmsKey, asLegacy } from './lib/auth.mjs';
 // Uses service key to bypass RLS on contributors table
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -19,7 +20,12 @@ export const handler = async (event) => {
   }
 
   try {
-    const { id, updateData } = JSON.parse(event.body);
+    /* Whole body first, so the guard can see the key. */
+    const body = JSON.parse(event.body);
+    const denied = await asLegacy(requireCmsKey(event, body));
+    if (denied) return denied;
+
+    const { id, updateData } = body;
 
     if (!id || !updateData) {
       return { statusCode: 400, headers, body: JSON.stringify({ error: 'id and updateData required' }) };

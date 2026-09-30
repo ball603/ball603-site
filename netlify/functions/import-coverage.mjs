@@ -1,4 +1,5 @@
 // Bulk import coverage assignments - v2
+import { requireCmsKey } from './lib/auth.mjs';
 // Handles NHIAA (match existing) and College (add to College tab)
 // Now matches games where home/away may have flipped
 
@@ -148,7 +149,12 @@ export default async (request) => {
   }
   
   try {
-    const { nhiaa = [], college = [] } = await request.json();
+    /* Whole body first — destructuring would drop the key. */
+    const body = await request.json();
+    const denied = requireCmsKey(request, body);
+    if (denied) return denied;
+
+    const { nhiaa = [], college = [] } = body;
     
     const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
     const spreadsheetId = process.env.GOOGLE_SHEETS_SCHEDULE_ID;

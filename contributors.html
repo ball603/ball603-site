@@ -103,21 +103,44 @@
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN1bmNka3hmcWt3d25taG9zeGNmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwNTk4MzIsImV4cCI6MjA4MDYzNTgzMn0.aT6V8Zx_YozqOh1ZnC6x-czI9vo-QhHKmP69PgY-8xw';
     const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     
-    const CORRECT_PASSWORD = 'Gr@niteSt@teHoops';
+    /* Password is not stored in this file — it is checked against the server
+       and held in sessionStorage for this tab. Same model as admin.html. */
+    const cmsKey = () => sessionStorage.getItem('cms_key') || '';
+
+    async function verifyCmsPassword(pw) {
+      const res = await fetch('/.netlify/functions/check-key', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scope: 'cms', key: pw })
+      });
+      if (res.ok) { sessionStorage.setItem('cms_key', pw); return 'ok'; }
+      if (res.status === 401) return 'wrong';
+      if (res.status === 500) return 'unconfigured';
+      return 'unreachable';
+    }
+
     let scheduleInstance = null;
     
     // Check if already logged in
-    if (localStorage.getItem('ball603_auth') === 'true') {
+    if (localStorage.getItem('ball603_auth') === 'true' && cmsKey()) {
       showMainApp();
+    } else {
+      localStorage.removeItem('ball603_auth');
     }
     
-    function login() {
+    async function login() {
       const pw = document.getElementById('password').value;
-      if (pw === CORRECT_PASSWORD) {
-        localStorage.setItem('ball603_auth', 'true');
-        showMainApp();
-      } else {
-        document.getElementById('loginError').textContent = 'Incorrect password';
+      const err = document.getElementById('loginError');
+      if (!pw) { err.textContent = 'Enter the password'; return; }
+      err.textContent = '';
+      try {
+        const verdict = await verifyCmsPassword(pw);
+        if (verdict === 'ok') { localStorage.setItem('ball603_auth', 'true'); showMainApp(); return; }
+        if (verdict === 'wrong') { err.textContent = 'Incorrect password'; return; }
+        if (verdict === 'unconfigured') { err.textContent = 'No CMS key set on the server.'; return; }
+        err.textContent = 'Could not reach the server.';
+      } catch (e) {
+        err.textContent = 'Could not reach the server.';
       }
     }
     

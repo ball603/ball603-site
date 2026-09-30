@@ -1,4 +1,5 @@
 /**
+import { requireCmsKey } from './lib/auth.mjs';
  * Ball603 Playoff Seeds API
  * 
  * Manages playoff seeding and bracket generation
@@ -975,6 +976,11 @@ export default async (request) => {
     
     if (request.method === 'POST') {
       const body = await request.json();
+
+      /* GET above stays public — the playoffs and standings pages read seeds.
+         Only these POST actions (lock, project, regenerate-games) are CMS. */
+      const denied = requireCmsKey(request, body);
+      if (denied) return denied;
       const sport = body.sport || 'basketball';
       const { action, gender, division, seeds } = body;
       const season = body.season || defaultSeasonForSport(sport);

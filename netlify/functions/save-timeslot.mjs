@@ -1,3 +1,4 @@
+import { requireCmsOrScoreKey, asLegacy } from './lib/auth.mjs';
 export const handler = async (event) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -19,7 +20,11 @@ export const handler = async (event) => {
   }
 
   try {
-    const { id, team, gender, slot_date, slot_time } = JSON.parse(event.body);
+    const body = JSON.parse(event.body);
+    const denied = await asLegacy(requireCmsOrScoreKey(event, body));
+    if (denied) return denied;
+
+    const { id, team, gender, slot_date, slot_time } = body;
     
     if (!team || !gender || !slot_date || !slot_time) {
       return {

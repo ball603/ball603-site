@@ -1,4 +1,5 @@
 // Save contributor display_order values using service key (bypasses RLS)
+import { requireCmsKey } from './lib/auth.mjs';
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
@@ -18,7 +19,13 @@ export default async (request) => {
 
   try {
     // Expects: { orders: [{id: 1, display_order: 1}, ...] }
-    const { orders } = await request.json();
+    /* Parse the whole body, not just the fields used below: destructuring
+       first would discard the key the CMS sends alongside them. */
+    const body = await request.json();
+    const denied = requireCmsKey(request, body);
+    if (denied) return denied;
+
+    const { orders } = body;
 
     if (!orders || !Array.isArray(orders)) {
       return new Response(JSON.stringify({ error: 'orders array required' }), { status: 400, headers });

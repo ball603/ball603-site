@@ -18,6 +18,26 @@
  */
 
 class ContributorSchedule {
+  /* The access token for the signed-in contributor.
+
+     update-assignment used to accept a game id and a value from anyone. It now
+     verifies this token with Supabase, so every call from this page has to
+     carry it. Returned as a headers object so the three call sites below stay
+     one-liners. */
+  async authHeaders() {
+    const base = { 'Content-Type': 'application/json' };
+    const supabase = this.config.supabaseClient || window.supabase;
+    if (!supabase) return base;
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data?.session?.access_token;
+      if (token) base['Authorization'] = 'Bearer ' + token;
+    } catch (e) {
+      console.warn('Could not read session for assignment update:', e);
+    }
+    return base;
+  }
+
   constructor(config) {
     this.config = {
       container: '#scheduleContainer',
@@ -518,7 +538,7 @@ class ContributorSchedule {
       
       const response = await fetch(this.config.apiEndpoints.updateAssignment, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await this.authHeaders(),
         body: JSON.stringify({ 
           gameId: this.currentScorebookGameId, 
           field: 'scorebook_url', 
@@ -599,7 +619,7 @@ class ContributorSchedule {
     try {
       const response = await fetch(this.config.apiEndpoints.updateAssignment, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await this.authHeaders(),
         body: JSON.stringify({ gameId, field: 'scorebook_url', value: '' })
       });
       
@@ -1133,7 +1153,7 @@ class ContributorSchedule {
     try {
       await fetch(this.config.apiEndpoints.updateAssignment, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await this.authHeaders(),
         body: JSON.stringify({ gameId, field: 'schedule_changed', value: '' })
       });
       const game = this.allGames.find(g => g.game_id === gameId);
@@ -1165,7 +1185,7 @@ class ContributorSchedule {
       for (const field of fieldsToRemove) {
         await fetch(this.config.apiEndpoints.updateAssignment, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: await this.authHeaders(),
           body: JSON.stringify({ gameId, field, value: '' })
         });
         game[field] = '';
@@ -1175,7 +1195,7 @@ class ContributorSchedule {
       if (!stillHasAssignments) {
         await fetch(this.config.apiEndpoints.updateAssignment, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: await this.authHeaders(),
           body: JSON.stringify({ gameId, field: 'schedule_changed', value: '' })
         });
         game.schedule_changed = false;
@@ -1536,7 +1556,7 @@ class ContributorSchedule {
     try {
       const response = await fetch(this.config.apiEndpoints.updateAssignment, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await this.authHeaders(),
         body: JSON.stringify({ gameId, field: 'coverage_confirmed', value: newValue })
       });
       
@@ -1675,7 +1695,7 @@ class ContributorSchedule {
     try {
       const response = await fetch(this.config.apiEndpoints.updateAssignment, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await this.authHeaders(),
         body: JSON.stringify({ gameId, field, value: me })
       });
       
@@ -1697,7 +1717,7 @@ class ContributorSchedule {
     try {
       const response = await fetch(this.config.apiEndpoints.updateAssignment, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await this.authHeaders(),
         body: JSON.stringify({ gameId, field, value: '' })
       });
       
@@ -1717,7 +1737,7 @@ class ContributorSchedule {
     try {
       await fetch(this.config.apiEndpoints.updateAssignment, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await this.authHeaders(),
         body: JSON.stringify({ gameId, field: 'notes', value })
       });
       const game = this.allGames.find(g => g.game_id === gameId);

@@ -1,4 +1,5 @@
 // Ball603 Season Manager API
+import { requireCmsKey } from './lib/auth.mjs';
 // Handles create, finalize, and status actions for the Season Manager CMS tab
 //
 // POST /.netlify/functions/manage-seasons
@@ -56,6 +57,10 @@ export default async (request) => {
     } catch {
       return new Response(JSON.stringify({ error: 'Invalid JSON' }), { status: 400, headers });
     }
+
+    /* CMS only — this creates, activates and archives seasons. */
+    const denied = requireCmsKey(request, body);
+    if (denied) return denied;
 
     const { action, sport, season } = body;
 

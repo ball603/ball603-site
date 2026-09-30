@@ -1,4 +1,5 @@
 // netlify/functions/contributor-invite.mjs
+import { requireCmsKey, asLegacy } from './lib/auth.mjs';
 // Handles creating/deleting contributor accounts via Supabase Auth REST API
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -20,7 +21,11 @@ export async function handler(event) {
   }
 
   try {
-    const { action, ...data } = JSON.parse(event.body);
+    const body = JSON.parse(event.body);
+    const denied = await asLegacy(requireCmsKey(event, body));
+    if (denied) return denied;
+
+    const { action, ...data } = body;
 
     switch (action) {
       case 'create-account':

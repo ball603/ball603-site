@@ -795,7 +795,36 @@
   
   <script>
     // Config
-    const PASSWORD = 'assist';
+    /* The score-entry password is NOT in this file.
+
+       It used to be a literal here, and this page is publicly served, so the
+       password was readable by anyone who opened view-source — no login
+       required. It is now typed, checked against the server, and held in
+       sessionStorage for this tab only.
+
+       This key is SEPARATE from the CMS password on purpose: it travels to
+       scorekeepers on a sideline, and it should not also open the CMS. */
+    const scoreKey = () => sessionStorage.getItem('score_key') || '';
+
+    /* Attach it to every call this page makes to our own functions, so no
+       individual fetch site has to remember. */
+    (function attachScoreKey() {
+      const nativeFetch = window.fetch.bind(window);
+      window.fetch = function (input, init = {}) {
+        let url = '';
+        try { url = typeof input === 'string' ? input : (input && input.url) || ''; }
+        catch (_) { url = ''; }
+        const ours = url.startsWith('/.netlify/functions/') ||
+                     url.startsWith(location.origin + '/.netlify/functions/');
+        if (!ours) return nativeFetch(input, init);
+        const key = scoreKey();
+        if (!key) return nativeFetch(input, init);
+        const headers = new Headers(init.headers || {});
+        if (!headers.has('x-score-key')) headers.set('x-score-key', key);
+        return nativeFetch(input, { ...init, headers });
+      };
+    })();
+
     const SEASON = '2025-26';
     
     // State
@@ -812,16 +841,32 @@
     }
     
     // Check password
-    function checkPassword() {
+    /* Ask the server whether the password is right, rather than comparing it
+       against a string shipped in this page. check-key performs no action and
+       returns no data — it only answers yes or no. */
+    async function checkPassword() {
       const input = document.getElementById('passwordInput').value;
       const errorEl = document.getElementById('loginError');
-      
-      if (input.toLowerCase() === PASSWORD) {
-        errorEl.style.display = 'none';
+      const show = (msg) => { errorEl.textContent = msg; errorEl.style.display = 'block'; };
+
+      errorEl.style.display = 'none';
+      if (!input) { show('Enter the password'); return; }
+
+      try {
+        const res = await fetch('/.netlify/functions/check-key', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ scope: 'score', key: input })
+        });
+
+        if (res.status === 401) { show('Incorrect password'); return; }
+        if (res.status === 500) { show('No score-entry key is set on the server.'); return; }
+        if (!res.ok) { show('Could not reach the server (HTTP ' + res.status + ')'); return; }
+
+        sessionStorage.setItem('score_key', input);
         showPage('tournamentPage');
-      } else {
-        errorEl.textContent = 'Incorrect password';
-        errorEl.style.display = 'block';
+      } catch (e) {
+        show('Could not reach the server. Check your connection.');
       }
     }
     

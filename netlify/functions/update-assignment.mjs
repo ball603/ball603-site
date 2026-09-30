@@ -1,4 +1,5 @@
 // Ball603 Update Assignment API
+import { requireContributorOrCms } from './lib/auth.mjs';
 // Updates game assignments (photog1, photog2, videog, writer, notes, coverage_confirmed, scorebook_url) in Supabase
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -26,7 +27,15 @@ export default async (request) => {
   }
   
   try {
-    const { gameId, field, value } = await request.json();
+    /* Whole body first so the guard can see a CMS key if one was sent. */
+    const body = await request.json();
+
+    /* Was: no check at all — any caller could rewrite coverage on any game.
+       Now: a signed-in contributor (verified against Supabase) or the CMS. */
+    const denied = await requireContributorOrCms(request, body);
+    if (denied) return denied;
+
+    const { gameId, field, value } = body;
     
     // Validate request
     if (!gameId) {

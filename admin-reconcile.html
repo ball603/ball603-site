@@ -334,18 +334,38 @@
   </div>
 
   <script>
-    const CMS_PASSWORD = 'Gr@niteSt@teHoops';
+    /* Password is not stored in this file — it is checked against the server
+       and held in sessionStorage for this tab. Same model as admin.html. */
+    const cmsKey = () => sessionStorage.getItem('cms_key') || '';
+
+    async function verifyCmsPassword(pw) {
+      const res = await fetch('/.netlify/functions/check-key', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scope: 'cms', key: pw })
+      });
+      if (res.ok) { sessionStorage.setItem('cms_key', pw); return 'ok'; }
+      if (res.status === 401) return 'wrong';
+      if (res.status === 500) return 'unconfigured';
+      return 'unreachable';
+    }
+
 
     // ---- AUTH ----
-    function login() {
+    async function login() {
       const pw = document.getElementById('loginPassword').value;
-      if (pw === CMS_PASSWORD) {
-        sessionStorage.setItem('cms_auth', 'true');
-        showApp();
-      } else {
-        const err = document.getElementById('loginError');
-        err.textContent = 'Incorrect password';
-        err.style.display = 'block';
+      const err = document.getElementById('loginError');
+      const show = (m) => { err.textContent = m; err.style.display = 'block'; };
+      err.style.display = 'none';
+      if (!pw) { show('Enter the password'); return; }
+      try {
+        const verdict = await verifyCmsPassword(pw);
+        if (verdict === 'ok') { sessionStorage.setItem('cms_auth', 'true'); showApp(); return; }
+        if (verdict === 'wrong') { show('Incorrect password'); return; }
+        if (verdict === 'unconfigured') { show('No CMS key set on the server.'); return; }
+        show('Could not reach the server.');
+      } catch (e) {
+        show('Could not reach the server.');
       }
     }
     function logout() {
@@ -357,7 +377,7 @@
       document.getElementById('mainApp').style.display = 'block';
       loadAudit();
     }
-    if (sessionStorage.getItem('cms_auth') === 'true') {
+    if (sessionStorage.getItem('cms_auth') === 'true' && sessionStorage.getItem('cms_key')) {
       showApp();
     }
 
