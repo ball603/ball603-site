@@ -175,8 +175,22 @@ export const handler = async (event) => {
   // Scheduled functions don't have query params - check if this is a scheduled run
   const isScheduled = !event.queryStringParameters || Object.keys(event.queryStringParameters).length === 0;
   const syncKey = event.queryStringParameters?.key;
-  const expectedKey = process.env.SYNC_SECRET_KEY || 'ball603-sync';
-  
+  const expectedKey = process.env.SYNC_SECRET_KEY || '';
+
+  /* Fail closed on the MANUAL path only.
+
+     The scheduled path above never consults the key — Netlify invokes it
+     directly and there are no query params to carry one — so guarding the
+     whole handler on the variable would stop the cron sync. Scoped here, the
+     scheduled behaviour is byte-for-byte what it was. */
+  if (!isScheduled && !expectedKey) {
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ error: 'Sync key is not configured on the server' })
+    };
+  }
+
   // Allow scheduled runs OR manual runs with correct key
   if (!isScheduled && syncKey !== expectedKey) {
     return {

@@ -26,7 +26,15 @@ export default async (request) => {
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers });
 
   const url = new URL(request.url);
-  const expectedKey = process.env.SYNC_SECRET_KEY || 'ball603-sync';
+  /* No literal fallback — see farmington-score.mjs for why. */
+  const expectedKey = process.env.SYNC_SECRET_KEY || '';
+
+  if (!expectedKey) {
+    return new Response(
+      JSON.stringify({ error: 'Sync key is not configured on the server' }),
+      { status: 500, headers }
+    );
+  }
 
   if (url.searchParams.get('key') !== expectedKey) {
     return new Response(

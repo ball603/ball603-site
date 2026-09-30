@@ -10,8 +10,13 @@
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://suncdkxfqkwwnmhosxcf.supabase.co';
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
 
-// Same shared password the Ball603 score pages use, overridable per-site.
-const PASSWORD = (process.env.FARMINGTON_SCORE_PASSWORD || 'tigers').toLowerCase();
+/* Same shared password the Ball603 score pages use.
+
+   No literal fallback: the old one made a known password the live credential
+   whenever the environment variable was unset. FARMINGTON_SCORE_PASSWORD is
+   configured in Netlify; if it ever goes missing this refuses rather than
+   falling back to anything. */
+const PASSWORD = (process.env.FARMINGTON_SCORE_PASSWORD || '').toLowerCase();
 
 export default async (request) => {
   const headers = {
@@ -32,6 +37,15 @@ export default async (request) => {
   let body;
   try { body = await request.json(); }
   catch { return new Response(JSON.stringify({ error: 'Bad JSON' }), { status: 400, headers }); }
+
+  /* Fail closed. With no fallback, an unset variable leaves PASSWORD as '',
+     and '' === '' would admit a caller who sent no password at all. */
+  if (!PASSWORD) {
+    return new Response(
+      JSON.stringify({ error: 'Score password is not configured on the server' }),
+      { status: 500, headers }
+    );
+  }
 
   if (String(body.password || '').toLowerCase() !== PASSWORD) {
     return new Response(JSON.stringify({ error: 'Wrong password' }), { status: 401, headers });
