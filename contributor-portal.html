@@ -883,7 +883,20 @@
       const lines = esc.split(/\r?\n/);
       let out = '', inList = false;
 
+      /* [[action|label]] turns a phrase into a portal action. Only these keys
+         work; anything else renders as plain text rather than a dead link. */
+      const ACTIONS = {
+        'upload-top10':   'openTop10Upload()',
+        'upload-gallery': "window.open('https://www.smugmug.com/upload/options','smugmugUpload','width=1200,height=800,scrollbars=yes,resizable=yes')",
+        'edit-profile':   "showView('profile')",
+        'schedule':       "showView('schedule')"
+      };
+
       const inline = (t) => t
+        .replace(/\[\[([a-z0-9-]+)\|([^\]]+)\]\]/g, (m, key, label) =>
+          ACTIONS[key]
+            ? `<a href="#" onclick="${ACTIONS[key]};return false;" style="color:#f57c00;font-weight:600;">${label}</a>`
+            : label)
         .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
         .replace(/\b(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:#f57c00;">$1</a>')
         .replace(/\b([\w.+-]+@[\w-]+\.[\w.]+)\b/g, '<a href="mailto:$1" style="color:#f57c00;">$1</a>');
