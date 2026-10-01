@@ -323,6 +323,35 @@ export default async (request) => {
   const me = (await sb(`contributors?email=ilike.${encodeURIComponent(esc)}&select=id,name&limit=1`))?.[0];
   if (!me) return json({ error: 'Could not identify your account' }, 403, headers);
 
+  /* Diagnostic. Reports what SmugMug actually returns when we ask for the
+     top-level folders, which is the only way to see why a name match missed. */
+  if (body.action === 'inspect') {
+    try {
+      const me2 = await smug('GET', '/api/v2!authuser');
+      const root = me2?.Response?.User?.Uris?.Node?.Uri;
+      const out = { rootUri: root, nickName: me2?.Response?.User?.NickName };
+
+      const filtered = await smug('GET', `${root}!children?count=500&Type=Folder`);
+      out.withTypeFilter = {
+        shape: Array.isArray(filtered?.Response?.Node) ? 'array' : typeof filtered?.Response?.Node,
+        count: (filtered?.Response?.Node || []).length,
+        names: (filtered?.Response?.Node || []).map(n => n.Name),
+        pages: filtered?.Response?.Pages || null
+      };
+
+      const plain = await smug('GET', `${root}!children?count=500`);
+      out.withoutFilter = {
+        count: (plain?.Response?.Node || []).length,
+        names: (plain?.Response?.Node || []).map(n => `${n.Name} [${n.Type}]`),
+        pages: plain?.Response?.Pages || null
+      };
+
+      return json({ success: true, inspect: out }, 200, headers);
+    } catch (err) {
+      return json({ error: err.message, status: err.status || null }, 500, headers);
+    }
+  }
+
   const gameId = body.gameId;
   if (!gameId) return json({ error: 'gameId is required' }, 400, headers);
 
