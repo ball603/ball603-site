@@ -6,7 +6,13 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
 // Valid fields that can be updated via this endpoint
-const VALID_FIELDS = ['photog1', 'photog2', 'videog', 'writer', 'notes', 'schedule_changed', 'coverage_confirmed', 'scorebook_url'];
+/* photog1/photog2/videog/writer were removed from this list when coverage moved
+   to game_coverage_requests (NHIAA credential limits). Those columns are now a
+   MIRROR maintained solely by coverage-request.mjs; letting anything else PATCH
+   them directly is how the two would silently drift apart. Coverage changes go
+   through /.netlify/functions/coverage-request. */
+const VALID_FIELDS = ['notes', 'schedule_changed', 'coverage_confirmed', 'scorebook_url'];
+const MOVED_FIELDS = ['photog1', 'photog2', 'videog', 'writer'];
 
 export default async (request) => {
   const corsHeaders = {
@@ -45,6 +51,15 @@ export default async (request) => {
       });
     }
     
+    if (MOVED_FIELDS.includes(field)) {
+      return new Response(JSON.stringify({
+        error: 'Coverage is now assigned through coverage-request (NHIAA limits). This endpoint no longer sets ' + field + '.'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
     if (!field || !VALID_FIELDS.includes(field)) {
       return new Response(JSON.stringify({ error: `Invalid field. Must be one of: ${VALID_FIELDS.join(', ')}` }), { 
         status: 400,

@@ -65,13 +65,18 @@ class ContributorSchedule {
       supabaseClient: null, // Pass supabase client for scorebook uploads
       apiEndpoints: {
         getGames: '/.netlify/functions/get-games',
-        updateAssignment: '/.netlify/functions/update-assignment'
+        updateAssignment: '/.netlify/functions/update-assignment',
+        coverageRequest: '/.netlify/functions/coverage-request'
       },
       ...config
     };
     
     this.allGames = [];
     this.allTeams = [];
+    // NHIAA limits how many of our people can be credentialed per game, so a
+    // claim is now a REQUEST. this.coverage holds, per game_id:
+    //   { limit, selected[], pendingCount, spotsLeft }
+    this.coverage = {};
     this.currentTab = 'all';
     // Set when a team is clicked on the coverage card: an exact-name filter, and
     // a holding slot for a click that lands before the games have loaded.
@@ -869,6 +874,10 @@ class ContributorSchedule {
       
       // Deduplicate inter-division games
       this.allGames = this.deduplicateGames(games);
+
+      // Pull request/selection state for these games. Never fatal: if it fails
+      // the schedule still renders, it just can't show request counts.
+      await this.loadCoverage();
       
       // Build unique team list for autocomplete
       const teamSet = new Set();
@@ -1184,25 +1193,26 @@ class ContributorSchedule {
     const game = this.allGames.find(g => g.game_id === gameId);
     if (!game) return;
     
-    const fieldsToRemove = [];
-    if (game.photog1 === me) fieldsToRemove.push('photog1');
-    if (game.photog2 === me) fieldsToRemove.push('photog2');
-    if (game.videog === me) fieldsToRemove.push('videog');
-    if (game.writer === me) fieldsToRemove.push('writer');
+    const iAmOnIt = game.photog1 === me || game.photog2 === me || game.videog === me || game.writer === me;
     
-    if (this.isAdmin() && fieldsToRemove.length === 0) {
+    if (this.isAdmin() && !iAmOnIt) {
       await this.acceptChange(gameId);
       return;
     }
     
     try {
-      for (const field of fieldsToRemove) {
-        await fetch(this.config.apiEndpoints.updateAssignment, {
-          method: 'POST',
-          headers: await this.authHeaders(),
-          body: JSON.stringify({ gameId, field, value: '' })
-        });
-        game[field] = '';
+      // Drop out through the request service so game_coverage_requests and the
+      // legacy columns stay in step.
+      if (iAmOnIt) {
+        await this.withdrawCoverage(gameId);
+        const fresh = this.coverage[gameId];
+        if (fresh) {
+          const names = (fresh.selected || []).map(r => r.name);
+          game.photog1 = names.includes(game.photog1) ? game.photog1 : '';
+          game.photog2 = names.includes(game.photog2) ? game.photog2 : '';
+          game.videog  = names.includes(game.videog)  ? game.videog  : '';
+          game.writer  = names.includes(game.writer)  ? game.writer  : '';
+        }
       }
       
       const stillHasAssignments = game.photog1 || game.photog2 || game.videog || game.writer;
@@ -1637,49 +1647,176 @@ class ContributorSchedule {
     }
   }
   
+  // ── Coverage requests ───────────────────────────────────────────────────
+  // NHIAA caps how many Ball 603 people can be credentialed for a game: 2 for
+  // regular season and most playoff rounds, 5 for finals and boys D-I
+  // basketball semis. Anyone may REQUEST a game. If the number of people who
+  // want it fits the cap, they are assigned automatically. If more want it than
+  // there are spots, KJ picks from the CMS.
+  async loadCoverage() {
+    try {
+      const ids = this.allGames.map(g => g.game_id).filter(Boolean);
+      if (!ids.length) { this.coverage = {}; return; }
+      const res = await fetch(this.config.apiEndpoints.coverageRequest, {
+        method: 'POST',
+        headers: await this.authHeaders(),
+        body: JSON.stringify({ action: 'status', gameIds: ids })
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      this.coverage = data.games || {};
+    } catch (err) {
+      console.warn('Coverage status unavailable:', err);
+    }
+  }
+
+  cov(game) {
+    return this.coverage[game.game_id] || null;
+  }
+
+  // Did I already ask for this one?
+  myRequest(game) {
+    const me = this.getContributor();
+    const c = this.cov(game);
+    if (!me || !c) return null;
+    const sel = (c.selected || []).find(r => r.name === me);
+    if (sel) return { ...sel, status: 'selected' };
+    const pend = (c.pending || []).find(r => r.name === me);
+    if (pend) return { ...pend, status: 'requested' };
+    return null;
+  }
+
   renderClaimCell(game) {
     const me = this.getContributor();
     if (!me) return '';
-    
-    const canClaimPhotog = !game.photog1 || (!game.photog2 && game.photog1 !== me);
-    const canClaimVideo = !game.videog || game.videog !== me;
-    const canClaimWriter = !game.writer || game.writer !== me;
-    
-    if (!canClaimPhotog && !canClaimVideo && !canClaimWriter) return '';
-    
+    if (this.myRequest(game)) return '';   // already in - manage it from the coverage cell
+
     return `
       <div class="cs-claim-wrapper">
-        <button class="cs-claim-btn" data-game-id="${game.game_id}">&#10133;</button>
+        <button class="cs-claim-btn" data-game-id="${game.game_id}" title="Request to cover">&#10133;</button>
         <div class="cs-claim-dropdown" id="cs-dropdown-${game.game_id}">
-          ${!game.photog1 ? `<div class="cs-claim-option" data-game-id="${game.game_id}" data-field="photog1">&#128248; Photographer</div>` : ''}
-          ${game.photog1 && !game.photog2 && game.photog1 !== me ? `<div class="cs-claim-option" data-game-id="${game.game_id}" data-field="photog2">&#128248; Photographer 2</div>` : ''}
-          ${!game.videog ? `<div class="cs-claim-option" data-game-id="${game.game_id}" data-field="videog">&#127909; Videographer</div>` : ''}
-          ${!game.writer ? `<div class="cs-claim-option" data-game-id="${game.game_id}" data-field="writer">&#128221; Writer</div>` : ''}
+          <div class="cs-claim-option" data-game-id="${game.game_id}" data-role="photog">&#128248; Photographer</div>
+          <div class="cs-claim-option" data-game-id="${game.game_id}" data-role="videog">&#127909; Videographer</div>
+          <div class="cs-claim-option" data-game-id="${game.game_id}" data-role="writer">&#128221; Writer</div>
         </div>
       </div>
     `;
   }
-  
+
   renderCoverageCell(game) {
     const me = this.getContributor();
-    const items = [
-      { field: 'photog1', emoji: '&#128248;', name: game.photog1 },
-      { field: 'photog2', emoji: '&#128248;', name: game.photog2 },
-      { field: 'videog', emoji: '&#127909;', name: game.videog },
-      { field: 'writer', emoji: '&#128221;', name: game.writer }
-    ].filter(item => item.name);
-    
-    if (items.length === 0) return '<span style="color:#999">-</span>';
-    
-    return items.map(item => `
+    const c = this.cov(game);
+    const emoji = { photog: '&#128248;', videog: '&#127909;', writer: '&#128221;' };
+
+    // Fall back to the legacy columns if the request service is unreachable,
+    // so the schedule never renders blank coverage.
+    if (!c) {
+      const legacy = [
+        { field: 'photog1', emoji: emoji.photog, name: game.photog1 },
+        { field: 'photog2', emoji: emoji.photog, name: game.photog2 },
+        { field: 'videog',  emoji: emoji.videog, name: game.videog  },
+        { field: 'writer',  emoji: emoji.writer, name: game.writer  }
+      ].filter(x => x.name);
+      if (!legacy.length) return '<span style="color:#999">-</span>';
+      return legacy.map(x => `<div class="cs-coverage-entry"><span>${x.emoji}</span><span>${x.name}</span></div>`).join('');
+    }
+
+    const mine = this.myRequest(game);
+    let html = (c.selected || []).map(r => `
       <div class="cs-coverage-entry">
-        <span>${item.emoji}</span>
-        <span>${item.name}</span>
-        ${item.name === me ? `<button class="cs-coverage-remove" data-game-id="${game.game_id}" data-field="${item.field}">&#10005;</button>` : ''}
+        <span>${emoji[r.role] || ''}</span>
+        <span>${r.name}</span>
+        ${r.name === me ? `<button class="cs-coverage-remove" data-game-id="${game.game_id}" title="Withdraw">&#10005;</button>` : ''}
       </div>
     `).join('');
+
+    if (!html) html = '<span style="color:#999">-</span>';
+
+    // Pending requests are shown as a COUNT, not names.
+    const others = (c.pendingCount || 0) - (mine && mine.status === 'requested' ? 1 : 0);
+    if (mine && mine.status === 'requested') {
+      html += `
+        <div class="cs-coverage-entry" style="opacity:.75">
+          <span>${emoji[mine.role] || ''}</span>
+          <span style="font-style:italic">You requested &mdash; pending</span>
+          <button class="cs-coverage-remove" data-game-id="${game.game_id}" title="Withdraw request">&#10005;</button>
+        </div>`;
+    }
+    if (others > 0) {
+      html += `<div style="font-size:11px;color:#888;margin-top:2px">${others} other${others === 1 ? '' : 's'} requested</div>`;
+    }
+    return html;
   }
-  
+
+  // Request a game (replaces the old first-come-first-served claim)
+  async requestCoverage(gameId, role) {
+    const me = this.getContributor();
+    if (!me) { alert('Please select your name first'); return; }
+
+    if (this.openDropdown) {
+      this.openDropdown.classList.remove('show');
+      this.openDropdown = null;
+    }
+
+    try {
+      const res = await fetch(this.config.apiEndpoints.coverageRequest, {
+        method: 'POST',
+        headers: await this.authHeaders(),
+        body: JSON.stringify({
+          action: 'request',
+          gameId,
+          contributorId: this.config.contributorId || null,
+          contributorName: me,
+          role
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        this.showToast(data.error || 'Could not send request. Please try again.', 'error');
+        return;
+      }
+
+      this.coverage[gameId] = data;
+      this.renderGames();
+
+      // Say plainly which happened - assigned, or waiting on KJ.
+      const mineNow = (data.selected || []).some(r => r.name === me);
+      if (mineNow) {
+        this.showToast('You\u2019re covering this game!', 'success');
+      } else {
+        this.showToast(`Request sent \u2014 ${data.pendingCount} requested for ${data.limit} spot${data.limit === 1 ? '' : 's'}. KJ will pick.`, 'success');
+      }
+    } catch (err) {
+      this.showToast('Could not send request. Please try again.', 'error');
+    }
+  }
+
+  // Withdraw (covers both a pending request and an assigned slot)
+  async withdrawCoverage(gameId) {
+    const me = this.getContributor();
+    if (!me) return;
+    try {
+      const res = await fetch(this.config.apiEndpoints.coverageRequest, {
+        method: 'POST',
+        headers: await this.authHeaders(),
+        body: JSON.stringify({
+          action: 'withdraw',
+          gameId,
+          contributorId: this.config.contributorId || null,
+          contributorName: me
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { this.showToast(data.error || 'Could not withdraw.', 'error'); return; }
+      this.coverage[gameId] = data;
+      this.renderGames();
+      this.showToast('Removed', 'success');
+    } catch (err) {
+      this.showToast('Could not withdraw.', 'error');
+    }
+  }
+
   // Toggle claim dropdown
   toggleClaimDropdown(gameId) {
     const dropdown = this.container.querySelector(`#cs-dropdown-${gameId}`);
@@ -1693,59 +1830,10 @@ class ContributorSchedule {
     this.openDropdown = dropdown.classList.contains('show') ? dropdown : null;
   }
   
-  // Claim a game
-  async claim(gameId, field) {
-    const me = this.getContributor();
-    if (!me) {
-      alert('Please select your name first');
-      return;
-    }
-    
-    if (this.openDropdown) {
-      this.openDropdown.classList.remove('show');
-      this.openDropdown = null;
-    }
-    
-    try {
-      const response = await fetch(this.config.apiEndpoints.updateAssignment, {
-        method: 'POST',
-        headers: await this.authHeaders(),
-        body: JSON.stringify({ gameId, field, value: me })
-      });
-      
-      if (response.ok) {
-        const game = this.allGames.find(g => g.game_id === gameId);
-        if (game) game[field] = me;
-        this.renderGames();
-        this.showToast('Coverage claimed!', 'success');
-      } else {
-        this.showToast(await this.describeSaveFailure(response), 'error');
-      }
-    } catch (err) {
-      this.showToast('Error saving. Please try again.', 'error');
-    }
-  }
-  
-  // Remove a claim
-  async removeClaim(gameId, field) {
-    try {
-      const response = await fetch(this.config.apiEndpoints.updateAssignment, {
-        method: 'POST',
-        headers: await this.authHeaders(),
-        body: JSON.stringify({ gameId, field, value: '' })
-      });
-      
-      if (response.ok) {
-        const game = this.allGames.find(g => g.game_id === gameId);
-        if (game) game[field] = '';
-        this.renderGames();
-        this.showToast('Coverage removed', 'success');
-      }
-    } catch (err) {
-      this.showToast('Error removing. Please try again.', 'error');
-    }
-  }
-  
+  // claim()/removeClaim() were removed: they PATCHed photog1/photog2/videog/
+  // writer directly, which would now drift from game_coverage_requests.
+  // Coverage changes go through requestCoverage()/withdrawCoverage().
+
   // Update notes
   async updateNotes(gameId, value) {
     try {
@@ -1822,23 +1910,22 @@ document.addEventListener('click', (e) => {
     }
   }
   
-  // Claim option click
+  // Request-to-cover option click
   if (e.target.classList.contains('cs-claim-option')) {
     const gameId = e.target.dataset.gameId;
-    const field = e.target.dataset.field;
+    const role = e.target.dataset.role;
     const container = e.target.closest('[data-schedule-instance]');
     if (container && container._scheduleInstance) {
-      container._scheduleInstance.claim(gameId, field);
+      container._scheduleInstance.requestCoverage(gameId, role);
     }
   }
   
-  // Coverage remove click
+  // Withdraw click (pending request or assigned slot)
   if (e.target.classList.contains('cs-coverage-remove')) {
     const gameId = e.target.dataset.gameId;
-    const field = e.target.dataset.field;
     const container = e.target.closest('[data-schedule-instance]');
     if (container && container._scheduleInstance) {
-      container._scheduleInstance.removeClaim(gameId, field);
+      container._scheduleInstance.withdrawCoverage(gameId);
     }
   }
 });

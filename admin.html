@@ -1020,6 +1020,7 @@
       <button class="tab" onclick="showTab('schedule', event)">Schedule</button>
       <button class="tab" onclick="showTab('teams', event)">Teams</button>
       <button class="tab" onclick="showTab('contributors', event)">Contributors</button>
+      <button class="tab" onclick="showTab('coverage', event)">&#128197; Coverage Requests <span id="coverageBadge" style="display:none;background:#f57c00;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px;"></span></button>
       <button class="tab" onclick="showTab('board', event)">&#128227; Board</button>
       <button class="tab" onclick="showTab('sponsors', event)">Sponsors</button>
       <button class="tab" onclick="showTab('rosters', event)">Rosters</button>
@@ -1412,6 +1413,26 @@
 
     
     <!-- Schedule Panel -->
+    <!-- Coverage Requests: pick who covers when more people want a game than
+         NHIAA will credential (2 normally; 5 for finals and boys D-I hoop semis). -->
+    <div class="panel" id="coveragePanel" style="display: none;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+        <div>
+          <h2 style="margin:0;">Coverage Requests</h2>
+          <p style="margin:4px 0 0;color:#666;font-size:13px;">
+            Games where more people requested than there are credentials. Anything at or under the limit was assigned automatically.
+          </p>
+        </div>
+        <div>
+          <label style="font-size:13px;color:#555;margin-right:10px;">
+            <input type="checkbox" id="coverageShowAll" onchange="loadCoverageRequests()"> Show all upcoming games
+          </label>
+          <button class="btn" onclick="loadCoverageRequests()">Refresh</button>
+        </div>
+      </div>
+      <div id="coverageList"><p style="color:#888;">Loading&hellip;</p></div>
+    </div>
+
     <div class="panel" id="schedulePanel" style="display: none;">
       <div class="toolbar" style="flex-wrap: wrap; gap: 10px;">
         <button class="btn-new" onclick="openGameModal()">
@@ -10065,6 +10086,159 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       }
     }
 
+    // ========== COVERAGE REQUESTS ==========
+    // NHIAA limits credentials per game. Contributors request games; anything at
+    // or under the limit is auto-assigned by coverage-request.mjs. This panel is
+    // for the leftovers - games more people want than we have spots for.
+    const COVERAGE_ROLE = { photog: '\u{1F4F8} Photographer', videog: '\u{1F3A5} Videographer', writer: '\u{1F4DD} Writer' };
+
+    function coverageLimitFor(game) {
+      if (!game) return 2;
+      const round = String(game.round || '').trim();
+      if (game.is_playoff !== true) return 2;
+      if (round === 'Final') return 5;
+      if (round === 'Semis') {
+        if (String(game.sport || '').toLowerCase() === 'basketball'
+            && String(game.gender || '').trim().toLowerCase() === 'boys'
+            && String(game.division || '').trim().toUpperCase() === 'D-I') return 5;
+        return 2;
+      }
+      return 2;
+    }
+
+    async function loadCoverageRequests() {
+      const list = document.getElementById('coverageList');
+      const showAll = document.getElementById('coverageShowAll').checked;
+      list.innerHTML = '<p style="color:#888;">Loading&hellip;</p>';
+
+      try {
+        const today = new Date().toISOString().slice(0, 10);
+        const { data: reqs, error } = await db.from('game_coverage_requests').select('*');
+        if (error) throw error;
+
+        const gameIds = [...new Set((reqs || []).map(r => String(r.game_id)))];
+        if (!gameIds.length) {
+          list.innerHTML = '<p style="color:#888;">No coverage requests yet.</p>';
+          updateCoverageBadge(0); return;
+        }
+
+        const { data: games, error: gErr } = await db.from('games')
+          .select('game_id,date,time,home_team,away_team,home,away,sport,gender,division,is_playoff,round')
+          .in('game_id', gameIds);
+        if (gErr) throw gErr;
+
+        const byId = {};
+        (games || []).forEach(g => { byId[String(g.game_id)] = g; });
+
+        let rows = gameIds.map(id => {
+          const game = byId[id];
+          const mine = (reqs || []).filter(r => String(r.game_id) === id);
+          return {
+            id, game,
+            limit: coverageLimitFor(game),
+            selected: mine.filter(r => r.status === 'selected'),
+            pending:  mine.filter(r => r.status === 'requested')
+          };
+        }).filter(r => r.game);
+
+        const needing = rows.filter(r => r.pending.length > 0);
+        updateCoverageBadge(needing.filter(r => !r.game.date || r.game.date >= today).length);
+
+        rows = showAll
+          ? rows.filter(r => !r.game.date || r.game.date >= today)
+          : needing;
+
+        rows.sort((a, b) => String(a.game.date || '').localeCompare(String(b.game.date || '')));
+
+        if (!rows.length) {
+          list.innerHTML = showAll
+            ? '<p style="color:#888;">No upcoming games with requests.</p>'
+            : '<p style="color:#2e7d32;">Nothing to decide \u2014 every game is at or under its limit.</p>';
+          return;
+        }
+        list.innerHTML = rows.map(renderCoverageCard).join('');
+      } catch (err) {
+        console.error('Coverage load error:', err);
+        list.innerHTML = '<p style="color:#c00;">Could not load coverage requests: ' + (err.message || err) + '</p>';
+      }
+    }
+
+    function updateCoverageBadge(n) {
+      const b = document.getElementById('coverageBadge');
+      if (!b) return;
+      b.textContent = n;
+      b.style.display = n > 0 ? 'inline-block' : 'none';
+    }
+
+    function renderCoverageCard(row) {
+      const g = row.game;
+      const away = g.away || g.away_team || '';
+      const home = g.home || g.home_team || '';
+      const when = g.date ? new Date(g.date + 'T12:00:00').toLocaleDateString('en-US',
+        { weekday: 'short', month: 'short', day: 'numeric' }) : '';
+      const roundLabel = g.is_playoff ? (g.round || 'Playoff') : 'Regular season';
+      const full = row.selected.length >= row.limit;
+
+      const person = (r, isSelected) => `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;border:1px solid ${isSelected ? '#c8e6c9' : '#e0e0e0'};background:${isSelected ? '#f1f8f2' : '#fff'};border-radius:6px;margin-bottom:6px;">
+          <span style="font-size:13px;">
+            <strong>${r.contributor_name}</strong>
+            <span style="color:#777;margin-left:6px;">${COVERAGE_ROLE[r.role] || r.role}</span>
+          </span>
+          <button class="btn" style="padding:4px 10px;font-size:12px;${isSelected ? 'background:#ffebee;color:#c62828;' : (full ? 'opacity:.45;cursor:not-allowed;' : '')}"
+            ${(!isSelected && full) ? 'disabled' : ''}
+            onclick="decideCoverage('${String(row.id).replace(/'/g, "\\'")}', ${r.id}, '${isSelected ? 'unselect' : 'select'}')">
+            ${isSelected ? 'Remove' : 'Pick'}
+          </button>
+        </div>`;
+
+      return `
+        <div style="border:1px solid #e0e0e0;border-left:4px solid #f57c00;border-radius:8px;padding:14px;margin-bottom:14px;">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;">
+            <div>
+              <strong style="font-size:15px;">${away} at ${home}</strong>
+              <div style="color:#666;font-size:12px;margin-top:2px;">
+                ${when} &middot; ${g.gender || ''} ${g.division || ''} &middot; ${roundLabel}
+              </div>
+            </div>
+            <div style="font-size:12px;color:${full ? '#2e7d32' : '#c62828'};font-weight:600;">
+              ${row.selected.length} of ${row.limit} spot${row.limit === 1 ? '' : 's'} filled
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:12px;">
+            <div>
+              <div style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#2e7d32;margin-bottom:6px;">Covering</div>
+              ${row.selected.length ? row.selected.map(r => person(r, true)).join('') : '<div style="color:#999;font-size:13px;">Nobody yet</div>'}
+            </div>
+            <div>
+              <div style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#999;margin-bottom:6px;">Requested (${row.pending.length})</div>
+              ${row.pending.length ? row.pending.map(r => person(r, false)).join('') : '<div style="color:#999;font-size:13px;">None waiting</div>'}
+            </div>
+          </div>
+          ${full && row.pending.length ? '<div style="margin-top:10px;font-size:12px;color:#888;">All spots are full. Remove someone before picking another.</div>' : ''}
+        </div>`;
+    }
+
+    async function decideCoverage(gameId, requestId, action) {
+      try {
+        const res = await fetch('/.netlify/functions/coverage-request', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action, gameId, requestId })
+        });
+        const result = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          showToast(result.error || ('Error ' + res.status), 'error');
+          return;
+        }
+        showToast(action === 'select' ? 'Assigned' : 'Removed', 'success');
+        loadCoverageRequests();
+      } catch (err) {
+        console.error('decideCoverage error:', err);
+        showToast('Network error updating coverage', 'error');
+      }
+    }
+
     function showTab(tab, evt) {
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
       const evtTarget = evt?.target || (typeof event !== 'undefined' ? event?.target : null);
@@ -10076,6 +10250,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('schedulePanel').style.display = tab === 'schedule' ? 'block' : 'none';
       document.getElementById('teamsPanel').style.display = tab === 'teams' ? 'block' : 'none';
       document.getElementById('contributorsPanel').style.display = tab === 'contributors' ? 'block' : 'none';
+      document.getElementById('coveragePanel').style.display = tab === 'coverage' ? 'block' : 'none';
+      if (tab === 'coverage') loadCoverageRequests();
       document.getElementById('sponsorsPanel').style.display = tab === 'sponsors' ? 'block' : 'none';
       document.getElementById('rostersPanel').style.display = tab === 'rosters' ? 'block' : 'none';
       document.getElementById('bashPanel').style.display = tab === 'bash' ? 'block' : 'none';
