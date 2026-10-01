@@ -1509,9 +1509,9 @@ class ContributorSchedule {
             <th>Level</th>
             <th></th>
             <th>Coverage</th>
+            <th>Gallery</th>
             <th>&#9989;</th>
             <th>Scorebook</th>
-            <th>Gallery</th>
             <th>Notes</th>
           </tr>
         </thead>
@@ -1536,9 +1536,9 @@ class ContributorSchedule {
           <td>${game.level || ''}</td>
           <td class="cs-no-fade">${this.renderClaimCell(game)}</td>
           <td class="cs-coverage-cell cs-no-fade">${this.renderCoverageCell(game)}</td>
+          <td class="cs-gallery-cell cs-no-fade">${this.renderGalleryCell(game)}</td>
           <td class="cs-confirm-cell cs-no-fade">${this.renderConfirmCell(game)}</td>
           <td class="cs-scorebook-cell cs-no-fade">${this.renderScorebookCell(game)}</td>
-          <td class="cs-gallery-cell cs-no-fade">${this.renderGalleryCell(game)}</td>
           <td class="cs-no-fade"><input class="cs-notes-input" value="${game.notes || ''}" data-game-id="${game.game_id}" placeholder="Notes..."></td>
         </tr>
       `;
