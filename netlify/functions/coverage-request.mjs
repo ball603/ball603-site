@@ -7,6 +7,7 @@
 // story generation, galleries and reports keep working untouched. Only this
 // function writes them, so the two cannot drift.
 import { requireContributorOrCms, requireCmsKey, verifySupabaseUser, authHeaders, isOptions } from './lib/auth.mjs';
+import { sendEmail, coverageDecisionEmail } from './lib/email.mjs';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -416,7 +417,34 @@ export default async (request) => {
       // Deliberately NOT reconcile() here: an explicit unselect must stick,
       // otherwise auto-assign would immediately put the person back.
       await syncLegacyColumns(gameId, reqs);
-      return json({ success: true, ...summarize(game, reqs) }, 200, headers);
+
+      /* Tell the person. Best effort - they also see it in the portal, so a
+         mail failure must never undo a decision KJ already made. */
+      let emailed = false;
+      try {
+        if (target.contributor_id) {
+          const who = (await sb(`contributors?id=eq.${target.contributor_id}&select=name,email&limit=1`))?.[0];
+          const full = (await sb(`games?game_id=eq.${gid(gameId)}&select=date,home_team,away_team,gender,division,is_playoff,round&limit=1`))?.[0];
+          if (who && who.email) {
+            const r = await sendEmail({
+              to: who.email,
+              ...coverageDecisionEmail({
+                name: who.name,
+                decision: action === 'select' ? 'selected' : 'removed',
+                role: target.role,
+                away: full?.away_team, home: full?.home_team, date: full?.date,
+                gender: full?.gender, division: full?.division,
+                round: full?.is_playoff ? (full.round || 'Playoff') : null
+              })
+            });
+            emailed = r.sent;
+          }
+        }
+      } catch (err) {
+        console.error('Coverage decision email failed:', err.message);
+      }
+
+      return json({ success: true, emailed, ...summarize(game, reqs) }, 200, headers);
     }
 
     return json({ error: 'Invalid action. Use: status, cms-list, alerts, dismiss, request, withdraw, select, unselect, restore' }, 400, headers);

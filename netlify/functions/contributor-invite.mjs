@@ -1,5 +1,6 @@
 // netlify/functions/contributor-invite.mjs
 import { requireCmsKey, asLegacy } from './lib/auth.mjs';
+import { sendEmail, newAccountEmail, passwordResetEmail } from './lib/email.mjs';
 // Handles creating/deleting contributor accounts via Supabase Auth REST API
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -159,10 +160,19 @@ async function createAccount(data, headers) {
     return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to create contributor record' }) };
   }
 
+  // Best effort - the account exists either way, so a mail failure must not
+  // turn a successful creation into an error.
+  const mail = await sendEmail({ to: email, ...newAccountEmail({ name, email, password }) });
+
   return { 
     statusCode: 200, 
     headers, 
-    body: JSON.stringify({ success: true, message: `Account created for ${email}`, contributor: contributor?.[0] }) 
+    body: JSON.stringify({
+      success: true,
+      message: `Account created for ${email}` + (mail.sent ? ' and emailed to them' : ' (email not sent: ' + mail.reason + ')'),
+      emailed: mail.sent,
+      contributor: contributor?.[0]
+    }) 
   };
 }
 
@@ -248,16 +258,27 @@ async function createLoginForExisting(data, headers) {
     return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to link account to contributor' }) };
   }
 
+  const mail = await sendEmail({ to: email, ...newAccountEmail({ name: name || email, email, password }) });
+
   return { 
     statusCode: 200, 
     headers, 
-    body: JSON.stringify({ success: true, message: `Login linked for ${email}`, authUserId: userId }) 
+    body: JSON.stringify({
+      success: true,
+      message: `Login linked for ${email}` + (mail.sent ? ' and emailed to them' : ' (email not sent: ' + mail.reason + ')'),
+      emailed: mail.sent,
+      authUserId: userId
+    }) 
   };
 }
 
 // Set/reset password for existing auth user
 async function setPassword(data, headers) {
   const { authUserId, password } = data;
+  /* The CMS may send these; if not, find them from the auth id so the reset
+     email still goes out. */
+  let email = data.email || null;
+  let name  = data.name  || null;
 
   if (!authUserId || !password) {
     return { statusCode: 400, headers, body: JSON.stringify({ error: 'authUserId and password are required' }) };
@@ -277,10 +298,25 @@ async function setPassword(data, headers) {
     return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to set password: ' + (updateError?.message || 'Unknown error') }) };
   }
 
+  if (!email) {
+    const { data: rows } = await supabaseRest(
+      `contributors?auth_user_id=eq.${encodeURIComponent(authUserId)}&select=name,email&limit=1`
+    );
+    if (rows && rows[0]) { email = rows[0].email; name = name || rows[0].name; }
+  }
+
+  const mail = email
+    ? await sendEmail({ to: email, ...passwordResetEmail({ name: name || email, email, password }) })
+    : { sent: false, reason: 'no email on file' };
+
   return { 
     statusCode: 200, 
     headers, 
-    body: JSON.stringify({ success: true, message: 'Password updated successfully' }) 
+    body: JSON.stringify({
+      success: true,
+      message: 'Password updated' + (mail.sent ? ' and emailed to them' : ' (email not sent: ' + mail.reason + ')'),
+      emailed: mail.sent
+    }) 
   };
 }
 
