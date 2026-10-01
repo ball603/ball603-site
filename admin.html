@@ -1027,6 +1027,7 @@
       <button class="tab" onclick="showTab('schedule', event)">Schedule</button>
       <button class="tab" onclick="showTab('teams', event)">Teams</button>
       <button class="tab" onclick="showTab('contributors', event)">Contributors</button>
+      <button class="tab" onclick="showTab('onboarding', event)">&#128203; Onboarding <span id="onboardingBadge" style="display:none;background:#f57c00;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px;"></span></button>
       <button class="tab" onclick="showTab('coverage', event)">&#128197; Coverage Requests <span id="coverageBadge" style="display:none;background:#f57c00;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px;"></span></button>
       <button class="tab" onclick="showTab('board', event)">&#128227; Board</button>
       <button class="tab" onclick="showTab('sponsors', event)">Sponsors</button>
@@ -1422,6 +1423,22 @@
     <!-- Schedule Panel -->
     <!-- Coverage Requests: pick who covers when more people want a game than
          NHIAA will credential (2 normally; 5 for finals and boys D-I hoop semis). -->
+    <div class="panel" id="onboardingPanelTab" style="display: none;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+        <div>
+          <h2 style="margin:0;">Onboarding</h2>
+          <p style="margin:4px 0 0;color:#666;font-size:13px;">Who still owes what. Items marked <strong>yours</strong> are waiting on you, not them.</p>
+        </div>
+        <div>
+          <label style="font-size:13px;color:#555;margin-right:10px;">
+            <input type="checkbox" id="onboardingShowAll" onchange="loadOnboardingOverview()"> Show everyone
+          </label>
+          <button class="btn" onclick="loadOnboardingOverview()">Refresh</button>
+        </div>
+      </div>
+      <div id="onboardingOverview"><p style="color:#888;">Loading&hellip;</p></div>
+    </div>
+
     <div class="panel" id="coveragePanel" style="display: none;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
         <div>
@@ -4035,6 +4052,13 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             </div>
           </div>
           
+          <!-- Onboarding checklist -->
+          <div id="contribOnboarding" style="background:#fff8ef;border:1px solid #ffd79a;border-radius:8px;padding:14px 15px;margin-bottom:15px;">
+            <label style="font-size:13px;font-weight:600;color:#8a5a00;display:block;margin-bottom:3px;">Onboarding checklist</label>
+            <p style="font-size:12px;color:#777;margin:0 0 10px;">Ticked items appear on their portal dashboard until they're done.</p>
+            <div id="contribOnboardingList" style="font-size:13px;">Save the contributor first.</div>
+          </div>
+
           <!-- Auth Status -->
           <div id="contribAuthStatus" style="background: #e8f5e9; border-radius: 8px; padding: 15px; margin-bottom: 15px; display: none;">
             <label style="font-size: 13px; font-weight: 600; color: #2e7d32; display: block; margin-bottom: 5px;">&#x2714; Account Created</label>
@@ -8674,6 +8698,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       checkCoveragePending();
       setInterval(checkCoveragePending, 5 * 60 * 1000);
       loadEmailBar();
+      checkOnboardingPending();
 
       // Initialize TipTap editor
       setTimeout(() => {
@@ -10390,6 +10415,155 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       }
     }
 
+    // ---- overview: who is stalled ----
+    async function loadOnboardingOverview() {
+      const box = document.getElementById('onboardingOverview');
+      const showAll = document.getElementById('onboardingShowAll')?.checked;
+      if (box) box.innerHTML = '<p style="color:#888;">Loading&hellip;</p>';
+
+      let data;
+      try { data = await onboardingCall({ action: 'overview' }); }
+      catch (err) {
+        if (box) box.innerHTML = '<p style="color:#c00;">Could not load: ' + err.message + '</p>';
+        return;
+      }
+
+      updateOnboardingBadge(data.stalled || 0);
+      const rows = (data.rows || []).filter(r => showAll || r.pending.length > 0);
+
+      if (!box) return;
+      if (!rows.length) {
+        box.innerHTML = showAll
+          ? '<p style="color:#888;">Nobody has a checklist yet.</p>'
+          : '<p style="color:#2e7d32;">Everyone is finished. Nothing outstanding.</p>';
+        return;
+      }
+
+      box.innerHTML = rows.map(r => {
+        const pct = r.total ? Math.round((r.done / r.total) * 100) : 0;
+        const theirs = r.pending.filter(p => p.owner !== 'admin');
+        const mine   = r.pending.filter(p => p.owner === 'admin');
+        const chip = (p, isMine) => `<span style="display:inline-block;background:${isMine ? '#fdecea' : '#f3f3f3'};border:1px solid ${isMine ? '#f5c2c0' : '#e0e0e0'};border-radius:4px;padding:2px 7px;font-size:11px;margin:2px 4px 2px 0;">${p.label}${isMine ? ' <strong>&middot; yours</strong>' : ''}</span>`;
+        return `
+          <div style="border:1px solid #e0e0e0;border-left:4px solid ${r.pending.length ? '#f57c00' : '#2e7d32'};border-radius:8px;padding:12px 14px;margin-bottom:10px;">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;">
+              <strong style="font-size:14px;">${r.name}</strong>
+              <span style="font-size:12px;color:#666;">${r.done} of ${r.total} done${r.pending.length ? '' : ' &#10003;'}</span>
+            </div>
+            <div style="background:#eee;border-radius:3px;height:5px;margin:7px 0 9px;overflow:hidden;">
+              <div style="background:${pct === 100 ? '#2e7d32' : '#f57c00'};height:100%;width:${pct}%;"></div>
+            </div>
+            ${mine.length   ? `<div style="margin-bottom:3px;">${mine.map(p => chip(p, true)).join('')}</div>` : ''}
+            ${theirs.length ? `<div>${theirs.map(p => chip(p, false)).join('')}</div>` : ''}
+          </div>`;
+      }).join('');
+    }
+
+    function updateOnboardingBadge(n) {
+      const b = document.getElementById('onboardingBadge');
+      if (!b) return;
+      b.textContent = n;
+      b.style.display = n > 0 ? 'inline-block' : 'none';
+    }
+
+    async function checkOnboardingPending() {
+      try {
+        const data = await onboardingCall({ action: 'overview' });
+        updateOnboardingBadge(data.stalled || 0);
+      } catch (err) { /* advisory only */ }
+    }
+
+    // ========== ONBOARDING (CMS) ==========
+    const ONBOARDING_API = '/.netlify/functions/onboarding';
+    let onboardingCatalogue = [];
+
+    async function onboardingCall(payload) {
+      // The CMS key is attached by the global fetch interceptor.
+      const res = await fetch(ONBOARDING_API, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || ('HTTP ' + res.status));
+      return body;
+    }
+
+    function contributorRoles() {
+      const r = [];
+      if (document.getElementById('contribIsPhotographer')?.checked) r.push('photographer');
+      if (document.getElementById('contribIsVideographer')?.checked) r.push('videographer');
+      if (document.getElementById('contribIsWriter')?.checked)       r.push('writer');
+      return r;
+    }
+
+    async function renderContribOnboarding(contributorId) {
+      const box = document.getElementById('contribOnboardingList');
+      if (!box) return;
+
+      if (!contributorId) {
+        box.innerHTML = '<span style="color:#999;">Save the contributor first, then their checklist appears here.</span>';
+        return;
+      }
+      box.innerHTML = '<span style="color:#888;">Loading&hellip;</span>';
+
+      try {
+        if (!onboardingCatalogue.length) {
+          onboardingCatalogue = (await onboardingCall({ action: 'tasks' })).tasks || [];
+        }
+        const mine = (await onboardingCall({ action: 'status', contributorId })).items || [];
+        const byKey = {}; mine.forEach(i => { byKey[i.task_key] = i; });
+        const roles = contributorRoles();
+
+        box.innerHTML = onboardingCatalogue.map(t => {
+          const item = byKey[t.task_key];
+          const assigned = !!item;
+          const done = item && item.status !== 'pending';
+          const suggested = !t.roles?.length || t.roles.some(r => roles.includes(r));
+          return `
+            <div style="display:flex;align-items:flex-start;gap:9px;padding:6px 0;border-top:1px solid #f0e0c8;">
+              <input type="checkbox" class="contrib-ob-task" data-key="${t.task_key}"
+                     ${assigned ? 'checked' : ''} ${done ? 'disabled' : ''}
+                     style="margin-top:3px;width:15px;height:15px;cursor:${done ? 'not-allowed' : 'pointer'};">
+              <div style="flex:1;line-height:1.4;">
+                <strong style="${done ? 'color:#2e7d32;' : ''}">${t.label}</strong>
+                ${done ? '<span style="color:#2e7d32;font-size:11px;margin-left:6px;">&#10003; done</span>' : ''}
+                ${t.owner === 'admin' ? '<span style="background:#eee;color:#666;font-size:10px;padding:1px 5px;border-radius:3px;margin-left:6px;">yours</span>' : ''}
+                ${!assigned && suggested ? '<span style="color:#f57c00;font-size:11px;margin-left:6px;">suggested</span>' : ''}
+                ${t.detail ? `<div style="color:#888;font-size:12px;">${t.detail}</div>` : ''}
+              </div>
+              ${(t.owner === 'admin' && assigned && !done)
+                ? `<button type="button" class="btn" style="padding:2px 9px;font-size:11px;"
+                     onclick="markAdminTaskDone(${contributorId}, '${t.task_key}')">Mark done</button>` : ''}
+            </div>`;
+        }).join('');
+      } catch (err) {
+        box.innerHTML = '<span style="color:#c00;">Could not load the checklist: ' + err.message + '</span>';
+      }
+    }
+
+    async function markAdminTaskDone(contributorId, taskKey) {
+      try {
+        await onboardingCall({ action: 'complete', contributorId, taskKey });
+        showToast('Marked done', 'success');
+        renderContribOnboarding(contributorId);
+      } catch (err) {
+        showToast(err.message || 'Could not update', 'error');
+      }
+    }
+
+    /* Called after a contributor is saved. Sends whatever is ticked; a task
+       already completed is never removed, so this is safe to call every save. */
+    async function saveContribOnboarding(contributorId) {
+      if (!contributorId) return;
+      const boxes = [...document.querySelectorAll('.contrib-ob-task')];
+      // Nothing rendered (e.g. brand new contributor) -> let the server pick by role
+      const payload = boxes.length
+        ? { action: 'assign', contributorId, taskKeys: boxes.filter(b => b.checked).map(b => b.dataset.key) }
+        : { action: 'assign', contributorId };
+      try { await onboardingCall(payload); }
+      catch (err) { console.error('Onboarding assign failed:', err); showToast('Saved, but the checklist did not update: ' + err.message, 'error'); }
+    }
+
     function showTab(tab, evt) {
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
       const evtTarget = evt?.target || (typeof event !== 'undefined' ? event?.target : null);
@@ -10403,6 +10577,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('contributorsPanel').style.display = tab === 'contributors' ? 'block' : 'none';
       document.getElementById('coveragePanel').style.display = tab === 'coverage' ? 'block' : 'none';
       if (tab === 'coverage') loadCoverageRequests();
+      document.getElementById('onboardingPanelTab').style.display = tab === 'onboarding' ? 'block' : 'none';
+      if (tab === 'onboarding') loadOnboardingOverview();
       document.getElementById('sponsorsPanel').style.display = tab === 'sponsors' ? 'block' : 'none';
       document.getElementById('rostersPanel').style.display = tab === 'rosters' ? 'block' : 'none';
       document.getElementById('bashPanel').style.display = tab === 'bash' ? 'block' : 'none';
@@ -18621,6 +18797,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       // Show auth status if they have an auth account
       document.getElementById('contribAuthStatus').style.display = contrib.auth_user_id ? 'block' : 'none';
       document.getElementById('contribAuthUserId').value = contrib.auth_user_id || '';
+      renderContribOnboarding(contrib.id || null);
       document.getElementById('resetContribPwStatus').textContent = '';
     }
 
@@ -18885,6 +19062,11 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         return;
       }
       
+      // Save the checklist before closing. A new contributor has no id until
+      // now, so this is the first moment the checklist can be attached.
+      const savedId = id || result.contributor?.id || result.id || null;
+      await saveContribOnboarding(savedId);
+
       closeContributorModal();
       loadContributors();
       showToast('Contributor saved!', 'success');

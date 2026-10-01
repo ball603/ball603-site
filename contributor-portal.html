@@ -270,6 +270,9 @@
         <button class="nav-link" onclick="window.open('https://www.smugmug.com/upload/options', 'smugmugUpload', 'width=1200,height=800,scrollbars=yes,resizable=yes')">
           <span class="nav-icon">📸</span> Upload Full Gallery
         </button>
+        <button class="nav-link" id="navHandbook" onclick="showView('handbook')">
+          <span class="nav-icon">&#128214;</span> Handbook
+        </button>
         <button class="nav-link" id="navProfile" onclick="showView('profile')">
           <span class="nav-icon">👤</span> Edit Profile
         </button>
@@ -286,6 +289,17 @@
     
     <!-- Dashboard View -->
     <div class="view active" id="dashboardView">
+      <!-- Outstanding onboarding steps. Hidden entirely once there are none,
+           so it never becomes permanent furniture. -->
+      <div id="onboardingPanel" style="display:none;background:#fff8ef;border:1px solid #ffd79a;border-left:4px solid #f57c00;border-radius:8px;padding:16px 18px;margin-bottom:18px;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;">
+          <h2 style="margin:0;font-size:16px;">Getting started</h2>
+          <span id="onboardingCount" style="font-size:12px;color:#8a5a00;"></span>
+        </div>
+        <p style="margin:4px 0 12px;font-size:13px;color:#666;">A few things to finish before you're all set.</p>
+        <div id="onboardingList"></div>
+      </div>
+
       <div class="dashboard-welcome">
         <h1>Welcome back, <span id="welcomeName"></span>!</h1>
         <p>Here's your coverage overview</p>
@@ -324,6 +338,16 @@
     </div>
     
     <!-- Profile View -->
+
+    <div class="view" id="handbookView">
+      <div class="dashboard-welcome">
+        <h1>Handbook</h1>
+        <p>Everything you need, in one place. Nothing here changes without KJ updating it.</p>
+      </div>
+      <div id="handbookNav" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;"></div>
+      <div id="handbookBody" style="background:#fff;border:1px solid #e5e5e5;border-radius:8px;padding:20px 22px;line-height:1.6;"></div>
+    </div>
+
     <div class="view" id="profileView">
       <div class="section">
         <div class="section-header">
@@ -833,6 +857,135 @@
     });
     
     // View Management
+    // ========== ONBOARDING + HANDBOOK ==========
+    const ONBOARDING_API = '/.netlify/functions/onboarding';
+
+    async function onboardingCall(payload) {
+      const headers = { 'Content-Type': 'application/json' };
+      try {
+        const { data } = await db.auth.getSession();
+        const token = data?.session?.access_token;
+        if (token) headers['Authorization'] = 'Bearer ' + token;
+      } catch (e) { /* unauthenticated call will be refused, which is correct */ }
+      const res = await fetch(ONBOARDING_API, { method: 'POST', headers, body: JSON.stringify(payload) });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || ('HTTP ' + res.status));
+      return body;
+    }
+
+    /* A deliberately small formatter. The body is escaped FIRST, so nothing a
+       page author types can inject markup - only these few patterns become
+       HTML afterwards. */
+    function renderHandbookBody(text) {
+      const esc = String(text || '')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+      const lines = esc.split(/\r?\n/);
+      let out = '', inList = false;
+
+      const inline = (t) => t
+        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+        .replace(/\b(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:#f57c00;">$1</a>')
+        .replace(/\b([\w.+-]+@[\w-]+\.[\w.]+)\b/g, '<a href="mailto:$1" style="color:#f57c00;">$1</a>');
+
+      for (const raw of lines) {
+        const line = raw.trim();
+        if (line.startsWith('## ')) {
+          if (inList) { out += '</ul>'; inList = false; }
+          out += '<h3 style="margin:18px 0 8px;font-size:15px;">' + inline(line.slice(3)) + '</h3>';
+        } else if (line.startsWith('- ')) {
+          if (!inList) { out += '<ul style="margin:6px 0 10px;padding-left:20px;">'; inList = true; }
+          out += '<li style="margin-bottom:4px;">' + inline(line.slice(2)) + '</li>';
+        } else if (!line) {
+          if (inList) { out += '</ul>'; inList = false; }
+        } else {
+          if (inList) { out += '</ul>'; inList = false; }
+          out += '<p style="margin:0 0 10px;">' + inline(line) + '</p>';
+        }
+      }
+      if (inList) out += '</ul>';
+      return out;
+    }
+
+    let handbookPages = [];
+
+    async function loadHandbook() {
+      const nav = document.getElementById('handbookNav');
+      const bodyEl = document.getElementById('handbookBody');
+      if (!nav || !bodyEl) return;
+      if (handbookPages.length) return;              // already loaded
+
+      bodyEl.innerHTML = '<p style="color:#888;">Loading&hellip;</p>';
+      try {
+        const data = await onboardingCall({ action: 'resources' });
+        handbookPages = data.pages || [];
+      } catch (err) {
+        bodyEl.innerHTML = '<p style="color:#c00;">Could not load the handbook: ' + err.message + '</p>';
+        return;
+      }
+      if (!handbookPages.length) {
+        bodyEl.innerHTML = '<p style="color:#888;">Nothing here yet.</p>';
+        return;
+      }
+      nav.innerHTML = handbookPages.map((p, i) =>
+        `<button class="nav-link" data-slug="${p.slug}" onclick="showHandbookPage('${p.slug}')"
+           style="${i === 0 ? 'background:#f57c00;color:#fff;' : ''}">${p.title}</button>`).join('');
+      showHandbookPage(handbookPages[0].slug);
+    }
+
+    function showHandbookPage(slug) {
+      const page = handbookPages.find(p => p.slug === slug);
+      if (!page) return;
+      document.querySelectorAll('#handbookNav .nav-link').forEach(b => {
+        const on = b.dataset.slug === slug;
+        b.style.background = on ? '#f57c00' : '#f5f5f5';
+        b.style.color = on ? '#fff' : '#555';
+      });
+      document.getElementById('handbookBody').innerHTML =
+        `<h2 style="margin:0 0 4px;font-size:18px;">${page.title}</h2>` +
+        (page.summary ? `<p style="margin:0 0 14px;color:#777;font-size:13px;">${page.summary}</p>` : '') +
+        renderHandbookBody(page.body);
+    }
+
+    async function loadOnboarding() {
+      const panel = document.getElementById('onboardingPanel');
+      const list = document.getElementById('onboardingList');
+      const count = document.getElementById('onboardingCount');
+      if (!panel || !list) return;
+
+      let data;
+      try { data = await onboardingCall({ action: 'status' }); }
+      catch (err) { console.warn('Onboarding unavailable:', err.message); return; }
+
+      const open = data.outstanding || [];
+      if (!open.length) { panel.style.display = 'none'; return; }
+
+      count.textContent = open.length + ' to go';
+      list.innerHTML = open.map(t => `
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-top:1px solid #f0e0c8;">
+          <input type="checkbox" id="ob-${t.task_key}" onchange="completeOnboarding('${t.task_key}')"
+                 style="margin-top:3px;width:16px;height:16px;cursor:pointer;">
+          <label for="ob-${t.task_key}" style="cursor:pointer;font-size:13px;line-height:1.45;">
+            <strong>${t.label}</strong>
+            ${t.detail ? `<div style="color:#777;margin-top:1px;">${t.detail}</div>` : ''}
+          </label>
+        </div>`).join('');
+      panel.style.display = 'block';
+    }
+
+    async function completeOnboarding(taskKey) {
+      const box = document.getElementById('ob-' + taskKey);
+      if (box) box.disabled = true;
+      try {
+        await onboardingCall({ action: 'complete', taskKey });
+        showToast('Nice — one less thing', 'success');
+        loadOnboarding();
+      } catch (err) {
+        if (box) { box.checked = false; box.disabled = false; }
+        showToast(err.message || 'Could not save that', 'error');
+      }
+    }
+
     function showView(viewName) {
       document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
       document.querySelectorAll('.nav-link').forEach(n => n.classList.remove('active'));
@@ -841,8 +994,9 @@
       const navBtn = document.getElementById('nav' + viewName.charAt(0).toUpperCase() + viewName.slice(1));
       if (navBtn) navBtn.classList.add('active');
       
-      if (viewName === 'dashboard') loadDashboardData();
+      if (viewName === 'dashboard') { loadDashboardData(); loadOnboarding(); }
       if (viewName === 'schedule') initScheduleIfNeeded();
+      if (viewName === 'handbook') loadHandbook();
     }
     
     // Initialize schedule module when needed
@@ -1136,6 +1290,7 @@
         document.getElementById('welcomeName').textContent = contributor.name.split(' ')[0];
         showMainScreen();
         loadDashboardData();
+        loadOnboarding();   // first thing they see after logging in
         
       } catch (err) {
         console.error('Error loading profile:', err);
