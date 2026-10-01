@@ -6,7 +6,7 @@
 // photog1/photog2/videog/writer columns on `games` are kept as a MIRROR so
 // story generation, galleries and reports keep working untouched. Only this
 // function writes them, so the two cannot drift.
-import { requireContributorOrCms, requireCmsKey, authHeaders, isOptions } from './lib/auth.mjs';
+import { requireContributorOrCms, requireCmsKey, verifySupabaseUser, authHeaders, isOptions } from './lib/auth.mjs';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -223,16 +223,33 @@ export default async (request) => {
         if (!resolvedId) return json({ error: 'Could not identify your contributor record. Contact an admin.' }, 400, headers);
         // Upsert keyed on (game_id, contributor_id): re-requesting changes role,
         // it never creates a duplicate or silently drops the person.
-        await sb('game_coverage_requests?on_conflict=game_id,contributor_id', {
-          method: 'POST',
-          headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
-          body: JSON.stringify({
-            game_id: String(gameId),
-            contributor_id: resolvedId,
-            contributor_name: contributorName,
-            role
-          })
-        });
+        const existing = (await sb(`game_coverage_requests?game_id=eq.${gid(gameId)}&contributor_id=eq.${resolvedId}&select=id,status&limit=1`))?.[0];
+
+        if (existing && existing.status === 'selected') {
+          // Already covering it - a re-request only changes the role. Blindly
+          // upserting status:'requested' here would demote them.
+          await sb(`game_coverage_requests?id=eq.${existing.id}`, {
+            method: 'PATCH', headers: { Prefer: 'return=minimal' },
+            body: JSON.stringify({ role })
+          });
+        } else if (existing) {
+          // Revives a row KJ had marked 'removed', and clears its stale alert.
+          await sb(`game_coverage_requests?id=eq.${existing.id}`, {
+            method: 'PATCH', headers: { Prefer: 'return=minimal' },
+            body: JSON.stringify({ role, status: 'requested', decided_by: null, decided_at: null, decision_seen_at: null })
+          });
+        } else {
+          await sb('game_coverage_requests', {
+            method: 'POST', headers: { Prefer: 'return=minimal' },
+            body: JSON.stringify({
+              game_id: String(gameId),
+              contributor_id: resolvedId,
+              contributor_name: contributorName,
+              role,
+              status: 'requested'
+            })
+          });
+        }
       } else {
         if (resolvedId) {
           await sb(`game_coverage_requests?game_id=eq.${gid(gameId)}&contributor_id=eq.${resolvedId}`, { method: 'DELETE', headers: { Prefer: 'return=minimal' } });
@@ -244,6 +261,77 @@ export default async (request) => {
       let reqs = await loadRequests(gameId);
       reqs = await reconcile(gameId, game, reqs);
       return json({ success: true, ...summarize(game, reqs) }, 200, headers);
+    }
+
+    /* ---- a contributor's unseen decisions, and dismissing them ----
+       Only decisions KJ made ('cms') raise an alert. Auto-assignment does not:
+       the person clicked request and saw the result immediately. */
+    if (action === 'alerts' || action === 'dismiss') {
+      const denied = await requireContributorOrCms(request, body);
+      if (denied) return denied;
+
+      /* Identify the caller from their own session, NOT from the body, so one
+         contributor cannot read or clear another's alerts. The CMS may pass a
+         contributorId explicitly. */
+      let whoId = null;
+      const v = await verifySupabaseUser(request);
+      if (v.ok && v.user && v.user.email) {
+        const rows = await sb(`contributors?email=ilike.${encodeURIComponent(String(v.user.email).replace(/[%_,()]/g, ''))}&select=id&limit=1`);
+        whoId = rows?.[0]?.id || null;
+      }
+      if (!whoId && body.contributorId) {
+        // CMS-key callers only (a contributor token never gets here with a
+        // different id, because whoId above already resolved from their session).
+        const cmsDenied = await requireCmsKey(request, body);
+        if (!cmsDenied) whoId = body.contributorId;
+      }
+      if (!whoId) return json({ error: 'Could not identify your account' }, 403, headers);
+
+      if (action === 'dismiss') {
+        const ids = Array.isArray(body.requestIds) ? body.requestIds.filter(n => Number.isFinite(Number(n))).map(Number) : [];
+        const filter = ids.length
+          ? `id=in.(${ids.join(',')})&contributor_id=eq.${whoId}`   // scoped to them
+          : `contributor_id=eq.${whoId}&decision_seen_at=is.null`;  // clear all
+        await sb(`game_coverage_requests?${filter}`, {
+          method: 'PATCH', headers: { Prefer: 'return=minimal' },
+          body: JSON.stringify({ decision_seen_at: new Date().toISOString() })
+        });
+        return json({ success: true, dismissed: ids.length || 'all' }, 200, headers);
+      }
+
+      const unseen = (await sb(
+        `game_coverage_requests?contributor_id=eq.${whoId}&decision_seen_at=is.null&decided_by=eq.cms&select=*`
+      )) || [];
+      if (!unseen.length) return json({ success: true, alerts: [] }, 200, headers);
+
+      const ids = [...new Set(unseen.map(r => String(r.game_id)))];
+      const list = ids.map(x => `"${x.replace(/"/g, '')}"`).join(',');
+      const games = (await sb(`games?game_id=in.(${encodeURIComponent(list)})&select=game_id,date,time,home_team,away_team,gender,division,is_playoff,round`)) || [];
+      const byId = {}; games.forEach(g => { byId[String(g.game_id)] = g; });
+
+      const today = new Date().toISOString().slice(0, 10);
+      const alerts = unseen.map(r => {
+        const g = byId[String(r.game_id)];
+        if (!g) return null;
+        return {
+          requestId: r.id,
+          gameId: r.game_id,
+          decision: r.status === 'selected' ? 'selected' : 'removed',
+          role: r.role,
+          date: g.date,
+          home: g.home_team,
+          away: g.away_team,
+          gender: g.gender,
+          division: g.division,
+          round: g.is_playoff ? (g.round || 'Playoff') : null
+        };
+      })
+      .filter(Boolean)
+      // Nobody wants to log in to notices about games that already happened.
+      .filter(a => !a.date || a.date >= today)
+      .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
+
+      return json({ success: true, alerts }, 200, headers);
     }
 
     /* ---- KJ picks who covers (CMS only) ---- */
@@ -277,9 +365,13 @@ export default async (request) => {
         method: 'PATCH',
         headers: { Prefer: 'return=minimal' },
         body: JSON.stringify({
-          status: action === 'select' ? 'selected' : 'requested',
+          // 'removed' rather than back to 'requested': KJ took them off, so they
+          // are out of the running and auto-assign must not put them back. The
+          // row is kept so the alert has somewhere to live.
+          status: action === 'select' ? 'selected' : 'removed',
           decided_at: new Date().toISOString(),
-          decided_by: 'cms'
+          decided_by: 'cms',
+          decision_seen_at: null     // unseen -> contributor gets a banner
         })
       });
 
@@ -290,7 +382,7 @@ export default async (request) => {
       return json({ success: true, ...summarize(game, reqs) }, 200, headers);
     }
 
-    return json({ error: 'Invalid action. Use: status, cms-list, request, withdraw, select, unselect' }, 400, headers);
+    return json({ error: 'Invalid action. Use: status, cms-list, alerts, dismiss, request, withdraw, select, unselect' }, 400, headers);
 
   } catch (err) {
     console.error('coverage-request error:', err);

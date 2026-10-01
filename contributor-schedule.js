@@ -77,6 +77,7 @@ class ContributorSchedule {
     // claim is now a REQUEST. this.coverage holds, per game_id:
     //   { limit, selected[], pendingCount, spotsLeft }
     this.coverage = {};
+    this.decisionAlerts = [];
     this.currentTab = 'all';
     // Set when a team is clicked on the coverage card: an exact-name filter, and
     // a holding slot for a click that lands before the games have loaded.
@@ -878,6 +879,7 @@ class ContributorSchedule {
       // Pull request/selection state for these games. Never fatal: if it fails
       // the schedule still renders, it just can't show request counts.
       await this.loadCoverage();
+      await this.loadDecisionAlerts();
       
       // Build unique team list for autocomplete
       const teamSet = new Set();
@@ -1647,6 +1649,89 @@ class ContributorSchedule {
     }
   }
   
+  // ── Decision alerts ─────────────────────────────────────────────────────
+  // When KJ picks or drops someone, they find out here next time they open the
+  // portal. Only KJ's decisions appear; auto-assignment already showed a toast.
+  async loadDecisionAlerts() {
+    try {
+      const res = await fetch(this.config.apiEndpoints.coverageRequest, {
+        method: 'POST',
+        headers: await this.authHeaders(),
+        body: JSON.stringify({ action: 'alerts', contributorId: this.config.contributorId || null })
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      this.decisionAlerts = data.alerts || [];
+      this.renderDecisionAlerts();
+    } catch (err) {
+      console.warn('Decision alerts unavailable:', err);
+    }
+  }
+
+  renderDecisionAlerts() {
+    let box = this.container.querySelector('.cs-decision-alerts');
+    const alerts = this.decisionAlerts || [];
+
+    if (!alerts.length) { if (box) box.remove(); return; }
+
+    if (!box) {
+      box = document.createElement('div');
+      box.className = 'cs-decision-alerts';
+      box.style.cssText = 'margin-bottom:14px;';
+      this.container.insertBefore(box, this.container.firstChild);
+    }
+
+    const fmt = (a) => {
+      const d = a.date ? new Date(a.date + 'T12:00:00')
+        .toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : '';
+      const where = `${a.away} at ${a.home}`;
+      const tag = [a.gender, a.division, a.round].filter(Boolean).join(' ');
+      const picked = a.decision === 'selected';
+      const roleName = { photog: 'photographer', videog: 'videographer', writer: 'writer' }[a.role] || a.role;
+      return `
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:6px;margin-bottom:6px;
+             background:${picked ? '#edf7ed' : '#fdecea'};border:1px solid ${picked ? '#b7dfb9' : '#f5c2c0'};">
+          <span style="font-size:16px;line-height:1.2;">${picked ? '&#9989;' : '&#10060;'}</span>
+          <div style="flex:1;font-size:13px;line-height:1.45;">
+            <strong>${picked ? 'You&rsquo;re covering this game' : 'You&rsquo;re no longer on this game'}</strong>
+            <div>${where}${tag ? ' &middot; ' + tag : ''}${d ? ' &middot; ' + d : ''}</div>
+            <div style="color:#666;font-size:12px;margin-top:2px;">
+              ${picked ? 'Assigned as ' + roleName + '.' : 'KJ assigned someone else. Request it again if you still want it.'}
+            </div>
+          </div>
+          <button class="cs-alert-dismiss" data-request-id="${a.requestId}"
+            style="background:none;border:none;cursor:pointer;font-size:15px;color:#777;line-height:1;">&#10005;</button>
+        </div>`;
+    };
+
+    box.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <strong style="font-size:13px;">Coverage updates (${alerts.length})</strong>
+        ${alerts.length > 1 ? '<button class="cs-alert-dismiss-all" style="background:none;border:none;cursor:pointer;font-size:12px;color:#f57c00;text-decoration:underline;">Clear all</button>' : ''}
+      </div>
+      ${alerts.map(fmt).join('')}`;
+  }
+
+  async dismissDecisionAlert(requestId) {
+    const ids = requestId ? [Number(requestId)] : [];
+    // Clear locally first so the click feels immediate; a failure just means it
+    // reappears on the next load, which is better than pretending it cleared.
+    const before = this.decisionAlerts || [];
+    this.decisionAlerts = ids.length ? before.filter(a => Number(a.requestId) !== ids[0]) : [];
+    this.renderDecisionAlerts();
+    try {
+      const res = await fetch(this.config.apiEndpoints.coverageRequest, {
+        method: 'POST',
+        headers: await this.authHeaders(),
+        body: JSON.stringify({ action: 'dismiss', requestIds: ids, contributorId: this.config.contributorId || null })
+      });
+      if (!res.ok) { this.decisionAlerts = before; this.renderDecisionAlerts(); }
+    } catch (err) {
+      this.decisionAlerts = before;
+      this.renderDecisionAlerts();
+    }
+  }
+
   // ── Coverage requests ───────────────────────────────────────────────────
   // NHIAA caps how many Ball 603 people can be credentialed for a game: 2 for
   // regular season and most playoff rounds, 5 for finals and boys D-I
@@ -1926,6 +2011,20 @@ document.addEventListener('click', (e) => {
     const container = e.target.closest('[data-schedule-instance]');
     if (container && container._scheduleInstance) {
       container._scheduleInstance.requestCoverage(gameId, role);
+    }
+  }
+  
+  // Dismiss a coverage decision alert
+  if (e.target.classList.contains('cs-alert-dismiss')) {
+    const container = e.target.closest('[data-schedule-instance]');
+    if (container && container._scheduleInstance) {
+      container._scheduleInstance.dismissDecisionAlert(e.target.dataset.requestId);
+    }
+  }
+  if (e.target.classList.contains('cs-alert-dismiss-all')) {
+    const container = e.target.closest('[data-schedule-instance]');
+    if (container && container._scheduleInstance) {
+      container._scheduleInstance.dismissDecisionAlert(null);
     }
   }
   
