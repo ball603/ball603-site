@@ -1011,6 +1011,13 @@
         <button class="btn-logout" onclick="logout()">Logout</button>
       </div>
     </div>
+    <!-- Quick contributor email. Opens Mail with everyone BCC'd, so the note
+         comes from KJ rather than a noreply address, and nobody sees anyone
+         else's address. Recipient list is always ACTIVE contributors only. -->
+    <div class="header-inner" id="emailBar" style="padding-top:0;padding-bottom:10px;display:none;align-items:center;gap:10px;flex-wrap:wrap;">
+      <span style="font-size:13px;color:#555;">&#128231; Email</span>
+      <span id="emailBarLinks" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"></span>
+    </div>
   </div>
   
   <div class="main-container" id="mainContainer">
@@ -8666,6 +8673,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       // load, then a quiet re-check so it appears without a reload.
       checkCoveragePending();
       setInterval(checkCoveragePending, 5 * 60 * 1000);
+      loadEmailBar();
 
       // Initialize TipTap editor
       setTimeout(() => {
@@ -10284,6 +10292,101 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       } catch (err) {
         console.error('decideCoverage error:', err);
         showToast('Network error updating coverage', 'error');
+      }
+    }
+
+    // ========== QUICK CONTRIBUTOR EMAIL ==========
+    // Replaces the address-book group KJ kept by hand. The list is derived from
+    // the contributors table, so adding or deactivating someone updates it with
+    // no extra step. Always BCC, always active-only.
+    let emailBarPeople = [];
+
+    const EMAIL_GROUPS = [
+      { key: 'all',    label: 'ALL',      match: () => true },
+      { key: 'photog', label: 'PHOTOGS',  match: c => !!c.is_photographer },
+      { key: 'videog', label: 'VIDEOGS',  match: c => !!c.is_videographer },
+      { key: 'writer', label: 'WRITERS',  match: c => !!c.is_writer }
+    ];
+
+    function validEmail(e) {
+      return typeof e === 'string' && /^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(e.trim());
+    }
+
+    function emailGroupAddresses(key) {
+      const g = EMAIL_GROUPS.find(x => x.key === key);
+      if (!g) return [];
+      const seen = new Set();
+      return emailBarPeople
+        .filter(c => c.active && g.match(c) && validEmail(c.email))
+        .map(c => c.email.trim().toLowerCase())
+        .filter(e => (seen.has(e) ? false : (seen.add(e), true)))
+        .sort();
+    }
+
+    async function loadEmailBar() {
+      try {
+        const { data, error } = await db.from('contributors')
+          .select('name,email,active,is_photographer,is_videographer,is_writer');
+        if (error) throw error;
+        emailBarPeople = data || [];
+      } catch (err) {
+        console.warn('Email bar unavailable:', err);
+        return;
+      }
+      renderEmailBar();
+    }
+
+    function renderEmailBar() {
+      const bar = document.getElementById('emailBar');
+      const links = document.getElementById('emailBarLinks');
+      if (!bar || !links) return;
+
+      const parts = EMAIL_GROUPS.map(g => {
+        const n = emailGroupAddresses(g.key).length;
+        const dim = n === 0 ? 'opacity:.4;pointer-events:none;' : '';
+        return `<a href="#" onclick="emailGroup('${g.key}');return false;"
+                   title="${n} active contributor${n === 1 ? '' : 's'}"
+                   style="font-size:12px;letter-spacing:.3px;color:#f57c00;text-decoration:none;font-weight:600;${dim}">${g.label}<span style="color:#999;font-weight:400;"> (${n})</span></a>`;
+      });
+
+      links.innerHTML = parts.join('<span style="color:#ccc;">&middot;</span>') +
+        `<span style="color:#ccc;">&middot;</span>
+         <a href="#" onclick="copyEmailGroup();return false;"
+            style="font-size:12px;color:#777;text-decoration:underline;">copy addresses</a>`;
+      bar.style.display = 'flex';
+    }
+
+    function emailGroup(key) {
+      const addrs = emailGroupAddresses(key);
+      if (!addrs.length) { showToast('Nobody in that group', 'error'); return; }
+
+      const href = 'mailto:?bcc=' + encodeURIComponent(addrs.join(','));
+      /* mailto links have a practical length ceiling and a truncated BCC list
+         fails silently - you'd think everyone got it. Above a safe threshold,
+         hand over the clipboard instead of quietly dropping people. */
+      if (href.length > 1800) {
+        copyEmailGroup(key);
+        showToast(`That list is too long for Mail to open directly. ${addrs.length} addresses copied instead — paste into BCC.`, 'success');
+        return;
+      }
+      window.location.href = href;
+    }
+
+    async function copyEmailGroup(key) {
+      const k = key || 'all';
+      const addrs = emailGroupAddresses(k);
+      if (!addrs.length) { showToast('Nobody in that group', 'error'); return; }
+      const text = addrs.join(', ');
+      try {
+        await navigator.clipboard.writeText(text);
+        showToast(`${addrs.length} ${k === 'all' ? '' : k + ' '}addresses copied`, 'success');
+      } catch (err) {
+        // Clipboard API needs a secure context and can be blocked; fall back.
+        const ta = document.createElement('textarea');
+        ta.value = text; document.body.appendChild(ta); ta.select();
+        try { document.execCommand('copy'); showToast(addrs.length + ' addresses copied', 'success'); }
+        catch (e2) { showToast('Could not copy — check the console for the list', 'error'); console.log(text); }
+        ta.remove();
       }
     }
 
