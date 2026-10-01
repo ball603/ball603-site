@@ -323,6 +323,44 @@ export default async (request) => {
   const me = (await sb(`contributors?email=ilike.${encodeURIComponent(esc)}&select=id,name&limit=1`))?.[0];
   if (!me) return json({ error: 'Could not identify your account' }, 403, headers);
 
+  /* Dry run. Works out exactly what the real path would do for one game and
+     reports every intermediate value, without creating anything. */
+  if (body.action === 'dryrun') {
+    try {
+      const row = (await sb(
+        `games?game_id=eq.${gid(body.gameId)}&select=game_id,date,sport,season,away_team,home_team,is_playoff,round,home_seed,away_seed&limit=1`
+      ))?.[0];
+      if (!row) return json({ error: 'Game not found' }, 404, headers);
+      const g = { ...row, away: row.away_team, home: row.home_team };
+
+      const wantSport = sportFolder(g.sport);
+      const wantSeason = seasonFolder(g.sport, g.date, g.season);
+
+      const me2 = await smug('GET', '/api/v2!authuser');
+      const root = me2?.Response?.User?.Uris?.Node?.Uri;
+      const kids = await smug('GET', `${root}!children?count=200&Type=Folder`);
+      const nodes = kids?.Response?.Node || [];
+
+      return json({ success: true, dryrun: {
+        rawSport: g.sport,
+        rawSeason: g.season,
+        wantSport,
+        wantSportLower: JSON.stringify(wantSport.trim().toLowerCase()),
+        wantSeason,
+        galleryName: galleryName(g, me.name),
+        candidates: nodes.map(n => ({
+          name: n.Name,
+          nameLower: JSON.stringify(String(n.Name || '').trim().toLowerCase()),
+          urlName: n.UrlName,
+          matches: String(n.Name || '').trim().toLowerCase() === wantSport.trim().toLowerCase()
+        })),
+        matchFound: nodes.some(n => String(n.Name || '').trim().toLowerCase() === wantSport.trim().toLowerCase())
+      } }, 200, headers);
+    } catch (err) {
+      return json({ error: err.message, status: err.status || null }, 500, headers);
+    }
+  }
+
   /* Diagnostic. Reports what SmugMug actually returns when we ask for the
      top-level folders, which is the only way to see why a name match missed. */
   if (body.action === 'inspect') {
