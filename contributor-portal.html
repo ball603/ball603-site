@@ -892,14 +892,19 @@
         'schedule':       "showView('schedule')"
       };
 
+      /* ORDER MATTERS. The action replacement must run LAST.
+         Running it first produced an onclick attribute containing a URL, which
+         the auto-linker below then found and wrapped in a second <a>, spilling
+         raw HTML onto the page. Plain text has no attributes to corrupt, so
+         link the text first and inject the actions afterwards. */
       const inline = (t) => t
+        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+        .replace(/\b(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:#f57c00;">$1</a>')
+        .replace(/\b([\w.+-]+@[\w-]+\.[\w.]+)\b/g, '<a href="mailto:$1" style="color:#f57c00;">$1</a>')
         .replace(/\[\[([a-z0-9-]+)\|([^\]]+)\]\]/g, (m, key, label) =>
           ACTIONS[key]
             ? `<a href="#" onclick="${ACTIONS[key]};return false;" style="color:#f57c00;font-weight:600;">${label}</a>`
-            : label)
-        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-        .replace(/\b(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:#f57c00;">$1</a>')
-        .replace(/\b([\w.+-]+@[\w-]+\.[\w.]+)\b/g, '<a href="mailto:$1" style="color:#f57c00;">$1</a>');
+            : label);
 
       for (const raw of lines) {
         const line = raw.trim();
