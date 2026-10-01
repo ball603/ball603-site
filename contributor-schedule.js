@@ -17,6 +17,11 @@
  *   schedule.init();
  */
 
+// Galleries only exist for games from this date on. Everything before it was
+// uploaded by hand, under names this would not match - creating galleries for
+// those would leave a trail of empty duplicates on SmugMug.
+const FIRST_GALLERY_DATE = '2026-10-01';
+
 class ContributorSchedule {
   /* Turn a failed assignment write into something the person can act on.
      A blanket "Error saving. Please try again." sent someone retrying forever
@@ -74,7 +79,8 @@ class ContributorSchedule {
       apiEndpoints: {
         getGames: '/.netlify/functions/get-games',
         updateAssignment: '/.netlify/functions/update-assignment',
-        coverageRequest: '/.netlify/functions/coverage-request'
+        coverageRequest: '/.netlify/functions/coverage-request',
+        smugmugGallery: '/.netlify/functions/smugmug-gallery'
       },
       ...config
     };
@@ -1505,6 +1511,7 @@ class ContributorSchedule {
             <th>Coverage</th>
             <th>&#9989;</th>
             <th>Scorebook</th>
+            <th>Gallery</th>
             <th>Notes</th>
           </tr>
         </thead>
@@ -1531,6 +1538,7 @@ class ContributorSchedule {
           <td class="cs-coverage-cell cs-no-fade">${this.renderCoverageCell(game)}</td>
           <td class="cs-confirm-cell cs-no-fade">${this.renderConfirmCell(game)}</td>
           <td class="cs-scorebook-cell cs-no-fade">${this.renderScorebookCell(game)}</td>
+          <td class="cs-gallery-cell cs-no-fade">${this.renderGalleryCell(game)}</td>
           <td class="cs-no-fade"><input class="cs-notes-input" value="${game.notes || ''}" data-game-id="${game.game_id}" placeholder="Notes..."></td>
         </tr>
       `;
@@ -1568,6 +1576,11 @@ class ContributorSchedule {
     // Bind scorebook delete buttons
     tableContainer.querySelectorAll('.cs-scorebook-delete').forEach(btn => {
       btn.addEventListener('click', () => this.removeScorebook(btn.dataset.gameId));
+    });
+
+    // Bind gallery upload buttons
+    tableContainer.querySelectorAll('.cs-gallery-upload').forEach(btn => {
+      btn.addEventListener('click', () => this.openGallery(btn.dataset.gameId, btn));
     });
   }
   
@@ -1611,6 +1624,71 @@ class ContributorSchedule {
       return `<button class="cs-scorebook-view" data-game-id="${game.game_id}">VIEW</button><button class="cs-scorebook-delete" data-game-id="${game.game_id}" title="Remove scorebook">&#10005;</button>`;
     }
     return `<button class="cs-scorebook-upload" data-game-id="${game.game_id}" title="Upload Scorebook">&#128228;</button>`;
+  }
+
+  /* The photographer's own gallery for this game. Only the person actually
+     assigned to shoot it sees the button, and only on games from
+     FIRST_GALLERY_DATE on. The gallery itself is made on the first click,
+     never when the assignment happens - so nothing is created for a game
+     nobody ends up shooting. */
+  renderGalleryCell(game) {
+    if (String(game.date || '') < FIRST_GALLERY_DATE) return '';
+
+    /* Portal only. On contributors.html the person is picked from a dropdown
+       and the page signs in with the CMS password rather than a contributor
+       session - so the server, which takes identity from the session and not
+       from the page, could not honour a click here anyway. */
+    if (this.config.showContributorDropdown) return '';
+
+    const me = this.getContributor();
+    let isPhotog = false;
+
+    if (this.cov(game)) {
+      const mine = this.myRequest(game);
+      isPhotog = !!mine && mine.role === 'photog' && mine.status === 'selected';
+    } else {
+      // Coverage service unreachable. Fall back to the legacy columns so the
+      // button does not quietly vanish during an outage.
+      isPhotog = !!me && (game.photog1 === me || game.photog2 === me);
+    }
+    if (!isPhotog) return '';
+
+    return `<button class="cs-gallery-upload" data-game-id="${game.game_id}" title="Create or open your SmugMug gallery for this game">&#128248; UPLOAD</button>`;
+  }
+
+  async openGallery(gameId, btn) {
+    /* The tab has to be opened synchronously, inside the click, BEFORE any
+       await. Open it after the fetch resolves and the browser treats it as an
+       unprompted popup and blocks it. */
+    const tab = window.open('', '_blank');
+    const original = btn ? btn.innerHTML : '';
+    if (btn) { btn.disabled = true; btn.innerHTML = '&hellip;'; }
+
+    try {
+      const endpoint = (this.config.apiEndpoints && this.config.apiEndpoints.smugmugGallery)
+        || '/.netlify/functions/smugmug-gallery';
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: await this.authHeaders(),
+        body: JSON.stringify({ gameId })
+      });
+      let data = {};
+      try { data = await res.json(); } catch (e) { data = {}; }
+
+      if (!res.ok || !data.uploadUrl) {
+        if (tab) tab.close();
+        alert(data.error || 'Could not open your gallery. Try again in a minute.');
+        return;
+      }
+
+      if (tab) tab.location.href = data.uploadUrl;
+      else window.open(data.uploadUrl, '_blank');
+    } catch (err) {
+      if (tab) tab.close();
+      alert('Could not reach the server. Check your connection and try again.');
+    } finally {
+      if (btn) { btn.disabled = false; btn.innerHTML = original; }
+    }
   }
   
   renderDateCell(game, isToday = false) {
