@@ -40,8 +40,16 @@ class ContributorSchedule {
      one-liners. */
   async authHeaders() {
     const base = { 'Content-Type': 'application/json' };
-    const supabase = this.config.supabaseClient || window.supabase;
-    if (!supabase) return base;
+    /* window.supabase is the CDN LIBRARY (it has createClient), not a client
+       instance - it has no .auth. Falling back to it meant getSession() threw,
+       the catch swallowed it, and every call went out with no token and came
+       back 401. Only accept something that really is a client. */
+    const candidate = this.config.supabaseClient || window.supabase;
+    const supabase = (candidate && typeof candidate.auth?.getSession === 'function') ? candidate : null;
+    if (!supabase) {
+      if (candidate) console.error('ContributorSchedule: no Supabase client passed in; requests will be unauthenticated.');
+      return base;
+    }
     try {
       const { data } = await supabase.auth.getSession();
       const token = data?.session?.access_token;
