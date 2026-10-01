@@ -4010,7 +4010,12 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           <!-- Auth Status -->
           <div id="contribAuthStatus" style="background: #e8f5e9; border-radius: 8px; padding: 15px; margin-bottom: 15px; display: none;">
             <label style="font-size: 13px; font-weight: 600; color: #2e7d32; display: block; margin-bottom: 5px;">&#x2714; Account Created</label>
-            <p style="font-size: 12px; color: #666; margin: 0;">This contributor has a login account.</p>
+            <p style="font-size: 12px; color: #666; margin: 0 0 10px;">This contributor has a login account.</p>
+            <input type="hidden" id="contribAuthUserId">
+            <button type="button" onclick="resetContributorPassword()" id="resetContribPwBtn" style="background: #fff; color: #2e7d32; border: 1px solid #2e7d32; padding: 8px 14px; border-radius: 5px; cursor: pointer; font-size: 13px;">
+              Reset Password
+            </button>
+            <span id="resetContribPwStatus" style="margin-left: 10px; font-size: 12px;"></span>
           </div>
           
           <!-- Save -->
@@ -18288,6 +18293,63 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       
       // Show auth status if they have an auth account
       document.getElementById('contribAuthStatus').style.display = contrib.auth_user_id ? 'block' : 'none';
+      document.getElementById('contribAuthUserId').value = contrib.auth_user_id || '';
+      document.getElementById('resetContribPwStatus').textContent = '';
+    }
+
+    // Set a new password for a contributor who is locked out. Uses the existing
+    // 'set-password' action in contributor-invite.mjs, which was implemented but
+    // never had a button. The CMS key is attached by the global fetch interceptor.
+    async function resetContributorPassword() {
+      const authUserId = document.getElementById('contribAuthUserId').value;
+      const name = document.getElementById('contribName').value || 'this contributor';
+      const statusEl = document.getElementById('resetContribPwStatus');
+      const btn = document.getElementById('resetContribPwBtn');
+
+      if (!authUserId) {
+        showToast('This contributor has no login account yet.', 'error');
+        return;
+      }
+
+      const raw = prompt('Set a new password for ' + name + '.\n\nMinimum 6 characters. Give them this password and have them change it after logging in.');
+      if (raw === null) return;                   // cancelled
+      // Trim before BOTH validating and sending, so a pasted trailing space can't
+      // become part of the stored password and lock them out all over again.
+      const password = raw.trim();
+      if (password.length < 6) {
+        showToast('Password must be at least 6 characters.', 'error');
+        return;
+      }
+
+      btn.disabled = true;
+      statusEl.style.color = '#666';
+      statusEl.textContent = 'Updating...';
+
+      try {
+        const response = await fetch('/.netlify/functions/contributor-invite', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'set-password', authUserId: authUserId, password: password })
+        });
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+          statusEl.style.color = '#2e7d32';
+          statusEl.textContent = 'Password updated';
+          showToast('Password updated for ' + name, 'success');
+        } else {
+          statusEl.style.color = '#c00';
+          statusEl.textContent = 'Failed';
+          showToast('Error: ' + (result.error || ('HTTP ' + response.status)), 'error');
+        }
+      } catch (err) {
+        console.error('Reset password error:', err);
+        statusEl.style.color = '#c00';
+        statusEl.textContent = 'Failed';
+        showToast('Network error setting password', 'error');
+      } finally {
+        btn.disabled = false;
+      }
     }
     
     function closeContributorModal() {
