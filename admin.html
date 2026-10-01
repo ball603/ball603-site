@@ -13610,8 +13610,27 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     }
     
     // Helper function to get school info from ROSTERS_DATA
+    // Games tables store short team names that don't always match the ROSTERS_DATA
+    // keys. When the lookup missed, getSchoolInfo() returned null and the article
+    // dateline fell back to the TEAM name - so a game at St. Thomas Aquinas was
+    // datelined "ST. THOMAS AQUINAS, N.H." instead of "DOVER, N.H."
+    // Keep in sync with teams.shortname.
+    const SCHOOL_NAME_ALIASES = {
+      'St. Thomas Aquinas': 'Saint Thomas Aquinas',
+      'Portsmouth Christian': 'Portsmouth Christian at Dover'
+    };
+
+    // Co-op teams with no ROSTERS_DATA entry of their own. Town only, so the
+    // dateline is correct without borrowing one member school's mascot or colors.
+    const CO_OP_SCHOOL_INFO = {
+      'Central-West': { shortname: 'Central-West', town: 'Manchester' }
+    };
+
     function getSchoolInfo(schoolName) {
       if (typeof ROSTERS_DATA === 'undefined' || !ROSTERS_DATA.schools) return null;
+
+      if (CO_OP_SCHOOL_INFO[schoolName]) return CO_OP_SCHOOL_INFO[schoolName];
+      if (SCHOOL_NAME_ALIASES[schoolName]) schoolName = SCHOOL_NAME_ALIASES[schoolName];
       
       // Try exact match on shortname first (most reliable)
       for (const [fullName, info] of Object.entries(ROSTERS_DATA.schools)) {
