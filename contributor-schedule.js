@@ -1807,7 +1807,15 @@ class ContributorSchedule {
         { field: 'writer',  emoji: emoji.writer, name: game.writer  }
       ].filter(x => x.name);
       if (!legacy.length) return '<span style="color:#999">-</span>';
-      return legacy.map(x => `<div class="cs-coverage-entry"><span>${x.emoji}</span><span>${x.name}</span></div>`).join('');
+      // The remove button belongs here too. Without it, any game rendered from
+      // the fallback showed names with no way to drop out - which is exactly
+      // how an assigned person ends up stuck on a game.
+      return legacy.map(x => `
+        <div class="cs-coverage-entry">
+          <span>${x.emoji}</span>
+          <span>${x.name}</span>
+          ${x.name === me ? `<button class="cs-coverage-remove" data-game-id="${game.game_id}" title="Withdraw">&#10005;</button>` : ''}
+        </div>`).join('');
     }
 
     const mine = this.myRequest(game);
