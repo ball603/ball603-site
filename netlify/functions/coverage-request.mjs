@@ -153,17 +153,27 @@ export default async (request) => {
       const denied = await requireContributorOrCms(request, body);
       if (denied) return denied;
 
-      const ids = Array.isArray(body.gameIds) ? body.gameIds.slice(0, 500) : [];
-      if (!ids.length) return json({ success: true, games: {} }, 200, headers);
+      /* Deliberately NOT filtered by the caller's game ids. A full season is
+         hundreds of games, and packing them into one `game_id=in.(...)` URL
+         exceeded the length limit, so this call failed and the schedule
+         silently fell back to the legacy photog1/photog2 columns - which is
+         exactly how two names showed up on an over-limit game.
+         The requests table is small (one row per person per claimed game), so
+         fetching all of it and returning a map is both cheaper and safer. */
+      const reqs = (await sb('game_coverage_requests?select=*')) || [];
+      if (!reqs.length) return json({ success: true, games: {} }, 200, headers);
 
-      const list = ids.map(i => `"${String(i).replace(/"/g, '')}"`).join(',');
-      const [games, reqs] = await Promise.all([
-        sb(`games?game_id=in.(${encodeURIComponent(list)})&select=game_id,is_playoff,round,sport,gender,division`),
-        sb(`game_coverage_requests?game_id=in.(${encodeURIComponent(list)})&select=*`)
-      ]);
+      const ids = [...new Set(reqs.map(r => String(r.game_id)))];
+      const games = [];
+      for (let i = 0; i < ids.length; i += 100) {     // chunked: bounded URLs
+        const list = ids.slice(i, i + 100).map(x => `"${x.replace(/"/g, '')}"`).join(',');
+        const part = await sb(`games?game_id=in.(${encodeURIComponent(list)})&select=game_id,is_playoff,round,sport,gender,division`);
+        games.push(...(part || []));
+      }
+
       const byGame = {};
-      for (const g of games || []) {
-        byGame[g.game_id] = summarize(g, (reqs || []).filter(r => String(r.game_id) === String(g.game_id)));
+      for (const g of games) {
+        byGame[g.game_id] = summarize(g, reqs.filter(r => String(r.game_id) === String(g.game_id)));
       }
       return json({ success: true, games: byGame }, 200, headers);
     }
@@ -192,11 +202,15 @@ export default async (request) => {
         const mine = reqs.filter(r => String(r.game_id) === String(g.game_id));
         const selected = mine.filter(r => r.status === 'selected');
         const pending  = mine.filter(r => r.status === 'requested');
+        const removed = mine.filter(r => r.status === 'removed');
         return {
           game: g,
           limit: coverageLimit(g),
           selected: selected.map(r => ({ id: r.id, name: r.contributor_name, role: r.role })),
-          pending:  pending.map(r  => ({ id: r.id, name: r.contributor_name, role: r.role }))
+          pending:  pending.map(r  => ({ id: r.id, name: r.contributor_name, role: r.role })),
+          // Shown so a removal can be undone. Without this they vanished from
+          // the card and there was no way back.
+          removed:  removed.map(r  => ({ id: r.id, name: r.contributor_name, role: r.role }))
         };
       }).filter(r => !body.upcomingOnly || !r.game.date || r.game.date >= today);
 
@@ -300,7 +314,7 @@ export default async (request) => {
       }
 
       const unseen = (await sb(
-        `game_coverage_requests?contributor_id=eq.${whoId}&decision_seen_at=is.null&decided_by=eq.cms&select=*`
+        `game_coverage_requests?contributor_id=eq.${whoId}&decision_seen_at=is.null&decided_by=eq.cms&status=in.(selected,removed)&select=*`
       )) || [];
       if (!unseen.length) return json({ success: true, alerts: [] }, 200, headers);
 
@@ -335,6 +349,29 @@ export default async (request) => {
     }
 
     /* ---- KJ picks who covers (CMS only) ---- */
+    /* ---- put a removed person back in the running (CMS only) ----
+       Back to 'requested', not 'selected': KJ still chooses. decided_by is
+       cleared so this does NOT raise a "you were removed" alert. */
+    if (action === 'restore') {
+      const denied = await requireCmsKey(request, body);
+      if (denied) return denied;
+
+      const { gameId, requestId } = body;
+      if (!gameId || !requestId) return json({ error: 'gameId and requestId are required' }, 400, headers);
+
+      const game = await loadGame(gameId);
+      if (!game) return json({ error: 'Game not found' }, 404, headers);
+
+      await sb(`game_coverage_requests?id=eq.${encodeURIComponent(requestId)}&game_id=eq.${gid(gameId)}`, {
+        method: 'PATCH', headers: { Prefer: 'return=minimal' },
+        body: JSON.stringify({ status: 'requested', decided_by: null, decided_at: null, decision_seen_at: new Date().toISOString() })
+      });
+
+      const reqs = await loadRequests(gameId);
+      await syncLegacyColumns(gameId, reqs);
+      return json({ success: true, ...summarize(game, reqs) }, 200, headers);
+    }
+
     if (action === 'select' || action === 'unselect') {
       const denied = await requireCmsKey(request, body);
       if (denied) return denied;
@@ -382,7 +419,7 @@ export default async (request) => {
       return json({ success: true, ...summarize(game, reqs) }, 200, headers);
     }
 
-    return json({ error: 'Invalid action. Use: status, cms-list, alerts, dismiss, request, withdraw, select, unselect' }, 400, headers);
+    return json({ error: 'Invalid action. Use: status, cms-list, alerts, dismiss, request, withdraw, select, unselect, restore' }, 400, headers);
 
   } catch (err) {
     console.error('coverage-request error:', err);

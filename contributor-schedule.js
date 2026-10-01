@@ -1740,14 +1740,18 @@ class ContributorSchedule {
   // there are spots, KJ picks from the CMS.
   async loadCoverage() {
     try {
-      const ids = this.allGames.map(g => g.game_id).filter(Boolean);
-      if (!ids.length) { this.coverage = {}; return; }
+      // The server returns every game that has a request, so we don't send a
+      // game-id list. Packing a whole season into one URL is what made this
+      // call fail silently and drop the schedule back to the legacy columns.
       const res = await fetch(this.config.apiEndpoints.coverageRequest, {
         method: 'POST',
         headers: await this.authHeaders(),
-        body: JSON.stringify({ action: 'status', gameIds: ids })
+        body: JSON.stringify({ action: 'status' })
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        console.warn('Coverage status failed:', res.status, await res.text().catch(() => ''));
+        return;
+      }
       const data = await res.json();
       this.coverage = data.games || {};
     } catch (err) {

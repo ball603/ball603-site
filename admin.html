@@ -10132,7 +10132,12 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         updateCoverageBadge(data.pendingGames || 0);
         renderCoverageBanner(data.pendingGames || 0);
 
-        const rows = showAll ? all : all.filter(r => r.pending.length > 0);
+        // Default view also keeps games where someone was removed, otherwise a
+        // removal with nobody waiting would disappear from the list and the
+        // 'Put back' button would be unreachable.
+        const rows = showAll
+          ? all
+          : all.filter(r => r.pending.length > 0 || (r.removed && r.removed.length > 0));
         if (!list) return;
 
         if (!rows.length) {
@@ -10202,18 +10207,30 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const roundLabel = g.is_playoff ? (g.round || 'Playoff') : 'Regular season';
       const full = row.selected.length >= row.limit;
 
-      const person = (r, isSelected) => `
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;border:1px solid ${isSelected ? '#c8e6c9' : '#e0e0e0'};background:${isSelected ? '#f1f8f2' : '#fff'};border-radius:6px;margin-bottom:6px;">
+      const gidEsc = String(row.game.game_id).replace(/'/g, "\\'");
+
+      // kind: 'selected' | 'pending' | 'removed'
+      const person = (r, kind) => {
+        const isSelected = kind === 'selected';
+        const isRemoved  = kind === 'removed';
+        const blocked    = kind === 'pending' && full;
+        const action     = isSelected ? 'unselect' : (isRemoved ? 'restore' : 'select');
+        const label      = isSelected ? 'Remove'   : (isRemoved ? 'Put back' : 'Pick');
+        const btnStyle   = isSelected ? 'background:#ffebee;color:#c62828;'
+                         : (blocked   ? 'opacity:.45;cursor:not-allowed;' : '');
+        return `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;border:1px solid ${isSelected ? '#c8e6c9' : '#e0e0e0'};background:${isSelected ? '#f1f8f2' : (isRemoved ? '#fafafa' : '#fff')};border-radius:6px;margin-bottom:6px;${isRemoved ? 'opacity:.75;' : ''}">
           <span style="font-size:13px;">
-            <strong>${r.name}</strong>
+            <strong style="${isRemoved ? 'text-decoration:line-through;color:#777;' : ''}">${r.name}</strong>
             <span style="color:#777;margin-left:6px;">${COVERAGE_ROLE[r.role] || r.role}</span>
           </span>
-          <button class="btn" style="padding:4px 10px;font-size:12px;${isSelected ? 'background:#ffebee;color:#c62828;' : (full ? 'opacity:.45;cursor:not-allowed;' : '')}"
-            ${(!isSelected && full) ? 'disabled' : ''}
-            onclick="decideCoverage('${String(row.game.game_id).replace(/'/g, "\\'")}', ${r.id}, '${isSelected ? 'unselect' : 'select'}')">
-            ${isSelected ? 'Remove' : 'Pick'}
+          <button class="btn" style="padding:4px 10px;font-size:12px;${btnStyle}"
+            ${blocked ? 'disabled' : ''}
+            onclick="decideCoverage('${gidEsc}', ${r.id}, '${action}')">
+            ${label}
           </button>
         </div>`;
+      };
 
       return `
         <div style="border:1px solid #e0e0e0;border-left:4px solid #f57c00;border-radius:8px;padding:14px;margin-bottom:14px;">
@@ -10231,13 +10248,21 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:12px;">
             <div>
               <div style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#2e7d32;margin-bottom:6px;">Covering</div>
-              ${row.selected.length ? row.selected.map(r => person(r, true)).join('') : '<div style="color:#999;font-size:13px;">Nobody yet</div>'}
+              ${row.selected.length ? row.selected.map(r => person(r, 'selected')).join('') : '<div style="color:#999;font-size:13px;">Nobody yet</div>'}
             </div>
             <div>
               <div style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#999;margin-bottom:6px;">Requested (${row.pending.length})</div>
-              ${row.pending.length ? row.pending.map(r => person(r, false)).join('') : '<div style="color:#999;font-size:13px;">None waiting</div>'}
+              ${row.pending.length ? row.pending.map(r => person(r, 'pending')).join('') : '<div style="color:#999;font-size:13px;">None waiting</div>'}
             </div>
           </div>
+          ${(row.removed && row.removed.length) ? `
+            <div style="margin-top:12px;">
+              <div style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#c62828;margin-bottom:6px;">Removed by you (${row.removed.length})</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+                <div>${row.removed.map(r => person(r, 'removed')).join('')}</div>
+                <div></div>
+              </div>
+            </div>` : ''}
           ${full && row.pending.length ? '<div style="margin-top:10px;font-size:12px;color:#888;">All spots are full. Remove someone before picking another.</div>' : ''}
         </div>`;
     }
