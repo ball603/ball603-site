@@ -168,6 +168,43 @@ export default async (request) => {
       return json({ success: true, games: byGame }, 200, headers);
     }
 
+    /* ---- CMS: every game that needs a decision, in one call ----
+       admin.html authenticates with the CMS password, not a Supabase session,
+       so it cannot read the table directly under RLS. It reads through here. */
+    if (action === 'cms-list') {
+      const denied = await requireCmsKey(request, body);
+      if (denied) return denied;
+
+      const reqs = (await sb('game_coverage_requests?select=*&order=requested_at.asc')) || [];
+      if (!reqs.length) return json({ success: true, games: [], pendingGames: 0 }, 200, headers);
+
+      const ids = [...new Set(reqs.map(r => String(r.game_id)))];
+      const games = [];
+      // Chunked so a long season cannot blow the URL length limit.
+      for (let i = 0; i < ids.length; i += 100) {
+        const list = ids.slice(i, i + 100).map(x => `"${x.replace(/"/g, '')}"`).join(',');
+        const part = await sb(`games?game_id=in.(${encodeURIComponent(list)})&select=game_id,date,time,home_team,away_team,sport,gender,division,is_playoff,round`);
+        games.push(...(part || []));
+      }
+
+      const today = new Date().toISOString().slice(0, 10);
+      const out = games.map(g => {
+        const mine = reqs.filter(r => String(r.game_id) === String(g.game_id));
+        const selected = mine.filter(r => r.status === 'selected');
+        const pending  = mine.filter(r => r.status === 'requested');
+        return {
+          game: g,
+          limit: coverageLimit(g),
+          selected: selected.map(r => ({ id: r.id, name: r.contributor_name, role: r.role })),
+          pending:  pending.map(r  => ({ id: r.id, name: r.contributor_name, role: r.role }))
+        };
+      }).filter(r => !body.upcomingOnly || !r.game.date || r.game.date >= today);
+
+      out.sort((a, b) => String(a.game.date || '').localeCompare(String(b.game.date || '')));
+      const pendingGames = out.filter(r => r.pending.length > 0).length;
+      return json({ success: true, games: out, pendingGames }, 200, headers);
+    }
+
     /* ---- contributor asks for a game ---- */
     if (action === 'request' || action === 'withdraw') {
       const denied = await requireContributorOrCms(request, body);
@@ -253,7 +290,7 @@ export default async (request) => {
       return json({ success: true, ...summarize(game, reqs) }, 200, headers);
     }
 
-    return json({ error: 'Invalid action. Use: status, request, withdraw, select, unselect' }, 400, headers);
+    return json({ error: 'Invalid action. Use: status, cms-list, request, withdraw, select, unselect' }, 400, headers);
 
   } catch (err) {
     console.error('coverage-request error:', err);

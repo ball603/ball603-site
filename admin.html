@@ -8661,6 +8661,11 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       // Puts a count on the Inquiries tab. Ball 603 has no outbound email, so
       // this badge is the only thing that announces a new sponsor lead.
       refreshInquiryBadge();
+      // Same reasoning for coverage: NHIAA caps how many of our people can work
+      // a game, so an oversubscribed game is blocking until KJ picks. Banner on
+      // load, then a quiet re-check so it appears without a reload.
+      checkCoveragePending();
+      setInterval(checkCoveragePending, 5 * 60 * 1000);
 
       // Initialize TipTap editor
       setTimeout(() => {
@@ -10109,46 +10114,26 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     async function loadCoverageRequests() {
       const list = document.getElementById('coverageList');
       const showAll = document.getElementById('coverageShowAll').checked;
-      list.innerHTML = '<p style="color:#888;">Loading&hellip;</p>';
+      if (list) list.innerHTML = '<p style="color:#888;">Loading&hellip;</p>';
 
       try {
-        const today = new Date().toISOString().slice(0, 10);
-        const { data: reqs, error } = await db.from('game_coverage_requests').select('*');
-        if (error) throw error;
+        // Read through the function, not db.from(): admin.html authenticates
+        // with the CMS password, not a Supabase session, so RLS on
+        // game_coverage_requests returns zero rows to this page.
+        const res = await fetch('/.netlify/functions/coverage-request', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'cms-list', upcomingOnly: true })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
 
-        const gameIds = [...new Set((reqs || []).map(r => String(r.game_id)))];
-        if (!gameIds.length) {
-          list.innerHTML = '<p style="color:#888;">No coverage requests yet.</p>';
-          updateCoverageBadge(0); return;
-        }
+        const all = data.games || [];
+        updateCoverageBadge(data.pendingGames || 0);
+        renderCoverageBanner(data.pendingGames || 0);
 
-        const { data: games, error: gErr } = await db.from('games')
-          .select('game_id,date,time,home_team,away_team,home,away,sport,gender,division,is_playoff,round')
-          .in('game_id', gameIds);
-        if (gErr) throw gErr;
-
-        const byId = {};
-        (games || []).forEach(g => { byId[String(g.game_id)] = g; });
-
-        let rows = gameIds.map(id => {
-          const game = byId[id];
-          const mine = (reqs || []).filter(r => String(r.game_id) === id);
-          return {
-            id, game,
-            limit: coverageLimitFor(game),
-            selected: mine.filter(r => r.status === 'selected'),
-            pending:  mine.filter(r => r.status === 'requested')
-          };
-        }).filter(r => r.game);
-
-        const needing = rows.filter(r => r.pending.length > 0);
-        updateCoverageBadge(needing.filter(r => !r.game.date || r.game.date >= today).length);
-
-        rows = showAll
-          ? rows.filter(r => !r.game.date || r.game.date >= today)
-          : needing;
-
-        rows.sort((a, b) => String(a.game.date || '').localeCompare(String(b.game.date || '')));
+        const rows = showAll ? all : all.filter(r => r.pending.length > 0);
+        if (!list) return;
 
         if (!rows.length) {
           list.innerHTML = showAll
@@ -10159,8 +10144,46 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         list.innerHTML = rows.map(renderCoverageCard).join('');
       } catch (err) {
         console.error('Coverage load error:', err);
-        list.innerHTML = '<p style="color:#c00;">Could not load coverage requests: ' + (err.message || err) + '</p>';
+        if (list) list.innerHTML = '<p style="color:#c00;">Could not load coverage requests: ' + (err.message || err) + '</p>';
       }
+    }
+
+    // Red banner so an oversubscribed game is impossible to miss, whatever tab
+    // the CMS is on.
+    function renderCoverageBanner(n) {
+      let bar = document.getElementById('coverageAlertBar');
+      if (!n) { if (bar) bar.style.display = 'none'; return; }
+      if (!bar) {
+        bar = document.createElement('div');
+        bar.id = 'coverageAlertBar';
+        bar.style.cssText = 'background:#c62828;color:#fff;padding:10px 16px;font-size:14px;font-weight:600;' +
+          'display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;';
+        bar.onclick = () => {
+          const tab = [...document.querySelectorAll('.tab')].find(t => (t.getAttribute('onclick') || '').includes("'coverage'"));
+          if (tab) tab.click();
+        };
+        document.body.insertBefore(bar, document.body.firstChild);
+      }
+      bar.style.display = 'flex';
+      bar.innerHTML =
+        '<span>\u{1F6A8} ' + n + ' game' + (n === 1 ? '' : 's') +
+        ' need' + (n === 1 ? 's' : '') + ' a coverage decision \u2014 more people requested than NHIAA will credential.</span>' +
+        '<span style="text-decoration:underline;white-space:nowrap;">Open Coverage Requests &rarr;</span>';
+    }
+
+    // Check on load (and periodically) so the banner shows without visiting the tab.
+    async function checkCoveragePending() {
+      try {
+        const res = await fetch('/.netlify/functions/coverage-request', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'cms-list', upcomingOnly: true })
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        updateCoverageBadge(data.pendingGames || 0);
+        renderCoverageBanner(data.pendingGames || 0);
+      } catch (err) { /* banner is advisory - never block the CMS */ }
     }
 
     function updateCoverageBadge(n) {
@@ -10182,12 +10205,12 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       const person = (r, isSelected) => `
         <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;border:1px solid ${isSelected ? '#c8e6c9' : '#e0e0e0'};background:${isSelected ? '#f1f8f2' : '#fff'};border-radius:6px;margin-bottom:6px;">
           <span style="font-size:13px;">
-            <strong>${r.contributor_name}</strong>
+            <strong>${r.name}</strong>
             <span style="color:#777;margin-left:6px;">${COVERAGE_ROLE[r.role] || r.role}</span>
           </span>
           <button class="btn" style="padding:4px 10px;font-size:12px;${isSelected ? 'background:#ffebee;color:#c62828;' : (full ? 'opacity:.45;cursor:not-allowed;' : '')}"
             ${(!isSelected && full) ? 'disabled' : ''}
-            onclick="decideCoverage('${String(row.id).replace(/'/g, "\\'")}', ${r.id}, '${isSelected ? 'unselect' : 'select'}')">
+            onclick="decideCoverage('${String(row.game.game_id).replace(/'/g, "\\'")}', ${r.id}, '${isSelected ? 'unselect' : 'select'}')">
             ${isSelected ? 'Remove' : 'Pick'}
           </button>
         </div>`;

@@ -1722,7 +1722,30 @@ class ContributorSchedule {
     }
 
     const mine = this.myRequest(game);
-    let html = (c.selected || []).map(r => `
+    const selected = c.selected || [];
+    const total = selected.length + (c.pendingCount || 0);
+
+    // Once a game is oversubscribed nobody's spot is settled yet, so showing a
+    // partial list of names reads as "those two got it." Hide the names and say
+    // plainly that KJ is deciding.
+    if ((c.pendingCount || 0) > 0) {
+      let html = `
+        <div style="font-size:12px;color:#8a5a00;background:#fff6e5;border:1px solid #ffd79a;border-radius:6px;padding:6px 8px;line-height:1.35;">
+          ${total} ${total === 1 ? 'person has' : 'people have'} now requested to work this event. KJ will assign this event.
+        </div>`;
+      if (mine) {
+        html += `
+          <div class="cs-coverage-entry" style="margin-top:4px;opacity:.8">
+            <span>${emoji[mine.role] || ''}</span>
+            <span style="font-style:italic">You requested</span>
+            <button class="cs-coverage-remove" data-game-id="${game.game_id}" title="Withdraw request">&#10005;</button>
+          </div>`;
+      }
+      return html;
+    }
+
+    // At or under the limit: everyone shown is actually covering it.
+    let html = selected.map(r => `
       <div class="cs-coverage-entry">
         <span>${emoji[r.role] || ''}</span>
         <span>${r.name}</span>
@@ -1731,20 +1754,6 @@ class ContributorSchedule {
     `).join('');
 
     if (!html) html = '<span style="color:#999">-</span>';
-
-    // Pending requests are shown as a COUNT, not names.
-    const others = (c.pendingCount || 0) - (mine && mine.status === 'requested' ? 1 : 0);
-    if (mine && mine.status === 'requested') {
-      html += `
-        <div class="cs-coverage-entry" style="opacity:.75">
-          <span>${emoji[mine.role] || ''}</span>
-          <span style="font-style:italic">You requested &mdash; pending</span>
-          <button class="cs-coverage-remove" data-game-id="${game.game_id}" title="Withdraw request">&#10005;</button>
-        </div>`;
-    }
-    if (others > 0) {
-      html += `<div style="font-size:11px;color:#888;margin-top:2px">${others} other${others === 1 ? '' : 's'} requested</div>`;
-    }
     return html;
   }
 
