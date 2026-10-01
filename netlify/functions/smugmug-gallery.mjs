@@ -204,7 +204,44 @@ export function computedSeason(sport, isoDate) {
   return `${startYear}-${String(startYear + 1).slice(2)}`;
 }
 
+// The sport column is not a plain sport name. Volleyball is stored as
+// "gvolleyball" (g for girls) while basketball keeps the gender in its own
+// column - so there is no rule to derive, only a list. Boys and girls share
+// one folder, the way Basketball already does on SmugMug.
+//
+// ADD NEW SPORTS HERE. An unlisted sport still works, but it gets a folder
+// named after the raw value, which is how "Gvolleyball" came to exist.
+const SPORT_FOLDERS = {
+  baseball:     'Baseball',
+  softball:     'Softball',
+  basketball:   'Basketball',
+  gbasketball:  'Basketball',
+  bbasketball:  'Basketball',
+  volleyball:   'Volleyball',
+  gvolleyball:  'Volleyball',
+  bvolleyball:  'Volleyball',
+  soccer:       'Soccer',
+  gsoccer:      'Soccer',
+  bsoccer:      'Soccer',
+  football:     'Football',
+  hockey:       'Hockey',
+  ghockey:      'Hockey',
+  bhockey:      'Hockey',
+  'ice hockey': 'Hockey',
+  lacrosse:     'Lacrosse',
+  glacrosse:    'Lacrosse',
+  blacrosse:    'Lacrosse',
+  fieldhockey:  'Field Hockey',
+  'field hockey': 'Field Hockey'
+};
+
 export function sportFolder(sport) {
+  const raw = String(sport || '').trim().toLowerCase();
+  if (SPORT_FOLDERS[raw]) return SPORT_FOLDERS[raw];
+
+  // Unknown sport. Title-case it rather than failing, and leave a breadcrumb
+  // in the logs so the map can be filled in before it happens twice.
+  if (raw) console.warn(`smugmug-gallery: sport "${raw}" is not in SPORT_FOLDERS`);
   return String(sport || '').trim()
     .split(/\s+/)
     .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
