@@ -1622,7 +1622,16 @@
         is_writer: document.getElementById('typeWriter').checked,
         is_graphics: document.getElementById('typeGraphics').checked,
         website_url: document.getElementById('profileWebsite').value.trim(),
-        instagram_url: document.getElementById('profileInstagram').value.trim(),
+        /* A handle typed here used to be stored raw, and index.html drops
+           instagram_url straight into an href - so "@someone" became a link
+           to nowhere on the home page. Same rule the CMS already applies. */
+        instagram_url: (() => {
+          const v = document.getElementById('profileInstagram').value.trim();
+          if (!v) return '';
+          if (/^https?:\/\//i.test(v)) return v;
+          if (v.includes('instagram.com')) return 'https://' + v;
+          return 'https://instagram.com/' + v.replace(/^@/, '');
+        })(),
         facebook_url: document.getElementById('profileFacebook').value.trim(),
         instagram_user_id: document.getElementById('profileInstagramUserId').value.trim(),
         // A bare lowercase handle is what Instagram's collaborator field takes,
