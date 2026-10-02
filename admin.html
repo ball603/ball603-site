@@ -14724,6 +14724,12 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     }
     
     async function saveSocialPosts() {
+      /* A standalone post has no story to save the drafts onto, and every
+         successful send calls this. So it has to return quietly - otherwise
+         a post that scheduled perfectly well reports "No article to save to"
+         and looks like it failed. */
+      if (standaloneSocial) return;
+
       if (!currentArticle || !currentArticle.id) {
         showToast('No article to save to - please publish first', 'error');
         return;
