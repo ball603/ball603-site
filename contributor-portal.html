@@ -979,15 +979,42 @@
       if (!open.length) { panel.style.display = 'none'; return; }
 
       count.textContent = open.length + ' to go';
-      list.innerHTML = open.map(t => `
+
+      /* Some steps tick themselves off the moment the work shows up in the
+         data. Those get no checkbox - one that cannot change anything is
+         worse than none - just a nudge to where the work gets done. */
+      const PLACES = {
+        add_instagram:    'profile',
+        complete_profile: 'profile',
+        set_password:     'profile'
+      };
+
+      list.innerHTML = open.map(t => {
+        const where = PLACES[t.task_key];
+        const body = `<strong>${t.label}</strong>
+            ${t.detail ? `<div style="color:#777;margin-top:1px;">${t.detail}</div>` : ''}`;
+
+        if (t.selfChecking) {
+          return `
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-top:1px solid #f0e0c8;">
+          <span aria-hidden="true" style="margin-top:2px;color:#c9a227;font-size:14px;line-height:1;">&#9679;</span>
+          <div style="font-size:13px;line-height:1.45;">
+            ${body}
+            ${where ? `<div style="margin-top:4px;"><a href="#" onclick="showView('${where}');return false;"
+                 style="color:#f57c00;font-weight:600;text-decoration:none;">Take care of it &rarr;</a></div>` : ''}
+          </div>
+        </div>`;
+        }
+
+        return `
         <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-top:1px solid #f0e0c8;">
           <input type="checkbox" id="ob-${t.task_key}" onchange="completeOnboarding('${t.task_key}')"
                  style="margin-top:3px;width:16px;height:16px;cursor:pointer;">
           <label for="ob-${t.task_key}" style="cursor:pointer;font-size:13px;line-height:1.45;">
-            <strong>${t.label}</strong>
-            ${t.detail ? `<div style="color:#777;margin-top:1px;">${t.detail}</div>` : ''}
+            ${body}
           </label>
-        </div>`).join('');
+        </div>`;
+      }).join('');
       panel.style.display = 'block';
     }
 

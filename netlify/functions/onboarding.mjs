@@ -37,6 +37,24 @@ const CREDENTIALS = {
   '{{SCORE_PASSWORD}}':   () => process.env.SCORE_ENTRY_KEY   || ''
 };
 
+/* ------------------------------------------------------------------ *
+ * Self-checking tasks
+ *
+ * These three used to be ticked by hand, which meant the checklist
+ * recorded who clicked a box rather than who did the thing - someone
+ * could fill their handle in properly and still be nagged, or tick the
+ * box with the field empty and drop off the radar. They are now worked
+ * out from the data every time the checklist is read.
+ *
+ * Anything not listed here has nothing to check against (reading the
+ * handbook, signing the agreement) and stays a checkbox.
+ * ------------------------------------------------------------------ */
+const DERIVED = {
+  add_instagram:    (c) => !!String(c?.instagram_username || '').trim(),
+  complete_profile: (c) => !!String(c?.bio || '').trim() && !!String(c?.headshot_url || '').trim()
+  // set_password is handled separately - it needs the auth table, not this row
+};
+
 function fillCredentials(text) {
   let out = String(text || '');
   for (const [token, get] of Object.entries(CREDENTIALS)) {
@@ -143,21 +161,77 @@ export default async (request) => {
       if (mine) id = mine;
       if (!id) return json({ error: 'Could not identify your account' }, 403, headers);
 
-      const [tasks, items] = await Promise.all([
+      /* The password view can be absent (the migration has not been run)
+         or return nothing (this person has no login at all). Neither is an
+         error - the task just falls back to whatever is stored. */
+      const [tasks, items, me, pwRows] = await Promise.all([
         sb('onboarding_tasks?select=*&order=sort_order.asc'),
-        sb(`contributor_onboarding?contributor_id=eq.${id}&select=*`)
+        sb(`contributor_onboarding?contributor_id=eq.${id}&select=*`),
+        sb(`contributors?id=eq.${id}&select=instagram_username,bio,headshot_url&limit=1`)
+          .catch(() => null),
+        sb(`contributor_password_status?contributor_id=eq.${id}&select=password_changed&limit=1`)
+          .catch(() => null)
       ]);
       const byKey = {};
       (tasks || []).forEach(t => { byKey[t.task_key] = t; });
 
-      const merged = (items || []).map(it => ({
-        ...it,
-        label:  byKey[it.task_key]?.label  || it.task_key,
-        detail: byKey[it.task_key]?.detail || '',
-        owner:  byKey[it.task_key]?.owner  || 'contributor',
-        automatic: !!byKey[it.task_key]?.automatic,
-        sort_order: byKey[it.task_key]?.sort_order ?? 999
-      })).sort((a, b) => a.sort_order - b.sort_order);
+      const who = me?.[0] || null;
+      const passwordChanged = pwRows?.[0]
+        ? pwRows[0].password_changed === true
+        : null;   // null = unknown, leave the stored status alone
+
+      // What the data says about a task, or null if it cannot be judged.
+      const derive = (key) => {
+        if (key === 'set_password') return passwordChanged;
+        if (!who || !DERIVED[key]) return null;
+        return DERIVED[key](who);
+      };
+
+      const decorate = (it) => {
+        const truth = derive(it.task_key);
+        const status = truth === null ? it.status : (truth ? 'done' : 'pending');
+        return {
+          ...it,
+          status,
+          selfChecking: truth !== null,
+          label:  byKey[it.task_key]?.label  || it.task_key,
+          detail: byKey[it.task_key]?.detail || '',
+          owner:  byKey[it.task_key]?.owner  || 'contributor',
+          automatic: !!byKey[it.task_key]?.automatic,
+          sort_order: byKey[it.task_key]?.sort_order ?? 999
+        };
+      };
+
+      const merged = (items || []).map(decorate);
+
+      /* A self-checking task is worth showing even when nobody ever seeded a
+         row for this person - the answer comes from their data either way,
+         and a missing row is exactly how someone slips through. */
+      const present = new Set(merged.map(m => m.task_key));
+      for (const key of Object.keys(byKey)) {
+        if (present.has(key)) continue;
+        if (derive(key) === null) continue;
+        merged.push(decorate({ contributor_id: id, task_key: key, status: 'pending' }));
+      }
+      merged.sort((a, b) => a.sort_order - b.sort_order);
+
+      /* Keep the stored rows in step, so the CMS overview tells the same
+         story. Best effort - a failure here must not break the checklist. */
+      const drifted = merged.filter(m =>
+        m.selfChecking && m.status !== (items || []).find(i => i.task_key === m.task_key)?.status);
+      if (drifted.length) {
+        Promise.all(drifted.map(m => sb('contributor_onboarding', {
+          method: 'POST',
+          headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+          body: JSON.stringify({
+            contributor_id: id,
+            task_key: m.task_key,
+            status: m.status,
+            completed_at: m.status === 'done' ? new Date().toISOString() : null,
+            completed_by: m.status === 'done' ? 'checked automatically' : null
+          })
+        }))).catch(err => console.warn('onboarding sync:', err.message));
+      }
 
       const outstanding = merged.filter(m => m.owner === 'contributor' && m.status === 'pending');
       return json({
@@ -176,6 +250,16 @@ export default async (request) => {
       if (denied) return denied;
 
       const { taskKey } = body;
+
+      /* Refuse to hand-tick something the system works out for itself. The
+         portal does not offer a checkbox for these, so reaching here means
+         a stale page or a direct call - either way the honest answer is
+         that clicking cannot change it. */
+      if (taskKey === 'set_password' || DERIVED[taskKey]) {
+        return json({
+          error: 'This one ticks itself once the work is done - there is nothing to click.'
+        }, 400, headers);
+      }
       if (!taskKey) return json({ error: 'taskKey is required' }, 400, headers);
 
       const mine = await callerContributorId(request);
