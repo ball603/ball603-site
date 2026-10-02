@@ -170,24 +170,43 @@ async function ball603Extras(sport) {
   return promise;
 }
 
-// Ball603's own standings carry NHIAA points, which the rankings feed only
-// reports for some sports. Used for the Points column where it exists.
-const b6points = new Map();
-async function ball603Points(sport) {
+/* Ball603's own standings table. It takes its division alignment and league
+   membership from NHIAA, then computes W–L, points and rating from Ball603's
+   games using NHIAA's own index method - so a result counts as soon as its
+   score is entered rather than whenever NHIAA gets to it. NHIAA's published
+   figures are kept beside them in nhiaa_wins / nhiaa_losses for the CMS
+   Standings Check panel, and are not what is shown here.
+
+   Only basketball, baseball and volleyball have one of these. Soccer, football,
+   golf and cross country are NHIAA's numbers, because Ball603 does not score
+   them. */
+const b6standings = new Map();
+async function ball603Standings(sport) {
   const key = FT.SPORTS[sport.sportId] && FT.SPORTS[sport.sportId].ball603;
   if (!key) return null;
-  if (b6points.has(key)) return b6points.get(key);
-  const promise = FT.sb(`standings?sport=eq.${encodeURIComponent(key)}&select=school,gender,points,season`)
+  if (b6standings.has(key)) return b6standings.get(key);
+  const promise = FT.sb(`standings?sport=eq.${encodeURIComponent(key)}` +
+      '&select=school,gender,division,wins,losses,ties,points,rating,games_played,season')
     .then(rows => {
       const seasons = [...new Set(rows.map(r => r.season).filter(Boolean))].sort();
       const season = seasons[seasons.length - 1];
       const m = new Map();
-      for (const r of rows) if (r.season === season) m.set(`${r.school}|${r.gender}`, r.points);
+      for (const r of rows) if (r.season === season) m.set(`${r.school}|${r.gender}`, r);
       return m;
     })
     .catch(() => null);
-  b6points.set(key, promise);
+  b6standings.set(key, promise);
   return promise;
+}
+
+/* The order Ball603's own standings page uses. Copied deliberately rather than
+   invented: if these two ever sort differently, the same team shows a different
+   place on each site. */
+function ball603Order(a, b) {
+  if ((b.rating || 0) !== (a.rating || 0)) return (b.rating || 0) - (a.rating || 0);
+  if ((b.wins   || 0) !== (a.wins   || 0)) return (b.wins   || 0) - (a.wins   || 0);
+  if ((a.losses || 0) !== (b.losses || 0)) return (a.losses || 0) - (b.losses || 0);
+  return (a.ball603_shortname || a.team_name || '').localeCompare(b.ball603_shortname || b.team_name || '');
 }
 
 function streakOf(s) {
@@ -208,7 +227,7 @@ async function renderTable(mount, sport, division) {
     return;
   }
 
-  const [stats, points] = await Promise.all([ball603Extras(sport), ball603Points(sport)]);
+  const [stats, b6] = await Promise.all([ball603Extras(sport), ball603Standings(sport)]);
   // Two different questions. `gender` is which side of a sport this table is,
   // and Ball603's games and standings are keyed on it whether or not the site
   // ever prints it. The heading is what a reader sees, and football, soccer and
@@ -219,17 +238,40 @@ async function renderTable(mount, sport, division) {
   const full = !!stats;
   const playoff = playoffLine(sport, division);
 
+  /* Ball603's numbers replace NHIAA's for the sports Ball603 scores, because
+     they are the same calculation run on fresher results - KJ enters scores the
+     night they happen, NHIAA posts them whenever it posts them.
+
+     All or nothing per division. A table that took some rows from one source
+     and some from the other would sort on two different things at once, which
+     is worse than being a day behind. If a school cannot be matched the whole
+     division stays on NHIAA and says so in the console. */
+  let rows = division.rows;
+  let ourNumbers = false;
+  if (b6 && b6.size) {
+    const paired = rows.map(r => ({ r, b: b6.get(`${r.ball603_shortname}|${gender}`) }));
+    const missing = paired.filter(p => !p.b).map(p => p.r.team_name || p.r.ball603_shortname);
+    if (!missing.length) {
+      rows = paired.map(({ r, b }) => ({
+        ...r,
+        wins: b.wins, losses: b.losses, ties: b.ties,
+        points: b.points, rating: b.rating, games_played: b.games_played
+      })).sort(ball603Order);
+      ourNumbers = true;
+    } else {
+      console.warn(`Standings: staying on NHIAA for ${sport.name} ${FT.divisionLabel(division.name)} ` +
+        `- no Ball603 row for ${missing.join(', ')}`);
+    }
+  }
+
   /* Both numbers NHIAA publishes, when it publishes both. The table is in
      NHIAA's rank order, and for volleyball that order follows the rating
      (points ÷ games played), not the points — so a Points column on its own
      reads as a list sorted wrong. Rating is the one kept on a phone, the way
      Ball603's standings page does it. */
-  const anyPoints = division.rows.some(r => r.points != null) || !!points;
-  const anyRating = division.rows.some(r => r.rating != null);
-  const pointsOf = (r) => {
-    if (points && points.has(`${r.ball603_shortname}|${gender}`)) return points.get(`${r.ball603_shortname}|${gender}`);
-    return r.points ?? '—';
-  };
+  const anyPoints = rows.some(r => r.points != null);
+  const anyRating = rows.some(r => r.rating != null);
+  const pointsOf = (r) => r.points ?? '—';
   const ratingOf = (r) => r.rating == null ? '—' : Number(r.rating).toFixed(3);
   const rateCols = (anyPoints ? 1 : 0) + (anyRating ? 1 : 0) || 1;
   const rateHeads = !anyPoints && !anyRating ? '<th class="ctr">Rating</th>'
@@ -239,7 +281,7 @@ async function renderTable(mount, sport, division) {
     : (anyPoints ? `<td class="ctr${anyRating ? ' ft-hide-sm' : ''}">${FT.esc(pointsOf(r))}</td>` : '') +
       (anyRating ? `<td class="ctr ft-rating">${FT.esc(ratingOf(r))}</td>` : '');
 
-  const showTies = division.rows.some(r => r.ties != null);
+  const showTies = rows.some(r => r.ties != null);
 
   const head = full ? `
     <tr class="ft-group">
@@ -261,7 +303,7 @@ async function renderTable(mount, sport, division) {
       ${rateHeads}
     </tr>`;
 
-  const rows = division.rows.map((r, i) => {
+  const html = rows.map((r, i) => {
     const s = stats ? stats.get(`${r.ball603_shortname}|${gender}`) : null;
     const record = `${r.wins ?? 0}–${r.losses ?? 0}${(showTies && r.ties) ? '–' + r.ties : ''}`;
     const cells = full ? `
@@ -278,7 +320,7 @@ async function renderTable(mount, sport, division) {
 
     const cut = playoff.spots && (i + 1) === playoff.spots ? ' ft-cut' : '';
     return `<tr class="${r.is_farmington ? 'ft-us' : ''}${cut}">
-      <td class="num"><span class="ft-rank">${r.rank ?? i + 1}</span></td>
+      <td class="num"><span class="ft-rank">${ourNumbers ? i + 1 : (r.rank ?? i + 1)}</span></td>
       <td class="grow">${teamCell(r)}</td>
       ${cells}
     </tr>`;
@@ -294,7 +336,7 @@ async function renderTable(mount, sport, division) {
         </span>
       </div>
       <div class="ft-tablewrap ft-standwrap">
-        <table class="ft-table"><thead>${head}</thead><tbody>${rows}</tbody></table>
+        <table class="ft-table"><thead>${head}</thead><tbody>${html}</tbody></table>
       </div>
     </div>`;
 }
