@@ -1084,6 +1084,9 @@
         <button class="btn-new" style="background: #e8f5e9; color: #2e7d32;" onclick="openPlayoffPreviewsModal()">
           <span>&#x1F3C6;</span> Playoff Previews
         </button>
+        <button class="btn-new" style="background: #e1f5fe; color: #0277bd;" onclick="openStandaloneSocial()">
+          <span>&#x1F4F1;</span> Schedule Social
+        </button>
       </div>
       
       <div class="article-list" id="articleList">
@@ -4299,12 +4302,19 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         <div class="editor-actions">
           <button class="btn-save" onclick="sendToFacebookOnly()" style="background: #1877f2; color: white;">&#x1F4D8; Send to Facebook</button>
           <button class="btn-save" onclick="sendToInstagramOnly()" style="background: linear-gradient(135deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); color: white;">&#x1F4F8; Send to Instagram</button>
-          <button class="btn-save" onclick="saveSocialPosts()" style="background: #2e7d32;">&#x1F4BE; Save All</button>
+          <button class="btn-save" id="socialSaveAllBtn" onclick="saveSocialPosts()" style="background: #2e7d32;">&#x1F4BE; Save All</button>
           <button class="btn-back" onclick="closeSocialPublishing()">&larr; Done</button>
         </div>
       </div>
       
-      <p style="color: #666; margin-bottom: 20px;">Your article has been published! Edit posts, add images, and send to socials.</p>
+      <p style="color: #666; margin-bottom: 20px;" id="socialPanelIntro">Your article has been published! Edit posts, add images, and send to socials.</p>
+
+      <!-- Standalone only: a short label so these show up named in Scheduled Posts -->
+      <div id="socialLabelRow" style="display: none; margin-bottom: 20px; padding: 15px; background: #e1f5fe; border-radius: 8px; border: 1px solid #0277bd;">
+        <label for="socialStandaloneLabel" style="display: block; margin-bottom: 8px; font-weight: 600; color: #0277bd;">&#x1F3F7;&#xFE0F; Label</label>
+        <input type="text" id="socialStandaloneLabel" maxlength="80" placeholder="e.g. Friday night roundup" style="width: 100%; padding: 10px; border: 1px solid #b3e5fc; border-radius: 6px; font-size: 14px;">
+        <div style="margin-top: 6px; font-size: 12px; color: #0277bd;">Just for you &mdash; how the post is labelled in Scheduled Posts. It is never posted.</div>
+      </div>
       
       <!-- Scheduling (moved to top) -->
       <div style="margin-bottom: 20px; padding: 15px; background: #e8f5e9; border-radius: 8px; border: 1px solid #4caf50;">
@@ -4434,7 +4444,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         </div>
         
         <!-- Twitter -->
-        <div class="sidebar-card" style="background: #fff; border: 2px solid #000;">
+        <div class="sidebar-card" id="socialTwitterCard" style="background: #fff; border: 2px solid #000;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
             <h4 style="color: #000; margin: 0;">&#x1D54F; Twitter</h4>
             <button onclick="copySocialPost('twitter')" style="background: #000; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">Copy</button>
@@ -14577,7 +14587,73 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       };
     }
 
+    /* Social posts that belong to no story. The panel is the same one that
+       opens after publishing, deliberately: a second copy would drift from
+       this one and every fix would have to be made twice. Three things differ
+       - no article link is appended, Save All has nothing to save onto, and
+       Done goes back to the dashboard. */
+    /* var, not let: this script is one very large block, and a `let` here sits
+       in the temporal dead zone until execution reaches it. If anything
+       earlier ever throws on load, a `let` would make this button fail with
+       "cannot access before initialization"; `var` leaves it undefined, which
+       simply reads as story mode. */
+    var standaloneSocial = false;
+
+    async function openStandaloneSocial() {
+      standaloneSocial = true;
+      currentArticle = null;      // or the last story opened would tag its photographer
+      generatedSocialPosts = {};
+
+      document.getElementById('articlesPanel').style.display = 'none';
+      document.getElementById('editorPanel').style.display = 'none';
+      document.getElementById('socialPublishingPanel').style.display = 'block';
+
+      await initSocialPublishingPanel();
+      applySocialPanelMode();
+
+      document.getElementById('socialFacebookPost').value = '';
+      document.getElementById('socialInstagramPost').value = '';
+      document.getElementById('socialTwitterPost').value = '';
+      document.getElementById('socialStandaloneLabel').value = '';
+      updateCharCount('facebook');
+      updateCharCount('instagram');
+
+      document.getElementById('socialFacebookPost').oninput = () => updateCharCount('facebook');
+      document.getElementById('socialInstagramPost').oninput = () => updateCharCount('instagram');
+      document.getElementById('socialStandaloneLabel').focus();
+    }
+
+    // Show or hide the parts of the panel that only make sense with a story.
+    function applySocialPanelMode() {
+      const solo = standaloneSocial;
+      const show = (id, on) => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = on ? '' : 'none';
+      };
+      show('socialSaveAllBtn', !solo);
+      show('socialTwitterCard', !solo);   // nothing here ever posts to X
+      show('socialLabelRow', solo);
+      const intro = document.getElementById('socialPanelIntro');
+      if (intro) {
+        intro.textContent = solo
+          ? 'Write the post, add images, then send it now or pick a time.'
+          : 'Your article has been published! Edit posts, add images, and send to socials.';
+      }
+    }
+
+    /* What Scheduled Posts shows this post as. A story lends its headline; a
+       standalone post uses the label typed at the top of the panel. */
+    function socialPostLabel() {
+      if (standaloneSocial) {
+        const v = (document.getElementById('socialStandaloneLabel')?.value || '').trim();
+        return v || null;
+      }
+      return currentArticle?.title ?? null;
+    }
+
     async function showSocialPublishing(article, draftPosts) {
+      standaloneSocial = false;
+      applySocialPanelMode();
       // Hide editor, show social publishing panel
       document.getElementById('editorPanel').style.display = 'none';
       document.getElementById('socialPublishingPanel').style.display = 'block';
@@ -14638,6 +14714,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     function closeSocialPublishing() {
       document.getElementById('socialPublishingPanel').style.display = 'none';
       document.getElementById('articlesPanel').style.display = 'block';
+      if (standaloneSocial) {
+        standaloneSocial = false;
+        applySocialPanelMode();   // leave the panel ready for the next story
+      }
       
       // Don't clear generatedSocialPosts - they're stored with the article
       // and can be re-accessed via the View Social Posts button
@@ -15474,7 +15554,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           </div>
 
           ${post.article_title
-            ? `<div style="font-size: 13px; color: #777; margin-bottom: 8px;">From: ${escapeHtml(post.article_title)}</div>`
+            ? `<div style="font-size: 13px; color: #777; margin-bottom: 8px;">${post.article_id ? 'From: ' : '&#x1F3F7;&#xFE0F; '}${escapeHtml(post.article_title)}</div>`
             : ''}
 
           <div style="display: flex; gap: 12px; align-items: flex-start;">
@@ -15821,7 +15901,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
               scheduledTime: scheduledTime,
               // Provenance, so the Scheduled Posts panel can name the story.
               articleId: currentArticle?.id ?? null,
-              articleTitle: currentArticle?.title ?? null
+              articleTitle: socialPostLabel()
             })
           }).then(async (fbResponse) => {
             const contentType = fbResponse.headers.get('content-type');
@@ -15854,7 +15934,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
               scheduledTime: scheduledTime,
               // Provenance, so the Scheduled Posts panel can name the story.
               articleId: currentArticle?.id ?? null,
-              articleTitle: currentArticle?.title ?? null
+              articleTitle: socialPostLabel()
             })
           }).then(async (igResponse) => {
             const contentType = igResponse.headers.get('content-type');
@@ -15964,7 +16044,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
             tags: fbTags,
             scheduledTime: scheduledTime,
             articleId: currentArticle?.id ?? null,
-            articleTitle: currentArticle?.title ?? null
+            articleTitle: socialPostLabel()
           })
         });
         
@@ -16058,7 +16138,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
               scheduledTime: scheduledTime,
               // Provenance, so the Scheduled Posts panel can name the story.
               articleId: currentArticle?.id ?? null,
-              articleTitle: currentArticle?.title ?? null
+              articleTitle: socialPostLabel()
             })
           });
           clearTimeout(fetchTimeout);
