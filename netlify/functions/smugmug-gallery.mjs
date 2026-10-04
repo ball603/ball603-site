@@ -401,9 +401,16 @@ export default async (request) => {
 
   // Identity comes from the signed-in session, never from the request body,
   // so nobody can open a gallery under someone else's name.
+  /* Say WHICH failure this is. "Please sign in again" covered three very
+     different things - no token was sent at all, the token was rejected, or
+     the server is misconfigured - and told nobody which, so the only way to
+     tell them apart was to go digging. verifySupabaseUser already knows. */
   const v = await verifySupabaseUser(request);
-  if (!v.ok || !v.user?.email) {
-    return json({ error: 'Please sign in again' }, 401, headers);
+  if (!v.ok) {
+    return json({ error: v.error || 'Please sign in again' }, v.status || 401, headers);
+  }
+  if (!v.user?.email) {
+    return json({ error: 'Your login has no email address on it, so I cannot match you to a contributor.' }, 403, headers);
   }
   let me = null;
   for (const path of contributorLookupPaths(v.user, 'id,name')) {
