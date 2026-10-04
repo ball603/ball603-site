@@ -139,29 +139,19 @@ export async function asLegacy(response) {
    and quietly broken.
    --------------------------------------------------------------------------- */
 const SUPABASE_URL = process.env.SUPABASE_URL || '';
-
-/* The apikey header on /auth/v1/user just identifies the project — either key
-   works, and it is NOT what authenticates the caller; the Bearer token is.
-   Service key first because it is set for every function here, while
-   SUPABASE_ANON_KEY is not reliably set (teams.mjs already treats it as a
-   fallback). Requiring the anon key was what made the first version of this
-   return "Auth is not configured" and break game claiming. */
-const SUPABASE_PROJECT_KEY =
-  process.env.SUPABASE_SERVICE_KEY ||
-  process.env.SUPABASE_SERVICE_ROLE_KEY ||
-  process.env.SUPABASE_ANON_KEY || '';
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || '';
 
 export async function verifySupabaseUser(reqOrEvent) {
   const raw = headerValue(reqOrEvent, 'authorization');
   const token = raw.startsWith('Bearer ') ? raw.slice(7).trim() : '';
   if (!token) return { ok: false, status: 401, error: 'Sign in required' };
-  if (!SUPABASE_URL || !SUPABASE_PROJECT_KEY) {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
     return { ok: false, status: 500, error: 'Auth is not configured on the server' };
   }
 
   try {
     const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-      headers: { apikey: SUPABASE_PROJECT_KEY, Authorization: `Bearer ${token}` }
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${token}` }
     });
     if (!res.ok) return { ok: false, status: 401, error: 'Session expired — sign in again' };
     const user = await res.json();
@@ -174,6 +164,30 @@ export async function verifySupabaseUser(reqOrEvent) {
 }
 
 /* Either a signed-in contributor or the CMS. Returns null when allowed. */
+/* Where to look for the contributor behind a signed-in user, in order.
+ *
+ * auth_user_id first: an exact uuid match with no pattern syntax to get wrong.
+ *
+ * The email fallback is for accounts linked before auth_user_id was filled in.
+ * It ESCAPES the ilike wildcards rather than stripping them, which is what this
+ * used to do - and stripping silently rewrote the address. Betsy Hansen's
+ * betsy_hansen@yahoo.com became betsyhansen@yahoo.com, matched nobody, and she
+ * was told her account could not be identified while plainly signed in. Any
+ * contributor with an underscore in their email had the same problem.
+ *
+ * Returns paths, not rows, because the caller holds the service-key fetch. */
+export function contributorLookupPaths(user, select = 'id,name') {
+  const paths = [];
+  if (user && user.id) {
+    paths.push(`contributors?auth_user_id=eq.${encodeURIComponent(user.id)}&select=${select}&limit=1`);
+  }
+  if (user && user.email) {
+    const pattern = String(user.email).trim().replace(/([\\%_])/g, '\\$1');
+    paths.push(`contributors?email=ilike.${encodeURIComponent(pattern)}&select=${select}&limit=1`);
+  }
+  return paths;
+}
+
 export async function requireContributorOrCms(reqOrEvent, body) {
   if (requireCmsKey(reqOrEvent, body) === null) return null;
   const v = await verifySupabaseUser(reqOrEvent);

@@ -7,7 +7,7 @@
 // Reads are open to any signed-in contributor. Writes are split: a contributor
 // may only ever tick their OWN task, and only tasks owned by contributors. The
 // CMS can do anything.
-import { requireContributorOrCms, requireCmsKey, verifySupabaseUser, authHeaders, isOptions } from './lib/auth.mjs';
+import { requireContributorOrCms, requireCmsKey, verifySupabaseUser, authHeaders, isOptions, contributorLookupPaths } from './lib/auth.mjs';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -73,9 +73,11 @@ const json = (body, status, headers) =>
 async function callerContributorId(request) {
   const v = await verifySupabaseUser(request);
   if (!v.ok || !v.user?.email) return null;
-  const esc = String(v.user.email).replace(/[%_,()]/g, '');
-  const rows = await sb(`contributors?email=ilike.${encodeURIComponent(esc)}&select=id&limit=1`);
-  return rows?.[0]?.id || null;
+  for (const path of contributorLookupPaths(v.user, 'id')) {
+    const rows = await sb(path);
+    if (rows?.[0]?.id) return rows[0].id;
+  }
+  return null;
 }
 
 /* Role flags -> the role names used in onboarding_tasks.roles */

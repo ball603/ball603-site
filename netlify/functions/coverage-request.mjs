@@ -6,7 +6,7 @@
 // photog1/photog2/videog/writer columns on `games` are kept as a MIRROR so
 // story generation, galleries and reports keep working untouched. Only this
 // function writes them, so the two cannot drift.
-import { requireContributorOrCms, requireCmsKey, verifySupabaseUser, authHeaders, isOptions } from './lib/auth.mjs';
+import { requireContributorOrCms, requireCmsKey, verifySupabaseUser, authHeaders, isOptions, contributorLookupPaths } from './lib/auth.mjs';
 import { sendEmail, coverageDecisionEmail } from './lib/email.mjs';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -291,7 +291,11 @@ export default async (request) => {
       let whoId = null;
       const v = await verifySupabaseUser(request);
       if (v.ok && v.user && v.user.email) {
-        const rows = await sb(`contributors?email=ilike.${encodeURIComponent(String(v.user.email).replace(/[%_,()]/g, ''))}&select=id&limit=1`);
+        let rows = null;
+        for (const path of contributorLookupPaths(v.user, 'id')) {
+          rows = await sb(path);
+          if (rows?.[0]?.id) break;
+        }
         whoId = rows?.[0]?.id || null;
       }
       if (!whoId && body.contributorId) {

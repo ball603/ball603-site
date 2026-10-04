@@ -15,7 +15,7 @@
 // and live in  <Sport> / <Season>  e.g. Volleyball/2026, Basketball/2025-26.
 
 import crypto from 'crypto';
-import { verifySupabaseUser, authHeaders, isOptions } from './lib/auth.mjs';
+import { verifySupabaseUser, authHeaders, isOptions, contributorLookupPaths } from './lib/auth.mjs';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -336,53 +336,6 @@ async function createAlbum(parentUri, name) {
 }
 
 /* ------------------------------------------------------------------ *
- * Self-healing
- *
- * A gallery we made can be deleted on SmugMug, or have its guest uploading
- * switched off, and the link we stored goes dead without anything telling
- * us. So before handing back a remembered link, check it is still real.
- * ------------------------------------------------------------------ */
-
-// Decide what to do with a remembered gallery, given what SmugMug says about
-// it now. Split out from the request code so the rules can be tested.
-//   album === null  -> SmugMug says it is gone
-export function decideFromAlbum(existing, album) {
-  if (!album) return { action: 'rebuild' };
-
-  const liveKey = String(album.UploadKey || '').trim();
-  const storedKey = String(existing.upload_key || '').trim();
-
-  // Guest uploading was switched off. Put our key back.
-  if (!liveKey) return { action: 'rekey', key: storedKey };
-
-  // Someone changed the key on SmugMug. Theirs wins - it is the one that
-  // works - we just need to remember it.
-  if (liveKey !== storedKey) {
-    return {
-      action: 'relink',
-      key: liveKey,
-      uploadUrl: `https://ball603.smugmug.com/upload/${existing.album_key}/${liveKey}`
-    };
-  }
-
-  return { action: 'reuse' };
-}
-
-// null means gone. A thrown error means SmugMug is having a problem, which
-// must NOT be mistaken for "deleted" - that would quietly build duplicates
-// every time SmugMug hiccuped.
-async function fetchAlbum(albumUri) {
-  if (!albumUri) return null;
-  try {
-    const r = await smug('GET', albumUri);
-    return r?.Response?.Album || null;
-  } catch (err) {
-    if (err.status === 404 || err.status === 400) return null;
-    throw err;
-  }
-}
-
-/* ------------------------------------------------------------------ *
  * Handler
  * ------------------------------------------------------------------ */
 
@@ -403,8 +356,11 @@ export default async (request) => {
   if (!v.ok || !v.user?.email) {
     return json({ error: 'Please sign in again' }, 401, headers);
   }
-  const esc = String(v.user.email).replace(/[%_,()]/g, '');
-  const me = (await sb(`contributors?email=ilike.${encodeURIComponent(esc)}&select=id,name&limit=1`))?.[0];
+  let me = null;
+  for (const path of contributorLookupPaths(v.user, 'id,name')) {
+    me = (await sb(path))?.[0];
+    if (me) break;
+  }
   if (!me) return json({ error: 'Could not identify your account' }, 403, headers);
 
   /* Dry run. Works out exactly what the real path would do for one game and
@@ -478,52 +434,13 @@ export default async (request) => {
   if (!gameId) return json({ error: 'gameId is required' }, 400, headers);
 
   try {
-    // Already made? Check it is still really there before handing it back.
+    // Already made? Hand back the same link.
     const existing = (await sb(
       `game_galleries?game_id=eq.${gid(gameId)}&contributor_id=eq.${me.id}&select=*&limit=1`
     ))?.[0];
-
     if (existing) {
-      const album = await fetchAlbum(existing.album_uri);
-      const verdict = decideFromAlbum(existing, album);
-
-      if (verdict.action === 'reuse') {
-        return json({ success: true, created: false, uploadUrl: existing.upload_url,
-                      galleryName: existing.gallery_name, webUri: existing.web_uri }, 200, headers);
-      }
-
-      if (verdict.action === 'relink') {
-        await sb(`game_galleries?id=eq.${existing.id}`, {
-          method: 'PATCH',
-          headers: { Prefer: 'return=minimal' },
-          body: JSON.stringify({ upload_key: verdict.key, upload_url: verdict.uploadUrl })
-        });
-        return json({ success: true, created: false, repaired: 'relink', uploadUrl: verdict.uploadUrl,
-                      galleryName: existing.gallery_name, webUri: existing.web_uri }, 200, headers);
-      }
-
-      if (verdict.action === 'rekey') {
-        // The gallery survived but guest uploading was turned off. Turn it
-        // back on with the key we already handed out, so any link the
-        // photographer bookmarked keeps working.
-        const key = verdict.key || crypto.randomBytes(9).toString('base64url').replace(/[^a-zA-Z0-9]/g, '').slice(0, 10);
-        await smug('PATCH', existing.album_uri, { UploadKey: key });
-        const url = `https://ball603.smugmug.com/upload/${existing.album_key}/${key}`;
-        if (url !== existing.upload_url || key !== existing.upload_key) {
-          await sb(`game_galleries?id=eq.${existing.id}`, {
-            method: 'PATCH',
-            headers: { Prefer: 'return=minimal' },
-            body: JSON.stringify({ upload_key: key, upload_url: url })
-          });
-        }
-        return json({ success: true, created: false, repaired: 'rekey', uploadUrl: url,
-                      galleryName: existing.gallery_name, webUri: existing.web_uri }, 200, headers);
-      }
-
-      // Gone from SmugMug. Forget it and fall through to building a new one.
-      await sb(`game_galleries?id=eq.${existing.id}`, {
-        method: 'DELETE', headers: { Prefer: 'return=minimal' }
-      });
+      return json({ success: true, created: false, uploadUrl: existing.upload_url,
+                    galleryName: existing.gallery_name, webUri: existing.web_uri }, 200, headers);
     }
 
     const row = (await sb(
