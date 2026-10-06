@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>NEC Front Row Multiview</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Front Row">
+<meta name="theme-color" content="#0b1118">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&display=swap">
@@ -48,6 +55,14 @@ header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-betw
 @media (orientation:portrait){.stage.fs .screen{flex:none;aspect-ratio:16/9;margin-block:auto}}
 .stage.fake-fs{position:fixed;inset:0;z-index:1000;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);background:#000}
 body.no-scroll{overflow:hidden}
+/* Opened from the home screen icon: leave room for the iPhone's top bar */
+@media (display-mode:fullscreen),(display-mode:standalone){.wrap{padding-top:calc(12px + env(safe-area-inset-top,0px))}}
+/* iPhone tip: add to home screen for true full screen */
+.hs-tip{display:flex;align-items:center;gap:10px;background:#10263a;border:1px solid #1d4a70;border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.4}
+.hs-tip svg{width:18px;height:18px;flex:none;fill:none;stroke:#7cc4f2;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.hs-tip p{margin:0;flex:1;min-width:0}
+.hs-tip b{color:#fff}
+.hs-tip button{border:0;background:none;color:var(--muted);font-size:20px;line-height:1;padding:4px 6px}
 .tile{position:absolute;background:#000;overflow:hidden;transition:all .35s ease}
 .tile video{width:100%;height:100%;object-fit:contain;display:block;background:#000}
 .tile[hidden]{display:none!important}
@@ -161,6 +176,8 @@ body.no-scroll{overflow:hidden}
   .brand b{font-size:24px}.brand span{font-size:17px}
 }
 @media (prefers-reduced-motion:reduce){.vc,.badge .live{transition:none}}
+/* Phone turned sideways: slim, icon-only controls so the games get the room */
+@media (max-height:500px) and (orientation:landscape){.vc{padding:22px 10px 8px}.vc .now{display:none}.vc .ctl .tx{display:none}.vc .ctl{padding:7px 9px}.ticker{height:36px}.stage.has-ticker .vc{bottom:36px}.tk{font-size:15px;padding:0 16px}.ticker .lbl{font-size:16px}}
 
 </style>
 </head>
@@ -174,6 +191,12 @@ body.no-scroll{overflow:hidden}
       <button id="m-quad" data-mode="quad">Quad</button>
     </div>
   </header>
+
+  <div class="hs-tip" id="hsTip" hidden>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M8 7l4-4 4 4M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>
+    <p>For true full screen on iPhone, tap <b>Share</b>, then <b>Add to Home Screen</b>. Open it from the icon and turn your phone sideways.</p>
+    <button id="hsClose" aria-label="Close tip">×</button>
+  </div>
 
   <div id="stage" class="stage mode-quad" aria-label="Video stage">
     <div class="screen" id="screen"></div>
@@ -458,6 +481,28 @@ body.no-scroll{overflow:hidden}
     document.querySelector('#full .tx').textContent = fs ? 'Exit full screen' : 'Full screen';
     placePip();
   }
+  // Turn the phone sideways: the video fills the screen, keeping Single, PiP or Quad.
+  // Turn it back upright to return to the normal page.
+  const sideways = matchMedia('(orientation: landscape) and (max-height: 500px) and (pointer: coarse)');
+  let autoFill = false;
+  function onTilt(){
+    const realFS = document.fullscreenElement || document.webkitFullscreenElement;
+    if (sideways.matches && !realFS && !stage.classList.contains('fake-fs')) { autoFill = true; setFake(true); window.scrollTo(0, 0); }
+    else if (!sideways.matches && autoFill) { autoFill = false; setFake(false); }
+  }
+  sideways.addEventListener ? sideways.addEventListener('change', onTilt) : sideways.addListener(onTilt);
+  onTilt();
+
+  // iPhone tip, hidden once added to the home screen or closed
+  (function(){
+    const tip = document.getElementById('hsTip');
+    const iOS = /iPhone|iPod/.test(navigator.userAgent);
+    const installed = navigator.standalone || matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches;
+    let closed = false; try { closed = localStorage.getItem('nec-hs-tip') === 'closed'; } catch(e) {}
+    if (iOS && !installed && !closed) tip.hidden = false;
+    document.getElementById('hsClose').onclick = () => { tip.hidden = true; try { localStorage.setItem('nec-hs-tip', 'closed'); } catch(e) {} };
+  })();
+
   document.addEventListener('fullscreenchange', onFullscreen);
   document.addEventListener('webkitfullscreenchange', onFullscreen);
 
