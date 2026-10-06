@@ -40,7 +40,14 @@ header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-betw
 .modes button[aria-pressed="true"]{background:var(--nec);color:#fff}
 
 /* Stage */
-.stage{position:relative;aspect-ratio:16/9;max-width:100%;background:#000;border-radius:10px;overflow:hidden}
+.stage{position:relative;background:#000;border-radius:10px;overflow:hidden}
+.screen{position:relative;aspect-ratio:16/9;max-width:100%;overflow:hidden;background:#000}
+/* Full screen keeps the current view (Single, PiP or Quad). Phones without real full screen get a page-filling version. */
+.stage.fs{display:flex;flex-direction:column;border-radius:0;width:100%;height:100%}
+.stage.fs .screen{flex:1;aspect-ratio:auto;min-height:0}
+@media (orientation:portrait){.stage.fs .screen{flex:none;aspect-ratio:16/9;margin-block:auto}}
+.stage.fake-fs{position:fixed;inset:0;z-index:1000;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);background:#000}
+body.no-scroll{overflow:hidden}
 .tile{position:absolute;background:#000;overflow:hidden;transition:all .35s ease}
 .tile video{width:100%;height:100%;object-fit:contain;display:block;background:#000}
 .tile[hidden]{display:none!important}
@@ -117,20 +124,42 @@ header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-betw
 .tapsound{position:absolute;top:3%;right:3%;z-index:5;border:0;background:var(--nec);color:#fff;padding:8px 12px;border-radius:6px;font-weight:600;font-size:13px}
 
 /* Controls laid over the video; they show when you move the mouse or tap, then fade */
-.vc{position:absolute;left:0;right:0;bottom:0;z-index:6;display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:40px 14px 12px;background:linear-gradient(to top,rgba(4,8,12,.92),rgba(4,8,12,.6) 60%,transparent);opacity:0;pointer-events:none;transition:opacity .3s ease}
+.vc{position:absolute;left:0;right:0;bottom:0;z-index:6;display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:32px 12px 10px;background:linear-gradient(to top,rgba(4,8,12,.92),rgba(4,8,12,.6) 60%,transparent);opacity:0;pointer-events:none;transition:opacity .3s ease}
 .stage.show-ui .vc{opacity:1;pointer-events:auto}
 .stage.show-ui{cursor:default}
 .stage:not(.show-ui){cursor:none}
 .mode-pip .tile.is-pip{cursor:grab}
 .vc .now{flex:1 1 200px;min-width:0}
-.vc .now b{display:block;font-family:var(--display);font-size:22px;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 3px rgba(0,0,0,.6)}
-.vc .now span{font-size:13px;color:#b9c4d0}
-.vc .btns{display:flex;flex-wrap:wrap;gap:8px}
-.ctl{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:rgba(18,26,36,.85);padding:9px 12px;border-radius:8px;font-weight:600;font-size:14px;white-space:nowrap}
+.vc .now b{display:block;font-family:var(--display);font-size:19px;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 3px rgba(0,0,0,.6)}
+.vc .now span{font-size:12px;color:#b9c4d0}
+.vc .btns{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.views{display:flex;gap:2px;padding-right:6px;margin-right:2px;border-right:1px solid var(--line)}
+.ctl.vw{padding:6px 7px}
+.ctl.vw[aria-pressed="true"]{background:var(--nec);border-color:var(--nec);color:#fff}
+.ctl{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:rgba(18,26,36,.85);padding:6px 10px;border-radius:7px;font-weight:600;font-size:13px;white-space:nowrap}
 .ctl:hover{border-color:var(--nec)}
 .ctl.primary{background:var(--nec);border-color:var(--nec);color:#fff}
-.ctl svg{width:18px;height:18px;fill:currentColor;flex:none}
-@media (max-width:760px){.vc .now{flex-basis:100%}.vc .ctl .tx{display:none}.vc .ctl{padding:9px}.vc{padding-top:30px}}
+.ctl svg{width:16px;height:16px;fill:currentColor;flex:none}
+/* Phones: controls sit below the video, always showing, icons only */
+@media (max-width:760px){
+  .vc{position:static;opacity:1;pointer-events:auto;background:#0d141c;border-top:1px solid var(--line);padding:8px 10px;gap:6px}
+  .stage:not(.show-ui){cursor:default}
+  .stage.has-ticker .vc{bottom:auto}
+  .vc .now{flex-basis:100%}
+  .vc .now b{font-size:16px}
+  .vc .btns{width:100%;flex-wrap:nowrap;gap:4px}
+  .vc .ctl .tx{display:none}
+  .vc .ctl{flex:1 1 0;min-width:0;justify-content:center;padding:7px 0}
+  .vc #golive{flex:1.6 1 0;font-size:12px}
+  .views{display:contents}
+  .views .ctl:last-child{margin-right:6px}
+  .stage .ticker{position:static}
+  .header-modes{display:none}
+}
+@media (max-width:760px){
+  .wrap{padding:12px 10px 28px;gap:12px}
+  .brand b{font-size:24px}.brand span{font-size:17px}
+}
 @media (prefers-reduced-motion:reduce){.vc,.badge .live{transition:none}}
 
 </style>
@@ -139,7 +168,7 @@ header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-betw
 <div class="wrap">
   <header>
     <div class="brand"><b>NEC</b><span>Front Row</span><span class="tag">Multiview demo</span></div>
-    <div class="modes" role="group" aria-label="View">
+    <div class="modes header-modes" role="group" aria-label="View">
       <button id="m-single" data-mode="single">Single</button>
       <button id="m-pip" data-mode="pip">Picture-in-Picture</button>
       <button id="m-quad" data-mode="quad">Quad</button>
@@ -147,9 +176,15 @@ header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-betw
   </header>
 
   <div id="stage" class="stage mode-quad" aria-label="Video stage">
+    <div class="screen" id="screen"></div>
     <div class="vc" id="vc">
       <div class="now"><b id="nowTitle">Loading games…</b><span id="nowSub"></span></div>
       <div class="btns">
+        <div class="views" role="group" aria-label="View">
+          <button class="ctl vw" data-mode="single" title="Single game" aria-label="Single game"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="1.5"/></svg></button>
+          <button class="ctl vw" data-mode="pip" title="Picture-in-Picture" aria-label="Picture-in-Picture"><svg viewBox="0 0 24 24"><path d="M3 5h18v14H3zm9.5 7v5h7v-5z" fill-rule="evenodd"/></svg></button>
+          <button class="ctl vw" data-mode="quad" title="Quad" aria-label="Quad"><svg viewBox="0 0 24 24"><path d="M3 5h8.5v6.5H3zm9.5 0H21v6.5h-8.5zM3 12.5h8.5V19H3zm9.5 0H21V19h-8.5z"/></svg></button>
+        </div>
         <button class="ctl" id="back10" title="Back 10 seconds"><svg viewBox="0 0 24 24"><path d="M12 5V2L7 6l5 4V7a6 6 0 1 1-6 6H4a8 8 0 1 0 8-8z"/></svg><span class="tx">10s</span></button>
         <button class="ctl" id="play" title="Pause" aria-label="Pause"><svg viewBox="0 0 24 24"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg></button>
         <button class="ctl primary" id="golive" title="Jump to live"><span>Go live</span></button>
@@ -173,6 +208,7 @@ header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-betw
 (function(){
   const FALLBACK = []; // filled if games.json can't load
   const stage = document.getElementById('stage');
+  const screenEl = document.getElementById('screen');
   let games = [], tiles = [], mode = 'quad', focus = 0, pip = 1, soundOn = false, lastMode = null, lastFocus = null;
   const FEED = '/.netlify/functions/nec-stats-feed';
 
@@ -191,7 +227,7 @@ header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-betw
         '<span class="t" style="background:'+esc(g.home.color)+'">'+esc(g.home.abbr)+'<i class="sh">'+g.stats.home+'</i></span>' +
         '<span class="c"><span class="clk">'+esc(g.stats.clock)+'</span><small>'+esc(g.stats.period)+'</small></span>' +
       '</div>';
-    stage.appendChild(el);
+    screenEl.appendChild(el);
     const video = el.querySelector('video');
     const t = { el, video, hls:null, game:g };
     el.addEventListener('click', () => {
@@ -243,8 +279,8 @@ header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-betw
 
   function apply(){
     const keepUI = stage.classList.contains('show-ui');
-    const keepTk = stage.classList.contains('has-ticker');
-    stage.className = 'stage mode-' + mode + (keepUI ? ' show-ui' : '') + (keepTk ? ' has-ticker' : '');
+    const keep = ['show-ui','has-ticker','fs','fake-fs'].filter(c => stage.classList.contains(c));
+    stage.className = ['stage', 'mode-' + mode].concat(keep).join(' ');
     const changed = mode !== lastMode || focus !== lastFocus; lastMode = mode; lastFocus = focus;
     tiles.forEach((t, i) => {
       t.el.classList.toggle('is-focus', i === focus);
@@ -256,7 +292,7 @@ header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-betw
       if (!t.el.hidden) { t.video.play().catch(()=>{}); if (changed) liveFlash(t); }
       else t.video.pause();
     });
-    document.querySelectorAll('.modes button').forEach(b => b.setAttribute('aria-pressed', b.dataset.mode === mode));
+    document.querySelectorAll('[data-mode]').forEach(b => b.setAttribute('aria-pressed', b.dataset.mode === mode));
     const g = tiles[focus].game;
     document.getElementById('nowTitle').textContent = g.away.name + ' at ' + g.home.name;
     document.getElementById('nowSub').textContent = g.sport + ' · ' + g.venue;
@@ -302,7 +338,7 @@ header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-betw
     let start = null;
     el.addEventListener('pointerdown', e => {
       if (!(mode === 'pip' && i === pip)) return;
-      const sr = stage.getBoundingClientRect(), r = el.getBoundingClientRect();
+      const sr = screenEl.getBoundingClientRect(), r = el.getBoundingClientRect();
       start = { px:e.clientX, py:e.clientY, x:r.left - sr.left, y:r.top - sr.top, moved:false };
       el.setPointerCapture(e.pointerId);
     });
@@ -311,7 +347,7 @@ header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-betw
       const dx = e.clientX - start.px, dy = e.clientY - start.py;
       if (!start.moved && Math.hypot(dx, dy) < 6) return;
       start.moved = true; el.classList.add('dragging');
-      const sr = stage.getBoundingClientRect(), r = el.getBoundingClientRect();
+      const sr = screenEl.getBoundingClientRect(), r = el.getBoundingClientRect();
       const x = Math.min(Math.max(0, start.x + dx), sr.width - r.width);
       const y = Math.min(Math.max(0, start.y + dy), sr.height - r.height);
       pipPos = { x: x / sr.width, y: y / sr.height };
@@ -330,13 +366,13 @@ header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-betw
       h.addEventListener('pointerdown', e => {
         if (!(mode === 'pip' && i === pip)) return;
         e.stopPropagation(); e.preventDefault();
-        const sr = stage.getBoundingClientRect(), r = el.getBoundingClientRect();
+        const sr = screenEl.getBoundingClientRect(), r = el.getBoundingClientRect();
         rs = { px:e.clientX, c:h.dataset.c, l:r.left - sr.left, t:r.top - sr.top, w:r.width, h:r.height };
         h.setPointerCapture(e.pointerId); el.classList.add('dragging');
       });
       h.addEventListener('pointermove', e => {
         if (!rs) return;
-        const sr = stage.getBoundingClientRect();
+        const sr = screenEl.getBoundingClientRect();
         const dx = e.clientX - rs.px, west = rs.c.includes('w'), north = rs.c.includes('n');
         let w = rs.w + (west ? -dx : dx);
         w = Math.max(sr.width * 0.18, Math.min(sr.width * 0.75, w));
@@ -365,7 +401,7 @@ header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-betw
   document.getElementById('vc').addEventListener('click', e => e.stopPropagation());
 
   // Controls
-  document.querySelectorAll('.modes button').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('[data-mode]').forEach(b => b.addEventListener('click', () => {
     mode = b.dataset.mode;
     if (mode === 'pip' && pip === focus) pip = (focus + 1) % tiles.length;
     apply();
@@ -382,11 +418,23 @@ header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-betw
       else if (v.webkitSetPresentationMode) v.webkitSetPresentationMode('picture-in-picture');
     } catch(e) {}
   };
+  // Full screen keeps whatever view you're in. iPhones can't do real full screen
+  // for a whole page section, so they get a version that fills the screen instead.
+  const canFS = !!(stage.requestFullscreen || stage.webkitRequestFullscreen);
   document.getElementById('full').onclick = () => {
-    const v = tiles[focus].video;
-    if (stage.requestFullscreen) stage.requestFullscreen().catch(()=>{});
-    else if (v.webkitEnterFullscreen) v.webkitEnterFullscreen();
+    const realFS = document.fullscreenElement || document.webkitFullscreenElement;
+    if (realFS) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); return; }
+    if (stage.classList.contains('fake-fs')) { setFake(false); return; }
+    if (canFS) {
+      const req = stage.requestFullscreen || stage.webkitRequestFullscreen;
+      const r = req.call(stage); if (r && r.catch) r.catch(() => setFake(true));
+    } else setFake(true);
   };
+  function setFake(on){
+    stage.classList.toggle('fake-fs', on);
+    document.body.classList.toggle('no-scroll', on);
+    onFullscreen();
+  }
   document.addEventListener('keydown', e => {
     if (e.target.tagName === 'INPUT') return;
     if (e.key === 'ArrowLeft') document.getElementById('back10').click();
@@ -403,9 +451,12 @@ header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-betw
     stage.classList.toggle('has-ticker', tickerOn && ticker.parentElement === stage);
   };
   function onFullscreen(){
-    const fs = (document.fullscreenElement || document.webkitFullscreenElement) === stage;
+    const fs = (document.fullscreenElement || document.webkitFullscreenElement) === stage || stage.classList.contains('fake-fs');
+    stage.classList.toggle('fs', fs);
     if (fs) stage.appendChild(ticker); else stage.after(ticker);
     stage.classList.toggle('has-ticker', fs && tickerOn);
+    document.querySelector('#full .tx').textContent = fs ? 'Exit full screen' : 'Full screen';
+    placePip();
   }
   document.addEventListener('fullscreenchange', onFullscreen);
   document.addEventListener('webkitfullscreenchange', onFullscreen);
