@@ -4444,14 +4444,42 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
            has no story to take one from, so the picker is shown there. The
            elements have to exist either way - the JS writes into them. -->
       <div id="socialContributorPicker" style="display: none; margin-bottom: 20px; padding: 15px; background: #f3e5f5; border-radius: 8px; border: 1px solid #8e24aa;">
-        <label for="socialContributorSelect" style="display: block; margin-bottom: 8px; font-weight: 600; color: #6a1b9a;">&#x1F4F8; Photographer</label>
-        <select id="socialContributorSelect" onchange="addSocialContributor()"
-                style="width: 100%; max-width: 320px; padding: 8px; border: 1px solid #ce93d8; border-radius: 6px; font-size: 13px;">
-          <option value="">+ Add contributor...</option>
-        </select>
+        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #6a1b9a;">&#x1F4F8; Credits &amp; tags</label>
+
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;">
+          <div style="flex: 1; min-width: 190px;">
+            <div style="font-size: 12px; color: #6a1b9a; margin-bottom: 4px;">Contributor</div>
+            <select id="socialContributorSelect"
+                    style="width: 100%; padding: 8px; border: 1px solid #ce93d8; border-radius: 6px; font-size: 13px;">
+              <option value="">Choose a photographer&hellip;</option>
+            </select>
+          </div>
+          <div style="flex: 1; min-width: 190px;">
+            <div style="font-size: 12px; color: #6a1b9a; margin-bottom: 4px;">&hellip;or any Instagram handle</div>
+            <input type="text" id="socialExtraHandle" placeholder="@someone"
+                   onkeydown="if(event.key==='Enter'){event.preventDefault();addSocialCredit();}"
+                   style="width: 100%; padding: 8px; border: 1px solid #ce93d8; border-radius: 6px; font-size: 13px; box-sizing: border-box;">
+          </div>
+          <div>
+            <div style="font-size: 12px; color: #6a1b9a; margin-bottom: 4px;">Add as</div>
+            <div style="display: flex; gap: 10px; padding: 8px 0;">
+              <label style="display: inline-flex; align-items: center; gap: 4px; cursor: pointer; font-size: 13px;"
+                     title="Co-authors the post and appears on their profile once they accept. Instagram allows three.">
+                <input type="radio" name="socialCreditRole" value="collab" checked> Collaborator
+              </label>
+              <label style="display: inline-flex; align-items: center; gap: 4px; cursor: pointer; font-size: 13px;"
+                     title="Tagged in the photo. No acceptance needed and no limit.">
+                <input type="radio" name="socialCreditRole" value="tag"> Tag
+              </label>
+            </div>
+          </div>
+          <button onclick="addSocialCredit()"
+                  style="padding: 9px 18px; background: #8e24aa; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px;">Add</button>
+        </div>
+
         <div style="margin-top: 6px; font-size: 12px; color: #6a1b9a;">
-          <strong>Collab</strong> co-authors the post on Instagram and appears on their profile once they accept &mdash; three at most.
-          <strong>Tag</strong> tags them in the photo instead: no acceptance, no limit. Either way their Facebook page is tagged.
+          <strong>Collaborator</strong> co-authors the post on Instagram and appears on their profile once they accept &mdash; three at most.
+          <strong>Tag</strong> tags them in the photo instead: no acceptance, no limit. A contributor's Facebook page is tagged either way.
         </div>
         <div id="socialContributorsList" style="margin-top: 10px;"></div>
         <span id="noContributorsMsg"></span>
@@ -15168,8 +15196,82 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
 
     const socialContributorRole = (id) => socialContributorRoles[id] || 'collab';
 
-    function setSocialContributorRole(id, role) {
-      socialContributorRoles[id] = role === 'tag' ? 'tag' : 'collab';
+    /* People who are not contributors - a coach, a player's account, another
+       outlet. Only a handle and a role; there is no Facebook page to tag. */
+    let socialExtraCredits = [];   // [{ handle, role }]
+
+    const cleanHandle = (h) => String(h || '').trim().replace(/^@+/, '').replace(/\s+/g, '').toLowerCase();
+
+    // Instagram's own ceiling. A fourth collaborator is not rejected by their
+    // API, it is just ignored - which is how someone gets quietly left off.
+    const IG_COLLAB_MAX = 3;
+    function socialCollabCount() {
+      return socialContributors.filter(c => c.instagram_username && socialContributorRole(c.id) === 'collab').length
+           + socialExtraCredits.filter(e => e.role === 'collab').length;
+    }
+
+    function chosenCreditRole() {
+      const picked = document.querySelector('input[name="socialCreditRole"]:checked');
+      return picked && picked.value === 'tag' ? 'tag' : 'collab';
+    }
+
+    /* One add button for both inputs. Whichever one is filled wins; the
+       contributor dropdown takes precedence if somehow both are. */
+    function addSocialCredit() {
+      const role = chosenCreditRole();
+      const select = document.getElementById('socialContributorSelect');
+      const handleBox = document.getElementById('socialExtraHandle');
+      const contribId = parseInt(select.value);
+      const typed = cleanHandle(handleBox.value);
+
+      if (!contribId && !typed) {
+        showToast('Pick a photographer or type a handle first', 'warning');
+        return;
+      }
+
+      /* Work out who is being added and whether it can be done BEFORE the
+         collaborator count is consulted. A missing Instagram handle is a more
+         useful thing to be told than "you already have three", and checking
+         the count first hid it whenever the slots happened to be full. */
+      let contrib = null;
+      if (contribId) {
+        select.value = '';
+        if (socialContributors.find(c => c.id === contribId)) {
+          showToast('Already added', 'warning');
+          return;
+        }
+        contrib = allContributors.find(c => c.id === contribId);
+        if (!contrib) return;
+        if (role === 'collab' && !contrib.instagram_username) {
+          showToast(`${contrib.name} has no Instagram username on file, so they cannot be a collaborator. Add one in Contributors, or add them as a Tag.`, 'error');
+          return;
+        }
+      } else {
+        handleBox.value = '';
+        const taken = socialExtraCredits.some(e => e.handle === typed)
+          || socialContributors.some(c => cleanHandle(c.instagram_username) === typed);
+        if (taken) { showToast('That handle is already on this post', 'warning'); return; }
+      }
+
+      if (role === 'collab' && socialCollabCount() >= IG_COLLAB_MAX) {
+        showToast(`Instagram allows ${IG_COLLAB_MAX} collaborators. Add this one as a Tag, or remove a collaborator first.`, 'error');
+        return;
+      }
+
+      if (contrib) {
+        socialContributorRoles[contrib.id] = role;
+        socialContributors.push(contrib);
+      } else {
+        socialExtraCredits.push({ handle: typed, role });
+      }
+
+      renderSocialContributors();
+      renderSocialPhotoTags();
+      renderSocialCollabSummary();
+    }
+
+    function removeSocialExtraCredit(handle) {
+      socialExtraCredits = socialExtraCredits.filter(e => e.handle !== handle);
       renderSocialContributors();
       renderSocialPhotoTags();
       renderSocialCollabSummary();
@@ -15236,10 +15338,10 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         else if (at === -1 && photog.instagram_username) ordered.unshift(photog);
       }
 
-      return ordered
-        .map(c => c.instagram_username)
-        .filter(Boolean)
-        .slice(0, IG_COLLABORATOR_LIMIT);
+      return [
+        ...ordered.map(c => c.instagram_username).filter(Boolean),
+        ...socialExtraCredits.filter(e => e.role === 'collab').map(e => e.handle)
+      ].slice(0, IG_COLLABORATOR_LIMIT);
     }
 
     function renderSocialCollabSummary() {
@@ -15891,12 +15993,26 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       }
     }
 
+    const roleBadge = (role) => role === 'tag'
+      ? '<span style="background:#ede7f6;color:#4527a0;border-radius:10px;padding:1px 8px;font-size:11px;font-weight:600;">TAG</span>'
+      : '<span style="background:#e1306c;color:#fff;border-radius:10px;padding:1px 8px;font-size:11px;font-weight:600;">COLLAB</span>';
+
     function renderSocialContributors() {
       const listDiv = document.getElementById('socialContributorsList');
       const noMsg = document.getElementById('noContributorsMsg');
-      
+
+      /* Typed-in handles share the list with contributors. They have no name
+         and no Facebook page, so they show their handle and their role. */
+      const extras = socialExtraCredits.map(e => `
+          <div style="display: inline-flex; align-items: center; gap: 6px; background: #ede7f6; padding: 6px 10px; border-radius: 20px; font-size: 13px;">
+            <span>@${escapeHtml(e.handle)}</span>
+            ${roleBadge(e.role)}
+            <button data-handle="${escapeHtml(e.handle)}" onclick="removeSocialExtraCredit(this.dataset.handle)"
+                    title="Remove" style="background: none; border: none; color: #4527a0; cursor: pointer; font-size: 14px; padding: 0; line-height: 1;">&times;</button>
+          </div>`).join('');
+
       if (socialContributors.length === 0) {
-        listDiv.innerHTML = '<span style="color: #888; font-size: 13px; padding: 8px;" id="noContributorsMsg">No contributors selected</span>';
+        listDiv.innerHTML = extras || '<span style="color: #888; font-size: 13px; padding: 8px;" id="noContributorsMsg">Nobody credited or tagged yet</span>';
         return;
       }
       
@@ -15911,19 +16027,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           <div style="display: inline-flex; align-items: center; gap: 6px; ${chipStyle} padding: 6px 10px; border-radius: 20px; font-size: 13px;" ${noSocialIds ? 'title="Add IG/FB IDs in Contributor Manager for social integration"' : ''}>
             <span>${c.name}</span>
             ${hasIG} ${hasFB}
-            ${c.instagram_username ? `
-              <span style="display:inline-flex;align-items:center;gap:8px;margin-left:4px;padding-left:8px;border-left:1px solid #ce93d8;font-size:12px;">
-                <label style="display:inline-flex;align-items:center;gap:3px;cursor:pointer;" title="Co-authors the post and appears on their profile once they accept. Instagram allows three.">
-                  <input type="radio" name="socialRole_${c.id}" value="collab"
-                         ${socialContributorRole(c.id) === 'collab' ? 'checked' : ''}
-                         onchange="setSocialContributorRole(${c.id}, 'collab')"> Collab
-                </label>
-                <label style="display:inline-flex;align-items:center;gap:3px;cursor:pointer;" title="Tagged in the photo. No acceptance needed and no limit.">
-                  <input type="radio" name="socialRole_${c.id}" value="tag"
-                         ${socialContributorRole(c.id) === 'tag' ? 'checked' : ''}
-                         onchange="setSocialContributorRole(${c.id}, 'tag')"> Tag
-                </label>
-              </span>` : ''}
+            ${roleBadge(socialContributorRole(c.id))}
             <button onclick="removeSocialContributor(${c.id})" style="background: none; border: none; color: #9c27b0; cursor: pointer; font-size: 14px; padding: 0; line-height: 1;">&times;</button>
           </div>
         `;
@@ -15933,15 +16037,22 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
 
       // Say plainly who will and won't be tagged, rather than letting Instagram
       // silently drop the overflow.
-      const withHandles = socialContributors.filter(c => c.instagram_username);
-      if (withHandles.length > IG_COLLABORATOR_LIMIT) {
-        const tagged = withHandles.slice(0, IG_COLLABORATOR_LIMIT).map(c => '@' + c.instagram_username);
-        const skipped = withHandles.slice(IG_COLLABORATOR_LIMIT).map(c => '@' + c.instagram_username);
+      listDiv.innerHTML += extras;
+
+      /* Counts COLLABORATORS, not everyone with a handle. Somebody added as a
+         Tag is not competing for one of the three slots, and warning as though
+         they were would send KJ hunting for a problem that is not there.
+         Adding is now blocked at three, so this only fires for a post built
+         before that existed. */
+      const collabs = igCollaboratorHandles();
+      const wanted = socialContributors.filter(c => c.instagram_username && socialContributorRole(c.id) === 'collab').length
+                   + socialExtraCredits.filter(e => e.role === 'collab').length;
+      if (wanted > IG_COLLABORATOR_LIMIT) {
         listDiv.innerHTML += `
           <div style="margin-top: 10px; padding: 8px 12px; background: #fff3e0; border: 1px solid #f57c00; border-radius: 6px; font-size: 12px; color: #6d4c00;">
             Instagram allows ${IG_COLLABORATOR_LIMIT} collaborators per post.
-            Inviting ${tagged.join(', ')} &mdash; not ${skipped.join(', ')}.
-            The first three you added win; remove one to swap somebody in.
+            Inviting ${collabs.map(h => '@' + h).join(', ')} &mdash; the rest are not being invited.
+            Remove one, or switch somebody to a Tag.
           </div>`;
       }
     }
@@ -16352,6 +16463,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       socialImages = [];
       socialContributors = [];
       socialContributorRoles = {};
+      socialExtraCredits = [];
       // Hand-picked tags belong to one post, not to the next article opened.
       socialManualTags = [];
       const tagSearch = document.getElementById('socialTagSearch');
@@ -16403,11 +16515,12 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     function socialAllPhotoTags() {
       const seen = new Set();
       const out = [];
-      const taggedContributors = socialContributors
-        .filter(c => socialContributorRole(c.id) === 'tag')
-        .map(c => c.instagram_username)
-        .filter(Boolean);
-      for (const h of [...socialPhotoTags, ...socialManualTags.map(t => t.handle), ...taggedContributors]) {
+      const tagged = [
+        ...socialContributors.filter(c => socialContributorRole(c.id) === 'tag')
+                             .map(c => c.instagram_username).filter(Boolean),
+        ...socialExtraCredits.filter(e => e.role === 'tag').map(e => e.handle)
+      ];
+      for (const h of [...socialPhotoTags, ...socialManualTags.map(t => t.handle), ...tagged]) {
         const k = String(h || '').replace(/^@/, '').toLowerCase();
         if (!k || seen.has(k)) continue;
         seen.add(k);
