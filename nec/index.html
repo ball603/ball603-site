@@ -89,6 +89,13 @@ body.no-scroll{overflow:hidden}
 .mode-quad .tile[data-slot="3"]{bottom:0;right:0}
 .mode-quad .tile.is-focus::after{content:"";position:absolute;inset:0;border:1px solid var(--nec);pointer-events:none;z-index:4}
 
+/* Quad: after you pick a game, a quick button to blow that game up to fill the player */
+.expand{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) scale(.9);z-index:5;width:54px;height:54px;border-radius:50%;border:1px solid rgba(255,255,255,.35);background:rgba(8,14,20,.72);color:#fff;display:grid;place-items:center;opacity:0;pointer-events:none;transition:opacity .25s ease,transform .25s ease}
+.expand svg{width:26px;height:26px;fill:currentColor}
+.expand:hover{background:var(--nec);border-color:var(--nec)}
+.mode-quad .tile.show-expand .expand{opacity:1;pointer-events:auto;transform:translate(-50%,-50%) scale(1)}
+@media (prefers-reduced-motion:reduce){.expand{transition:none}}
+
 /* Score bug */
 .bug{position:absolute;left:3%;bottom:4%;display:flex;align-items:stretch;font-family:var(--display);font-weight:700;z-index:2;box-shadow:0 4px 14px rgba(0,0,0,.5);font-size:clamp(11px,1.6vw,18px);line-height:1;pointer-events:none}
 .mode-quad .bug{font-size:clamp(9px,1vw,13px)}
@@ -243,6 +250,7 @@ body.no-scroll{overflow:hidden}
     el.innerHTML =
       '<video playsinline muted autoplay></video>' +
       '<div class="badge"><span class="live">Live</span><span class="snd" hidden aria-label="Sound on"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M4 9v6h4l5 4V5L8 9H4zm12.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z"/></svg></span></div>' +
+      '<button class="expand" title="Watch this game by itself" aria-label="Watch this game by itself"><svg viewBox="0 0 24 24"><path d="M4 4h6v2H6v4H4zm10 0h6v6h-2V6h-4zM4 14h2v4h4v2H4zm14 0h2v6h-6v-2h4z"/></svg></button>' +
       '<span class="rh" data-c="nw"></span><span class="rh" data-c="ne"></span><span class="rh" data-c="sw"></span><span class="rh" data-c="se"></span>' +
       '<div class="bug">' +
         '<span class="nec">NEC</span>' +
@@ -256,7 +264,10 @@ body.no-scroll{overflow:hidden}
     el.addEventListener('click', () => {
       if (el.dataset.dragged) { delete el.dataset.dragged; return; }   // a drag isn't a tap
       if (mode === 'pip' && i === pip) { [focus, pip] = [pip, focus]; apply(); }
-      else if (mode === 'quad') { focus = i; apply(); }
+      else if (mode === 'quad') { focus = i; apply(); showExpand(t); }
+    });
+    el.querySelector('.expand').addEventListener('click', e => {
+      e.stopPropagation(); focus = i; mode = 'single'; apply();
     });
     makeDraggable(el, i);
     liveFlash(t);
@@ -338,6 +349,13 @@ body.no-scroll{overflow:hidden}
       }
     }
   }, 1000);
+
+  // The pop-up expand button shows for 3 seconds on the game you just picked
+  function showExpand(t){
+    tiles.forEach(x => { x.el.classList.remove('show-expand'); clearTimeout(x.expTimer); });
+    t.el.classList.add('show-expand');
+    t.expTimer = setTimeout(() => t.el.classList.remove('show-expand'), 3000);
+  }
 
   // "Live" tag shows for a few seconds, then fades away
   function liveFlash(t){
