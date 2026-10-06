@@ -296,7 +296,7 @@ addEventListener('DOMContentLoaded', () => {
     const groups = [['Live now', e => isLive(e)], ['Replays', e => e.status === 'final'], ['Later today', e => e.status === 'pre']];
     const onScreen = slots.slice(0, COUNT[layout]);
     $('pickList').innerHTML = groups.map(([name, test]) => {
-      const list = sorted(FR.events).filter(test); if (!list.length) return '';
+      const list = FR.favFirst(FR.events).filter(test); if (!list.length) return '';
       return `<div class="pick-g">${name}</div>` + list.map(ev => {
         const here = onScreen.indexOf(ev.id);
         const tag = here === i ? 'Showing' : here >= 0 ? `In window ${here + 1}` : '';
@@ -379,7 +379,7 @@ addEventListener('DOMContentLoaded', () => {
     if (COUNT[q.get('l')]) layout = q.get('l');
     const picked = asked.filter(Boolean);
     // one game passed in (from a Game page): fill the other windows with live games
-    const fill = sorted(list).filter(e => watchable(e) && !picked.includes(e.id)).map(e => e.id);
+    const fill = FR.favFirst(list).filter(e => watchable(e) && !picked.includes(e.id)).map(e => e.id);
     const start = asked.length > 1 ? asked.map(s => s || null) : [...picked, ...fill];
     for (let i = 0; i < 4; i++) setSlot(i, start[i] || null);
     apply();

@@ -44,6 +44,8 @@
 .school img{width:64px;height:64px;object-fit:contain}
 .school b{font-family:var(--display);font-size:18px;line-height:1.1}
 .school span{font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em}
+.linkbtn{border:0;background:none;padding:0;color:var(--muted);font:inherit;font-size:14px;cursor:pointer}
+.linkbtn:hover{color:var(--text)}
 </style>
 </head>
 <body>
@@ -53,6 +55,14 @@
 
 <main id="main">
   <section class="hero" id="hero" aria-label="Featured game"><div class="hc"><p class="eyebrow">Loading today's games…</p></div></section>
+
+  <div id="tip" hidden></div>
+  <div id="pickPrompt" class="tip" hidden></div>
+
+  <section class="wrap sec" id="mine" aria-labelledby="h-mine" hidden>
+    <div class="sec-h"><h2 id="h-mine">My Teams</h2><button class="meta linkbtn" id="editFavs">Edit my teams</button></div>
+    <div class="rail" id="r-mine"></div>
+  </section>
 
   <section class="wrap sec" id="live" aria-labelledby="h-live">
     <div class="sec-h"><h2 id="h-live">Live now</h2><a class="meta" href="/frontrow/multiview.html">Watch several at once →</a></div>
@@ -71,11 +81,12 @@
 
   <section class="wrap sec" id="schedule" aria-labelledby="h-sched">
     <div class="sec-h"><h2 id="h-sched">Today's schedule</h2><span class="meta" id="sched-meta"></span></div>
+    <div class="filters" id="filters" role="group" aria-label="Show games for"></div>
     <div class="sched" id="sched"></div>
   </section>
 
   <section class="wrap sec" id="schools" aria-labelledby="h-schools">
-    <div class="sec-h"><h2 id="h-schools">Schools</h2><span class="meta">Team pages coming soon</span></div>
+    <div class="sec-h"><h2 id="h-schools">Schools</h2><button class="meta linkbtn" id="allSchools">Associate members →</button></div>
     <div class="schools" id="school-grid"></div>
   </section>
 </main>
@@ -90,10 +101,14 @@
 <script src="/frontrow/assets/player.js" defer></script>
 <script defer>
 addEventListener('DOMContentLoaded', () => {
-  const { esc, logoImg, label, soon, pill, isLive, watchable, sorted, lead, matchup, watchUrl, card } = FR;
+  const { esc, logoImg, label, soon, pill, isLive, watchable, sorted, lead, matchup, watchUrl, card, favFirst, isFav, hasFavs, STAR } = FR;
+  let filter = null;
   FR.header('home');
   FR.board(document.getElementById('board'));
   FR.pullToRefresh();
+  FR.installTip(document.getElementById('tip'));
+  document.getElementById('editFavs').onclick = () => FR.openPicker();
+  document.getElementById('allSchools').onclick = () => FR.openPicker();
 
   let featured = null, preview = null;
 
@@ -132,11 +147,23 @@ addEventListener('DOMContentLoaded', () => {
     el.innerHTML = list.length ? list.map(card).join('') : `<p class="empty">${emptyText}</p>`;
   }
 
-  function schedule(list){
-    document.getElementById('sched-meta').textContent = `${list.length} games`;
-    document.getElementById('sched').innerHTML = sorted(list).map(ev => {
+  function filters(list){
+    const present = [...new Set(list.map(e => e.sportKey))];
+    const opts = [['all', 'All games'], ...(hasFavs() ? [['mine', 'My Teams']] : []), ...present.map(k => [k, (FR.sports.find(s => s.key === k) || {}).name || k])];
+    if (!filter || !opts.some(o => o[0] === filter)) filter = hasFavs() ? 'mine' : 'all';
+    const el = document.getElementById('filters');
+    el.innerHTML = opts.map(([k, n]) => `<button class="chip" data-f="${esc(k)}" aria-pressed="${k === filter}">${k === 'mine' ? STAR + ' ' : ''}${esc(n)}</button>`).join('');
+    el.onclick = e => { const b = e.target.closest('[data-f]'); if (!b) return; filter = b.dataset.f; schedule(FR.events); };
+    return list.filter(e => filter === 'all' ? true : filter === 'mine' ? isFav(e) : e.sportKey === filter);
+  }
+
+  function schedule(all){
+    const list = filters(all);
+    document.getElementById('sched-meta').textContent = `${list.length} of ${all.length} games`;
+    if (!list.length) { document.getElementById('sched').innerHTML = '<p class="empty" style="margin:0;border:0">No games for this pick today.</p>'; return; }
+    document.getElementById('sched').innerHTML = favFirst(list).map(ev => {
       const tm = side => { const t = side === 'away' ? ev.a : ev.h;
-        return `<div class="tm ${lead(ev, side)}">${logoImg(t.key, 24)}<span>${esc(t.name)}</span>${ev.poss === side ? '<i class="poss" title="Has the ball"></i>' : ''}</div>`; };
+        return `<div class="tm ${lead(ev, side)}">${logoImg(t.key, 24)}<span>${esc(t.name)}</span>${isFav(ev) && side === 'away' ? STAR : ''}${ev.poss === side ? '<i class="poss" title="Has the ball"></i>' : ''}</div>`; };
       const sc = ev.status === 'pre' ? '<div class="sc"></div>' : `<div class="sc num"><span class="${lead(ev,'away')}">${ev.score.away}</span><span class="${lead(ev,'home')}">${ev.score.home}</span></div>`;
       const act = watchable(ev)
         ? `<a class="btn ${isLive(ev) ? 'primary' : ''}" href="${watchUrl(ev)}" aria-label="${isLive(ev) ? 'Watch live' : 'Watch replay'}: ${esc(matchup(ev))}">${isLive(ev) ? 'Watch live' : 'Replay'}</a>`
@@ -146,17 +173,38 @@ addEventListener('DOMContentLoaded', () => {
     }).join('');
   }
 
+  // Full members; tap one to follow it
   function schools(){
-    const nec = Object.entries(FR.teams).filter(([k, t]) => t.nec);
-    document.getElementById('school-grid').innerHTML = nec.map(([k, t]) =>
-      `<div class="school">${logoImg(k, 64)}<b>${esc(t.name)}</b><span>${esc(t.mascot)}</span></div>`).join('');
+    const grid = document.getElementById('school-grid'), f = FR.favs();
+    grid.innerHTML = FR.schools.filter(s => s.member === 'full').map(s =>
+      `<button class="school" data-k="${esc(s.key)}" aria-pressed="${f.schools.includes(s.key)}" aria-label="Follow ${esc(s.name)}">${logoImg(s.key, 64)}<b>${esc(s.name)}</b><span>${esc(s.mascot)}</span><span class="follow">${STAR}${f.schools.includes(s.key) ? 'Following' : 'Follow'}</span></button>`).join('');
+    grid.onclick = e => {
+      const b = e.target.closest('.school'); if (!b) return;
+      const cur = FR.favs(), k = b.dataset.k;
+      const next = { schools: cur.schools.includes(k) ? cur.schools.filter(x => x !== k) : [...cur.schools, k], sports: cur.sports };
+      FR.setFavs(next);
+    };
   }
 
+  // Ask first-time visitors to pick their teams
+  function prompt(){
+    const el = document.getElementById('pickPrompt');
+    let asked = false; try { asked = localStorage.getItem('fr-favs-asked') === '1'; } catch (e) {}
+    if (asked || hasFavs()) { el.hidden = true; return; }
+    el.innerHTML = `${STAR}<p><b>Follow your teams.</b> Pick schools and sports and their games show up first.</p><button class="btn primary">Pick my teams</button><button class="tip-x" aria-label="Not now">×</button>`;
+    el.hidden = false;
+    el.querySelector('.btn').onclick = () => FR.openPicker();
+    el.querySelector('.tip-x').onclick = () => { el.hidden = true; try { localStorage.setItem('fr-favs-asked', '1'); } catch (e) {} };
+  }
+  document.addEventListener('fr:favs', () => { schools(); prompt(); filter = null; schedule(FR.events); });
+
   FR.load().then(() => {
-    schools();
+    schools(); prompt();
     FR.on(list => {
-      const s = sorted(list);
-      if (!featured) { featured = s.find(isLive) || s.find(e => e.status === 'pre') || s[0]; startPreview(featured); }
+      const s = sorted(list), mine = favFirst(list).filter(isFav);
+      if (!featured) { const f = favFirst(list); featured = f.find(isLive) || f.find(e => e.status === 'pre') || f[0]; startPreview(featured); }
+      document.getElementById('mine').hidden = !hasFavs();
+      if (hasFavs()) rail('r-mine', mine, 'No games for your teams today. They’ll show up here when they play.');
       renderHero(featured);
       rail('r-live', s.filter(isLive), 'No games are live right now. Check the schedule below.');
       rail('r-soon', s.filter(e => e.status === 'pre'), 'Nothing else scheduled today.');

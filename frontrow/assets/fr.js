@@ -3,7 +3,7 @@ window.FR = (() => {
   const BASE = '/frontrow/';
   const FEED = '/.netlify/functions/frontrow-stats';
   const POLL_MS = 10000;
-  let teams = {}, events = [], subs = [], loaded = null;
+  let teams = {}, events = [], subs = [], loaded = null, schools = [], sports = [];
 
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
   const logo = k => '/.netlify/functions/frontrow-logo?t=' + encodeURIComponent(k);
@@ -16,7 +16,7 @@ window.FR = (() => {
     loaded = fetch(BASE + 'data/events.json', { cache:'no-cache' })
       .then(r => r.json())
       .then(d => {
-        teams = d.teams;
+        teams = d.teams; schools = d.schools || []; sports = d.sports || [];
         events = d.events.map(e => ({ ...e, a: { key:e.away, ...teams[e.away] }, h: { key:e.home, ...teams[e.home] },
           status:'pre', period:0, clock:'', poss:null, kickoff: e.kickoff ? Date.parse(e.kickoff) : null, score:{ away:0, home:0 } }));
         return poll().then(() => { setInterval(poll, POLL_MS); return events; });
@@ -48,6 +48,24 @@ window.FR = (() => {
   const on = fn => { subs.push(fn); if (events.length) fn(events, new Set()); };
   const byId = id => events.find(e => e.id === id);
 
+  // ---- My Teams (saved on this device) ----
+  const FAV_KEY = 'fr-favs-v1';
+  let favs = { schools: [], sports: [] };
+  try { favs = Object.assign(favs, JSON.parse(localStorage.getItem(FAV_KEY) || '{}')); } catch (e) {}
+  const hasFavs = () => favs.schools.length > 0 || favs.sports.length > 0;
+  function isFav(ev){
+    if (!hasFavs()) return false;
+    const school = !favs.schools.length || favs.schools.includes(ev.away) || favs.schools.includes(ev.home);
+    const sport = !favs.sports.length || favs.sports.includes(ev.sportKey);
+    return school && sport;
+  }
+  function saveFavs(next){
+    favs = { schools:[...new Set(next.schools)], sports:[...new Set(next.sports)] };
+    try { localStorage.setItem(FAV_KEY, JSON.stringify(favs)); } catch (e) {}
+    subs.forEach(fn => { try { fn(events, new Set()); } catch (e) { console.error(e); } });
+    document.dispatchEvent(new CustomEvent('fr:favs'));
+  }
+
   // ---- Labels ----
   const ord = p => ['', '1st', '2nd', '3rd', '4th'][p] || 'OT';
   function label(ev){
@@ -71,6 +89,8 @@ window.FR = (() => {
   }
   const rank = ev => isLive(ev) ? 0 : ev.status === 'pre' ? 1 : 2;
   const sorted = list => [...list].sort((x, y) => rank(x) - rank(y) || (x.kickoff || 0) - (y.kickoff || 0));
+  const favFirst = list => { const s = sorted(list); return [...s.filter(isFav), ...s.filter(e => !isFav(e))]; };
+  const STAR = '<svg class="star" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.2l-5.7 3.1 1.2-6.4-4.7-4.4 6.4-.8z"/></svg>';
   const lead = (ev, side) => ev.status !== 'pre' && ev.score[side] < ev.score[side === 'away' ? 'home' : 'away'] ? 'lose' : '';
   const matchup = ev => `${ev.a.name} at ${ev.h.name}`;
   const watchUrl = ev => `${BASE}watch.html?e=${encodeURIComponent(ev.id)}`;
@@ -98,7 +118,12 @@ window.FR = (() => {
         ${link('multi', BASE + 'multiview.html', 'Multiview')}
         ${link('schools', BASE + '#schools', 'Schools', '<span class="soon">Soon</span>')}
       </nav>
-      <a class="livecount" id="liveCount" href="${BASE}#live" hidden><span class="dot"></span><span></span></a>`;
+      <a class="livecount" id="liveCount" href="${BASE}#live" hidden><span class="dot"></span><span></span></a>
+      <button class="myteams" id="myTeamsBtn" aria-haspopup="dialog">${STAR}<span>My Teams</span></button>`;
+    const mt = document.getElementById('myTeamsBtn');
+    const mark = () => { mt.classList.toggle('set', hasFavs()); mt.setAttribute('aria-label', hasFavs() ? 'My Teams (set)' : 'Pick my teams'); };
+    mt.onclick = () => openPicker(); mark();
+    document.addEventListener('fr:favs', mark);
     on(list => {
       const n = list.filter(isLive).length, lc = document.getElementById('liveCount');
       lc.hidden = !n; lc.lastElementChild.textContent = `${n} live`;
@@ -121,13 +146,13 @@ window.FR = (() => {
     br.onclick = () => strip.scrollBy({ left: strip.clientWidth * .8, behavior:'smooth' });
     on(list => {
       const x = strip.scrollLeft;
-      strip.innerHTML = sorted(list).map(ev => {
+      strip.innerHTML = favFirst(list).map(ev => {
         const row = side => {
           const t = side === 'away' ? ev.a : ev.h;
           return `<div class="tm ${lead(ev, side)}">${logoImg(t.key, 20)}<span class="ab">${esc(t.abbr)}${ev.poss === side ? '<i class="poss" title="Has the ball"></i>' : ''}</span><span class="sc">${ev.status === 'pre' ? '' : ev.score[side]}</span></div>`;
         };
-        return `<a class="sb" href="${watchUrl(ev)}" aria-label="${esc(matchup(ev))}, ${esc(label(ev))}${ev.status !== 'pre' ? `, ${ev.score.away} to ${ev.score.home}` : ''}">
-          <div class="st ${isLive(ev) ? 'live' : ''}">${isLive(ev) ? '<span class="dot"></span>' : ''}${esc(label(ev))}</div>${row('away')}${row('home')}</a>`;
+        return `<a class="sb${isFav(ev) ? ' fav' : ''}" href="${watchUrl(ev)}" aria-label="${esc(matchup(ev))}, ${esc(label(ev))}${ev.status !== 'pre' ? `, ${ev.score.away} to ${ev.score.home}` : ''}">
+          <div class="st ${isLive(ev) ? 'live' : ''}">${isLive(ev) ? '<span class="dot"></span>' : ''}${esc(label(ev))}${isFav(ev) ? STAR : ''}</div>${row('away')}${row('home')}</a>`;
       }).join('');
       strip.scrollLeft = x; arrows();
     });
@@ -142,8 +167,69 @@ window.FR = (() => {
       <span class="lg a">${logoImg(ev.a.key, 120)}</span><span class="lg h">${logoImg(ev.h.key, 120)}</span>${scr}</div>`;
   }
   function card(ev){
-    return `<a class="card" href="${watchUrl(ev)}">${art(ev)}
-      <div><div class="t">${esc(ev.a.name)} at ${esc(ev.h.name)}</div><div class="s">${esc(ev.sport)} · ${esc(ev.venue)}</div></div></a>`;
+    return `<a class="card${isFav(ev) ? ' fav' : ''}" href="${watchUrl(ev)}">${art(ev)}
+      <div><div class="t">${isFav(ev) ? STAR : ''}${esc(ev.a.name)} at ${esc(ev.h.name)}</div><div class="s">${esc(ev.sport)} · ${esc(ev.venue)}</div></div></a>`;
+  }
+
+  // ---- My Teams picker ----
+  function openPicker(){
+    let dlg = document.getElementById('mtDlg');
+    if (!dlg) {
+      dlg = document.createElement('dialog'); dlg.id = 'mtDlg'; dlg.className = 'sheet'; dlg.setAttribute('aria-labelledby', 'mtTitle');
+      document.body.appendChild(dlg);
+      dlg.addEventListener('click', e => {
+        if (e.target === dlg) { dlg.close(); return; }
+        const b = e.target.closest('[data-pick]'); if (!b) return;
+        b.setAttribute('aria-pressed', b.getAttribute('aria-pressed') !== 'true');
+        count();
+      });
+    }
+    const sportName = k => (sports.find(s => s.key === k) || {}).name || k;
+    const tile = s => `<button class="pk" data-pick="school" data-key="${esc(s.key)}" aria-pressed="${favs.schools.includes(s.key)}">
+        ${logoImg(s.key, 44)}<b>${esc(s.name)}</b>${s.sports ? `<small>${s.sports.map(sportName).map(esc).join(' · ')}</small>` : ''}<i class="tick" aria-hidden="true"></i></button>`;
+    dlg.innerHTML = `
+      <div class="sh-h"><h2 id="mtTitle">My Teams</h2><button class="sh-x" data-close aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6.4 5 12 10.6 17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4L12 13.4 6.4 19 5 17.6 10.6 12 5 6.4z"/></svg></button></div>
+      <div class="sh-b">
+        <p class="sh-note">Pick your schools and sports. Their games show first everywhere on Front Row. Saved on this device.</p>
+        <h3>Full members</h3><div class="pk-grid">${schools.filter(s => s.member === 'full').map(tile).join('')}</div>
+        <h3>Associate members <span>(NEC sports listed)</span></h3><div class="pk-grid">${schools.filter(s => s.member !== 'full').map(tile).join('')}</div>
+        <h3>Sports</h3><div class="chips">${sports.map(s => `<button class="chip" data-pick="sport" data-key="${esc(s.key)}" aria-pressed="${favs.sports.includes(s.key)}">${esc(s.name)}</button>`).join('')}</div>
+      </div>
+      <div class="sh-f"><button class="btn" data-clear>Clear all</button><button class="btn primary" data-done>Save</button></div>`;
+    const count = () => {
+      const n = dlg.querySelectorAll('[data-pick][aria-pressed="true"]').length;
+      dlg.querySelector('[data-done]').textContent = n ? `Save (${n})` : 'Save';
+    };
+    dlg.querySelector('[data-close]').onclick = () => dlg.close();
+    dlg.querySelector('[data-clear]').onclick = () => { dlg.querySelectorAll('[data-pick]').forEach(b => b.setAttribute('aria-pressed', 'false')); count(); };
+    dlg.querySelector('[data-done]').onclick = () => {
+      const pick = t => [...dlg.querySelectorAll(`[data-pick="${t}"][aria-pressed="true"]`)].map(b => b.dataset.key);
+      saveFavs({ schools: pick('school'), sports: pick('sport') });
+      try { localStorage.setItem('fr-favs-asked', '1'); } catch (e) {}
+      dlg.close();
+    };
+    count();
+    dlg.showModal();
+  }
+
+  // ---- Home screen app: register the offline helper, and show how to install ----
+  if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register(BASE + 'sw.js', { scope: BASE }).catch(() => {}));
+  let installEvt = null;
+  addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; document.dispatchEvent(new CustomEvent('fr:installable')); });
+  const installed = () => navigator.standalone || matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches;
+  function installTip(el){
+    if (!el || installed()) return;
+    let closed = false; try { closed = localStorage.getItem('fr-install-tip') === 'closed'; } catch (e) {}
+    if (closed) return;
+    const iOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const close = () => { el.hidden = true; try { localStorage.setItem('fr-install-tip', 'closed'); } catch (e) {} };
+    const show = html => { el.className = 'tip'; el.innerHTML = html + '<button class="tip-x" aria-label="Close tip">×</button>'; el.hidden = false; el.querySelector('.tip-x').onclick = close; };
+    const icon = '<img src="' + BASE + 'icon-180.png" alt="" width="40" height="40">';
+    if (iOS) show(`${icon}<p><b>Get the Front Row app.</b> Tap <b>Share</b>, then <b>Add to Home Screen</b>. It opens full screen with no browser bars.</p>`);
+    document.addEventListener('fr:installable', () => {
+      show(`${icon}<p><b>Get the Front Row app</b> on your home screen. It opens full screen.</p><button class="btn primary tip-go">Install</button>`);
+      el.querySelector('.tip-go').onclick = async () => { installEvt.prompt(); const r = await installEvt.userChoice; if (r.outcome === 'accepted') close(); };
+    });
   }
 
   // ---- Pull down to refresh, only in the home screen app (Safari's own version isn't there) ----
@@ -153,15 +239,18 @@ window.FR = (() => {
     const ptr = document.createElement('div'); ptr.className = 'ptr'; ptr.setAttribute('aria-hidden', 'true');
     ptr.innerHTML = '<svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/></svg>';
     document.body.appendChild(ptr);
-    const PULL = 80; let y0 = null, dist = 0;
+    const PULL = 80; let y0 = null, x0 = 0, dist = 0, dir = null;
     document.addEventListener('touchstart', e => {
       if (window.scrollY > 0 || skip(e)) return;
-      if (e.target.closest('.strip, .rail, .tile.is-pip, .rh')) return;
-      y0 = e.touches[0].clientY; dist = 0;
+      if (e.target.closest('.tile, .rh, dialog')) return;
+      y0 = e.touches[0].clientY; x0 = e.touches[0].clientX; dist = 0; dir = null;
     }, { passive:true });
     document.addEventListener('touchmove', e => {
       if (y0 === null) return;
-      dist = Math.max(0, e.touches[0].clientY - y0);
+      const dy = e.touches[0].clientY - y0, dx = e.touches[0].clientX - x0;
+      if (!dir && Math.hypot(dx, dy) > 8) dir = Math.abs(dx) > Math.abs(dy) ? 'side' : 'down';
+      if (dir === 'side' || window.scrollY > 0) { y0 = null; ptr.style.transform = ''; return; }
+      dist = Math.max(0, dy);
       const d = Math.min(dist, PULL * 1.5);
       ptr.style.transform = `translateY(${d * .9}px) rotate(${d * 3}deg)`;
       ptr.classList.toggle('ready', dist > PULL);
@@ -173,6 +262,6 @@ window.FR = (() => {
     });
   }
 
-  return { BASE, esc, logo, logoImg, time, load, on, byId, label, soon, pill, isLive, watchable, sorted, lead, matchup, watchUrl,
-           header, board, art, card, pullToRefresh, get events(){ return events; }, get teams(){ return teams; } };
+  return { favs: () => favs, setFavs: saveFavs, hasFavs, isFav, favFirst, openPicker, installTip, STAR, BASE, esc, logo, logoImg, time, load, on, byId, label, soon, pill, isLive, watchable, sorted, lead, matchup, watchUrl,
+           header, board, art, card, pullToRefresh, get events(){ return events; }, get teams(){ return teams; }, get schools(){ return schools; }, get sports(){ return sports; } };
 })();
