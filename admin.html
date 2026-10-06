@@ -4450,7 +4450,8 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           <option value="">+ Add contributor...</option>
         </select>
         <div style="margin-top: 6px; font-size: 12px; color: #6a1b9a;">
-          Credits them as an Instagram collaborator and tags their Facebook page, where those are on file.
+          <strong>Collab</strong> co-authors the post on Instagram and appears on their profile once they accept &mdash; three at most.
+          <strong>Tag</strong> tags them in the photo instead: no acceptance, no limit. Either way their Facebook page is tagged.
         </div>
         <div id="socialContributorsList" style="margin-top: 10px;"></div>
         <span id="noContributorsMsg"></span>
@@ -15152,6 +15153,28 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       console.log('=== populateSocialContributorDropdown END ===');
     }
     
+/* Collaborator or tag, per person.
+ *
+ *   collab — co-authors the post. It appears on their profile once they accept,
+ *            and Instagram allows at most three.
+ *   tag    — tagged in the photo. No acceptance step, no limit.
+ *
+ * Instagram only. Facebook has no collaborator idea at all, so a page tag is
+ * the only thing available there and both settings tag the page the same way.
+ *
+ * Unset means collab, which is what everyone got before this existed - so the
+ * article path behaves exactly as it did. */
+    let socialContributorRoles = {};
+
+    const socialContributorRole = (id) => socialContributorRoles[id] || 'collab';
+
+    function setSocialContributorRole(id, role) {
+      socialContributorRoles[id] = role === 'tag' ? 'tag' : 'collab';
+      renderSocialContributors();
+      renderSocialPhotoTags();
+      renderSocialCollabSummary();
+    }
+
     function addSocialContributor() {
       const select = document.getElementById('socialContributorSelect');
       const contribId = parseInt(select.value);
@@ -15203,7 +15226,9 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
 
     function igCollaboratorHandles() {
       const photog = articlePhotographerContributor();
-      const ordered = [...socialContributors];
+      // Anyone switched to "Tag" is tagged in the photo instead, so they are
+      // not a collaborator and must not use up one of the three slots.
+      const ordered = socialContributors.filter(c => socialContributorRole(c.id) === 'collab');
 
       if (photog) {
         const at = ordered.findIndex(c => c.id === photog.id);
@@ -15886,6 +15911,19 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
           <div style="display: inline-flex; align-items: center; gap: 6px; ${chipStyle} padding: 6px 10px; border-radius: 20px; font-size: 13px;" ${noSocialIds ? 'title="Add IG/FB IDs in Contributor Manager for social integration"' : ''}>
             <span>${c.name}</span>
             ${hasIG} ${hasFB}
+            ${c.instagram_username ? `
+              <span style="display:inline-flex;align-items:center;gap:8px;margin-left:4px;padding-left:8px;border-left:1px solid #ce93d8;font-size:12px;">
+                <label style="display:inline-flex;align-items:center;gap:3px;cursor:pointer;" title="Co-authors the post and appears on their profile once they accept. Instagram allows three.">
+                  <input type="radio" name="socialRole_${c.id}" value="collab"
+                         ${socialContributorRole(c.id) === 'collab' ? 'checked' : ''}
+                         onchange="setSocialContributorRole(${c.id}, 'collab')"> Collab
+                </label>
+                <label style="display:inline-flex;align-items:center;gap:3px;cursor:pointer;" title="Tagged in the photo. No acceptance needed and no limit.">
+                  <input type="radio" name="socialRole_${c.id}" value="tag"
+                         ${socialContributorRole(c.id) === 'tag' ? 'checked' : ''}
+                         onchange="setSocialContributorRole(${c.id}, 'tag')"> Tag
+                </label>
+              </span>` : ''}
             <button onclick="removeSocialContributor(${c.id})" style="background: none; border: none; color: #9c27b0; cursor: pointer; font-size: 14px; padding: 0; line-height: 1;">&times;</button>
           </div>
         `;
@@ -16313,6 +16351,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     async function initSocialPublishingPanel() {
       socialImages = [];
       socialContributors = [];
+      socialContributorRoles = {};
       // Hand-picked tags belong to one post, not to the next article opened.
       socialManualTags = [];
       const tagSearch = document.getElementById('socialTagSearch');
@@ -16364,7 +16403,11 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     function socialAllPhotoTags() {
       const seen = new Set();
       const out = [];
-      for (const h of [...socialPhotoTags, ...socialManualTags.map(t => t.handle)]) {
+      const taggedContributors = socialContributors
+        .filter(c => socialContributorRole(c.id) === 'tag')
+        .map(c => c.instagram_username)
+        .filter(Boolean);
+      for (const h of [...socialPhotoTags, ...socialManualTags.map(t => t.handle), ...taggedContributors]) {
         const k = String(h || '').replace(/^@/, '').toLowerCase();
         if (!k || seen.has(k)) continue;
         seen.add(k);
