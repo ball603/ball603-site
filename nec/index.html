@@ -50,7 +50,8 @@ header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-betw
 .mode-single .tile.is-focus{inset:0}
 /* PiP */
 .mode-pip .tile.is-focus{inset:0}
-.mode-pip .tile.is-pip{width:32%;aspect-ratio:16/9;height:auto;right:2%;bottom:3%;left:auto;top:auto;border:2px solid var(--nec);border-radius:8px;z-index:3;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.6)}
+.mode-pip .tile.is-pip{width:32%;aspect-ratio:16/9;height:auto;right:2%;bottom:3%;left:auto;top:auto;border:2px solid var(--nec);border-radius:8px;z-index:3;cursor:grab;touch-action:none;box-shadow:0 8px 24px rgba(0,0,0,.6)}
+.mode-pip .tile.is-pip.dragging{cursor:grabbing;transition:none}
 /* Quad */
 .mode-quad .tile{width:calc(50% - 2px);height:calc(50% - 2px);cursor:pointer}
 .mode-quad .tile[data-slot="0"]{top:0;left:0}
@@ -96,22 +97,30 @@ header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-betw
 
 .badge{position:absolute;top:3%;left:3%;z-index:2;display:flex;gap:6px;align-items:center;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;pointer-events:none}
 .badge .live{background:var(--live);color:#fff;padding:3px 7px;border-radius:3px}
-.badge .behind{background:rgba(0,0,0,.7);padding:3px 7px;border-radius:3px}
 .badge .snd{background:rgba(0,0,0,.7);padding:3px 7px;border-radius:3px}
-.mode-pip .tile.is-pip .badge .behind,.mode-pip .tile.is-pip .badge .snd{display:none}
+.mode-pip .tile.is-pip .badge .snd{display:none}
+.badge .live{transition:opacity .6s ease}
+.tile.live-off .badge .live{opacity:0}
 .err{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:16px;color:var(--muted);font-size:14px;z-index:1}
 
 .tapsound{position:absolute;top:3%;right:3%;z-index:5;border:0;background:var(--nec);color:#fff;padding:8px 12px;border-radius:6px;font-weight:600;font-size:13px}
 
-/* Controls */
-.controls{display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
-.controls .now{flex:1 1 220px;min-width:0}
-.controls .now b{display:block;font-family:var(--display);font-size:20px;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.controls .now span{font-size:13px;color:var(--muted)}
-.ctl{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:#182330;padding:9px 12px;border-radius:8px;font-weight:600;font-size:14px}
+/* Controls laid over the video; they show when you move the mouse or tap, then fade */
+.vc{position:absolute;left:0;right:0;bottom:0;z-index:6;display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:40px 14px 12px;background:linear-gradient(to top,rgba(4,8,12,.92),rgba(4,8,12,.6) 60%,transparent);opacity:0;pointer-events:none;transition:opacity .3s ease}
+.stage.show-ui .vc{opacity:1;pointer-events:auto}
+.stage.show-ui{cursor:default}
+.stage:not(.show-ui){cursor:none}
+.mode-pip .tile.is-pip{cursor:grab}
+.vc .now{flex:1 1 200px;min-width:0}
+.vc .now b{display:block;font-family:var(--display);font-size:22px;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 3px rgba(0,0,0,.6)}
+.vc .now span{font-size:13px;color:#b9c4d0}
+.vc .btns{display:flex;flex-wrap:wrap;gap:8px}
+.ctl{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:rgba(18,26,36,.85);padding:9px 12px;border-radius:8px;font-weight:600;font-size:14px;white-space:nowrap}
 .ctl:hover{border-color:var(--nec)}
 .ctl.primary{background:var(--nec);border-color:var(--nec);color:#fff}
-.ctl svg{width:18px;height:18px;fill:currentColor}
+.ctl svg{width:18px;height:18px;fill:currentColor;flex:none}
+@media (max-width:760px){.vc .now{flex-basis:100%}.vc .ctl .tx{display:none}.vc .ctl{padding:9px}.vc{padding-top:30px}}
+@media (prefers-reduced-motion:reduce){.vc,.badge .live{transition:none}}
 
 /* Games list */
 .lower{display:grid;grid-template-columns:1.4fr 1fr;gap:16px}
@@ -152,28 +161,30 @@ input{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);bac
     </div>
   </header>
 
-  <div id="stage" class="stage mode-quad" aria-label="Video stage"></div>
+  <div id="stage" class="stage mode-quad" aria-label="Video stage">
+    <div class="vc" id="vc">
+      <div class="now"><b id="nowTitle">Loading games…</b><span id="nowSub"></span></div>
+      <div class="btns">
+        <button class="ctl" id="back10" title="Back 10 seconds"><svg viewBox="0 0 24 24"><path d="M12 5V2L7 6l5 4V7a6 6 0 1 1-6 6H4a8 8 0 1 0 8-8z"/></svg><span class="tx">10s</span></button>
+        <button class="ctl" id="play" title="Play or pause"><svg viewBox="0 0 24 24"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg><span class="tx">Pause</span></button>
+        <button class="ctl primary" id="golive" title="Jump to live"><span>Go live</span></button>
+        <button class="ctl" id="sound" title="Sound on or off"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4zm12.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4z"/></svg><span class="tx">Sound on</span></button>
+        <button class="ctl" id="popout" title="Pop the game out over other apps"><svg viewBox="0 0 24 24"><path d="M19 7h-8v6h8V7zm2-4H3a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 16H3V5h18v14z"/></svg><span class="tx">Pop out</span></button>
+        <button class="ctl" id="full" title="Full screen"><svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg><span class="tx">Full screen</span></button>
+        <button class="ctl" id="bugs" title="Show scores on each video" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M3 15h18v4H3zM3 5h8v8H3zm10 0h8v3h-8zm0 5h8v3h-8z"/></svg><span class="tx">Scores on video</span></button>
+      </div>
+    </div>
+  </div>
 
   <div class="ticker" aria-label="NEC scores">
     <div class="lbl">NEC <small>Scores</small></div>
     <div class="view"><div class="belt" id="belt"><div class="set"><span class="wait">Loading scores…</span></div></div></div>
   </div>
 
-  <div class="controls">
-    <div class="now"><b id="nowTitle">Loading games…</b><span id="nowSub"></span></div>
-    <button class="ctl" id="back10" title="Back 10 seconds"><svg viewBox="0 0 24 24"><path d="M12 5V2L7 6l5 4V7a6 6 0 1 1-6 6H4a8 8 0 1 0 8-8z"/></svg>10s</button>
-    <button class="ctl" id="play" title="Play or pause"><svg viewBox="0 0 24 24"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg><span>Pause</span></button>
-    <button class="ctl primary" id="golive" title="Jump to live">Go live</button>
-    <button class="ctl" id="sound" title="Sound on or off">Sound on</button>
-    <button class="ctl" id="popout" title="Pop the game out over other apps">Pop out</button>
-    <button class="ctl" id="full" title="Full screen">Full screen</button>
-    <button class="ctl" id="bugs" title="Show scores on each video" aria-pressed="false">Scores on video</button>
-  </div>
-
   <div class="lower">
     <section class="card">
       <h2>Live now</h2>
-      <p class="sub">Tap a game to make it the main one. In Picture-in-Picture, tap the small box to swap.</p>
+      <p class="sub">Tap a game to make it the main one. In Picture-in-Picture, tap the small box to swap, or drag it anywhere.</p>
       <div id="games" class="games"></div>
     </section>
     <section class="card">
@@ -196,7 +207,7 @@ input{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);bac
   const FALLBACK = []; // filled if games.json can't load
   const stage = document.getElementById('stage');
   const gamesEl = document.getElementById('games');
-  let games = [], tiles = [], mode = 'quad', focus = 0, pip = 1, soundOn = false, showBugs = false;
+  let games = [], tiles = [], mode = 'quad', focus = 0, pip = 1, soundOn = false, showBugs = false, lastMode = null, lastFocus = null;
   const FEED = '/.netlify/functions/nec-stats-feed';
 
   function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
@@ -206,7 +217,7 @@ input{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);bac
     el.className = 'tile'; el.dataset.slot = i;
     el.innerHTML =
       '<video playsinline muted autoplay></video>' +
-      '<div class="badge"><span class="live">Live</span><span class="behind" hidden></span><span class="snd" hidden>Sound</span></div>' +
+      '<div class="badge"><span class="live">Live</span><span class="snd" hidden>Sound</span></div>' +
       '<div class="bug">' +
         '<span class="nec">NEC</span>' +
         '<span class="t" style="background:'+esc(g.away.color)+'">'+esc(g.away.abbr)+'<i class="sa">'+g.stats.away+'</i></span>' +
@@ -217,9 +228,12 @@ input{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);bac
     const video = el.querySelector('video');
     const t = { el, video, hls:null, game:g };
     el.addEventListener('click', () => {
+      if (el.dataset.dragged) { delete el.dataset.dragged; return; }   // a drag isn't a tap
       if (mode === 'pip' && i === pip) { [focus, pip] = [pip, focus]; apply(); }
       else if (mode === 'quad') { focus = i; apply(); }
     });
+    makeDraggable(el, i);
+    liveFlash(t);
     load(t, g.stream);
     return t;
   }
@@ -261,7 +275,9 @@ input{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);bac
   }
 
   function apply(){
-    stage.className = 'stage mode-' + mode + (showBugs ? ' show-bugs' : '');
+    const keepUI = stage.classList.contains('show-ui');
+    stage.className = 'stage mode-' + mode + (showBugs ? ' show-bugs' : '') + (keepUI ? ' show-ui' : '');
+    const changed = mode !== lastMode || focus !== lastFocus; lastMode = mode; lastFocus = focus;
     tiles.forEach((t, i) => {
       t.el.classList.toggle('is-focus', i === focus);
       t.el.classList.toggle('is-pip', mode === 'pip' && i === pip);
@@ -269,14 +285,15 @@ input{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);bac
       t.video.muted = !(soundOn && i === focus);
       t.el.querySelector('.snd').hidden = !(soundOn && i === focus);
       setQuality(t);
-      if (!t.el.hidden) t.video.play().catch(()=>{});
+      if (!t.el.hidden) { t.video.play().catch(()=>{}); if (changed) liveFlash(t); }
       else t.video.pause();
     });
     document.querySelectorAll('.modes button').forEach(b => b.setAttribute('aria-pressed', b.dataset.mode === mode));
     const g = tiles[focus].game;
     document.getElementById('nowTitle').textContent = g.away.name + ' at ' + g.home.name;
     document.getElementById('nowSub').textContent = g.sport + ' · ' + g.venue;
-    document.getElementById('sound').textContent = soundOn ? 'Sound off' : 'Sound on';
+    document.querySelector('#sound .tx').textContent = soundOn ? 'Sound off' : 'Sound on';
+    placePip();
     renderList();
   }
 
@@ -310,16 +327,63 @@ input{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);bac
     const s = t.video.seekable; return s.length ? s.end(s.length - 1) : t.video.duration;
   }
   setInterval(() => {
-    tiles.forEach(t => {
-      const edge = liveEdge(t);
-      const behind = isFinite(edge) ? Math.round(edge - t.video.currentTime) : 0;
-      const tag = t.el.querySelector('.behind');
-      if (behind > 6) { tag.hidden = false; tag.textContent = behind + 's behind'; }
-      else tag.hidden = true;
-    });
     const v = tiles[focus]?.video;
-    if (v) document.querySelector('#play span').textContent = v.paused ? 'Play' : 'Pause';
+    if (v) document.querySelector('#play .tx').textContent = v.paused ? 'Play' : 'Pause';
   }, 1000);
+
+  // "Live" tag shows for a few seconds, then fades away
+  function liveFlash(t){
+    t.el.classList.remove('live-off'); clearTimeout(t.liveTimer);
+    t.liveTimer = setTimeout(() => t.el.classList.add('live-off'), 4000);
+  }
+
+  // Drag the small Picture-in-Picture box anywhere on the video
+  let pipPos = null;   // { x, y } as fractions of the stage, once moved
+  function placePip(){
+    tiles.forEach((t, i) => {
+      const st = t.el.style;
+      if (mode === 'pip' && i === pip && pipPos) {
+        st.left = (pipPos.x * 100) + '%'; st.top = (pipPos.y * 100) + '%'; st.right = 'auto'; st.bottom = 'auto';
+      } else { st.left = st.top = st.right = st.bottom = ''; }
+    });
+  }
+  function makeDraggable(el, i){
+    let start = null;
+    el.addEventListener('pointerdown', e => {
+      if (!(mode === 'pip' && i === pip)) return;
+      const sr = stage.getBoundingClientRect(), r = el.getBoundingClientRect();
+      start = { px:e.clientX, py:e.clientY, x:r.left - sr.left, y:r.top - sr.top, moved:false };
+      el.setPointerCapture(e.pointerId);
+    });
+    el.addEventListener('pointermove', e => {
+      if (!start) return;
+      const dx = e.clientX - start.px, dy = e.clientY - start.py;
+      if (!start.moved && Math.hypot(dx, dy) < 6) return;
+      start.moved = true; el.classList.add('dragging');
+      const sr = stage.getBoundingClientRect(), r = el.getBoundingClientRect();
+      const x = Math.min(Math.max(0, start.x + dx), sr.width - r.width);
+      const y = Math.min(Math.max(0, start.y + dy), sr.height - r.height);
+      pipPos = { x: x / sr.width, y: y / sr.height };
+      placePip();
+    });
+    const end = () => {
+      if (!start) return;
+      if (start.moved) el.dataset.dragged = '1';
+      el.classList.remove('dragging'); start = null;
+    };
+    el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
+  }
+
+  // Video controls appear when you move the mouse or tap, and hide after 3 seconds
+  let uiTimer;
+  function showUI(){
+    stage.classList.add('show-ui'); clearTimeout(uiTimer);
+    uiTimer = setTimeout(() => { if (!stage.matches(':hover') || !document.getElementById('vc').matches(':hover')) stage.classList.remove('show-ui'); }, 3000);
+  }
+  ['pointermove','pointerdown','touchstart'].forEach(ev => stage.addEventListener(ev, showUI, { passive:true }));
+  stage.addEventListener('pointerleave', () => { clearTimeout(uiTimer); uiTimer = setTimeout(() => stage.classList.remove('show-ui'), 800); });
+  document.getElementById('vc').addEventListener('focusin', showUI);
+  document.getElementById('vc').addEventListener('click', e => e.stopPropagation());
 
   // Controls
   document.querySelectorAll('.modes button').forEach(b => b.addEventListener('click', () => {
@@ -443,6 +507,7 @@ input{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);bac
       tiles = games.map(buildTile);
       apply();
       pollFeed(); setInterval(pollFeed, 5000);
+      showUI();
     });
 })();
 </script>
