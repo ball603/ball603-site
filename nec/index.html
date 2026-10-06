@@ -68,7 +68,30 @@ header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-betw
 .bug .c{background:#0d0d0d;color:#fff;padding:.45em .7em;display:flex;align-items:center;gap:.5em;font-variant-numeric:tabular-nums}
 .bug .c small{color:#bbb;font-size:.8em}
 .bug .nec{background:var(--nec);padding:.45em .5em;color:#fff;font-style:italic;font-weight:800}
+.stage:not(.show-bugs) .bug{display:none}
 .flash{animation:flash .9s ease}
+
+/* Bottom line ticker */
+.ticker{display:flex;align-items:stretch;background:#05080c;border:1px solid var(--line);border-radius:8px;overflow:hidden;height:44px;margin-top:-8px}
+.ticker .lbl{flex:none;display:flex;align-items:center;gap:6px;background:var(--nec);color:#fff;padding:0 14px;font-family:var(--display);font-weight:800;font-style:italic;font-size:18px;letter-spacing:.03em;z-index:1}
+.ticker .lbl small{font-style:normal;font-weight:600;font-size:11px;letter-spacing:.1em;text-transform:uppercase;opacity:.85}
+.ticker .view{flex:1;min-width:0;overflow:hidden;position:relative}
+.ticker .belt{display:flex;width:max-content;height:100%;animation:belt 40s linear infinite}
+.ticker:hover .belt{animation-play-state:paused}
+.ticker .set{display:flex;height:100%}
+@keyframes belt{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@media (prefers-reduced-motion:reduce){.ticker .belt{animation:none}.ticker .view{overflow-x:auto}}
+.tk{display:flex;align-items:center;gap:10px;padding:0 22px;border-right:1px solid var(--line);font-family:var(--display);font-weight:700;font-size:17px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.tk .sp{font-family:var(--body);font-weight:600;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.tk .tm{display:flex;align-items:center;gap:6px}
+.tk .sw{width:4px;height:18px;border-radius:2px}
+.tk .lead{color:#fff}
+.tk .trail{color:var(--muted)}
+.tk .st{font-family:var(--body);font-weight:600;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.tk .st.live{color:#ffb4b5}
+.tk .lp{font-family:var(--body);font-weight:500;font-size:12px;color:var(--muted)}
+.tk.flash .tm{animation:flash .9s ease}
+.ticker .wait{display:flex;align-items:center;padding:0 16px;color:var(--muted);font-size:13px}
 @keyframes flash{0%{background:#ffd60a;color:#000}100%{}}
 
 .badge{position:absolute;top:3%;left:3%;z-index:2;display:flex;gap:6px;align-items:center;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;pointer-events:none}
@@ -131,6 +154,11 @@ input{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);bac
 
   <div id="stage" class="stage mode-quad" aria-label="Video stage"></div>
 
+  <div class="ticker" aria-label="NEC scores">
+    <div class="lbl">NEC <small>Scores</small></div>
+    <div class="view"><div class="belt" id="belt"><div class="set"><span class="wait">Loading scores…</span></div></div></div>
+  </div>
+
   <div class="controls">
     <div class="now"><b id="nowTitle">Loading games…</b><span id="nowSub"></span></div>
     <button class="ctl" id="back10" title="Back 10 seconds"><svg viewBox="0 0 24 24"><path d="M12 5V2L7 6l5 4V7a6 6 0 1 1-6 6H4a8 8 0 1 0 8-8z"/></svg>10s</button>
@@ -139,6 +167,7 @@ input{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);bac
     <button class="ctl" id="sound" title="Sound on or off">Sound on</button>
     <button class="ctl" id="popout" title="Pop the game out over other apps">Pop out</button>
     <button class="ctl" id="full" title="Full screen">Full screen</button>
+    <button class="ctl" id="bugs" title="Show scores on each video" aria-pressed="false">Scores on video</button>
   </div>
 
   <div class="lower">
@@ -156,7 +185,7 @@ input{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);bac
         <div class="row"><button class="ctl primary" type="submit">Load into main game</button></div>
         <div class="msg" id="linkMsg" aria-live="polite"></div>
       </form>
-      <p class="note">Demo uses public test streams in place of real NEC games, and the scores are sample numbers that change on their own. With real Hudl links and a stats feed, this page works the same way.</p>
+      <p class="note">Videos are real Hudl games, the scores come from a test stats feed of four made-up NEC games that play out live. Swapping in a real stats feed link works the same way.</p>
     </section>
   </div>
 </div>
@@ -167,7 +196,8 @@ input{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);bac
   const FALLBACK = []; // filled if games.json can't load
   const stage = document.getElementById('stage');
   const gamesEl = document.getElementById('games');
-  let games = [], tiles = [], mode = 'quad', focus = 0, pip = 1, soundOn = false;
+  let games = [], tiles = [], mode = 'quad', focus = 0, pip = 1, soundOn = false, showBugs = false;
+  const FEED = '/.netlify/functions/nec-stats-feed';
 
   function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 
@@ -231,7 +261,7 @@ input{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);bac
   }
 
   function apply(){
-    stage.className = 'stage mode-' + mode;
+    stage.className = 'stage mode-' + mode + (showBugs ? ' show-bugs' : '');
     tiles.forEach((t, i) => {
       t.el.classList.toggle('is-focus', i === focus);
       t.el.classList.toggle('is-pip', mode === 'pip' && i === pip);
@@ -291,21 +321,6 @@ input{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);bac
     if (v) document.querySelector('#play span').textContent = v.paused ? 'Play' : 'Pause';
   }, 1000);
 
-  // Sample stats ticker (stands in for a live stats feed)
-  setInterval(() => {
-    const t = tiles[Math.floor(Math.random() * tiles.length)];
-    if (!t) return;
-    const side = Math.random() < .5 ? 'home' : 'away';
-    const sport = t.game.sport;
-    const add = /Basketball/.test(sport) ? (Math.random() < .3 ? 3 : 2) : 1;
-    if (/Soccer|Hockey/.test(sport) && Math.random() < .8) return; // low-scoring sports score less often
-    t.game.stats[side] += add;
-    const el = t.el.querySelector(side === 'home' ? '.sh' : '.sa');
-    el.textContent = t.game.stats[side];
-    const box = el.parentElement; box.classList.remove('flash'); void box.offsetWidth; box.classList.add('flash');
-    renderList();
-  }, 3500);
-
   // Controls
   document.querySelectorAll('.modes button').forEach(b => b.addEventListener('click', () => {
     mode = b.dataset.mode;
@@ -343,6 +358,81 @@ input{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);bac
     if (e.key === ' ') { e.preventDefault(); document.getElementById('play').click(); }
   });
 
+  document.getElementById('bugs').onclick = (e) => {
+    showBugs = !showBugs; e.currentTarget.setAttribute('aria-pressed', showBugs);
+    e.currentTarget.classList.toggle('primary', showBugs); apply();
+  };
+
+  // ---- Live stats feed (XML) ----
+  let feed = {};   // statsId -> game info from the feed
+  const statusText = g => g.status === 'final' ? 'Final' : g.status === 'half' ? 'Half' : (g.period === '1' ? '1st' : '2nd') + ' ' + g.clock;
+
+  function parseFeed(xml){
+    const doc = new DOMParser().parseFromString(xml, 'application/xml');
+    const out = {};
+    doc.querySelectorAll('game').forEach(n => {
+      const team = vh => { const t = n.querySelector('team[vh="'+vh+'"]'); return { id:t.getAttribute('id'), name:t.getAttribute('name'), score:+t.getAttribute('score') }; };
+      out[n.getAttribute('id')] = {
+        id:n.getAttribute('id'), label:n.getAttribute('label'), status:n.getAttribute('status'),
+        period:n.getAttribute('period'), clock:n.getAttribute('clock'),
+        away:team('V'), home:team('H'), lastplay:(n.querySelector('lastplay')||{}).textContent || ''
+      };
+    });
+    return out;
+  }
+
+  function colorFor(statsId, side){
+    const g = games.find(x => x.statsId === statsId);
+    return g ? g[side].color : '#556';
+  }
+
+  function renderTicker(changed){
+    const list = Object.values(feed);
+    if (!list.length) return;
+    const one = list.map(g => {
+      const a = g.away.score, h = g.home.score;
+      const cls = (x, y) => x === y ? 'lead' : (x > y ? 'lead' : 'trail');
+      return '<div class="tk'+(changed.has(g.id)?' flash':'')+'">' +
+        '<span class="sp">'+esc(g.label)+'</span>' +
+        '<span class="tm '+cls(a,h)+'"><span class="sw" style="background:'+esc(colorFor(g.id,'away'))+'"></span>'+esc(g.away.id)+' '+a+'</span>' +
+        '<span class="tm '+cls(h,a)+'"><span class="sw" style="background:'+esc(colorFor(g.id,'home'))+'"></span>'+esc(g.home.id)+' '+h+'</span>' +
+        '<span class="st'+(g.status==='live'?' live':'')+'">'+esc(statusText(g))+'</span>' +
+        (g.status === 'live' ? '<span class="lp">'+esc(g.lastplay)+'</span>' : '') +
+      '</div>';
+    }).join('');
+    // two copies side by side so the belt loops without a gap
+    document.getElementById('belt').innerHTML = '<div class="set">'+one+'</div><div class="set" aria-hidden="true">'+one+'</div>';
+  }
+
+  function applyFeed(){
+    tiles.forEach(t => {
+      const f = feed[t.game.statsId]; if (!f) return;
+      const s = t.game.stats;
+      const sa = t.el.querySelector('.sa'), sh = t.el.querySelector('.sh');
+      if (s.away !== f.away.score) { sa.textContent = f.away.score; flash(sa.parentElement); }
+      if (s.home !== f.home.score) { sh.textContent = f.home.score; flash(sh.parentElement); }
+      s.away = f.away.score; s.home = f.home.score;
+      t.el.querySelector('.clk').textContent = f.status === 'live' ? f.clock : '';
+      t.el.querySelector('.c small').textContent = statusText(f).replace(' ' + f.clock, '');
+    });
+    if (tiles.length) renderList();
+  }
+  function flash(el){ el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
+
+  async function pollFeed(){
+    try {
+      const r = await fetch(FEED, { cache:'no-store' });
+      if (!r.ok) throw new Error(r.status);
+      const next = parseFeed(await r.text());
+      const changed = new Set(Object.keys(next).filter(id => feed[id] &&
+        (feed[id].away.score !== next[id].away.score || feed[id].home.score !== next[id].home.score)));
+      feed = next;
+      renderTicker(changed); applyFeed();
+    } catch (e) {
+      if (!Object.keys(feed).length) document.getElementById('belt').innerHTML = '<div class="set"><span class="wait">Scores are not available right now.</span></div>';
+    }
+  }
+
   // Load the games list (the "database"), then build the stage
   fetch('games.json', { cache:'no-store' })
     .then(r => r.ok ? r.json() : FALLBACK)
@@ -352,6 +442,7 @@ input{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);bac
       if (!games.length) { document.getElementById('nowTitle').textContent = 'No games found. Check games.json.'; return; }
       tiles = games.map(buildTile);
       apply();
+      pollFeed(); setInterval(pollFeed, 5000);
     });
 })();
 </script>
