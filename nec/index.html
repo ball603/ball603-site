@@ -143,7 +143,16 @@ body.no-scroll{overflow:hidden}
 .tile.live-off .badge .live{opacity:0}
 .err{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:16px;color:var(--muted);font-size:14px;z-index:1}
 
-.tapsound{position:absolute;top:3%;right:3%;z-index:5;border:0;background:var(--nec);color:#fff;padding:8px 12px;border-radius:6px;font-weight:600;font-size:13px}
+.tapsound{position:absolute;top:12px;right:12px;z-index:7;display:inline-flex;align-items:center;gap:7px;border:0;background:var(--nec);color:#fff;padding:8px 13px;border-radius:999px;font:600 13px var(--body);box-shadow:0 4px 14px rgba(0,0,0,.45);transition:opacity .4s ease}
+.tapsound svg{width:16px;height:16px;fill:currentColor}
+.tapsound.out{opacity:0;pointer-events:none}
+
+/* Pull down to refresh (home screen app) */
+.ptr{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) - 46px);z-index:2000;width:38px;height:38px;margin-left:-19px;border-radius:50%;background:var(--panel);border:1px solid var(--line);display:grid;place-items:center;box-shadow:0 4px 14px rgba(0,0,0,.5);pointer-events:none}
+.ptr svg{width:20px;height:20px;fill:none;stroke:var(--muted);stroke-width:2.4;stroke-linecap:round}
+.ptr.ready svg{stroke:var(--nec)}
+.ptr.spin svg{animation:spin .8s linear infinite;stroke:var(--nec)}
+@keyframes spin{to{transform:rotate(360deg)}}
 
 /* Controls laid over the video; they show when you move the mouse or tap, then fade */
 .vc{position:absolute;left:0;right:0;bottom:0;z-index:6;display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:32px 12px 10px;background:linear-gradient(to top,rgba(4,8,12,.92),rgba(4,8,12,.6) 60%,transparent);opacity:0;pointer-events:none;transition:opacity .3s ease}
@@ -207,6 +216,7 @@ body.no-scroll{overflow:hidden}
 
   <div id="stage" class="stage mode-quad" aria-label="Video stage">
     <div class="screen" id="screen"></div>
+    <button class="tapsound" id="tapSound" hidden><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4zm12.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z"/></svg>Tap for sound</button>
     <div class="vc" id="vc">
       <div class="now"><b id="nowTitle">Loading games…</b><span id="nowSub"></span></div>
       <div class="btns">
@@ -232,6 +242,8 @@ body.no-scroll{overflow:hidden}
   </div>
 
 </div>
+
+<div class="ptr" id="ptr" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/></svg></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.13/hls.min.js"></script>
 <script>
@@ -511,6 +523,41 @@ body.no-scroll{overflow:hidden}
   sideways.addEventListener ? sideways.addEventListener('change', onTilt) : sideways.addListener(onTilt);
   onTilt();
 
+  // "Tap for sound": shows when the page opens, fades after 8 seconds or once sound is on
+  const tapSound = document.getElementById('tapSound');
+  let tapTimer;
+  function hideTapSound(){ tapSound.classList.add('out'); clearTimeout(tapTimer); setTimeout(() => tapSound.hidden = true, 450); }
+  tapSound.addEventListener('click', e => {
+    e.stopPropagation(); soundOn = true; apply(); hideTapSound();
+  });
+  document.getElementById('sound').addEventListener('click', hideTapSound);
+
+  // Pull down to refresh. The home screen app doesn't get Safari's own pull-to-refresh, so we add it.
+  (function(){
+    const installed = navigator.standalone || matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches;
+    if (!installed) return;
+    const ptr = document.getElementById('ptr'), PULL = 80;
+    let y0 = null, dist = 0;
+    document.addEventListener('touchstart', e => {
+      if (window.scrollY > 0 || stage.classList.contains('fake-fs')) return;
+      if (e.target.closest('.tile.is-pip, .rh, .ticker')) return;   // don't fight PiP dragging or the ticker
+      y0 = e.touches[0].clientY; dist = 0;
+    }, { passive:true });
+    document.addEventListener('touchmove', e => {
+      if (y0 === null) return;
+      dist = Math.max(0, e.touches[0].clientY - y0);
+      const d = Math.min(dist, PULL * 1.5);
+      ptr.style.transform = 'translateY(' + (d * 0.9) + 'px) rotate(' + (d * 3) + 'deg)';
+      ptr.classList.toggle('ready', dist > PULL);
+    }, { passive:true });
+    document.addEventListener('touchend', () => {
+      if (y0 === null) return;
+      y0 = null;
+      if (dist > PULL) { ptr.classList.add('spin'); ptr.style.transform = 'translateY(' + (PULL * 0.9) + 'px)'; setTimeout(() => location.reload(), 250); }
+      else { ptr.style.transition = 'transform .2s ease'; ptr.style.transform = ''; setTimeout(() => ptr.style.transition = '', 220); }
+    });
+  })();
+
   // iPhone tip, hidden once added to the home screen or closed
   (function(){
     const tip = document.getElementById('hsTip');
@@ -615,6 +662,7 @@ body.no-scroll{overflow:hidden}
       apply();
       pollFeed(); setInterval(pollFeed, 5000);
       showUI();
+      if (!soundOn) { tapSound.hidden = false; tapTimer = setTimeout(hideTapSound, 8000); }
     });
 })();
 </script>
