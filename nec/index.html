@@ -69,11 +69,14 @@ header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-betw
 .bug .c{background:#0d0d0d;color:#fff;padding:.45em .7em;display:flex;align-items:center;gap:.5em;font-variant-numeric:tabular-nums}
 .bug .c small{color:#bbb;font-size:.8em}
 .bug .nec{background:var(--nec);padding:.45em .5em;color:#fff;font-style:italic;font-weight:800}
-.stage:not(.show-bugs) .bug{display:none}
+.bug{display:none}
 .flash{animation:flash .9s ease}
 
 /* Bottom line ticker */
 .ticker{display:flex;align-items:stretch;background:#05080c;border:1px solid var(--line);border-radius:8px;overflow:hidden;height:44px;margin-top:-8px}
+.stage .ticker{position:absolute;left:0;right:0;bottom:0;z-index:5;margin:0;border:0;border-radius:0;border-top:1px solid var(--line)}
+.stage.has-ticker .vc{bottom:44px}
+.stage.has-ticker .bug{bottom:calc(4% + 44px)}
 .ticker .lbl{flex:none;display:flex;align-items:center;gap:6px;background:var(--nec);color:#fff;padding:0 14px;font-family:var(--display);font-weight:800;font-style:italic;font-size:18px;letter-spacing:.03em;z-index:1}
 .ticker .lbl small{font-style:normal;font-weight:600;font-size:11px;letter-spacing:.1em;text-transform:uppercase;opacity:.85}
 .ticker .view{flex:1;min-width:0;overflow:hidden;position:relative}
@@ -97,7 +100,8 @@ header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-betw
 
 .badge{position:absolute;top:3%;left:3%;z-index:2;display:flex;gap:6px;align-items:center;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;pointer-events:none}
 .badge .live{background:var(--live);color:#fff;padding:3px 7px;border-radius:3px}
-.badge .snd{background:rgba(0,0,0,.7);padding:3px 7px;border-radius:3px}
+[hidden]{display:none!important}
+.badge .snd{display:inline-flex;align-items:center;background:rgba(0,0,0,.7);padding:3px 6px;border-radius:3px;color:#fff}
 .mode-pip .tile.is-pip .badge .snd{display:none}
 .badge .live{transition:opacity .6s ease}
 .tile.live-off .badge .live{opacity:0}
@@ -171,12 +175,12 @@ input{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);bac
         <button class="ctl" id="sound" title="Sound on or off"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4zm12.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4z"/></svg><span class="tx">Sound on</span></button>
         <button class="ctl" id="popout" title="Pop the game out over other apps"><svg viewBox="0 0 24 24"><path d="M19 7h-8v6h8V7zm2-4H3a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 16H3V5h18v14z"/></svg><span class="tx">Pop out</span></button>
         <button class="ctl" id="full" title="Full screen"><svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg><span class="tx">Full screen</span></button>
-        <button class="ctl" id="bugs" title="Show scores on each video" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M3 15h18v4H3zM3 5h8v8H3zm10 0h8v3h-8zm0 5h8v3h-8z"/></svg><span class="tx">Scores on video</span></button>
+        <button class="ctl primary" id="tickerBtn" title="Show or hide the score ticker" aria-pressed="true"><svg viewBox="0 0 24 24"><path d="M2 15h20v5H2zM4 17h3v1H4zm5 0h3v1H9zm5 0h3v1h-3z"/></svg><span class="tx">Ticker</span></button>
       </div>
     </div>
   </div>
 
-  <div class="ticker" aria-label="NEC scores">
+  <div class="ticker" id="ticker" aria-label="NEC scores">
     <div class="lbl">NEC <small>Scores</small></div>
     <div class="view"><div class="belt" id="belt"><div class="set"><span class="wait">Loading scores…</span></div></div></div>
   </div>
@@ -207,7 +211,7 @@ input{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);bac
   const FALLBACK = []; // filled if games.json can't load
   const stage = document.getElementById('stage');
   const gamesEl = document.getElementById('games');
-  let games = [], tiles = [], mode = 'quad', focus = 0, pip = 1, soundOn = false, showBugs = false, lastMode = null, lastFocus = null;
+  let games = [], tiles = [], mode = 'quad', focus = 0, pip = 1, soundOn = false, lastMode = null, lastFocus = null;
   const FEED = '/.netlify/functions/nec-stats-feed';
 
   function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
@@ -217,7 +221,7 @@ input{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);bac
     el.className = 'tile'; el.dataset.slot = i;
     el.innerHTML =
       '<video playsinline muted autoplay></video>' +
-      '<div class="badge"><span class="live">Live</span><span class="snd" hidden>Sound</span></div>' +
+      '<div class="badge"><span class="live">Live</span><span class="snd" hidden aria-label="Sound on"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M4 9v6h4l5 4V5L8 9H4zm12.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z"/></svg></span></div>' +
       '<div class="bug">' +
         '<span class="nec">NEC</span>' +
         '<span class="t" style="background:'+esc(g.away.color)+'">'+esc(g.away.abbr)+'<i class="sa">'+g.stats.away+'</i></span>' +
@@ -276,7 +280,8 @@ input{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);bac
 
   function apply(){
     const keepUI = stage.classList.contains('show-ui');
-    stage.className = 'stage mode-' + mode + (showBugs ? ' show-bugs' : '') + (keepUI ? ' show-ui' : '');
+    const keepTk = stage.classList.contains('has-ticker');
+    stage.className = 'stage mode-' + mode + (keepUI ? ' show-ui' : '') + (keepTk ? ' has-ticker' : '');
     const changed = mode !== lastMode || focus !== lastFocus; lastMode = mode; lastFocus = focus;
     tiles.forEach((t, i) => {
       t.el.classList.toggle('is-focus', i === focus);
@@ -422,10 +427,22 @@ input{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);bac
     if (e.key === ' ') { e.preventDefault(); document.getElementById('play').click(); }
   });
 
-  document.getElementById('bugs').onclick = (e) => {
-    showBugs = !showBugs; e.currentTarget.setAttribute('aria-pressed', showBugs);
-    e.currentTarget.classList.toggle('primary', showBugs); apply();
+  // Ticker on/off. In full screen it sits along the bottom of the video.
+  const ticker = document.getElementById('ticker');
+  let tickerOn = true;
+  document.getElementById('tickerBtn').onclick = (e) => {
+    tickerOn = !tickerOn; ticker.hidden = !tickerOn;
+    e.currentTarget.setAttribute('aria-pressed', tickerOn);
+    e.currentTarget.classList.toggle('primary', tickerOn);
+    stage.classList.toggle('has-ticker', tickerOn && ticker.parentElement === stage);
   };
+  function onFullscreen(){
+    const fs = (document.fullscreenElement || document.webkitFullscreenElement) === stage;
+    if (fs) stage.appendChild(ticker); else stage.after(ticker);
+    stage.classList.toggle('has-ticker', fs && tickerOn);
+  }
+  document.addEventListener('fullscreenchange', onFullscreen);
+  document.addEventListener('webkitfullscreenchange', onFullscreen);
 
   // ---- Live stats feed (XML) ----
   let feed = {};   // statsId -> game info from the feed
@@ -437,7 +454,7 @@ input{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);bac
     doc.querySelectorAll('game').forEach(n => {
       const team = vh => { const t = n.querySelector('team[vh="'+vh+'"]'); return { id:t.getAttribute('id'), name:t.getAttribute('name'), score:+t.getAttribute('score') }; };
       out[n.getAttribute('id')] = {
-        id:n.getAttribute('id'), label:n.getAttribute('label'), status:n.getAttribute('status'),
+        id:n.getAttribute('id'), sport:n.getAttribute('sport'), label:n.getAttribute('label'), status:n.getAttribute('status'),
         period:n.getAttribute('period'), clock:n.getAttribute('clock'),
         away:team('V'), home:team('H'), lastplay:(n.querySelector('lastplay')||{}).textContent || ''
       };
@@ -457,11 +474,10 @@ input{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);bac
       const a = g.away.score, h = g.home.score;
       const cls = (x, y) => x === y ? 'lead' : (x > y ? 'lead' : 'trail');
       return '<div class="tk'+(changed.has(g.id)?' flash':'')+'">' +
-        '<span class="sp">'+esc(g.label)+'</span>' +
+        '<span class="sp">'+esc(g.sport)+'</span>' +
         '<span class="tm '+cls(a,h)+'"><span class="sw" style="background:'+esc(colorFor(g.id,'away'))+'"></span>'+esc(g.away.id)+' '+a+'</span>' +
         '<span class="tm '+cls(h,a)+'"><span class="sw" style="background:'+esc(colorFor(g.id,'home'))+'"></span>'+esc(g.home.id)+' '+h+'</span>' +
         '<span class="st'+(g.status==='live'?' live':'')+'">'+esc(statusText(g))+'</span>' +
-        (g.status === 'live' ? '<span class="lp">'+esc(g.lastplay)+'</span>' : '') +
       '</div>';
     }).join('');
     // two copies side by side so the belt loops without a gap
