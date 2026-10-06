@@ -194,7 +194,14 @@ input{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);bac
     return t;
   }
 
+  // Hudl links go through our site's helper, because Hudl blocks the first file for other websites
+  function viaHelper(url){
+    const m = String(url).match(/^https?:\/\/vcloud\.hudl\.com\/file\/hls\/(\d+)\.m3u8/i);
+    return m ? '/.netlify/functions/hudl-playlist?id=' + m[1] : url;
+  }
+
   function load(t, url){
+    url = viaHelper(url);
     const v = t.video;
     t.el.querySelector('.err')?.remove();
     if (t.hls) { t.hls.destroy(); t.hls = null; }
