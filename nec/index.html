@@ -50,14 +50,13 @@ header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-betw
 .mode-single .tile.is-focus{inset:0}
 /* PiP */
 .mode-pip .tile.is-focus{inset:0}
-.mode-pip .tile.is-pip{width:32%;aspect-ratio:16/9;height:auto;right:2%;bottom:3%;left:auto;top:auto;border:2px solid var(--nec);border-radius:8px;z-index:3;cursor:grab;touch-action:none;box-shadow:0 8px 24px rgba(0,0,0,.6)}
+.mode-pip .tile.is-pip{width:32%;aspect-ratio:16/9;height:auto;right:2%;bottom:3%;left:auto;top:auto;border:1px solid var(--nec);border-radius:8px;z-index:3;cursor:grab;touch-action:none;box-shadow:0 8px 24px rgba(0,0,0,.6)}
 .rh{position:absolute;width:22px;height:22px;z-index:4;display:none;touch-action:none}
-.rh::after{content:"";position:absolute;width:10px;height:10px;border:3px solid var(--nec)}
 .mode-pip .tile.is-pip .rh{display:block}
-.rh[data-c="nw"]{top:-2px;left:-2px;cursor:nwse-resize}.rh[data-c="nw"]::after{top:2px;left:2px;border-right:0;border-bottom:0}
-.rh[data-c="ne"]{top:-2px;right:-2px;cursor:nesw-resize}.rh[data-c="ne"]::after{top:2px;right:2px;border-left:0;border-bottom:0}
-.rh[data-c="sw"]{bottom:-2px;left:-2px;cursor:nesw-resize}.rh[data-c="sw"]::after{bottom:2px;left:2px;border-right:0;border-top:0}
-.rh[data-c="se"]{bottom:-2px;right:-2px;cursor:nwse-resize}.rh[data-c="se"]::after{bottom:2px;right:2px;border-left:0;border-top:0}
+.rh[data-c="nw"]{top:-2px;left:-2px;cursor:nwse-resize}
+.rh[data-c="ne"]{top:-2px;right:-2px;cursor:nesw-resize}
+.rh[data-c="sw"]{bottom:-2px;left:-2px;cursor:nesw-resize}
+.rh[data-c="se"]{bottom:-2px;right:-2px;cursor:nwse-resize}
 .tk{cursor:pointer}.tk:hover .tm{text-decoration:underline}
 .mode-pip .tile.is-pip.dragging{cursor:grabbing;transition:none}
 /* Quad */
@@ -66,7 +65,7 @@ header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-betw
 .mode-quad .tile[data-slot="1"]{top:0;right:0}
 .mode-quad .tile[data-slot="2"]{bottom:0;left:0}
 .mode-quad .tile[data-slot="3"]{bottom:0;right:0}
-.mode-quad .tile.is-focus::after{content:"";position:absolute;inset:0;border:3px solid var(--nec);pointer-events:none;z-index:4}
+.mode-quad .tile.is-focus::after{content:"";position:absolute;inset:0;border:1px solid var(--nec);pointer-events:none;z-index:4}
 
 /* Score bug */
 .bug{position:absolute;left:3%;bottom:4%;display:flex;align-items:stretch;font-family:var(--display);font-weight:700;z-index:2;box-shadow:0 4px 14px rgba(0,0,0,.5);font-size:clamp(11px,1.6vw,18px);line-height:1;pointer-events:none}
@@ -152,7 +151,7 @@ header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-betw
       <div class="now"><b id="nowTitle">Loading games…</b><span id="nowSub"></span></div>
       <div class="btns">
         <button class="ctl" id="back10" title="Back 10 seconds"><svg viewBox="0 0 24 24"><path d="M12 5V2L7 6l5 4V7a6 6 0 1 1-6 6H4a8 8 0 1 0 8-8z"/></svg><span class="tx">10s</span></button>
-        <button class="ctl" id="play" title="Play or pause"><svg viewBox="0 0 24 24"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg><span class="tx">Pause</span></button>
+        <button class="ctl" id="play" title="Pause" aria-label="Pause"><svg viewBox="0 0 24 24"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg></button>
         <button class="ctl primary" id="golive" title="Jump to live"><span>Go live</span></button>
         <button class="ctl" id="sound" title="Sound on or off"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4zm12.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4z"/></svg><span class="tx">Sound on</span></button>
         <button class="ctl" id="popout" title="Pop the game out over other apps"><svg viewBox="0 0 24 24"><path d="M19 7h-8v6h8V7zm2-4H3a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 16H3V5h18v14z"/></svg><span class="tx">Pop out</span></button>
@@ -272,7 +271,13 @@ header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-betw
   }
   setInterval(() => {
     const v = tiles[focus]?.video;
-    if (v) document.querySelector('#play .tx').textContent = v.paused ? 'Play' : 'Pause';
+    if (v) {
+      const b = document.getElementById('play'), label = v.paused ? 'Play' : 'Pause';
+      if (b.title !== label) {
+        b.title = label; b.setAttribute('aria-label', label);
+        b.querySelector('path').setAttribute('d', v.paused ? 'M7 4.5v15l12.5-7.5z' : 'M6 5h4v14H6zM14 5h4v14h-4z');
+      }
+    }
   }, 1000);
 
   // "Live" tag shows for a few seconds, then fades away
