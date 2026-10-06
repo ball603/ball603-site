@@ -1035,6 +1035,7 @@
       <button class="tab" onclick="showTab('bash', event)">The Bash</button>
       <button class="tab" onclick="showTab('graphics', event)">&#x1F3A8; Graphics</button>
       <button class="tab" onclick="showTab('galleries', event)">&#x1F4F7; Galleries</button>
+      <button class="tab" onclick="showTab('socialposts', event)">&#x1F4F1; Social Posts</button>
       <button class="tab" onclick="showTab('video', event)">&#x1F3AC; Video</button>
       <button class="tab" onclick="showTab('tigerpage', event)">&#x1F42F; Tiger Page</button>
     </div>
@@ -4314,6 +4315,34 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         <label for="socialStandaloneLabel" style="display: block; margin-bottom: 8px; font-weight: 600; color: #0277bd;">&#x1F3F7;&#xFE0F; Label</label>
         <input type="text" id="socialStandaloneLabel" maxlength="80" placeholder="e.g. Friday night roundup" style="width: 100%; padding: 10px; border: 1px solid #b3e5fc; border-radius: 6px; font-size: 14px;">
         <div style="margin-top: 6px; font-size: 12px; color: #0277bd;">Just for you &mdash; how the post is labelled in Scheduled Posts. It is never posted.</div>
+      </div>
+
+      <!-- Standalone only: who this post is about, so the tags can be looked up.
+           Handles are stored per school + sport + gender, so all three matter. -->
+      <div id="socialSubjectRow" style="display: none; margin-bottom: 20px; padding: 15px; background: #f3e5f5; border-radius: 8px; border: 1px solid #8e24aa;">
+        <label style="display: block; margin-bottom: 10px; font-weight: 600; color: #6a1b9a;">&#x1F3F7;&#xFE0F; Who is this about?</label>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;">
+          <div>
+            <div style="font-size: 12px; color: #6a1b9a; margin-bottom: 4px;">Sport</div>
+            <select id="socialSubjectSport" onchange="onSocialSubjectSportChange()" style="padding: 8px; border: 1px solid #ce93d8; border-radius: 6px; font-size: 13px; min-width: 170px;">
+              <option value="basketball">&#x1F3C0; Basketball</option>
+              <option value="baseball">&#x26BE; Baseball</option>
+              <option value="gvolleyball">&#x1F3D0; Girls Volleyball</option>
+              <option value="">General (no sport)</option>
+            </select>
+          </div>
+          <div>
+            <div style="font-size: 12px; color: #6a1b9a; margin-bottom: 4px;">Gender</div>
+            <select id="socialSubjectGender" onchange="refreshSocialSubjectTags()" style="padding: 8px; border: 1px solid #ce93d8; border-radius: 6px; font-size: 13px; min-width: 120px;"></select>
+          </div>
+          <div style="flex: 1; min-width: 200px;">
+            <div style="font-size: 12px; color: #6a1b9a; margin-bottom: 4px;">School</div>
+            <select id="socialSubjectSchool" onchange="addSocialSubjectSchool()" style="width: 100%; padding: 8px; border: 1px solid #ce93d8; border-radius: 6px; font-size: 13px;">
+              <option value="">+ Add school&hellip;</option>
+            </select>
+          </div>
+        </div>
+        <div id="socialSubjectSchoolList" style="margin-top: 10px;"></div>
       </div>
       
       <!-- Scheduling (moved to top) -->
@@ -10594,6 +10623,12 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('bashPanel').style.display = tab === 'bash' ? 'block' : 'none';
       document.getElementById('graphicsPanel').style.display = tab === 'graphics' ? 'block' : 'none';
       document.getElementById('galleriesPanel').style.display = tab === 'galleries' ? 'block' : 'none';
+      /* The social panel is not a plain tab panel - it is the same one the
+         article flow finishes in - so it is opened and closed by hand rather
+         than by the display line above. */
+      const socialPanelEl = document.getElementById('socialPublishingPanel');
+      if (socialPanelEl && tab !== 'socialposts') socialPanelEl.style.display = 'none';
+      if (tab === 'socialposts') openStandaloneSocial();
       document.getElementById('videoPanel').style.display = tab === 'video' ? 'block' : 'none';
       document.getElementById('tigerPagePanel').style.display = tab === 'tigerpage' ? 'block' : 'none';
       if (tab === 'tigerpage') initTigerPage();
@@ -14615,12 +14650,88 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       document.getElementById('socialInstagramPost').value = '';
       document.getElementById('socialTwitterPost').value = '';
       document.getElementById('socialStandaloneLabel').value = '';
+      socialSubjectSchools = [];
+      renderSocialSubjectSchools();
+      await populateSocialSubjectSchools();
+      onSocialSubjectSportChange();
       updateCharCount('facebook');
       updateCharCount('instagram');
 
       document.getElementById('socialFacebookPost').oninput = () => updateCharCount('facebook');
       document.getElementById('socialInstagramPost').oninput = () => updateCharCount('instagram');
       document.getElementById('socialStandaloneLabel').focus();
+    }
+
+    /* Gender is not free-form: handles are keyed by school + sport + gender,
+       and some sports only have the one. Girls Volleyball carries its gender in
+       the sport name, so offering a choice there would only invite a wrong one. */
+    const SOCIAL_SUBJECT_GENDERS = {
+      basketball:  ['Boys', 'Girls'],
+      baseball:    ['Boys'],
+      gvolleyball: ['Girls'],
+      '':          ['']
+    };
+
+    let socialSubjectSchools = [];   // schools chosen by hand for a standalone post
+
+    function onSocialSubjectSportChange() {
+      const sport = document.getElementById('socialSubjectSport').value;
+      const sel = document.getElementById('socialSubjectGender');
+      const options = SOCIAL_SUBJECT_GENDERS[sport] || ['Boys', 'Girls'];
+      sel.innerHTML = options.map(g => `<option value="${g}">${g || '\u2014'}</option>`).join('');
+      sel.disabled = options.length < 2;
+      refreshSocialSubjectTags();
+    }
+
+    async function populateSocialSubjectSchools() {
+      const sel = document.getElementById('socialSubjectSchool');
+      if (!sel) return;
+      try {
+        const { data, error } = await db.from('teams')
+          .select('shortname').eq('active', true).order('shortname');
+        if (error) throw error;
+        // teams holds a row per squad, so the same school appears several times.
+        const names = [...new Set((data || []).map(t => String(t.shortname || '').trim()).filter(Boolean))];
+        sel.innerHTML = '<option value="">+ Add school&hellip;</option>' +
+          names.map(nm => `<option value="${escapeHtml(nm)}">${escapeHtml(nm)}</option>`).join('');
+      } catch (err) {
+        console.error('Could not load schools for social tagging:', err);
+        sel.innerHTML = '<option value="">Could not load schools</option>';
+      }
+    }
+
+    function addSocialSubjectSchool() {
+      const sel = document.getElementById('socialSubjectSchool');
+      const name = sel.value;
+      sel.value = '';
+      if (!name || socialSubjectSchools.includes(name)) return;
+      socialSubjectSchools.push(name);
+      renderSocialSubjectSchools();
+      refreshSocialSubjectTags();
+    }
+
+    function removeSocialSubjectSchool(name) {
+      socialSubjectSchools = socialSubjectSchools.filter(s => s !== name);
+      renderSocialSubjectSchools();
+      refreshSocialSubjectTags();
+    }
+
+    function renderSocialSubjectSchools() {
+      const box = document.getElementById('socialSubjectSchoolList');
+      if (!box) return;
+      box.innerHTML = socialSubjectSchools.length
+        ? socialSubjectSchools.map(nm => `
+            <span style="display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid #ce93d8;border-radius:14px;padding:4px 10px;margin:0 6px 6px 0;font-size:13px;">
+              ${escapeHtml(nm)}
+              <button data-school="${escapeHtml(nm)}" onclick="removeSocialSubjectSchool(this.dataset.school)"
+                      title="Remove" style="background:none;border:none;cursor:pointer;color:#6a1b9a;font-size:14px;line-height:1;padding:0;">&#10005;</button>
+            </span>`).join('')
+        : '<span style="font-size:12px;color:#8e24aa;">No schools picked yet &mdash; add one and its tags appear below.</span>';
+    }
+
+    function refreshSocialSubjectTags() {
+      if (!standaloneSocial) return;
+      resolveSocialPhotoTags();
     }
 
     // Show or hide the parts of the panel that only make sense with a story.
@@ -14633,6 +14744,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       show('socialSaveAllBtn', !solo);
       show('socialTwitterCard', !solo);   // nothing here ever posts to X
       show('socialLabelRow', solo);
+      show('socialSubjectRow', solo);
       const intro = document.getElementById('socialPanelIntro');
       if (intro) {
         intro.textContent = solo
@@ -16361,6 +16473,15 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     // gender come straight from the CMS's own vocabulary, which matches the
     // social_tags columns: basketball / baseball / gvolleyball, Boys / Girls.
     function socialTeamsForTagging() {
+      /* A standalone post has no game behind it, so the schools come from the
+         pickers instead. Same shape either way, so everything downstream -
+         the lookup, the co-op expansion, the tag row - is untouched. */
+      if (standaloneSocial) {
+        const soloSport = document.getElementById('socialSubjectSport')?.value || '';
+        const soloGender = document.getElementById('socialSubjectGender')?.value || '';
+        return socialSubjectSchools.map(school => ({ school, sport: soloSport, gender: soloGender }));
+      }
+
       const sport = document.getElementById('articleSport')?.value ||
                     currentArticle?.sport || '';
 
