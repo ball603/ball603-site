@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Multiview · NEC Front Row</title>
+<link rel="manifest" href="/frontrow/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/frontrow/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Front Row">
+<meta name="theme-color" content="#060d1a">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,800&family=Barlow:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/frontrow/assets/fr.css">
+<style>
+/* The stage is sized to fit the screen height on computers, so all four games are visible without scrolling */
+.mv-head{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:8px 20px;padding-block:18px 12px}
+.mv-head h1{margin:0;font-family:var(--display);font-weight:800;font-size:clamp(26px,3vw,36px);line-height:1}
+.mv-head p{margin:0;color:var(--muted);font-size:14px}
+#stage{margin-inline:auto;max-width:min(100%,calc((100svh - 250px) * 16 / 9))}
+#stage.fs{max-width:none}
+@media (max-width:760px){#stage{max-width:100%}}
+
+/* Window positions for each layout */
+.screen .tile{transition:none}
+.l-single .tile[data-pos="0"],.l-pip .tile[data-pos="0"]{inset:0}
+.l-two .tile[data-pos="0"]{inset:0 calc(50% + 1px) 0 0}
+.l-two .tile[data-pos="1"]{inset:0 0 0 calc(50% + 1px)}
+.l-quad .tile[data-pos="0"]{inset:0 calc(50% + 1px) calc(50% + 1px) 0}
+.l-quad .tile[data-pos="1"]{inset:0 0 calc(50% + 1px) calc(50% + 1px)}
+.l-quad .tile[data-pos="2"]{inset:calc(50% + 1px) calc(50% + 1px) 0 0}
+.l-quad .tile[data-pos="3"]{inset:calc(50% + 1px) 0 0 calc(50% + 1px)}
+.l-pip .tile[data-pos="1"]{inset:auto 2% 3% auto;width:32%;height:auto;aspect-ratio:16/9;z-index:4;border:1px solid var(--nec);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.6);cursor:grab;touch-action:none}
+.l-pip .tile[data-pos="1"].dragging{cursor:grabbing}
+.l-quad .tile.is-focus::after,.l-two .tile.is-focus::after{content:"";position:absolute;inset:0;border:1px solid var(--nec);pointer-events:none;z-index:6}
+.screen{background:#02060c}
+
+/* Window bar: game name, score and buttons. Shows on hover, or for a few seconds after a tap */
+.tbar{position:absolute;left:0;right:0;top:0;z-index:5;display:flex;align-items:center;gap:8px;padding:8px 8px 22px 12px;background:linear-gradient(rgba(3,8,16,.88),transparent);opacity:0;pointer-events:none;transition:opacity .2s}
+.tile:hover .tbar,.tile.tui .tbar,.tile:focus-within .tbar{opacity:1;pointer-events:auto}
+.tbar .tt{flex:1;min-width:0;font-family:var(--display);font-weight:700;font-size:16px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tbar .tt small{font-family:var(--body);font-weight:600;font-size:11px;color:#c9d5e6;letter-spacing:.04em;margin-left:6px}
+.tb{width:30px;height:30px;flex:none;display:grid;place-items:center;border-radius:7px;border:1px solid rgba(255,255,255,.18);background:rgba(15,29,53,.85)}
+.tb svg{width:16px;height:16px;fill:currentColor}
+.tb:hover{border-color:var(--nec)}
+.tb[aria-pressed="true"]{background:var(--nec);border-color:var(--nec)}
+.tile .badge{transition:opacity .2s}
+.tile:hover .badge,.tile.tui .badge{opacity:0}
+.l-pip .tile[data-pos="1"] .tbar .tb:not(.x-swap){display:none}
+.l-pip .tile[data-pos="1"] .tbar{padding:4px 4px 14px 8px}
+.l-pip .tile[data-pos="1"] .tbar .tt{font-size:13px}
+
+/* Empty window */
+.add{position:absolute;inset:0;z-index:2;display:grid;place-content:center;justify-items:center;gap:10px;border:0;background:radial-gradient(60% 60% at 50% 50%,#0f1d35,#050b16);color:var(--muted);font-weight:600;font-size:15px}
+.add span{width:52px;height:52px;border-radius:50%;display:grid;place-items:center;border:1px dashed var(--nec);color:var(--nec-hi)}
+.add svg{width:26px;height:26px;fill:currentColor}
+.add:hover{color:var(--text)}
+.add:hover span{background:rgba(43,140,230,.15)}
+.wait{position:absolute;inset:0;z-index:2;display:grid;place-items:center}
+.wait .art{position:absolute;inset:0;aspect-ratio:auto;border-radius:0}
+.wait .art .pill,.wait .art .scr{display:none}
+.wait b{position:relative;z-index:3;padding:8px 14px;border-radius:9px;background:rgba(6,13,26,.8);font-family:var(--display);font-size:20px}
+
+/* PiP corners for resizing (invisible, the cursor shows the arrows) */
+.rh{position:absolute;width:22px;height:22px;z-index:7;display:none;touch-action:none}
+.l-pip .tile[data-pos="1"] .rh{display:block}
+.rh[data-c="nw"]{top:-3px;left:-3px;cursor:nwse-resize}.rh[data-c="ne"]{top:-3px;right:-3px;cursor:nesw-resize}
+.rh[data-c="sw"]{bottom:-3px;left:-3px;cursor:nesw-resize}.rh[data-c="se"]{bottom:-3px;right:-3px;cursor:nwse-resize}
+
+/* Game picker */
+dialog.pick{width:min(560px,calc(100vw - 24px));max-height:min(80vh,720px);padding:0;border:1px solid var(--line);border-radius:14px;background:var(--bg-2);color:var(--text);box-shadow:0 30px 80px rgba(0,0,0,.6)}
+dialog.pick::backdrop{background:rgba(2,6,12,.72);backdrop-filter:blur(3px)}
+.pick-h{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg-2);z-index:1}
+.pick-h h2{margin:0;flex:1;font-family:var(--display);font-size:22px}
+.pick-list{display:grid;padding:8px}
+.pick-g{padding:12px 10px 6px;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.opt{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;width:100%;padding:10px;border:1px solid transparent;border-radius:10px;background:none;text-align:left}
+.opt:hover:not([disabled]){background:var(--surface);border-color:var(--line)}
+.opt[disabled]{opacity:.5;cursor:not-allowed}
+.opt .lgs{display:flex}
+.opt .lgs img{width:30px;height:30px;object-fit:contain}
+.opt .lgs img+img{margin-left:-6px}
+.opt b{display:block;font-family:var(--display);font-size:18px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.opt small{color:var(--muted);font-size:13px}
+.opt .tag{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--nec-hi);white-space:nowrap}
+.pick-foot{padding:10px 16px 16px;display:flex;justify-content:flex-end;gap:8px}
+@media (max-width:760px){dialog.pick{max-height:86vh;margin-bottom:0;border-radius:14px 14px 0 0}}
+</style>
+</head>
+<body>
+<a class="skip" href="#stage">Skip to video</a>
+<header id="hdr"></header>
+<section id="board"></section>
+
+<main class="wrap" id="main">
+  <div class="mv-head">
+    <h1>Multiview</h1>
+    <p>Pick a layout, then tap any window to choose its game or hear its sound.</p>
+  </div>
+
+  <div class="stage l-quad" id="stage">
+    <div class="screen" id="screen"></div>
+    <button class="tapsound" id="tapSound" hidden></button>
+    <div class="vc" id="vc">
+      <div class="now"><b id="nowTitle">Loading…</b><span id="nowSub"></span></div>
+      <div class="btns">
+        <div class="views" role="group" aria-label="Layout">
+          <button class="ctl vw" data-layout="single" aria-label="One game" title="One game"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="1.5"/></svg></button>
+          <button class="ctl vw" data-layout="two" aria-label="Side by side" title="Side by side"><svg viewBox="0 0 24 24"><path d="M3 6h8.5v12H3zm9.5 0H21v12h-8.5z"/></svg></button>
+          <button class="ctl vw" data-layout="pip" aria-label="Picture-in-Picture" title="Picture-in-Picture"><svg viewBox="0 0 24 24"><path d="M3 5h18v14H3zm9.5 7v5h7v-5z" fill-rule="evenodd"/></svg></button>
+          <button class="ctl vw" data-layout="quad" aria-label="Four games" title="Four games"><svg viewBox="0 0 24 24"><path d="M3 5h8.5v6.5H3zm9.5 0H21v6.5h-8.5zM3 12.5h8.5V19H3zm9.5 0H21V19h-8.5z"/></svg></button>
+        </div>
+        <button class="ctl" id="back10" title="Back 10 seconds"></button>
+        <button class="ctl" id="play" aria-label="Pause" title="Pause"></button>
+        <button class="ctl primary golive" id="golive" title="Jump to live">Go live</button>
+        <button class="ctl" id="sound" aria-pressed="false" title="Sound"></button>
+        <button class="ctl" id="full" title="Full screen"></button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<dialog class="pick" id="picker" aria-labelledby="pick-title">
+  <div class="pick-h"><h2 id="pick-title">Choose a game</h2><button class="tb" id="pickClose" aria-label="Close"></button></div>
+  <div class="pick-list" id="pickList"></div>
+</dialog>
+
+<footer class="foot"><span>© 2026 Northeast Conference · NEC Front Row</span><span>Sample site. Scores come from a test feed.</span></footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.13/hls.min.js" defer></script>
+<script src="/frontrow/assets/fr.js" defer></script>
+<script src="/frontrow/assets/player.js" defer></script>
+<script defer>
+addEventListener('DOMContentLoaded', () => {
+  const { esc, logoImg, label, soon, pill, isLive, watchable, sorted, matchup, time } = FR;
+  const I = FRPlayer.ICONS, $ = id => document.getElementById(id);
+  FR.header('multi');
+  FR.board($('board'));
+  const stage = $('stage'), screen = $('screen');
+  FR.pullToRefresh(() => stage.classList.contains('fake-fs'));
+
+  const COUNT = { single:1, two:2, pip:2, quad:4 };
+  let layout = 'quad', slots = [null, null, null, null], tiles = [], focus = 0, soundOn = false, pickFor = 0;
+  let pipPos = null, pipW = null;
+
+  // ---------- buttons ----------
+  $('back10').innerHTML = I.back + '<span class="tx">10s</span>';
+  $('play').innerHTML = I.pause;
+  $('sound').innerHTML = I.mute + '<span class="tx">Sound off</span>';
+  $('full').innerHTML = I.full + '<span class="tx">Full screen</span>';
+  $('tapSound').innerHTML = I.sound + 'Tap for sound';
+  $('pickClose').innerHTML = I.close;
+  FRPlayer.autoHide(stage, $('vc'));
+  FRPlayer.fullscreen(stage, $('full'), () => placePip());
+
+  // ---------- windows ----------
+  function makeTile(i){
+    const el = document.createElement('div');
+    el.className = 'tile';
+    el.innerHTML = `<video playsinline muted aria-hidden="true"></video>
+      <div class="badge"><span class="lp"></span><span class="snd" hidden aria-label="Sound on">${I.sound}</span></div>
+      <div class="tbar"><div class="tt"></div>
+        <button class="tb x-snd" aria-label="Hear this game" title="Hear this game">${I.sound}</button>
+        <button class="tb x-swap" aria-label="Change game" title="Change game">${I.swap}</button>
+        <button class="tb x-big" aria-label="Watch this game by itself" title="Watch by itself">${I.expand}</button>
+        <button class="tb x-rm" aria-label="Clear this window" title="Clear window">${I.close}</button></div>
+      <button class="add" hidden><span>${I.plus}</span>Add a game</button>
+      <span class="rh" data-c="nw"></span><span class="rh" data-c="ne"></span><span class="rh" data-c="sw"></span><span class="rh" data-c="se"></span>`;
+    screen.appendChild(el);
+    const t = { el, video: el.querySelector('video'), h:null, id:null, tuiT:null, liveT:null };
+    const idx = () => tiles.indexOf(t);
+    el.addEventListener('click', e => {
+      if (el.dataset.dragged) { delete el.dataset.dragged; return; }
+      if (e.target.closest('button')) return;
+      const i = idx();
+      if (layout === 'pip' && i === 1) { swap(0, 1); focus = 0; apply(); return; }
+      if (focus !== i) { focus = i; apply(); }
+      tui(t);
+    });
+    el.querySelector('.x-snd').onclick = () => { const i = idx(); if (focus === i && soundOn) setSound(false); else { focus = i; setSound(true); } apply(); };
+    el.querySelector('.x-swap').onclick = () => openPicker(idx());
+    el.querySelector('.x-big').onclick = () => { const i = idx(); swap(0, i); focus = 0; setLayout('single'); };
+    el.querySelector('.x-rm').onclick = () => { setSlot(idx(), null); apply(); };
+    el.querySelector('.add').onclick = () => openPicker(idx());
+    makeDraggable(t);
+    return t;
+  }
+  function tui(t){ t.el.classList.add('tui'); clearTimeout(t.tuiT); t.tuiT = setTimeout(() => t.el.classList.remove('tui'), 3000); }
+
+  function setSlot(i, id){
+    const t = tiles[i];
+    t.el.querySelector('.add').hidden = !!id;
+    if (t.id === id && (t.h || !id)) { slots[i] = id; return; }
+    FRPlayer.destroy(t.h); t.h = null; t.id = id; slots[i] = id;
+    t.el.querySelector('.wait')?.remove(); t.el.querySelector('.vmsg')?.remove();
+    t.el.querySelector('.add').hidden = !!id;
+    if (!id) return;
+    const ev = FR.byId(id);
+    if (!ev) { setSlot(i, null); return; }
+    if (!watchable(ev)) {
+      t.el.insertAdjacentHTML('beforeend', `<div class="wait">${FR.art(ev, false)}<b>Kickoff ${esc(time(ev.kickoff))}</b></div>`);
+      return;
+    }
+    t.h = FRPlayer.attach(t.video, ev.stream, { main: i === focus, onError: () => {
+      t.el.insertAdjacentHTML('beforeend', '<div class="vmsg">This video could not load.</div>'); } });
+    t.el.classList.remove('live-off'); clearTimeout(t.liveT);
+    t.liveT = setTimeout(() => t.el.classList.add('live-off'), 4000);
+  }
+  function swap(i, j){
+    if (i === j) return;
+    [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
+    [slots[i], slots[j]] = [slots[j], slots[i]];
+  }
+
+  function setLayout(l){
+    layout = l;
+    // the game you're focused on always stays on screen
+    if (focus >= COUNT[l]) { swap(0, focus); focus = 0; }
+    if ((l === 'single' || l === 'pip') && focus !== 0) { swap(0, focus); focus = 0; }
+    apply();
+  }
+
+  function apply(){
+    const n = COUNT[layout];
+    const keep = ['show-ui', 'fs', 'fake-fs'].filter(c => stage.classList.contains(c));
+    stage.className = ['stage', 'l-' + layout].concat(keep).join(' ');
+    tiles.forEach((t, i) => {
+      const shown = i < n;
+      t.el.hidden = !shown;
+      if (shown) t.el.dataset.pos = i; else delete t.el.dataset.pos;
+      t.el.classList.toggle('is-focus', i === focus);
+      t.video.muted = !(soundOn && i === focus);
+      t.el.querySelector('.snd').hidden = !(soundOn && i === focus);
+      t.el.querySelector('.x-snd').setAttribute('aria-pressed', soundOn && i === focus);
+      if (t.h) {
+        FRPlayer.setMain(t.h, i === focus);
+        if (shown) { t.h.hls && t.h.hls.startLoad(); t.video.play().catch(()=>{}); }
+        else { t.video.pause(); t.h.hls && t.h.hls.stopLoad(); }
+      }
+    });
+    document.querySelectorAll('[data-layout]').forEach(b => b.setAttribute('aria-pressed', b.dataset.layout === layout));
+    placePip(); refreshText(); saveUrl();
+  }
+
+  function refreshText(){
+    tiles.forEach((t, i) => {
+      const ev = t.id && FR.byId(t.id);
+      t.el.querySelector('.tt').innerHTML = ev ? `${esc(ev.a.abbr)} ${ev.status === 'pre' ? '' : ev.score.away} · ${esc(ev.h.abbr)} ${ev.status === 'pre' ? '' : ev.score.home}<small>${esc(ev.status === 'final' ? 'Replay' : label(ev))}</small>` : 'Empty window';
+      t.el.querySelector('.lp').innerHTML = ev ? (isLive(ev) ? pill(ev) : ev.status === 'final' ? '<span class="pill final">Replay</span>' : '') : '';
+      t.el.setAttribute('aria-label', ev ? `Window ${i + 1}: ${matchup(ev)}` : `Window ${i + 1}: empty`);
+    });
+    const ev = slots[focus] && FR.byId(slots[focus]);
+    $('nowTitle').textContent = ev ? `${ev.a.name} at ${ev.h.name}` : 'Choose a game';
+    $('nowSub').textContent = ev ? (ev.status === 'pre' ? soon(ev) : `${ev.a.abbr} ${ev.score.away} · ${ev.h.abbr} ${ev.score.home} · ${ev.status === 'final' ? 'Replay' : label(ev)}`) : 'Tap a window to pick one';
+    $('golive').hidden = !(ev && isLive(ev));
+  }
+
+  function saveUrl(){
+    const q = `?l=${layout}&g=${slots.map(s => s || '').join(',').replace(/,+$/, '')}`;
+    history.replaceState(null, '', location.pathname + q);
+  }
+
+  // ---------- sound ----------
+  function setSound(on){
+    soundOn = on;
+    $('sound').setAttribute('aria-pressed', on);
+    $('sound').innerHTML = (on ? I.sound : I.mute) + `<span class="tx">${on ? 'Sound on' : 'Sound off'}</span>`;
+    if (on) hideTap();
+  }
+  function hideTap(){ const b = $('tapSound'); b.classList.add('out'); setTimeout(() => b.hidden = true, 450); }
+  $('sound').onclick = () => { setSound(!soundOn); apply(); };
+  $('tapSound').onclick = e => { e.stopPropagation(); setSound(true); apply(); };
+
+  // ---------- main controls act on the focused window ----------
+  const fh = () => tiles[focus] && tiles[focus].h;
+  $('back10').onclick = () => fh() && FRPlayer.back10(fh());
+  $('golive').onclick = () => fh() && FRPlayer.goLive(fh());
+  $('play').onclick = () => { const h = fh(); if (!h) return; h.video.paused ? h.video.play().catch(()=>{}) : h.video.pause(); };
+  setInterval(() => { const h = fh(); if (h) FRPlayer.playIcon($('play'), h.video); }, 500);
+  document.querySelectorAll('[data-layout]').forEach(b => b.onclick = () => setLayout(b.dataset.layout));
+  document.addEventListener('keydown', e => {
+    if (e.target.closest('input,textarea,dialog')) return;
+    if (/^[1-4]$/.test(e.key) && +e.key <= COUNT[layout]) { focus = +e.key - 1; apply(); }
+    if (e.key === 'ArrowLeft') $('back10').click();
+    if (e.key === 'm') $('sound').click();
+    if (e.key === 'f') $('full').click();
+  });
+
+  // ---------- game picker ----------
+  function openPicker(i){
+    pickFor = i;
+    $('pick-title').textContent = `Choose a game for window ${i + 1}`;
+    const groups = [['Live now', e => isLive(e)], ['Replays', e => e.status === 'final'], ['Later today', e => e.status === 'pre']];
+    const onScreen = slots.slice(0, COUNT[layout]);
+    $('pickList').innerHTML = groups.map(([name, test]) => {
+      const list = sorted(FR.events).filter(test); if (!list.length) return '';
+      return `<div class="pick-g">${name}</div>` + list.map(ev => {
+        const here = onScreen.indexOf(ev.id);
+        const tag = here === i ? 'Showing' : here >= 0 ? `In window ${here + 1}` : '';
+        return `<button class="opt" data-id="${esc(ev.id)}" ${watchable(ev) ? '' : 'disabled'}>
+          <span class="lgs">${logoImg(ev.a.key, 30)}${logoImg(ev.h.key, 30)}</span>
+          <span><b>${esc(ev.a.name)} at ${esc(ev.h.name)}</b><small>${esc(ev.status === 'pre' ? soon(ev) : (ev.status === 'final' ? 'Final · ' : label(ev) + ' · ') + ev.score.away + '–' + ev.score.home)}</small></span>
+          <span class="tag">${tag}</span></button>`;
+      }).join('');
+    }).join('');
+    $('picker').showModal();
+  }
+  $('pickList').addEventListener('click', e => {
+    const b = e.target.closest('.opt'); if (!b || b.disabled) return;
+    const id = b.dataset.id, j = slots.indexOf(id), i = pickFor;
+    if (j >= 0 && j !== i) { swap(i, j); }      // already on screen: trade places
+    else setSlot(i, id);
+    focus = i; $('picker').close(); apply();
+  });
+  $('pickClose').onclick = () => $('picker').close();
+  $('picker').addEventListener('click', e => { if (e.target === $('picker')) $('picker').close(); });
+
+  // ---------- PiP box: drag to move, drag a corner to resize ----------
+  function placePip(){
+    tiles.forEach((t, i) => {
+      const st = t.el.style, on = layout === 'pip' && i === 1;
+      st.left = on && pipPos ? pipPos.x * 100 + '%' : '';
+      st.top = on && pipPos ? pipPos.y * 100 + '%' : '';
+      st.right = on && pipPos ? 'auto' : ''; st.bottom = on && pipPos ? 'auto' : '';
+      st.width = on && pipW ? pipW * 100 + '%' : '';
+    });
+  }
+  function makeDraggable(t){
+    const el = t.el; let s = null;
+    const isPip = () => layout === 'pip' && tiles.indexOf(t) === 1;
+    el.addEventListener('pointerdown', e => {
+      if (!isPip() || e.target.closest('button,.rh')) return;
+      const sr = screen.getBoundingClientRect(), r = el.getBoundingClientRect();
+      s = { px:e.clientX, py:e.clientY, x:r.left - sr.left, y:r.top - sr.top, moved:false };
+      el.setPointerCapture(e.pointerId);
+    });
+    el.addEventListener('pointermove', e => {
+      if (!s) return;
+      const dx = e.clientX - s.px, dy = e.clientY - s.py;
+      if (!s.moved && Math.hypot(dx, dy) < 6) return;
+      s.moved = true; el.classList.add('dragging');
+      const sr = screen.getBoundingClientRect(), r = el.getBoundingClientRect();
+      pipPos = { x: Math.min(Math.max(0, s.x + dx), sr.width - r.width) / sr.width, y: Math.min(Math.max(0, s.y + dy), sr.height - r.height) / sr.height };
+      placePip();
+    });
+    const end = () => { if (!s) return; if (s.moved) el.dataset.dragged = '1'; el.classList.remove('dragging'); s = null; };
+    el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
+    el.querySelectorAll('.rh').forEach(hd => {
+      let rs = null;
+      hd.addEventListener('pointerdown', e => {
+        if (!isPip()) return; e.stopPropagation(); e.preventDefault();
+        const sr = screen.getBoundingClientRect(), r = el.getBoundingClientRect();
+        rs = { px:e.clientX, c:hd.dataset.c, l:r.left - sr.left, t:r.top - sr.top, w:r.width, h:r.height };
+        hd.setPointerCapture(e.pointerId); el.classList.add('dragging');
+      });
+      hd.addEventListener('pointermove', e => {
+        if (!rs) return;
+        const sr = screen.getBoundingClientRect(), west = rs.c.includes('w'), north = rs.c.includes('n');
+        let w = Math.max(sr.width * .18, Math.min(sr.width * .75, rs.w + (west ? -1 : 1) * (e.clientX - rs.px)));
+        const hh = w * 9 / 16;
+        const x = Math.max(0, Math.min(west ? rs.l + rs.w - w : rs.l, sr.width - w));
+        const y = Math.max(0, Math.min(north ? rs.t + rs.h - hh : rs.t, sr.height - hh));
+        pipW = w / sr.width; pipPos = { x: x / sr.width, y: y / sr.height }; placePip();
+      });
+      const done = () => { if (rs) { el.dataset.dragged = '1'; el.classList.remove('dragging'); rs = null; } };
+      hd.addEventListener('pointerup', done); hd.addEventListener('pointercancel', done);
+      hd.addEventListener('click', e => e.stopPropagation());
+    });
+  }
+
+  // ---------- start ----------
+  for (let i = 0; i < 4; i++) tiles.push(makeTile(i));
+  FR.load().then(list => {
+    const q = new URLSearchParams(location.search);
+    const asked = (q.get('g') || '').split(',').map(s => s.trim()).filter((s, i, a) => s === '' || (FR.byId(s) && a.indexOf(s) === i));
+    if (COUNT[q.get('l')]) layout = q.get('l');
+    const picked = asked.filter(Boolean);
+    // one game passed in (from a Game page): fill the other windows with live games
+    const fill = sorted(list).filter(e => watchable(e) && !picked.includes(e.id)).map(e => e.id);
+    const start = asked.length > 1 ? asked.map(s => s || null) : [...picked, ...fill];
+    for (let i = 0; i < 4; i++) setSlot(i, start[i] || null);
+    apply();
+    $('tapSound').hidden = false; setTimeout(hideTap, 8000);
+    FR.on(() => {
+      // a game that was waiting to start begins playing on its own
+      tiles.forEach((t, i) => { if (t.id && !t.h && watchable(FR.byId(t.id))) { t.id = null; setSlot(i, slots[i]); } });
+      refreshText();
+    });
+  });
+});
+</script>
+</body>
+</html>

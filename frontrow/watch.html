@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Watch · NEC Front Row</title>
+<link rel="manifest" href="/frontrow/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/frontrow/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Front Row">
+<meta name="theme-color" content="#060d1a">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,800&family=Barlow:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/frontrow/assets/fr.css">
+<style>
+/* Player on the left, the game's scoreboard and details on the right; stacks on phones */
+.watch{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:22px;align-items:start;padding-block:20px 0}
+@media (max-width:1020px){.watch{grid-template-columns:1fr}}
+.side{display:grid;gap:14px}
+.panel{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
+.panel h2{margin:0 0 10px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.score{display:grid;gap:10px}
+.score .st{display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px;color:var(--muted)}
+.score .tm{display:grid;grid-template-columns:44px minmax(0,1fr) auto;align-items:center;gap:12px}
+.score .tm img{width:44px;height:44px;object-fit:contain}
+.score .nm{font-family:var(--display);font-weight:700;font-size:22px;line-height:1.05;min-width:0}
+.score .nm small{display:block;font-family:var(--body);font-weight:500;font-size:13px;color:var(--muted)}
+.score .sc{font-family:var(--display);font-weight:800;font-size:38px;line-height:1;font-variant-numeric:tabular-nums}
+.score .tm.lose{opacity:.55}
+.facts{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0;font-size:14px}
+.facts dt{color:var(--muted)}
+.facts dd{margin:0}
+.title{margin:14px 0 0;font-family:var(--display);font-weight:800;font-size:clamp(24px,3vw,34px);line-height:1.1;text-wrap:balance}
+.sub{margin:4px 0 0;color:var(--muted);font-size:15px}
+.wait{position:absolute;inset:0;z-index:2;display:grid;place-items:center;text-align:center}
+.wait .art{position:absolute;inset:0;aspect-ratio:auto;border-radius:0}
+.wait .art .pill,.wait .art .scr{display:none}
+.wait .msg{position:relative;z-index:3;display:grid;gap:6px;padding:16px 22px;border-radius:12px;background:rgba(6,13,26,.78);backdrop-filter:blur(8px)}
+.wait .msg b{font-family:var(--display);font-size:26px}
+.wait .msg span{color:var(--muted);font-size:14px}
+</style>
+</head>
+<body>
+<a class="skip" href="#player">Skip to video</a>
+<header id="hdr"></header>
+<section id="board"></section>
+
+<main class="wrap" id="main">
+  <div class="watch">
+    <div>
+      <div class="stage" id="stage">
+        <div class="screen" id="screen">
+          <div class="tile" id="tile">
+            <video id="player" playsinline muted aria-label="Game video"></video>
+            <div class="badge"><span id="livePill"></span><span class="snd" id="sndTag" hidden aria-label="Sound on"></span></div>
+          </div>
+        </div>
+        <button class="tapsound" id="tapSound" hidden></button>
+        <div class="vc" id="vc">
+          <div class="now"><b id="nowTitle">Loading…</b><span id="nowSub"></span></div>
+          <div class="btns">
+            <button class="ctl" id="back10" title="Back 10 seconds"><span class="ic"></span><span class="tx">10s</span></button>
+            <button class="ctl" id="play" aria-label="Pause" title="Pause"></button>
+            <button class="ctl primary golive" id="golive" title="Jump to live">Go live</button>
+            <button class="ctl" id="sound" aria-pressed="false" title="Sound"><span class="ic"></span><span class="tx">Sound</span></button>
+            <button class="ctl" id="popout" title="Pop out over other apps"><span class="ic"></span><span class="tx">Pop out</span></button>
+            <button class="ctl" id="full" title="Full screen"><span class="ic"></span><span class="tx">Full screen</span></button>
+          </div>
+        </div>
+      </div>
+      <h1 class="title" id="title"></h1>
+      <p class="sub" id="sub"></p>
+    </div>
+
+    <aside class="side" aria-label="Game details">
+      <section class="panel" aria-live="polite"><h2>Score</h2><div class="score" id="score"></div></section>
+      <a class="btn primary" id="toMulti" href="/frontrow/multiview.html"><svg viewBox="0 0 24 24"><path d="M3 4h8v7H3zm10 0h8v7h-8zM3 13h8v7H3zm10 0h8v7h-8z"/></svg>Watch with other games</a>
+      <section class="panel"><h2>Game info</h2><dl class="facts" id="facts"></dl></section>
+    </aside>
+  </div>
+
+  <section class="sec" aria-labelledby="h-more">
+    <div class="sec-h"><h2 id="h-more">More games today</h2></div>
+    <div class="rail" id="more"></div>
+  </section>
+</main>
+
+<footer class="foot"><span>© 2026 Northeast Conference · NEC Front Row</span><span>Sample site. Scores come from a test feed.</span></footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.13/hls.min.js" defer></script>
+<script src="/frontrow/assets/fr.js" defer></script>
+<script src="/frontrow/assets/player.js" defer></script>
+<script defer>
+addEventListener('DOMContentLoaded', () => {
+  const { esc, logoImg, label, soon, pill, isLive, watchable, sorted, lead, time, card } = FR;
+  const I = FRPlayer.ICONS;
+  const $ = id => document.getElementById(id);
+  FR.header('live');
+  FR.board($('board'));
+  FR.pullToRefresh(() => $('stage').classList.contains('fake-fs'));
+
+  // icons into the buttons
+  $('back10').querySelector('.ic').outerHTML = I.back;
+  $('play').innerHTML = I.pause;
+  $('sound').querySelector('.ic').outerHTML = I.mute;
+  $('popout').querySelector('.ic').outerHTML = I.pop;
+  $('full').querySelector('.ic').outerHTML = I.full;
+  $('tapSound').innerHTML = I.sound + 'Tap for sound';
+  $('sndTag').innerHTML = I.sound;
+
+  const stage = $('stage'), video = $('player');
+  let ev = null, h = null, started = false, soundOn = false;
+  FRPlayer.autoHide(stage, $('vc'));
+  FRPlayer.fullscreen(stage, $('full'));
+
+  function setSound(on){
+    soundOn = on; video.muted = !on;
+    $('sound').setAttribute('aria-pressed', on);
+    $('sound').querySelector('svg').outerHTML = on ? I.sound : I.mute;
+    $('sound').querySelector('.tx').textContent = on ? 'Sound on' : 'Sound off';
+    $('sndTag').hidden = !on;
+    if (on) hideTap();
+  }
+  function hideTap(){ const b = $('tapSound'); b.classList.add('out'); setTimeout(() => b.hidden = true, 450); }
+
+  function start(){
+    if (started || !watchable(ev)) return;
+    started = true;
+    stage.querySelector('.wait')?.remove();
+    h = FRPlayer.attach(video, ev.stream, { main:true, onError: () => {
+      $('tile').insertAdjacentHTML('beforeend', '<div class="vmsg">This video could not load. Try again in a moment.</div>'); } });
+    $('tapSound').hidden = false; setTimeout(hideTap, 8000);
+    // "Live" tag shows for a few seconds, then fades
+    setTimeout(() => $('tile').classList.add('live-off'), 4000);
+  }
+
+  function waiting(){
+    if (stage.querySelector('.wait')) { stage.querySelector('.wait .msg span').textContent = soon(ev); return; }
+    $('tile').insertAdjacentHTML('beforeend', `<div class="wait">${FR.art(ev, false)}<div class="msg"><b>Kickoff ${esc(time(ev.kickoff))}</b><span>${esc(soon(ev))}</span></div></div>`);
+  }
+
+  function render(){
+    const live = isLive(ev);
+    document.title = `${ev.a.name} at ${ev.h.name} · NEC Front Row`;
+    $('title').textContent = `${ev.a.name} at ${ev.h.name}`;
+    $('sub').textContent = `${ev.sport} · ${ev.venue}, ${ev.city}`;
+    $('nowTitle').textContent = `${ev.a.abbr} ${ev.status === 'pre' ? '' : ev.score.away} · ${ev.h.abbr} ${ev.status === 'pre' ? '' : ev.score.home}`;
+    $('nowSub').textContent = ev.status === 'final' ? 'Replay' : label(ev);
+    $('livePill').innerHTML = live ? pill(ev) : ev.status === 'final' ? '<span class="pill final">Replay</span>' : '';
+    $('golive').hidden = !live;
+    $('golive').textContent = 'Go live';
+    const tm = side => { const t = side === 'away' ? ev.a : ev.h;
+      return `<div class="tm ${lead(ev, side)}">${logoImg(t.key, 44)}<div class="nm">${esc(t.name)}${ev.poss === side ? ' <i class="poss" title="Has the ball"></i>' : ''}<small>${esc(t.mascot)}</small></div><div class="sc">${ev.status === 'pre' ? '–' : ev.score[side]}</div></div>`; };
+    $('score').innerHTML = `<div class="st">${live ? '<span class="dot"></span>' : ''}${esc(ev.status === 'pre' ? soon(ev) : label(ev))}</div>${tm('away')}${tm('home')}`;
+    $('facts').innerHTML = `<dt>Sport</dt><dd>${esc(ev.sport)}</dd><dt>Kickoff</dt><dd>${esc(time(ev.kickoff))}</dd><dt>Venue</dt><dd>${esc(ev.venue)}</dd><dt>City</dt><dd>${esc(ev.city)}</dd>`;
+    $('toMulti').href = `/frontrow/multiview.html?g=${encodeURIComponent(ev.id)}`;
+    if (watchable(ev)) start(); else waiting();
+  }
+
+  // Controls
+  $('back10').onclick = () => h && FRPlayer.back10(h);
+  $('golive').onclick = () => h && FRPlayer.goLive(h);
+  $('play').onclick = () => { if (!h) return; video.paused ? video.play().catch(()=>{}) : video.pause(); };
+  $('sound').onclick = () => setSound(!soundOn);
+  $('tapSound').onclick = e => { e.stopPropagation(); setSound(true); };
+  $('popout').onclick = () => FRPlayer.popOut(video);
+  setInterval(() => FRPlayer.playIcon($('play'), video), 500);
+  document.addEventListener('keydown', e => {
+    if (e.target.closest('input,textarea')) return;
+    if (e.key === 'ArrowLeft') $('back10').click();
+    if (e.key === ' ' && e.target === document.body) { e.preventDefault(); $('play').click(); }
+    if (e.key === 'm') $('sound').click();
+    if (e.key === 'f') $('full').click();
+  });
+
+  FR.load().then(list => {
+    const id = new URLSearchParams(location.search).get('e');
+    ev = FR.byId(id) || sorted(list).find(isLive) || sorted(list)[0];
+    FR.on(all => {
+      render();
+      $('more').innerHTML = sorted(all).filter(x => x.id !== ev.id).map(card).join('');
+    });
+  });
+});
+</script>
+</body>
+</html>

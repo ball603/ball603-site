@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>NEC Front Row</title>
+<meta name="description" content="Watch Northeast Conference games live and on replay.">
+<link rel="manifest" href="/frontrow/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/frontrow/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Front Row">
+<meta name="theme-color" content="#060d1a">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,800&family=Barlow:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/frontrow/assets/fr.css">
+<style>
+/* Featured game: live preview video behind, details on the left */
+.hero{position:relative;display:flex;align-items:flex-end;min-height:clamp(380px,46vw,600px);overflow:hidden;background:var(--bg-2)}
+.hero .bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:0;aspect-ratio:auto}
+.hero .bg.art{border-radius:0}
+.hero div.bg .art{position:absolute;inset:0;aspect-ratio:auto;border-radius:0}
+.hero div.bg .art .lg{width:18%}
+.hero div.bg .art .pill,.hero div.bg .art .scr{display:none}
+.hero div.bg .art .lg.a{left:62%}.hero div.bg .art .lg.h{left:84%}
+@media (max-width:760px){.hero div.bg .art .lg{display:none}}
+.hero .bg.art .pill,.hero .bg.art .scr{display:none}
+.hero::after{content:"";position:absolute;inset:0;z-index:1;background:linear-gradient(90deg,rgba(6,13,26,.96) 0%,rgba(6,13,26,.72) 38%,rgba(6,13,26,.1) 72%),linear-gradient(0deg,var(--bg) 0%,transparent 38%)}
+.hc{position:relative;z-index:2;width:100%;max-width:760px;padding:40px var(--gut) 34px;display:grid;gap:14px}
+.hc .eyebrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;color:var(--muted);font-size:14px;font-weight:600}
+.hm{display:grid;gap:8px}
+.hm .tm{display:grid;grid-template-columns:clamp(40px,5vw,60px) minmax(0,1fr) auto;align-items:center;gap:14px}
+.hm .tm img{width:100%;aspect-ratio:1;object-fit:contain;filter:drop-shadow(0 3px 8px rgba(0,0,0,.5))}
+.hm .nm{font-family:var(--display);font-weight:800;font-size:clamp(24px,4.4vw,52px);line-height:1;text-transform:uppercase;letter-spacing:.01em;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hm .nm small{display:block;font-size:.38em;font-weight:600;letter-spacing:.08em;color:var(--muted);margin-top:4px}
+.hm .sc{font-family:var(--display);font-weight:800;font-size:clamp(34px,5vw,60px);line-height:1;font-variant-numeric:tabular-nums}
+.hm .tm.lose{opacity:.55}
+.hc .where{color:var(--muted);font-size:15px}
+.hc .acts{display:flex;flex-wrap:wrap;gap:10px;margin-top:4px}
+.schools{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.school{display:grid;justify-items:center;gap:10px;padding:18px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--bg-2);text-align:center}
+.school img{width:64px;height:64px;object-fit:contain}
+.school b{font-family:var(--display);font-size:18px;line-height:1.1}
+.school span{font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to games</a>
+<header id="hdr"></header>
+<section id="board"></section>
+
+<main id="main">
+  <section class="hero" id="hero" aria-label="Featured game"><div class="hc"><p class="eyebrow">Loading today's games…</p></div></section>
+
+  <section class="wrap sec" id="live" aria-labelledby="h-live">
+    <div class="sec-h"><h2 id="h-live">Live now</h2><a class="meta" href="/frontrow/multiview.html">Watch several at once →</a></div>
+    <div class="rail" id="r-live"></div>
+  </section>
+
+  <section class="wrap sec" aria-labelledby="h-soon">
+    <div class="sec-h"><h2 id="h-soon">Coming up today</h2></div>
+    <div class="rail" id="r-soon"></div>
+  </section>
+
+  <section class="wrap sec" aria-labelledby="h-replay">
+    <div class="sec-h"><h2 id="h-replay">Replays</h2><span class="meta">Watch from the start</span></div>
+    <div class="rail" id="r-replay"></div>
+  </section>
+
+  <section class="wrap sec" id="schedule" aria-labelledby="h-sched">
+    <div class="sec-h"><h2 id="h-sched">Today's schedule</h2><span class="meta" id="sched-meta"></span></div>
+    <div class="sched" id="sched"></div>
+  </section>
+
+  <section class="wrap sec" id="schools" aria-labelledby="h-schools">
+    <div class="sec-h"><h2 id="h-schools">Schools</h2><span class="meta">Team pages coming soon</span></div>
+    <div class="schools" id="school-grid"></div>
+  </section>
+</main>
+
+<footer class="foot">
+  <span>© 2026 Northeast Conference · NEC Front Row</span>
+  <span>Sample site. Scores come from a test feed.</span>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.13/hls.min.js" defer></script>
+<script src="/frontrow/assets/fr.js" defer></script>
+<script src="/frontrow/assets/player.js" defer></script>
+<script defer>
+addEventListener('DOMContentLoaded', () => {
+  const { esc, logoImg, label, soon, pill, isLive, watchable, sorted, lead, matchup, watchUrl, card } = FR;
+  FR.header('home');
+  FR.board(document.getElementById('board'));
+  FR.pullToRefresh();
+
+  let featured = null, preview = null;
+
+  function renderHero(ev){
+    const hero = document.getElementById('hero');
+    if (!ev) { hero.querySelector('.hc').innerHTML = '<p class="eyebrow">No games today.</p>'; return; }
+    const row = side => { const t = side === 'away' ? ev.a : ev.h;
+      return `<div class="tm ${lead(ev, side)}">${logoImg(t.key, 60)}<div class="nm">${esc(t.name)}<small>${esc(t.mascot)}</small></div><div class="sc">${ev.status === 'pre' ? '' : ev.score[side]}</div></div>`; };
+    const live = isLive(ev);
+    hero.querySelector('.hc').innerHTML = `
+      <p class="eyebrow">${pill(ev)}<span>${esc(ev.sport)} · ${esc(ev.status === 'pre' ? soon(ev) : label(ev))}</span></p>
+      <div class="hm">${row('away')}${row('home')}</div>
+      <p class="where">${esc(ev.venue)} · ${esc(ev.city)}</p>
+      <div class="acts">
+        ${watchable(ev) ? `<a class="btn primary" href="${watchUrl(ev)}"><svg viewBox="0 0 24 24"><path d="M7 4.5v15l12.5-7.5z"/></svg>${live ? 'Watch live' : 'Watch replay'}</a>` : `<span class="btn" aria-disabled="true">${esc(soon(ev))}</span>`}
+        <a class="btn ghost" href="/frontrow/multiview.html?g=${encodeURIComponent(ev.id)}"><svg viewBox="0 0 24 24"><path d="M3 4h8v7H3zm10 0h8v7h-8zM3 13h8v7H3zm10 0h8v7h-8z"/></svg>Add to Multiview</a>
+      </div>`;
+  }
+
+  function startPreview(ev){
+    const hero = document.getElementById('hero');
+    hero.querySelector('.bg')?.remove();
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const saveData = navigator.connection && navigator.connection.saveData;
+    if (watchable(ev) && !reduce && !saveData && window.Hls !== undefined) {
+      const v = document.createElement('video'); v.className = 'bg'; v.setAttribute('aria-hidden', 'true'); v.muted = true; v.loop = true;
+      hero.prepend(v);
+      preview = FRPlayer.attach(v, ev.stream, { main:false, onError: () => { v.remove(); hero.insertAdjacentHTML('afterbegin', `<div class="bg">${FR.art(ev, false)}</div>`); } });
+    } else {
+      hero.insertAdjacentHTML('afterbegin', `<div class="bg" aria-hidden="true">${FR.art(ev, false)}</div>`);
+    }
+  }
+
+  function rail(id, list, emptyText){
+    const el = document.getElementById(id);
+    el.innerHTML = list.length ? list.map(card).join('') : `<p class="empty">${emptyText}</p>`;
+  }
+
+  function schedule(list){
+    document.getElementById('sched-meta').textContent = `${list.length} games`;
+    document.getElementById('sched').innerHTML = sorted(list).map(ev => {
+      const tm = side => { const t = side === 'away' ? ev.a : ev.h;
+        return `<div class="tm ${lead(ev, side)}">${logoImg(t.key, 24)}<span>${esc(t.name)}</span>${ev.poss === side ? '<i class="poss" title="Has the ball"></i>' : ''}</div>`; };
+      const sc = ev.status === 'pre' ? '<div class="sc"></div>' : `<div class="sc num"><span class="${lead(ev,'away')}">${ev.score.away}</span><span class="${lead(ev,'home')}">${ev.score.home}</span></div>`;
+      const act = watchable(ev)
+        ? `<a class="btn ${isLive(ev) ? 'primary' : ''}" href="${watchUrl(ev)}" aria-label="${isLive(ev) ? 'Watch live' : 'Watch replay'}: ${esc(matchup(ev))}">${isLive(ev) ? 'Watch live' : 'Replay'}</a>`
+        : `<span class="btn" aria-disabled="true">${esc(soon(ev))}</span>`;
+      return `<div class="srow"><div class="when">${pill(ev)}<span class="num">${esc(ev.status === 'pre' ? '' : label(ev))}</span></div>
+        <div class="mu">${tm('away')}${tm('home')}</div>${sc}<div class="act">${act}</div><div class="venue">${esc(ev.venue)} · ${esc(ev.city)}</div></div>`;
+    }).join('');
+  }
+
+  function schools(){
+    const nec = Object.entries(FR.teams).filter(([k, t]) => t.nec);
+    document.getElementById('school-grid').innerHTML = nec.map(([k, t]) =>
+      `<div class="school">${logoImg(k, 64)}<b>${esc(t.name)}</b><span>${esc(t.mascot)}</span></div>`).join('');
+  }
+
+  FR.load().then(() => {
+    schools();
+    FR.on(list => {
+      const s = sorted(list);
+      if (!featured) { featured = s.find(isLive) || s.find(e => e.status === 'pre') || s[0]; startPreview(featured); }
+      renderHero(featured);
+      rail('r-live', s.filter(isLive), 'No games are live right now. Check the schedule below.');
+      rail('r-soon', s.filter(e => e.status === 'pre'), 'Nothing else scheduled today.');
+      rail('r-replay', s.filter(e => e.status === 'final'), 'Replays show up here when games finish.');
+      schedule(list);
+    });
+  });
+});
+</script>
+</body>
+</html>
