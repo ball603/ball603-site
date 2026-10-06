@@ -4439,10 +4439,20 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
         </div>
       </div>
 
-      <!-- Contributors (hidden but needed for JS) -->
-      <div style="display: none;">
-        <div id="socialContributorsList"></div>
-        <select id="socialContributorSelect"><option value="">+ Add contributor...</option></select>
+      <!-- Photographer. On the article path this stays hidden, because the
+           photographer is taken from the story automatically. A standalone post
+           has no story to take one from, so the picker is shown there. The
+           elements have to exist either way - the JS writes into them. -->
+      <div id="socialContributorPicker" style="display: none; margin-bottom: 20px; padding: 15px; background: #f3e5f5; border-radius: 8px; border: 1px solid #8e24aa;">
+        <label for="socialContributorSelect" style="display: block; margin-bottom: 8px; font-weight: 600; color: #6a1b9a;">&#x1F4F8; Photographer</label>
+        <select id="socialContributorSelect" onchange="addSocialContributor()"
+                style="width: 100%; max-width: 320px; padding: 8px; border: 1px solid #ce93d8; border-radius: 6px; font-size: 13px;">
+          <option value="">+ Add contributor...</option>
+        </select>
+        <div style="margin-top: 6px; font-size: 12px; color: #6a1b9a;">
+          Credits them as an Instagram collaborator and tags their Facebook page, where those are on file.
+        </div>
+        <div id="socialContributorsList" style="margin-top: 10px;"></div>
         <span id="noContributorsMsg"></span>
       </div>
       
@@ -14745,6 +14755,7 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
       show('socialTwitterCard', !solo);   // nothing here ever posts to X
       show('socialLabelRow', solo);
       show('socialSubjectRow', solo);
+      show('socialContributorPicker', solo);
       const intro = document.getElementById('socialPanelIntro');
       if (intro) {
         intro.textContent = solo
@@ -15144,21 +15155,22 @@ J. Smith      32   8-14  2-5   4-4   7    3    2    0    2   22
     function addSocialContributor() {
       const select = document.getElementById('socialContributorSelect');
       const contribId = parseInt(select.value);
+      /* Clear it straight away, on every path. It used to be cleared only at
+         the end, so picking someone already added left their name sitting in
+         the dropdown - which reads as though it worked. */
+      select.value = '';
       if (!contribId) return;
-      
-      // Check if already added
+
       if (socialContributors.find(c => c.id === contribId)) {
         showToast('Contributor already added', 'warning');
         return;
       }
-      
+
       const contrib = allContributors.find(c => c.id === contribId);
       if (contrib) {
         socialContributors.push(contrib);
         renderSocialContributors();
       }
-      
-      select.value = '';
     }
     
     function removeSocialContributor(id) {
