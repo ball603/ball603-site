@@ -51,6 +51,14 @@ header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-betw
 /* PiP */
 .mode-pip .tile.is-focus{inset:0}
 .mode-pip .tile.is-pip{width:32%;aspect-ratio:16/9;height:auto;right:2%;bottom:3%;left:auto;top:auto;border:2px solid var(--nec);border-radius:8px;z-index:3;cursor:grab;touch-action:none;box-shadow:0 8px 24px rgba(0,0,0,.6)}
+.rh{position:absolute;width:22px;height:22px;z-index:4;display:none;touch-action:none}
+.rh::after{content:"";position:absolute;width:10px;height:10px;border:3px solid var(--nec)}
+.mode-pip .tile.is-pip .rh{display:block}
+.rh[data-c="nw"]{top:-2px;left:-2px;cursor:nwse-resize}.rh[data-c="nw"]::after{top:2px;left:2px;border-right:0;border-bottom:0}
+.rh[data-c="ne"]{top:-2px;right:-2px;cursor:nesw-resize}.rh[data-c="ne"]::after{top:2px;right:2px;border-left:0;border-bottom:0}
+.rh[data-c="sw"]{bottom:-2px;left:-2px;cursor:nesw-resize}.rh[data-c="sw"]::after{bottom:2px;left:2px;border-right:0;border-top:0}
+.rh[data-c="se"]{bottom:-2px;right:-2px;cursor:nwse-resize}.rh[data-c="se"]::after{bottom:2px;right:2px;border-left:0;border-top:0}
+.tk{cursor:pointer}.tk:hover .tm{text-decoration:underline}
 .mode-pip .tile.is-pip.dragging{cursor:grabbing;transition:none}
 /* Quad */
 .mode-quad .tile{width:calc(50% - 2px);height:calc(50% - 2px);cursor:pointer}
@@ -126,32 +134,6 @@ header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-betw
 @media (max-width:760px){.vc .now{flex-basis:100%}.vc .ctl .tx{display:none}.vc .ctl{padding:9px}.vc{padding-top:30px}}
 @media (prefers-reduced-motion:reduce){.vc,.badge .live{transition:none}}
 
-/* Games list */
-.lower{display:grid;grid-template-columns:1.4fr 1fr;gap:16px}
-@media (max-width:820px){.lower{grid-template-columns:1fr}}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;min-width:0}
-.card h2{margin:0 0 4px;font-family:var(--display);font-size:18px;letter-spacing:.08em;text-transform:uppercase}
-.card p.sub{margin:0 0 12px;color:var(--muted);font-size:13px}
-.games{display:grid;gap:8px}
-.game{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;padding:10px;border:1px solid var(--line);border-radius:8px;background:#0f1720;text-align:left;width:100%}
-.game:hover{border-color:var(--nec)}
-.game.on{border-color:var(--nec);background:#0f2133}
-.game .slot{font-family:var(--display);font-weight:800;font-size:13px;color:var(--muted);width:22px;text-align:center}
-.game .who{min-width:0}
-.game .who b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.game .who span{font-size:12px;color:var(--muted)}
-.game .sc{font-family:var(--display);font-weight:700;font-size:18px;font-variant-numeric:tabular-nums}
-.chips{display:flex;gap:6px;margin-top:4px}
-.chip{font-size:11px;padding:2px 6px;border-radius:3px;background:#1d2a38;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
-.chip.focus{background:var(--nec);color:#fff}
-.chip.pip{background:#26425e;color:#cfe6fa}
-
-form{display:grid;gap:8px}
-label{font-size:13px;color:var(--muted)}
-input{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);background:#0f1720;color:var(--text);font:inherit;font-size:14px}
-.row{display:flex;gap:8px;flex-wrap:wrap}
-.note{font-size:12px;color:var(--muted);line-height:1.5;margin:10px 0 0}
-.msg{font-size:13px;color:#8fd19e;min-height:1em}
 </style>
 </head>
 <body>
@@ -185,24 +167,6 @@ input{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);bac
     <div class="view"><div class="belt" id="belt"><div class="set"><span class="wait">Loading scores…</span></div></div></div>
   </div>
 
-  <div class="lower">
-    <section class="card">
-      <h2>Live now</h2>
-      <p class="sub">Tap a game to make it the main one. In Picture-in-Picture, tap the small box to swap, or drag it anywhere.</p>
-      <div id="games" class="games"></div>
-    </section>
-    <section class="card">
-      <h2>Try a Hudl link</h2>
-      <p class="sub">Paste any .m3u8 stream link to load it into the main game.</p>
-      <form id="linkForm">
-        <label for="linkIn">Stream link</label>
-        <input id="linkIn" type="url" placeholder="https://…/playlist.m3u8" required>
-        <div class="row"><button class="ctl primary" type="submit">Load into main game</button></div>
-        <div class="msg" id="linkMsg" aria-live="polite"></div>
-      </form>
-      <p class="note">Videos are real Hudl games, the scores come from a test stats feed of four made-up NEC games that play out live. Swapping in a real stats feed link works the same way.</p>
-    </section>
-  </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.13/hls.min.js"></script>
@@ -210,7 +174,6 @@ input{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);bac
 (function(){
   const FALLBACK = []; // filled if games.json can't load
   const stage = document.getElementById('stage');
-  const gamesEl = document.getElementById('games');
   let games = [], tiles = [], mode = 'quad', focus = 0, pip = 1, soundOn = false, lastMode = null, lastFocus = null;
   const FEED = '/.netlify/functions/nec-stats-feed';
 
@@ -222,6 +185,7 @@ input{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);bac
     el.innerHTML =
       '<video playsinline muted autoplay></video>' +
       '<div class="badge"><span class="live">Live</span><span class="snd" hidden aria-label="Sound on"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M4 9v6h4l5 4V5L8 9H4zm12.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z"/></svg></span></div>' +
+      '<span class="rh" data-c="nw"></span><span class="rh" data-c="ne"></span><span class="rh" data-c="sw"></span><span class="rh" data-c="se"></span>' +
       '<div class="bug">' +
         '<span class="nec">NEC</span>' +
         '<span class="t" style="background:'+esc(g.away.color)+'">'+esc(g.away.abbr)+'<i class="sa">'+g.stats.away+'</i></span>' +
@@ -299,31 +263,6 @@ input{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);bac
     document.getElementById('nowSub').textContent = g.sport + ' · ' + g.venue;
     document.querySelector('#sound .tx').textContent = soundOn ? 'Sound off' : 'Sound on';
     placePip();
-    renderList();
-  }
-
-  function renderList(){
-    gamesEl.innerHTML = '';
-    tiles.forEach((t, i) => {
-      const g = t.game;
-      const b = document.createElement('button');
-      b.className = 'game' + (i === focus ? ' on' : '');
-      let chips = '';
-      if (i === focus) chips += '<span class="chip focus">Main</span>';
-      if (mode === 'pip' && i === pip) chips += '<span class="chip pip">Small box</span>';
-      b.innerHTML = '<span class="slot">'+(i+1)+'</span>' +
-        '<span class="who"><b>'+esc(g.away.name)+' at '+esc(g.home.name)+'</b><span>'+esc(g.sport)+'</span>' +
-        (chips ? '<div class="chips">'+chips+'</div>' : '') + '</span>' +
-        '<span class="sc">'+g.stats.away+'–'+g.stats.home+'</span>';
-      b.addEventListener('click', () => {
-        if (mode === 'pip' && i === focus) return;
-        if (mode === 'pip') { if (i === pip) pip = focus; focus = i; }
-        else focus = i;
-        if (mode === 'pip' && pip === focus) pip = (focus + 1) % tiles.length;
-        apply();
-      });
-      gamesEl.appendChild(b);
-    });
   }
 
   // Live edge helpers
@@ -344,12 +283,14 @@ input{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);bac
 
   // Drag the small Picture-in-Picture box anywhere on the video
   let pipPos = null;   // { x, y } as fractions of the stage, once moved
+  let pipW = null;     // width as a fraction of the stage, once resized
   function placePip(){
     tiles.forEach((t, i) => {
       const st = t.el.style;
       if (mode === 'pip' && i === pip && pipPos) {
         st.left = (pipPos.x * 100) + '%'; st.top = (pipPos.y * 100) + '%'; st.right = 'auto'; st.bottom = 'auto';
       } else { st.left = st.top = st.right = st.bottom = ''; }
+      st.width = (mode === 'pip' && i === pip && pipW) ? (pipW * 100) + '%' : '';
     });
   }
   function makeDraggable(el, i){
@@ -377,6 +318,34 @@ input{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);bac
       el.classList.remove('dragging'); start = null;
     };
     el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
+
+    // Corners resize the box, keeping it widescreen and pinned at the opposite corner
+    el.querySelectorAll('.rh').forEach(h => {
+      let rs = null;
+      h.addEventListener('pointerdown', e => {
+        if (!(mode === 'pip' && i === pip)) return;
+        e.stopPropagation(); e.preventDefault();
+        const sr = stage.getBoundingClientRect(), r = el.getBoundingClientRect();
+        rs = { px:e.clientX, c:h.dataset.c, l:r.left - sr.left, t:r.top - sr.top, w:r.width, h:r.height };
+        h.setPointerCapture(e.pointerId); el.classList.add('dragging');
+      });
+      h.addEventListener('pointermove', e => {
+        if (!rs) return;
+        const sr = stage.getBoundingClientRect();
+        const dx = e.clientX - rs.px, west = rs.c.includes('w'), north = rs.c.includes('n');
+        let w = rs.w + (west ? -dx : dx);
+        w = Math.max(sr.width * 0.18, Math.min(sr.width * 0.75, w));
+        const hgt = w * 9 / 16;
+        let x = west ? rs.l + rs.w - w : rs.l;
+        let y = north ? rs.t + rs.h - hgt : rs.t;
+        x = Math.max(0, Math.min(x, sr.width - w)); y = Math.max(0, Math.min(y, sr.height - hgt));
+        pipW = w / sr.width; pipPos = { x: x / sr.width, y: y / sr.height };
+        placePip();
+      });
+      const done = () => { if (rs) { el.dataset.dragged = '1'; el.classList.remove('dragging'); rs = null; } };
+      h.addEventListener('pointerup', done); h.addEventListener('pointercancel', done);
+      h.addEventListener('click', e => e.stopPropagation());
+    });
   }
 
   // Video controls appear when you move the mouse or tap, and hide after 3 seconds
@@ -413,14 +382,6 @@ input{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);bac
     if (stage.requestFullscreen) stage.requestFullscreen().catch(()=>{});
     else if (v.webkitEnterFullscreen) v.webkitEnterFullscreen();
   };
-  document.getElementById('linkForm').addEventListener('submit', e => {
-    e.preventDefault();
-    const url = document.getElementById('linkIn').value.trim();
-    if (!url) return;
-    tiles[focus].game.stream = url;
-    load(tiles[focus], url);
-    document.getElementById('linkMsg').textContent = 'Loaded into the main game.';
-  });
   document.addEventListener('keydown', e => {
     if (e.target.tagName === 'INPUT') return;
     if (e.key === 'ArrowLeft') document.getElementById('back10').click();
@@ -473,7 +434,7 @@ input{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);bac
     const one = list.map(g => {
       const a = g.away.score, h = g.home.score;
       const cls = (x, y) => x === y ? 'lead' : (x > y ? 'lead' : 'trail');
-      return '<div class="tk'+(changed.has(g.id)?' flash':'')+'">' +
+      return '<div class="tk'+(changed.has(g.id)?' flash':'')+'" data-sid="'+esc(g.id)+'" role="button" tabindex="0" title="Watch this game">' +
         '<span class="sp">'+esc(g.sport)+'</span>' +
         '<span class="tm '+cls(a,h)+'"><span class="sw" style="background:'+esc(colorFor(g.id,'away'))+'"></span>'+esc(g.away.id)+' '+a+'</span>' +
         '<span class="tm '+cls(h,a)+'"><span class="sw" style="background:'+esc(colorFor(g.id,'home'))+'"></span>'+esc(g.home.id)+' '+h+'</span>' +
@@ -483,6 +444,18 @@ input{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);bac
     // two copies side by side so the belt loops without a gap
     document.getElementById('belt').innerHTML = '<div class="set">'+one+'</div><div class="set" aria-hidden="true">'+one+'</div>';
   }
+
+  // Tap a game in the ticker to make it the main one
+  document.getElementById('belt').addEventListener('click', e => {
+    const tk = e.target.closest('.tk'); if (!tk) return;
+    const i = tiles.findIndex(t => t.game.statsId === tk.dataset.sid);
+    if (i < 0 || i === focus) return;
+    if (mode === 'pip' && i === pip) pip = focus;
+    focus = i;
+    if (mode === 'pip' && pip === focus) pip = (focus + 1) % tiles.length;
+    apply();
+  });
+  document.getElementById('belt').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.closest('.tk')) e.target.click(); });
 
   function applyFeed(){
     tiles.forEach(t => {
@@ -495,7 +468,6 @@ input{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);bac
       t.el.querySelector('.clk').textContent = f.status === 'live' ? f.clock : '';
       t.el.querySelector('.c small').textContent = statusText(f).replace(' ' + f.clock, '');
     });
-    if (tiles.length) renderList();
   }
   function flash(el){ el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
 
