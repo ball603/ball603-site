@@ -2,7 +2,7 @@
 // Always tries the internet first, so new uploads show up right away.
 // Keeps a copy of the styles, code and logos so pages load faster on a bad connection.
 // Video and live scores are never stored.
-const CACHE = 'frontrow-v2';
+const CACHE = 'frontrow-v3';
 const SHELL = ['/frontrow/assets/fr.css', '/frontrow/assets/fr.js', '/frontrow/assets/player.js', '/frontrow/data/events.json', '/frontrow/icon-192.png'];
 
 self.addEventListener('install', e => {

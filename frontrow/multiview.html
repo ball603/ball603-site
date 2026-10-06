@@ -19,7 +19,14 @@
 /* The stage is sized to fit the screen height on computers, so all four games are visible without scrolling */
 .mv-head{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:8px 20px;padding-block:18px 12px}
 .mv-head h1{margin:0;font-family:var(--display);font-weight:800;font-size:clamp(26px,3vw,36px);line-height:1}
-.mv-head p{margin:0;color:var(--muted);font-size:14px}
+.mv-head p{margin:0;color:var(--muted);font-size:14px;flex:1 1 260px}
+.seg{display:flex;gap:2px;padding:3px;border:1px solid var(--line);border-radius:10px;background:var(--bg-2)}
+.seg .pb{width:38px;height:34px}
+.seg .pb[aria-pressed="true"]{background:var(--nec);color:#fff}
+.grp.r .views .pb[aria-pressed="true"]{background:var(--nec);color:#fff}
+.grp.r .views .pb{width:34px;height:34px}
+.grp.r .views .pb svg{width:20px;height:20px}
+.stage:not(.fs) .grp.r .views{display:none}
 #stage{margin-inline:auto;max-width:min(100%,calc((100svh - 250px) * 16 / 9))}
 #stage.fs{max-width:none}
 @media (max-width:760px){#stage{max-width:100%}}
@@ -99,27 +106,18 @@ dialog.pick::backdrop{background:rgba(2,6,12,.72);backdrop-filter:blur(3px)}
   <div class="mv-head">
     <h1>Multiview</h1>
     <p>Pick a layout, then tap any window to choose its game or hear its sound.</p>
+    <div class="layouts"><div class="seg" role="group" aria-label="Layout">
+          <button class="pb" data-layout="single" aria-label="One game" title="One game"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="1.5"/></svg></button>
+          <button class="pb" data-layout="two" aria-label="Side by side" title="Side by side"><svg viewBox="0 0 24 24"><path d="M3 6h8.5v12H3zm9.5 0H21v12h-8.5z"/></svg></button>
+          <button class="pb" data-layout="pip" aria-label="Picture-in-Picture" title="Picture-in-Picture"><svg viewBox="0 0 24 24"><path d="M3 5h18v14H3zm9.5 7v5h7v-5z" fill-rule="evenodd"/></svg></button>
+          <button class="pb" data-layout="quad" aria-label="Four games" title="Four games"><svg viewBox="0 0 24 24"><path d="M3 5h8.5v6.5H3zm9.5 0H21v6.5h-8.5zM3 12.5h8.5V19H3zm9.5 0H21V19h-8.5z"/></svg></button>
+        </div></div>
   </div>
 
   <div class="stage l-quad" id="stage">
     <div class="screen" id="screen"></div>
     <button class="tapsound" id="tapSound" hidden></button>
-    <div class="vc" id="vc">
-      <div class="now"><b id="nowTitle">Loading…</b><span id="nowSub"></span></div>
-      <div class="btns">
-        <div class="views" role="group" aria-label="Layout">
-          <button class="ctl vw" data-layout="single" aria-label="One game" title="One game"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="1.5"/></svg></button>
-          <button class="ctl vw" data-layout="two" aria-label="Side by side" title="Side by side"><svg viewBox="0 0 24 24"><path d="M3 6h8.5v12H3zm9.5 0H21v12h-8.5z"/></svg></button>
-          <button class="ctl vw" data-layout="pip" aria-label="Picture-in-Picture" title="Picture-in-Picture"><svg viewBox="0 0 24 24"><path d="M3 5h18v14H3zm9.5 7v5h7v-5z" fill-rule="evenodd"/></svg></button>
-          <button class="ctl vw" data-layout="quad" aria-label="Four games" title="Four games"><svg viewBox="0 0 24 24"><path d="M3 5h8.5v6.5H3zm9.5 0H21v6.5h-8.5zM3 12.5h8.5V19H3zm9.5 0H21V19h-8.5z"/></svg></button>
-        </div>
-        <button class="ctl" id="back10" title="Back 10 seconds"></button>
-        <button class="ctl" id="play" aria-label="Pause" title="Pause"></button>
-        <button class="ctl primary golive" id="golive" title="Jump to live">Go live</button>
-        <button class="ctl" id="sound" aria-pressed="false" title="Sound"></button>
-        <button class="ctl" id="full" title="Full screen"></button>
-      </div>
-    </div>
+    <div class="vc" id="vc"></div>
   </div>
 </main>
 
@@ -128,7 +126,7 @@ dialog.pick::backdrop{background:rgba(2,6,12,.72);backdrop-filter:blur(3px)}
   <div class="pick-list" id="pickList"></div>
 </dialog>
 
-<footer class="foot"><span>© 2026 Northeast Conference · NEC Front Row</span><span>Sample site. Scores come from a test feed.</span></footer>
+<footer class="foot"><span>© 2026 Northeast Conference · NEC Front Row</span></footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.13/hls.min.js" defer></script>
 <script src="/frontrow/assets/fr.js" defer></script>
@@ -147,14 +145,21 @@ addEventListener('DOMContentLoaded', () => {
   let pipPos = null, pipW = null;
 
   // ---------- buttons ----------
-  $('back10').innerHTML = I.back + '<span class="tx">10s</span>';
-  $('play').innerHTML = I.pause;
-  $('sound').innerHTML = I.mute + '<span class="tx">Sound off</span>';
-  $('full').innerHTML = I.full + '<span class="tx">Full screen</span>';
   $('tapSound').innerHTML = I.sound + 'Tap for sound';
   $('pickClose').innerHTML = I.close;
+  // the bar acts on whichever window is selected; layout buttons ride along for full screen
+  const fh = () => tiles[focus] && tiles[focus].h;
+  const focusEv = () => slots[focus] && FR.byId(slots[focus]);
+  const bar = FRPlayer.bar({ vc: $('vc'), getH: fh, isLiveGame: () => { const e = focusEv(); return !!e && isLive(e); },
+    soundOn: () => soundOn, onSound: () => { setSound(!soundOn); apply(); }, popout: false,
+    extra: `<div class="views" role="group" aria-label="Layout">
+          <button class="pb" data-layout="single" aria-label="One game" title="One game"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="1.5"/></svg></button>
+          <button class="pb" data-layout="two" aria-label="Side by side" title="Side by side"><svg viewBox="0 0 24 24"><path d="M3 6h8.5v12H3zm9.5 0H21v12h-8.5z"/></svg></button>
+          <button class="pb" data-layout="pip" aria-label="Picture-in-Picture" title="Picture-in-Picture"><svg viewBox="0 0 24 24"><path d="M3 5h18v14H3zm9.5 7v5h7v-5z" fill-rule="evenodd"/></svg></button>
+          <button class="pb" data-layout="quad" aria-label="Four games" title="Four games"><svg viewBox="0 0 24 24"><path d="M3 5h8.5v6.5H3zm9.5 0H21v6.5h-8.5zM3 12.5h8.5V19H3zm9.5 0H21V19h-8.5z"/></svg></button>
+        </div>` });
   FRPlayer.autoHide(stage, $('vc'));
-  FRPlayer.fullscreen(stage, $('full'), () => placePip());
+  FRPlayer.fullscreen(stage, bar.full, () => placePip());
 
   // ---------- windows ----------
   function makeTile(i){
@@ -204,7 +209,7 @@ addEventListener('DOMContentLoaded', () => {
       t.el.insertAdjacentHTML('beforeend', `<div class="wait">${FR.art(ev, false)}<b>Kickoff ${esc(time(ev.kickoff))}</b></div>`);
       return;
     }
-    t.h = FRPlayer.attach(t.video, ev.stream, { main: i === focus, onError: () => {
+    t.h = FRPlayer.attach(t.video, ev.stream, { main: i === focus, liveSince: isLive(ev) ? ev.kickoff : null, onError: () => {
       t.el.insertAdjacentHTML('beforeend', '<div class="vmsg">This video could not load.</div>'); } });
     t.el.classList.remove('live-off'); clearTimeout(t.liveT);
     t.liveT = setTimeout(() => t.el.classList.add('live-off'), 4000);
@@ -252,10 +257,6 @@ addEventListener('DOMContentLoaded', () => {
       t.el.querySelector('.lp').innerHTML = ev ? (isLive(ev) ? pill(ev) : ev.status === 'final' ? '<span class="pill final">Replay</span>' : '') : '';
       t.el.setAttribute('aria-label', ev ? `Window ${i + 1}: ${matchup(ev)}` : `Window ${i + 1}: empty`);
     });
-    const ev = slots[focus] && FR.byId(slots[focus]);
-    $('nowTitle').textContent = ev ? `${ev.a.name} at ${ev.h.name}` : 'Choose a game';
-    $('nowSub').textContent = ev ? (ev.status === 'pre' ? soon(ev) : `${ev.a.abbr} ${ev.score.away} · ${ev.h.abbr} ${ev.score.home} · ${ev.status === 'final' ? 'Replay' : label(ev)}`) : 'Tap a window to pick one';
-    $('golive').hidden = !(ev && isLive(ev));
   }
 
   function saveUrl(){
@@ -266,27 +267,20 @@ addEventListener('DOMContentLoaded', () => {
   // ---------- sound ----------
   function setSound(on){
     soundOn = on;
-    $('sound').setAttribute('aria-pressed', on);
-    $('sound').innerHTML = (on ? I.sound : I.mute) + `<span class="tx">${on ? 'Sound on' : 'Sound off'}</span>`;
     if (on) hideTap();
   }
   function hideTap(){ const b = $('tapSound'); b.classList.add('out'); setTimeout(() => b.hidden = true, 450); }
-  $('sound').onclick = () => { setSound(!soundOn); apply(); };
   $('tapSound').onclick = e => { e.stopPropagation(); setSound(true); apply(); };
 
   // ---------- main controls act on the focused window ----------
-  const fh = () => tiles[focus] && tiles[focus].h;
-  $('back10').onclick = () => fh() && FRPlayer.back10(fh());
-  $('golive').onclick = () => fh() && FRPlayer.goLive(fh());
-  $('play').onclick = () => { const h = fh(); if (!h) return; h.video.paused ? h.video.play().catch(()=>{}) : h.video.pause(); };
-  setInterval(() => { const h = fh(); if (h) FRPlayer.playIcon($('play'), h.video); }, 500);
   document.querySelectorAll('[data-layout]').forEach(b => b.onclick = () => setLayout(b.dataset.layout));
   document.addEventListener('keydown', e => {
-    if (e.target.closest('input,textarea,dialog')) return;
+    if (e.target.closest('input,textarea,dialog,button')) return;
     if (/^[1-4]$/.test(e.key) && +e.key <= COUNT[layout]) { focus = +e.key - 1; apply(); }
-    if (e.key === 'ArrowLeft') $('back10').click();
-    if (e.key === 'm') $('sound').click();
-    if (e.key === 'f') $('full').click();
+    if (e.key === 'ArrowLeft' && fh()) FRPlayer.back10(fh());
+    if (e.key === 'ArrowRight' && fh()) FRPlayer.fwd10(fh());
+    if (e.key === 'm') { setSound(!soundOn); apply(); }
+    if (e.key === 'f') bar.full.click();
   });
 
   // ---------- game picker ----------

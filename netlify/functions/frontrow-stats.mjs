@@ -42,11 +42,31 @@ function drives(seed) {
     if (x > 0.62) pts = r() < 0.9 ? 7 : (r() < 0.5 ? 6 : 8);
     else if (x > 0.42) pts = 3;
     else if (x < 0.02) pts = -2;  // safety for the other team
-    out.push({ t, end: t + len, side, pts });
+    const how = pts >= 6 ? (r() < 0.6 ? 'pass' : 'rush') : null;
+    out.push({ t, end: t + len, side, pts, how });
     t += len;
     side = side === 'away' ? 'home' : 'away';
   }
   return out;
+}
+
+// Made-up rosters so the stat leaders have names
+const FIRST = ['Jalen','Marcus','Tyler','Devin','Chris','Jordan','Isaiah','Caleb','Malik','Ethan','Darius','Logan','Xavier','Nate','Trey','Aiden','Cam','Elijah','Brandon','Jaylen'];
+const LAST = ['Johnson','Williams','Carter','Brooks','Mitchell','Hayes','Coleman','Price','Sullivan','Bennett','Reed','Foster','Hughes','Ward','Morgan','Powell','Russell','Murphy','Gray','Daniels'];
+const name = (r) => `${FIRST[Math.floor(r() * FIRST.length)][0]}. ${LAST[Math.floor(r() * LAST.length)]}`;
+
+// End-of-game totals for one team; what's shown grows toward these as the game goes on
+function teamPlan(seed){
+  const r = rng(seed);
+  const rush = 80 + Math.floor(r() * 180), pass = 120 + Math.floor(r() * 220);
+  return {
+    rush, pass,
+    first: Math.round((rush + pass) / 17) + Math.floor(r() * 4),
+    to: Math.floor(r() * 3.6), pen: 3 + Math.floor(r() * 8), top: 0.44 + r() * 0.12,
+    qb: name(r), att: 22 + Math.floor(r() * 18), pct: 0.55 + r() * 0.15,
+    rb: name(r), car: 12 + Math.floor(r() * 14), rbShare: 0.45 + r() * 0.2,
+    wr: name(r), rec: 4 + Math.floor(r() * 6), wrShare: 0.3 + r() * 0.15,
+  };
 }
 
 const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
@@ -74,24 +94,62 @@ export function snapshot(nowMs = Date.now()) {
       }
     } else { status = 'final'; period = 4; gameSec = QGAME * 4; }
 
+    const seed = cycleNo * 7919 + i * 104729;
     const score = { away: 0, home: 0 };
+    const lines = { away: [0, 0, 0, 0], home: [0, 0, 0, 0] };
+    const tds = { away: { pass: 0, rush: 0 }, home: { pass: 0, rush: 0 } };
     let poss = null;
-    for (const d of drives(cycleNo * 7919 + i * 104729)) {
+    for (const d of drives(seed)) {
       if (d.t > gameSec) break;
       if (d.end <= gameSec) {
-        if (d.pts > 0) score[d.side] += d.pts;
-        if (d.pts < 0) score[d.side === 'away' ? 'home' : 'away'] += 2;
+        const q = Math.min(3, Math.floor(Math.max(0, d.end - 1) / QGAME));
+        if (d.pts > 0) { score[d.side] += d.pts; lines[d.side][q] += d.pts; }
+        if (d.pts < 0) { const o = d.side === 'away' ? 'home' : 'away'; score[o] += 2; lines[o][q] += 2; }
+        if (d.how) tds[d.side][d.how]++;
       } else poss = d.side;
     }
     if (status !== 'live') poss = null;
-    return { ...g, status, period, clock, score, poss, kickoff };
+
+    // Team stats and leaders, growing with the game clock
+    const f = gameSec / (QGAME * 4);
+    const stats = {}, leaders = {};
+    for (const side of ['away', 'home']) {
+      const p = teamPlan(seed + (side === 'away' ? 11 : 23));
+      const rush = Math.round(p.rush * f), pass = Math.round(p.pass * f);
+      const att = Math.round(p.att * f), comp = Math.round(att * p.pct);
+      stats[side] = {
+        firstdowns: Math.round(p.first * f), totalyds: rush + pass, rushyds: rush, passyds: pass,
+        turnovers: Math.floor(p.to * f), penalties: Math.floor(p.pen * f), penyds: Math.floor(p.pen * f) * 8,
+        top: Math.round(gameSec * (side === 'away' ? p.top : 1 - p.top)),
+      };
+      leaders[side] = {
+        pass: { name: p.qb, comp, att, yds: pass, td: tds[side].pass },
+        rush: { name: p.rb, car: Math.round(p.car * f), yds: Math.round(rush * p.rbShare), td: tds[side].rush },
+        rec:  { name: p.wr, rec: Math.round(p.rec * f), yds: Math.round(pass * p.wrShare), td: Math.ceil(tds[side].pass / 2) },
+      };
+    }
+    // the home team's share of time of possession is what's left
+    return { ...g, status, period, clock, score, poss, kickoff, lines, stats, leaders };
   });
 }
 
 export function toXml(games, nowMs = Date.now()) {
+  const team = (g, side) => {
+    const s = g.stats[side], L = g.leaders[side], played = Math.min(g.period, 4);
+    const lines = g.status === 'pre' ? '' : g.lines[side].slice(0, Math.max(played, 1)).map((v, q) => `<lineprd prd="${q + 1}" score="${v}"/>`).join('');
+    return `    <team vh="${side === 'away' ? 'V' : 'H'}" id="${side === 'away' ? g.away : g.home}" score="${g.score[side]}">
+      <linescore>${lines}</linescore>
+      <totals firstdowns="${s.firstdowns}" totalyds="${s.totalyds}" rushyds="${s.rushyds}" passyds="${s.passyds}" turnovers="${s.turnovers}" penalties="${s.penalties}" penyds="${s.penyds}" top="${mmss(s.top)}"/>
+      <leaders>
+        <pass name="${L.pass.name}" comp="${L.pass.comp}" att="${L.pass.att}" yds="${L.pass.yds}" td="${L.pass.td}"/>
+        <rush name="${L.rush.name}" car="${L.rush.car}" yds="${L.rush.yds}" td="${L.rush.td}"/>
+        <rec name="${L.rec.name}" rec="${L.rec.rec}" yds="${L.rec.yds}" td="${L.rec.td}"/>
+      </leaders>
+    </team>`;
+  };
   const rows = games.map((g) => `  <game id="${g.id}" sport="football" status="${g.status}" period="${g.period}" clock="${g.clock}" kickoff="${new Date(g.kickoff).toISOString()}"${g.poss ? ` poss="${g.poss === 'away' ? 'V' : 'H'}"` : ''}>
-    <team vh="V" id="${g.away}" score="${g.score.away}"/>
-    <team vh="H" id="${g.home}" score="${g.score.home}"/>
+${team(g, 'away')}
+${team(g, 'home')}
   </game>`).join('\n');
   return `<?xml version="1.0" encoding="UTF-8"?>
 <livestats source="Pack Network test feed" conference="NEC" generated="${new Date(nowMs).toISOString()}">

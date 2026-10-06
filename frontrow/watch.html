@@ -41,6 +41,40 @@
 .wait .msg{position:relative;z-index:3;display:grid;gap:6px;padding:16px 22px;border-radius:12px;background:rgba(6,13,26,.78);backdrop-filter:blur(8px)}
 .wait .msg b{font-family:var(--display);font-size:26px}
 .wait .msg span{color:var(--muted);font-size:14px}
+
+/* Stats tabs */
+.stats{padding:0;overflow:hidden}
+.tabs{display:flex;border-bottom:1px solid var(--line)}
+.tab{flex:1;padding:12px 6px;border:0;background:none;color:var(--muted);font-weight:700;font-size:13px;letter-spacing:.04em;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab[aria-selected="true"]{color:var(--text);border-bottom-color:var(--nec)}
+.tab:hover{color:var(--text)}
+.tpanel{padding:16px}
+.ls{width:100%;border-collapse:collapse;margin-top:14px;font-variant-numeric:tabular-nums;font-size:14px}
+.ls th,.ls td{padding:7px 4px;text-align:center;border-top:1px solid var(--line)}
+.ls th{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.06em;border-top:0}
+.ls td:first-child,.ls th:first-child{text-align:left}
+.ls td:first-child{display:flex;align-items:center;gap:8px;font-family:var(--display);font-weight:700;font-size:16px}
+.ls td:first-child img{width:20px;height:20px;object-fit:contain}
+.ls td:last-child{font-weight:800}
+.ts-h{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;margin-bottom:6px;font-family:var(--display);font-weight:700;font-size:16px}
+.ts-h span{display:flex;align-items:center;gap:7px}
+.ts-h span:last-child{justify-content:flex-end}
+.ts-h img{width:22px;height:22px;object-fit:contain}
+.ts-row{display:grid;grid-template-columns:52px 1fr 52px;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}
+.ts-row b{font-family:var(--display);font-size:18px}
+.ts-row b:last-child{text-align:right}
+.ts-row .lbl{display:grid;gap:5px;text-align:center;font-size:12px;color:var(--muted);font-weight:600}
+.ts-bar{display:flex;gap:3px;height:5px}
+.ts-bar i{display:block;border-radius:3px;background:var(--nec-hi)}
+.ts-bar i:last-child{background:#c9d4e5}
+.ld-g{margin-top:4px}
+.ld-g h3{margin:14px 0 6px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.ld-g h3:first-child{margin-top:0}
+.ld-r{display:grid;grid-template-columns:28px minmax(0,1fr);gap:4px 10px;align-items:center;padding:7px 0;border-top:1px solid var(--line)}
+.ld-r img{width:26px;height:26px;object-fit:contain;grid-row:span 2}
+.ld-r b{font-family:var(--display);font-size:17px;line-height:1.1}
+.ld-r span{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.pre-note{color:var(--muted);font-size:14px;margin:14px 0 0}
 </style>
 </head>
 <body>
@@ -59,24 +93,23 @@
           </div>
         </div>
         <button class="tapsound" id="tapSound" hidden></button>
-        <div class="vc" id="vc">
-          <div class="now"><b id="nowTitle">Loading…</b><span id="nowSub"></span></div>
-          <div class="btns">
-            <button class="ctl" id="back10" title="Back 10 seconds"><span class="ic"></span><span class="tx">10s</span></button>
-            <button class="ctl" id="play" aria-label="Pause" title="Pause"></button>
-            <button class="ctl primary golive" id="golive" title="Jump to live">Go live</button>
-            <button class="ctl" id="sound" aria-pressed="false" title="Sound"><span class="ic"></span><span class="tx">Sound</span></button>
-            <button class="ctl" id="popout" title="Pop out over other apps"><span class="ic"></span><span class="tx">Pop out</span></button>
-            <button class="ctl" id="full" title="Full screen"><span class="ic"></span><span class="tx">Full screen</span></button>
-          </div>
-        </div>
+        <div class="vc" id="vc"></div>
       </div>
       <h1 class="title" id="title"></h1>
       <p class="sub" id="sub"></p>
     </div>
 
     <aside class="side" aria-label="Game details">
-      <section class="panel" aria-live="polite"><h2>Score</h2><div class="score" id="score"></div></section>
+      <section class="panel stats" aria-label="Game stats">
+        <div class="tabs" role="tablist">
+          <button class="tab" role="tab" id="t-score" aria-controls="p-score" aria-selected="true">Score</button>
+          <button class="tab" role="tab" id="t-team" aria-controls="p-team" aria-selected="false" tabindex="-1">Team Stats</button>
+          <button class="tab" role="tab" id="t-lead" aria-controls="p-lead" aria-selected="false" tabindex="-1">Stat Leaders</button>
+        </div>
+        <div class="tpanel" role="tabpanel" id="p-score" aria-labelledby="t-score"><div class="score" id="score" aria-live="polite"></div></div>
+        <div class="tpanel" role="tabpanel" id="p-team" aria-labelledby="t-team" hidden></div>
+        <div class="tpanel" role="tabpanel" id="p-lead" aria-labelledby="t-lead" hidden></div>
+      </section>
       <a class="btn primary" id="toMulti" href="/frontrow/multiview.html"><svg viewBox="0 0 24 24"><path d="M3 4h8v7H3zm10 0h8v7h-8zM3 13h8v7H3zm10 0h8v7h-8z"/></svg>Watch with other games</a>
       <section class="panel"><h2>Game info</h2><dl class="facts" id="facts"></dl></section>
     </aside>
@@ -88,7 +121,7 @@
   </section>
 </main>
 
-<footer class="foot"><span>© 2026 Northeast Conference · NEC Front Row</span><span>Sample site. Scores come from a test feed.</span></footer>
+<footer class="foot"><span>© 2026 Northeast Conference · NEC Front Row</span></footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.13/hls.min.js" defer></script>
 <script src="/frontrow/assets/fr.js" defer></script>
@@ -98,42 +131,44 @@ addEventListener('DOMContentLoaded', () => {
   const { esc, logoImg, label, soon, pill, isLive, watchable, sorted, lead, time, card } = FR;
   const I = FRPlayer.ICONS;
   const $ = id => document.getElementById(id);
-  FR.header('live');
+  FR.header('');
   FR.board($('board'));
   FR.pullToRefresh(() => $('stage').classList.contains('fake-fs'));
 
-  // icons into the buttons
-  $('back10').querySelector('.ic').outerHTML = I.back;
-  $('play').innerHTML = I.pause;
-  $('sound').querySelector('.ic').outerHTML = I.mute;
-  $('popout').querySelector('.ic').outerHTML = I.pop;
-  $('full').querySelector('.ic').outerHTML = I.full;
-  $('tapSound').innerHTML = I.sound + 'Tap for sound';
-  $('sndTag').innerHTML = I.sound;
+  $('tapSound').innerHTML = FRPlayer.ICONS.sound + 'Tap for sound';
+  $('sndTag').innerHTML = FRPlayer.ICONS.sound;
 
   const stage = $('stage'), video = $('player');
-  let ev = null, h = null, started = false, soundOn = false;
-  FRPlayer.autoHide(stage, $('vc'));
-  FRPlayer.fullscreen(stage, $('full'));
+  let ev = null, h = null, started = false, soundOn = false, tab = 'score';
 
   function setSound(on){
     soundOn = on; video.muted = !on;
-    $('sound').setAttribute('aria-pressed', on);
-    $('sound').querySelector('svg').outerHTML = on ? I.sound : I.mute;
-    $('sound').querySelector('.tx').textContent = on ? 'Sound on' : 'Sound off';
     $('sndTag').hidden = !on;
     if (on) hideTap();
   }
   function hideTap(){ const b = $('tapSound'); b.classList.add('out'); setTimeout(() => b.hidden = true, 450); }
+  $('tapSound').onclick = e => { e.stopPropagation(); setSound(true); };
+
+  const bar = FRPlayer.bar({ vc: $('vc'), getH: () => h, isLiveGame: () => !!ev && isLive(ev),
+    soundOn: () => soundOn, onSound: () => setSound(!soundOn) });
+  FRPlayer.autoHide(stage, $('vc'));
+  FRPlayer.fullscreen(stage, bar.full);
+  document.addEventListener('keydown', e => {
+    if (e.target.closest('input,textarea,button,[role=tab]')) return;
+    if (e.key === 'ArrowLeft' && h) FRPlayer.back10(h);
+    if (e.key === 'ArrowRight' && h) FRPlayer.fwd10(h);
+    if (e.key === ' ') { e.preventDefault(); $('vc').querySelector('.b-play').click(); }
+    if (e.key === 'm') setSound(!soundOn);
+    if (e.key === 'f') bar.full.click();
+  });
 
   function start(){
     if (started || !watchable(ev)) return;
     started = true;
     stage.querySelector('.wait')?.remove();
-    h = FRPlayer.attach(video, ev.stream, { main:true, onError: () => {
+    h = FRPlayer.attach(video, ev.stream, { main:true, liveSince: isLive(ev) ? ev.kickoff : null, onError: () => {
       $('tile').insertAdjacentHTML('beforeend', '<div class="vmsg">This video could not load. Try again in a moment.</div>'); } });
     $('tapSound').hidden = false; setTimeout(hideTap, 8000);
-    // "Live" tag shows for a few seconds, then fades
     setTimeout(() => $('tile').classList.add('live-off'), 4000);
   }
 
@@ -142,39 +177,75 @@ addEventListener('DOMContentLoaded', () => {
     $('tile').insertAdjacentHTML('beforeend', `<div class="wait">${FR.art(ev, false)}<div class="msg"><b>Kickoff ${esc(time(ev.kickoff))}</b><span>${esc(soon(ev))}</span></div></div>`);
   }
 
+  // ---------- Stats tabs ----------
+  const tabs = [...document.querySelectorAll('.tab')];
+  function pick(t){
+    tab = t;
+    tabs.forEach(b => { const on = b.id === 't-' + t; b.setAttribute('aria-selected', on); b.tabIndex = on ? 0 : -1; });
+    ['score', 'team', 'lead'].forEach(k => $('p-' + k).hidden = k !== t);
+  }
+  tabs.forEach((b, i) => {
+    b.onclick = () => pick(b.id.slice(2));
+    b.onkeydown = e => {
+      const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0; if (!d) return;
+      const n = tabs[(i + d + tabs.length) % tabs.length]; n.focus(); n.click();
+    };
+  });
+
+  const preNote = '<p class="pre-note">Stats start at kickoff.</p>';
+  function scoreTab(){
+    const live = isLive(ev);
+    const tm = side => { const t = side === 'away' ? ev.a : ev.h;
+      return `<div class="tm ${lead(ev, side)}">${logoImg(t.key, 44)}<div class="nm">${esc(t.name)}${ev.poss === side ? ' <i class="poss" title="Has the ball"></i>' : ''}<small>${esc(t.mascot)}</small></div><div class="sc">${ev.status === 'pre' ? '–' : ev.score[side]}</div></div>`; };
+    let table = '';
+    if (ev.status !== 'pre' && ev.lines) {
+      const q = n => ev.lines.away[n] !== undefined ? 1 : 0;
+      const cols = [0, 1, 2, 3];
+      const row = side => { const t = side === 'away' ? ev.a : ev.h;
+        return `<tr><td>${logoImg(t.key, 20)}${esc(t.abbr)}</td>${cols.map(n => `<td>${ev.lines[side][n] ?? '–'}</td>`).join('')}<td>${ev.score[side]}</td></tr>`; };
+      table = `<table class="ls"><thead><tr><th scope="col">Team</th>${cols.map(n => `<th scope="col">${n + 1}</th>`).join('')}<th scope="col">T</th></tr></thead><tbody>${row('away')}${row('home')}</tbody></table>`;
+    }
+    return `<div class="st">${live ? '<span class="dot"></span>' : ''}${esc(ev.status === 'pre' ? soon(ev) : label(ev))}</div>${tm('away')}${tm('home')}${table}`;
+  }
+  function teamTab(){
+    if (ev.status === 'pre' || !ev.stats || !ev.stats.away) return preNote;
+    const A = ev.stats.away, H = ev.stats.home;
+    const rows = [['First downs','firstdowns'],['Total yards','totalyds'],['Passing yards','passyds'],['Rushing yards','rushyds'],['Turnovers','turnovers',true],['Penalties','penalties',true],['Time of possession','top']];
+    const secs = v => typeof v === 'string' && v.includes(':') ? +v.split(':')[0] * 60 + +v.split(':')[1] : +v;
+    const head = `<div class="ts-h"><span>${logoImg(ev.a.key, 22)}${esc(ev.a.abbr)}</span><span></span><span>${esc(ev.h.abbr)}${logoImg(ev.h.key, 22)}</span></div>`;
+    return `<div>${head}` +
+      rows.map(([name, k]) => {
+        const a = secs(A[k]), b = secs(H[k]), tot = (a + b) || 1;
+        return `<div class="ts-row"><b>${esc(A[k])}</b><div class="lbl">${name}<div class="ts-bar"><i style="flex:${a / tot || .001}"></i><i style="flex:${b / tot || .001}"></i></div></div><b>${esc(H[k])}</b></div>`;
+      }).join('') + '</div>';
+  }
+  function leadTab(){
+    if (ev.status === 'pre' || !ev.leaders || !ev.leaders.away) return preNote;
+    const line = {
+      pass: p => `${p.comp}/${p.att}, ${p.yds} yds, ${p.td} TD`,
+      rush: p => `${p.car} car, ${p.yds} yds, ${p.td} TD`,
+      rec:  p => `${p.rec} rec, ${p.yds} yds, ${p.td} TD`,
+    };
+    const group = (title, k) => `<h3>${title}</h3>` + ['away', 'home'].map(side => {
+      const p = ev.leaders[side][k], t = side === 'away' ? ev.a : ev.h; if (!p) return '';
+      return `<div class="ld-r">${logoImg(t.key, 26)}<b>${esc(p.name)}</b><span>${esc(t.abbr)} · ${esc(line[k](p))}</span></div>`;
+    }).join('');
+    return `<div class="ld-g">${group('Passing', 'pass')}${group('Rushing', 'rush')}${group('Receiving', 'rec')}</div>`;
+  }
+
   function render(){
     const live = isLive(ev);
     document.title = `${ev.a.name} at ${ev.h.name} · NEC Front Row`;
     $('title').textContent = `${ev.a.name} at ${ev.h.name}`;
     $('sub').textContent = `${ev.sport} · ${ev.venue}, ${ev.city}`;
-    $('nowTitle').textContent = `${ev.a.abbr} ${ev.status === 'pre' ? '' : ev.score.away} · ${ev.h.abbr} ${ev.status === 'pre' ? '' : ev.score.home}`;
-    $('nowSub').textContent = ev.status === 'final' ? 'Replay' : label(ev);
     $('livePill').innerHTML = live ? pill(ev) : ev.status === 'final' ? '<span class="pill final">Replay</span>' : '';
-    $('golive').hidden = !live;
-    $('golive').textContent = 'Go live';
-    const tm = side => { const t = side === 'away' ? ev.a : ev.h;
-      return `<div class="tm ${lead(ev, side)}">${logoImg(t.key, 44)}<div class="nm">${esc(t.name)}${ev.poss === side ? ' <i class="poss" title="Has the ball"></i>' : ''}<small>${esc(t.mascot)}</small></div><div class="sc">${ev.status === 'pre' ? '–' : ev.score[side]}</div></div>`; };
-    $('score').innerHTML = `<div class="st">${live ? '<span class="dot"></span>' : ''}${esc(ev.status === 'pre' ? soon(ev) : label(ev))}</div>${tm('away')}${tm('home')}`;
+    $('score').innerHTML = scoreTab();
+    $('p-team').innerHTML = teamTab();
+    $('p-lead').innerHTML = leadTab();
     $('facts').innerHTML = `<dt>Sport</dt><dd>${esc(ev.sport)}</dd><dt>Kickoff</dt><dd>${esc(time(ev.kickoff))}</dd><dt>Venue</dt><dd>${esc(ev.venue)}</dd><dt>City</dt><dd>${esc(ev.city)}</dd>`;
     $('toMulti').href = `/frontrow/multiview.html?g=${encodeURIComponent(ev.id)}`;
     if (watchable(ev)) start(); else waiting();
   }
-
-  // Controls
-  $('back10').onclick = () => h && FRPlayer.back10(h);
-  $('golive').onclick = () => h && FRPlayer.goLive(h);
-  $('play').onclick = () => { if (!h) return; video.paused ? video.play().catch(()=>{}) : video.pause(); };
-  $('sound').onclick = () => setSound(!soundOn);
-  $('tapSound').onclick = e => { e.stopPropagation(); setSound(true); };
-  $('popout').onclick = () => FRPlayer.popOut(video);
-  setInterval(() => FRPlayer.playIcon($('play'), video), 500);
-  document.addEventListener('keydown', e => {
-    if (e.target.closest('input,textarea')) return;
-    if (e.key === 'ArrowLeft') $('back10').click();
-    if (e.key === ' ' && e.target === document.body) { e.preventDefault(); $('play').click(); }
-    if (e.key === 'm') $('sound').click();
-    if (e.key === 'f') $('full').click();
-  });
 
   FR.load().then(list => {
     const id = new URLSearchParams(location.search).get('e');

@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sports · NEC Front Row</title>
+<link rel="manifest" href="/frontrow/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/frontrow/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Front Row">
+<meta name="theme-color" content="#060d1a">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,800&family=Barlow:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/frontrow/assets/fr.css">
+<style>
+/* Sport list: a tile per sport with today's game count. One sport: its live games, upcoming and replays. */
+.sp-head{padding-block:22px 4px;display:grid;gap:6px}
+.sp-head h1{margin:0;font-family:var(--display);font-weight:800;font-size:clamp(30px,4vw,46px);line-height:1}
+.sp-head p{margin:0;color:var(--muted)}
+.sp-head .crumb{font-size:14px;color:var(--muted)}
+.sp-head .crumb a:hover{color:var(--text)}
+.sp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;padding-block:18px 10px}
+.sp{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:16px;border:1px solid var(--line);border-radius:var(--radius);background:var(--bg-2);font-family:var(--display);font-weight:700;font-size:20px}
+.sp:hover{border-color:var(--nec);background:var(--surface)}
+.sp small{font-family:var(--body);font-size:12px;font-weight:600;color:var(--dim)}
+.sp.has small{color:#bfdcf8}
+.sp.has{border-color:rgba(43,140,230,.45)}
+.sp .star{width:16px;height:16px}
+.sp-grid h2{grid-column:1/-1;margin:14px 0 0;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.sp-grid h2:first-child{margin-top:0}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header id="hdr"></header>
+<section id="board"></section>
+
+<main id="main">
+  <div class="wrap sp-head" id="head"></div>
+  <div class="wrap" id="body"></div>
+</main>
+
+<footer class="foot"><span>© 2026 Northeast Conference · NEC Front Row</span></footer>
+
+<script src="/frontrow/assets/fr.js" defer></script>
+<script defer>
+addEventListener('DOMContentLoaded', () => {
+  const { esc, isLive, sorted, favFirst, card, STAR } = FR;
+  FR.header('sports');
+  FR.board(document.getElementById('board'));
+  FR.pullToRefresh();
+  const key = new URLSearchParams(location.search).get('s');
+
+  function allSports(list){
+    const counts = {}; list.forEach(ev => counts[ev.sportKey] = (counts[ev.sportKey] || 0) + 1);
+    const mine = FR.favs().sports;
+    const tile = sp => `<a class="sp ${counts[sp.key] ? 'has' : ''}" href="?s=${encodeURIComponent(sp.key)}"><span>${mine.includes(sp.key) ? STAR + ' ' : ''}${esc(sp.name)}</span><small>${counts[sp.key] ? counts[sp.key] + ' today' : 'No games today'}</small></a>`;
+    const today = FR.sports.filter(sp => counts[sp.key]), rest = FR.sports.filter(sp => !counts[sp.key]);
+    document.getElementById('head').innerHTML = `<h1>Sports</h1><p>Pick a sport to see its live games, what's coming up, and replays.</p>`;
+    document.getElementById('body').innerHTML = `<div class="sp-grid">${today.length ? '<h2>Playing today</h2>' + today.map(tile).join('') : ''}<h2>All NEC sports</h2>${rest.map(tile).join('')}</div>`;
+  }
+
+  function oneSport(list, sp){
+    const games = list.filter(ev => ev.sportKey === sp.key), s = favFirst(games);
+    document.title = `${sp.name} · NEC Front Row`;
+    document.getElementById('head').innerHTML = `<span class="crumb"><a href="sports.html">Sports</a> /</span><h1>${esc(sp.name)}</h1><p>${games.length ? `${games.length} game${games.length > 1 ? 's' : ''} today · ${games.filter(isLive).length} live now` : 'No games today.'}</p>`;
+    const row = (title, items, empty) => `<section class="sec"><div class="sec-h"><h2>${title}</h2></div>${items.length ? `<div class="rail">${items.map(card).join('')}</div>` : `<p class="empty">${empty}</p>`}</section>`;
+    document.getElementById('body').innerHTML =
+      row('Live now', s.filter(isLive), `No ${esc(sp.name.toLowerCase())} games are live right now.`) +
+      row('Coming up today', s.filter(e => e.status === 'pre'), 'Nothing else scheduled today.') +
+      row('Replays', s.filter(e => e.status === 'final'), 'Replays show up here when games finish.');
+  }
+
+  FR.load().then(() => {
+    FR.on(list => {
+      const sp = key && FR.sports.find(x => x.key === key);
+      if (sp) oneSport(list, sp); else allSports(list);
+    });
+  });
+});
+</script>
+</body>
+</html>

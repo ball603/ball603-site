@@ -24,6 +24,11 @@ window.FR = (() => {
     return loaded;
   }
 
+  // Pieces of the stats feed: quarter-by-quarter scores, team totals, and stat leaders
+  const attrs = n => n ? Object.fromEntries([...n.attributes].map(a => [a.name, isNaN(a.value) || a.value === '' ? a.value : +a.value])) : null;
+  const lines = t => [...t.querySelectorAll('linescore lineprd')].map(l => +l.getAttribute('score') || 0);
+  const leaders = t => { const L = t.querySelector('leaders'); return L ? { pass: attrs(L.querySelector('pass')), rush: attrs(L.querySelector('rush')), rec: attrs(L.querySelector('rec')) } : null; };
+
   async function poll(){
     const changed = new Set();
     try {
@@ -38,6 +43,9 @@ window.FR = (() => {
           poss: n.getAttribute('poss') === 'V' ? 'away' : n.getAttribute('poss') === 'H' ? 'home' : null,
           kickoff: Date.parse(n.getAttribute('kickoff')) || ev.kickoff,
           score: { away: +v.getAttribute('score') || 0, home: +h.getAttribute('score') || 0 },
+          lines: { away: lines(v), home: lines(h) },
+          stats: { away: attrs(v.querySelector('totals')), home: attrs(h.querySelector('totals')) },
+          leaders: { away: leaders(v), home: leaders(h) },
         };
         if (next.score.away !== ev.score.away || next.score.home !== ev.score.home) changed.add(ev.id);
         Object.assign(ev, next);
@@ -101,6 +109,7 @@ window.FR = (() => {
     live: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.5"/><path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 7.8a6 6 0 0 1 0 8.4M5 5a10 10 0 0 0 0 14M19 5a10 10 0 0 1 0 14"/></svg>',
     multi: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="8" height="7" rx="1.2"/><rect x="13" y="4" width="8" height="7" rx="1.2"/><rect x="3" y="13" width="8" height="7" rx="1.2"/><rect x="13" y="13" width="8" height="7" rx="1.2"/></svg>',
     schools: '<svg viewBox="0 0 24 24"><path d="M12 3l9 4-9 4-9-4zM6 9v5c0 2 3 4 6 4s6-2 6-4V9"/></svg>',
+    sports: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3.5 9.5c4 1 13 1 17 0M3.5 14.5c4-1 13-1 17 0M12 3c-3 3-3 15 0 18M12 3c3 3 3 15 0 18"/></svg>',
   };
   function header(active){
     const el = document.getElementById('hdr'); if (!el) return;
@@ -114,12 +123,30 @@ window.FR = (() => {
       </a>
       <nav class="nav" aria-label="Main">
         ${link('home', BASE, 'Home')}
-        ${link('live', BASE + '#live', 'Live')}
+        <div class="dd">${link('sports', BASE + 'sports.html', 'Sports', '<svg class="caret" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>')}
+          <div class="dd-menu" id="sportsMenu" hidden></div></div>
         ${link('multi', BASE + 'multiview.html', 'Multiview')}
         ${link('schools', BASE + '#schools', 'Schools', '<span class="soon">Soon</span>')}
       </nav>
       <a class="livecount" id="liveCount" href="${BASE}#live" hidden><span class="dot"></span><span></span></a>
       <button class="myteams" id="myTeamsBtn" aria-haspopup="dialog">${STAR}<span>My Teams</span></button>`;
+    const sl = el.querySelector('.dd > a'), menu = document.getElementById('sportsMenu');
+    sl.setAttribute('aria-haspopup', 'true'); sl.setAttribute('aria-expanded', 'false');
+    const closeMenu = () => { menu.hidden = true; sl.setAttribute('aria-expanded', 'false'); };
+    sl.addEventListener('click', e => {
+      if (!matchMedia('(min-width: 761px)').matches) return;
+      e.preventDefault();
+      const open = menu.hidden;
+      if (open) {
+        const counts = {}; events.forEach(ev => counts[ev.sportKey] = (counts[ev.sportKey] || 0) + 1);
+        const list = [...sports].sort((x, y) => (counts[y.key] ? 1 : 0) - (counts[x.key] ? 1 : 0));
+        menu.innerHTML = list.map(sp => `<a href="${BASE}sports.html?s=${encodeURIComponent(sp.key)}"><span>${esc(sp.name)}</span>${counts[sp.key] ? `<em>${counts[sp.key]} today</em>` : ''}</a>`).join('') +
+          `<a class="all" href="${BASE}sports.html">All sports →</a>`;
+      }
+      menu.hidden = !open; sl.setAttribute('aria-expanded', String(open));
+    });
+    document.addEventListener('click', e => { if (!e.target.closest('.dd')) closeMenu(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenu(); });
     const mt = document.getElementById('myTeamsBtn');
     const mark = () => { mt.classList.toggle('set', hasFavs()); mt.setAttribute('aria-label', hasFavs() ? 'My Teams (set)' : 'Pick my teams'); };
     mt.onclick = () => openPicker(); mark();
@@ -218,7 +245,8 @@ window.FR = (() => {
   addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; document.dispatchEvent(new CustomEvent('fr:installable')); });
   const installed = () => navigator.standalone || matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches;
   function installTip(el){
-    if (!el || installed()) return;
+    const touch = matchMedia('(pointer: coarse)').matches && navigator.maxTouchPoints > 0;
+    if (!el || installed() || !touch) return;
     let closed = false; try { closed = localStorage.getItem('fr-install-tip') === 'closed'; } catch (e) {}
     if (closed) return;
     const iOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
