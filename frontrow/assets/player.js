@@ -1,5 +1,10 @@
 /* NEC Front Row — video player helpers shared by the Game page and Multiview. Needs hls.js loaded first. */
 window.FRPlayer = (() => {
+  // The viewer has asked their device to conserve data. Checked once: it doesn't change mid-visit.
+  // Apple's built-in player (iPhone, iPad, Safari) decides quality for itself, so this only
+  // reaches the browsers where hls.js is doing the playing.
+  const SAVE_DATA = !!(navigator.connection && navigator.connection.saveData);
+
   // Hudl blocks the first playlist file for outside websites, so those go through our site's helper.
   function streamUrl(url){
     const m = String(url).match(/^https?:\/\/vcloud\.hudl\.com\/file\/hls\/(\d+)\.m3u8/i);
@@ -25,7 +30,7 @@ window.FRPlayer = (() => {
       const u = tries ? src + (src.includes('?') ? '&' : '?') + 'try=' + tries : src;
       if (native) { video.src = u; video.load(); video.play().catch(() => {}); return; }
       if (h.hls) h.hls.destroy();
-      const hls = new Hls({ capLevelToPlayerSize:false, abrEwmaDefaultEstimate:6000000, backBufferLength:900, maxBufferLength:30,
+      const hls = new Hls({ capLevelToPlayerSize:true, abrEwmaDefaultEstimate:6000000, backBufferLength:900, maxBufferLength:30,
         manifestLoadingMaxRetry:4, levelLoadingMaxRetry:4, fragLoadingMaxRetry:6 });
       hls.loadSource(u); hls.attachMedia(video);
       hls.on(Hls.Events.MANIFEST_PARSED, () => { setMain(h, h.main); video.play().catch(()=>{}); });
@@ -54,7 +59,10 @@ window.FRPlayer = (() => {
   // The game you're focused on gets full quality. Others stay at a clear 540p to save data, not the blurry 270p.
   function setMain(h, main){
     h.main = main; if (!h.hls) return;
-    if (main) { h.hls.autoLevelCapping = -1; return; }
+    // Uncapped for the window you're watching - unless Data Saver is on, in which case 540p
+    // everywhere. The cap is reapplied on every setMain call, so it can't be undone by a
+    // later focus change.
+    if (main && !SAVE_DATA) { h.hls.autoLevelCapping = -1; return; }
     const lv = h.hls.levels || [];
     let cap = 0; lv.forEach((l, i) => { if ((l.height || 0) <= 540) cap = Math.max(cap, i); });
     h.hls.autoLevelCapping = cap;

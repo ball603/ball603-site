@@ -57,7 +57,8 @@
 
 /* Window bar: game name, score and buttons. Shows on hover, or for a few seconds after a tap */
 .tbar{position:absolute;left:0;right:0;top:0;z-index:5;display:flex;align-items:center;gap:8px;padding:8px 8px 22px 12px;background:linear-gradient(rgba(3,8,16,.88),transparent);opacity:0;pointer-events:none;transition:opacity .2s}
-.tile:hover .tbar,.tile.tui .tbar,.tile:focus-within .tbar{opacity:1;pointer-events:auto}
+.tile.tui .tbar,.tile:focus-within .tbar{opacity:1;pointer-events:auto}
+@media (hover:hover) and (pointer:fine){.tile:hover .tbar{opacity:1;pointer-events:auto}}
 .tbar .tt{flex:1;min-width:0;font-family:var(--display);font-weight:700;font-size:16px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tbar .tt small{font-family:var(--body);font-weight:600;font-size:11px;color:#c9d5e6;letter-spacing:.04em;margin-left:6px}
 .tb{width:30px;height:30px;flex:none;display:grid;place-items:center;border-radius:7px;border:1px solid rgba(255,255,255,.18);background:rgba(15,29,53,.85)}
@@ -65,17 +66,18 @@
 .tb:hover{border-color:var(--nec)}
 .tb[aria-pressed="true"]{background:var(--nec);border-color:var(--nec)}
 .tile .badge{transition:opacity .2s}
-.tile:hover .badge,.tile.tui .badge{opacity:0}
+.tile.tui .badge{opacity:0}
+@media (hover:hover) and (pointer:fine){.tile:hover .badge{opacity:0}}
 .l-pip .tile[data-pos="1"] .tbar .tb:not(.x-swap){display:none}
 .l-pip .tile[data-pos="1"] .tbar{padding:4px 4px 14px 8px}
 .l-pip .tile[data-pos="1"] .tbar .tt{font-size:13px}
 
 /* Empty window */
-.add{position:absolute;inset:0;z-index:2;display:grid;place-content:center;justify-items:center;gap:10px;border:0;background:radial-gradient(60% 60% at 50% 50%,#0f1d35,#050b16);color:var(--muted);font-weight:600;font-size:15px}
+.add{position:absolute;inset:0;z-index:6;display:grid;place-content:center;justify-items:center;gap:10px;border:0;background:radial-gradient(60% 60% at 50% 50%,#0f1d35,#050b16);color:var(--muted);font-weight:600;font-size:15px}
 .add span{width:52px;height:52px;border-radius:50%;display:grid;place-items:center;border:1px dashed var(--nec);color:var(--nec-hi)}
 .add svg{width:26px;height:26px;fill:currentColor}
-.add:hover{color:var(--text)}
-.add:hover span{background:rgba(43,140,230,.15)}
+@media (hover:hover) and (pointer:fine){.add:hover{color:var(--text)}
+.add:hover span{background:rgba(43,140,230,.15)}}
 .wait{position:absolute;inset:0;z-index:2;display:grid;place-items:center}
 .wait .art{position:absolute;inset:0;aspect-ratio:auto;border-radius:0}
 .wait .art .pill,.wait .art .scr{display:none}
@@ -147,7 +149,10 @@ dialog.pick::backdrop{background:rgba(2,6,12,.72);backdrop-filter:blur(3px)}
   <div class="pick-list" id="pickList"></div>
 </dialog>
 
-<footer class="foot"><span>© 2026 Northeast Conference · NEC Front Row</span></footer>
+<footer class="foot">
+  <span>© 2026 Northeast Conference · NEC Front Row · <a href="/frontrow/support.html">Support &amp; FAQs</a></span>
+  <a class="by" href="https://packnetwork.com" target="_blank" rel="noopener">Powered by <img src="/frontrow/packnetwork.png" alt="Pack Network" width="96" height="51" loading="lazy"></a>
+</footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.13/hls.min.js" defer></script>
 <script src="/frontrow/assets/fr.js" defer></script>
@@ -419,12 +424,17 @@ addEventListener('DOMContentLoaded', () => {
   const gq = new URLSearchParams(location.search).get('g') || '';
   (/(^|,)r\d/.test(gq) ? FR.replays().then(() => FR.events) : FR.load()).then(list => {
     const q = new URLSearchParams(location.search);
-    const asked = (q.get('g') || '').split(',').map(s => s.trim()).filter((s, i, a) => s === '' || (FR.byId(s) && a.indexOf(s) === i));
+    // A g parameter of any kind - even empty - means the windows were chosen deliberately.
+    // Deciding by entry count broke on reload: saveUrl() trims trailing commas, so four
+    // empty windows saved as "g=" and came back as a request to auto-fill.
+    const gParam = q.get('g');
+    const chosen = gParam !== null;
+    const asked = (gParam || '').split(',').map(s => s.trim()).filter((s, i, a) => s === '' || (FR.byId(s) && a.indexOf(s) === i));
     if (COUNT[q.get('l')]) layout = q.get('l');
     const picked = asked.filter(Boolean);
     // one game passed in (from a Game page): fill the other windows with live games
     const fill = FR.favFirst(list).filter(e => watchable(e) && !picked.includes(e.id)).map(e => e.id);
-    const start = asked.length > 1 ? asked.map(s => s || null) : [...picked, ...fill];
+    const start = chosen ? asked.map(s => s || null) : [...picked, ...fill];
     for (let i = 0; i < 4; i++) setSlot(i, start[i] || null);
     apply();
     const ft = tiles[focus];
