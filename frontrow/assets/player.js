@@ -9,7 +9,7 @@ window.FRPlayer = (() => {
   // Attach a stream to a <video>. "main" plays at full quality; others drop to the lowest to save data.
   function attach(video, url, { main = true, onError, liveSince = null } = {}){
     const src = streamUrl(url);
-    const h = { video, hls:null, main, liveSince };
+    const h = { video, hls:null, main, liveSince, src: new URL(src, location.href).href };
     // Sample games are recordings. For a game marked live, start where the game is "now" so it acts like live.
     video.addEventListener('loadedmetadata', () => { if (h.liveSince && !realLive(h)) { const e = liveEdge(h); if (isFinite(e) && e > 5) video.currentTime = e; } }, { once:true });
     video.playsInline = true; video.muted = true; video.autoplay = true; video.volume = 0.5;
@@ -154,6 +154,7 @@ window.FRPlayer = (() => {
           <span class="b-time num"></span>
         </div>
         <div class="grp r">${extra}
+          <button class="pb b-cast" aria-label="Watch on TV" title="Watch on TV" hidden>${CAST}</button>
           <button class="pb b-share" aria-label="Share" title="Share">${SHARE}</button>
           ${popout ? `<button class="pb b-pop" aria-label="Pop out" title="Pop out over other apps">${ICONS.pop}</button>` : ''}
           <button class="pb b-full" aria-label="Full screen" title="Full screen (F)">${ICONS.full}</button>
@@ -169,6 +170,7 @@ window.FRPlayer = (() => {
     // Pop out only on computers; phones and tablets don't reliably allow it from a website
     if (popout && (!canPop() || matchMedia('(pointer: coarse)').matches)) q('.b-pop').remove(), popout = false;
     if (popout) q('.b-pop').onclick = () => { const h = getH(); if (h) popOut(h.video); };
+    castSetup(q('.b-cast'), getH, isLiveGame, vc);
     q('.b-share').onclick = async () => {
       const url = share ? share() : location.href;
       if (navigator.share && matchMedia('(pointer: coarse)').matches) { try { await navigator.share({ title: document.title, url }); } catch (e) {} return; }
@@ -209,6 +211,75 @@ window.FRPlayer = (() => {
     }
     setInterval(update, 250); update();
     return { full: q('.b-full'), update };
+  }
+
+
+  // ---------- Watch on TV: AirPlay (Apple) and Chromecast (Chrome) ----------
+  const CAST = '<svg viewBox="0 0 24 24"><path d="M2 17.5V20h2.5A2.5 2.5 0 0 0 2 17.5zm0-3.5v2a4 4 0 0 1 4 4h2a6 6 0 0 0-6-6zm0-4v2a8 8 0 0 1 8 8h2A10 10 0 0 0 2 10zm19-7H3a2 2 0 0 0-2 2v3h2V5h18v14h-7v2h7a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2z"/></svg>';
+  let castCtx = null, castReady = null;
+  function loadCast(){
+    if (castReady) return castReady;
+    castReady = new Promise(ok => {
+      // Chromecast only works from Chrome (computers and Android); skip it on iPhones and Safari
+      if (!/Chrome|CriOS/.test(navigator.userAgent) || /iPhone|iPad|iPod|CriOS|Edg/.test(navigator.userAgent)) return ok(null);
+      window.__onGCastApiAvailable = yes => {
+        if (!yes) return ok(null);
+        castCtx = cast.framework.CastContext.getInstance();
+        castCtx.setOptions({ receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID, autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED });
+        ok(castCtx);
+      };
+      const s = document.createElement('script');
+      s.src = 'https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1';
+      s.onerror = () => ok(null);
+      document.head.appendChild(s);
+    });
+    return castReady;
+  }
+  function castSetup(btn, getH, isLiveGame, vc){
+    const stage = vc.closest('.stage');
+    let airplay = false, chromecast = false, watched = new WeakSet();
+    const show = () => { btn.hidden = !(airplay || chromecast); };
+    // AirPlay: Safari tells each video when an Apple TV or AirPlay speaker is nearby
+    const watchVideo = () => {
+      const h = getH(); if (!h || watched.has(h.video) || !window.WebKitPlaybackTargetAvailabilityEvent) return;
+      watched.add(h.video);
+      h.video.addEventListener('webkitplaybacktargetavailabilitychanged', e => { airplay = e.availability === 'available'; show(); });
+      h.video.addEventListener('webkitcurrentplaybacktargetiswirelesschanged', () => {
+        toast(stage, h.video.webkitCurrentPlaybackTargetIsWireless ? 'Playing on your TV' : 'Back on this screen');
+      });
+    };
+    setInterval(watchVideo, 1000); watchVideo();
+    // Chromecast
+    loadCast().then(ctx => {
+      if (!ctx) return;
+      const upd = () => { chromecast = ctx.getCastState() !== cast.framework.CastState.NO_DEVICES_AVAILABLE; show(); };
+      ctx.addEventListener(cast.framework.CastContextEventType.CAST_STATE_CHANGED, upd); upd();
+      ctx.addEventListener(cast.framework.CastContextEventType.SESSION_STATE_CHANGED, e => {
+        if (e.sessionState === cast.framework.SessionState.SESSION_ENDED) { stage.classList.remove('casting'); const h = getH(); if (h) h.video.play().catch(() => {}); }
+      });
+    });
+    btn.onclick = async () => {
+      const h = getH(); if (!h) return;
+      if (h.video.webkitShowPlaybackTargetPicker && (airplay || !chromecast)) { h.video.webkitShowPlaybackTargetPicker(); return; }
+      if (!castCtx) return;
+      try {
+        await castCtx.requestSession();
+        const sess = castCtx.getCurrentSession(); if (!sess) return;
+        const info = new chrome.cast.media.MediaInfo(h.src, 'application/x-mpegurl');
+        info.hlsSegmentFormat = chrome.cast.media.HlsSegmentFormat.TS;
+        if (chrome.cast.media.HlsVideoSegmentFormat) info.hlsVideoSegmentFormat = chrome.cast.media.HlsVideoSegmentFormat.MPEG2_TS;
+        const real = realLive(h);
+        info.streamType = real ? chrome.cast.media.StreamType.LIVE : chrome.cast.media.StreamType.BUFFERED;
+        info.metadata = new chrome.cast.media.GenericMediaMetadata();
+        info.metadata.title = document.title.replace(/ · NEC Front Row$/, '');
+        info.metadata.subtitle = 'NEC Front Row';
+        const req = new chrome.cast.media.LoadRequest(info);
+        if (!real) req.currentTime = h.video.currentTime;   // pick up right where you are
+        await sess.loadMedia(req);
+        h.video.pause(); stage.classList.add('casting');
+        toast(stage, 'Playing on ' + (sess.getCastDevice().friendlyName || 'your TV'));
+      } catch (e) { if (e !== 'cancel' && !(e && e.code === 'cancel')) toast(stage, "Couldn't reach the TV. Try again."); }
+    };
   }
 
   function toast(stage, text){
