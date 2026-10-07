@@ -101,6 +101,17 @@ dialog.clipdlg{width:min(560px,calc(100vw - 24px))}
 .clipv{width:100%;aspect-ratio:16/9;background:#000;border-radius:10px;margin-top:12px}
 dialog.clipdlg .toast{position:fixed;top:auto;bottom:90px}
 @media (max-width:520px){.nudge{grid-template-columns:1fr 1fr}.nudge output{grid-column:1/-1;grid-row:1}}
+/* Multiview layout picker */
+.mvmenu{position:absolute;right:12px;bottom:64px;z-index:15;padding:10px;border:1px solid var(--line);border-radius:12px;background:rgba(6,13,26,.96);box-shadow:0 14px 40px rgba(0,0,0,.6)}
+.stage.fs.tick-on .mvmenu{bottom:106px}
+.mvh{font:700 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 2px 8px}
+.mvopts{display:flex;gap:6px}
+.mvopts button{display:grid;justify-items:center;gap:6px;width:82px;padding:8px 4px;border:1px solid transparent;border-radius:9px;background:none;color:var(--text);font:600 12px var(--body);white-space:nowrap}
+.mvopts button:hover,.mvopts button:focus-visible{background:var(--surface);border-color:var(--nec)}
+.mvopts svg{width:48px;height:27px}
+.mvopts .m{fill:var(--nec)}
+.mvopts .o{fill:#4a5a74}
+@media (max-width:760px){.mvmenu{right:6px;bottom:52px;padding:8px}.mvopts{gap:2px}.mvopts button{width:72px;font-size:11px}}
 </style>
 </head>
 <body>
@@ -120,6 +131,15 @@ dialog.clipdlg .toast{position:fixed;top:auto;bottom:90px}
         </div>
         <button class="tapsound" id="tapSound" hidden></button>
         <div class="vc" id="vc"></div>
+        <div class="mvmenu" id="mvMenu" role="menu" aria-label="Watch with other games" hidden>
+          <div class="mvh">Watch with other games</div>
+          <div class="mvopts">
+            <button role="menuitem" data-l="pip"><svg viewBox="0 0 48 27"><rect class="m" width="48" height="27" rx="2"/><rect class="o" x="29" y="15" width="16" height="9" rx="1.5"/></svg>PiP</button>
+            <button role="menuitem" data-l="two"><svg viewBox="0 0 48 27"><rect class="m" y="4" width="23.5" height="19" rx="2"/><rect class="o" x="24.5" y="4" width="23.5" height="19" rx="2"/></svg>Side by side</button>
+            <button role="menuitem" data-l="three"><svg viewBox="0 0 48 27"><rect class="m" width="48" height="17.5" rx="2"/><rect class="o" y="18.5" width="23.5" height="8.5" rx="1.5"/><rect class="o" x="24.5" y="18.5" width="23.5" height="8.5" rx="1.5"/></svg>3 games</button>
+            <button role="menuitem" data-l="quad"><svg viewBox="0 0 48 27"><rect class="m" width="23.5" height="13" rx="1.5"/><rect class="o" x="24.5" width="23.5" height="13" rx="1.5"/><rect class="o" y="14" width="23.5" height="13" rx="1.5"/><rect class="o" x="24.5" y="14" width="23.5" height="13" rx="1.5"/></svg>4 games</button>
+          </div>
+        </div>
       </div>
       <h1 class="title" id="title"></h1>
       <p class="sub" id="sub"></p>
@@ -184,7 +204,7 @@ addEventListener('DOMContentLoaded', () => {
 
   const bar = FRPlayer.bar({ vc: $('vc'), getH: () => h, isLiveGame: () => !!ev && isLive(ev),
     soundOn: () => soundOn, onSound: () => setSound(!soundOn),
-    extra: '<button class="pb b-clip" aria-label="Make a clip" title="Make a clip"><svg viewBox="0 0 24 24"><path d="M9.6 7.6A3.5 3.5 0 1 0 8 9.9l2.3 2.1L8 14.1a3.5 3.5 0 1 0 1.6 2.3L12 14.2l7.6 6.8H22v-1L11.7 12 22 4V3h-2.4zM6.5 9a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm0 9a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg></button>' });
+    extra: '<button class="pb b-mv" aria-label="Watch with other games" aria-haspopup="menu" aria-expanded="false" title="Multiview"><svg viewBox="0 0 24 24"><path d="M3 5h8.5v6.5H3zm9.5 0H21v6.5h-8.5zM3 12.5h8.5V19H3zm9.5 0H21V19h-8.5z"/></svg></button><button class="pb b-clip" aria-label="Make a clip" title="Make a clip"><svg viewBox="0 0 24 24"><path d="M9.6 7.6A3.5 3.5 0 1 0 8 9.9l2.3 2.1L8 14.1a3.5 3.5 0 1 0 1.6 2.3L12 14.2l7.6 6.8H22v-1L11.7 12 22 4V3h-2.4zM6.5 9a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm0 9a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg></button>' });
   FRPlayer.autoHide(stage, $('vc'));
   // keep the stats tabs tucked right under the pinned video
   const stageH = () => document.documentElement.style.setProperty('--stage-h', stage.getBoundingClientRect().height + 'px');
@@ -193,6 +213,17 @@ addEventListener('DOMContentLoaded', () => {
   FRPlayer.fullscreen(stage, bar.full);
   // score ticker in full screen: tap a game to switch to it right here
   const tick = FRPlayer.ticker({ stage, vc: $('vc'), current: () => ev ? [ev.id] : [], onPick: id => switchTo(id) });
+  // Multiview button: pick a layout, then open Multiview with this game in the main window
+  const mvBtn = $('vc').querySelector('.b-mv'), mvMenu = $('mvMenu');
+  const mvShow = on => { mvMenu.hidden = !on; mvBtn.setAttribute('aria-expanded', on); if (on) mvMenu.querySelector('button').focus(); };
+  mvBtn.onclick = e => { e.stopPropagation(); mvShow(mvMenu.hidden); };
+  mvMenu.addEventListener('click', e => {
+    const b = e.target.closest('[data-l]'); if (!b || !ev) return;
+    const fs = stage.classList.contains('fs') ? '&fs=1' : '';
+    location.href = `/frontrow/multiview.html?l=${b.dataset.l}&g=${encodeURIComponent(ev.id)},${fs}`;   // trailing comma = other windows start empty
+  });
+  document.addEventListener('pointerdown', e => { if (!mvMenu.hidden && !e.target.closest('#mvMenu,.b-mv')) mvShow(false); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !mvMenu.hidden) { mvShow(false); mvBtn.focus(); } });
   document.addEventListener('keydown', e => {
     if (e.target.closest('input,textarea,button,[role=tab]')) return;
     if (e.key === 'ArrowLeft' && h) FRPlayer.back10(h);

@@ -42,7 +42,11 @@
 .l-quad .tile[data-pos="3"]{inset:calc(50% + 1px) 0 0 calc(50% + 1px)}
 .l-pip .tile[data-pos="1"]{inset:auto 2% 3% auto;width:32%;height:auto;aspect-ratio:16/9;z-index:4;border:1px solid var(--nec);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.6);cursor:grab;touch-action:none}
 .l-pip .tile[data-pos="1"].dragging{cursor:grabbing}
-.l-quad .tile.is-focus::after,.l-two .tile.is-focus::after{content:"";position:absolute;inset:0;border:1px solid var(--nec);pointer-events:none;z-index:6}
+/* three games: one big on top, two underneath */
+.l-three .tile[data-pos="0"]{inset:0 0 calc(100% / 3 + 1px) 0}
+.l-three .tile[data-pos="1"]{inset:calc(200% / 3 + 1px) calc(50% + 1px) 0 0}
+.l-three .tile[data-pos="2"]{inset:calc(200% / 3 + 1px) 0 0 calc(50% + 1px)}
+.l-quad .tile.is-focus::after,.l-two .tile.is-focus::after,.l-three .tile.is-focus::after{content:"";position:absolute;inset:0;border:1px solid var(--nec);pointer-events:none;z-index:6}
 .screen{background:#02060c}
 
 /* Window bar: game name, score and buttons. Shows on hover, or for a few seconds after a tap */
@@ -110,6 +114,7 @@ dialog.pick::backdrop{background:rgba(2,6,12,.72);backdrop-filter:blur(3px)}
           <button class="pb" data-layout="single" aria-label="One game" title="One game"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="1.5"/></svg></button>
           <button class="pb" data-layout="two" aria-label="Side by side" title="Side by side"><svg viewBox="0 0 24 24"><path d="M3 6h8.5v12H3zm9.5 0H21v12h-8.5z"/></svg></button>
           <button class="pb" data-layout="pip" aria-label="Picture-in-Picture" title="Picture-in-Picture"><svg viewBox="0 0 24 24"><path d="M3 5h18v14H3zm9.5 7v5h7v-5z" fill-rule="evenodd"/></svg></button>
+          <button class="pb" data-layout="three" aria-label="Three games" title="Three games"><svg viewBox="0 0 24 24"><path d="M3 4h18v9.5H3zM3 14.5h8.5V20H3zm9.5 0H21V20h-8.5z"/></svg></button>
           <button class="pb" data-layout="quad" aria-label="Four games" title="Four games"><svg viewBox="0 0 24 24"><path d="M3 5h8.5v6.5H3zm9.5 0H21v6.5h-8.5zM3 12.5h8.5V19H3zm9.5 0H21V19h-8.5z"/></svg></button>
         </div></div>
   </div>
@@ -140,7 +145,7 @@ addEventListener('DOMContentLoaded', () => {
   const stage = $('stage'), screen = $('screen');
   FR.pullToRefresh(() => stage.classList.contains('fake-fs'));
 
-  const COUNT = { single:1, two:2, pip:2, quad:4 };
+  const COUNT = { single:1, two:2, pip:2, three:3, quad:4 };
   let layout = 'quad', slots = [null, null, null, null], tiles = [], focus = 0, soundOn = false, pickFor = 0;
   let pipPos = null, pipW = null;
 
@@ -156,6 +161,7 @@ addEventListener('DOMContentLoaded', () => {
           <button class="pb" data-layout="single" aria-label="One game" title="One game"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="1.5"/></svg></button>
           <button class="pb" data-layout="two" aria-label="Side by side" title="Side by side"><svg viewBox="0 0 24 24"><path d="M3 6h8.5v12H3zm9.5 0H21v12h-8.5z"/></svg></button>
           <button class="pb" data-layout="pip" aria-label="Picture-in-Picture" title="Picture-in-Picture"><svg viewBox="0 0 24 24"><path d="M3 5h18v14H3zm9.5 7v5h7v-5z" fill-rule="evenodd"/></svg></button>
+          <button class="pb" data-layout="three" aria-label="Three games" title="Three games"><svg viewBox="0 0 24 24"><path d="M3 4h18v9.5H3zM3 14.5h8.5V20H3zm9.5 0H21V20h-8.5z"/></svg></button>
           <button class="pb" data-layout="quad" aria-label="Four games" title="Four games"><svg viewBox="0 0 24 24"><path d="M3 5h8.5v6.5H3zm9.5 0H21v6.5h-8.5zM3 12.5h8.5V19H3zm9.5 0H21V19h-8.5z"/></svg></button>
         </div>` });
   FRPlayer.autoHide(stage, $('vc'));
@@ -395,6 +401,8 @@ addEventListener('DOMContentLoaded', () => {
       $('tapSound').hidden = false;
       FRPlayer.onFirstTap(() => { setSound(true); apply(); });
     });
+    // came from a game page in full screen on a phone: stay full screen
+    if (q.get('fs') === '1' && matchMedia('(pointer: coarse)').matches && !stage.classList.contains('fs')) bar.full.click();
     if (ft && ft.h) { if (ft.video.readyState >= 3) begin(); else ft.video.addEventListener('canplay', begin, { once:true }); }
     FR.on(() => {
       // a game that was waiting to start begins playing on its own
