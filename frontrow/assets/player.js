@@ -5,6 +5,15 @@ window.FRPlayer = (() => {
   // reaches the browsers where hls.js is doing the playing.
   const SAVE_DATA = !!(navigator.connection && navigator.connection.saveData);
 
+  // Volume the viewer last chose, kept per device. iPhones and iPads ignore the volume
+  // property outright - Apple gives volume to the hardware buttons - so the slider is left
+  // out there rather than sitting on screen doing nothing.
+  const VOL_KEY = 'fr-vol';
+  let VOL = 0.5;
+  try { const v = parseFloat(localStorage.getItem(VOL_KEY)); if (v >= 0 && v <= 1) VOL = v; } catch (e) {}
+  const setVol = v => { VOL = Math.max(0, Math.min(1, v)); try { localStorage.setItem(VOL_KEY, String(VOL)); } catch (e) {} };
+  const VOL_OK = (() => { try { const t = document.createElement('video'); t.volume = 0.5; return t.volume === 0.5; } catch (e) { return false; } })();
+
   // Hudl blocks the first playlist file for outside websites, so those go through our site's helper.
   function streamUrl(url){
     const m = String(url).match(/^https?:\/\/vcloud\.hudl\.com\/file\/hls\/(\d+)\.m3u8/i);
@@ -17,7 +26,7 @@ window.FRPlayer = (() => {
     const h = { video, hls:null, main, liveSince, src: new URL(src, location.href).href };
     // Sample games are recordings. For a game marked live, start where the game is "now" so it acts like live.
     video.addEventListener('loadedmetadata', () => { if (h.liveSince && !realLive(h)) { const e = liveEdge(h); if (isFinite(e) && e > 5) video.currentTime = e; } }, { once:true });
-    video.playsInline = true; video.muted = true; video.autoplay = true; video.volume = 0.5;
+    video.playsInline = true; video.muted = true; video.autoplay = true; video.volume = VOL;
     const apple = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
       || (/Safari/.test(navigator.userAgent) && !/Chrome|Chromium|Edg|Android/.test(navigator.userAgent));
     // On iPhones, iPads and Safari, Apple's built-in player plays these streams and is the only one
@@ -174,6 +183,7 @@ window.FRPlayer = (() => {
         <div class="grp">
           <button class="pb b-play" aria-label="Pause" title="Pause (space)">${ICONS.pause}</button>
           <button class="pb b-snd" aria-label="Turn sound on" title="Sound (M)">${ICONS.mute}</button>
+          <input class="vol" type="range" min="0" max="100" step="1" aria-label="Volume">
           <button class="pb b-back" aria-label="Back 10 seconds" title="Back 10 seconds">${B10}</button>
           <button class="pb b-fwd" aria-label="Forward 10 seconds" title="Forward 10 seconds">${F10}</button>
           <button class="livebtn b-live" aria-label="Jump to live" title="Jump to live"><span class="ld"></span>LIVE</button>
@@ -187,6 +197,18 @@ window.FRPlayer = (() => {
         </div>
       </div>`;
     const q = c => vc.querySelector(c), seek = q('.seek');
+    const volEl = q('.vol');
+    if (!VOL_OK) { volEl.remove(); }   // iOS: the hardware buttons own the volume
+    else {
+      volEl.value = String(Math.round(VOL * 100));
+      volEl.oninput = () => {
+        const v = +volEl.value / 100;
+        if (v > 0) setVol(v);
+        const h = getH(); if (h) h.video.volume = v > 0 ? v : VOL;
+        if (v > 0 && !soundOn()) onSound();        // dragging up turns the sound on
+        else if (v === 0 && soundOn()) onSound();  // dragging to zero mutes
+      };
+    }
     let dragging = false;
     q('.b-play').onclick = () => { const h = getH(); if (!h) return; h.video.paused ? h.video.play().catch(()=>{}) : h.video.pause(); };
     q('.b-snd').onclick = () => onSound();
@@ -221,6 +243,10 @@ window.FRPlayer = (() => {
       const snd = soundOn();
       const sb = q('.b-snd');
       if (sb.dataset.on !== String(snd)) { sb.dataset.on = snd; sb.innerHTML = snd ? ICONS.sound : ICONS.mute; sb.setAttribute('aria-label', snd ? 'Turn sound off' : 'Turn sound on'); }
+      if (volEl && document.activeElement !== volEl) {
+        const want = snd ? Math.round(VOL * 100) : 0;
+        if (+volEl.value !== want) volEl.value = String(want);
+      }
       if (!h) { q('.tl').classList.add('off'); q('.b-time').textContent = ''; return; }
       playIcon(q('.b-play'), h.video);
       const b = bounds(h), cur = h.video.currentTime, span = b.end - b.start;
@@ -315,10 +341,10 @@ window.FRPlayer = (() => {
     t.textContent = text; t.classList.add('on'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('on'), 2200);
   }
 
-  // Start with sound at half volume. Browsers sometimes block sound until the viewer taps
+  // Start at the level the viewer last chose. Browsers sometimes block sound until they tap
   // something; if so, keep playing silently and report back so the page can show "Tap for sound".
   function trySound(video){
-    video.volume = 0.5; video.muted = false;
+    video.volume = VOL; video.muted = false;
     return video.play().then(() => true).catch(() => { video.muted = true; video.play().catch(() => {}); return false; });
   }
   // After a block, the viewer's first tap anywhere (other than a control) turns sound on
@@ -393,5 +419,5 @@ window.FRPlayer = (() => {
     return { refresh: () => render(last), set };
   }
 
-  return { ticker, trySound, onFirstTap, attach, setMain, destroy, liveEdge, back10, fwd10, goLive, toStart, autoHide, fullscreen, playIcon, popOut, bar, toast, clock, ICONS };
+  return { vol: () => VOL, ticker, trySound, onFirstTap, attach, setMain, destroy, liveEdge, back10, fwd10, goLive, toStart, autoHide, fullscreen, playIcon, popOut, bar, toast, clock, ICONS };
 })();

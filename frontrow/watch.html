@@ -64,11 +64,14 @@
 .stage.fs.tick-on.stats-on .fsp{bottom:calc(34px + env(safe-area-inset-bottom,0px))}
 .stage.fs.stats-on .screen{margin-right:var(--fspw)}
 .stage.fs.stats-on .vc{right:var(--fspw)}
-.fsp-h{display:flex;align-items:stretch;border-bottom:1px solid var(--line);flex:none}
-.fsp-h .ftab{flex:1;padding:9px 4px;border:0;background:none;color:var(--muted);font-weight:700;font-size:11px;letter-spacing:.03em;border-bottom:2px solid transparent;margin-bottom:-1px;cursor:pointer;white-space:nowrap}
+/* The tab row was 31pt tall and flush against the top edge of the screen - a miserable
+   target on a phone. 44pt minimum now, and pushed clear of the edge. */
+.fsp-h{display:flex;align-items:stretch;border-bottom:1px solid var(--line);flex:none;padding-top:max(6px,env(safe-area-inset-top,0px))}
+.fsp-h .ftab{flex:1;min-height:44px;padding:10px 4px;border:0;background:none;color:var(--muted);font-weight:700;font-size:12px;letter-spacing:.03em;border-bottom:2px solid transparent;margin-bottom:-1px;cursor:pointer;white-space:nowrap;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.fsp-h .ftab:active{background:rgba(255,255,255,.07)}
 .fsp-h .ftab[aria-selected="true"]{color:var(--text);border-bottom-color:var(--nec)}
-.fsp-x{flex:none;border:0;background:none;color:var(--muted);padding:0 9px;cursor:pointer}
-.fsp-x svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round}
+.fsp-x{flex:none;min-width:44px;min-height:44px;display:grid;place-items:center;border:0;background:none;color:var(--muted);cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.fsp-x svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round}
 .fsp-x:hover{color:var(--text)}
 .fsp-b{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 11px 12px;font-size:13px}
 /* the stat tables are built for a wide column, so tighten them for this narrow one */
@@ -212,7 +215,7 @@ addEventListener('DOMContentLoaded', () => {
   let ev = null, h = null, started = false, soundOn = false, tab = 'score';
 
   function setSound(on){
-    soundOn = on; video.volume = 0.5; video.muted = !on;
+    soundOn = on; video.volume = FRPlayer.vol(); video.muted = !on;
     $('sndTag').hidden = !on;
     if (on) hideTap();
   }
@@ -325,6 +328,27 @@ addEventListener('DOMContentLoaded', () => {
   $('fspX').onclick = () => setFsp(false);
   statsBtn.onclick = () => setFsp(!fspOn);
   setFsp(fspOn);
+
+  // Swipe the panel away to the right, swipe left to bring it back. Measured on pointerup and
+  // never preventDefault'd, so panel scrolling and the seek bar drag are untouched.
+  (function swipe(){
+    let x0 = 0, y0 = 0, live = false;
+    const room = () => stage.classList.contains('fs')
+      && matchMedia('(orientation: landscape)').matches && !statsBtn.hidden;
+    stage.addEventListener('pointerdown', e => {
+      // the controls own their own horizontal drags - the seek bar especially
+      live = room() && !e.target.closest('.vc, button, input, a, .ftk');
+      if (live) { x0 = e.clientX; y0 = e.clientY; }
+    }, { passive:true });
+    stage.addEventListener('pointerup', e => {
+      if (!live) return; live = false;
+      const dx = e.clientX - x0, dy = e.clientY - y0;
+      if (Math.abs(dx) < 55 || Math.abs(dx) < Math.abs(dy) * 1.5) return;   // must be clearly sideways
+      if (dx > 0 && fspOn) setFsp(false);
+      else if (dx < 0 && !fspOn) setFsp(true);
+    }, { passive:true });
+    stage.addEventListener('pointercancel', () => { live = false; }, { passive:true });
+  })();
 
   const preNote = '<p class="pre-note">Stats start at kickoff.</p>';
   function scoreTab(){
