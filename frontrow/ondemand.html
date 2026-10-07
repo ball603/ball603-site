@@ -32,7 +32,7 @@
     <input type="search" id="q" placeholder="Search teams, sports, events…" aria-label="Search On Demand" autocomplete="off">
     <select id="fs" aria-label="Sport"></select>
     <select id="ft" aria-label="School"></select>
-    <select id="fm" aria-label="Month"></select>
+    <select id="fm" aria-label="Year"></select>
     <select id="fk" aria-label="Type"><option value="">Games, shows and events</option><option value="game">Games only</option><option value="other">Shows, events and classics</option></select>
   </form>
   <p class="rcount" id="count" aria-live="polite"></p>
@@ -70,19 +70,20 @@ addEventListener('DOMContentLoaded', () => {
     const opt = t => `<option value="${esc(t.key)}">${esc(t.name)} (${tc[t.key]})</option>`;
     $('ft').innerHTML = '<option value="">All schools</option><optgroup label="NEC members">' + full.map(opt).join('') + '</optgroup><optgroup label="NEC associate members">' + assoc.map(opt).join('') + '</optgroup><optgroup label="Other teams">' + others.map(opt).join('') + '</optgroup>';
     const months = [...new Set(items.map(i => monthKey(i.date)))];
-    $('fm').innerHTML = '<option value="">Any month</option>' + months.map(m => `<option value="${m}">${esc(monthName(m))}</option>`).join('');
-    $('q').value = P.get('q') || ''; $('fs').value = P.get('s') || ''; $('ft').value = P.get('t') || ''; $('fm').value = P.get('m') || ''; $('fk').value = P.get('k') || '';
+    const years = [...new Set(items.map(i => String(new Date(i.date).getFullYear())))].sort().reverse();
+    $('fm').innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('') + '<option value="all">All years</option>';
+    $('q').value = P.get('q') || ''; $('fs').value = P.get('s') || ''; $('ft').value = P.get('t') || ''; $('fm').value = P.get('y') || (years.includes(String(new Date().getFullYear())) ? String(new Date().getFullYear()) : years[0]); $('fk').value = P.get('k') || '';
     $('sub').textContent = `${items.length.toLocaleString()} games, shows and events from ${months.length} months of NEC action.`;
     apply();
   });
 
   function apply(){
-    const q = words($('q').value).trim().split(/\s+/).filter(Boolean), s = $('fs').value, t = $('ft').value, m = $('fm').value, k = $('fk').value;
-    list = all.filter(i => (!s || i.sportKey === s) && (!t || i.a.key === t || i.h.key === t) && (!m || monthKey(i.date) === m)
+    const q = words($('q').value).trim().split(/\s+/).filter(Boolean), s = $('fs').value, t = $('ft').value, y = $('fm').value, k = $('fk').value;
+    list = all.filter(i => (!s || i.sportKey === s) && (!t || i.a.key === t || i.h.key === t) && (y === 'all' || String(new Date(i.date).getFullYear()) === y)
       && (!k || (k === 'game' ? i.kind === 'game' : i.kind !== 'game')) && q.every(w => i._q.includes(w)));
     // My Teams games float up only when nothing is filtered
     shown = PAGE; render();
-    const p = new URLSearchParams(); [['q', $('q').value.trim()], ['s', s], ['t', t], ['m', m], ['k', k]].forEach(([a, b]) => b && p.set(a, b));
+    const p = new URLSearchParams(); [['q', $('q').value.trim()], ['s', s], ['t', t], ['y', y === String(new Date().getFullYear()) ? '' : y], ['k', k]].forEach(([a, b]) => b && p.set(a, b));
     history.replaceState(null, '', location.pathname + (p.toString() ? '?' + p : ''));
   }
   function render(){
