@@ -53,6 +53,12 @@
 /* Live stats beside the video, landscape full screen only. The picture is letterboxed there,
    so the panel takes mostly black bar rather than picture. Portrait has no room for it. */
 .fsp{display:none}
+/* The stats button only has room for its panel in landscape full screen. Decided in CSS on
+   purpose: doing it in JS meant reacting to stage class changes, which is what hung the page. */
+.b-stats{display:none}
+.stage.fs .b-stats{display:inline-flex}
+.stage.fs .b-stats[hidden]{display:none}
+@media (orientation:portrait){.stage.fs .b-stats{display:none}}
 .stage.fs.stats-on .fsp{display:flex;flex-direction:column;position:absolute;top:0;right:0;bottom:0;width:var(--fspw);z-index:9;background:rgba(4,9,18,.95);border-left:1px solid var(--line);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
 .stage.fs.stats-on{--fspw:clamp(190px,30%,280px)}
 .stage.fs.tick-on.stats-on .fsp{bottom:calc(34px + env(safe-area-inset-bottom,0px))}
@@ -137,9 +143,8 @@
         <div class="vc" id="vc"></div>
         <aside class="fsp" id="fsp" aria-label="Live stats">
           <div class="fsp-h" role="tablist">
-            <button class="ftab" role="tab" id="f-score" aria-selected="true">Score</button>
-            <button class="ftab" role="tab" id="f-team" aria-selected="false" tabindex="-1">Team</button>
-            <button class="ftab" role="tab" id="f-lead" aria-selected="false" tabindex="-1">Leaders</button>
+            <button class="ftab" role="tab" id="f-team" aria-selected="true">Team Stats</button>
+            <button class="ftab" role="tab" id="f-lead" aria-selected="false" tabindex="-1">Stat Leaders</button>
             <button class="fsp-x" id="fspX" aria-label="Hide stats" title="Hide stats"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
           </div>
           <div class="fsp-b" id="fspB" role="tabpanel" aria-labelledby="f-score"></div>
@@ -285,7 +290,7 @@ addEventListener('DOMContentLoaded', () => {
 
   // ---------- Live stats beside the video (landscape full screen) ----------
   const FSP_KEY = 'fr-fsstats';
-  let fspTab = 'score';
+  let fspTab = 'team';   // no Score tab - the score is already in the badge and the ticker
   const statsBtn = $('vc').querySelector('.b-stats');
   let fspOn = false; try { fspOn = localStorage.getItem(FSP_KEY) === '1'; } catch (e) {}
 
@@ -296,7 +301,7 @@ addEventListener('DOMContentLoaded', () => {
   }
   function fspPick(t){
     fspTab = t;
-    ['score','team','lead'].forEach(k => {
+    ['team','lead'].forEach(k => {
       const b = $('f-' + k); if (!b) return;
       b.setAttribute('aria-selected', String(k === t)); b.tabIndex = k === t ? 0 : -1;
     });
@@ -309,24 +314,17 @@ addEventListener('DOMContentLoaded', () => {
     statsBtn.setAttribute('aria-label', on ? 'Hide live stats' : 'Live stats');
     try { localStorage.setItem(FSP_KEY, on ? '1' : '0'); } catch (e) {}
     if (on) fillFsp();
-    dispatchEvent(new Event('resize'));   // the player re-reads its own size
   }
-  // The panel only has room in landscape full screen, so the button only appears there.
-  function syncStatsBtn(){
-    const room = stage.classList.contains('fs') && matchMedia('(orientation: landscape)').matches;
-    statsBtn.hidden = !room || !ev || ev.archive;
-    if (!room) stage.classList.remove('stats-on');
-    else if (fspOn) stage.classList.add('stats-on');
-  }
-  ['score','team','lead'].forEach(k => {
+  // Whether there's room for the panel is purely a question of screen shape, so CSS decides
+  // it (see the .b-stats rules). An earlier version watched the stage for class changes and
+  // wrote classes back to it from the handler - and every tap toggles show-ui on the stage,
+  // so that fed itself and locked the page up. Nothing here listens to the stage.
+  ['team','lead'].forEach(k => {
     const b = $('f-' + k); if (b) b.onclick = () => fspPick(k);
   });
   $('fspX').onclick = () => setFsp(false);
   statsBtn.onclick = () => setFsp(!fspOn);
-  new MutationObserver(syncStatsBtn).observe(stage, { attributes:true, attributeFilter:['class'] });
-  addEventListener('resize', syncStatsBtn);
-  addEventListener('orientationchange', syncStatsBtn);
-  syncStatsBtn();
+  setFsp(fspOn);
 
   const preNote = '<p class="pre-note">Stats start at kickoff.</p>';
   function scoreTab(){
