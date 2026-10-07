@@ -43,6 +43,15 @@
 .linkbtn:hover{color:var(--text)}
 .sc-groups h3{margin:18px 0 10px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
 .sc-groups h3:first-child{margin-top:0}
+/* Associate members sit a tier below: smaller tiles, mascot dropped to keep them tight. */
+.sc-groups .schools.sm{grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px}
+.sc-groups .schools.sm .school{padding:12px 8px 10px;gap:7px;border-radius:10px}
+.sc-groups .schools.sm .sl{gap:6px}
+.sc-groups .schools.sm .sl img,.sc-groups .schools.sm .sl svg{width:40px;height:40px}
+.sc-groups .schools.sm .sl b{font-size:14px}
+.sc-groups .schools.sm .sl span{display:none}
+.sc-groups .schools.sm .follow{padding:3px 8px;font-size:11px}
+.sc-groups .schools.sm .follow .star{width:11px;height:11px}
 </style>
 </head>
 <body>
@@ -142,7 +151,7 @@ addEventListener('DOMContentLoaded', () => {
     if (watchable(ev) && !reduce && !saveData && window.Hls !== undefined) {
       const v = document.createElement('video'); v.className = 'bg'; v.setAttribute('aria-hidden', 'true'); v.muted = true; v.loop = true;
       hero.prepend(v);
-      preview = FRPlayer.attach(v, ev.stream, { main:false, onError: () => { v.remove(); hero.insertAdjacentHTML('afterbegin', `<div class="bg">${FR.art(ev, false)}</div>`); } });
+      preview = FRPlayer.attach(v, ev.stream, { main:false, liveSince: isLive(ev) ? ev.kickoff : null, onError: () => { v.remove(); hero.insertAdjacentHTML('afterbegin', `<div class="bg">${FR.art(ev, false)}</div>`); } });
     } else {
       hero.insertAdjacentHTML('afterbegin', `<div class="bg" aria-hidden="true">${FR.art(ev, false)}</div>`);
     }
@@ -182,10 +191,10 @@ addEventListener('DOMContentLoaded', () => {
   // Full members, then associate members; tap one to follow it
   function schools(){
     const grid = document.getElementById('school-grid');
-    const group = (title, list) => list.length
-      ? `<h3>${title}</h3><div class="schools">${list.map(FR.schoolCard).join('')}</div>` : '';
+    const group = (title, list, cls = '') => list.length
+      ? `<h3>${title}</h3><div class="schools${cls}">${list.map(FR.schoolCard).join('')}</div>` : '';
     grid.innerHTML = group('Full members', FR.schools.filter(s => s.member === 'full'))
-                   + group('Associate members', FR.schools.filter(s => s.member !== 'full'));
+                   + group('Associate members', FR.schools.filter(s => s.member !== 'full'), ' sm');
     grid.onclick = e => {
       const b = e.target.closest('.follow'); if (!b) return;
       const cur = FR.favs(), k = b.dataset.k;
