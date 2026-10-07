@@ -41,6 +41,8 @@
 .hc .acts{display:flex;flex-wrap:wrap;gap:10px;margin-top:4px}
 .linkbtn{border:0;background:none;padding:0;color:var(--muted);font:inherit;font-size:14px;cursor:pointer}
 .linkbtn:hover{color:var(--text)}
+.sc-groups h3{margin:18px 0 10px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.sc-groups h3:first-child{margin-top:0}
 </style>
 </head>
 <body>
@@ -70,7 +72,7 @@
   </section>
 
   <section class="wrap sec" aria-labelledby="h-replay">
-    <div class="sec-h"><h2 id="h-replay">Today's replays</h2><span class="meta">Watch from the start</span></div>
+    <div class="sec-h"><h2 id="h-replay">Earlier today</h2><span class="meta">Watch from the start</span></div>
     <div class="rail" id="r-replay"></div>
   </section>
 
@@ -91,8 +93,8 @@
   </section>
 
   <section class="wrap sec" id="schools" aria-labelledby="h-schools">
-    <div class="sec-h"><h2 id="h-schools">Schools</h2><a class="meta" href="/frontrow/school.html">All schools →</a></div>
-    <div class="schools" id="school-grid"></div>
+    <div class="sec-h"><h2 id="h-schools">Schools</h2></div>
+    <div class="sc-groups" id="school-grid"></div>
   </section>
 </main>
 
@@ -128,7 +130,7 @@ addEventListener('DOMContentLoaded', () => {
       <p class="where">${esc(ev.venue)} · ${esc(ev.city)}</p>
       <div class="acts">
         ${watchable(ev) ? `<a class="btn primary" href="${watchUrl(ev)}"><svg viewBox="0 0 24 24"><path d="M7 4.5v15l12.5-7.5z"/></svg>${live ? 'Watch live' : 'Watch replay'}</a>` : `<span class="btn" aria-disabled="true">${esc(soon(ev))}</span>`}
-        <a class="btn ghost" href="/frontrow/multiview.html?g=${encodeURIComponent(ev.id)}"><svg viewBox="0 0 24 24"><path d="M3 4h8v7H3zm10 0h8v7h-8zM3 13h8v7H3zm10 0h8v7h-8z"/></svg>Add to Multiview</a>
+        <a class="btn ghost" href="/frontrow/multiview.html?g=${encodeURIComponent(ev.id)},"><svg viewBox="0 0 24 24"><path d="M3 4h8v7H3zm10 0h8v7h-8zM3 13h8v7H3zm10 0h8v7h-8z"/></svg>Add to Multiview</a>
       </div>`;
   }
 
@@ -153,7 +155,7 @@ addEventListener('DOMContentLoaded', () => {
 
   function filters(list){
     const present = [...new Set(list.map(e => e.sportKey))];
-    const opts = [['all', 'All games'], ...(hasFavs() ? [['mine', 'My Teams']] : []), ...present.map(k => [k, (FR.sports.find(s => s.key === k) || {}).name || k])];
+    const opts = [['all', 'All events'], ...(hasFavs() ? [['mine', 'My Teams']] : []), ...present.map(k => [k, (FR.sports.find(s => s.key === k) || {}).name || k])];
     if (!filter || !opts.some(o => o[0] === filter)) filter = hasFavs() ? 'mine' : 'all';
     const el = document.getElementById('filters');
     el.innerHTML = opts.map(([k, n]) => `<button class="chip" data-f="${esc(k)}" aria-pressed="${k === filter}">${k === 'mine' ? STAR + ' ' : ''}${esc(n)}</button>`).join('');
@@ -163,8 +165,8 @@ addEventListener('DOMContentLoaded', () => {
 
   function schedule(all){
     const list = filters(all);
-    document.getElementById('sched-meta').textContent = `${list.length} of ${all.length} games`;
-    if (!list.length) { document.getElementById('sched').innerHTML = '<p class="empty" style="margin:0;border:0">No games for this pick today.</p>'; return; }
+    document.getElementById('sched-meta').textContent = `${list.length} of ${all.length} events`;
+    if (!list.length) { document.getElementById('sched').innerHTML = '<p class="empty" style="margin:0;border:0">Nothing for this pick today.</p>'; return; }
     document.getElementById('sched').innerHTML = favFirst(list).map(ev => {
       const tm = side => { const t = side === 'away' ? ev.a : ev.h;
         return `<div class="tm ${lead(ev, side)}">${logoImg(t.key, 24)}<span>${esc(t.name)}</span>${isFav(ev) && side === 'away' ? STAR : ''}${ev.poss === side ? '<i class="poss" title="Has the ball"></i>' : ''}</div>`; };
@@ -177,10 +179,13 @@ addEventListener('DOMContentLoaded', () => {
     }).join('');
   }
 
-  // Full members; tap one to follow it
+  // Full members, then associate members; tap one to follow it
   function schools(){
-    const grid = document.getElementById('school-grid'), f = FR.favs();
-    grid.innerHTML = FR.schools.filter(s => s.member === 'full').map(FR.schoolCard).join('');
+    const grid = document.getElementById('school-grid');
+    const group = (title, list) => list.length
+      ? `<h3>${title}</h3><div class="schools">${list.map(FR.schoolCard).join('')}</div>` : '';
+    grid.innerHTML = group('Full members', FR.schools.filter(s => s.member === 'full'))
+                   + group('Associate members', FR.schools.filter(s => s.member !== 'full'));
     grid.onclick = e => {
       const b = e.target.closest('.follow'); if (!b) return;
       const cur = FR.favs(), k = b.dataset.k;
