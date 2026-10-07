@@ -142,7 +142,7 @@ addEventListener('DOMContentLoaded', () => {
   let ev = null, h = null, started = false, soundOn = false, tab = 'score';
 
   function setSound(on){
-    soundOn = on; video.muted = !on;
+    soundOn = on; video.volume = 0.5; video.muted = !on;
     $('sndTag').hidden = !on;
     if (on) hideTap();
   }
@@ -168,7 +168,11 @@ addEventListener('DOMContentLoaded', () => {
     stage.querySelector('.wait')?.remove();
     h = FRPlayer.attach(video, ev.stream, { main:true, liveSince: isLive(ev) ? ev.kickoff : null, onError: () => {
       $('tile').insertAdjacentHTML('beforeend', '<div class="vmsg">This video could not load. Try again in a moment.</div>'); } });
-    $('tapSound').hidden = false; setTimeout(hideTap, 8000);
+    video.addEventListener('canplay', () => FRPlayer.trySound(video).then(ok => {
+      if (ok) { setSound(true); return; }
+      $('tapSound').hidden = false;            // sound was blocked: offer the button, or any tap
+      FRPlayer.onFirstTap(() => setSound(true));
+    }), { once:true });
     setTimeout(() => $('tile').classList.add('live-off'), 4000);
   }
 

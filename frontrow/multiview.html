@@ -377,7 +377,13 @@ addEventListener('DOMContentLoaded', () => {
     const start = asked.length > 1 ? asked.map(s => s || null) : [...picked, ...fill];
     for (let i = 0; i < 4; i++) setSlot(i, start[i] || null);
     apply();
-    $('tapSound').hidden = false; setTimeout(hideTap, 8000);
+    const ft = tiles[focus];
+    const begin = () => FRPlayer.trySound(ft.video).then(ok => {
+      if (ok) { setSound(true); apply(); return; }
+      $('tapSound').hidden = false;
+      FRPlayer.onFirstTap(() => { setSound(true); apply(); });
+    });
+    if (ft && ft.h) { if (ft.video.readyState >= 3) begin(); else ft.video.addEventListener('canplay', begin, { once:true }); }
     FR.on(() => {
       // a game that was waiting to start begins playing on its own
       tiles.forEach((t, i) => { if (t.id && !t.h && watchable(FR.byId(t.id))) { t.id = null; setSlot(i, slots[i]); } });

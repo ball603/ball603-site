@@ -12,7 +12,7 @@ window.FRPlayer = (() => {
     const h = { video, hls:null, main, liveSince };
     // Sample games are recordings. For a game marked live, start where the game is "now" so it acts like live.
     video.addEventListener('loadedmetadata', () => { if (h.liveSince && !realLive(h)) { const e = liveEdge(h); if (isFinite(e) && e > 5) video.currentTime = e; } }, { once:true });
-    video.playsInline = true; video.muted = true; video.autoplay = true;
+    video.playsInline = true; video.muted = true; video.autoplay = true; video.volume = 0.5;
     if (window.Hls && Hls.isSupported()) {
       // assume a decent connection so games start sharp instead of climbing up from the blurriest version
       const hls = new Hls({ capLevelToPlayerSize:false, abrEwmaDefaultEstimate:6000000, backBufferLength:900, maxBufferLength:30 });
@@ -203,6 +203,18 @@ window.FRPlayer = (() => {
     t.textContent = text; t.classList.add('on'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('on'), 2200);
   }
 
+  // Start with sound at half volume. Browsers sometimes block sound until the viewer taps
+  // something; if so, keep playing silently and report back so the page can show "Tap for sound".
+  function trySound(video){
+    video.volume = 0.5; video.muted = false;
+    return video.play().then(() => true).catch(() => { video.muted = true; video.play().catch(() => {}); return false; });
+  }
+  // After a block, the viewer's first tap anywhere (other than a control) turns sound on
+  function onFirstTap(fn){
+    const go = e => { if (e.target.closest('.vc button, .tbar, dialog, .tapsound')) return; document.removeEventListener('pointerdown', go, true); fn(); };
+    document.addEventListener('pointerdown', go, true);
+  }
+
   async function popOut(video){
     try {
       if (document.pictureInPictureElement) await document.exitPictureInPicture();
@@ -211,5 +223,5 @@ window.FRPlayer = (() => {
     } catch (e) {}
   }
 
-  return { attach, setMain, destroy, liveEdge, back10, fwd10, goLive, toStart, autoHide, fullscreen, playIcon, popOut, bar, toast, clock, ICONS };
+  return { trySound, onFirstTap, attach, setMain, destroy, liveEdge, back10, fwd10, goLive, toStart, autoHide, fullscreen, playIcon, popOut, bar, toast, clock, ICONS };
 })();
