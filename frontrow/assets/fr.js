@@ -277,16 +277,16 @@ window.FR = (() => {
       if (y0 === null) return;
       const dy = e.touches[0].clientY - y0, dx = e.touches[0].clientX - x0;
       if (!dir && Math.hypot(dx, dy) > 8) dir = Math.abs(dx) > Math.abs(dy) ? 'side' : 'down';
-      if (dir === 'side' || window.scrollY > 0) { y0 = null; ptr.style.transform = ''; return; }
+      if (dir === 'side' || window.scrollY > 0) { y0 = null; ptr.style.transform = ''; ptr.classList.remove('pulling'); return; }
       dist = Math.max(0, dy);
       const d = Math.min(dist, PULL * 1.5);
-      ptr.style.transform = `translateY(${d * .9}px) rotate(${d * 3}deg)`;
+      ptr.style.transform = `translateY(${d * .9}px) rotate(${d * 3}deg)`; ptr.classList.add('pulling');
       ptr.classList.toggle('ready', dist > PULL);
     }, { passive:true });
     document.addEventListener('touchend', () => {
       if (y0 === null) return; y0 = null;
       if (dist > PULL) { ptr.classList.add('spin'); setTimeout(() => location.reload(), 250); }
-      else { ptr.style.transition = 'transform .2s'; ptr.style.transform = ''; setTimeout(() => ptr.style.transition = '', 220); }
+      else { ptr.style.transition = 'transform .2s'; ptr.style.transform = ''; ptr.classList.remove('pulling'); setTimeout(() => ptr.style.transition = '', 220); }
     });
   }
 
