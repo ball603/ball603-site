@@ -7,7 +7,7 @@ window.FR = (() => {
 
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
   const logo = k => '/.netlify/functions/frontrow-logo?t=' + encodeURIComponent(k);
-  const logoImg = (k, size, cls = '') => String(k).startsWith('x-')
+  const logoImg = (k, size, cls = '') => String(k).startsWith('x-') && !(rteams[k] && rteams[k].logo)
     ? (t => `<svg class="${cls} tbadge" viewBox="0 0 100 100" width="${size}" height="${size}" aria-hidden="true"><circle cx="50" cy="50" r="48" fill="${esc(t.color)}" stroke="#fff" stroke-opacity=".25" stroke-width="2"/><text x="50" y="50" dy=".35em" text-anchor="middle" font-family="Arial Narrow,Arial,sans-serif" font-weight="700" font-size="${t.abbr.length > 3 ? 30 : 36}" fill="#fff">${esc(t.abbr)}</text></svg>`)(rteams[k] || { color:'#3a4a63', abbr:'?' })
     : `<img class="${cls}" src="${logo(k)}" alt="" width="${size}" height="${size}" loading="lazy" decoding="async">`;
   const time = ms => new Date(ms).toLocaleTimeString([], { hour:'numeric', minute:'2-digit' });
