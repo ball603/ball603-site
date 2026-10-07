@@ -99,7 +99,13 @@ window.FRPlayer = (() => {
     let auto = false;
     const tilt = () => {
       if (sideways.matches && !realFS() && !stage.classList.contains('fake-fs')) { auto = true; setFake(true); window.scrollTo(0, 0); }
-      else if (!sideways.matches && auto) { auto = false; setFake(false); }
+      else if (!sideways.matches && matchMedia('(pointer: coarse)').matches) {
+        // phone turned back upright: leave full screen and go back to the page, video still playing
+        auto = false;
+        if (stage.classList.contains('fake-fs')) setFake(false);
+        if (realFS()) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+        const v = stage.querySelector('video'); if (v && v.paused) v.play().catch(() => {});
+      }
     };
     sideways.addEventListener ? sideways.addEventListener('change', tilt) : sideways.addListener(tilt);
     tilt();
@@ -160,7 +166,8 @@ window.FRPlayer = (() => {
     q('.b-back').onclick = () => { const h = getH(); if (h) back10(h); };
     q('.b-fwd').onclick = () => { const h = getH(); if (h) fwd10(h); };
     q('.b-live').onclick = () => { const h = getH(); if (h) goLive(h); };
-    if (popout && !canPop()) q('.b-pop').remove(), popout = false;
+    // Pop out only on computers; phones and tablets don't reliably allow it from a website
+    if (popout && (!canPop() || matchMedia('(pointer: coarse)').matches)) q('.b-pop').remove(), popout = false;
     if (popout) q('.b-pop').onclick = () => { const h = getH(); if (h) popOut(h.video); };
     q('.b-share').onclick = async () => {
       const url = share ? share() : location.href;

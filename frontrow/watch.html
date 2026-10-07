@@ -75,6 +75,17 @@
 .ld-r b{font-family:var(--display);font-size:17px;line-height:1.1}
 .ld-r span{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
 .pre-note{color:var(--muted);font-size:14px;margin:14px 0 0}
+/* Phones: the video (with its controls) stays pinned to the top while the page scrolls underneath,
+   and the stats tabs stick right below it */
+@media (max-width:1020px) and (pointer:coarse), (max-width:760px){
+  .hdr{position:relative}
+  .watch,.watch > div:first-child{display:contents}
+  .side{margin-top:16px}
+  #stage:not(.fake-fs):not(.fs){position:sticky;top:0;z-index:45;margin-inline:calc(var(--gut) * -1);border-radius:0;padding-top:env(safe-area-inset-top,0px);background:#000;box-shadow:0 8px 18px rgba(0,0,0,.45)}
+  .title{margin-top:16px}
+  .stats .tabs{position:sticky;top:var(--stage-h,0px);z-index:30;background:var(--bg-2);border-radius:var(--radius) var(--radius) 0 0}
+  .stats{overflow:visible}
+}
 /* Clip panel */
 dialog.clipdlg{width:min(560px,calc(100vw - 24px))}
 .nudge{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center}
@@ -175,6 +186,10 @@ addEventListener('DOMContentLoaded', () => {
     soundOn: () => soundOn, onSound: () => setSound(!soundOn),
     extra: '<button class="pb b-clip" aria-label="Make a clip" title="Make a clip"><svg viewBox="0 0 24 24"><path d="M9.6 7.6A3.5 3.5 0 1 0 8 9.9l2.3 2.1L8 14.1a3.5 3.5 0 1 0 1.6 2.3L12 14.2l7.6 6.8H22v-1L11.7 12 22 4V3h-2.4zM6.5 9a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm0 9a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg></button>' });
   FRPlayer.autoHide(stage, $('vc'));
+  // keep the stats tabs tucked right under the pinned video
+  const stageH = () => document.documentElement.style.setProperty('--stage-h', stage.getBoundingClientRect().height + 'px');
+  if (window.ResizeObserver) new ResizeObserver(stageH).observe(stage); else addEventListener('resize', stageH);
+  stageH();
   FRPlayer.fullscreen(stage, bar.full);
   document.addEventListener('keydown', e => {
     if (e.target.closest('input,textarea,button,[role=tab]')) return;
