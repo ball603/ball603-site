@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>NEC Front Row</title>
-<meta name="description" content="Watch Northeast Conference games live and on replay.">
+<meta name="description" content="Watch Northeast Conference games live and on demand.">
 <link rel="manifest" href="/frontrow/manifest.webmanifest">
 <link rel="apple-touch-icon" href="/frontrow/icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -39,11 +39,6 @@
 .hm .tm.lose{opacity:.55}
 .hc .where{color:var(--muted);font-size:15px}
 .hc .acts{display:flex;flex-wrap:wrap;gap:10px;margin-top:4px}
-.schools{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
-.school{display:grid;justify-items:center;gap:10px;padding:18px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--bg-2);text-align:center}
-.school img{width:64px;height:64px;object-fit:contain}
-.school b{font-family:var(--display);font-size:18px;line-height:1.1}
-.school span{font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em}
 .linkbtn{border:0;background:none;padding:0;color:var(--muted);font:inherit;font-size:14px;cursor:pointer}
 .linkbtn:hover{color:var(--text)}
 </style>
@@ -75,8 +70,18 @@
   </section>
 
   <section class="wrap sec" aria-labelledby="h-replay">
-    <div class="sec-h"><h2 id="h-replay">Replays</h2><span class="meta">Watch from the start</span></div>
+    <div class="sec-h"><h2 id="h-replay">Today's replays</h2><span class="meta">Watch from the start</span></div>
     <div class="rail" id="r-replay"></div>
+  </section>
+
+  <section class="wrap sec" aria-labelledby="h-recent">
+    <div class="sec-h"><h2 id="h-recent">On Demand</h2><a class="meta" href="/frontrow/ondemand.html">Browse all →</a></div>
+    <div class="rail" id="r-recent"><p class="empty">Loading…</p></div>
+  </section>
+
+  <section class="wrap sec" aria-labelledby="h-shows">
+    <div class="sec-h"><h2 id="h-shows">Shows, championships and classics</h2><a class="meta" href="/frontrow/ondemand.html?k=other">See all →</a></div>
+    <div class="rail" id="r-shows"></div>
   </section>
 
   <section class="wrap sec" id="schedule" aria-labelledby="h-sched">
@@ -86,7 +91,7 @@
   </section>
 
   <section class="wrap sec" id="schools" aria-labelledby="h-schools">
-    <div class="sec-h"><h2 id="h-schools">Schools</h2><button class="meta linkbtn" id="allSchools">Associate members →</button></div>
+    <div class="sec-h"><h2 id="h-schools">Schools</h2><a class="meta" href="/frontrow/school.html">All schools →</a></div>
     <div class="schools" id="school-grid"></div>
   </section>
 </main>
@@ -108,7 +113,6 @@ addEventListener('DOMContentLoaded', () => {
   FR.pullToRefresh();
   FR.installTip(document.getElementById('tip'));
   document.getElementById('editFavs').onclick = () => FR.openPicker();
-  document.getElementById('allSchools').onclick = () => FR.openPicker();
 
   let featured = null, preview = null;
 
@@ -176,10 +180,9 @@ addEventListener('DOMContentLoaded', () => {
   // Full members; tap one to follow it
   function schools(){
     const grid = document.getElementById('school-grid'), f = FR.favs();
-    grid.innerHTML = FR.schools.filter(s => s.member === 'full').map(s =>
-      `<button class="school" data-k="${esc(s.key)}" aria-pressed="${f.schools.includes(s.key)}" aria-label="Follow ${esc(s.name)}">${logoImg(s.key, 64)}<b>${esc(s.name)}</b><span>${esc(s.mascot)}</span><span class="follow">${STAR}${f.schools.includes(s.key) ? 'Following' : 'Follow'}</span></button>`).join('');
+    grid.innerHTML = FR.schools.filter(s => s.member === 'full').map(FR.schoolCard).join('');
     grid.onclick = e => {
-      const b = e.target.closest('.school'); if (!b) return;
+      const b = e.target.closest('.follow'); if (!b) return;
       const cur = FR.favs(), k = b.dataset.k;
       const next = { schools: cur.schools.includes(k) ? cur.schools.filter(x => x !== k) : [...cur.schools, k], sports: cur.sports };
       FR.setFavs(next);
@@ -211,6 +214,13 @@ addEventListener('DOMContentLoaded', () => {
       rail('r-replay', s.filter(e => e.status === 'final'), 'Replays show up here when games finish.');
       schedule(list);
     });
+    // past games from the replay library, loaded after today's games are on screen
+    FR.replays().then(items => {
+      const games = items.filter(i => i.kind === 'game');
+      const recent = [...games.filter(FR.isFav), ...games.filter(i => !FR.isFav(i))].slice(0, 20);
+      document.getElementById('r-recent').innerHTML = recent.map(FR.rcard).join('');
+      document.getElementById('r-shows').innerHTML = items.filter(i => i.kind !== 'game' && i.kind !== 'event' || /NEC|Championship|Semifinal/.test(i.title)).slice(0, 20).map(FR.rcard).join('');
+    }).catch(() => { document.getElementById('r-recent').innerHTML = '<p class="empty">On Demand could not load. Try refreshing.</p>'; });
   });
 });
 </script>

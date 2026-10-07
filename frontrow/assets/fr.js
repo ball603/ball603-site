@@ -7,7 +7,9 @@ window.FR = (() => {
 
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
   const logo = k => '/.netlify/functions/frontrow-logo?t=' + encodeURIComponent(k);
-  const logoImg = (k, size, cls = '') => `<img class="${cls}" src="${logo(k)}" alt="" width="${size}" height="${size}" loading="lazy" decoding="async">`;
+  const logoImg = (k, size, cls = '') => String(k).startsWith('x-')
+    ? (t => `<svg class="${cls} tbadge" viewBox="0 0 100 100" width="${size}" height="${size}" aria-hidden="true"><circle cx="50" cy="50" r="48" fill="${esc(t.color)}" stroke="#fff" stroke-opacity=".25" stroke-width="2"/><text x="50" y="50" dy=".35em" text-anchor="middle" font-family="Arial Narrow,Arial,sans-serif" font-weight="700" font-size="${t.abbr.length > 3 ? 30 : 36}" fill="#fff">${esc(t.abbr)}</text></svg>`)(rteams[k] || { color:'#3a4a63', abbr:'?' })
+    : `<img class="${cls}" src="${logo(k)}" alt="" width="${size}" height="${size}" loading="lazy" decoding="async">`;
   const time = ms => new Date(ms).toLocaleTimeString([], { hour:'numeric', minute:'2-digit' });
 
   // ---- Data ----
@@ -54,7 +56,7 @@ window.FR = (() => {
     subs.forEach(fn => { try { fn(events, changed); } catch (e) { console.error(e); } });
   }
   const on = fn => { subs.push(fn); if (events.length) fn(events, new Set()); };
-  const byId = id => events.find(e => e.id === id);
+  const byId = id => events.find(e => e.id === id) || rmap[id];
 
   // ---- My Teams (saved on this device) ----
   const FAV_KEY = 'fr-favs-v1';
@@ -63,7 +65,7 @@ window.FR = (() => {
   const hasFavs = () => favs.schools.length > 0 || favs.sports.length > 0;
   function isFav(ev){
     if (!hasFavs()) return false;
-    const school = !favs.schools.length || favs.schools.includes(ev.away) || favs.schools.includes(ev.home);
+    const school = !favs.schools.length || favs.schools.includes(ev.away || (ev.a && ev.a.key)) || favs.schools.includes(ev.home || (ev.h && ev.h.key));
     const sport = !favs.sports.length || favs.sports.includes(ev.sportKey);
     return school && sport;
   }
@@ -109,6 +111,7 @@ window.FR = (() => {
     live: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.5"/><path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 7.8a6 6 0 0 1 0 8.4M5 5a10 10 0 0 0 0 14M19 5a10 10 0 0 1 0 14"/></svg>',
     multi: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="8" height="7" rx="1.2"/><rect x="13" y="4" width="8" height="7" rx="1.2"/><rect x="3" y="13" width="8" height="7" rx="1.2"/><rect x="13" y="13" width="8" height="7" rx="1.2"/></svg>',
     schools: '<svg viewBox="0 0 24 24"><path d="M12 3l9 4-9 4-9-4zM6 9v5c0 2 3 4 6 4s6-2 6-4V9"/></svg>',
+    ondemand: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l5.5-3.5z" fill="currentColor" stroke="none"/></svg>',
     sports: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3.5 9.5c4 1 13 1 17 0M3.5 14.5c4-1 13-1 17 0M12 3c-3 3-3 15 0 18M12 3c3 3 3 15 0 18"/></svg>',
   };
   function header(active){
@@ -125,8 +128,9 @@ window.FR = (() => {
         ${link('home', BASE, 'Home')}
         <div class="dd">${link('sports', BASE + 'sports.html', 'Sports', '<svg class="caret" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>')}
           <div class="dd-menu" id="sportsMenu" hidden></div></div>
+        ${link('ondemand', BASE + 'ondemand.html', 'On Demand')}
         ${link('multi', BASE + 'multiview.html', 'Multiview')}
-        ${link('schools', BASE + '#schools', 'Schools', '<span class="soon">Soon</span>')}
+        ${link('schools', BASE + 'school.html', 'Schools')}
       </nav>
       <a class="livecount" id="liveCount" href="${BASE}#live" hidden><span class="dot"></span><span></span></a>
       <button class="myteams" id="myTeamsBtn" aria-haspopup="dialog">${STAR}<span>My Teams</span></button>`;
@@ -196,6 +200,50 @@ window.FR = (() => {
   function card(ev){
     return `<a class="card${isFav(ev) ? ' fav' : ''}" href="${watchUrl(ev)}">${art(ev)}
       <div><div class="t">${isFav(ev) ? STAR : ''}${esc(ev.a.name)} at ${esc(ev.h.name)}</div><div class="s">${esc(ev.sport)} · ${esc(ev.venue)}</div></div></a>`;
+  }
+
+  // ---- Replay library (past games from Hudl). Loads only on pages that need it. ----
+  let rteams = {}, ritems = null, rmap = {}, rloaded = null;
+  const SPORTNAMES = () => Object.fromEntries(sports.map(s => [s.key, s.name]));
+  const hudl = h => typeof h === 'number' ? `https://vcloud.hudl.com/file/hls/${h}.m3u8` : h;
+  const teamOf = k => k === 'nec' ? { key:'nec', name:'NEC', abbr:'NEC', color:'#1f8fd6' } : ({ key:k, ...(teams[k] || rteams[k] || { name:k, abbr:k.toUpperCase().slice(0, 4), color:'#3a4a63' }) });
+  function replays(){
+    if (rloaded) return rloaded;
+    rloaded = load().then(() => fetch(BASE + 'data/replays.json', { cache:'no-cache' })).then(r => r.json()).then(d => {
+      rteams = d.teams || {};
+      Object.entries(d.sports || {}).forEach(([key, name]) => { if (!sports.some(s => s.key === key)) sports.push({ key, name }); });
+      const names = SPORTNAMES();
+      ritems = d.items.map(([id, date, sport, kind, a, h, sep, title, lab, dur, hls]) => {
+        const it = { id, archive:true, status:'final', date:Date.parse(date), kickoff:Date.parse(date), sportKey:sport, sport:names[sport] || '', kind,
+          sep, title, label:lab, dur, stream:hudl(hls), a:a ? teamOf(a) : null, h:h ? teamOf(h) : null, score:{ away:0, home:0 } };
+        if (!it.a) it.a = it.h;   // events and shows are filed under the host school
+        rmap[id] = it; return it;
+      });
+      return ritems;
+    });
+    return rloaded;
+  }
+  const rtitle = it => it.kind === 'game' ? `${it.a.name} ${it.sep === 'vs' ? 'vs.' : 'at'} ${it.h.name}` : it.title;
+  const day = ms => new Date(ms).toLocaleDateString([], { month:'short', day:'numeric', year:'numeric' });
+  const len = s => s ? (s >= 3600 ? `${Math.floor(s / 3600)}h ${Math.round(s % 3600 / 60)}m` : `${Math.round(s / 60)} min`) : '';
+  const KIND = { show:'Show', event:'Event', classic:'Classic' };
+  function rart(it){
+    const tag = `<span class="pill final">${KIND[it.kind] || 'Replay'}</span>`;
+    if (it.kind === 'game') return `<div class="art" style="--ca:${esc(it.a.color)};--ch:${esc(it.h.color)}">${tag}
+      <span class="lg a">${logoImg(it.a.key, 120)}</span><span class="lg h">${logoImg(it.h.key, 120)}</span>${it.dur ? `<span class="len">${esc(len(it.dur))}</span>` : ''}</div>`;
+    return `<div class="art solo" style="--ca:${esc(it.h.color)};--ch:${esc(it.h.color)}">${tag}<span class="lg c">${logoImg(it.h.key, 120)}</span>${it.dur ? `<span class="len">${esc(len(it.dur))}</span>` : ''}</div>`;
+  }
+  function rcard(it){
+    const fav = isFav(it);
+    return `<a class="card${fav ? ' fav' : ''}" href="${BASE}watch.html?e=${encodeURIComponent(it.id)}">${rart(it)}
+      <div><div class="t">${fav ? STAR : ''}${esc(rtitle(it))}</div><div class="s">${esc([it.sport, day(it.date), it.label].filter(Boolean).join(' · '))}</div></div></a>`;
+  }
+
+  // School tile: tap to open the school's page, star to follow
+  function schoolCard(s){
+    const on = favs.schools.includes(s.key);
+    return `<div class="school${on ? ' on' : ''}"><a class="sl" href="${BASE}school.html?t=${encodeURIComponent(s.key)}">${logoImg(s.key, 64)}<b>${esc(s.name)}</b><span>${esc(s.mascot || '')}</span></a>
+      <button class="follow" data-k="${esc(s.key)}" aria-pressed="${on}" aria-label="${on ? 'Unfollow' : 'Follow'} ${esc(s.name)}">${STAR}${on ? 'Following' : 'Follow'}</button></div>`;
   }
 
   // ---- My Teams picker ----
@@ -291,5 +339,5 @@ window.FR = (() => {
   }
 
   return { favs: () => favs, setFavs: saveFavs, hasFavs, isFav, favFirst, openPicker, installTip, STAR, BASE, esc, logo, logoImg, time, load, on, byId, label, soon, pill, isLive, watchable, sorted, lead, matchup, watchUrl,
-           header, board, art, card, pullToRefresh, get events(){ return events; }, get teams(){ return teams; }, get schools(){ return schools; }, get sports(){ return sports; } };
+           header, board, art, card, pullToRefresh, replays, rcard, rart, schoolCard, rtitle, teamOf, day, len, get replayItems(){ return ritems || []; }, get events(){ return events; }, get teams(){ return teams; }, get schools(){ return schools; }, get sports(){ return sports; } };
 })();

@@ -41,6 +41,10 @@ const LOGOS = {
   rid: { url: 'https://gobroncs.com/images/logos/site/site.png', abbr: 'RID', color: '#9D2235' },
   shu: { url: 'https://sacredheartpioneers.com/images/logos/site/site.png', abbr: 'SHU', color: '#CE1141' },
   vmi: { url: 'https://vmikeydets.com/images/logos/site/site.png', abbr: 'VMI', color: '#AE122A' },
+  sfu: { url: 'https://sfuathletics.com/images/logos/site/site.png', abbr: 'SFU', color: '#B8232F' },
+  hws: { url: 'https://hwsathletics.com/images/logos/site/site.png', abbr: 'HWS', color: '#4E2A84' },
+  hob: { url: 'https://hwsathletics.com/images/logos/site/site.png', abbr: 'HOB', color: '#4E2A84' },
+  wsc: { url: 'https://hwsathletics.com/images/logos/site/site.png', abbr: 'WS', color: '#00573F' },
 };
 
 const KEEP = {

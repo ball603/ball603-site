@@ -369,7 +369,21 @@ addEventListener('DOMContentLoaded', () => {
     return `<div class="ld-g">${group('Passing', 'pass')}${group('Rushing', 'rush')}${group('Receiving', 'rec')}</div>`;
   }
 
+  function renderReplay(){
+    const t = FR.rtitle(ev);
+    document.title = `${t} · NEC Front Row`;
+    $('title').textContent = t;
+    $('sub').textContent = [ev.sport, FR.day(ev.date), ev.label].filter(Boolean).join(' · ');
+    $('livePill').innerHTML = `<span class="pill final">${ev.kind === 'game' ? 'Replay' : ev.kind === 'show' ? 'Show' : ev.kind === 'classic' ? 'Classic' : 'Event'}</span>`;
+    document.querySelector('.stats').hidden = true;
+    const teams = ev.kind === 'game' ? `<dt>Teams</dt><dd>${esc(ev.a.name)}, ${esc(ev.h.name)}</dd>` : `<dt>From</dt><dd>${esc(ev.h.name)}</dd>`;
+    $('facts').innerHTML = `${ev.sport ? `<dt>Sport</dt><dd>${esc(ev.sport)}</dd>` : ''}<dt>Date</dt><dd>${esc(FR.day(ev.date))}</dd>${ev.dur ? `<dt>Length</dt><dd>${esc(FR.len(ev.dur))}</dd>` : ''}${teams}${ev.label ? `<dt>Note</dt><dd>${esc(ev.label)}</dd>` : ''}`;
+    $('toMulti').href = `/frontrow/multiview.html?g=${encodeURIComponent(ev.id)},`;
+    start();
+  }
   function render(){
+    if (ev.archive) return renderReplay();
+    document.querySelector('.stats').hidden = false;
     const live = isLive(ev);
     document.title = `${ev.a.name} at ${ev.h.name} · NEC Front Row`;
     $('title').textContent = `${ev.a.name} at ${ev.h.name}`;
@@ -383,7 +397,16 @@ addEventListener('DOMContentLoaded', () => {
     if (watchable(ev)) start(); else waiting();
   }
 
-  const more = () => { $('more').innerHTML = sorted(FR.events).filter(x => x.id !== ev.id).map(card).join(''); };
+  const more = () => {
+    if (!ev.archive) { $('h-more').textContent = 'More games today'; $('more').innerHTML = sorted(FR.events).filter(x => x.id !== ev.id).map(card).join(''); return; }
+    // replays: the same teams first, then more of the same sport
+    const keys = [ev.a.key, ev.h.key].filter(k => k !== 'nec');
+    const pool = FR.replayItems.filter(x => x.id !== ev.id);
+    const same = pool.filter(x => keys.includes(x.a.key) || keys.includes(x.h.key)).filter(x => !ev.sportKey || x.sportKey === ev.sportKey);
+    const sport = pool.filter(x => ev.sportKey && x.sportKey === ev.sportKey && !same.includes(x));
+    $('h-more').textContent = ev.sport ? `More ${ev.sport} on demand` : 'More on demand';
+    $('more').innerHTML = [...same.slice(0, 8), ...sport].slice(0, 16).map(FR.rcard).join('');
+  };
   function switchTo(id){
     const next = FR.byId(id); if (!next || next === ev) return;
     FRPlayer.destroy(h); h = null; started = false; ev = next;
@@ -393,8 +416,9 @@ addEventListener('DOMContentLoaded', () => {
     render(); more(); tick.refresh();
   }
 
-  FR.load().then(list => {
-    const id = new URLSearchParams(location.search).get('e');
+  const want = new URLSearchParams(location.search).get('e') || '';
+  (want.startsWith('r') ? FR.replays().then(() => FR.events) : FR.load()).then(list => {
+    const id = want;
     ev = FR.byId(id) || sorted(list).find(isLive) || sorted(list)[0];
     FR.on(() => { render(); more(); });
   });

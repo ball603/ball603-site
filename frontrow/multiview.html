@@ -271,6 +271,12 @@ addEventListener('DOMContentLoaded', () => {
   function refreshText(){
     tiles.forEach((t, i) => {
       const ev = t.id && FR.byId(t.id);
+      if (ev && ev.archive) {
+        t.el.querySelector('.tt').innerHTML = `${esc(ev.kind === 'game' ? ev.a.abbr + ' vs ' + ev.h.abbr : FR.rtitle(ev))}<small>Replay · ${esc(FR.day(ev.date))}</small>`;
+        t.el.querySelector('.lp').innerHTML = '<span class="pill final">Replay</span>';
+        t.el.setAttribute('aria-label', `Window ${i + 1}: ${FR.rtitle(ev)}`);
+        return;
+      }
       t.el.querySelector('.tt').innerHTML = ev ? `${esc(ev.a.abbr)} ${ev.status === 'pre' ? '' : ev.score.away} · ${esc(ev.h.abbr)} ${ev.status === 'pre' ? '' : ev.score.home}<small>${esc(ev.status === 'final' ? 'Replay' : label(ev))}</small>` : 'Empty window';
       t.el.querySelector('.lp').innerHTML = ev ? (isLive(ev) ? pill(ev) : ev.status === 'final' ? '<span class="pill final">Replay</span>' : '') : '';
       t.el.setAttribute('aria-label', ev ? `Window ${i + 1}: ${matchup(ev)}` : `Window ${i + 1}: empty`);
@@ -385,7 +391,8 @@ addEventListener('DOMContentLoaded', () => {
 
   // ---------- start ----------
   for (let i = 0; i < 4; i++) tiles.push(makeTile(i));
-  FR.load().then(list => {
+  const gq = new URLSearchParams(location.search).get('g') || '';
+  (/(^|,)r\d/.test(gq) ? FR.replays().then(() => FR.events) : FR.load()).then(list => {
     const q = new URLSearchParams(location.search);
     const asked = (q.get('g') || '').split(',').map(s => s.trim()).filter((s, i, a) => s === '' || (FR.byId(s) && a.indexOf(s) === i));
     if (COUNT[q.get('l')]) layout = q.get('l');

@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Schools · NEC Front Row</title>
+<link rel="manifest" href="/frontrow/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/frontrow/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Front Row">
+<meta name="theme-color" content="#060d1a">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,800&family=Barlow:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/frontrow/assets/fr.css">
+<style>
+.sc-head{padding-block:22px 6px;display:flex;flex-wrap:wrap;align-items:center;gap:14px 20px}
+.sc-head .crumb{flex-basis:100%;font-size:14px;color:var(--muted)}
+.sc-head .crumb a:hover{color:var(--text)}
+.sc-head .lgx{width:84px;height:84px;object-fit:contain;flex:none}
+.sc-head h1{margin:0;font-family:var(--display);font-weight:800;font-size:clamp(30px,4vw,46px);line-height:1}
+.sc-head p{margin:4px 0 0;color:var(--muted)}
+.sc-head .grow{flex:1;min-width:200px}
+.sc-head .follow{border:1px solid var(--line);background:none;border-radius:999px;padding:9px 16px;font:600 14px var(--body);color:var(--text);display:inline-flex;align-items:center;gap:7px;cursor:pointer}
+.sc-head .follow .star{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8}
+.sc-head .follow[aria-pressed="true"]{color:var(--gold);border-color:rgba(242,193,78,.6)}
+.sc-head .follow[aria-pressed="true"] .star{fill:var(--gold);stroke:var(--gold)}
+.sp-chips{display:flex;gap:8px;overflow-x:auto;padding:4px 0 10px;scrollbar-width:none}
+.sp-chips .chip{white-space:nowrap}
+.sc-list h2{margin:26px 0 12px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header id="hdr"></header>
+<section id="board"></section>
+<main id="main" class="wrap">
+  <div class="sc-head" id="head"></div>
+  <div id="body"><p class="empty">Loading…</p></div>
+</main>
+<footer class="foot"><span>© 2026 Northeast Conference · NEC Front Row</span></footer>
+
+<script src="/frontrow/assets/fr.js" defer></script>
+<script defer>
+addEventListener('DOMContentLoaded', () => {
+  const { esc, logoImg, STAR, rcard, card, isLive, sorted } = FR;
+  const $ = id => document.getElementById(id);
+  FR.header('schools');
+  FR.board($('board'));
+  FR.pullToRefresh();
+  const key = new URLSearchParams(location.search).get('t');
+  let sportPick = new URLSearchParams(location.search).get('s') || '';
+
+  function followToggle(k){
+    const cur = FR.favs();
+    FR.setFavs({ schools: cur.schools.includes(k) ? cur.schools.filter(x => x !== k) : [...cur.schools, k], sports: cur.sports });
+  }
+  document.addEventListener('click', e => { const b = e.target.closest('.follow[data-k]'); if (b) followToggle(b.dataset.k); });
+
+  // All schools
+  function list(){
+    $('head').innerHTML = '<div class="grow"><h1>Schools</h1><p>Tap a school for its live games and full season on demand. Tap the star to follow.</p></div>';
+    const full = FR.schools.filter(s => s.member === 'full'), assoc = FR.schools.filter(s => s.member !== 'full');
+    $('body').innerHTML = `<div class="sc-list"><h2>Full members</h2><div class="schools">${full.map(FR.schoolCard).join('')}</div>
+      <h2>Associate members</h2><div class="schools">${assoc.map(FR.schoolCard).join('')}</div></div>`;
+  }
+
+  // One school
+  function one(items){
+    const sc = FR.schools.find(s => s.key === key), t = FR.teamOf(key);
+    const name = (sc || t).name, mine = FR.favs().schools.includes(key);
+    document.title = `${name} · NEC Front Row`;
+    $('head').innerHTML = `<span class="crumb"><a href="school.html">Schools</a> /</span>${logoImg(key, 84, 'lgx')}
+      <div class="grow"><h1>${esc(name)}</h1><p>${esc([sc && sc.mascot, sc ? (sc.member === 'full' ? 'NEC full member' : 'NEC associate member') : ''].filter(Boolean).join(' · '))}</p></div>
+      ${sc ? `<button class="follow" data-k="${esc(key)}" aria-pressed="${mine}">${STAR}${mine ? 'Following' : 'Follow'}</button>` : ''}`;
+    const today = sorted(FR.events.filter(e => e.away === key || e.home === key));
+    const mineR = items.filter(i => i.a.key === key || i.h.key === key);
+    const counts = {}; mineR.forEach(i => counts[i.sportKey] = (counts[i.sportKey] || 0) + 1);
+    const sportsHere = FR.sports.filter(s => counts[s.key]).sort((a, b) => counts[b.key] - counts[a.key]);
+    const chips = `<div class="sp-chips" role="group" aria-label="Filter by sport"><button class="chip" data-s="" aria-pressed="${!sportPick}">All sports (${mineR.length})</button>${sportsHere.map(s => `<button class="chip" data-s="${esc(s.key)}" aria-pressed="${sportPick === s.key}">${esc(s.name)} (${counts[s.key]})</button>`).join('')}</div>`;
+    const sec = (title, cards, link) => cards ? `<section class="sec"><div class="sec-h"><h2>${title}</h2>${link || ''}</div><div class="rail">${cards}</div></section>` : '';
+    let html = today.length ? sec('Today', today.map(card).join('')) : '';
+    html += `<section class="sec"><div class="sec-h"><h2>On Demand</h2><a class="meta" href="ondemand.html?t=${encodeURIComponent(key)}">Search all →</a></div>${chips}</section>`;
+    const pick = sportPick ? sportsHere.filter(s => s.key === sportPick) : sportsHere;
+    pick.forEach(s => { const g = mineR.filter(i => i.sportKey === s.key); html += sec(esc(s.name), g.map(rcard).join(''), `<a class="meta" href="ondemand.html?t=${encodeURIComponent(key)}&s=${encodeURIComponent(s.key)}">All ${g.length} →</a>`); });
+    const other = mineR.filter(i => !i.sportKey || i.sportKey === 'OTHER');
+    if (!sportPick && other.length) html += sec('Shows and more', other.map(rcard).join(''));
+    if (!mineR.length && !today.length) html += '<p class="empty">No games or videos for this school yet.</p>';
+    $('body').innerHTML = html;
+    $('body').querySelectorAll('[data-s]').forEach(b => b.onclick = () => {
+      sportPick = b.dataset.s; one(items);
+      const p = new URLSearchParams(location.search); sportPick ? p.set('s', sportPick) : p.delete('s'); history.replaceState(null, '', '?' + p);
+    });
+  }
+
+  if (!key) { FR.load().then(list); document.addEventListener('fr:favs', list); }
+  else FR.replays().then(items => { one(items); document.addEventListener('fr:favs', () => one(items)); });
+});
+</script>
+</body>
+</html>
