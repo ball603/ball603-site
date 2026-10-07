@@ -50,6 +50,13 @@
 .tab:hover{color:var(--text)}
 .tpanel{padding:16px}
 
+/* The speaker badge is a confirmation, not a status light: it shows when the sound changes
+   and when the video starts, then fades. Scoped by id - Multiview has its own .snd badge
+   that stays put, and a shared rule would have hidden that one for good. */
+#sndTag{opacity:0;visibility:hidden;transition:opacity .45s ease,visibility 0s linear .45s}
+#sndTag.show{opacity:1;visibility:visible;transition:opacity .2s ease}
+@media (prefers-reduced-motion:reduce){#sndTag{transition:none}}
+
 /* Live stats beside the video, landscape full screen only. The picture is letterboxed there,
    so the panel takes mostly black bar rather than picture. Portrait has no room for it. */
 .fsp{display:none}
@@ -214,9 +221,19 @@ addEventListener('DOMContentLoaded', () => {
   const stage = $('stage'), video = $('player');
   let ev = null, h = null, started = false, soundOn = false, tab = 'score';
 
+  let sndT;
+  function flashSnd(on){
+    const el = $('sndTag');
+    el.innerHTML = on ? FRPlayer.ICONS.sound : FRPlayer.ICONS.mute;
+    el.setAttribute('aria-label', on ? 'Sound on' : 'Sound off');
+    el.removeAttribute('hidden');
+    el.classList.add('show');
+    clearTimeout(sndT);
+    sndT = setTimeout(() => el.classList.remove('show'), 2200);
+  }
   function setSound(on){
     soundOn = on; video.volume = FRPlayer.vol(); video.muted = !on;
-    $('sndTag').hidden = !on;
+    flashSnd(on);
     if (on) hideTap();
   }
   function hideTap(){ const b = $('tapSound'); b.classList.add('out'); setTimeout(() => b.hidden = true, 450); }
