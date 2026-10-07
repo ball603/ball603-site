@@ -4,6 +4,7 @@
    (no quality loss, no re-encoding), which can be saved or shared. Nothing is uploaded anywhere. */
 window.FRClip = (() => {
   const VENDOR = location.origin + '/frontrow/vendor/ffmpeg/';
+  const WASM = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd/ffmpeg-core.wasm';
   let ffReady = null;
 
   function loadScript(src){
@@ -14,7 +15,8 @@ window.FRClip = (() => {
     if (!ffReady) ffReady = (async () => {
       if (!window.FFmpegWASM) await loadScript(VENDOR + 'ffmpeg.js');
       const ff = new FFmpegWASM.FFmpeg();
-      await ff.load({ coreURL: VENDOR + 'ffmpeg-core.js', wasmURL: VENDOR + 'ffmpeg-core.wasm' });
+      // the big 30 MB piece comes from a public code library (GitHub's upload page won't take files over 25 MB)
+      await ff.load({ coreURL: VENDOR + 'ffmpeg-core.js', wasmURL: WASM });
       return ff;
     })().catch(e => { ffReady = null; throw e; });
     return ffReady;
