@@ -2,7 +2,7 @@
 window.FR = (() => {
   const BASE = '/frontrow/';
   const FEED = '/.netlify/functions/frontrow-stats';
-  const POLL_MS = 10000;
+  const POLL_MS = 30000;
   let teams = {}, events = [], subs = [], loaded = null, schools = [], sports = [];
 
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
@@ -20,6 +20,20 @@ window.FR = (() => {
       catch (e) { if (i >= tries - 1) throw e; await new Promise(ok => setTimeout(ok, 600 * (i + 1))); }
     }
   }
+  // Live-score polling. Browsers keep background tabs ticking, so the old
+  // unconditional timer hit the stats feed every 10s for every tab left open all
+  // day -- that usage is shared with Ball603. Poll only while the tab is actually
+  // being looked at, and catch up right away when the viewer comes back.
+  var pollTimer = null;
+  function startPolling(){
+    const stop  = () => { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } };
+    const start = () => { if (!pollTimer) pollTimer = setInterval(poll, POLL_MS); };
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) stop(); else { poll(); start(); }
+    });
+    if (!document.hidden) start();
+  }
+
   function load(){
     if (loaded) return loaded;
     loaded = getJSON(BASE + 'data/events.json')
@@ -27,7 +41,7 @@ window.FR = (() => {
         teams = d.teams; schools = d.schools || []; sports = d.sports || [];
         events = d.events.map(e => ({ ...e, a: { key:e.away, ...teams[e.away] }, h: { key:e.home, ...teams[e.home] },
           status:'pre', period:0, clock:'', poss:null, kickoff: e.kickoff ? Date.parse(e.kickoff) : null, score:{ away:0, home:0 } }));
-        return poll().then(() => { setInterval(poll, POLL_MS); return events; });
+        return poll().then(() => { startPolling(); return events; });
       })
       .catch(e => { loaded = null; throw e; });
     return loaded;

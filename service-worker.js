@@ -33,7 +33,10 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames
-          .filter((name) => name !== CACHE_NAME)
+          // Only Ball603's own caches. The Tigers app ('tigers-') and the NEC Front
+          // Row demo ('frontrow-') keep theirs on this same domain, and an unfiltered
+          // delete here wiped them every time this worker activated.
+          .filter((name) => name.startsWith('ball603-') && name !== CACHE_NAME)
           .map((name) => {
             console.log('[SW] Deleting old cache:', name);
             return caches.delete(name);
@@ -56,6 +59,12 @@ self.addEventListener('fetch', (event) => {
   
   // Skip API/function calls - always fetch fresh
   if (url.pathname.startsWith('/.netlify/')) return;
+
+  // Skip the NEC Front Row demo folders. /frontrow/ has its own worker and /nec/
+  // deliberately has none, so this worker has no business caching either one --
+  // it was serving their CSS and .json data from cache first (stale demo data) and
+  // could drop Ball603's own offline.html into the middle of the NEC demo.
+  if (url.pathname.startsWith('/frontrow/') || url.pathname.startsWith('/nec/')) return;
   
   // Determine if this is HTML or JS (network-first) vs images/CSS (cache-first)
   const isHtmlOrJs = request.headers.get('accept')?.includes('text/html') ||
