@@ -24,11 +24,23 @@ window.FRClip = (() => {
 
   const helper = url => { const m = String(url).match(/^https?:\/\/vcloud\.hudl\.com\/file\/hls\/(\d+)\.m3u8/i); return m ? '/.netlify/functions/hudl-playlist?id=' + m[1] : url; };
   const abs = (u, base) => new URL(u, new URL(base, location.href)).href;
+  // Always ask for a fresh copy. On iPhones, Apple's player has already saved these pieces without
+  // the permission the clip tool needs, and Safari would reuse that copy and refuse it ("Load failed").
+  async function fresh(url, what){
+    const same = new URL(url, location.href).origin === location.origin;
+    const u = same ? url : url + (url.includes('?') ? '&' : '?') + 'fr=' + Date.now().toString(36);
+    let r;
+    // (a unique address does the trick; Hudl's server rejects the browser's 'no-store' setting)
+    try { r = await fetch(u, { mode: 'cors', credentials: 'omit' }); }
+    catch (e) { throw new Error(`Couldn't download the ${what}. Check your connection and try again.`); }
+    if (!r.ok) throw new Error(`Couldn't download the ${what} (${r.status}).`);
+    return r;
+  }
 
   // Pick the 720p version (clear, and a 30-second clip stays around 10 MB)
   async function mediaPlaylist(stream){
     const src = helper(stream);
-    const text = await (await fetch(src)).text();
+    const text = await (await fresh(src, 'game video list')).text();
     if (!/#EXT-X-STREAM-INF/.test(text)) return { url: abs(src, location.href), text };
     const lines = text.split(/\r?\n/), variants = [];
     lines.forEach((l, i) => {
@@ -39,7 +51,7 @@ window.FRClip = (() => {
     });
     variants.sort((a, b) => a.h - b.h);
     const pick = [...variants].reverse().find(v => v.h && v.h <= 720) || variants[0];
-    return { url: pick.url, text: await (await fetch(pick.url)).text() };
+    return { url: pick.url, text: await (await fresh(pick.url, 'game video list')).text() };
   }
 
   function parse(url, text){
@@ -80,7 +92,7 @@ window.FRClip = (() => {
 
     const parts = []; let got = 0;
     for (const s of need) {
-      const r = await fetch(s.url); if (!r.ok) throw new Error('Could not get part of the video.');
+      const r = await fresh(s.url, 'video');
       parts.push(new Uint8Array(await r.arrayBuffer())); got++;
       onStep('Getting the video…', 0.05 + 0.55 * got / need.length);
     }
@@ -88,7 +100,8 @@ window.FRClip = (() => {
     let o = 0; for (const p of parts) { joined.set(p, o); o += p.length; }
 
     onStep('Making your clip…', 0.65);
-    const ff = await ffP;
+    let ff;
+    try { ff = await ffP; } catch (e) { throw new Error("The clip tool didn't load. Check your connection and try again."); }
     const isTs = !/\.(m4s|mp4)(\?|$)/i.test(need[0].url);
     const inName = isTs ? 'in.ts' : 'in.mp4';
     await ff.writeFile(inName, joined);
