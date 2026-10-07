@@ -121,11 +121,25 @@ window.FR = (() => {
     schools: '<svg viewBox="0 0 24 24"><path d="M12 3l9 4-9 4-9-4zM6 9v5c0 2 3 4 6 4s6-2 6-4V9"/></svg>',
     ondemand: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l5.5-3.5z" fill="currentColor" stroke="none"/></svg>',
     sports: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3.5 9.5c4 1 13 1 17 0M3.5 14.5c4-1 13-1 17 0M12 3c-3 3-3 15 0 18M12 3c3 3 3 15 0 18"/></svg>',
+    more: '<svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>',
+    support: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.7 9.4a2.4 2.4 0 1 1 3.1 2.3c-.6.2-.9.7-.9 1.3v.5"/><path d="M12 16.8v.1"/></svg>',
+    nec: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.7 2.6 15.3 0 18M12 3c-2.6 2.7-2.6 15.3 0 18"/></svg>',
   };
+
+  // The conference's own channels. Icons are drawn in the nav's outline style so the row
+  // sits with the rest of the menu instead of looking pasted in.
+  const SOCIAL = [
+    ['X', 'https://x.com/necsports', '<svg viewBox="0 0 24 24"><path d="M4.5 4.5l15 15M19.5 4.5l-15 15"/></svg>'],
+    ['Instagram', 'https://www.instagram.com/necsports', '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5.2"/><circle cx="12" cy="12" r="4"/><path d="M17.2 6.9v.1"/></svg>'],
+    ['Facebook', 'https://www.facebook.com/NECsports/', '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5.2"/><path d="M15.6 8.2h-1.4c-.9 0-1.3.4-1.3 1.2V11h2.6l-.4 2.8h-2.2V20"/><path d="M9 11h3.9"/></svg>'],
+    ['YouTube', 'https://www.youtube.com/necsports', '<svg viewBox="0 0 24 24"><rect x="2.5" y="5.5" width="19" height="13" rx="4.2"/><path d="M10.3 9.4l5.2 2.6-5.2 2.6z"/></svg>'],
+    ['Flickr', 'https://www.flickr.com/photos/necsports/albums/', '<svg viewBox="0 0 24 24"><circle cx="8.3" cy="12" r="3.7"/><circle cx="15.7" cy="12" r="3.7"/></svg>'],
+  ];
   function header(active){
     const el = document.getElementById('hdr'); if (!el) return;
-    const link = (key, href, text, extra = '') =>
-      `<a href="${href}" class="${active === key ? 'on' : ''}" ${active === key ? 'aria-current="page"' : ''}>${ICON[key]}<span>${text}</span>${extra}</a>`;
+    const link = (key, href, text, extra = '', cls = '') =>
+      `<a href="${href}" class="${[active === key ? 'on' : '', cls].filter(Boolean).join(' ')}" ${active === key ? 'aria-current="page"' : ''}>${ICON[key]}<span>${text}</span>${extra}</a>`;
+    const out = (href, label, icon) => `<a href="${href}" target="_blank" rel="noopener" aria-label="${label}" title="${label}">${icon}</a>`;
     el.className = 'hdr';
     el.innerHTML = `
       <a class="brand" href="${BASE}" aria-label="NEC Front Row home">
@@ -136,9 +150,19 @@ window.FR = (() => {
         ${link('home', BASE, 'Home')}
         <div class="dd">${link('sports', BASE + 'sports.html', 'Sports', '<svg class="caret" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>')}
           <div class="dd-menu" id="sportsMenu" hidden></div></div>
-        ${link('ondemand', BASE + 'ondemand.html', 'On Demand')}
-        ${link('multi', BASE + 'multiview.html?g=,', 'Multiview')}
         ${link('schools', BASE + 'school.html', 'Schools')}
+        ${link('ondemand', BASE + 'ondemand.html', 'On Demand')}
+        ${link('multi', BASE + 'multiview.html?g=,', 'Multiview', '', 'nav-multi')}
+        <div class="more">
+          <button class="morebtn" id="moreBtn" aria-haspopup="true" aria-expanded="false">${ICON.more}<span>More</span></button>
+          <div class="mm" id="moreMenu" hidden>
+            ${link('multi', BASE + 'multiview.html?g=,', 'Multiview', '', 'mm-multi')}
+            ${link('support', BASE + 'support.html', 'Support &amp; FAQs')}
+            <a href="https://necsports.com/" target="_blank" rel="noopener">${ICON.nec}<span>NEC website</span></a>
+            <div class="sep"></div>
+            <div class="social">${SOCIAL.map(([n, u, i]) => out(u, n, i)).join('')}</div>
+          </div>
+        </div>
       </nav>
       <a class="livecount" id="liveCount" href="${BASE}#live" hidden><span class="dot"></span><span></span></a>
       <button class="myteams" id="myTeamsBtn" aria-haspopup="dialog">${STAR}<span>My Teams</span></button>`;
@@ -158,7 +182,17 @@ window.FR = (() => {
       menu.hidden = !open; sl.setAttribute('aria-expanded', String(open));
     });
     document.addEventListener('click', e => { if (!e.target.closest('.dd')) closeMenu(); });
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenu(); });
+
+    const mb = document.getElementById('moreBtn'), mmenu = document.getElementById('moreMenu');
+    const closeMore = () => { mmenu.hidden = true; mb.setAttribute('aria-expanded', 'false'); };
+    mb.addEventListener('click', e => {
+      e.stopPropagation();
+      const open = mmenu.hidden;
+      mmenu.hidden = !open; mb.setAttribute('aria-expanded', String(open));
+      if (open) closeMenu();
+    });
+    document.addEventListener('click', e => { if (!e.target.closest('.more')) closeMore(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeMenu(); closeMore(); } });
     const mt = document.getElementById('myTeamsBtn');
     const mark = () => { mt.classList.toggle('set', hasFavs()); mt.setAttribute('aria-label', hasFavs() ? 'My Teams (set)' : 'Pick my teams'); };
     mt.onclick = () => openPicker(); mark();
