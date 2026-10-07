@@ -1,0 +1,46 @@
+NEC Front Row CMS — stage 2
+============================
+
+Before it will load, open admin/config.js and paste two values:
+
+  Supabase → Project Settings → API
+    Project URL          -> supabaseUrl
+    Publishable / anon key -> supabaseKey
+
+Both of those are meant to be public - they're in every browser request. What
+protects the data is the row-level security from 02-security.sql. The SECRET /
+service_role key must never go in this file or anywhere else in the repo.
+
+Then make yourself an account
+-----------------------------
+1. Supabase → Authentication → Users → Add user. Use your email and a password.
+   Tick "Auto Confirm User" so you don't need email set up yet.
+2. Copy the new user's ID, then in SQL Editor run:
+
+     insert into profiles (id, email, role)
+     values ('PASTE-THE-USER-ID', 'you@example.com', 'admin');
+
+   Signing in without a profile row is deliberately refused, rather than
+   dropping someone into an empty CMS with no role.
+
+Then go to  https://necfrontrow.netlify.app/admin/
+
+What's here
+-----------
+  admin/index.html    sign in
+  admin/content.html  every game and video - search, filter, page through
+  admin/game.html     edit one item
+  admin/config.js     the only file that changes for a different league
+  admin/assets/       shared styles and plumbing
+
+The Schools, Sections and Import links in the menu are next; they'll 404 today.
+
+Two notes
+---------
+Passwords, not emailed sign-in links. Magic links need an email sender set up
+and the built-in one is rate-limited - fine for you, not for 30 schools. Worth
+revisiting before the schools get accounts.
+
+Times are stored in UTC and shown in Eastern. I tested the conversion across
+both daylight-saving changeovers, including the weekends either side, so a
+November game won't drift by an hour.

@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<title>Sign in · NEC Front Row CMS</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=Barlow:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="assets/cms.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
+<script src="assets/cms.js"></script>
+</head>
+<body>
+<div class="login">
+  <form id="f" autocomplete="on">
+    <h1>Front Row</h1>
+    <p class="sub">Conference admin</p>
+    <div id="msg"></div>
+    <div class="f">
+      <label for="email">Email</label>
+      <input id="email" type="email" required autocomplete="username" autocapitalize="off" spellcheck="false">
+    </div>
+    <div class="f">
+      <label for="pw">Password</label>
+      <input id="pw" type="password" required autocomplete="current-password">
+    </div>
+    <button class="btn primary" id="go" type="submit">Sign in</button>
+    <p class="f hint" style="text-align:center;margin:0">Need an account? Ask whoever runs the site.</p>
+  </form>
+</div>
+<script>
+(async () => {
+  const { db, session } = CMS_LIB;
+  const $ = id => document.getElementById(id);
+  const next = new URLSearchParams(location.search).get('next') || 'content.html';
+  // Already signed in with a role? Skip the form.
+  if (await session()) { location.replace(next); return; }
+  const say = (t, cls) => { $('msg').innerHTML = t ? '<p class="note ' + cls + '">' + t + '</p>' : ''; };
+  $('f').onsubmit = async e => {
+    e.preventDefault();
+    $('go').disabled = true; $('go').textContent = 'Signing in…'; say('');
+    const { error } = await db.auth.signInWithPassword({ email: $('email').value.trim(), password: $('pw').value });
+    if (error) {
+      say('That email and password didn\'t work.', 'bad');
+    } else if (!(await session())) {
+      // The sign-in worked but there's no profile row, so no role. Better to say
+      // so plainly than to drop someone into an empty CMS.
+      await db.auth.signOut();
+      say('Signed in, but this account has no role yet. Ask for one to be set up.', 'bad');
+    } else {
+      location.replace(next); return;
+    }
+    $('go').disabled = false; $('go').textContent = 'Sign in';
+  };
+})();
+</script>
+</body>
+</html>
