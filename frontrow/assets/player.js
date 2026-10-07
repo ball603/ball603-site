@@ -250,8 +250,8 @@ window.FRPlayer = (() => {
   // ticker({ stage, vc, current: () => [ids on screen], onPick: id => {...} })
   const TICK = '<svg viewBox="0 0 24 24"><path d="M2 14h20v6H2zm2 2v2h4v-2zm6 0v2h4v-2zm6 0v2h4v-2zM4 5h16v7H4z" fill-rule="evenodd"/></svg>';
   function ticker({ stage, vc, current = () => [], onPick = () => {} }){
-    const KEY = 'fr-ticker';
-    let on = false; try { on = localStorage.getItem(KEY) === '1'; } catch (e) {}
+    const KEY = 'fr-ticker-v2';   // on unless the viewer turned it off
+    let on = true; try { on = localStorage.getItem(KEY) !== '0'; } catch (e) {}
     const btn = document.createElement('button');
     btn.className = 'pb b-tick'; btn.title = 'Score ticker (T)';
     btn.innerHTML = TICK;
