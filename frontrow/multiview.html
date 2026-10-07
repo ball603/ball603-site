@@ -399,12 +399,17 @@ addEventListener('DOMContentLoaded', () => {
   const gq = new URLSearchParams(location.search).get('g') || '';
   (/(^|,)r\d/.test(gq) ? FR.replays().then(() => FR.events) : FR.load()).then(list => {
     const q = new URLSearchParams(location.search);
-    const asked = (q.get('g') || '').split(',').map(s => s.trim()).filter((s, i, a) => s === '' || (FR.byId(s) && a.indexOf(s) === i));
+    // A g parameter of any kind - even empty - means the windows were chosen deliberately.
+    // Deciding by entry count broke on reload: saveUrl() trims trailing commas, so four
+    // empty windows saved as "g=" and came back as a request to auto-fill.
+    const gParam = q.get('g');
+    const chosen = gParam !== null;
+    const asked = (gParam || '').split(',').map(s => s.trim()).filter((s, i, a) => s === '' || (FR.byId(s) && a.indexOf(s) === i));
     if (COUNT[q.get('l')]) layout = q.get('l');
     const picked = asked.filter(Boolean);
-    // one game passed in (from a Game page): fill the other windows with live games
+    // Only reached with no g parameter at all (someone typing the bare address): fill with live games.
     const fill = FR.favFirst(list).filter(e => watchable(e) && !picked.includes(e.id)).map(e => e.id);
-    const start = asked.length > 1 ? asked.map(s => s || null) : [...picked, ...fill];
+    const start = chosen ? asked.map(s => s || null) : [...picked, ...fill];
     for (let i = 0; i < 4; i++) setSlot(i, start[i] || null);
     apply();
     const ft = tiles[focus];
