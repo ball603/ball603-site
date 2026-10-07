@@ -174,7 +174,7 @@ window.FR = (() => {
     const sp = document.getElementById('spoilBtn');
     const spMark = () => { sp.innerHTML = (noScores ? '<svg class="eye" viewBox="0 0 24 24"><path d="M3 3l18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M9.9 5.2A9.8 9.8 0 0 1 12 5c5 0 9 4.5 10 7-.4 1-1.3 2.4-2.6 3.7M6.6 6.6C4.6 7.9 3.1 9.8 2 12c1 2.5 5 7 10 7 1.6 0 3.1-.4 4.4-1.1"/></svg><span>Scores hidden</span>' : '<svg class="eye" viewBox="0 0 24 24"><path d="M2 12c1-2.5 5-7 10-7s9 4.5 10 7c-1 2.5-5 7-10 7S3 14.5 2 12z"/><circle cx="12" cy="12" r="3"/></svg><span>Hide scores</span>');
       sp.setAttribute('aria-pressed', noScores); sp.title = noScores ? 'Scores are hidden. Tap to show them.' : 'Hide all scores (spoiler-free)'; };
-    sp.onclick = () => { setNoScores(!noScores); spMark(); }; spMark();
+    sp.onclick = () => { setNoScores(!noScores); spMark(); pop(noScores ? 'Scores hidden' : 'Scores shown', noScores ? 'Spoiler-free mode is on' : ''); }; spMark();
     const mt = document.getElementById('myTeamsBtn');
     const mark = () => { mt.classList.toggle('set', hasFavs()); mt.setAttribute('aria-label', hasFavs() ? 'My Teams (set)' : 'Pick my teams'); };
     mt.onclick = () => openPicker(); mark();
@@ -183,6 +183,15 @@ window.FR = (() => {
       const n = list.filter(isLive).length, lc = document.getElementById('liveCount');
       lc.hidden = !n; lc.lastElementChild.textContent = `${n} live`;
     });
+  }
+
+  // Quick message in the middle of the screen (used by the spoiler-free button)
+  function pop(title, note){
+    let el = document.getElementById('frPop');
+    if (!el) { el = document.createElement('div'); el.id = 'frPop'; el.className = 'frpop'; el.setAttribute('role', 'status'); document.body.appendChild(el); }
+    el.innerHTML = `<b>${esc(title)}</b>${note ? `<small>${esc(note)}</small>` : ''}`;
+    el.classList.remove('on'); void el.offsetWidth; el.classList.add('on');
+    clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('on'), 1600);
   }
 
   // ---- Today's Events strip ----
