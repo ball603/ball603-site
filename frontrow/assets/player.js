@@ -13,7 +13,14 @@ window.FRPlayer = (() => {
     // Sample games are recordings. For a game marked live, start where the game is "now" so it acts like live.
     video.addEventListener('loadedmetadata', () => { if (h.liveSince && !realLive(h)) { const e = liveEdge(h); if (isFinite(e) && e > 5) video.currentTime = e; } }, { once:true });
     video.playsInline = true; video.muted = true; video.autoplay = true; video.volume = 0.5;
-    if (window.Hls && Hls.isSupported()) {
+    const apple = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+      || (/Safari/.test(navigator.userAgent) && !/Chrome|Chromium|Edg|Android/.test(navigator.userAgent));
+    // On iPhones, iPads and Safari, Apple's built-in player plays these streams and is the only one
+    // that supports pop-out (picture-in-picture) there. Everywhere else, hls.js plays them.
+    if (apple && video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = src; video.addEventListener('error', () => onError && onError(), { once:true });
+      video.play().catch(()=>{});
+    } else if (window.Hls && Hls.isSupported()) {
       // assume a decent connection so games start sharp instead of climbing up from the blurriest version
       const hls = new Hls({ capLevelToPlayerSize:false, abrEwmaDefaultEstimate:6000000, backBufferLength:900, maxBufferLength:30 });
       hls.loadSource(src); hls.attachMedia(video);
@@ -153,6 +160,7 @@ window.FRPlayer = (() => {
     q('.b-back').onclick = () => { const h = getH(); if (h) back10(h); };
     q('.b-fwd').onclick = () => { const h = getH(); if (h) fwd10(h); };
     q('.b-live').onclick = () => { const h = getH(); if (h) goLive(h); };
+    if (popout && !canPop()) q('.b-pop').remove(), popout = false;
     if (popout) q('.b-pop').onclick = () => { const h = getH(); if (h) popOut(h.video); };
     q('.b-share').onclick = async () => {
       const url = share ? share() : location.href;
@@ -215,12 +223,20 @@ window.FRPlayer = (() => {
     document.addEventListener('pointerdown', go, true);
   }
 
+  const canPop = () => !!(document.pictureInPictureEnabled || (window.HTMLVideoElement && 'webkitSetPresentationMode' in HTMLVideoElement.prototype));
   async function popOut(video){
+    const stage = video.closest('.stage');
     try {
-      if (document.pictureInPictureElement) await document.exitPictureInPicture();
-      else if (video.requestPictureInPicture) await video.requestPictureInPicture();
-      else if (video.webkitSetPresentationMode) video.webkitSetPresentationMode('picture-in-picture');
-    } catch (e) {}
+      // leave the page's own full screen first, or the phone won't hand the video over
+      const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+      if (fsEl) await (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+      if (document.pictureInPictureElement) { await document.exitPictureInPicture(); return; }
+      if (video.webkitSetPresentationMode && video.webkitSupportsPresentationMode && video.webkitSupportsPresentationMode('picture-in-picture')) {
+        video.webkitSetPresentationMode(video.webkitPresentationMode === 'picture-in-picture' ? 'inline' : 'picture-in-picture'); return;
+      }
+      if (video.requestPictureInPicture) { await video.requestPictureInPicture(); return; }
+      toast(stage, "Pop out isn't available on this device");
+    } catch (e) { toast(stage, "Pop out isn't available here"); }
   }
 
   return { trySound, onFirstTap, attach, setMain, destroy, liveEdge, back10, fwd10, goLive, toStart, autoHide, fullscreen, playIcon, popOut, bar, toast, clock, ICONS };
