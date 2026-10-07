@@ -136,5 +136,82 @@ window.FRClip = (() => {
     return 'downloaded';
   }
 
-  return { prepare, make, deliver };
+  // ---------- The Clip panel (shared by the Game page and Multiview) ----------
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, ch => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[ch]));
+  let dlg = null;
+  function panel(){
+    if (dlg) return dlg;
+    dlg = document.createElement('dialog');
+    dlg.className = 'sheet clipdlg'; dlg.setAttribute('aria-labelledby', 'clipTitle');
+    dlg.innerHTML = `<div class="sh-h"><h2 id="clipTitle">Make a clip</h2><button class="sh-x" data-close aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6.4 5 12 10.6 17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4L12 13.4 6.4 19 5 17.6 10.6 12 5 6.4z"/></svg></button></div>
+      <div class="sh-b" id="clipBody"></div><div class="sh-f" id="clipFoot"></div>`;
+    document.body.appendChild(dlg);
+    dlg.querySelector('[data-close]').onclick = () => dlg.close();
+    return dlg;
+  }
+  // button: the Clip button; getH: the playing video; getEv: its game
+  function button(btn, { stage, getH, getEv }){
+    if (!btn) return;
+    const clip = { len: 20, back: 0, at: 0, url: null, h: null, ev: null };
+    const C = id => document.getElementById(id);
+    btn.onclick = () => {
+      const h = getH(), ev = getEv();
+      if (!h || !ev) { window.FRPlayer && FRPlayer.toast(stage, 'Clips are ready once the game is playing'); return; }
+      Object.assign(clip, { at: h.video.currentTime, back: 0, h, ev });
+      if (document.fullscreenElement || document.webkitFullscreenElement) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+      prepare().catch(() => {});      // start loading the clip tool while they choose
+      const d = panel();
+      d.onclose = () => { if (clip.url) { URL.revokeObjectURL(clip.url); clip.url = null; } };
+      choose(); d.showModal();
+    };
+    function choose(){
+      const end = Math.max(clip.len, clip.at - clip.back), start = Math.max(0, end - clip.len);
+      C('clipBody').innerHTML = `
+        <p class="sh-note">Your clip ends at the moment you tapped Clip. Make it longer, or slide it earlier to catch the whole play.</p>
+        <h3>Length</h3>
+        <div class="chips" role="group" aria-label="Clip length">${[10, 20, 30].map(n => `<button class="chip" data-len="${n}" aria-pressed="${clip.len === n}">${n} seconds</button>`).join('')}</div>
+        <h3>When</h3>
+        <div class="nudge">
+          <button class="btn" data-nudge="5" ${clip.back >= 120 ? 'disabled' : ''}>‹ 5 sec earlier</button>
+          <output class="num">${clip.back ? `Ends ${clip.back} sec before you tapped` : 'Ends when you tapped'}<small>${FRPlayer.clock(start)} – ${FRPlayer.clock(end)} of the video</small></output>
+          <button class="btn" data-nudge="-5" ${clip.back <= 0 ? 'disabled' : ''}>5 sec later ›</button>
+        </div>`;
+      C('clipFoot').innerHTML = `<button class="btn" data-x>Cancel</button><button class="btn primary" data-make>Make clip</button>`;
+      C('clipBody').onclick = e => {
+        const l = e.target.closest('[data-len]'), n = e.target.closest('[data-nudge]');
+        if (l) { clip.len = +l.dataset.len; choose(); }
+        if (n) { clip.back = Math.max(0, Math.min(120, clip.back + +n.dataset.nudge)); choose(); }
+      };
+      C('clipFoot').querySelector('[data-x]').onclick = () => dlg.close();
+      C('clipFoot').querySelector('[data-make]').onclick = run;
+    }
+    async function run(){
+      const ev = clip.ev;
+      C('clipFoot').innerHTML = '';
+      C('clipBody').innerHTML = `<div class="cprog" role="status"><b id="cpMsg">Getting the video…</b><div class="bar-o"><i id="cpBar"></i></div><small>The first clip takes a little longer while the clip tool loads.</small></div>`;
+      try {
+        const blob = await make({ stream: ev.stream, h: clip.h, at: clip.at, length: clip.len, back: clip.back,
+          onStep: (msg, p) => { C('cpMsg').textContent = msg; C('cpBar').style.width = Math.round(p * 100) + '%'; } });
+        clip.url = URL.createObjectURL(blob);
+        const who = ev.a && ev.h && ev.a.key !== ev.h.key ? `${ev.a.abbr}-at-${ev.h.abbr}` : (ev.h ? ev.h.abbr : 'NEC');
+        const name = `NEC-FrontRow-${who}-${new Date().toISOString().slice(11, 19).replace(/:/g, '')}.mp4`.replace(/[^\w.-]+/g, '-');
+        const phone = matchMedia('(pointer: coarse)').matches;
+        C('clipBody').innerHTML = `<video class="clipv" src="${clip.url}" controls playsinline autoplay muted></video>
+          <p class="sh-note">${clip.len}-second clip · ${(blob.size / 1048576).toFixed(1)} MB</p>`;
+        C('clipFoot').innerHTML = `<button class="btn" data-again>Make another</button><button class="btn primary" data-save>${phone ? 'Save or share' : 'Download clip'}</button>`;
+        C('clipFoot').querySelector('[data-again]').onclick = () => { URL.revokeObjectURL(clip.url); clip.url = null; choose(); };
+        C('clipFoot').querySelector('[data-save]').onclick = async () => {
+          const r = await deliver(blob, name);
+          if (r === 'downloaded') FRPlayer.toast(dlg, 'Clip downloaded');
+        };
+      } catch (e) {
+        C('clipBody').innerHTML = `<p class="sh-note">Sorry, that clip didn't work. ${esc(e && e.message || '')}</p>`;
+        C('clipFoot').innerHTML = `<button class="btn" data-x>Close</button><button class="btn primary" data-retry>Try again</button>`;
+        C('clipFoot').querySelector('[data-x]').onclick = () => dlg.close();
+        C('clipFoot').querySelector('[data-retry]').onclick = choose;
+      }
+    }
+  }
+
+  return { prepare, make, deliver, button };
 })();
