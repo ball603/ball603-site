@@ -35,7 +35,6 @@
     <select id="fm" aria-label="Year"></select>
     <select id="fk" aria-label="Type"><option value="">Games, shows and events</option><option value="game">Games only</option><option value="other">Shows, events and classics</option></select>
   </form>
-  <p class="rcount" id="count" aria-live="polite"></p>
   <div class="rgrid" id="grid"></div>
   <div class="rmore"><button class="btn" id="more" hidden>Show more</button></div>
 </main>
@@ -87,13 +86,12 @@ addEventListener('DOMContentLoaded', () => {
     history.replaceState(null, '', location.pathname + (p.toString() ? '?' + p : ''));
   }
   function render(){
-    $('count').textContent = list.length ? `${list.length.toLocaleString()} video${list.length === 1 ? '' : 's'}` : '';
     if (!list.length) { $('grid').innerHTML = '<p class="rempty">Nothing matches. Try a different search or clear a filter.</p>'; $('more').hidden = true; return; }
     let last = '', html = '';
     list.slice(0, shown).forEach(it => { const mk = monthKey(it.date); if (mk !== last) { html += `<h2 class="rmonth">${esc(monthName(mk))}</h2>`; last = mk; } html += rcard(it); });
     $('grid').innerHTML = html;
     $('more').hidden = shown >= list.length;
-    $('more').textContent = `Show more (${(list.length - shown).toLocaleString()} left)`;
+    $('more').textContent = 'Show more';
   }
   let tmr; $('q').addEventListener('input', () => { clearTimeout(tmr); tmr = setTimeout(apply, 180); });
   ['fs', 'ft', 'fm', 'fk'].forEach(id => $(id).addEventListener('change', apply));
