@@ -1,18 +1,12 @@
 /* NEC Front Row — video player helpers shared by the Game page and Multiview. Needs hls.js loaded first. */
 window.FRPlayer = (() => {
-  // The viewer has asked their device to conserve data. Checked once: it doesn't change mid-visit.
-  // Apple's built-in player (iPhone, iPad, Safari) decides quality for itself, so this only
-  // reaches the browsers where hls.js is doing the playing.
-  const SAVE_DATA = !!(navigator.connection && navigator.connection.saveData);
-
   // Hudl blocks the first playlist file for outside websites, so those go through our site's helper.
   function streamUrl(url){
     const m = String(url).match(/^https?:\/\/vcloud\.hudl\.com\/file\/hls\/(\d+)\.m3u8/i);
     return m ? '/.netlify/functions/hudl-playlist?id=' + m[1] : url;
   }
 
-  // Attach a stream to a <video>. "main" plays at full quality (capped to the window size);
-  // others drop to 540p to save data, as does every window when Data Saver is on.
+  // Attach a stream to a <video>. "main" plays at full quality; others drop to the lowest to save data.
   function attach(video, url, { main = true, onError, liveSince = null } = {}){
     const src = streamUrl(url);
     const h = { video, hls:null, main, liveSince, src: new URL(src, location.href).href };
@@ -31,7 +25,7 @@ window.FRPlayer = (() => {
       const u = tries ? src + (src.includes('?') ? '&' : '?') + 'try=' + tries : src;
       if (native) { video.src = u; video.load(); video.play().catch(() => {}); return; }
       if (h.hls) h.hls.destroy();
-      const hls = new Hls({ capLevelToPlayerSize:true, abrEwmaDefaultEstimate:6000000, backBufferLength:900, maxBufferLength:30,
+      const hls = new Hls({ capLevelToPlayerSize:false, abrEwmaDefaultEstimate:6000000, backBufferLength:900, maxBufferLength:30,
         manifestLoadingMaxRetry:4, levelLoadingMaxRetry:4, fragLoadingMaxRetry:6 });
       hls.loadSource(u); hls.attachMedia(video);
       hls.on(Hls.Events.MANIFEST_PARSED, () => { setMain(h, h.main); video.play().catch(()=>{}); });
@@ -60,10 +54,7 @@ window.FRPlayer = (() => {
   // The game you're focused on gets full quality. Others stay at a clear 540p to save data, not the blurry 270p.
   function setMain(h, main){
     h.main = main; if (!h.hls) return;
-    // Uncapped for the window you're watching - unless Data Saver is on, in which case 540p
-    // everywhere. The cap is reapplied on every setMain call, so it can't be undone by a
-    // later focus change.
-    if (main && !SAVE_DATA) { h.hls.autoLevelCapping = -1; return; }
+    if (main) { h.hls.autoLevelCapping = -1; return; }
     const lv = h.hls.levels || [];
     let cap = 0; lv.forEach((l, i) => { if ((l.height || 0) <= 540) cap = Math.max(cap, i); });
     h.hls.autoLevelCapping = cap;
@@ -377,11 +368,11 @@ window.FRPlayer = (() => {
       const { esc, sorted, isLive } = FR, here = current();
       const one = (hidden) => sorted(events).map(ev => {
         const pre = ev.status === 'pre', a = ev.score.away, h = ev.score.home;
-        const cls = (x, y) => pre || x >= y ? 'lead' : 'trail';
-        return `<button class="tk${changed.has(ev.id) ? ' flash' : ''}${here.includes(ev.id) ? ' now' : ''}" data-id="${esc(ev.id)}" ${hidden ? 'tabindex="-1"' : ''} title="Watch ${esc(ev.a.name)} at ${esc(ev.h.name)}">
+        const cls = (x, y) => pre || FR.hidden(ev) || x >= y ? 'lead' : 'trail';
+        return `<button class="tk${changed.has(ev.id) && !FR.hidden(ev) ? ' flash' : ''}${here.includes(ev.id) ? ' now' : ''}" data-id="${esc(ev.id)}" ${hidden ? 'tabindex="-1"' : ''} title="Watch ${esc(ev.a.name)} at ${esc(ev.h.name)}">
           <span class="sp">${esc(ev.sportKey || '')}</span>
-          <span class="tm ${cls(a, h)}"><i style="background:${esc(ev.a.color)}"></i>${esc(ev.a.abbr)}${pre ? '' : ' ' + a}</span>
-          <span class="tm ${cls(h, a)}"><i style="background:${esc(ev.h.color)}"></i>${esc(ev.h.abbr)}${pre ? '' : ' ' + h}</span>
+          <span class="tm ${cls(a, h)}"><i style="background:${esc(ev.a.color)}"></i>${esc(ev.a.abbr)}${pre ? '' : ' ' + FR.pts(ev, 'away')}</span>
+          <span class="tm ${cls(h, a)}"><i style="background:${esc(ev.h.color)}"></i>${esc(ev.h.abbr)}${pre ? '' : ' ' + FR.pts(ev, 'home')}</span>
           <span class="st${isLive(ev) ? ' live' : ''}">${esc(st(ev))}</span></button>`;
       }).join('');
       // two copies side by side so the belt loops with no gap

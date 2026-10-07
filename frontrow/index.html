@@ -41,17 +41,6 @@
 .hc .acts{display:flex;flex-wrap:wrap;gap:10px;margin-top:4px}
 .linkbtn{border:0;background:none;padding:0;color:var(--muted);font:inherit;font-size:14px;cursor:pointer}
 .linkbtn:hover{color:var(--text)}
-.sc-groups h3{margin:18px 0 10px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
-.sc-groups h3:first-child{margin-top:0}
-/* Associate members sit a tier below: smaller tiles, mascot dropped to keep them tight. */
-.sc-groups .schools.sm{grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px}
-.sc-groups .schools.sm .school{padding:12px 8px 10px;gap:7px;border-radius:10px}
-.sc-groups .schools.sm .sl{gap:6px}
-.sc-groups .schools.sm .sl img,.sc-groups .schools.sm .sl svg{width:40px;height:40px}
-.sc-groups .schools.sm .sl b{font-size:14px}
-.sc-groups .schools.sm .sl span{display:none}
-.sc-groups .schools.sm .follow{padding:3px 8px;font-size:11px}
-.sc-groups .schools.sm .follow .star{width:11px;height:11px}
 </style>
 </head>
 <body>
@@ -71,7 +60,7 @@
   </section>
 
   <section class="wrap sec" id="live" aria-labelledby="h-live">
-    <div class="sec-h"><h2 id="h-live">Live now</h2><a class="meta" href="/frontrow/multiview.html?g=,">Watch several at once →</a></div>
+    <div class="sec-h"><h2 id="h-live">Live now</h2><a class="meta" href="/frontrow/multiview.html">Watch several at once →</a></div>
     <div class="rail" id="r-live"></div>
   </section>
 
@@ -81,7 +70,7 @@
   </section>
 
   <section class="wrap sec" aria-labelledby="h-replay">
-    <div class="sec-h"><h2 id="h-replay">Earlier today</h2><span class="meta">Watch from the start</span></div>
+    <div class="sec-h"><h2 id="h-replay">Today's replays</h2><span class="meta">Watch from the start</span></div>
     <div class="rail" id="r-replay"></div>
   </section>
 
@@ -102,14 +91,14 @@
   </section>
 
   <section class="wrap sec" id="schools" aria-labelledby="h-schools">
-    <div class="sec-h"><h2 id="h-schools">Schools</h2></div>
-    <div class="sc-groups" id="school-grid"></div>
+    <div class="sec-h"><h2 id="h-schools">Schools</h2><a class="meta" href="/frontrow/school.html">All schools →</a></div>
+    <div class="schools" id="school-grid"></div>
   </section>
 </main>
 
 <footer class="foot">
-  <span>© 2026 Northeast Conference · NEC Front Row · <a href="/frontrow/support.html">Support &amp; FAQs</a></span>
-  <a class="by" href="https://packnetwork.com" target="_blank" rel="noopener">Powered by <img src="/frontrow/packnetwork.png" alt="Pack Network" width="120" height="63" loading="lazy"></a>
+  <span>© 2026 Northeast Conference · NEC Front Row</span>
+  
 </footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.13/hls.min.js" defer></script>
@@ -131,7 +120,7 @@ addEventListener('DOMContentLoaded', () => {
     const hero = document.getElementById('hero');
     if (!ev) { hero.querySelector('.hc').innerHTML = '<p class="eyebrow">No games today.</p>'; return; }
     const row = side => { const t = side === 'away' ? ev.a : ev.h;
-      return `<div class="tm ${lead(ev, side)}">${logoImg(t.key, 60)}<div class="nm">${esc(t.name)}<small>${esc(t.mascot)}</small></div><div class="sc">${ev.status === 'pre' ? '' : ev.score[side]}</div></div>`; };
+      return `<div class="tm ${lead(ev, side)}">${logoImg(t.key, 60)}<div class="nm">${esc(t.name)}<small>${esc(t.mascot)}</small></div><div class="sc">${FR.pts(ev, side)}</div></div>`; };
     const live = isLive(ev);
     hero.querySelector('.hc').innerHTML = `
       <p class="eyebrow">${pill(ev)}<span>${esc(ev.sport)} · ${esc(ev.status === 'pre' ? soon(ev) : label(ev))}</span></p>
@@ -139,12 +128,10 @@ addEventListener('DOMContentLoaded', () => {
       <p class="where">${esc(ev.venue)} · ${esc(ev.city)}</p>
       <div class="acts">
         ${watchable(ev) ? `<a class="btn primary" href="${watchUrl(ev)}"><svg viewBox="0 0 24 24"><path d="M7 4.5v15l12.5-7.5z"/></svg>${live ? 'Watch live' : 'Watch replay'}</a>` : `<span class="btn" aria-disabled="true">${esc(soon(ev))}</span>`}
-        <a class="btn ghost" href="/frontrow/multiview.html?g=${encodeURIComponent(ev.id)},"><svg viewBox="0 0 24 24"><path d="M3 4h8v7H3zm10 0h8v7h-8zM3 13h8v7H3zm10 0h8v7h-8z"/></svg>Add to Multiview</a>
+        <a class="btn ghost" href="/frontrow/multiview.html?g=${encodeURIComponent(ev.id)}"><svg viewBox="0 0 24 24"><path d="M3 4h8v7H3zm10 0h8v7h-8zM3 13h8v7H3zm10 0h8v7h-8z"/></svg>Add to Multiview</a>
       </div>`;
   }
 
-  // main:true = no quality cap. The 540p cap is there for background Multiview windows;
-  // the hero is full-width, so it gets the best level the connection can carry.
   function startPreview(ev){
     const hero = document.getElementById('hero');
     hero.querySelector('.bg')?.remove();
@@ -153,7 +140,7 @@ addEventListener('DOMContentLoaded', () => {
     if (watchable(ev) && !reduce && !saveData && window.Hls !== undefined) {
       const v = document.createElement('video'); v.className = 'bg'; v.setAttribute('aria-hidden', 'true'); v.muted = true; v.loop = true;
       hero.prepend(v);
-      preview = FRPlayer.attach(v, ev.stream, { main:true, liveSince: isLive(ev) ? ev.kickoff : null, onError: () => { v.remove(); hero.insertAdjacentHTML('afterbegin', `<div class="bg">${FR.art(ev, false)}</div>`); } });
+      preview = FRPlayer.attach(v, ev.stream, { main:false, onError: () => { v.remove(); hero.insertAdjacentHTML('afterbegin', `<div class="bg">${FR.art(ev, false)}</div>`); } });
     } else {
       hero.insertAdjacentHTML('afterbegin', `<div class="bg" aria-hidden="true">${FR.art(ev, false)}</div>`);
     }
@@ -166,7 +153,7 @@ addEventListener('DOMContentLoaded', () => {
 
   function filters(list){
     const present = [...new Set(list.map(e => e.sportKey))];
-    const opts = [['all', 'All events'], ...(hasFavs() ? [['mine', 'My Teams']] : []), ...present.map(k => [k, (FR.sports.find(s => s.key === k) || {}).name || k])];
+    const opts = [['all', 'All games'], ...(hasFavs() ? [['mine', 'My Teams']] : []), ...present.map(k => [k, (FR.sports.find(s => s.key === k) || {}).name || k])];
     if (!filter || !opts.some(o => o[0] === filter)) filter = hasFavs() ? 'mine' : 'all';
     const el = document.getElementById('filters');
     el.innerHTML = opts.map(([k, n]) => `<button class="chip" data-f="${esc(k)}" aria-pressed="${k === filter}">${k === 'mine' ? STAR + ' ' : ''}${esc(n)}</button>`).join('');
@@ -176,12 +163,12 @@ addEventListener('DOMContentLoaded', () => {
 
   function schedule(all){
     const list = filters(all);
-    document.getElementById('sched-meta').textContent = `${list.length} of ${all.length} events`;
-    if (!list.length) { document.getElementById('sched').innerHTML = '<p class="empty" style="margin:0;border:0">Nothing for this pick today.</p>'; return; }
+    document.getElementById('sched-meta').textContent = `${list.length} of ${all.length} games`;
+    if (!list.length) { document.getElementById('sched').innerHTML = '<p class="empty" style="margin:0;border:0">No games for this pick today.</p>'; return; }
     document.getElementById('sched').innerHTML = favFirst(list).map(ev => {
       const tm = side => { const t = side === 'away' ? ev.a : ev.h;
         return `<div class="tm ${lead(ev, side)}">${logoImg(t.key, 24)}<span>${esc(t.name)}</span>${isFav(ev) && side === 'away' ? STAR : ''}${ev.poss === side ? '<i class="poss" title="Has the ball"></i>' : ''}</div>`; };
-      const sc = ev.status === 'pre' ? '<div class="sc"></div>' : `<div class="sc num"><span class="${lead(ev,'away')}">${ev.score.away}</span><span class="${lead(ev,'home')}">${ev.score.home}</span></div>`;
+      const sc = ev.status === 'pre' ? '<div class="sc"></div>' : `<div class="sc num"><span class="${lead(ev,'away')}">${FR.pts(ev, 'away')}</span><span class="${lead(ev,'home')}">${FR.pts(ev, 'home')}</span></div>`;
       const act = watchable(ev)
         ? `<a class="btn ${isLive(ev) ? 'primary' : ''}" href="${watchUrl(ev)}" aria-label="${isLive(ev) ? 'Watch live' : 'Watch replay'}: ${esc(matchup(ev))}">${isLive(ev) ? 'Watch live' : 'Replay'}</a>`
         : `<span class="btn" aria-disabled="true">${esc(soon(ev))}</span>`;
@@ -190,13 +177,10 @@ addEventListener('DOMContentLoaded', () => {
     }).join('');
   }
 
-  // Full members, then associate members; tap one to follow it
+  // Full members; tap one to follow it
   function schools(){
-    const grid = document.getElementById('school-grid');
-    const group = (title, list, cls = '') => list.length
-      ? `<h3>${title}</h3><div class="schools${cls}">${list.map(FR.schoolCard).join('')}</div>` : '';
-    grid.innerHTML = group('Full members', FR.schools.filter(s => s.member === 'full'))
-                   + group('Associate members', FR.schools.filter(s => s.member !== 'full'), ' sm');
+    const grid = document.getElementById('school-grid'), f = FR.favs();
+    grid.innerHTML = FR.schools.filter(s => s.member === 'full').map(FR.schoolCard).join('');
     grid.onclick = e => {
       const b = e.target.closest('.follow'); if (!b) return;
       const cur = FR.favs(), k = b.dataset.k;

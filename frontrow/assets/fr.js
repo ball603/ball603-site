@@ -84,6 +84,17 @@ window.FR = (() => {
     document.dispatchEvent(new CustomEvent('fr:favs'));
   }
 
+  // ---- Spoiler-free mode: hide every score until the viewer asks to see a game's ----
+  let noScores = false; try { noScores = localStorage.getItem('fr-noscores') === '1'; } catch (e) {}
+  const shown = new Set(); try { JSON.parse(sessionStorage.getItem('fr-shown') || '[]').forEach(id => shown.add(id)); } catch (e) {}
+  const hidden = ev => noScores && !shown.has(ev.id);
+  const HID = '<span class="hid" title="Score hidden">–</span>';
+  const pts = (ev, side) => ev.status === 'pre' ? '' : hidden(ev) ? HID : String(ev.score[side]);
+  const refresh = () => { subs.forEach(fn => { try { fn(events, new Set()); } catch (e) { console.error(e); } }); document.dispatchEvent(new CustomEvent('fr:spoil')); };
+  function setNoScores(v){ noScores = v; try { localStorage.setItem('fr-noscores', v ? '1' : '0'); } catch (e) {} document.documentElement.classList.toggle('no-spoil', v); refresh(); }
+  function showScore(id){ shown.add(id); try { sessionStorage.setItem('fr-shown', JSON.stringify([...shown])); } catch (e) {} refresh(); }
+  document.documentElement.classList.toggle('no-spoil', noScores);
+
   // ---- Labels ----
   const ord = p => ['', '1st', '2nd', '3rd', '4th'][p] || 'OT';
   function label(ev){
@@ -109,7 +120,7 @@ window.FR = (() => {
   const sorted = list => [...list].sort((x, y) => rank(x) - rank(y) || (x.kickoff || 0) - (y.kickoff || 0));
   const favFirst = list => { const s = sorted(list); return [...s.filter(isFav), ...s.filter(e => !isFav(e))]; };
   const STAR = '<svg class="star" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.2l-5.7 3.1 1.2-6.4-4.7-4.4 6.4-.8z"/></svg>';
-  const lead = (ev, side) => ev.status !== 'pre' && ev.score[side] < ev.score[side === 'away' ? 'home' : 'away'] ? 'lose' : '';
+  const lead = (ev, side) => ev.status !== 'pre' && !hidden(ev) && ev.score[side] < ev.score[side === 'away' ? 'home' : 'away'] ? 'lose' : '';
   const matchup = ev => `${ev.a.name} at ${ev.h.name}`;
   const watchUrl = ev => `${BASE}watch.html?e=${encodeURIComponent(ev.id)}`;
 
@@ -121,25 +132,11 @@ window.FR = (() => {
     schools: '<svg viewBox="0 0 24 24"><path d="M12 3l9 4-9 4-9-4zM6 9v5c0 2 3 4 6 4s6-2 6-4V9"/></svg>',
     ondemand: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l5.5-3.5z" fill="currentColor" stroke="none"/></svg>',
     sports: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3.5 9.5c4 1 13 1 17 0M3.5 14.5c4-1 13-1 17 0M12 3c-3 3-3 15 0 18M12 3c3 3 3 15 0 18"/></svg>',
-    more: '<svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>',
-    support: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.7 9.4a2.4 2.4 0 1 1 3.1 2.3c-.6.2-.9.7-.9 1.3v.5"/><path d="M12 16.8v.1"/></svg>',
-    nec: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.7 2.6 15.3 0 18M12 3c-2.6 2.7-2.6 15.3 0 18"/></svg>',
   };
-
-  // Official brand marks from the simple-icons set (CC0), not hand-drawn approximations.
-  // Filled paths on a 24x24 grid - see .mm .social svg in fr.css.
-  const SOCIAL = [
-    ['X', 'https://x.com/necsports', '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.234 10.162 22.977 0h-2.072l-7.591 8.824L7.251 0H.258l9.168 13.343L.258 24H2.33l8.016-9.318L16.749 24h6.993zm-2.837 3.299-.929-1.329L3.076 1.56h3.182l5.965 8.532.929 1.329 7.754 11.09h-3.182z"/></svg>'],
-    ['Instagram', 'https://www.instagram.com/necsports', '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.0301.084c-1.2768.0602-2.1487.264-2.911.5634-.7888.3075-1.4575.72-2.1228 1.3877-.6652.6677-1.075 1.3368-1.3802 2.127-.2954.7638-.4956 1.6365-.552 2.914-.0564 1.2775-.0689 1.6882-.0626 4.947.0062 3.2586.0206 3.6671.0825 4.9473.061 1.2765.264 2.1482.5635 2.9107.308.7889.72 1.4573 1.388 2.1228.6679.6655 1.3365 1.0743 2.1285 1.38.7632.295 1.6361.4961 2.9134.552 1.2773.056 1.6884.069 4.9462.0627 3.2578-.0062 3.668-.0207 4.9478-.0814 1.28-.0607 2.147-.2652 2.9098-.5633.7889-.3086 1.4578-.72 2.1228-1.3881.665-.6682 1.0745-1.3378 1.3795-2.1284.2957-.7632.4966-1.636.552-2.9124.056-1.2809.0692-1.6898.063-4.948-.0063-3.2583-.021-3.6668-.0817-4.9465-.0607-1.2797-.264-2.1487-.5633-2.9117-.3084-.7889-.72-1.4568-1.3876-2.1228C21.2982 1.33 20.628.9208 19.8378.6165 19.074.321 18.2017.1197 16.9244.0645 15.6471.0093 15.236-.005 11.977.0014 8.718.0076 8.31.0215 7.0301.0839m.1402 21.6932c-1.17-.0509-1.8053-.2453-2.2287-.408-.5606-.216-.96-.4771-1.3819-.895-.422-.4178-.6811-.8186-.9-1.378-.1644-.4234-.3624-1.058-.4171-2.228-.0595-1.2645-.072-1.6442-.079-4.848-.007-3.2037.0053-3.583.0607-4.848.05-1.169.2456-1.805.408-2.2282.216-.5613.4762-.96.895-1.3816.4188-.4217.8184-.6814 1.3783-.9003.423-.1651 1.0575-.3614 2.227-.4171 1.2655-.06 1.6447-.072 4.848-.079 3.2033-.007 3.5835.005 4.8495.0608 1.169.0508 1.8053.2445 2.228.408.5608.216.96.4754 1.3816.895.4217.4194.6816.8176.9005 1.3787.1653.4217.3617 1.056.4169 2.2263.0602 1.2655.0739 1.645.0796 4.848.0058 3.203-.0055 3.5834-.061 4.848-.051 1.17-.245 1.8055-.408 2.2294-.216.5604-.4763.96-.8954 1.3814-.419.4215-.8181.6811-1.3783.9-.4224.1649-1.0577.3617-2.2262.4174-1.2656.0595-1.6448.072-4.8493.079-3.2045.007-3.5825-.006-4.848-.0608M16.953 5.5864A1.44 1.44 0 1 0 18.39 4.144a1.44 1.44 0 0 0-1.437 1.4424M5.8385 12.012c.0067 3.4032 2.7706 6.1557 6.173 6.1493 3.4026-.0065 6.157-2.7701 6.1506-6.1733-.0065-3.4032-2.771-6.1565-6.174-6.1498-3.403.0067-6.156 2.771-6.1496 6.1738M8 12.0077a4 4 0 1 1 4.008 3.9921A3.9996 3.9996 0 0 1 8 12.0077"/></svg>'],
-    ['Facebook', 'https://www.facebook.com/NECsports/', '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.101 23.691v-7.98H6.627v-3.667h2.474v-1.58c0-4.085 1.848-5.978 5.858-5.978.401 0 .955.042 1.468.103a8.68 8.68 0 0 1 1.141.195v3.325a8.623 8.623 0 0 0-.653-.036 26.805 26.805 0 0 0-.733-.009c-.707 0-1.259.096-1.675.309a1.686 1.686 0 0 0-.679.622c-.258.42-.374.995-.374 1.752v1.297h3.919l-.386 2.103-.287 1.564h-3.246v8.245C19.396 23.238 24 18.179 24 12.044c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.628 3.874 10.35 9.101 11.647Z"/></svg>'],
-    ['YouTube', 'https://www.youtube.com/necsports', '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>'],
-    ['Flickr', 'https://www.flickr.com/photos/necsports/albums/', '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.334 6.666C2.3884 6.666 0 9.055 0 12c0 2.9456 2.3884 5.334 5.334 5.334 2.9456 0 5.332-2.3884 5.332-5.334 0-2.945-2.3864-5.334-5.332-5.334zm13.332 0c-2.9456 0-5.332 2.389-5.332 5.334 0 2.9456 2.3864 5.334 5.332 5.334C21.6116 17.334 24 14.9456 24 12c0-2.945-2.3884-5.334-5.334-5.334Z"/></svg>'],
-  ];
   function header(active){
     const el = document.getElementById('hdr'); if (!el) return;
-    const link = (key, href, text, extra = '', cls = '') =>
-      `<a href="${href}" class="${[active === key ? 'on' : '', cls].filter(Boolean).join(' ')}" ${active === key ? 'aria-current="page"' : ''}>${ICON[key]}<span>${text}</span>${extra}</a>`;
-    const out = (href, label, icon) => `<a href="${href}" target="_blank" rel="noopener" aria-label="${label}" title="${label}">${icon}</a>`;
+    const link = (key, href, text, extra = '') =>
+      `<a href="${href}" class="${active === key ? 'on' : ''}" ${active === key ? 'aria-current="page"' : ''}>${ICON[key]}<span>${text}</span>${extra}</a>`;
     el.className = 'hdr';
     el.innerHTML = `
       <a class="brand" href="${BASE}" aria-label="NEC Front Row home">
@@ -150,21 +147,12 @@ window.FR = (() => {
         ${link('home', BASE, 'Home')}
         <div class="dd">${link('sports', BASE + 'sports.html', 'Sports', '<svg class="caret" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>')}
           <div class="dd-menu" id="sportsMenu" hidden></div></div>
-        ${link('schools', BASE + 'school.html', 'Schools')}
         ${link('ondemand', BASE + 'ondemand.html', 'On Demand')}
-        ${link('multi', BASE + 'multiview.html?g=,', 'Multiview', '', 'nav-multi')}
-        <div class="more">
-          <button class="morebtn" id="moreBtn" aria-haspopup="true" aria-expanded="false">${ICON.more}<span>More</span></button>
-          <div class="mm" id="moreMenu" hidden>
-            ${link('multi', BASE + 'multiview.html?g=,', 'Multiview', '', 'mm-multi')}
-            ${link('support', BASE + 'support.html', 'Support &amp; FAQs')}
-            <a href="https://necsports.com/" target="_blank" rel="noopener">${ICON.nec}<span>NEC website</span></a>
-            <div class="sep"></div>
-            <div class="social">${SOCIAL.map(([n, u, i]) => out(u, n, i)).join('')}</div>
-          </div>
-        </div>
+        ${link('multi', BASE + 'multiview.html', 'Multiview')}
+        ${link('schools', BASE + 'school.html', 'Schools')}
       </nav>
       <a class="livecount" id="liveCount" href="${BASE}#live" hidden><span class="dot"></span><span></span></a>
+      <button class="spoil" id="spoilBtn"></button>
       <button class="myteams" id="myTeamsBtn" aria-haspopup="dialog">${STAR}<span>My Teams</span></button>`;
     const sl = el.querySelector('.dd > a'), menu = document.getElementById('sportsMenu');
     sl.setAttribute('aria-haspopup', 'true'); sl.setAttribute('aria-expanded', 'false');
@@ -182,17 +170,11 @@ window.FR = (() => {
       menu.hidden = !open; sl.setAttribute('aria-expanded', String(open));
     });
     document.addEventListener('click', e => { if (!e.target.closest('.dd')) closeMenu(); });
-
-    const mb = document.getElementById('moreBtn'), mmenu = document.getElementById('moreMenu');
-    const closeMore = () => { mmenu.hidden = true; mb.setAttribute('aria-expanded', 'false'); };
-    mb.addEventListener('click', e => {
-      e.stopPropagation();
-      const open = mmenu.hidden;
-      mmenu.hidden = !open; mb.setAttribute('aria-expanded', String(open));
-      if (open) closeMenu();
-    });
-    document.addEventListener('click', e => { if (!e.target.closest('.more')) closeMore(); });
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeMenu(); closeMore(); } });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenu(); });
+    const sp = document.getElementById('spoilBtn');
+    const spMark = () => { sp.innerHTML = (noScores ? '<svg class="eye" viewBox="0 0 24 24"><path d="M3 3l18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M9.9 5.2A9.8 9.8 0 0 1 12 5c5 0 9 4.5 10 7-.4 1-1.3 2.4-2.6 3.7M6.6 6.6C4.6 7.9 3.1 9.8 2 12c1 2.5 5 7 10 7 1.6 0 3.1-.4 4.4-1.1"/></svg><span>Scores hidden</span>' : '<svg class="eye" viewBox="0 0 24 24"><path d="M2 12c1-2.5 5-7 10-7s9 4.5 10 7c-1 2.5-5 7-10 7S3 14.5 2 12z"/><circle cx="12" cy="12" r="3"/></svg><span>Hide scores</span>');
+      sp.setAttribute('aria-pressed', noScores); sp.title = noScores ? 'Scores are hidden. Tap to show them.' : 'Hide all scores (spoiler-free)'; };
+    sp.onclick = () => { setNoScores(!noScores); spMark(); }; spMark();
     const mt = document.getElementById('myTeamsBtn');
     const mark = () => { mt.classList.toggle('set', hasFavs()); mt.setAttribute('aria-label', hasFavs() ? 'My Teams (set)' : 'Pick my teams'); };
     mt.onclick = () => openPicker(); mark();
@@ -222,9 +204,9 @@ window.FR = (() => {
       strip.innerHTML = favFirst(list).map(ev => {
         const row = side => {
           const t = side === 'away' ? ev.a : ev.h;
-          return `<div class="tm ${lead(ev, side)}">${logoImg(t.key, 20)}<span class="ab">${esc(t.abbr)}${ev.poss === side ? '<i class="poss" title="Has the ball"></i>' : ''}</span><span class="sc">${ev.status === 'pre' ? '' : ev.score[side]}</span></div>`;
+          return `<div class="tm ${lead(ev, side)}">${logoImg(t.key, 20)}<span class="ab">${esc(t.abbr)}${ev.poss === side ? '<i class="poss" title="Has the ball"></i>' : ''}</span><span class="sc">${pts(ev, side)}</span></div>`;
         };
-        return `<a class="sb${isFav(ev) ? ' fav' : ''}" href="${watchUrl(ev)}" aria-label="${esc(matchup(ev))}, ${esc(label(ev))}${ev.status !== 'pre' ? `, ${ev.score.away} to ${ev.score.home}` : ''}">
+        return `<a class="sb${isFav(ev) ? ' fav' : ''}" href="${watchUrl(ev)}" aria-label="${esc(matchup(ev))}, ${esc(label(ev))}${ev.status !== 'pre' && !hidden(ev) ? `, ${ev.score.away} to ${ev.score.home}` : ''}">
           <div class="st ${isLive(ev) ? 'live' : ''}">${isLive(ev) ? '<span class="dot"></span>' : ''}${esc(label(ev))}${isFav(ev) ? STAR : ''}</div>${row('away')}${row('home')}</a>`;
       }).join('');
       strip.scrollLeft = x; arrows();
@@ -234,7 +216,7 @@ window.FR = (() => {
   // ---- Card art and cards ----
   function art(ev, withScore = true){
     const scr = withScore && ev.status !== 'pre'
-      ? `<div class="scr"><span>${ev.score.away}</span><small>${esc(label(ev))}</small><span>${ev.score.home}</span></div>`
+      ? `<div class="scr"><span>${pts(ev, 'away')}</span><small>${esc(label(ev))}</small><span>${pts(ev, 'home')}</span></div>`
       : (ev.status === 'pre' ? `<div class="scr"><small>${esc(soon(ev))}</small></div>` : '');
     return `<div class="art" style="--ca:${esc(ev.a.color)};--ch:${esc(ev.h.color)}">${pill(ev)}
       <span class="lg a">${logoImg(ev.a.key, 120)}</span><span class="lg h">${logoImg(ev.h.key, 120)}</span>${scr}</div>`;
@@ -381,5 +363,5 @@ window.FR = (() => {
   }
 
   return { favs: () => favs, setFavs: saveFavs, hasFavs, isFav, favFirst, openPicker, installTip, STAR, BASE, esc, logo, logoImg, time, load, on, byId, label, soon, pill, isLive, watchable, sorted, lead, matchup, watchUrl,
-           header, board, art, card, pullToRefresh, replays, rcard, rart, schoolCard, rtitle, teamOf, day, len, get replayItems(){ return ritems || []; }, get events(){ return events; }, get teams(){ return teams; }, get schools(){ return schools; }, get sports(){ return sports; } };
+           header, board, art, card, pullToRefresh, pts, hidden, showScore, noScores: () => noScores, replays, rcard, rart, schoolCard, rtitle, teamOf, day, len, get replayItems(){ return ritems || []; }, get events(){ return events; }, get teams(){ return teams; }, get schools(){ return schools; }, get sports(){ return sports; } };
 })();
