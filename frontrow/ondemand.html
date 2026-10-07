@@ -63,10 +63,12 @@ addEventListener('DOMContentLoaded', () => {
     const sc = {}; items.forEach(i => sc[i.sportKey] = (sc[i.sportKey] || 0) + 1);
     $('fs').innerHTML = '<option value="">All sports</option>' + FR.sports.filter(s => sc[s.key]).sort((a, b) => sc[b.key] - sc[a.key]).map(s => `<option value="${esc(s.key)}">${esc(s.name)} (${sc[s.key]})</option>`).join('');
     const tc = {}; items.forEach(i => { tc[i.a.key] = (tc[i.a.key] || 0) + 1; if (i.h.key !== i.a.key) tc[i.h.key] = (tc[i.h.key] || 0) + 1; });
-    const nec = FR.schools.filter(s => tc[s.key]).sort((a, b) => a.name.localeCompare(b.name));
+    const byName = (a, b) => a.name.localeCompare(b.name);
+    const full = FR.schools.filter(s => tc[s.key] && s.member === 'full').sort(byName);
+    const assoc = FR.schools.filter(s => tc[s.key] && s.member !== 'full').sort(byName);
     const others = Object.keys(tc).filter(k => k !== 'nec' && !FR.schools.some(s => s.key === k)).map(FR.teamOf).filter(t => tc[t.key] >= 3).sort((a, b) => a.name.localeCompare(b.name));
     const opt = t => `<option value="${esc(t.key)}">${esc(t.name)} (${tc[t.key]})</option>`;
-    $('ft').innerHTML = '<option value="">All schools</option><optgroup label="NEC schools">' + nec.map(opt).join('') + '</optgroup><optgroup label="Other teams">' + others.map(opt).join('') + '</optgroup>';
+    $('ft').innerHTML = '<option value="">All schools</option><optgroup label="NEC members">' + full.map(opt).join('') + '</optgroup><optgroup label="NEC associate members">' + assoc.map(opt).join('') + '</optgroup><optgroup label="Other teams">' + others.map(opt).join('') + '</optgroup>';
     const months = [...new Set(items.map(i => monthKey(i.date)))];
     $('fm').innerHTML = '<option value="">Any month</option>' + months.map(m => `<option value="${m}">${esc(monthName(m))}</option>`).join('');
     $('q').value = P.get('q') || ''; $('fs').value = P.get('s') || ''; $('ft').value = P.get('t') || ''; $('fm').value = P.get('m') || ''; $('fk').value = P.get('k') || '';
