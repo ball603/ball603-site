@@ -61,7 +61,7 @@ addEventListener('DOMContentLoaded', () => {
   FR.replays().then(items => {
     all = items;
     items.forEach(it => it._q = words([FR.rtitle(it), it.a.name, it.h.name, it.a.abbr, it.h.abbr, it.sport, it.label, FR.day(it.date), new Date(it.date).toLocaleDateString([], { month:'long' })].join(' ')));
-    // sport list (with counts), schools (NEC first), months
+    // sport list, schools (NEC first), years
     const sc = {}; items.forEach(i => sc[i.sportKey] = (sc[i.sportKey] || 0) + 1);
     $('fs').innerHTML = '<option value="">All sports</option>' + FR.sports.filter(s => sc[s.key]).sort((a, b) => sc[b.key] - sc[a.key]).map(s => `<option value="${esc(s.key)}">${esc(s.name)}</option>`).join('');
     const tc = {}; items.forEach(i => { tc[i.a.key] = (tc[i.a.key] || 0) + 1; if (i.h.key !== i.a.key) tc[i.h.key] = (tc[i.h.key] || 0) + 1; });
@@ -71,11 +71,9 @@ addEventListener('DOMContentLoaded', () => {
     const others = Object.keys(tc).filter(k => k !== 'nec' && !FR.schools.some(s => s.key === k)).map(FR.teamOf).filter(t => tc[t.key] >= 3).sort((a, b) => a.name.localeCompare(b.name));
     const opt = t => `<option value="${esc(t.key)}">${esc(t.name)}</option>`;
     $('ft').innerHTML = '<option value="">All schools</option><optgroup label="NEC members">' + full.map(opt).join('') + '</optgroup><optgroup label="NEC associate members">' + assoc.map(opt).join('') + '</optgroup><optgroup label="Other teams">' + others.map(opt).join('') + '</optgroup>';
-    const months = [...new Set(items.map(i => monthKey(i.date)))];
     const years = [...new Set(items.map(i => String(new Date(i.date).getFullYear())))].sort().reverse();
     $('fm').innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('') + '<option value="all">All years</option>';
     $('q').value = P.get('q') || ''; $('fs').value = P.get('s') || ''; $('ft').value = P.get('t') || ''; $('fm').value = P.get('y') || (years.includes(String(new Date().getFullYear())) ? String(new Date().getFullYear()) : years[0]); $('fk').value = P.get('k') || '';
-    $('sub').textContent = `${items.length.toLocaleString()} games, shows and events from ${months.length} months of NEC action.`;
     apply();
   });
 
