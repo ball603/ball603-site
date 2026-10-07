@@ -69,12 +69,13 @@ addEventListener('DOMContentLoaded', () => {
     const games = list.filter(ev => ev.sportKey === sp.key), s = favFirst(games);
     document.title = `${sp.name} · NEC Front Row`;
     document.getElementById('head').innerHTML = `<span class="crumb"><a href="sports.html">Sports</a> /</span><h1>${esc(sp.name)}</h1><p>${games.length ? `${games.length} game${games.length > 1 ? 's' : ''} today · ${games.filter(isLive).length} live now` : 'No games today.'}</p>`;
-    const row = (title, items, empty) => `<section class="sec"><div class="sec-h"><h2>${title}</h2></div>${items.length ? `<div class="rail">${items.map(card).join('')}</div>` : `<p class="empty">${empty}</p>`}</section>`;
+    // Live & Upcoming (like ESPN): live games first, then what's next on the schedule
+    const next = [...s.filter(isLive), ...s.filter(e => e.status === 'pre')];
+    const done = s.filter(e => e.status === 'final');
+    const od = [...rp.filter(FR.isFav), ...rp.filter(i => !FR.isFav(i))].slice(0, 24);
     document.getElementById('body').innerHTML =
-      row('Live now', s.filter(isLive), `No ${esc(sp.name.toLowerCase())} games are live right now.`) +
-      row('Coming up today', s.filter(e => e.status === 'pre'), 'Nothing else scheduled today.') +
-      row('Today\'s replays', s.filter(e => e.status === 'final'), 'Replays show up here when games finish.') +
-      (rp.length ? `<section class="sec"><div class="sec-h"><h2>On Demand</h2><a class="meta" href="ondemand.html?s=${encodeURIComponent(sp.key)}">All ${rp.length} →</a></div><div class="rail">${[...rp.filter(FR.isFav), ...rp.filter(i => !FR.isFav(i))].slice(0, 24).map(FR.rcard).join('')}</div></section>` : '');
+      `<section class="sec"><div class="sec-h"><h2>Live &amp; Upcoming</h2></div>${next.length ? `<div class="rail">${next.map(card).join('')}</div>` : `<p class="empty">No ${esc(sp.name.toLowerCase())} games live or coming up right now.</p>`}</section>` +
+      (done.length || od.length ? `<section class="sec"><div class="sec-h"><h2>On Demand</h2>${rp.length ? `<a class="meta" href="ondemand.html?s=${encodeURIComponent(sp.key)}">All ${rp.length} →</a>` : ''}</div><div class="rail">${done.map(card).join('')}${od.map(FR.rcard).join('')}</div></section>` : '');
   }
 
   FR.replays().catch(() => []).then(() => {

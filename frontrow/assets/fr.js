@@ -13,16 +13,23 @@ window.FR = (() => {
   const time = ms => new Date(ms).toLocaleTimeString([], { hour:'numeric', minute:'2-digit' });
 
   // ---- Data ----
+  // Fetch with a couple of quick retries, so a hiccup on the first try doesn't leave a page empty
+  async function getJSON(url, tries = 3){
+    for (let i = 0; ; i++) {
+      try { const r = await fetch(url, { cache:'no-cache' }); if (!r.ok) throw new Error(r.status); return await r.json(); }
+      catch (e) { if (i >= tries - 1) throw e; await new Promise(ok => setTimeout(ok, 600 * (i + 1))); }
+    }
+  }
   function load(){
     if (loaded) return loaded;
-    loaded = fetch(BASE + 'data/events.json', { cache:'no-cache' })
-      .then(r => r.json())
+    loaded = getJSON(BASE + 'data/events.json')
       .then(d => {
         teams = d.teams; schools = d.schools || []; sports = d.sports || [];
         events = d.events.map(e => ({ ...e, a: { key:e.away, ...teams[e.away] }, h: { key:e.home, ...teams[e.home] },
           status:'pre', period:0, clock:'', poss:null, kickoff: e.kickoff ? Date.parse(e.kickoff) : null, score:{ away:0, home:0 } }));
         return poll().then(() => { setInterval(poll, POLL_MS); return events; });
-      });
+      })
+      .catch(e => { loaded = null; throw e; });
     return loaded;
   }
 
@@ -34,7 +41,8 @@ window.FR = (() => {
   async function poll(){
     const changed = new Set();
     try {
-      const r = await fetch(FEED, { cache:'no-cache' });
+      let r = await fetch(FEED, { cache:'no-cache' }).catch(() => null);
+      if (!r || !r.ok) { await new Promise(ok => setTimeout(ok, 700)); r = await fetch(FEED, { cache:'no-cache' }); }
       if (!r.ok) throw new Error(r.status);
       const doc = new DOMParser().parseFromString(await r.text(), 'application/xml');
       doc.querySelectorAll('game').forEach(n => {
@@ -209,7 +217,7 @@ window.FR = (() => {
   const teamOf = k => k === 'nec' ? { key:'nec', name:'NEC', abbr:'NEC', color:'#1f8fd6' } : ({ key:k, ...(teams[k] || rteams[k] || { name:k, abbr:k.toUpperCase().slice(0, 4), color:'#3a4a63' }) });
   function replays(){
     if (rloaded) return rloaded;
-    rloaded = load().then(() => fetch(BASE + 'data/replays.json', { cache:'no-cache' })).then(r => r.json()).then(d => {
+    rloaded = load().then(() => getJSON(BASE + 'data/replays.json')).then(d => {
       rteams = d.teams || {};
       Object.entries(d.sports || {}).forEach(([key, name]) => { if (!sports.some(s => s.key === key)) sports.push({ key, name }); });
       const names = SPORTNAMES();
@@ -220,7 +228,7 @@ window.FR = (() => {
         rmap[id] = it; return it;
       });
       return ritems;
-    });
+    }).catch(e => { rloaded = null; throw e; });
     return rloaded;
   }
   const rtitle = it => it.kind === 'game' ? `${it.a.name} ${it.sep === 'vs' ? 'vs.' : 'at'} ${it.h.name}` : it.title;

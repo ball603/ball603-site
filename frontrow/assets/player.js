@@ -17,20 +17,38 @@ window.FRPlayer = (() => {
       || (/Safari/.test(navigator.userAgent) && !/Chrome|Chromium|Edg|Android/.test(navigator.userAgent));
     // On iPhones, iPads and Safari, Apple's built-in player plays these streams and is the only one
     // that supports pop-out (picture-in-picture) there. Everywhere else, hls.js plays them.
-    if (apple && video.canPlayType('application/vnd.apple.mpegurl')) {
-      video.src = src; video.addEventListener('error', () => onError && onError(), { once:true });
-      video.play().catch(()=>{});
-    } else if (window.Hls && Hls.isSupported()) {
-      // assume a decent connection so games start sharp instead of climbing up from the blurriest version
-      const hls = new Hls({ capLevelToPlayerSize:false, abrEwmaDefaultEstimate:6000000, backBufferLength:900, maxBufferLength:30 });
-      hls.loadSource(src); hls.attachMedia(video);
+    const native = (apple || !(window.Hls && Hls.isSupported())) && video.canPlayType('application/vnd.apple.mpegurl');
+    let tries = 0;
+    // Load (or reload) the stream. A fresh address on a retry makes the browser fetch it again
+    // instead of reusing a bad first attempt.
+    const go = () => {
+      const u = tries ? src + (src.includes('?') ? '&' : '?') + 'try=' + tries : src;
+      if (native) { video.src = u; video.load(); video.play().catch(() => {}); return; }
+      if (h.hls) h.hls.destroy();
+      const hls = new Hls({ capLevelToPlayerSize:false, abrEwmaDefaultEstimate:6000000, backBufferLength:900, maxBufferLength:30,
+        manifestLoadingMaxRetry:4, levelLoadingMaxRetry:4, fragLoadingMaxRetry:6 });
+      hls.loadSource(u); hls.attachMedia(video);
       hls.on(Hls.Events.MANIFEST_PARSED, () => { setMain(h, h.main); video.play().catch(()=>{}); });
-      hls.on(Hls.Events.ERROR, (e, d) => { if (d.fatal) onError && onError(d); });
+      let healed = false;
+      hls.on(Hls.Events.ERROR, (e, d) => {
+        if (!d.fatal) return;
+        if (!healed && d.type === Hls.ErrorTypes.MEDIA_ERROR) { healed = true; hls.recoverMediaError(); return; }
+        retry();
+      });
       h.hls = hls;
-    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      video.src = src; video.addEventListener('error', () => onError && onError(), { once:true });
-      video.play().catch(()=>{});
-    } else onError && onError();
+    };
+    // Self-check: if no picture shows up within a few seconds, quietly try again (like pressing refresh), up to 3 times
+    const retry = () => {
+      if (h.dead) return;
+      if (tries >= 3) { onError && onError(); return; }
+      tries++; go(); watch();
+    };
+    let wt;
+    const watch = () => { clearTimeout(wt); wt = setTimeout(() => { if (h.dead) return; if (!video.offsetParent) return watch();   /* hidden window: check again later */ if (video.readyState < 2 && !video.error) retry(); }, 7000); };
+    if (native) video.addEventListener('error', () => retry());
+    if (!native && !(window.Hls && Hls.isSupported())) { onError && onError(); return h; }
+    go(); watch();
+    h.stopWatch = () => clearTimeout(wt);
     return h;
   }
   // The game you're focused on gets full quality. Others stay at a clear 540p to save data, not the blurry 270p.
@@ -41,7 +59,7 @@ window.FRPlayer = (() => {
     let cap = 0; lv.forEach((l, i) => { if ((l.height || 0) <= 540) cap = Math.max(cap, i); });
     h.hls.autoLevelCapping = cap;
   }
-  function destroy(h){ if (!h) return; if (h.hls) h.hls.destroy(); h.video.removeAttribute('src'); h.video.load(); }
+  function destroy(h){ if (!h) return; h.dead = true; h.stopWatch && h.stopWatch(); if (h.hls) h.hls.destroy(); h.video.removeAttribute('src'); h.video.load(); }
 
   const realLive = h => !!((h.hls && h.hls.latestLevelDetails && h.hls.latestLevelDetails.live) || h.video.duration === Infinity);
   function range(h){
