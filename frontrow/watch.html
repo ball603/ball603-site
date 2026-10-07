@@ -75,6 +75,21 @@
 .ld-r b{font-family:var(--display);font-size:17px;line-height:1.1}
 .ld-r span{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
 .pre-note{color:var(--muted);font-size:14px;margin:14px 0 0}
+/* Clip panel */
+dialog.clipdlg{width:min(560px,calc(100vw - 24px))}
+.nudge{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center}
+.nudge output{display:grid;gap:3px;text-align:center;font-weight:600;font-size:14px}
+.nudge output small{color:var(--muted);font-weight:500;font-size:12px}
+.nudge .btn{padding:9px 12px;font-size:13px}
+.nudge .btn[disabled]{opacity:.4}
+.cprog{display:grid;gap:12px;padding:30px 4px 24px;text-align:center}
+.cprog b{font-family:var(--display);font-size:22px}
+.cprog small{color:var(--muted)}
+.bar-o{height:8px;border-radius:4px;background:var(--surface);overflow:hidden}
+.bar-o i{display:block;height:100%;width:2%;background:var(--nec);border-radius:4px;transition:width .3s}
+.clipv{width:100%;aspect-ratio:16/9;background:#000;border-radius:10px;margin-top:12px}
+dialog.clipdlg .toast{position:fixed;top:auto;bottom:90px}
+@media (max-width:520px){.nudge{grid-template-columns:1fr 1fr}.nudge output{grid-column:1/-1;grid-row:1}}
 </style>
 </head>
 <body>
@@ -121,11 +136,18 @@
   </section>
 </main>
 
+<dialog class="sheet clipdlg" id="clipDlg" aria-labelledby="clipTitle">
+  <div class="sh-h"><h2 id="clipTitle">Make a clip</h2><button class="sh-x" id="clipX" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6.4 5 12 10.6 17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4L12 13.4 6.4 19 5 17.6 10.6 12 5 6.4z"/></svg></button></div>
+  <div class="sh-b" id="clipBody"></div>
+  <div class="sh-f" id="clipFoot"></div>
+</dialog>
+
 <footer class="foot"><span>© 2026 Northeast Conference · NEC Front Row</span></footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.13/hls.min.js" defer></script>
 <script src="/frontrow/assets/fr.js" defer></script>
 <script src="/frontrow/assets/player.js" defer></script>
+<script src="/frontrow/assets/clip.js" defer></script>
 <script defer>
 addEventListener('DOMContentLoaded', () => {
   const { esc, logoImg, label, soon, pill, isLive, watchable, sorted, lead, time, card } = FR;
@@ -150,7 +172,8 @@ addEventListener('DOMContentLoaded', () => {
   $('tapSound').onclick = e => { e.stopPropagation(); setSound(true); };
 
   const bar = FRPlayer.bar({ vc: $('vc'), getH: () => h, isLiveGame: () => !!ev && isLive(ev),
-    soundOn: () => soundOn, onSound: () => setSound(!soundOn) });
+    soundOn: () => soundOn, onSound: () => setSound(!soundOn),
+    extra: '<button class="pb b-clip" aria-label="Make a clip" title="Make a clip"><svg viewBox="0 0 24 24"><path d="M9.6 7.6A3.5 3.5 0 1 0 8 9.9l2.3 2.1L8 14.1a3.5 3.5 0 1 0 1.6 2.3L12 14.2l7.6 6.8H22v-1L11.7 12 22 4V3h-2.4zM6.5 9a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm0 9a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg></button>' });
   FRPlayer.autoHide(stage, $('vc'));
   FRPlayer.fullscreen(stage, bar.full);
   document.addEventListener('keydown', e => {
@@ -180,6 +203,66 @@ addEventListener('DOMContentLoaded', () => {
   function waiting(){
     if (stage.querySelector('.wait')) { stage.querySelector('.wait .msg span').textContent = soon(ev); return; }
     $('tile').insertAdjacentHTML('beforeend', `<div class="wait">${FR.art(ev, false)}<div class="msg"><b>Kickoff ${esc(time(ev.kickoff))}</b><span>${esc(soon(ev))}</span></div></div>`);
+  }
+
+  // ---------- Clips ----------
+  const clip = { len: 20, back: 0, at: 0, url: null };
+  const C = id => document.getElementById(id);
+  $('vc').querySelector('.b-clip').onclick = () => {
+    if (!h) { FRPlayer.toast(stage, 'Clips are ready once the game is playing'); return; }
+    clip.at = video.currentTime; clip.back = 0;
+    if (document.fullscreenElement || document.webkitFullscreenElement) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    FRClip.prepare().catch(() => {});      // start loading the clip tool while they choose
+    chooseClip(); C('clipDlg').showModal();
+  };
+  C('clipX').onclick = () => C('clipDlg').close();
+  C('clipDlg').addEventListener('close', () => { if (clip.url) { URL.revokeObjectURL(clip.url); clip.url = null; } });
+
+  function chooseClip(){
+    const end = Math.max(clip.len, clip.at - clip.back), start = Math.max(0, end - clip.len);
+    C('clipBody').innerHTML = `
+      <p class="sh-note">Your clip ends at the moment you tapped Clip. Make it longer, or slide it earlier to catch the whole play.</p>
+      <h3>Length</h3>
+      <div class="chips" role="group" aria-label="Clip length">${[10, 20, 30].map(n => `<button class="chip" data-len="${n}" aria-pressed="${clip.len === n}">${n} seconds</button>`).join('')}</div>
+      <h3>When</h3>
+      <div class="nudge">
+        <button class="btn" data-nudge="5" ${clip.back >= 120 ? 'disabled' : ''}>‹ 5 sec earlier</button>
+        <output class="num">${clip.back ? `Ends ${clip.back} sec before you tapped` : 'Ends when you tapped'}<small>${FRPlayer.clock(start)} – ${FRPlayer.clock(end)} of the video</small></output>
+        <button class="btn" data-nudge="-5" ${clip.back <= 0 ? 'disabled' : ''}>5 sec later ›</button>
+      </div>`;
+    C('clipFoot').innerHTML = `<button class="btn" data-x>Cancel</button><button class="btn primary" data-make>Make clip</button>`;
+    C('clipBody').onclick = e => {
+      const l = e.target.closest('[data-len]'), n = e.target.closest('[data-nudge]');
+      if (l) { clip.len = +l.dataset.len; chooseClip(); }
+      if (n) { clip.back = Math.max(0, Math.min(120, clip.back + +n.dataset.nudge)); chooseClip(); }
+    };
+    C('clipFoot').querySelector('[data-x]').onclick = () => C('clipDlg').close();
+    C('clipFoot').querySelector('[data-make]').onclick = makeClip;
+  }
+
+  async function makeClip(){
+    C('clipFoot').innerHTML = '';
+    C('clipBody').innerHTML = `<div class="cprog" role="status"><b id="cpMsg">Getting the video…</b><div class="bar-o"><i id="cpBar"></i></div><small>The first clip takes a little longer while the clip tool loads.</small></div>`;
+    try {
+      const blob = await FRClip.make({ stream: ev.stream, h, at: clip.at, length: clip.len, back: clip.back,
+        onStep: (msg, p) => { C('cpMsg').textContent = msg; C('cpBar').style.width = Math.round(p * 100) + '%'; } });
+      clip.url = URL.createObjectURL(blob);
+      const name = `NEC-FrontRow-${ev.a.abbr}-at-${ev.h.abbr}-${new Date().toISOString().slice(11, 19).replace(/:/g, '')}.mp4`;
+      const phone = matchMedia('(pointer: coarse)').matches;
+      C('clipBody').innerHTML = `<video class="clipv" src="${clip.url}" controls playsinline autoplay muted></video>
+        <p class="sh-note">${clip.len}-second clip · ${(blob.size / 1048576).toFixed(1)} MB</p>`;
+      C('clipFoot').innerHTML = `<button class="btn" data-again>Make another</button><button class="btn primary" data-save>${phone ? 'Save or share' : 'Download clip'}</button>`;
+      C('clipFoot').querySelector('[data-again]').onclick = () => { URL.revokeObjectURL(clip.url); clip.url = null; chooseClip(); };
+      C('clipFoot').querySelector('[data-save]').onclick = async () => {
+        const r = await FRClip.deliver(blob, name);
+        if (r === 'downloaded') FRPlayer.toast(C('clipDlg'), 'Clip downloaded');
+      };
+    } catch (e) {
+      C('clipBody').innerHTML = `<p class="sh-note">Sorry, that clip didn't work. ${esc(e && e.message || '')}</p>`;
+      C('clipFoot').innerHTML = `<button class="btn" data-x>Close</button><button class="btn primary" data-retry>Try again</button>`;
+      C('clipFoot').querySelector('[data-x]').onclick = () => C('clipDlg').close();
+      C('clipFoot').querySelector('[data-retry]').onclick = chooseClip;
+    }
   }
 
   // ---------- Stats tabs ----------
