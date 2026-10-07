@@ -160,6 +160,16 @@ addEventListener('DOMContentLoaded', () => {
         </div>` });
   FRPlayer.autoHide(stage, $('vc'));
   FRPlayer.fullscreen(stage, bar.full, () => placePip());
+  // score ticker in full screen: tap a game to put it in the selected window (or jump to it if it's already showing)
+  const tick = FRPlayer.ticker({ stage, vc: $('vc'), current: () => slots.slice(0, COUNT[layout]).filter(Boolean),
+    onPick: id => {
+      const n = COUNT[layout], j = slots.indexOf(id);
+      if (j < 0) setSlot(focus, id);
+      else if (j >= n) swap(focus, j);
+      else if (layout === 'pip' && j === 1) { swap(0, 1); focus = 0; }
+      else focus = j;
+      apply();
+    } });
 
   // ---------- windows ----------
   function makeTile(i){
@@ -231,7 +241,7 @@ addEventListener('DOMContentLoaded', () => {
 
   function apply(){
     const n = COUNT[layout];
-    const keep = ['show-ui', 'fs', 'fake-fs'].filter(c => stage.classList.contains(c));
+    const keep = ['show-ui', 'fs', 'fake-fs', 'tick-on'].filter(c => stage.classList.contains(c));
     stage.className = ['stage', 'l-' + layout].concat(keep).join(' ');
     tiles.forEach((t, i) => {
       const shown = i < n;
@@ -249,6 +259,7 @@ addEventListener('DOMContentLoaded', () => {
     });
     document.querySelectorAll('[data-layout]').forEach(b => b.setAttribute('aria-pressed', b.dataset.layout === layout));
     placePip(); refreshText(); saveUrl();
+    tick.refresh();
   }
 
   function refreshText(){

@@ -246,5 +246,55 @@ window.FRPlayer = (() => {
     } catch (e) { toast(stage, "Pop out isn't available here"); }
   }
 
-  return { trySound, onFirstTap, attach, setMain, destroy, liveEdge, back10, fwd10, goLive, toStart, autoHide, fullscreen, playIcon, popOut, bar, toast, clock, ICONS };
+  // ---------- Score ticker along the bottom, for full screen ----------
+  // ticker({ stage, vc, current: () => [ids on screen], onPick: id => {...} })
+  const TICK = '<svg viewBox="0 0 24 24"><path d="M2 14h20v6H2zm2 2v2h4v-2zm6 0v2h4v-2zm6 0v2h4v-2zM4 5h16v7H4z" fill-rule="evenodd"/></svg>';
+  function ticker({ stage, vc, current = () => [], onPick = () => {} }){
+    const KEY = 'fr-ticker';
+    let on = false; try { on = localStorage.getItem(KEY) === '1'; } catch (e) {}
+    const btn = document.createElement('button');
+    btn.className = 'pb b-tick'; btn.title = 'Score ticker (T)';
+    btn.innerHTML = TICK;
+    vc.querySelector('.grp.r').prepend(btn);
+    const el = document.createElement('div');
+    el.className = 'ftk'; el.setAttribute('aria-label', 'NEC scores');
+    el.innerHTML = '<div class="lbl">NEC <small>Scores</small></div><div class="view"><div class="belt"></div></div>';
+    stage.appendChild(el);
+    const belt = el.querySelector('.belt');
+    const set = v => {
+      on = v; stage.classList.toggle('tick-on', on);
+      btn.setAttribute('aria-pressed', on); btn.setAttribute('aria-label', on ? 'Hide score ticker' : 'Show score ticker');
+      try { localStorage.setItem(KEY, on ? '1' : '0'); } catch (e) {}
+      dispatchEvent(new Event('resize'));
+    };
+    btn.onclick = () => set(!on);
+    set(on);
+    document.addEventListener('keydown', e => {
+      if (e.key === 't' && stage.classList.contains('fs') && !e.target.closest('input,textarea')) set(!on);
+    });
+    const ord = p => ['', '1st', '2nd', '3rd', '4th'][p] || 'OT';
+    const st = ev => ev.status === 'live' ? `${ord(ev.period)} ${ev.clock}` : ev.status === 'half' ? 'Half' : ev.status === 'final' ? 'Final'
+      : new Date(ev.kickoff).toLocaleTimeString([], { hour:'numeric', minute:'2-digit' });
+    function render(events, changed = new Set()){
+      const { esc, sorted, isLive } = FR, here = current();
+      const one = (hidden) => sorted(events).map(ev => {
+        const pre = ev.status === 'pre', a = ev.score.away, h = ev.score.home;
+        const cls = (x, y) => pre || x >= y ? 'lead' : 'trail';
+        return `<button class="tk${changed.has(ev.id) ? ' flash' : ''}${here.includes(ev.id) ? ' now' : ''}" data-id="${esc(ev.id)}" ${hidden ? 'tabindex="-1"' : ''} title="Watch ${esc(ev.a.name)} at ${esc(ev.h.name)}">
+          <span class="sp">${esc(ev.sportKey || '')}</span>
+          <span class="tm ${cls(a, h)}"><i style="background:${esc(ev.a.color)}"></i>${esc(ev.a.abbr)}${pre ? '' : ' ' + a}</span>
+          <span class="tm ${cls(h, a)}"><i style="background:${esc(ev.h.color)}"></i>${esc(ev.h.abbr)}${pre ? '' : ' ' + h}</span>
+          <span class="st${isLive(ev) ? ' live' : ''}">${esc(st(ev))}</span></button>`;
+      }).join('');
+      // two copies side by side so the belt loops with no gap
+      belt.innerHTML = `<div class="set">${one(false)}</div><div class="set" aria-hidden="true">${one(true)}</div>`;
+      belt.style.animationDuration = Math.max(20, events.length * 6) + 's';
+    }
+    belt.addEventListener('click', e => { const b = e.target.closest('.tk'); if (b) onPick(b.dataset.id); });
+    let last = [];
+    FR.on((events, changed) => { const first = !last.length; last = events; setTimeout(() => render(events, first ? new Set() : changed)); });   // after the page has picked its game(s)
+    return { refresh: () => render(last), set };
+  }
+
+  return { ticker, trySound, onFirstTap, attach, setMain, destroy, liveEdge, back10, fwd10, goLive, toStart, autoHide, fullscreen, playIcon, popOut, bar, toast, clock, ICONS };
 })();

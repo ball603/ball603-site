@@ -191,6 +191,8 @@ addEventListener('DOMContentLoaded', () => {
   if (window.ResizeObserver) new ResizeObserver(stageH).observe(stage); else addEventListener('resize', stageH);
   stageH();
   FRPlayer.fullscreen(stage, bar.full);
+  // score ticker in full screen: tap a game to switch to it right here
+  const tick = FRPlayer.ticker({ stage, vc: $('vc'), current: () => ev ? [ev.id] : [], onPick: id => switchTo(id) });
   document.addEventListener('keydown', e => {
     if (e.target.closest('input,textarea,button,[role=tab]')) return;
     if (e.key === 'ArrowLeft' && h) FRPlayer.back10(h);
@@ -350,13 +352,20 @@ addEventListener('DOMContentLoaded', () => {
     if (watchable(ev)) start(); else waiting();
   }
 
+  const more = () => { $('more').innerHTML = sorted(FR.events).filter(x => x.id !== ev.id).map(card).join(''); };
+  function switchTo(id){
+    const next = FR.byId(id); if (!next || next === ev) return;
+    FRPlayer.destroy(h); h = null; started = false; ev = next;
+    $('tile').querySelectorAll('.wait,.vmsg').forEach(n => n.remove());
+    $('tile').classList.remove('live-off', 'live-gone');
+    history.replaceState(null, '', '?e=' + encodeURIComponent(id));
+    render(); more(); tick.refresh();
+  }
+
   FR.load().then(list => {
     const id = new URLSearchParams(location.search).get('e');
     ev = FR.byId(id) || sorted(list).find(isLive) || sorted(list)[0];
-    FR.on(all => {
-      render();
-      $('more').innerHTML = sorted(all).filter(x => x.id !== ev.id).map(card).join('');
-    });
+    FR.on(() => { render(); more(); });
   });
 });
 </script>
