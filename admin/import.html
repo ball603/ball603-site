@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="en">
+<head>
+<title>Import · NEC Front Row CMS</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=Barlow:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="assets/cms.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
+<script src="assets/cms.js"></script>
+<script src="assets/hudl.js"></script>
+<style>
+.drop{border:2px dashed var(--line);border-radius:var(--radius);padding:30px;text-align:center;
+  background:var(--bg-2);margin:0 0 18px}
+.drop.over{border-color:var(--nec);background:var(--surface)}
+.drop p{margin:0 0 12px;color:var(--muted)}
+.stats{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 16px}
+.stat{padding:10px 14px;border:1px solid var(--line);border-radius:9px;background:var(--bg-2);min-width:120px}
+.stat b{display:block;font-family:var(--display);font-size:24px;line-height:1.1}
+.stat span{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
+.stat.good b{color:var(--ok)} .stat.warn b{color:var(--gold)} .stat.off b{color:var(--dim)}
+.tbl td.why{color:var(--gold);font-size:13px}
+.tbl td.skip{color:var(--dim)}
+.tbl tbody tr.ignored{opacity:.45}
+.tbl input[type=checkbox]{width:17px;height:17px;accent-color:var(--nec)}
+.state{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.state.new{color:var(--ok)} .state.have{color:var(--dim)} .state.chg{color:var(--gold)} .state.bad{color:#ff9a9d}
+</style>
+</head>
+<body>
+<header id="top"></header>
+<main>
+  <h1>Import</h1>
+  <p class="sub">Drop a vCloud broadcast export. Nothing is saved until you choose to.</p>
+  <div id="msg"></div>
+
+  <div class="drop" id="drop">
+    <p>Drop the CSV here, or pick it</p>
+    <input type="file" id="file" accept=".csv,text/csv" style="display:none">
+    <button class="btn primary" id="pick">Choose a file…</button>
+    <p class="f hint" style="margin:12px 0 0">In vCloud: Broadcast Grid → set your filters → Download CSV.
+      The file is read here in your browser and never uploaded anywhere.</p>
+  </div>
+
+  <div id="out"></div>
+</main>
+<script>
+(async () => {
+  const L = CMS_LIB, { db, esc } = L, H = window.HUDL;
+  const $ = id => document.getElementById(id);
+  const who = await L.guard(); if (!who) return;
+  L.header('import');
+  if (!L.isStaff()) { document.body.innerHTML = '<main><p class="note bad">Importing is staff only.</p></main>'; return; }
+
+  const say = (t, cls) => { $('msg').innerHTML = t ? '<p class="note ' + cls + '">' + t + '</p>' : ''; };
+  const look = await L.lookups();
+  // Matching needs the aliases too, which lookups() doesn't carry.
+  const { data: fullSchools } = await db.from('schools').select('key,name,aliases,member');
+  const sportMap = new Map(look.sports.map(s => [H.norm(s.name), s.key]));
+  const sportByName = n => sportMap.get(H.norm(n)) ?? null;
+
+  let rows = [];        // what the file said, read
+  let existing = {};    // hudl_id -> the row we already have
+
+  // ---------- reading the file ----------
+  const pick = $('pick'), file = $('file'), drop = $('drop');
+  pick.onclick = () => file.click();
+  file.onchange = () => file.files[0] && read(file.files[0]);
+  ['dragenter','dragover'].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave','drop'].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.remove('over'); }));
+  drop.addEventListener('drop', ev => { const f = ev.dataTransfer.files[0]; if (f) read(f); });
+
+  async function read(f){
+    say('');
+    $('out').innerHTML = '<p class="empty">Reading ' + esc(f.name) + '…</p>';
+    let text;
+    try { text = await f.text(); }
+    catch (e) { say('Could not read that file.', 'bad'); $('out').innerHTML = ''; return; }
+
+    let raw;
+    try { raw = H.parseCSV(text); }
+    catch (e) { say('That does not look like a CSV.', 'bad'); $('out').innerHTML = ''; return; }
+
+    if (!raw.length || !('Broadcast ID' in raw[0])) {
+      say('<b>That is not a vCloud broadcast export.</b> It should have a <code>Broadcast ID</code> column. '
+        + 'In vCloud: Broadcast Grid → Download CSV.', 'bad');
+      $('out').innerHTML = ''; return;
+    }
+
+    const match = H.matcher(fullSchools || []);
+    const schoolName = k => (fullSchools || []).find(s => s.key === k)?.name || '';
+    rows = raw.map(r => H.readRow(r, { match, sportByName, schoolName, customer: L.C.league + ' Conference' }));
+
+    // Which of these do we already have? Asked in batches, because a URL with
+    // 1,700 ids in it is well past what any server will take.
+    const ids = rows.map(r => r.hudl_id).filter(Boolean);
+    existing = {};
+    for (let i = 0; i < ids.length; i += 200) {
+      const { data, error } = await db.from('content')
+        .select('id,hudl_id,starts_at,title,status,duration_seconds,stream_url')
+        .in('hudl_id', ids.slice(i, i + 200));
+      if (error) { say('Could not check what is already here: ' + esc(error.message), 'bad'); return; }
+      (data || []).forEach(c => { existing[c.hudl_id] = c; });
+    }
+    render();
+  }
+
+  // ---------- what each row means ----------
+  function classify(r){
+    if (r.problems.some(p => p.startsWith('belongs to'))) return 'other';
+    if (!r.hudl_id || !r.starts_at)                       return 'bad';
+    const was = existing[r.hudl_id];
+    if (!was) return 'new';
+    return diff(was, r).length ? 'chg' : 'have';
+  }
+
+  // What actually differs between what we hold and what the file says.
+  //
+  // Comparing dates as text does not work: Postgres hands back
+  // "2025-09-01T12:00:00-04:00" where JavaScript produces
+  // "2025-09-01T16:00:00.000Z". Same instant, different string, and comparing
+  // them as strings marked all 1,361 rows as changed on every re-import.
+  const sameTime = (a, b) => {
+    if (!a && !b) return true;
+    if (!a || !b) return false;
+    const x = new Date(a).getTime(), y = new Date(b).getTime();
+    return x === y || (isNaN(x) && isNaN(y));
+  };
+  function diff(was, r){
+    const out = [];
+    if (!sameTime(was.starts_at, r.starts_at))                              out.push('start time');
+    if ((was.title || '') !== (r.title || ''))                              out.push('title');
+    if ((was.status || '') !== (r.status || ''))                            out.push('status');
+    if ((was.duration_seconds ?? null) !== (r.duration_seconds ?? null))    out.push('length');
+    if ((was.stream_url || null) !== (r.stream_url || null))                out.push('video address');
+    return out;
+  }
+
+  function unknownTeams(){
+    const m = new Map();
+    rows.forEach(r => {
+      if (classify(r) === 'other' || r.kind !== 'game') return;
+      [[r.away, r.awayName], [r.home, r.homeName]].forEach(([k, n]) => {
+        if (n && !k) { const nk = H.norm(n); if (!m.has(nk)) m.set(nk, { name:n, n:0 }); m.get(nk).n++; }
+      });
+    });
+    return [...m.values()].sort((a,b) => b.n - a.n);
+  }
+
+  // ---------- the screen ----------
+  function render(){
+    const by = { new:[], chg:[], have:[], bad:[], other:[] };
+    rows.forEach(r => by[classify(r)].push(r));
+    const unknown = unknownTeams();
+
+    const stat = (n, label, cls='') => `<div class="stat ${cls}"><b>${n.toLocaleString()}</b><span>${label}</span></div>`;
+    let html = '<div class="stats">'
+      + stat(rows.length, 'in the file')
+      + stat(by.new.length, 'new', 'good')
+      + stat(by.chg.length, 'changed', by.chg.length ? 'warn' : 'off')
+      + stat(by.have.length, 'already have', 'off')
+      + stat(by.other.length, 'other conferences', 'off')
+      + (by.bad.length ? stat(by.bad.length, 'unreadable', 'warn') : '')
+      + '</div>';
+
+    if (by.other.length)
+      html += '<p class="note">' + by.other.length.toLocaleString() + ' rows belong to other conferences '
+        + 'in your Hudl account and are left out. Nothing to do.</p>';
+
+    if (unknown.length)
+      html += '<p class="note"><b>' + unknown.length + ' opponents aren\'t in your schools list yet</b> — '
+        + esc(unknown.slice(0,5).map(u => u.name).join(', '))
+        + (unknown.length > 5 ? ' and ' + (unknown.length - 5) + ' more' : '')
+        + '. Add them and their games can be matched up properly. One-time job; after this they\'re known.<br><br>'
+        + '<button class="btn primary" id="addteams">Add ' + unknown.length + ' opponents</button></p>';
+
+    const ready = [...by.new, ...by.chg];
+    if (!ready.length) {
+      html += '<p class="empty">Nothing new to bring in from this file.</p>';
+      $('out').innerHTML = html; wire(); return;
+    }
+
+    html += '<div class="filters"><label class="check"><input type="checkbox" id="all" checked>'
+      + '<label for="all">Select all ' + ready.length.toLocaleString() + '</label></label>'
+      + '<span class="count" id="sel"></span></div>';
+
+    html += '<table class="tbl"><thead><tr><th style="width:34px"></th><th>State</th><th>When</th>'
+      + '<th>Title</th><th class="hide-sm">Sport</th><th class="hide-sm">Teams</th><th>Notes</th></tr></thead><tbody>'
+      + ready.map((r, i) => {
+          const st = classify(r);
+          const team = k => k ? (look.school[k]?.abbr || look.school[k]?.name || k) : '—';
+          const why = r.problems.filter(p => !p.startsWith('belongs to'));
+          return '<tr data-i="' + rows.indexOf(r) + '">'
+            + '<td><input type="checkbox" class="pickrow" checked></td>'
+            + '<td><span class="state ' + st + '">' + (st === 'new' ? 'New' : 'Changed') + '</span>'
+            + (st === 'chg' ? '<br><span style="font-size:11px;color:var(--dim)">'
+                + esc(diff(existing[r.hudl_id], r).join(', ')) + '</span>' : '') + '</td>'
+            + '<td class="when">' + L.when(r.starts_at) + '<br><span style="color:var(--dim)">' + L.clock(r.starts_at) + '</span></td>'
+            + '<td>' + esc(r.title) + '</td>'
+            + '<td class="hide-sm">' + esc(look.sport[r.sport]?.name || (r.kind !== 'game' ? '—' : '')) + '</td>'
+            + '<td class="hide-sm">' + (r.kind === 'game' ? esc(team(r.away)) + ' at ' + esc(team(r.home)) : esc(r.kind)) + '</td>'
+            + '<td class="why">' + esc(why.join('; ')) + '</td></tr>';
+        }).join('') + '</tbody></table>';
+
+    html += '<div class="bar"><button class="btn primary" id="go">Bring in the selected</button>'
+      + '<span class="spacer"></span><span id="prog" style="color:var(--muted);font-size:13px"></span></div>';
+
+    $('out').innerHTML = html;
+    wire();
+  }
+
+  function selected(){
+    return [...document.querySelectorAll('tr[data-i]')]
+      .filter(tr => tr.querySelector('.pickrow').checked)
+      .map(tr => rows[+tr.dataset.i]);
+  }
+  function countSel(){
+    const n = selected().length;
+    if ($('sel')) $('sel').textContent = n.toLocaleString() + ' selected';
+  }
+
+  function wire(){
+    if ($('all')) $('all').onchange = e => {
+      document.querySelectorAll('.pickrow').forEach(c => { c.checked = e.target.checked; });
+      countSel();
+    };
+    document.querySelectorAll('.pickrow').forEach(c => c.onchange = countSel);
+    countSel();
+    if ($('addteams')) $('addteams').onclick = addTeams;
+    if ($('go')) $('go').onclick = bringIn;
+  }
+
+  // ---------- adding the missing opponents ----------
+  async function addTeams(){
+    const list = unknownTeams();
+    const btn = $('addteams'); btn.disabled = true; btn.textContent = 'Adding…';
+    // Keys are built from the name but kept unique by checking as we go, rather
+    // than by truncating - two schools whose names start the same would
+    // otherwise silently collapse into one row.
+    const taken = new Set((fullSchools || []).map(s => s.key));
+    const add = list.map(u => {
+      const base = 'x-' + H.norm(u.name).replace(/[^a-z0-9]/g, '').slice(0, 18);
+      let key = base, n = 2;
+      while (taken.has(key)) key = base.slice(0, 16) + n++;
+      taken.add(key);
+      return { key, name: u.name, aliases: [u.name], member: 'opponent' };
+    });
+    const { error } = await db.from('schools').upsert(add, { onConflict: 'key' });
+    if (error) { say('Could not add them: ' + esc(error.message), 'bad'); btn.disabled = false; btn.textContent = 'Try again'; return; }
+    const { data } = await db.from('schools').select('key,name,aliases,member');
+    fullSchools.length = 0; (data || []).forEach(s => fullSchools.push(s));
+    look.schools = data || [];
+    look.school = Object.fromEntries(look.schools.map(s => [s.key, s]));
+    // Re-read with the new schools known, so the table reflects them.
+    const match = H.matcher(fullSchools);
+    rows = rows.map(r => ({ ...r,
+      away: r.awayName ? match(r.awayName) : r.away,
+      home: r.homeName ? match(r.homeName) : r.home,
+      problems: r.problems.filter(p => !p.startsWith('team not recognised')) }));
+    rows.forEach(r => {
+      if (r.kind === 'game' && (!r.away || !r.home))
+        r.problems.push('team not recognised: ' + [!r.away && r.awayName, !r.home && r.homeName].filter(Boolean).join(', '));
+    });
+    say('Added ' + add.length + ' opponents.', 'good');
+    render();
+  }
+
+  // ---------- writing it in ----------
+  async function bringIn(){
+    const picked = selected();
+    if (!picked.length) {
+      say('Nothing is selected.', 'bad');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    // 1,361 rows is fourteen trips to the database and takes half a minute. The
+    // first version said so in small grey text beside the button, which read as
+    // nothing happening at all. Now the button itself is the progress bar.
+    const go = $('go'), label = go.textContent;
+    go.disabled = true;
+    const tick = (n, total) => {
+      go.textContent = 'Bringing in… ' + n.toLocaleString() + ' of ' + total.toLocaleString();
+      const pct = Math.round(n / total * 100);
+      go.style.background = 'linear-gradient(90deg, var(--nec) ' + pct + '%, var(--raised) ' + pct + '%)';
+    };
+    const clear = () => { go.textContent = label; go.style.background = ''; go.disabled = false; };
+    tick(0, picked.length);
+    say('');
+    const batch = 100;
+    let done = 0;
+    for (let i = 0; i < picked.length; i += batch) {
+      const slice = picked.slice(i, i + batch).map(r => ({
+        hudl_id: r.hudl_id, kind: r.kind, title: r.title, starts_at: r.starts_at,
+        sport: r.sport, home: r.home, away: r.away, status: r.status,
+        stream_url: r.stream_url, embed_code: r.embed_code,
+        duration_seconds: r.duration_seconds,
+        // Brought in hidden on purpose. Nothing reaches the public site until
+        // someone looks at it and turns it on.
+        visible: false
+      }));
+      const { error } = await db.from('content').upsert(slice, { onConflict: 'hudl_id' });
+      if (error) {
+        // Also to the console, so there's a trail even if the message scrolls away.
+        console.error('[import] batch starting at ' + i + ' failed:', error);
+        say('<b>Stopped after ' + done.toLocaleString() + ' of ' + picked.length.toLocaleString() + '.</b> '
+          + esc(error.message)
+          + '<br>Nothing before that point was lost — run it again and it picks up where it left off.', 'bad');
+        clear();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
+      done += slice.length;
+      tick(done, picked.length);
+      $('prog').textContent = done.toLocaleString() + ' of ' + picked.length.toLocaleString() + '…';
+    }
+    clear();
+    say('<b>Brought in ' + done.toLocaleString() + ' items.</b> They are hidden until you show them — '
+      + '<a href="content.html?fvis=false">see the hidden ones</a>.', 'good');
+    $('prog').textContent = '';
+    // The message lives at the top; after half a minute of scrolling through
+    // rows, nobody is looking up there.
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Re-check so a second run shows them as already here rather than new.
+    const ids = picked.map(r => r.hudl_id);
+    for (let i = 0; i < ids.length; i += 200) {
+      const { data } = await db.from('content')
+        .select('id,hudl_id,starts_at,title,status,duration_seconds,stream_url')
+        .in('hudl_id', ids.slice(i, i + 200));
+      (data || []).forEach(c => { existing[c.hudl_id] = c; });
+    }
+    render();
+  }
+})();
+</script>
+</body>
+</html>
