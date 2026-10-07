@@ -37,8 +37,6 @@ img{max-width:100%;display:block}
 .hdr{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:28px;padding:calc(10px + env(safe-area-inset-top,0px)) var(--gut) 10px;background:rgba(6,13,26,.88);backdrop-filter:saturate(1.4) blur(14px);-webkit-backdrop-filter:saturate(1.4) blur(14px);border-bottom:1px solid rgba(31,54,89,.6)}
 .brand{display:flex;align-items:center;gap:10px;flex:none}
 .brand img{height:30px;width:auto}
-.brand .wm{font-family:var(--display);font-weight:800;font-style:italic;font-size:22px;letter-spacing:.04em;line-height:1;text-transform:uppercase}
-.brand .wm b{color:var(--nec-hi);font-weight:800}
 .nav{display:flex;gap:4px;flex:1;min-width:0}
 .nav a{white-space:nowrap;display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;color:var(--muted);font-weight:600;font-size:15px}
 .nav a:hover{color:var(--text);background:var(--surface)}
@@ -54,7 +52,9 @@ img{max-width:100%;display:block}
 /* Phones: the menu becomes an app-style tab bar along the bottom */
 @media (max-width:760px){
   .hdr{gap:12px;backdrop-filter:none;-webkit-backdrop-filter:none;background:var(--bg)}
-  .brand img{height:26px}.brand .wm{font-size:19px}
+  /* 22px, not 26: the lockup is 8x wider than it is tall, and at 26 it eats more than half
+     a 390px phone - leaving too little for the live pill, the scores eye and My Teams. */
+  .brand img{height:22px}
   .nav{position:fixed;left:0;right:0;bottom:0;z-index:60;justify-content:space-around;gap:0;padding:6px 6px calc(6px + env(safe-area-inset-bottom,0px));background:rgba(8,16,31,.96);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--line)}
   .nav a{flex-direction:column;gap:2px;font-size:11px;padding:6px 4px;flex:1;text-align:center}
   .nav a.on{box-shadow:none;color:var(--nec-hi)}
@@ -486,3 +486,40 @@ dialog.clipdlg .toast{position:fixed;top:auto;bottom:90px}
 .frpop b{white-space:nowrap;font:800 24px var(--display);letter-spacing:.06em;text-transform:uppercase}
 .frpop small{white-space:nowrap;color:var(--muted);font-size:13px}
 .frpop.on{opacity:1;transform:translate(-50%,-50%) scale(1)}
+
+/* ---- Narrow desktops ----
+   The top row is brand + six nav links + the scores eye + My Teams, none of which wrap, so
+   below about 1480px it runs out of room and "More" ends up sitting on top of "Hide scores".
+   That was already true before the wordmark became an image; the image only moves the point
+   where it starts. Every width here was measured with the live-games pill showing (the worst
+   case) across 320-1700px, not guessed. Phones are untouched by these three blocks - they
+   get the fixed bottom tab bar from the 760px block earlier in this file.
+   Things are given up in order of least harm: Multiview leaves the top row first because the
+   More menu already lists it, then the link labels (icons stay, and More still spells every
+   destination out), then the word "More" itself. No destination is ever lost. */
+@media (min-width:761px) and (max-width:1503px){
+  .hdr{gap:16px}
+  .nav{gap:2px}
+  .nav a{padding:8px 8px;font-size:14px}
+  .nav a svg{width:18px;height:18px}
+  .nav .nav-multi{display:none}
+}
+@media (min-width:761px) and (max-width:1242px){
+  .hdr{gap:12px}
+  .brand img{height:24px}
+  .nav a{padding:8px 6px}
+  .nav > a > span,.nav .dd > a > span{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+}
+@media (min-width:761px) and (max-width:855px){
+  .hdr{gap:10px;padding-left:14px;padding-right:14px}
+  .brand img{height:20px}
+  .nav a{padding:8px 4px}
+  .morebtn span{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+}
+/* On a phone there's no nav in the top row, but the lockup is wide enough that a 320-360px
+   screen still ran over once the live pill appeared. Rather than add more breakpoints, let
+   the logo shrink to whatever room is left - contain keeps it from stretching. */
+@media (max-width:760px){
+  .brand{flex:0 1 auto;min-width:0}
+  .brand img{max-width:100%;object-fit:contain}
+}

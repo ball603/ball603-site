@@ -60,11 +60,11 @@ self.addEventListener('fetch', (event) => {
   // Skip API/function calls - always fetch fresh
   if (url.pathname.startsWith('/.netlify/')) return;
 
-  // Skip the NEC Front Row demo folders. /frontrow/ has its own worker and /nec/
-  // deliberately has none, so this worker has no business caching either one --
-  // it was serving their CSS and .json data from cache first (stale demo data) and
-  // could drop Ball603's own offline.html into the middle of the NEC demo.
-  if (url.pathname.startsWith('/frontrow/') || url.pathname.startsWith('/nec/')) return;
+  // Skip NEC Front Row. It has its own worker under /frontrow/, so this one has no
+  // business caching it -- it was serving Front Row's CSS and .json from cache first
+  // (stale data) and could drop Ball 603's own offline.html into the middle of it.
+  // The old /nec/ folder was deleted from the repo, so there's nothing to skip there.
+  if (url.pathname.startsWith('/frontrow/')) return;
   
   // Determine if this is HTML or JS (network-first) vs images/CSS (cache-first)
   const isHtmlOrJs = request.headers.get('accept')?.includes('text/html') ||

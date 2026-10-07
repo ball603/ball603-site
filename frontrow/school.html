@@ -30,6 +30,29 @@
 .sp-chips{display:flex;gap:8px;overflow-x:auto;padding:4px 0 10px;scrollbar-width:none}
 .sp-chips .chip{white-space:nowrap}
 .sc-list h2{margin:26px 0 12px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+/* Quick facts. Hidden until the school table loads, and it stays hidden if that never
+   happens, so the rest of the page is never waiting on it. */
+.qf{border:1px solid var(--line);background:var(--bg-2);border-radius:var(--radius);padding:16px 18px;margin:6px 0 4px;display:flex;flex-wrap:wrap;align-items:center;gap:14px 28px}
+.qf dl{margin:0;display:flex;flex-wrap:wrap;gap:14px 28px;flex:1;min-width:0}
+.qf div{min-width:0}
+.qf dt{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--dim);margin:0 0 3px}
+.qf dd{margin:0;font-weight:600;font-size:15px;color:var(--text)}
+.qf .lk{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+/* Site links read as labelled buttons; the social ones are round and icon-only, since
+   those marks are recognisable on their own. */
+/* flex:none matters - without it the round buttons get squeezed to 18px wide inside the
+   sideways-scrolling row on a phone, which is far too small to hit. */
+.qf .lk a{flex:none;display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid var(--line);border-radius:999px;color:var(--muted);font:600 13px var(--body);padding:8px 15px;min-height:44px}
+.qf .lk a.ic{width:44px;padding:0}
+.qf .lk a svg{width:16px;height:16px;flex:none;fill:currentColor;stroke:none}
+@media (hover:hover) and (pointer:fine){.qf .lk a:hover{color:var(--text);border-color:var(--nec);background:var(--surface)}}
+@media (max-width:620px){
+  .qf{padding:14px;gap:12px 20px}
+  .qf dl{gap:12px 20px}
+  /* On a phone the row scrolls sideways rather than wrapping into three ragged lines. */
+  .qf .lk{flex-basis:100%;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+  .qf .lk::-webkit-scrollbar{display:none}
+}
 </style>
 </head>
 <body>
@@ -38,6 +61,7 @@
 <section id="board"></section>
 <main id="main" class="wrap">
   <div class="sc-head" id="head"></div>
+  <div id="facts"></div>
   <div id="body"><p class="empty">Loading…</p></div>
 </main>
 <footer class="foot">
@@ -56,6 +80,33 @@ addEventListener('DOMContentLoaded', () => {
   const key = new URLSearchParams(location.search).get('t');
   let sportPick = new URLSearchParams(location.search).get('s') || '';
 
+  // Quick facts, from data/schools.json. Written so a school missing from that file (or the
+  // file failing to load) simply leaves the box out instead of breaking the page.
+  const SITE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm6.93 6h-2.95a15.6 15.6 0 00-1.38-3.56A8 8 0 0118.93 8zM12 4.04c.63.91 1.17 2.1 1.5 3.96h-3c.33-1.86.87-3.05 1.5-3.96zM4.26 14a7.8 7.8 0 010-4h3.38a17 17 0 000 4zm.81 2h2.95c.3 1.29.75 2.5 1.38 3.56A8 8 0 015.07 16zm2.95-8H5.07a8 8 0 014.33-3.56A15.6 15.6 0 008.02 8zM12 19.96c-.63-.91-1.17-2.1-1.5-3.96h3c-.33 1.86-.87 3.05-1.5 3.96zM14.34 14H9.66a15 15 0 010-4h4.68a15 15 0 010 4zm.26 5.56c.63-1.06 1.08-2.27 1.38-3.56h2.95a8 8 0 01-4.33 3.56zM16.36 14a17 17 0 000-4h3.38a7.8 7.8 0 010 4z"/></svg>';
+  const TICKET = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l2.6 6.3 6.8.5-5.2 4.4 1.6 6.6L12 16.4 6.2 19.8l1.6-6.6L2.6 8.8l6.8-.5z"/></svg>';
+
+  function facts(sc, info){
+    if (!info) return '';
+    const place = [info.city, info.state].filter(Boolean).join(', ');
+    const rows = [
+      ['Location', place],
+      ['Mascot', sc && sc.mascot],
+      ['NEC', sc ? (sc.member === 'full' ? 'Full member' : 'Associate member') : '']
+      // Deliberately no "sports covered" row - the sport chips directly below this box
+      // already list exactly that, and spelled out here it ran to nine items on one line.
+    ].filter(r => r[1]);
+    const site = (url, label, icon) => url
+      ? `<a href="${esc(url)}" target="_blank" rel="noopener">${icon}${esc(label)}</a>` : '';
+    const ic = (url, label, mark) => url
+      ? `<a class="ic" href="${esc(url)}" target="_blank" rel="noopener" aria-label="${esc(label)}" title="${esc(label)}">${mark}</a>` : '';
+    const links = site(info.athletics, 'Athletics', TICKET) + site(info.university, 'University', SITE)
+      + ic(info.facebook, 'Facebook', FR.MARK.facebook) + ic(info.instagram, 'Instagram', FR.MARK.instagram)
+      + ic(info.x, 'X', FR.MARK.x) + ic(info.youtube, 'YouTube', FR.MARK.youtube);
+    if (!rows.length && !links) return '';
+    return `<div class="qf"><dl>${rows.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>
+      ${links ? `<div class="lk">${links}</div>` : ''}</div>`;
+  }
+
   function followToggle(k){
     const cur = FR.favs();
     FR.setFavs({ schools: cur.schools.includes(k) ? cur.schools.filter(x => x !== k) : [...cur.schools, k], sports: cur.sports });
@@ -64,6 +115,7 @@ addEventListener('DOMContentLoaded', () => {
 
   // All schools
   function list(){
+    $('facts').innerHTML = '';
     $('head').innerHTML = '<div class="grow"><h1>Schools</h1><p>Tap a school for its live games and full season on demand. Tap the star to follow.</p></div>';
     const full = FR.schools.filter(s => s.member === 'full'), assoc = FR.schools.filter(s => s.member !== 'full');
     $('body').innerHTML = `<div class="sc-list"><h2>Full members</h2><div class="schools">${full.map(FR.schoolCard).join('')}</div>
@@ -92,6 +144,7 @@ addEventListener('DOMContentLoaded', () => {
     if (!sportPick && other.length) html += sec('Shows and more', other.map(rcard).join(''));
     if (!mineR.length && !today.length) html += '<p class="empty">No games or videos for this school yet.</p>';
     $('body').innerHTML = html;
+    FR.schoolInfo().then(all => { $('facts').innerHTML = facts(sc, all[key]); });
     $('body').querySelectorAll('[data-s]').forEach(b => b.onclick = () => {
       sportPick = b.dataset.s; one(items);
       const p = new URLSearchParams(location.search); sportPick ? p.set('s', sportPick) : p.delete('s'); history.replaceState(null, '', '?' + p);
