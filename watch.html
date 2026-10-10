@@ -1,0 +1,700 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Watch · NEC Front Row</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Front Row">
+<meta name="theme-color" content="#060d1a">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,800&family=Barlow:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/assets/fr.css">
+<style>
+/* Player on the left, the game's scoreboard and details on the right; stacks on phones */
+.watch{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:22px;align-items:start;padding-block:20px 0}
+@media (max-width:1020px){.watch{grid-template-columns:1fr}}
+.side{display:grid;gap:14px}
+.panel{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
+.panel h2{margin:0 0 10px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.score{display:grid;gap:10px}
+.score .st{display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px;color:var(--muted)}
+.score .tm{display:grid;grid-template-columns:44px minmax(0,1fr) auto;align-items:center;gap:12px}
+.score .tm img{width:44px;height:44px;object-fit:contain}
+.score .nm{font-family:var(--display);font-weight:700;font-size:22px;line-height:1.05;min-width:0}
+.score .nm small{display:block;font-family:var(--body);font-weight:500;font-size:13px;color:var(--muted)}
+.score .sc{font-family:var(--display);font-weight:800;font-size:38px;line-height:1;font-variant-numeric:tabular-nums}
+.score .tm.lose{opacity:.55}
+.facts{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0;font-size:14px}
+.facts dt{color:var(--muted)}
+.facts dd{margin:0}
+.title{margin:14px 0 0;font-family:var(--display);font-weight:800;font-size:clamp(24px,3vw,34px);line-height:1.1;text-wrap:balance}
+.sub{margin:4px 0 0;color:var(--muted);font-size:15px}
+.wait{position:absolute;inset:0;z-index:2;display:grid;place-items:center;text-align:center}
+.wait .art{position:absolute;inset:0;aspect-ratio:auto;border-radius:0}
+.wait .art .pill,.wait .art .scr{display:none}
+.wait .msg{position:relative;z-index:3;display:grid;gap:6px;padding:16px 22px;border-radius:12px;background:rgba(6,13,26,.78);backdrop-filter:blur(8px)}
+.wait .msg b{font-family:var(--display);font-size:26px}
+.wait .msg span{color:var(--muted);font-size:14px}
+
+/* Stats tabs */
+.stats{padding:0;overflow:hidden}
+/* A grid item will not shrink below its own content unless it is told it may.
+   Without this the panel sized itself to the widest thing in it and pushed
+   past the edge of a phone screen, putting a sideways scroll on the page. */
+.panel.stats{min-width:0}
+.tabs{display:flex;min-width:0;border-bottom:1px solid var(--line)}
+/* min-width:0 because a flex item will not shrink below its longest word on
+   its own. With three tabs there was room; the fourth pushed the panel wider
+   than a phone screen and put a sideways scroll on the whole page. */
+/* One line each. Three headings fit with room to spare at every width the
+   panel is used at - measured down to a 320px screen.
+   Deliberately NOT a sideways-scrolling row: on phones this same element is
+   position:sticky, and sticky combined with its own overflow scrolling is one
+   of the shakier things to ask a mobile browser for. Since the headings fit,
+   there is nothing to gain by asking. */
+.tab{flex:1 1 auto;min-width:0;white-space:nowrap;padding:12px 8px;border:0;background:none;color:var(--muted);font-weight:700;font-size:13px;letter-spacing:.04em;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab[aria-selected="true"]{color:var(--text);border-bottom-color:var(--nec)}
+.tab:hover{color:var(--text)}
+.tpanel{padding:16px}
+
+/* The speaker badge is a confirmation, not a status light: it shows when the sound changes
+   and when the video starts, then fades. Scoped by id - Multiview has its own .snd badge
+   that stays put, and a shared rule would have hidden that one for good. */
+#sndTag{opacity:0;visibility:hidden;transition:opacity .45s ease,visibility 0s linear .45s}
+#sndTag.show{opacity:1;visibility:visible;transition:opacity .2s ease}
+@media (prefers-reduced-motion:reduce){#sndTag{transition:none}}
+
+/* Live stats beside the video, landscape full screen only. The picture is letterboxed there,
+   so the panel takes mostly black bar rather than picture. Portrait has no room for it. */
+.fsp{display:none}
+/* The stats button only has room for its panel in landscape full screen. Decided in CSS on
+   purpose: doing it in JS meant reacting to stage class changes, which is what hung the page. */
+.b-stats{display:none}
+.stage.fs .b-stats{display:inline-flex}
+.stage.fs .b-stats[hidden]{display:none}
+@media (orientation:portrait){.stage.fs .b-stats{display:none}}
+.stage.fs.stats-on .fsp{display:flex;flex-direction:column;position:absolute;top:0;right:0;bottom:0;width:var(--fspw);z-index:9;background:rgba(4,9,18,.95);border-left:1px solid var(--line);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.stage.fs.stats-on{--fspw:clamp(190px,30%,280px)}
+.stage.fs.tick-on.stats-on .fsp{bottom:calc(34px + env(safe-area-inset-bottom,0px))}
+.stage.fs.stats-on .screen{margin-right:var(--fspw)}
+.stage.fs.stats-on .vc{right:var(--fspw)}
+/* The tab row was 31pt tall and flush against the top edge of the screen - a miserable
+   target on a phone. 44pt minimum now, and pushed clear of the edge. */
+.fsp-h{display:flex;align-items:stretch;border-bottom:1px solid var(--line);flex:none;padding-top:max(6px,env(safe-area-inset-top,0px))}
+.fsp-h .ftab{flex:1;min-height:44px;padding:10px 4px;border:0;background:none;color:var(--muted);font-weight:700;font-size:12px;letter-spacing:.03em;border-bottom:2px solid transparent;margin-bottom:-1px;cursor:pointer;white-space:nowrap;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.fsp-h .ftab:active{background:rgba(255,255,255,.07)}
+.fsp-h .ftab[aria-selected="true"]{color:var(--text);border-bottom-color:var(--nec)}
+.fsp-x{flex:none;min-width:44px;min-height:44px;display:grid;place-items:center;border:0;background:none;color:var(--muted);cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.fsp-x svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round}
+.fsp-x:hover{color:var(--text)}
+.fsp-b{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 11px 12px;font-size:13px}
+/* the stat tables are built for a wide column, so tighten them for this narrow one */
+.fsp-b .score .nm{font-size:16px}
+.fsp-b .score .sc{font-size:26px}
+.fsp-b .score .tm{grid-template-columns:28px minmax(0,1fr) auto;gap:8px}
+.fsp-b .score .tm img{width:28px;height:28px}
+.fsp-b .spoilbox{padding:4px 0}
+.fsp-b .spoilbox .btn{width:100%;font-size:12px;padding:9px 10px}
+@media (orientation:portrait){
+  /* no room beside the video on a portrait phone - fall back to the panel below it */
+  .stage.fs.stats-on .fsp{display:none}
+  .stage.fs.stats-on .screen{margin-right:0}
+  .stage.fs.stats-on .vc{right:0}
+}
+.ls{width:100%;border-collapse:collapse;margin-top:14px;font-variant-numeric:tabular-nums;font-size:14px}
+.ls th,.ls td{padding:7px 4px;text-align:center;border-top:1px solid var(--line)}
+.ls th{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.06em;border-top:0}
+.ls td:first-child,.ls th:first-child{text-align:left}
+.ls td:first-child{display:flex;align-items:center;gap:8px;font-family:var(--display);font-weight:700;font-size:16px}
+.ls td:first-child img{width:20px;height:20px;object-fit:contain}
+.ls td:last-child{font-weight:800}
+.ts-h{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;margin-bottom:6px;font-family:var(--display);font-weight:700;font-size:16px}
+.ts-h span{display:flex;align-items:center;gap:7px}
+.ts-h span:last-child{justify-content:flex-end}
+/* A school with no logo file gets an initials badge, and that is an <svg>,
+   not an <img> - so every rule that sizes a logo has to name both. */
+.ts-h img,.ts-h .tbadge{width:22px;height:22px;object-fit:contain}
+.ts-row{display:grid;grid-template-columns:52px 1fr 52px;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}
+.ts-row b{font-family:var(--display);font-size:18px}
+.ts-row b:last-child{text-align:right}
+.ts-row .lbl{display:grid;gap:5px;text-align:center;font-size:12px;color:var(--muted);font-weight:600}
+.ts-bar{display:flex;gap:3px;height:5px}
+.ts-bar i{display:block;border-radius:3px;background:var(--nec-hi)}
+.ts-bar i:last-child{background:#c9d4e5}
+.pre-note{color:var(--muted);font-size:14px;margin:14px 0 0}
+.note{color:var(--muted);font-size:14px;margin:14px 0 0}
+/* Box score. Sections rather than a window over the video: the game stays
+   visible and the sections push each other down the column. A sub-row is a
+   breakdown of the line above it, so it is quieter and carries no bar. */
+.ts-row.sub{padding:3px 0 7px;border-top:0;margin-top:-6px}
+.ts-row.sub b{font-size:13px;color:var(--muted);font-family:var(--body);font-weight:600}
+.ts-row.sub .lbl{font-size:11px;color:var(--dim);font-weight:500}
+.bx-sw{display:flex;gap:6px;margin:2px 0 10px}
+.bx-sw button{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:7px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg-2);color:var(--muted);font-family:var(--display);font-weight:700;font-size:15px;cursor:pointer}
+.bx-sw button img,.bx-sw button .tbadge{width:18px;height:18px;object-fit:contain;flex:none}
+.bx-sw button[aria-selected="true"]{background:var(--raised);color:var(--text);border-color:var(--nec)}
+details.bx{border-top:1px solid var(--line)}
+details.bx summary{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:11px 0;cursor:pointer;list-style:none;font-family:var(--display);font-weight:700;font-size:16px;letter-spacing:.01em}
+details.bx summary::-webkit-details-marker{display:none}
+details.bx summary:hover{color:var(--nec-hi)}
+details.bx summary svg{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;color:var(--muted);transition:transform .15s}
+details.bx[open] summary svg{transform:rotate(180deg)}
+.bx-scroll{overflow-x:auto;scrollbar-width:thin;padding-bottom:8px}
+.bx-t{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.bx-t th{text-align:left;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);font-weight:700;padding:0 0 6px}
+.bx-t th.n,.bx-t td.n{text-align:right;padding-left:10px}
+.bx-t td{padding:5px 0;border-top:1px solid rgba(255,255,255,.05)}
+.bx-t tbody tr:first-child td{border-top:0}
+.bx-t td:first-child{max-width:150px;overflow:hidden;text-overflow:ellipsis}
+.sc-h{margin:18px 0 2px;font-family:var(--display);font-weight:700;font-size:16px;letter-spacing:.01em;border-top:1px solid var(--line);padding-top:14px}
+.bx-sc{list-style:none;margin:0 0 10px;padding:0}
+.bx-sc li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:7px 0;border-top:1px solid rgba(255,255,255,.05);font-size:13px}
+.bx-sc li:first-child{border-top:0}
+.bx-sc .w{font-size:11px;color:var(--dim);font-weight:700;letter-spacing:.04em;white-space:nowrap}
+.bx-sc .t{display:flex;align-items:center;gap:7px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bx-sc .t img,.bx-sc .t .tbadge{width:18px;height:18px;object-fit:contain;flex:none}
+.bx-sc b{font-family:var(--display);font-size:16px;font-variant-numeric:tabular-nums}
+@media (prefers-reduced-motion:reduce){details.bx summary svg{transition:none}}
+/* Phones: the video (with its controls) stays pinned to the top while the page scrolls underneath,
+   and the stats tabs stick right below it */
+@media (max-width:1020px) and (pointer:coarse), (max-width:760px){
+  .hdr{position:relative}
+  .watch,.watch > div:first-child{display:contents}
+  .side{margin-top:16px}
+  #stage:not(.fake-fs):not(.fs){position:sticky;top:0;z-index:45;margin-inline:calc(var(--gut) * -1);border-radius:0;padding-top:env(safe-area-inset-top,0px);background:#000;box-shadow:0 8px 18px rgba(0,0,0,.45)}
+  .title{margin-top:16px}
+  .stats .tabs{position:sticky;top:var(--stage-h,0px);z-index:30;background:var(--bg-2);border-radius:var(--radius) var(--radius) 0 0}
+  .stats{overflow:visible}
+}
+
+</style>
+</head>
+<body>
+<a class="skip" href="#player">Skip to video</a>
+<header id="hdr"></header>
+<section id="board"></section>
+
+<main class="wrap" id="main">
+  <div class="watch">
+    <div>
+      <div class="stage" id="stage">
+        <div class="screen" id="screen">
+          <div class="tile" id="tile">
+            <video id="player" playsinline muted aria-label="Game video"></video>
+            <div class="badge"><span id="livePill"></span><span class="snd" id="sndTag" hidden aria-label="Sound on"></span></div>
+          </div>
+        </div>
+        <button class="tapsound" id="tapSound" hidden></button>
+        <div class="vc" id="vc"></div>
+        <aside class="fsp" id="fsp" aria-label="Live stats">
+          <div class="fsp-h" role="tablist">
+            <button class="ftab" role="tab" id="f-team" aria-selected="true">Team Stats</button>
+            <button class="fsp-x" id="fspX" aria-label="Hide stats" title="Hide stats"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+          </div>
+          <div class="fsp-b" id="fspB" role="tabpanel" aria-labelledby="f-score"></div>
+        </aside>
+        <div class="mvmenu" id="mvMenu" role="menu" aria-label="Watch with other games" hidden>
+          <div class="mvh">Watch with other games</div>
+          <div class="mvopts">
+            <button role="menuitem" data-l="pip"><svg viewBox="0 0 48 27"><rect class="m" width="48" height="27" rx="2"/><rect class="o" x="29" y="15" width="16" height="9" rx="1.5"/></svg>PiP</button>
+            <button role="menuitem" data-l="two"><svg viewBox="0 0 48 27"><rect class="m" y="4" width="23.5" height="19" rx="2"/><rect class="o" x="24.5" y="4" width="23.5" height="19" rx="2"/></svg>Side by side</button>
+            <button role="menuitem" data-l="three"><svg viewBox="0 0 48 27"><rect class="m" width="48" height="17.5" rx="2"/><rect class="o" y="18.5" width="23.5" height="8.5" rx="1.5"/><rect class="o" x="24.5" y="18.5" width="23.5" height="8.5" rx="1.5"/></svg>3 games</button>
+            <button role="menuitem" data-l="quad"><svg viewBox="0 0 48 27"><rect class="m" width="23.5" height="13" rx="1.5"/><rect class="o" x="24.5" width="23.5" height="13" rx="1.5"/><rect class="o" y="14" width="23.5" height="13" rx="1.5"/><rect class="o" x="24.5" y="14" width="23.5" height="13" rx="1.5"/></svg>4 games</button>
+          </div>
+        </div>
+      </div>
+      <h1 class="title" id="title"></h1>
+      <p class="sub" id="sub"></p>
+    </div>
+
+    <aside class="side" aria-label="Game details">
+      <section class="panel stats" aria-label="Game stats">
+        <div class="tabs" role="tablist">
+          <button class="tab" role="tab" id="t-score" aria-controls="p-score" aria-selected="true">Score</button>
+          <button class="tab" role="tab" id="t-team" aria-controls="p-team" aria-selected="false" tabindex="-1">Team Stats</button>
+          <button class="tab" role="tab" id="t-box" aria-controls="p-box" aria-selected="false" tabindex="-1">Full Stats</button>
+        </div>
+        <div class="tpanel" role="tabpanel" id="p-score" aria-labelledby="t-score"><div class="score" id="score" aria-live="polite"></div></div>
+        <div class="tpanel" role="tabpanel" id="p-team" aria-labelledby="t-team" hidden></div>
+        <div class="tpanel" role="tabpanel" id="p-box" aria-labelledby="t-box" hidden></div>
+      </section>
+      <a class='btn primary' href='/multiview' id='toMulti'><svg viewBox="0 0 24 24"><path d="M3 4h8v7H3zm10 0h8v7h-8zM3 13h8v7H3zm10 0h8v7h-8z"/></svg>Watch with other games</a>
+      <section class="panel"><h2>Game info</h2><dl class="facts" id="facts"></dl></section>
+    </aside>
+  </div>
+
+  <section class="sec" aria-labelledby="h-more">
+    <div class="sec-h"><h2 id="h-more">More games today</h2></div>
+    <div class="rail" id="more"></div>
+  </section>
+</main>
+
+
+
+<footer class="foot">
+  <span>© 2026 Northeast Conference · NEC Front Row · <a href='/support'>Support &amp; FAQs</a></span>
+  <a class="by" href="https://packnetwork.com" target="_blank" rel="noopener">Powered by <img src="/packnetwork.png" alt="Pack Network" width="96" height="51" loading="lazy"></a>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.13/hls.min.js" defer></script>
+<script src="/assets/fr.js" defer></script>
+<script src="/assets/player.js" defer></script>
+<script src="/assets/clip.js" defer></script>
+<script defer>
+addEventListener('DOMContentLoaded', () => {
+  const { esc, logoImg, label, soon, pill, isLive, watchable, sorted, lead, time, card } = FR;
+  const I = FRPlayer.ICONS;
+  const $ = id => document.getElementById(id);
+  FR.header('');
+  FR.board($('board'));
+  FR.pullToRefresh(() => $('stage').classList.contains('fake-fs'));
+
+  $('tapSound').innerHTML = FRPlayer.ICONS.sound + 'Tap for sound';
+  $('sndTag').innerHTML = FRPlayer.ICONS.sound;
+
+  const stage = $('stage'), video = $('player');
+  let ev = null, h = null, started = false, soundOn = false, tab = 'score';
+
+  let sndT;
+  function flashSnd(on){
+    const el = $('sndTag');
+    el.innerHTML = on ? FRPlayer.ICONS.sound : FRPlayer.ICONS.mute;
+    el.setAttribute('aria-label', on ? 'Sound on' : 'Sound off');
+    el.removeAttribute('hidden');
+    el.classList.add('show');
+    clearTimeout(sndT);
+    sndT = setTimeout(() => el.classList.remove('show'), 2200);
+  }
+  function setSound(on){
+    soundOn = on; video.volume = FRPlayer.vol(); video.muted = !on;
+    flashSnd(on);
+    if (on) hideTap();
+  }
+  function hideTap(){ const b = $('tapSound'); b.classList.add('out'); setTimeout(() => b.hidden = true, 450); }
+  $('tapSound').onclick = e => { e.stopPropagation(); setSound(true); };
+
+  const bar = FRPlayer.bar({ vc: $('vc'), getH: () => h, isLiveGame: () => !!ev && isLive(ev),
+    soundOn: () => soundOn, onSound: () => setSound(!soundOn),
+    extra: '<button class="pb b-stats" aria-label="Live stats" aria-pressed="false" title="Live stats"><svg viewBox="0 0 24 24"><path d="M3 10h4v10H3zm7-7h4v17h-4zm7 6h4v11h-4z"/></svg></button><button class="pb b-mv" aria-label="Watch with other games" aria-haspopup="menu" aria-expanded="false" title="Multiview"><svg viewBox="0 0 24 24"><path d="M3 5h8.5v6.5H3zm9.5 0H21v6.5h-8.5zM3 12.5h8.5V19H3zm9.5 0H21V19h-8.5z"/></svg></button><button class="pb b-clip" aria-label="Make a clip" title="Make a clip"><svg viewBox="0 0 24 24"><path d="M9.6 7.6A3.5 3.5 0 1 0 8 9.9l2.3 2.1L8 14.1a3.5 3.5 0 1 0 1.6 2.3L12 14.2l7.6 6.8H22v-1L11.7 12 22 4V3h-2.4zM6.5 9a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm0 9a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg></button>' });
+  FRPlayer.autoHide(stage, $('vc'));
+  // keep the stats tabs tucked right under the pinned video
+  const stageH = () => document.documentElement.style.setProperty('--stage-h', stage.getBoundingClientRect().height + 'px');
+  if (window.ResizeObserver) new ResizeObserver(stageH).observe(stage); else addEventListener('resize', stageH);
+  stageH();
+  FRPlayer.fullscreen(stage, bar.full);
+  // score ticker in full screen: tap a game to switch to it right here
+  const tick = FRPlayer.ticker({ stage, vc: $('vc'), current: () => ev ? [ev.id] : [], onPick: id => switchTo(id) });
+  // Multiview button: pick a layout, then open Multiview with this game in the main window
+  const mvBtn = $('vc').querySelector('.b-mv'), mvMenu = $('mvMenu');
+  const mvShow = on => { mvMenu.hidden = !on; mvBtn.setAttribute('aria-expanded', on); if (on) mvMenu.querySelector('button').focus(); };
+  mvBtn.onclick = e => { e.stopPropagation(); mvShow(mvMenu.hidden); };
+  mvMenu.addEventListener('click', e => {
+    const b = e.target.closest('[data-l]'); if (!b || !ev) return;
+    const fs = stage.classList.contains('fs') ? '&fs=1' : '';
+    location.href = `/multiview.html?l=${b.dataset.l}&g=${encodeURIComponent(ev.id)},${fs}`;   // trailing comma = other windows start empty
+  });
+  document.addEventListener('pointerdown', e => { if (!mvMenu.hidden && !e.target.closest('#mvMenu,.b-mv')) mvShow(false); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !mvMenu.hidden) { mvShow(false); mvBtn.focus(); } });
+  document.addEventListener('keydown', e => {
+    if (e.target.closest('input,textarea,button,[role=tab]')) return;
+    if (e.key === 'ArrowLeft' && h) FRPlayer.back10(h);
+    if (e.key === 'ArrowRight' && h) FRPlayer.fwd10(h);
+    if (e.key === ' ') { e.preventDefault(); $('vc').querySelector('.b-play').click(); }
+    if (e.key === 'm') setSound(!soundOn);
+    if (e.key === 'f') bar.full.click();
+  });
+
+  /* The sponsorship slots that live over the video.
+   *
+   * They hang off the player's own moments rather than a timer of their own, so
+   * a game that starts late, stalls or ends early never leaves one stranded.
+   * If no slot is switched on, or nothing is booked, every one of these does
+   * nothing at all and the player behaves exactly as it did before. */
+  function promoAroundPlay(){
+    if (!window.PROMO) return;
+    PROMO.watchVideo(video, { school: ev.home || undefined, sport: ev.sportKey || undefined, e: ev.id });
+    PROMO.pauseCard(stage, video);
+    video.addEventListener('ended', () => PROMO.endcard(stage), { once:true });
+    // a breather first - nobody wants a sponsor bar the instant the picture appears
+    video.addEventListener('playing', () => {
+      setTimeout(() => PROMO.lowerthird(stage), 90 * 1000);
+      setTimeout(() => PROMO.squeeze(stage), 11 * 60 * 1000);
+    }, { once:true });
+  }
+
+  function start(){
+    if (started || !watchable(ev)) return;
+    started = true;
+    stage.querySelector('.wait')?.remove();
+    if (window.PROMO && !start._rolled) {      // the pre-roll goes before anything attaches
+      start._rolled = true; started = false;
+      PROMO.preroll(stage, () => start());
+      return;
+    }
+    promoAroundPlay();
+    h = FRPlayer.attach(video, ev.stream, { main:true, liveSince: isLive(ev) ? ev.kickoff : null, onError: () => {
+      $('tile').insertAdjacentHTML('beforeend', '<div class="vmsg">This video could not load. Try again in a moment.</div>'); } });
+    video.addEventListener('canplay', () => FRPlayer.trySound(video).then(ok => {
+      if (ok) { setSound(true); return; }
+      $('tapSound').hidden = false;            // sound was blocked: offer the button, or any tap
+      FRPlayer.onFirstTap(() => setSound(true));
+    }), { once:true });
+    setTimeout(() => $('tile').classList.add('live-off'), 4000);
+    setTimeout(() => $('tile').classList.add('live-gone'), 4700);
+  }
+
+  function waiting(){
+    if (stage.querySelector('.wait')) { stage.querySelector('.wait .msg span').textContent = soon(ev); return; }
+    $('tile').insertAdjacentHTML('beforeend', `<div class="wait">${FR.art(ev, false)}<div class="msg"><b>Game time ${esc(time(ev.kickoff))}</b><span>${esc(soon(ev))}</span></div></div>`);
+    // somebody who turned up early is the most attentive audience on the site
+    if (window.PROMO) setTimeout(() => PROMO.pregame(stage, soon(ev)), 600);
+  }
+
+  // ---------- Clips ----------
+  FRClip.button($('vc').querySelector('.b-clip'), { stage, getH: () => h, getEv: () => ev });
+
+  // ---------- Stats tabs ----------
+  const tabs = [...document.querySelectorAll('.stats .tab')];   // scoped: the full-screen panel has its own
+  function pick(t){
+    tab = t;
+    tabs.forEach(b => { const on = b.id === 't-' + t; b.setAttribute('aria-selected', on); b.tabIndex = on ? 0 : -1; });
+    ['score', 'team', 'box'].forEach(k => $('p-' + k).hidden = k !== t);
+    if (t === 'box' || t === 'score') loadBox();   // fetched on first sight of a panel that needs it
+  }
+  tabs.forEach((b, i) => {
+    b.onclick = () => pick(b.id.slice(2));
+    b.onkeydown = e => {
+      const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0; if (!d) return;
+      const n = tabs[(i + d + tabs.length) % tabs.length]; n.focus(); n.click();
+    };
+  });
+
+  // ---------- Live stats beside the video (landscape full screen) ----------
+  const FSP_KEY = 'fr-fsstats';
+  let fspTab = 'team';   // no Score tab - the score is already in the badge and the ticker
+  const statsBtn = $('vc').querySelector('.b-stats');
+  let fspOn = false; try { fspOn = localStorage.getItem(FSP_KEY) === '1'; } catch (e) {}
+
+  function fillFsp(){
+    if (!$('fspB') || !ev || ev.archive) return;
+    $('fspB').innerHTML = statHtml(fspTab);
+    $('fspB').setAttribute('aria-labelledby', 'f-' + fspTab);
+  }
+  function fspPick(t){
+    fspTab = t;
+    ['team'].forEach(k => {
+      const b = $('f-' + k); if (!b) return;
+      b.setAttribute('aria-selected', String(k === t)); b.tabIndex = k === t ? 0 : -1;
+    });
+    fillFsp();
+  }
+  function setFsp(on){
+    fspOn = on;
+    stage.classList.toggle('stats-on', on);
+    statsBtn.setAttribute('aria-pressed', String(on));
+    statsBtn.setAttribute('aria-label', on ? 'Hide live stats' : 'Live stats');
+    try { localStorage.setItem(FSP_KEY, on ? '1' : '0'); } catch (e) {}
+    if (on) fillFsp();
+  }
+  // Whether there's room for the panel is purely a question of screen shape, so CSS decides
+  // it (see the .b-stats rules). An earlier version watched the stage for class changes and
+  // wrote classes back to it from the handler - and every tap toggles show-ui on the stage,
+  // so that fed itself and locked the page up. Nothing here listens to the stage.
+  { const b = $('f-team'); if (b) b.onclick = () => fspPick('team'); }
+  function showStatTabs(on){
+    ['t-team', 't-box', 'f-team'].forEach(id => { const b = $(id); if (b) b.hidden = !on; });
+    if (statsBtn) statsBtn.hidden = !on;
+    if (!on) {
+      if (fspOn) setFsp(false);
+      pick('score');                 // never leave a hidden tab selected
+    }
+  }
+
+  $('fspX').onclick = () => setFsp(false);
+  statsBtn.onclick = () => setFsp(!fspOn);
+  setFsp(fspOn);
+
+  // Swipe the panel away to the right, swipe left to bring it back. Measured on pointerup and
+  // never preventDefault'd, so panel scrolling and the seek bar drag are untouched.
+  (function swipe(){
+    let x0 = 0, y0 = 0, live = false;
+    const room = () => stage.classList.contains('fs')
+      && matchMedia('(orientation: landscape)').matches && !statsBtn.hidden;
+    stage.addEventListener('pointerdown', e => {
+      // the controls own their own horizontal drags - the seek bar especially
+      live = room() && !e.target.closest('.vc, button, input, a, .ftk');
+      if (live) { x0 = e.clientX; y0 = e.clientY; }
+    }, { passive:true });
+    stage.addEventListener('pointerup', e => {
+      if (!live) return; live = false;
+      const dx = e.clientX - x0, dy = e.clientY - y0;
+      if (Math.abs(dx) < 55 || Math.abs(dx) < Math.abs(dy) * 1.5) return;   // must be clearly sideways
+      if (dx > 0 && fspOn) setFsp(false);
+      else if (dx < 0 && !fspOn) setFsp(true);
+    }, { passive:true });
+    stage.addEventListener('pointercancel', () => { live = false; }, { passive:true });
+  })();
+
+  const preNote = '<p class="pre-note">Stats start when the game does.</p>';
+  function scoreTab(){
+    const live = isLive(ev);
+    const tm = side => { const t = side === 'away' ? ev.a : ev.h;
+      return `<div class="tm ${lead(ev, side)}">${logoImg(t.key, 44)}<div class="nm">${esc(t.name)}${ev.poss === side ? ' <i class="poss" title="Has the ball"></i>' : ''}<small>${esc(t.mascot)}</small></div><div class="sc">${!ev.hasStats ? '' : ev.status === 'pre' ? '–' : ev.score[side]}</div></div>`; };
+    let table = '';
+    if (ev.status !== 'pre' && ev.hasStats && ev.lines) {
+      const q = n => ev.lines.away[n] !== undefined ? 1 : 0;
+      const cols = [0, 1, 2, 3];
+      const row = side => { const t = side === 'away' ? ev.a : ev.h;
+        return `<tr><td>${logoImg(t.key, 20)}${esc(t.abbr)}</td>${cols.map(n => `<td>${ev.lines[side][n] ?? '–'}</td>`).join('')}<td>${ev.score[side]}</td></tr>`; };
+      table = `<table class="ls"><thead><tr><th scope="col">Team</th>${cols.map(n => `<th scope="col">${n + 1}</th>`).join('')}<th scope="col">T</th></tr></thead><tbody>${row('away')}${row('home')}</tbody></table>`;
+    }
+    return `<div class="st">${live ? '<span class="dot"></span>' : ''}${esc(ev.status === 'pre' ? soon(ev) : label(ev))}</div>${tm('away')}${tm('home')}${table}${scoringHtml()}`;
+  }
+
+  /* Who scored and when, under the scoreboard it belongs to. Both teams at
+     once: a scoring summary split in half is one side's good news with the
+     other half missing, so it is not behind the team switch. */
+  function scoringHtml(){
+    const list = (boxData && boxData.scoring) || [];
+    if (!list.length) return '';
+    return `<h3 class="sc-h">Scoring</h3><ol class="bx-sc">${list.map(sc => {
+      const mine = sc.vh === 'V' ? ev.a : sc.vh === 'H' ? ev.h : null;
+      return `<li><span class="w">${esc(ord(sc.period))}${sc.clock ? ' ' + esc(tidyClock(sc.clock)) : ''}</span>
+        <span class="t">${mine ? logoImg(mine.key, 18) : ''}${esc(sc.text)}</span>
+        <b>${esc(sc.score)}</b></li>`;
+    }).join('')}</ol>`;
+  }
+  /* The rows come from the feed already worded and in order, because what a
+     row says depends on the sport. A sub-row - one whose label is indented -
+     is a breakdown of the line above it and gets no comparison bar, since
+     "7-3-0" is not a quantity to draw. */
+  function teamTab(){
+    if (ev.status === 'pre' || !ev.stats || !ev.stats.away || !ev.stats.away.length) return preNote;
+    const A = ev.stats.away, H = ev.stats.home || [];
+    const secs = v => typeof v === 'string' && v.includes(':') ? +v.split(':')[0] * 60 + +v.split(':')[1] : parseFloat(v);
+    const head = `<div class="ts-h"><span>${logoImg(ev.a.key, 22)}${esc(ev.a.abbr)}</span><span></span><span>${esc(ev.h.abbr)}${logoImg(ev.h.key, 22)}</span></div>`;
+    return `<div>${head}` + A.map(([name, av], i) => {
+      const hv = (H[i] && H[i][0] === name) ? H[i][1] : ((H.find(r => r[0] === name) || [])[1] ?? '');
+      const sub = /^\s/.test(name);
+      const a = secs(av), b = secs(hv), tot = (a + b) || 0;
+      const bar = (!sub && isFinite(a) && isFinite(b) && tot)
+        ? `<div class="ts-bar"><i style="flex:${a / tot || .001}"></i><i style="flex:${b / tot || .001}"></i></div>` : '';
+      return `<div class="ts-row${sub ? ' sub' : ''}"><b>${esc(av)}</b><div class="lbl">${esc(name.trim())}${bar}</div><b>${esc(hv)}</b></div>`;
+    }).join('') + '</div>';
+  }
+
+  /* ---------- Box Score ----------
+   *
+   * The full detail, as sections you open rather than a window over the game.
+   * The video is the reason anyone is here, so nothing here is allowed to
+   * cover it: the sections sit in the column beside it and push each other
+   * down. Collapsed, they also cost nothing to not read.
+   *
+   * It is fetched the first time the tab is opened and not before - it is
+   * about twenty times the size of the scoreboard and most people never look
+   * at it - then refreshed on the same beat as everything else while the game
+   * is on.
+   */
+  const OPEN_KEY = 'fr-box-open';
+  /* The scoreboard ticks every few seconds; a box score does not need to. It
+     is a far bigger file and nothing in it changes that fast, so it is asked
+     for at most this often however often the page around it updates. */
+  const BOX_EVERY = 20000;
+  let boxData = null, boxSide = 'away', boxPending = false, boxFailed = false, boxAt = 0;
+
+  const openSet = () => { try { return new Set(JSON.parse(localStorage.getItem(OPEN_KEY) || '[]')); } catch (e) { return new Set(); } };
+  function rememberOpen(title, on){
+    try {
+      const set = openSet(); on ? set.add(title) : set.delete(title);
+      localStorage.setItem(OPEN_KEY, JSON.stringify([...set]));
+    } catch (e) {}   // a viewer with storage turned off just gets the defaults every time
+  }
+  // open on arrival the first time; after that, whatever this viewer left open
+  const OPEN_FIRST = ['Passing', 'Attacking'];
+
+  async function loadBox(force){
+    if (!ev || ev.archive) return;
+    if (ev.status === 'pre') return;        // nothing to fetch before kick-off
+    if (boxPending) return;
+    if (boxData && !force) return;
+    if (force && Date.now() - boxAt < BOX_EVERY) return;
+    boxPending = true; boxAt = Date.now();
+    try {
+      const r = await fetch(`/api/fr-stats?box=${encodeURIComponent(ev.id)}`, { cache: 'no-cache' });
+      if (!r.ok) throw new Error(r.status);
+      boxData = await r.json();
+      boxFailed = false;
+    } catch (e) {
+      boxFailed = true;
+    } finally {
+      boxPending = false;
+      $('p-box').innerHTML = boxHtml();
+      wireBox();
+      // the scoring summary lives under the scoreboard, so that panel needs redrawing too
+      $('score').innerHTML = statHtml('score');
+      document.querySelectorAll('.stats [data-show]').forEach(b => b.onclick = () => FR.showScore(ev.id));
+    }
+  }
+
+  function boxHtml(){
+    if (covered()) return COVER;
+    if (ev.status === 'pre') return preNote;
+    if (boxPending && !boxData) return '<p class="note">Loading the full stats…</p>';
+    if (boxFailed) return '<p class="note">The full stats could not be loaded. <button class="btn" data-boxretry>Try again</button></p>';
+    if (!boxData) return '<p class="note">Loading the full stats…</p>';
+
+    const secs = (boxData.sections || {})[boxSide] || [];
+    if (!secs.length)
+      return '<p class="note">This game does not publish detailed stats.</p>';
+
+    const was = openSet(), first = !was.size;
+    const sw = `<div class="bx-sw" role="tablist" aria-label="Which team">
+      <button role="tab" data-side="away" aria-selected="${boxSide === 'away'}">${logoImg(ev.a.key, 18)}${esc(ev.a.abbr)}</button>
+      <button role="tab" data-side="home" aria-selected="${boxSide === 'home'}">${logoImg(ev.h.key, 18)}${esc(ev.h.abbr)}</button>
+    </div>`;
+
+    const section = (title, inner) => {
+      const on = first ? OPEN_FIRST.includes(title) : was.has(title);
+      return `<details class="bx"${on ? ' open' : ''} data-title="${esc(title)}">
+        <summary><span>${esc(title)}</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>${inner}</details>`;
+    };
+
+    const table = sec => `<div class="bx-scroll"><table class="bx-t">
+      <thead><tr>${sec.cols.map((c, i) => `<th${i ? ' class="n"' : ''}>${esc(c)}</th>`).join('')}</tr></thead>
+      <tbody>${sec.rows.map(r => `<tr>${r.map((c, i) => `<td${i ? ' class="n"' : ''}>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody>
+    </table></div>`;
+
+    return (secs.length ? sw : '') + secs.map(sec => section(sec.title, table(sec))).join('');
+  }
+
+  const ord = p => ['', '1st', '2nd', '3rd', '4th'][p] || (p ? 'OT' : '');
+  // scoring times arrive as hh:mm:ss - drop the padded hours, drop the padded minute
+  const tidyClock = c => { const p = String(c || '').split(':'); if (p.length === 3) p.shift();
+    return p.length === 2 ? `${parseInt(p[0], 10) || 0}:${p[1]}` : String(c || ''); };
+
+  function wireBox(){
+    const box = $('p-box');
+    box.querySelectorAll('.bx-sw [data-side]').forEach(b => b.onclick = () => {
+      boxSide = b.dataset.side; box.innerHTML = boxHtml(); wireBox();
+    });
+    box.querySelectorAll('details.bx').forEach(d => {
+      d.addEventListener('toggle', () => rememberOpen(d.dataset.title, d.open));
+    });
+    const retry = box.querySelector('[data-boxretry]');
+    if (retry) retry.onclick = () => { boxFailed = false; box.innerHTML = boxHtml(); loadBox(true); };
+    box.querySelectorAll('[data-show]').forEach(b => b.onclick = () => FR.showScore(ev.id));
+  }
+
+  function renderReplay(){
+    const t = FR.rtitle(ev);
+    document.title = `${t} · NEC Front Row`;
+    $('title').textContent = t;
+    $('sub').textContent = [ev.sport, FR.day(ev.date), ev.label].filter(Boolean).join(' · ');
+    $('livePill').innerHTML = `<span class="pill final">${ev.kind === 'game' ? 'Replay' : ev.kind === 'show' ? 'Show' : ev.kind === 'classic' ? 'Classic' : 'Event'}</span>`;
+    document.querySelector('.stats').hidden = true;
+    const teams = ev.kind === 'game' ? `<dt>Teams</dt><dd>${esc(ev.a.name)}, ${esc(ev.h.name)}</dd>` : `<dt>From</dt><dd>${esc(ev.h.name)}</dd>`;
+    $('facts').innerHTML = `${ev.sport ? `<dt>Sport</dt><dd>${esc(ev.sport)}</dd>` : ''}<dt>Date</dt><dd>${esc(FR.day(ev.date))}</dd>${ev.dur ? `<dt>Length</dt><dd>${esc(FR.len(ev.dur))}</dd>` : ''}${teams}${ev.label ? `<dt>Note</dt><dd>${esc(ev.label)}</dd>` : ''}`;
+    $('toMulti').href = `/multiview.html?g=${encodeURIComponent(ev.id)},`;
+    start();
+  }
+  // Score / Team / Leaders content, including the spoiler-free cover. Used by both the
+  // page's side panel and the full-screen panel so the two can't drift apart.
+  const COVER = '<div class="spoilbox"><p><b>Scores are hidden.</b> Spoiler-free mode is on.</p><button class="btn primary" data-show>Show score for this game</button></div>';
+  const covered = () => FR.hidden(ev) && ev.status !== 'pre';
+  function statHtml(which){
+    if (covered()) return which === 'score' ? `<div class="st">${esc(label(ev))}</div>` + COVER : COVER;
+    return which === 'score' ? scoreTab() : teamTab();
+  }
+
+  // Nothing to show - say so instead of throwing and leaving a blank page.
+  function missing(){
+    const t = document.getElementById('title');
+    if (t) t.textContent = 'That video could not be found';
+    const s = document.getElementById('sub');
+    if (s) s.textContent = 'It may have been removed. Browse On Demand for the full library.';
+  }
+
+  function render(){
+    if (!ev) return missing();
+    if (ev.archive) return renderReplay();
+    document.querySelector('.stats').hidden = false;
+    const live = isLive(ev);
+    document.title = `${ev.a.name} at ${ev.h.name} · NEC Front Row`;
+    $('title').textContent = `${ev.a.name} at ${ev.h.name}`;
+    // Blank venue used to leave a stray comma: "Field Hockey · , Staten Island, NY"
+    $('sub').textContent = [ev.sport, [ev.venue, ev.city].filter(Boolean).join(', ')].filter(Boolean).join(' · ');
+    $('livePill').innerHTML = live ? pill(ev) : ev.status === 'final' ? '<span class="pill final">Replay</span>' : '';
+    /* No stats feed for this game means Team Stats and Stat Leaders have
+       nothing to show, so they go away rather than offering empty tabs - and
+       with them the stats button over the video, which would open an empty
+       panel. The Score tab is always worth having: it carries the teams. */
+    /* Tabs only when there is something behind them. A scoreboard can arrive
+       without team totals - the small file the scores come from does not carry
+       them - and an empty tab is worse than no tab. */
+    showStatTabs(!!(ev.hasStats && ev.stats && ev.stats.away && ev.stats.away.length));
+    // With no feed this panel is not a scoreboard - it is just telling you what
+    // is on - so it says so rather than heading an empty column "Score".
+    $('t-score').textContent = ev.hasStats ? 'Score' : "You're watching";
+    $('score').innerHTML = statHtml('score');
+    $('p-team').innerHTML = statHtml('team');
+    /* Only while the tab is actually showing. Re-drawing a hidden panel would
+       collapse whatever the viewer had open, every few seconds, out of sight,
+       so they would find it shut again the moment they looked. */
+    if (tab === 'box' || tab === 'score') {
+      if (boxData && isLive(ev)) loadBox(true);
+      else if (!boxData) { loadBox(); if (tab === 'box') { $('p-box').innerHTML = boxHtml(); wireBox(); } }
+    }
+    fillFsp();
+    document.querySelectorAll('.stats [data-show], #fsp [data-show]').forEach(b => b.onclick = () => FR.showScore(ev.id));
+    // A row is only worth its space if there is something in it.
+    $('facts').innerHTML = [
+      ev.sport        && `<dt>Sport</dt><dd>${esc(ev.sport)}</dd>`,
+      ev.kickoff      && `<dt>Game Time</dt><dd>${esc(time(ev.kickoff))}</dd>`,
+      ev.venue        && `<dt>Venue</dt><dd>${esc(ev.venue)}</dd>`,
+      ev.city         && `<dt>City</dt><dd>${esc(ev.city)}</dd>`,
+    ].filter(Boolean).join('');
+    $('toMulti').href = `/multiview.html?g=${encodeURIComponent(ev.id)},`;   // trailing comma = other windows start empty
+    if (watchable(ev)) start(); else waiting();
+  }
+
+  const more = () => {
+    if (!ev.archive) { $('h-more').textContent = 'More games today'; $('more').innerHTML = sorted(FR.events).filter(x => x.id !== ev.id).map(card).join(''); return; }
+    // replays: the same teams first, then more of the same sport
+    const keys = [ev.a.key, ev.h.key].filter(k => k !== 'nec');
+    const pool = FR.replayItems.filter(x => x.id !== ev.id);
+    const same = pool.filter(x => keys.includes(x.a.key) || keys.includes(x.h.key)).filter(x => !ev.sportKey || x.sportKey === ev.sportKey);
+    const sport = pool.filter(x => ev.sportKey && x.sportKey === ev.sportKey && !same.includes(x));
+    $('h-more').textContent = ev.sport ? `More ${ev.sport} on demand` : 'More on demand';
+    $('more').innerHTML = [...same.slice(0, 8), ...sport].slice(0, 16).map(FR.rcard).join('');
+  };
+  function switchTo(id){
+    const next = FR.byId(id); if (!next || next === ev) return;
+    FRPlayer.destroy(h); h = null; started = false; ev = next;
+    $('tile').querySelectorAll('.wait,.vmsg').forEach(n => n.remove());
+    $('tile').classList.remove('live-off', 'live-gone');
+    history.replaceState(null, '', '?e=' + encodeURIComponent(id));
+    render(); more(); tick.refresh();
+  }
+
+  const want = new URLSearchParams(location.search).get('e') || '';
+  // Old replay ids began with "r", and that letter used to say which list to load.
+  // Database ids are plain UUIDs, so the letter means nothing now: look in today's
+  // schedule first, then fall back to loading the on-demand library and looking there.
+  FR.load().then(list => {
+    if (FR.byId(want)) return list;
+    return FR.replays().then(() => list);
+  }).then(list => {
+    ev = FR.byId(want) || sorted(list).find(isLive) || sorted(list)[0];
+    if (!ev) return missing();
+    FR.on(() => { render(); more(); });
+  }).catch(() => missing());
+});
+</script>
+</body>
+</html>
